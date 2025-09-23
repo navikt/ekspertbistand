@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
-import App from "./App";
+import HealthPage from "./pages/HealthPage";
 
 it("shows health", async () => {
-  render(<App />);
+  render(<HealthPage />);
   expect(await screen.findByText(/Health: ok/i)).toBeInTheDocument();
 });

@@ -1,19 +1,13 @@
-import { useEffect, useState } from "react";
-import type { ApiHealth } from "shared";
+import { Routes, Route, Navigate } from "react-router-dom";
+import SoknadPage from "./pages/SoknadPage";
+import HealthPage from "./pages/HealthPage";
 
 export default function App() {
-  const [health, setHealth] = useState<ApiHealth | null>(null);
-
-  useEffect(() => {
-    fetch("/api/health")
-      .then((res) => res.json())
-      .then((data: ApiHealth) => setHealth(data));
-  }, []);
-
   return (
-    <div>
-      <h1>Ekspertbistand</h1>
-      <p>Health: {health?.status ?? "loading..."}</p>
-    </div>
+    <Routes>
+      <Route path="/" element={<SoknadPage />} />
+      <Route path="/health" element={<HealthPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
