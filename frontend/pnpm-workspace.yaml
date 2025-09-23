@@ -1,0 +1,8 @@
+packages:
+  - client
+  - server
+  - shared
+
+ignoredBuiltDependencies:
+  - '@swc/core'
+  - esbuild
