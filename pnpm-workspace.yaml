@@ -1,0 +1,7 @@
+packages:
+  - frontend/client
+  - frontend/server
+  - frontend/shared
+
+onlyBuiltDependencies:
+  - msw
