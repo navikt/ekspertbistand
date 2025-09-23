@@ -1,8 +1,5 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -10,10 +7,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true
-  },
-  "include": ["src"],
-  "references": [{ "path": "../shared" }]
+
+    "baseUrl": ".",
+    "paths": {
+      "shared": ["frontend/shared/src"]
+    }
+  }
 }

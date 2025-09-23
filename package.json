@@ -7,10 +7,10 @@
     "dev": "concurrently \"pnpm --filter ./frontend/client dev\" \"pnpm --filter ./frontend/server dev\"",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "lint": "eslint .",
+    "lint": "eslint frontend",
+    "lint:fix": "eslint frontend --fix",
     "format": "prettier --check .",
-    "format:fix": "prettier --write .",
-    "prepare": "husky"
+    "format:fix": "prettier --write ."
   },
   "devDependencies": {
     "@eslint/js": "9.36.0",
@@ -26,11 +26,11 @@
     "typescript-eslint": "8.44.1"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": [
+    "frontend/**/*.{ts,tsx,js,jsx}": [
       "eslint --fix",
       "prettier --write"
     ],
-    "*.{json,md,css,scss,md}": [
+    "frontend/**/*.{json,md,css,scss}": [
       "prettier --write"
     ]
   }
