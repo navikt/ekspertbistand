@@ -7,7 +7,8 @@ import prettier from "eslint-config-prettier";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist", "build", "node_modules", "backend/**"]),
+  // Ignore build artifacts and declaration files everywhere
+  globalIgnores(["**/dist/**", "**/build/**", "node_modules", "backend/**", "**/*.d.ts"]),
 
   // Default for everything
   {

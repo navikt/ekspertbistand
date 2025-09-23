@@ -36,3 +36,7 @@ Enkel oversikt over hvordan du kjører frontend lokalt.
 - Delte typer: `frontend/shared`-pakke
 - Testing: Vitest, Testing Library, Playwright (e2e), MSW
 - Kodekvalitet: ESLint og Prettier (husky + lint-staged)
+
+## Ressurser
+
+- NAVs «Golden Path» for frontend: https://aksel.nav.no/god-praksis/artikler/golden-path-frontend
