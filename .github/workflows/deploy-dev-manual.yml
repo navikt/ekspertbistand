@@ -1,0 +1,67 @@
+name: Manuell deploy dev frontend
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy-dev:
+    name: Build image and deploy dev-gcp
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to NAIS (sets registry and OIDC)
+        id: login
+        uses: nais/login@v0
+        with:
+          team: fager 
+
+      - name: Set image name
+        id: vars
+        run: |
+          echo "IMAGE=${{ steps.login.outputs.registry }}/${{ github.event.repository.name }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image (Chainguard Node base)
+        run: |
+          docker build \
+            --build-arg BASE_PATH=/ekspertbistand \
+            -t "${{ steps.vars.outputs.IMAGE }}" \
+            .
+
+      - name: Push image
+        run: docker push "${{ steps.vars.outputs.IMAGE }}"
+
+      - name: Update tags (dev, latest)
+        env:
+          IMAGE: ${{ steps.vars.outputs.IMAGE }}
+          REGISTRY: ${{ steps.login.outputs.registry }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          IMAGE_BASE="${REGISTRY}/${REPO}"
+          echo "Tagging ${IMAGE} as: ${IMAGE_BASE}:dev and ${IMAGE_BASE}:latest"
+          docker tag "${IMAGE}" "${IMAGE_BASE}:dev"
+          docker tag "${IMAGE}" "${IMAGE_BASE}:latest"
+          docker push "${IMAGE_BASE}:dev"
+          docker push "${IMAGE_BASE}:latest"
+
+      - name: Deploy dev-gcp
+        uses: nais/deploy/actions/deploy@v2
+        env:
+          CLUSTER: dev-gcp
+          RESOURCE: nais/dev-gcp.yaml
+          PRINT_PAYLOAD: "true"
+          VAR: commit=${{ github.sha }},image=${{ steps.vars.outputs.IMAGE }}
+          REF: ${{ github.sha }}

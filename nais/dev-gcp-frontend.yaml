@@ -1,0 +1,39 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: ekspertbistand
+  namespace: arbeidsgiver
+  labels:
+    team: arbeidsgiver
+spec:
+  image: {{ image }}
+  port: 4000
+  ingresses:
+    - https://arbeidsgiver.intern.dev.nav.no/ekspertbistand
+  env:
+    - name: BASE_PATH
+      value: "/ekspertbistand"
+
+  replicas:
+    min: 2
+    max: 2
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  liveness:
+    path: /ekspertbistand/api/health
+    initialDelay: 10
+    periodSeconds: 10
+
+  readiness:
+    path: /ekspertbistand/api/health
+    initialDelay: 3
+    periodSeconds: 5
+
+  accessPolicy: {}
