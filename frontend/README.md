@@ -28,6 +28,25 @@ Enkel oversikt over hvordan du kjører frontend lokalt.
 - Format: `pnpm format`
 - Typecheck: `pnpm typecheck`
 
+## Lokalt med Docker Compose
+
+- Kopier miljøvariabler: `cp .env.example .env` (rediger ved behov)
+- Bygg og start: `docker compose up --build`
+- Kjør i bakgrunnen: `docker compose up -d --build`
+- Stopp og rydd: `docker compose down`
+
+### Miljøvariabler
+
+- `PORT`: standard `4000` (eksponeres som `http://localhost:PORT`)
+- `BASE_PATH`: standard `/` (bruk f.eks. `/ekspertbistand` for sub-path)
+- `NODE_AUTH_TOKEN`: GitHub Packages token for å hente `@navikt`-pakker under build (kun nødvendig ved første install)
+
+### Verifisering
+
+- App: `http://localhost:4000/` (eller `http://localhost:4000/ekspertbistand/` hvis `BASE_PATH` settes)
+- Health: `curl -s http://localhost:4000/api/health` (eller `/ekspertbistand/api/health`)
+- Logger: `docker compose logs -f`
+
 ## Teknologier
 
 - Bygg/verktøy: `pnpm` workspaces, Vite, TypeScript, `tsx`

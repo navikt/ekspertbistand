@@ -1,0 +1,19 @@
+services:
+  app:
+    image: ekspertbistand:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_PATH: ${BASE_PATH:-/}
+        BUILDER_IMAGE: ${BUILDER_IMAGE:-node:20}
+        RUNNER_IMAGE: ${RUNNER_IMAGE:-cgr.dev/chainguard/node:latest}
+        NODE_AUTH_TOKEN: ${NODE_AUTH_TOKEN}
+    container_name: ekspertbistand
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-4000}
+      BASE_PATH: ${BASE_PATH:-/}
+    ports:
+      - "${PORT:-4000}:${PORT:-4000}"
+    restart: unless-stopped
