@@ -1,0 +1,30 @@
+# TODO
+- [x] maven build runnable for cloud native
+- [x] set up Dockerfile with chaingguard
+- [x] set up texas and authentication, check latest practices
+- [x] set up logback with logstash and masking
+- [x] test api with mocked auth / no auth
+  - [x] option1 stub authentication middleware in the test application
+    - simplest, also we dont actually need to test the middleware
+  - [ ] option2 mock texas client to always return a valid user.
+    - more complex, but also more realistic, the texas client code is also tested
+  - [ ] option3 create a mock server that simulates texas responses and point to its url
+    - most complex, but also most realistic, the texas client code is also tested including serdes and error handling
+- [x] set up docker compose with postgres
+- [x] add health endpoint
+- [x] add metrics endpoint
+- [x] add postgres and migration
+  - exposed with R2DBC
+- [x] integrate with arbeidsgiver-altinn-tilganger
+- [x] test with integration to other services like arbeidsgiver-altinn-tilganger, arena, gosys etc
+  - [x] option 1 use externalServices available in ktor server tests
+    - simplest, requires the client to be passed from test to app code
+  - [ ] option 2 use mock server like wiremock or roll our own
+    - more complex, but also more realistic, the client code is also tested including serdes and error handling
+- [ ] validate input using shared json schema
+- [ ] postgres backed event bus for work coordination
+- [ ] set up github actions for build and test
+- [ ] teamlogs
+  - with no masking
+  - no marker routing, all logs go to both,
+  - maskingappender masks all forms of pii
