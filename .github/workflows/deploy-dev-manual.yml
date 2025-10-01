@@ -37,6 +37,7 @@ jobs:
       - name: Build image (Chainguard Node base)
         run: |
           docker build \
+            --build-arg NODE_AUTH_TOKEN=${{ secrets.READER_TOKEN }} \
             --build-arg BASE_PATH=/ekspertbistand \
             -t "${{ steps.vars.outputs.IMAGE }}" \
             .
