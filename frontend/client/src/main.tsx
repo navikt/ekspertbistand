@@ -14,7 +14,10 @@ import { Alert, Button } from "@navikt/ds-react";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter basename={routerBasename}>
+    <BrowserRouter
+      basename={routerBasename}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <Theme theme="auto">
         <FaroErrorBoundary
           fallback={

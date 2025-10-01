@@ -1,5 +1,7 @@
-import React, { useEffect } from "react";
+import React from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowRightIcon } from "@navikt/aksel-icons";
+import { type SubmitErrorHandler, type SubmitHandler, useForm } from "react-hook-form";
 import {
   Accordion,
   Bleed,
@@ -10,21 +12,46 @@ import {
   Checkbox,
   GuidePanel,
   Heading,
+  ErrorSummary,
   Link,
   List,
-  Page,
   VStack,
 } from "@navikt/ds-react";
-import { injectDecoratorClientSide, setAvailableLanguages } from "@navikt/nav-dekoratoren-moduler";
-import type { DecoratorLanguageOption } from "@navikt/nav-dekoratoren-moduler";
+import DecoratedPage from "../components/DecoratedPage";
 
 export default function SoknadPage() {
-  useDekorator();
+  const navigate = useNavigate();
+  const errorSummaryRef = React.useRef<HTMLDivElement>(null);
+
+  type IntroInputs = {
+    bekreftRiktige: boolean;
+    bekreftSamraad: boolean;
+  };
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<IntroInputs>({
+    reValidateMode: "onBlur",
+    shouldFocusError: false,
+    defaultValues: { bekreftRiktige: false, bekreftSamraad: false },
+  });
+
+  const onValid: SubmitHandler<IntroInputs> = () => navigate("/skjema");
+  const onInvalid: SubmitErrorHandler<IntroInputs> = () => {
+    errorSummaryRef.current?.focus();
+  };
 
   return (
-    <Page footer={<Footer />}>
-      <Header />
-      <Page.Block width="text" gutters>
+    <DecoratedPage
+      blockProps={{ width: "text", gutters: true }}
+      languages={[
+        { locale: "nb", url: "https://www.nav.no" },
+        { locale: "en", url: "https://www.nav.no/en" },
+      ]}
+    >
+      <form onSubmit={handleSubmit(onValid, onInvalid)}>
         <VStack as="main" gap="8" data-aksel-template="form-intropage-v3">
           <VStack gap="3">
             <Bleed asChild marginInline={{ lg: "32" }}>
@@ -47,65 +74,30 @@ export default function SoknadPage() {
 
           <GuidePanel poster>
             <Heading level="2" size="medium" spacing>
-              Hei, [Navn Navnesen]!
+              Hei!
             </Heading>
             <BodyLong spacing>
-              Seksjonen GuidePanel brukes til en kort, overordnet veiledning til søkeren. Seksjonen
-              henter inn søkerens navn, og gir en komprimert forklaring av pengestøtten, tiltaket
-              eller hjelpemiddelet. Denne teksten hentes fra ingressen til produktsiden på nav.no.
+              Tilskuddet dekker hjelp til arbeidsgiver og ansatt fra en nøytral ekspert som har
+              kompetanse på sykefravær og arbeidsmiljø.
             </BodyLong>
             <BodyLong>
-              Avslutt teksten i seksjonen med en lenke til produktsiden på nav.no som åpnes i en ny
-              fane.
+              Les mer om tilskudd til{" "}
+              <Link href="https://www.nav.no/ekspertbistand">ekspertbistand</Link>.
             </BodyLong>
           </GuidePanel>
           <div>
             <Heading level="2" size="large" spacing>
               Før du søker
             </Heading>
-            <BodyLong spacing>
-              Denne seksjonen brukes til å gi søkerne informasjon de vil ha stor nytte av før de går
-              i gang med søknaden. Eksempler på nyttig informasjon:
-            </BodyLong>
             <List>
               <List.Item>
-                Oppgaver brukeren må ha gjort før de søker. {""}
-                <i>Du må ha meldt deg som arbeidssøker før du kan søke om dagpenger.</i>
+                Du har snakket med Nav og den ansatte og dere er enige om at det er hensiktsmessig
+                med ekspertbistand.
               </List.Item>
               <List.Item>
-                Dokumentasjon brukeren kan bli bedt om. {""}
-                <i>
-                  Noen av opplysningene du gir underveis vil du bli bedt om å dokumentere. Du vil
-                  trenge xx og xx for å fullføre denne søknaden.
-                </i>
-              </List.Item>
-              <List.Item>
-                Automatisk lagring. {""}
-                <i>
-                  Vi lagrer svarene dine (xx timer) mens du fyller ut, så du kan ta pauser
-                  underveis.
-                </i>
-              </List.Item>
-              <List.Item>
-                Antall steg og estimert tidsbruk. {""}
-                <i>Det er XX steg i søknaden, og du kan regne med å bruke ca. XX minutter.</i>
-              </List.Item>
-              <List.Item>
-                Søknadsfrister. <i>Husk at du må søke om xx innen xx dager.</i>
-              </List.Item>
-              <List.Item>
-                Saksbehandlingstider og info om gyldighet, krav osv. {""}
-                <i>
-                  Vi bruker ca. xx uker på å behandle søknaden din. Husk at du må sende meldekort xx
-                  ofte selv om du ikke har fått svar på søknaden din om dagpenger ennå.
-                </i>
+                Du har vet hvilken ekspert du ønsker å bruke og hvilken hjelp denne kan tilby.
               </List.Item>
             </List>
-            <BodyLong>
-              For annen, utfyllende informasjon om søknaden bør du lenke direkte til
-              søknadskapittelet i produktsiden, som {""}
-              <Link href="https://www.nav.no/dagpenger#sok">dette eksempelet for dagpenger</Link>.
-            </BodyLong>
           </div>
           <div>
             <Accordion>
@@ -113,8 +105,7 @@ export default function SoknadPage() {
                 <Accordion.Header>Informasjon vi henter om deg</Accordion.Header>
                 <Accordion.Content>
                   <BodyLong>
-                    Her skal det så informasjon om hvor vi vil hente opplysninger om søkeren og hva
-                    slags opplysninger vi henter.
+                    Vi henter ut hvilke virksomheter du har Altinn enkeltrettighten “XX”
                   </BodyLong>
                 </Accordion.Content>
               </Accordion.Item>
@@ -124,15 +115,6 @@ export default function SoknadPage() {
                   <BodyLong>
                     Her skal det stå informasjon om hvordan vi behandler personopplysningene til
                     søkeren.
-                  </BodyLong>
-                </Accordion.Content>
-              </Accordion.Item>
-              <Accordion.Item>
-                <Accordion.Header>Automatisk saksbehandling</Accordion.Header>
-                <Accordion.Content>
-                  <BodyLong>
-                    Her skal det stå informasjon om hva automatisk behandling er, hva det betyr for
-                    søkeren og informasjon om søkerens rettigheter ved automatisk avslag.
                   </BodyLong>
                 </Accordion.Content>
               </Accordion.Item>
@@ -158,21 +140,52 @@ export default function SoknadPage() {
               </Link>
             </BodyLong>
             <Box paddingBlock="4 8">
-              <Checkbox>Jeg bekrefter at jeg vil svare så riktig som jeg kan.</Checkbox>
+              <Checkbox
+                id="bekreftRiktige"
+                error={!!errors.bekreftRiktige}
+                {...register("bekreftRiktige", {
+                  required: "Du må bekrefte at du vil svare så riktig som mulig.",
+                })}
+              >
+                Jeg bekrefter at jeg vil svare så riktig som jeg kan.
+              </Checkbox>
+              <Checkbox
+                id="bekreftSamraad"
+                error={!!errors.bekreftSamraad}
+                {...register("bekreftSamraad", {
+                  required: "Du må bekrefte at søknaden fylles ut i samråd med den ansatte.",
+                })}
+              >
+                Jeg bekrefter at søknaden fylles ut i samråd med den ansatte. Arbeidsgiver og ansatt
+                er enige om at ekspertbistand er hensiktsmessig.
+              </Checkbox>
             </Box>
-            <Button variant="primary" icon={<ArrowRightIcon aria-hidden />} iconPosition="right">
-              Start søknad
-            </Button>
+            <VStack gap="6">
+              {Object.values(errors).length > 0 && (
+                <ErrorSummary
+                  ref={errorSummaryRef}
+                  heading="Du må rette disse feilene før du kan fortsette:"
+                >
+                  {Object.entries(errors).map(([key, error]) => (
+                    <ErrorSummary.Item key={key} href={`#${key}`}>
+                      {error?.message as string}
+                    </ErrorSummary.Item>
+                  ))}
+                </ErrorSummary>
+              )}
+              <Button
+                type="submit"
+                variant="primary"
+                icon={<ArrowRightIcon aria-hidden />}
+                iconPosition="right"
+              >
+                Start søknad
+              </Button>
+            </VStack>
           </div>
         </VStack>
-      </Page.Block>
-      <Env
-        languages={[
-          { locale: "nb", url: "https://www.nav.no" },
-          { locale: "en", url: "https://www.nav.no/en" },
-        ]}
-      />
-    </Page>
+      </form>
+    </DecoratedPage>
   );
 }
 
@@ -271,34 +284,3 @@ const ApplicationPictogram = (props: React.SVGProps<SVGSVGElement>) => (
     />
   </svg>
 );
-
-function Header() {
-  return <div id="decorator-header" />;
-}
-
-function Footer() {
-  return <div id="decorator-footer" />;
-}
-
-function Env({ languages }: { languages?: DecoratorLanguageOption[] }) {
-  useEffect(() => {
-    if (!languages || import.meta.env.MODE === "test") return;
-    setAvailableLanguages(languages);
-  }, [languages]);
-  return null;
-}
-
-function useDekorator() {
-  useEffect(() => {
-    if (import.meta.env.MODE === "test") return;
-
-    const env = import.meta.env.PROD ? "prod" : "dev";
-    injectDecoratorClientSide({
-      env,
-      params: {
-        context: "privatperson",
-        simple: true,
-      },
-    });
-  }, []);
-}
