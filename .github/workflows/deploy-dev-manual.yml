@@ -62,7 +62,7 @@ jobs:
         uses: nais/deploy/actions/deploy@v2
         env:
           CLUSTER: dev-gcp
-          RESOURCE: nais/dev-gcp.yaml
+          RESOURCE: nais/dev-gcp-frontend.yaml
           PRINT_PAYLOAD: "true"
           VAR: commit=${{ github.sha }},image=${{ steps.vars.outputs.IMAGE }}
           REF: ${{ github.sha }}
