@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/soknad.schema.json",
+  "title": "Søknadsskjema",
+  "type": "object",
+  "properties": {
+    "virksomhet": {
+      "type": "object",
+      "properties": {
+        "virksomhetsnummer": {
+          "type": "string",
+          "pattern": "^\\d{9}$",
+          "errorMessage": {
+            "pattern": "Virksomhetsnummer må være 9 siffer."
+          }
+        },
+        "kontaktperson": {
+          "type": "object",
+          "properties": {
+            "navn": {
+              "type": "string",
+              "minLength": 1,
+              "errorMessage": { "minLength": "Du må fylle ut navn." }
+            },
+            "epost": {
+              "type": "string",
+              "format": "email",
+              "errorMessage": { "format": "Ugyldig e-postadresse." }
+            },
+            "telefon": {
+              "type": "string",
+              "pattern": "^\\d{8}$",
+              "errorMessage": { "pattern": "Telefonnummer må være 8 siffer." }
+            }
+          },
+          "required": ["navn", "epost", "telefon"],
+          "additionalProperties": false,
+          "errorMessage": {
+            "required": {
+              "navn": "Du må fylle ut navn.",
+              "epost": "Du må fylle ut e-post.",
+              "telefon": "Du må fylle ut telefonnummer."
+            }
+          }
+        }
+      },
+      "required": ["virksomhetsnummer", "kontaktperson"],
+      "additionalProperties": false,
+      "errorMessage": {
+        "required": {
+          "virksomhetsnummer": "Du må fylle ut virksomhetsnummer.",
+          "kontaktperson": "Kontaktperson mangler."
+        }
+      }
+    },
+    "ansatt": {
+      "type": "object",
+      "properties": {
+        "fodselsnummer": {
+          "type": "string",
+          "pattern": "^\\d{11}$",
+          "errorMessage": { "pattern": "Fødselsnummer må være 11 siffer." }
+        },
+        "navn": {
+          "type": "string",
+          "minLength": 1,
+          "errorMessage": { "minLength": "Du må fylle ut navn." }
+        }
+      },
+      "required": ["fodselsnummer", "navn"],
+      "additionalProperties": false,
+      "errorMessage": {
+        "required": {
+          "fodselsnummer": "Du må fylle ut fødselsnummer.",
+          "navn": "Du må fylle ut navn."
+        }
+      }
+    },
+    "ekspert": {
+      "type": "object",
+      "properties": {
+        "navn": {
+          "type": "string",
+          "minLength": 1,
+          "errorMessage": { "minLength": "Du må fylle ut navn på ekspert." }
+        },
+        "virksomhet": {
+          "type": "string",
+          "minLength": 1,
+          "errorMessage": { "minLength": "Du må fylle ut tilknyttet virksomhet." }
+        },
+        "kompetanse": {
+          "type": "string",
+          "minLength": 1,
+          "errorMessage": { "minLength": "Du må beskrive ekspertens kompetanse." }
+        },
+        "problemstilling": {
+          "type": "string",
+          "minLength": 1,
+          "errorMessage": { "minLength": "Du må beskrive problemstillingen." }
+        }
+      },
+      "required": ["navn", "virksomhet", "kompetanse", "problemstilling"],
+      "additionalProperties": false,
+      "errorMessage": {
+        "required": {
+          "navn": "Du må fylle ut navn på ekspert.",
+          "virksomhet": "Du må fylle ut tilknyttet virksomhet.",
+          "kompetanse": "Du må beskrive ekspertens kompetanse.",
+          "problemstilling": "Du må beskrive problemstillingen."
+        }
+      }
+    },
+    "tiltak": {
+      "type": "object",
+      "properties": {
+        "forTilrettelegging": {
+          "type": "string",
+          "minLength": 1,
+          "errorMessage": { "minLength": "Du må beskrive tiltak for tilrettelegging." }
+        }
+      },
+      "required": ["forTilrettelegging"],
+      "additionalProperties": false,
+      "errorMessage": {
+        "required": { "forTilrettelegging": "Du må beskrive tiltak for tilrettelegging." }
+      }
+    },
+    "bestilling": {
+      "type": "object",
+      "properties": {
+        "kostnad": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 25000,
+          "errorMessage": {
+            "type": "Kostnad må være et tall.",
+            "minimum": "Kostnad kan ikke være negativ.",
+            "maximum": "Maksimalt beløp er 25 000."
+          }
+        },
+        "startDato": {
+          "type": "string",
+          "format": "date-time",
+          "errorMessage": {
+            "type": "Du må velge en dato.",
+            "format": "Ugyldig dato."
+          }
+        }
+      },
+      "required": ["kostnad", "startDato"],
+      "additionalProperties": false,
+      "errorMessage": {
+        "required": {
+          "kostnad": "Du må anslå kostnad.",
+          "startDato": "Du må velge en dato."
+        }
+      }
+    },
+    "nav": {
+      "type": "object",
+      "properties": {
+        "kontakt": {
+          "type": "string",
+          "minLength": 1,
+          "errorMessage": { "minLength": "Du må fylle ut hvem i Nav du har drøftet med." }
+        }
+      },
+      "required": ["kontakt"],
+      "additionalProperties": false,
+      "errorMessage": {
+        "required": { "kontakt": "Du må fylle ut hvem i Nav du har drøftet med." }
+      }
+    }
+  },
+  "required": ["virksomhet", "ansatt", "ekspert", "tiltak", "bestilling", "nav"],
+  "additionalProperties": false
+}

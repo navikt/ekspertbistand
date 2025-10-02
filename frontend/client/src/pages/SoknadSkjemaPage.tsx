@@ -1,6 +1,14 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { type SubmitHandler, type SubmitErrorHandler, useForm } from "react-hook-form";
+import {
+  type SubmitHandler,
+  type SubmitErrorHandler,
+  type FieldError,
+  useForm,
+} from "react-hook-form";
+import type { JSONSchemaType } from "ajv";
+import { ajvResolver } from "@hookform/resolvers/ajv";
+import soknadSchema from "shared/schemas/soknad.schema.json";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
   Button,
@@ -21,21 +29,34 @@ import {
 import DecoratedPage from "../components/DecoratedPage";
 
 type Inputs = {
-  kontaktpersonNavn: string;
-  kontaktpersonEpost: string;
-  kontaktpersonTelefon: string;
-
-  ansattFodselsnummer: string;
-  ansattNavn: string;
-
-  ekspertNavn: string;
-  ekspertVirksomhet: string;
-  ekspertKompetanse: string;
-  ekspertProblemstilling: string;
-  tiltakForTilrettelegging: string;
-  kostnad: number | string;
-  startDato: Date | null;
-  navKontakt: string;
+  virksomhet: {
+    virksomhetsnummer: string;
+    kontaktperson: {
+      navn: string;
+      epost: string;
+      telefon: string;
+    };
+  };
+  ansatt: {
+    fodselsnummer: string;
+    navn: string;
+  };
+  ekspert: {
+    navn: string;
+    virksomhet: string;
+    kompetanse: string;
+    problemstilling: string;
+  };
+  tiltak: {
+    forTilrettelegging: string;
+  };
+  bestilling: {
+    kostnad: number | string;
+    startDato: string | null;
+  };
+  nav: {
+    kontakt: string;
+  };
 };
 
 export default function SoknadSkjemaPage() {
@@ -54,8 +75,11 @@ export default function SoknadSkjemaPage() {
   } = useForm<Inputs>({
     reValidateMode: "onBlur",
     shouldFocusError: false,
+    resolver: ajvResolver(soknadSchema as JSONSchemaType<Inputs>, { validateSchema: false }),
     defaultValues: {
-      startDato: today,
+      bestilling: {
+        startDato: today.toISOString(),
+      },
     },
   });
 
@@ -63,7 +87,7 @@ export default function SoknadSkjemaPage() {
     defaultSelected: today,
     fromDate: today,
     onDateChange: (date) => {
-      setValue("startDato", date ?? null, {
+      setValue("bestilling.startDato", date ? date.toISOString() : null, {
         shouldValidate: true,
         shouldDirty: true,
         shouldTouch: true,
@@ -71,10 +95,24 @@ export default function SoknadSkjemaPage() {
     },
   });
 
-  const startDatoReg = register("startDato", {
-    required: "Du må velge en dato.",
-  });
-  const startDatoValue = watch("startDato");
+  const startDatoReg = register("bestilling.startDato");
+  const startDatoValue = watch("bestilling.startDato");
+
+  const flattenErrors = (obj: unknown, prefix = ""): Array<{ name: string; message: string }> => {
+    if (!obj || typeof obj !== "object") return [];
+    const out: Array<{ name: string; message: string }> = [];
+    for (const [key, val] of Object.entries(obj as Record<string, unknown>)) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      if (!val || typeof val !== "object") continue;
+      const msg = (val as { message?: unknown }).message;
+      if (msg) {
+        out.push({ name: path, message: String(msg) });
+        continue;
+      }
+      out.push(...flattenErrors(val, path));
+    }
+    return out;
+  };
 
   const onValidSubmit: SubmitHandler<Inputs> = (data) => {
     console.info("Søknadsskjema data", data);
@@ -129,39 +167,33 @@ export default function SoknadSkjemaPage() {
           <Fieldset legend="Kontaktperson i virksomheten" hideLegend>
             <VStack gap="6">
               <TextField
-                id="kontaktpersonNavn"
-                label="Navn"
-                error={errors.kontaktpersonNavn?.message}
-                {...register("kontaktpersonNavn", {
-                  required: "Du må fylle ut navn.",
-                })}
+                id="virksomhet.virksomhetsnummer"
+                label="Virksomhetsnummer"
+                htmlSize={9}
+                inputMode="numeric"
+                error={errors.virksomhet?.virksomhetsnummer?.message}
+                {...register("virksomhet.virksomhetsnummer")}
               />
               <TextField
-                id="kontaktpersonEpost"
+                id="virksomhet.kontaktperson.navn"
+                label="Navn"
+                error={errors.virksomhet?.kontaktperson?.navn?.message}
+                {...register("virksomhet.kontaktperson.navn")}
+              />
+              <TextField
+                id="virksomhet.kontaktperson.epost"
                 label="E-post"
                 type="email"
-                error={errors.kontaktpersonEpost?.message}
-                {...register("kontaktpersonEpost", {
-                  required: "Du må fylle ut e-post.",
-                  pattern: {
-                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                    message: "Ugyldig e-postadresse.",
-                  },
-                })}
+                error={errors.virksomhet?.kontaktperson?.epost?.message}
+                {...register("virksomhet.kontaktperson.epost")}
               />
               <TextField
-                id="kontaktpersonTelefon"
+                id="virksomhet.kontaktperson.telefon"
                 label="Telefonnummer"
                 inputMode="numeric"
                 htmlSize={8}
-                error={errors.kontaktpersonTelefon?.message}
-                {...register("kontaktpersonTelefon", {
-                  required: "Du må fylle ut telefonnummer.",
-                  pattern: {
-                    value: /^\d{8}$/,
-                    message: "Telefonnummer må være 8 siffer.",
-                  },
-                })}
+                error={errors.virksomhet?.kontaktperson?.telefon?.message}
+                {...register("virksomhet.kontaktperson.telefon")}
               />
             </VStack>
           </Fieldset>
@@ -172,25 +204,17 @@ export default function SoknadSkjemaPage() {
           <Fieldset legend="Ansatt" hideLegend>
             <VStack gap="6">
               <TextField
-                id="ansattFodselsnummer"
+                id="ansatt.fodselsnummer"
                 label="Fødselsnummer"
                 htmlSize={11}
-                error={errors.ansattFodselsnummer?.message}
-                {...register("ansattFodselsnummer", {
-                  required: "Du må fylle ut fødselsnummer.",
-                  pattern: {
-                    value: /^\d{11}$/,
-                    message: "Fødselsnummer må være 11 siffer.",
-                  },
-                })}
+                error={errors.ansatt?.fodselsnummer?.message}
+                {...register("ansatt.fodselsnummer")}
               />
               <TextField
-                id="ansattNavn"
+                id="ansatt.navn"
                 label="Navn"
-                error={errors.ansattNavn?.message}
-                {...register("ansattNavn", {
-                  required: "Du må fylle ut navn.",
-                })}
+                error={errors.ansatt?.navn?.message}
+                {...register("ansatt.navn")}
               />
             </VStack>
           </Fieldset>
@@ -204,73 +228,58 @@ export default function SoknadSkjemaPage() {
           <Fieldset legend="Ekspert" hideLegend>
             <VStack gap="6">
               <TextField
-                id="ekspertNavn"
+                id="ekspert.navn"
                 label="Navn"
-                error={errors.ekspertNavn?.message}
-                {...register("ekspertNavn", {
-                  required: "Du må fylle ut navn på ekspert.",
-                })}
+                error={errors.ekspert?.navn?.message}
+                {...register("ekspert.navn")}
               />
               <TextField
-                id="ekspertVirksomhet"
+                id="ekspert.virksomhet"
                 label="Tilknyttet virksomhet"
-                error={errors.ekspertVirksomhet?.message}
-                {...register("ekspertVirksomhet", {
-                  required: "Du må fylle ut tilknyttet virksomhet.",
-                })}
+                error={errors.ekspert?.virksomhet?.message}
+                {...register("ekspert.virksomhet")}
               />
               <TextField
-                id="ekspertKompetanse"
+                id="ekspert.kompetanse"
                 label="Kompetanse"
                 placeholder="f.eks. psykolog, ergoterapeut, fysioterapeut"
-                error={errors.ekspertKompetanse?.message}
-                {...register("ekspertKompetanse", {
-                  required: "Du må beskrive ekspertens kompetanse.",
-                })}
+                error={errors.ekspert?.kompetanse?.message}
+                {...register("ekspert.kompetanse")}
               />
               <Textarea
-                id="ekspertProblemstilling"
+                id="ekspert.problemstilling"
                 label="Beskriv problemstillingen som eksperten skal bistå med"
                 placeholder="Sykefraværshistorikk, arbeidsgiver ..."
-                error={errors.ekspertProblemstilling?.message}
-                {...register("ekspertProblemstilling", {
-                  required: "Du må beskrive problemstillingen.",
-                })}
+                error={errors.ekspert?.problemstilling?.message}
+                {...register("ekspert.problemstilling")}
               />
               <Textarea
-                id="tiltakForTilrettelegging"
+                id="tiltak.forTilrettelegging"
                 label="Hvilke tiltak for tilrettelegging har dere allerede gjort, vurdert eller forsøkt?"
                 placeholder="f.eks. fleksibel arbeidstid, hjemmekontor, tilpassing av arbeidsoppgaver, hjelpemiddel, opplæring, ekstra oppfølging."
-                error={errors.tiltakForTilrettelegging?.message}
-                {...register("tiltakForTilrettelegging", {
-                  required: "Du må beskrive tiltak for tilrettelegging.",
-                })}
+                error={errors.tiltak?.forTilrettelegging?.message}
+                {...register("tiltak.forTilrettelegging")}
               />
               <TextField
-                id="kostnad"
+                id="bestilling.kostnad"
                 label="Anslå kostnad for ekspertbistand"
                 type="number"
                 inputMode="numeric"
                 max={25000}
-                error={errors.kostnad?.message}
-                {...register("kostnad", {
-                  required: "Du må anslå kostnad.",
-                  valueAsNumber: true,
-                  min: { value: 0, message: "Kostnad kan ikke være negativ." },
-                  max: { value: 25000, message: "Maksimalt beløp er 25 000." },
-                })}
+                error={(errors.bestilling?.kostnad as FieldError | undefined)?.message}
+                {...register("bestilling.kostnad", { valueAsNumber: true })}
               />
               <div>
                 <Box paddingBlock="0">
                   <DatePicker {...datepickerProps}>
                     <DatePicker.Input
                       {...inputProps}
-                      id="startDato"
+                      id="bestilling.startDato"
                       label="Fra hvilken dato skal ekspertbistanden benyttes?"
-                      error={errors.startDato?.message}
+                      error={errors.bestilling?.startDato?.message}
                       onBlur={(e) => {
                         inputProps.onBlur?.(e);
-                        trigger("startDato");
+                        trigger("bestilling.startDato");
                       }}
                     />
                   </DatePicker>
@@ -278,16 +287,16 @@ export default function SoknadSkjemaPage() {
                     type="hidden"
                     name={startDatoReg.name}
                     ref={startDatoReg.ref}
-                    value={startDatoValue ? (startDatoValue as Date).toISOString() : ""}
+                    value={startDatoValue ? String(startDatoValue) : ""}
                     readOnly
                   />
                 </Box>
               </div>
               <TextField
-                id="navKontakt"
+                id="nav.kontakt"
                 label="Hvem i Nav har du drøftet behovet for ekspertbistand i denne saken med?"
-                error={errors.navKontakt?.message}
-                {...register("navKontakt", {
+                error={errors.nav?.kontakt?.message}
+                {...register("nav.kontakt", {
                   required: "Du må fylle ut hvem i Nav du har drøftet med.",
                 })}
               />
@@ -299,9 +308,9 @@ export default function SoknadSkjemaPage() {
               ref={errorSummaryRef}
               heading="Du må rette disse feilene før du kan fortsette:"
             >
-              {Object.entries(errors).map(([key, error]) => (
-                <ErrorSummary.Item key={key} href={`#${key}`}>
-                  {error?.message as string}
+              {flattenErrors(errors).map(({ name, message }) => (
+                <ErrorSummary.Item key={name} href={`#${name}`}>
+                  {message}
                 </ErrorSummary.Item>
               ))}
             </ErrorSummary>

@@ -1,9 +1,9 @@
 import React, { useEffect } from "react";
-import { Page, PageBlock } from "@navikt/ds-react";
+import { Page } from "@navikt/ds-react";
 import { injectDecoratorClientSide, setAvailableLanguages } from "@navikt/nav-dekoratoren-moduler";
 import type { DecoratorLanguageOption } from "@navikt/nav-dekoratoren-moduler";
 
-type BlockProps = React.ComponentProps<typeof PageBlock>;
+type BlockProps = React.ComponentProps<typeof Page.Block>;
 
 type DecoratedPageProps = {
   children: React.ReactNode;
