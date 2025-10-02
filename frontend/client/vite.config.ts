@@ -1,5 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from "vite";
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react-swc";
 
 // https://vite.dev/config/
@@ -10,6 +11,12 @@ export default defineConfig(() => {
   return {
     base,
     plugins: [react()],
+    resolve: {
+      alias: {
+        // Mirror tsconfig path alias for shared code
+        shared: fileURLToPath(new URL("../shared/src", import.meta.url)),
+      },
+    },
     server: {
       proxy: {
         "/api": "http://localhost:4000",
