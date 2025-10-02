@@ -10,6 +10,7 @@ suspend fun main() {
     suspendTransaction(TestDatabase.config.database) {
         MigrationUtils.generateMigrationScript(
             SkjemaTable,
+            UtkastTable,
             scriptDirectory = "backend/src/main/resources/db/migration",
             scriptName = "V1__init_skjema",
         )

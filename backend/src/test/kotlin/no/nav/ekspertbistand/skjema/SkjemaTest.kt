@@ -28,10 +28,138 @@ import kotlin.test.fail
 class SkjemaTest {
 
     @Test
+    fun `CRUD utkast`() = runTest {
+        // application setup
+        val dbConfig = TestDatabase.initialize()
+        testApplication {
+            mockAltinnTilganger(
+                AltinnTilgangerClientResponse(
+                    isError = false,
+                    hierarki = emptyList(),
+                    orgNrTilTilganger = mapOf(
+                        "1337" to setOf("5384:1", "nav_ekspertbistand_soknad")
+                    ),
+                    tilgangTilOrgNr = mapOf(
+                        "5384:1" to setOf("1337"),
+                        "nav_ekspertbistand_soknad" to setOf("1337"),
+                    )
+                )
+            )
+            client = createClient {
+                install(ContentNegotiation) {
+                    json()
+                }
+            }
+            val altinnTilgangerClient = AltinnTilgangerClient(
+                httpClient = client,
+                authClient = object : TokenExchanger {
+                    override suspend fun exchange(
+                        target: String,
+                        userToken: String
+                    ): TokenResponse = TokenResponse.Success("dummy", 3600)
+                }
+            )
+
+            application {
+                configureServer()
+                mockTokenXAuthentication(
+                    mapOf(
+                        "faketoken" to mockTokenXPrincipal.copy(pid = "42")
+                    )
+                )
+
+                skjemaApiV1(
+                    dbConfig,
+                    altinnTilgangerClient
+                )
+            }
+
+            var utkastId : String? = null
+
+            // opprett utkast
+            with(
+                client.post("/api/skjema/v1") {
+                    bearerAuth("faketoken")
+                    contentType(ContentType.Application.Json)
+                }
+            ) {
+                assertEquals(HttpStatusCode.Created, status)
+                body<DTO.Utkast>().also { skjema ->
+                    assert(skjema.id!!.isNotEmpty())
+                    assertEquals("42", skjema.opprettetAv)
+
+                    utkastId = skjema.id
+                }
+            }
+
+            // hent utkast
+            with(
+                client.get("/api/skjema/v1/$utkastId") {
+                    bearerAuth("faketoken")
+                }
+            ) {
+                assertEquals(HttpStatusCode.OK, status)
+                body<DTO.Utkast>().also { skjema ->
+                    assertEquals(utkastId, skjema.id)
+                    assertEquals("42", skjema.opprettetAv)
+                }
+            }
+
+            // oppdater utkast, orgnr uten tilgang
+            with(
+                client.patch("/api/skjema/v1/$utkastId") {
+                    bearerAuth("faketoken")
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        DTO.Utkast(
+                            organisasjonsnummer = "80085"
+                        )
+                    )
+                }
+            ) {
+                assertEquals(HttpStatusCode.Forbidden, status)
+            }
+
+            // oppdater utkast, orgnr med tilgang
+            with(
+                client.patch("/api/skjema/v1/$utkastId") {
+                    bearerAuth("faketoken")
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        DTO.Utkast(
+                            tittel = "ny tittel",
+                            beskrivelse = "ny beskrivelse",
+                            organisasjonsnummer = "1337"
+                        )
+                    )
+                }
+            ) {
+                assertEquals(HttpStatusCode.OK, status)
+                body<DTO.Utkast>().also { skjema ->
+                    assertEquals(utkastId, skjema.id)
+                    assertEquals("42", skjema.opprettetAv)
+                    assertEquals("ny tittel", skjema.tittel)
+                    assertEquals("1337", skjema.organisasjonsnummer)
+                }
+            }
+
+            // delete utkast
+            with(
+                client.delete("/api/skjema/v1/$utkastId") {
+                    bearerAuth("faketoken")
+                }
+            ) {
+                assertEquals(HttpStatusCode.NoContent, status)
+            }
+        }
+    }
+
+    @Test
     fun `GET skjema henter mine skjema`() = runTest {
         val dbConfig = TestDatabase.initialize()
         suspendTransaction(dbConfig.database) {
             SkjemaTable.insert {
+                it[id] = UUID.randomUUID()
                 it[tittel] = "skjema1"
                 it[beskrivelse] = "skjema for org jeg har tilgang til"
                 it[organisasjonsnummer] = "1337"
@@ -39,6 +167,7 @@ class SkjemaTest {
             }
 
             SkjemaTable.insert {
+                it[id] = UUID.randomUUID()
                 it[tittel] = "skjema2"
                 it[beskrivelse] = "skjema for org jeg ikke har tilgang til"
                 it[organisasjonsnummer] = "314"
@@ -93,11 +222,11 @@ class SkjemaTest {
             var skjemaId: String? = null
             with(
                 client.get("/api/skjema/v1") {
-                    header(HttpHeaders.Authorization, "Bearer faketoken")
+                    bearerAuth("faketoken")
                 }
             ) {
                 assertEquals(HttpStatusCode.OK, status)
-                body<List<Skjema>>().also { skjemas ->
+                body<List<DTO.Skjema>>().also { skjemas ->
                     assertEquals(1, skjemas.size)
                     assertEquals("skjema1", skjemas[0].tittel)
                     assertEquals("skjema for org jeg har tilgang til", skjemas[0].beskrivelse)
@@ -110,18 +239,18 @@ class SkjemaTest {
 
             with(
                 client.get("/api/skjema/v1/$skjemaId") {
-                    header(HttpHeaders.Authorization, "Bearer faketoken")
+                    bearerAuth("faketoken")
                 }
             ) {
                 assertEquals(HttpStatusCode.OK, status)
-                body<Skjema>().also { skjema ->
+                body<DTO.Skjema>().also { skjema ->
                     assertEquals(skjemaId, skjema.id)
                 }
             }
 
             with(
                 client.get("/api/skjema/v1/${UUID.randomUUID()}") {
-                    header(HttpHeaders.Authorization, "Bearer faketoken")
+                    bearerAuth("faketoken")
                 }
             ) {
                 assertEquals(HttpStatusCode.NotFound, status)
@@ -129,7 +258,7 @@ class SkjemaTest {
 
             with(
                 client.get("/api/skjema/v1/ikkeeksisterendeid") {
-                    header(HttpHeaders.Authorization, "Bearer faketoken")
+                    bearerAuth("faketoken")
                 }
             ) {
                 assertEquals(HttpStatusCode.BadRequest, status)

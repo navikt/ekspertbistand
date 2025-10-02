@@ -21,10 +21,32 @@
     - simplest, requires the client to be passed from test to app code
   - [ ] option 2 use mock server like wiremock or roll our own
     - more complex, but also more realistic, the client code is also tested including serdes and error handling
+- [ ] 
+- [ ] endepunkt for lagre utkast, men optional felt
+- [ ] endepunkt for sende inn søknad
+- [ ] endepunkt for hente virksomheter
+- [ ] validere mot jsonschema på send inn
 - [ ] validate input using shared json schema
 - [ ] postgres backed event bus for work coordination
+  - EventBus publisher 
+  - EventBus subscriber
+  - Event Model centralized and strongly types
+  - Event store using postgres, type is known, eventmodel is stored as jsonb
+  - When event is published, it is stored in the event store and then published to the bus
+  - When event is received, it is marked as processed in the event store
+  - Event processing is idempotent, if the same event is received multiple times, it is only processed once
+  - Event processing is transactional, if the processing fails, the event is not marked as processed
+  - Event processing is retried, if the processing fails, it is retried after a delay
+  - Event processing is ordered, events are processed in the order they are received
+  - When event is completed, the event is moved from store to event log for later debugging and tracing
+  - Event log is queryable, to see the history of events and their status
+- [ ] trace logging to postgres and teamlogs:
+  - traceId=correlationId 
+  - ktorServerReq/ktorServerRes 
+  - ktorClientReq/ktorClientRes
 - [ ] set up github actions for build and test
 - [ ] teamlogs
   - with no masking
   - no marker routing, all logs go to both,
   - maskingappender masks all forms of pii
+  - teamLogsContext field with metadata that only gets to teamlogs

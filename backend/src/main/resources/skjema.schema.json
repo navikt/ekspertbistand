@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/soknad.schema.json",
+  "title": "SoknadSkjema",
+  "description": "Søknadsskjema ekspertbistand",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "virksomhetsnummer": {
+      "type": "string",
+      "description": "Virksomhetsnummer (Brønnøysund, 9 siffer)",
+      "pattern": "^\\d{9}$"
+    },
+    "kontaktperson": {
+      "type": "object",
+      "description": "Kontaktperson i virksomheten",
+      "required": ["navn", "epost", "telefon"],
+      "properties": {
+        "navn": {
+          "type": "string",
+          "minLength": 1
+        },
+        "epost": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 320,
+          "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"
+        },
+        "telefon": {
+          "type": "string",
+          "pattern": "^\\d{8}$"
+        }
+      }
+    },
+    "ansatt": {
+      "type": "object",
+      "description": "Den ansatte som søknaden gjelder",
+      "required": ["fodselsnummer", "navn"],
+      "properties": {
+        "fodselsnummer": {
+          "type": "string",
+          "description": "Fødselsnummer (11 siffer)",
+          "pattern": "^\\d{11}$"
+        },
+        "navn": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ekspert": {
+      "type": "object",
+      "description": "Informasjon om eksperten",
+      "required": ["navn", "virksomhet", "kompetanse", "problemstilling"],
+      "properties": {
+        "navn": {
+          "type": "string",
+          "minLength": 1
+        },
+        "virksomhet": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kompetanse": {
+          "type": "string",
+          "minLength": 1
+        },
+        "problemstilling": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "tiltakForTilrettelegging": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Tiltak for tilrettelegging som er gjort/vurdert/forsøkt"
+    },
+    "kostnad": {
+      "type": "number",
+      "description": "Anslått kostnad for ekspertbistand (0–25000)",
+      "minimum": 0,
+      "maximum": 25000
+    },
+    "startDato": {
+      "type": "string",
+      "description": "Startdato for bruk av ekspertbistand",
+      "format": "date-time"
+    },
+    "navKontakt": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Nav-kontakten som behovet er drøftet med"
+    }
+  },
+  "required": [
+    "virksomhetsnummer",
+    "kontaktperson",
+    "ansatt",
+    "ekspert",
+    "tiltakForTilrettelegging",
+    "kostnad",
+    "startDato",
+    "navKontakt"
+  ],
+  "examples": [
+    {
+      "virksomhetsnummer": "123456789",
+      "kontaktperson": {
+        "navn": "Ola Nordmann",
+        "epost": "ola@nordmann.no",
+        "telefon": "12345678"
+      },
+      "ansatt": {
+        "fodselsnummer": "01020312345",
+        "navn": "Kari Nordmann"
+      },
+      "ekspert": {
+        "navn": "Dr. Eksempel",
+        "virksomhet": "Eksempel Klinikk AS",
+        "kompetanse": "Psykolog",
+        "problemstilling": "Beskrivelse av problemstilling"
+      },
+      "tiltakForTilrettelegging": "Beskrivelse av tiltak",
+      "kostnad": 12000,
+      "startDato": "2025-10-02T00:00:00.000Z",
+      "navKontakt": "Nav-veileder Navn"
+    }
+  ]
+}

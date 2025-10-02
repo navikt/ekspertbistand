@@ -75,4 +75,9 @@ data class AltinnTilgangerClientResponse(
         val altinn3Tilganger: Set<String>,
         val altinn2Tilganger: Set<String>,
     )
+
+    fun harTilgang(orgnr: String) : Boolean = orgNrTilTilganger[orgnr]?.any {
+        it == AltinnTilgangerClient.altinn3Ressursid || it == AltinnTilgangerClient.altinn2Tjenestekode
+    } == true
 }
+
