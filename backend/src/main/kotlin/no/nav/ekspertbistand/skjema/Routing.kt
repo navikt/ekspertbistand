@@ -30,82 +30,72 @@ fun Application.skjemaApiV1(
              * PUT /api/skjema/v1/{id} => sender inn skjema (payload valideres iht json schema)
              */
             route("/api/skjema/v1") {
-                post {
-                    with(skjemaApi) {
+                with(skjemaApi) {
+                    post {
                         opprettUtkast()
                     }
-                }
 
-                get {
-                    val statusParam = call.request.queryParameters.getRequired(
-                        name = "status",
-                        default = SkjemaStatus.innsendt.name,
-                        transform = SkjemaStatus::valueOf,
-                    ) {
-                        call.respond(
-                            status = HttpStatusCode.BadRequest,
-                            message = "ugyldig parameter status='$it', gyldige verdier er: ${SkjemaStatus.entries.toTypedArray()}"
-                        )
-                        return@get
-                    }
+                    get {
+                        val statusParam = call.request.queryParameters.getRequired(
+                            name = "status",
+                            default = SkjemaStatus.innsendt.name,
+                            transform = SkjemaStatus::valueOf,
+                        ) {
+                            call.respond(
+                                status = HttpStatusCode.BadRequest,
+                                message = "ugyldig parameter status='$it', gyldige verdier er: ${SkjemaStatus.entries.toTypedArray()}"
+                            )
+                            return@get
+                        }
 
-                    with(skjemaApi) {
                         hentAlleSkjema(statusParam)
                     }
-                }
 
-                get("/{id}") {
-                    val idParam: UUID = call.pathParameters.getRequired(
-                        name = "id",
-                        transform = UUID::fromString,
-                    ) {
-                        call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig id")
-                        return@get
-                    }
+                    get("/{id}") {
+                        val idParam: UUID = call.pathParameters.getRequired(
+                            name = "id",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig id")
+                            return@get
+                        }
 
-                    with(skjemaApi) {
                         hentSkjemaById(idParam)
                     }
-                }
 
-                patch("/{id}") {
-                    val idParam: UUID = call.pathParameters.getRequired(
-                        name = "id",
-                        transform = UUID::fromString,
-                    ) {
-                        call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig id")
-                        return@patch
-                    }
+                    patch("/{id}") {
+                        val idParam: UUID = call.pathParameters.getRequired(
+                            name = "id",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig id")
+                            return@patch
+                        }
 
-                    with(skjemaApi) {
                         oppdaterUtkast(idParam)
                     }
-                }
 
-                delete("/{id}") {
-                    val idParam: UUID = call.pathParameters.getRequired(
-                        name = "id",
-                        transform = UUID::fromString,
-                    ) {
-                        call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig id")
-                        return@delete
-                    }
+                    delete("/{id}") {
+                        val idParam: UUID = call.pathParameters.getRequired(
+                            name = "id",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig id")
+                            return@delete
+                        }
 
-                    with(skjemaApi) {
                         slettUtkast(idParam)
                     }
-                }
 
-                put("/{id}") {
-                    val idParam: UUID = call.pathParameters.getRequired(
-                        name = "id",
-                        transform = UUID::fromString,
-                    ) {
-                        call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig id")
-                        return@put
-                    }
+                    put("/{id}") {
+                        val idParam: UUID = call.pathParameters.getRequired(
+                            name = "id",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig id")
+                            return@put
+                        }
 
-                    with(skjemaApi) {
                         sendInnSkjema(idParam)
                     }
                 }
