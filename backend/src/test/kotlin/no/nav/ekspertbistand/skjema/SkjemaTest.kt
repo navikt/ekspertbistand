@@ -9,6 +9,7 @@ import io.ktor.server.application.*
 import io.ktor.server.response.respond
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
+import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.test.runTest
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
@@ -19,10 +20,12 @@ import no.nav.ekspertbistand.infrastruktur.TokenResponse
 import no.nav.ekspertbistand.infrastruktur.mockTokenXAuthentication
 import no.nav.ekspertbistand.infrastruktur.mockTokenXPrincipal
 import org.jetbrains.exposed.v1.r2dbc.insert
+import org.jetbrains.exposed.v1.r2dbc.insertReturning
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.fail
 
 class SkjemaTest {
@@ -152,6 +155,147 @@ class SkjemaTest {
                 assertEquals(HttpStatusCode.NoContent, status)
             }
         }
+    }
+
+    @Test
+    fun `send inn skjema`() = runTest {
+        // application setup
+        val dbConfig = TestDatabase.initialize()
+        val eksisterendeSkjemaId = UUID.randomUUID()
+        suspendTransaction(dbConfig.database) {
+            SkjemaTable.insert {
+                it[id] = eksisterendeSkjemaId
+                it[tittel] = "skjema1"
+                it[beskrivelse] = "skjema for org jeg har tilgang til"
+                it[organisasjonsnummer] = "1337"
+                it[opprettetAv] = "42"
+            }
+        }
+        testApplication {
+            mockAltinnTilganger(
+                AltinnTilgangerClientResponse(
+                    isError = false,
+                    hierarki = emptyList(),
+                    orgNrTilTilganger = mapOf(
+                        "1337" to setOf("5384:1", "nav_ekspertbistand_soknad")
+                    ),
+                    tilgangTilOrgNr = mapOf(
+                        "5384:1" to setOf("1337"),
+                        "nav_ekspertbistand_soknad" to setOf("1337"),
+                    )
+                )
+            )
+            client = createClient {
+                install(ContentNegotiation) {
+                    json()
+                }
+            }
+            val altinnTilgangerClient = AltinnTilgangerClient(
+                httpClient = client,
+                authClient = object : TokenExchanger {
+                    override suspend fun exchange(
+                        target: String,
+                        userToken: String
+                    ): TokenResponse = TokenResponse.Success("dummy", 3600)
+                }
+            )
+
+            application {
+                configureServer()
+                mockTokenXAuthentication(
+                    mapOf(
+                        "faketoken" to mockTokenXPrincipal.copy(pid = "42")
+                    )
+                )
+
+                skjemaApiV1(
+                    dbConfig,
+                    altinnTilgangerClient
+                )
+            }
+
+            // put skjema på id som ikke er uuid gir 400
+            with(
+                client.put("/api/skjema/v1/ikke-uuid") {
+                    bearerAuth("faketoken")
+                    contentType(ContentType.Application.Json)
+                }
+            ) {
+                assertEquals(HttpStatusCode.BadRequest, status)
+            }
+
+            // put skjema på id som ikke finnes gir 409
+            with(
+                client.put("/api/skjema/v1/${UUID.randomUUID()}") {
+                    bearerAuth("faketoken")
+                    contentType(ContentType.Application.Json)
+                }
+            ) {
+                assertEquals(HttpStatusCode.Conflict, status)
+            }
+
+            // put skjema på id er allerede er sendt inn gir 409
+            with(
+                client.put("/api/skjema/v1/$eksisterendeSkjemaId") {
+                    bearerAuth("faketoken")
+                    contentType(ContentType.Application.Json)
+                }
+            ) {
+                assertEquals(HttpStatusCode.Conflict, status)
+            }
+
+            val eksisterendeUtkast = suspendTransaction(dbConfig.database) {
+                UtkastTable.insertReturning {
+                    it[tittel] = "skjema1"
+                    it[beskrivelse] = "skjema for org jeg har tilgang til"
+                    it[organisasjonsnummer] = "1337"
+                    it[opprettetAv] = "T2000"
+                }.single().tilUtkastDTO()
+            }
+
+            // put med ugyldig payload gir 400
+            with(
+                client.put("/api/skjema/v1/${eksisterendeUtkast.id}") {
+                    bearerAuth("faketoken")
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        """
+                            {
+                              "foo": "bar"
+                            }
+                        """.trimIndent()
+                    )
+                }
+            ) {
+                assertEquals(HttpStatusCode.BadRequest, status)
+            }
+
+            // put med gyldig payload gir 200 og skjema i retur
+            with(
+                client.put("/api/skjema/v1/${eksisterendeUtkast.id}") {
+                    bearerAuth("faketoken")
+                    contentType(ContentType.Application.Json)
+                    setBody(
+                        eksisterendeUtkast
+                    )
+                }
+            ) {
+                assertEquals(HttpStatusCode.OK, status)
+                body<DTO.Skjema>().also { skjema ->
+                    assertEquals(eksisterendeUtkast.id, skjema.id)
+                    assertEquals("42", skjema.opprettetAv)
+                    assertEquals("skjema1", skjema.tittel)
+                    assertEquals("1337", skjema.organisasjonsnummer)
+
+                    // opprettetAv skal være den som sender inn skjema, ikke den som opprettet utkast
+                    assertNotEquals(eksisterendeUtkast.opprettetAv, skjema.opprettetAv)
+                    // opprettetTidspunkt skal være nytt
+                    assertNotEquals(eksisterendeUtkast.opprettetTidspunkt, skjema.opprettetTidspunkt)
+                }
+            }
+
+        }
+
     }
 
     @Test

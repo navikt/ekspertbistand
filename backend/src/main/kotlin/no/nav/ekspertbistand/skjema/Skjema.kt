@@ -39,7 +39,7 @@ fun Application.skjemaApiV1(
                  * GET /api/skjema/v1/{id} => henter skjema på id (man må selv sjekke status på returnert data)
                  * PATCH /api/skjema/v1/{id} => oppdaterer utkast (http 409 hvis utkast er sendt inn)
                  *
-                 * GET /api/skjema/v1?status={status} => henter alle skjema med status
+                 * GET /api/skjema/v1?status={status?} => henter alle skjema med status, alle statuser hvis ikke satt
                  * DELETE /api/skjema/v1/{id} => sletter utkast (http 409 hvis utkast er sendt inn)
                  * PUT /api/skjema/v1/{id} => sender inn skjema (payload valideres iht json schema)
                  */
@@ -67,7 +67,7 @@ fun Application.skjemaApiV1(
                             )
                             return@get
                         }
-                    } ?: SkjemaStatus.innsendt
+                    } ?: SkjemaStatus.innsendt // TODO: null == alle statuser
 
                     val principal = call.principal<TokenXPrincipal>()!!
                     val tilganger = altinnTilgangerClient.hentTilganger(principal.subjectToken)
@@ -77,29 +77,38 @@ fun Application.skjemaApiV1(
                         tilganger.tilgangTilOrgNr[AltinnTilgangerClient.altinn2Tjenestekode] ?: emptySet()
                     val organisasjoner = orgnummerForAltinn3 + orgnummerForAltinn2
 
+                    // TODO: isError?
                     if (organisasjoner.isEmpty()) {
                         call.respond(emptyList<DTO.Skjema>())
                         return@get
                     }
 
-                    val results = suspendTransaction(dbConfig.database) {
-                        when (statusParam) {
-                            SkjemaStatus.utkast -> UtkastTable.selectAll()
-                                .where { UtkastTable.opprettetAv eq principal.pid }
-                                .orWhere { UtkastTable.organisasjonsnummer inList organisasjoner }
-                                .orderBy(UtkastTable.opprettetTidspunkt to SortOrder.DESC)
-                                .toList()
-                                .map { it.tilUtkastDTO() }
 
-                            SkjemaStatus.innsendt -> SkjemaTable.selectAll()
-                                .where { SkjemaTable.organisasjonsnummer inList organisasjoner }
-                                .orderBy(SkjemaTable.opprettetTidspunkt to SortOrder.DESC)
-                                .toList()
-                                .map { it.tilSkjemaDTO() }
+                    when (statusParam) {
+                        SkjemaStatus.utkast -> {
+                            val results = suspendTransaction(dbConfig.database) {
+                                UtkastTable.selectAll()
+                                    .where { UtkastTable.opprettetAv eq principal.pid }
+                                    .orWhere { UtkastTable.organisasjonsnummer inList organisasjoner }
+                                    .orderBy(UtkastTable.opprettetTidspunkt to SortOrder.DESC)
+                                    .toList()
+                                    .map { it.tilUtkastDTO() }
+                            }
+                            call.respond(results)
                         }
 
+                        SkjemaStatus.innsendt -> {
+                            val results = suspendTransaction(dbConfig.database) {
+                                SkjemaTable.selectAll()
+                                    .where { SkjemaTable.organisasjonsnummer inList organisasjoner }
+                                    .orderBy(SkjemaTable.opprettetTidspunkt to SortOrder.DESC)
+                                    .toList()
+                                    .map { it.tilSkjemaDTO() }
+                            }
+                            call.respond(results)
+                        }
                     }
-                    call.respond(results)
+
                 }
 
                 get("/{id}") {
@@ -116,17 +125,31 @@ fun Application.skjemaApiV1(
                         findSkjemaOrUtkastById(idParam)
                     }
 
-                    val harTilgang = when (eksisterende) {
-                        is DTO.Skjema -> tilganger.harTilgang(eksisterende.organisasjonsnummer)
-                        is DTO.Utkast -> eksisterende.organisasjonsnummer.isNullOrEmpty() || tilganger.harTilgang(eksisterende.organisasjonsnummer)
-                        null -> false
+                    if (eksisterende == null) {
+                        call.respond(status = HttpStatusCode.NotFound, message = "skjema ikke funnet")
+                        return@get
                     }
 
-                    if (eksisterende == null || !harTilgang) {
-                        call.respond(status = HttpStatusCode.NotFound, message = "skjema ikke funnet")
-                    } else {
-                        call.respond(eksisterende)
+                    val harTilgang = when (eksisterende) {
+                        is DTO.Skjema -> tilganger.harTilgang(eksisterende.organisasjonsnummer)
+
+                        is DTO.Utkast -> if (eksisterende.organisasjonsnummer.isNullOrEmpty()) {
+                            // utkast uten orgnummer kan kun leses av den som opprettet det
+                            eksisterende.opprettetAv == principal.pid
+                        } else {
+                            tilganger.harTilgang(eksisterende.organisasjonsnummer)
+                        }
                     }
+
+                    if (!harTilgang) {
+                        call.respond(
+                            status = HttpStatusCode.Forbidden,
+                            message = "bruker har ikke tilgang til organisasjon"
+                        )
+                        return@get
+                    }
+
+                    call.respond(eksisterende)
                 }
 
                 patch("/{id}") {
@@ -161,12 +184,10 @@ fun Application.skjemaApiV1(
                             )
                             return@patch
                         }
-
                     }
 
                     val oppdatert = suspendTransaction(dbConfig.database) {
                         UtkastTable.updateReturning(
-                            returning = UtkastTable.fields,
                             where = { UtkastTable.id eq idParam }
                         ) { utkast ->
                             oppdatertUtkast.tittel?.also { nyTittel ->
@@ -244,6 +265,7 @@ fun Application.skjemaApiV1(
                     }
 
                     val skjema = call.receive<DTO.Skjema>()
+
                     if (!tilganger.harTilgang(skjema.organisasjonsnummer)) {
                         call.respond(
                             status = HttpStatusCode.Forbidden,
@@ -252,20 +274,19 @@ fun Application.skjemaApiV1(
                         return@put
                     }
 
-                    // TODO: validate using json schema
-
-                    suspendTransaction(dbConfig.database) {
-                        SkjemaTable.insert {
+                    val innsendt = suspendTransaction(dbConfig.database) {
+                        SkjemaTable.insertReturning {
                             it[id] = idParam
                             it[tittel] = skjema.tittel
                             it[beskrivelse] = skjema.beskrivelse
                             it[organisasjonsnummer] = skjema.organisasjonsnummer
                             it[opprettetAv] = principal.pid
+                        }.single().tilSkjemaDTO().also {
+                            UtkastTable.deleteWhere { UtkastTable.id eq idParam }
                         }
-                        UtkastTable.deleteWhere { UtkastTable.id eq idParam }
                     }
 
-                    call.respond(status = HttpStatusCode.NoContent, message = "skjema sendt inn")
+                    call.respond(innsendt)
                 }
             }
         }
@@ -295,9 +316,9 @@ object SkjemaTable : Table("skjema") {
 
 object UtkastTable : UUIDTable("utkast") {
     val tittel = text("tittel").nullable()
-    val organisasjonsnummer = text("organisasjonsnummer").nullable()
+    val organisasjonsnummer = text("organisasjonsnummer").nullable().index()
     val beskrivelse = text("beskrivelse").nullable()
-    val opprettetAv = text("opprettet_av")
+    val opprettetAv = text("opprettet_av").index()
 
     @OptIn(ExperimentalTime::class)
     val opprettetTidspunkt = text("opprettet_tidspunkt").clientDefault {
@@ -332,36 +353,28 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
     opprettetTidspunkt = this[UtkastTable.opprettetTidspunkt]
 )
 
-@OptIn(ExperimentalSerializationApi::class)
-@Serializable
-@JsonClassDiscriminator("status")
 sealed interface DTO {
     @Serializable
-    @SerialName("innsendt")
-    @JsonIgnoreUnknownKeys
     data class Skjema(
         val id: String,
         val organisasjonsnummer: String,
         val tittel: String,
         val beskrivelse: String,
-        val opprettetAv: String,
-        val opprettetTidspunkt: String
-    ) : DTO
+        val opprettetAv: String?,
+        val opprettetTidspunkt: String?
+    ) : DTO {
+        val status = SkjemaStatus.innsendt
+    }
 
-    /**
-     * id er null ved opprettelse, og utledes fra url ved oppdatering
-     * andre felt er default null for å kunne oppdatere delvis, validering gjøres før innsending
-     */
     @Serializable
-    @SerialName("utkast")
-    @JsonIgnoreUnknownKeys
     data class Utkast(
-        val id: String? = null, // id er null ved opprettelse, og utledes fra url ved oppdatering
+        val id: String? = null,
         val organisasjonsnummer: String?,
         val tittel: String? = null,
         val beskrivelse: String? = null,
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
-    ) : DTO
-
+    ) : DTO {
+        val status = SkjemaStatus.utkast
+    }
 }
