@@ -9,7 +9,6 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.*
 
 
-
 /**
  * ex: AltinnTilgangerClient(AuthClient(TexasAuthConfig.nais(), IdentityProvider.TOKEN_X))
  */
@@ -46,12 +45,14 @@ class AltinnTilgangerClient(
             accept(ContentType.Application.Json)
             bearerAuth(token.fold({ it.accessToken }, { throw Exception("Failed to exchange token: ${it.error}") }))
 
-            setBody(mapOf(
-                "filter" to mapOf(
-                    "altinn2Tilganger" to listOf(altinn2Tjenestekode),
-                    "altinn3Tilganger" to listOf(altinn3Ressursid),
+            setBody(
+                mapOf(
+                    "filter" to mapOf(
+                        "altinn2Tilganger" to listOf(altinn2Tjenestekode),
+                        "altinn3Tilganger" to listOf(altinn3Ressursid),
+                    )
                 )
-            ))
+            )
 
         }.body<AltinnTilgangerClientResponse>()
     }
@@ -76,8 +77,17 @@ data class AltinnTilgangerClientResponse(
         val altinn2Tilganger: Set<String>,
     )
 
-    fun harTilgang(orgnr: String) : Boolean = orgNrTilTilganger[orgnr]?.any {
+    fun harTilgang(orgnr: String): Boolean = orgNrTilTilganger[orgnr]?.any {
         it == AltinnTilgangerClient.altinn3Ressursid || it == AltinnTilgangerClient.altinn2Tjenestekode
     } == true
+
+    val organisasjoner: Set<String>
+        get() {
+            val orgnummerForAltinn3 =
+                tilgangTilOrgNr[AltinnTilgangerClient.altinn3Ressursid] ?: emptySet()
+            val orgnummerForAltinn2 =
+                tilgangTilOrgNr[AltinnTilgangerClient.altinn2Tjenestekode] ?: emptySet()
+            return orgnummerForAltinn3 + orgnummerForAltinn2
+        }
 }
 
