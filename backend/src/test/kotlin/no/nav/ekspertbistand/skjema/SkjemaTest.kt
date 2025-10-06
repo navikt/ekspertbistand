@@ -115,7 +115,14 @@ class SkjemaTest {
                     contentType(ContentType.Application.Json)
                     setBody(
                         DTO.Utkast(
-                            organisasjonsnummer = "80085"
+                            virksomhet = DTO.Virksomhet(
+                                virksomhetsnummer = "314",
+                                kontaktperson = DTO.Kontaktperson(
+                                    navn = "Donald Duck",
+                                    epost = "donald@duck.co",
+                                    telefon = "12345678",
+                                )
+                            )
                         )
                     )
                 }
@@ -130,9 +137,14 @@ class SkjemaTest {
                     contentType(ContentType.Application.Json)
                     setBody(
                         DTO.Utkast(
-                            tittel = "ny tittel",
-                            beskrivelse = "ny beskrivelse",
-                            organisasjonsnummer = "1337"
+                            virksomhet = DTO.Virksomhet(
+                                virksomhetsnummer = "1337",
+                                kontaktperson = DTO.Kontaktperson(
+                                    navn = "Donald Duck",
+                                    epost = "donald@duck.co",
+                                    telefon = "12345678",
+                                )
+                            )
                         )
                     )
                 }
@@ -141,8 +153,7 @@ class SkjemaTest {
                 body<DTO.Utkast>().also { skjema ->
                     assertEquals(utkastId, skjema.id)
                     assertEquals("42", skjema.opprettetAv)
-                    assertEquals("ny tittel", skjema.tittel)
-                    assertEquals("1337", skjema.organisasjonsnummer)
+                    assertEquals("1337", skjema.virksomhet!!.virksomhetsnummer)
                 }
             }
 
@@ -165,10 +176,23 @@ class SkjemaTest {
         suspendTransaction(dbConfig.database) {
             SkjemaTable.insert {
                 it[id] = eksisterendeSkjemaId
-                it[tittel] = "skjema1"
-                it[beskrivelse] = "skjema for org jeg har tilgang til"
-                it[organisasjonsnummer] = "1337"
+                it[virksomhetsnummer] = "1337"
                 it[opprettetAv] = "42"
+
+                it[virksomhetsnummer] = ""
+                it[kontaktpersonNavn] = ""
+                it[kontaktpersonEpost] = ""
+                it[kontaktpersonTelefon] = ""
+                it[ansattFodselsnummer] = ""
+                it[ansattNavn] = ""
+                it[ekspertNavn] = ""
+                it[ekspertVirksomhet] = ""
+                it[ekspertKompetanse] = ""
+                it[ekspertProblemstilling] = ""
+                it[tiltakForTilrettelegging] = ""
+                it[bestillingKostnad] = ""
+                it[bestillingStartDato] = ""
+                it[navKontakt] = ""
             }
         }
         testApplication {
@@ -246,9 +270,7 @@ class SkjemaTest {
 
             val eksisterendeUtkast = suspendTransaction(dbConfig.database) {
                 UtkastTable.insertReturning {
-                    it[tittel] = "skjema1"
-                    it[beskrivelse] = "skjema for org jeg har tilgang til"
-                    it[organisasjonsnummer] = "1337"
+                    it[virksomhetsnummer] = "1337"
                     it[opprettetAv] = "T2000"
                 }.single().tilUtkastDTO()
             }
@@ -276,7 +298,36 @@ class SkjemaTest {
                     bearerAuth("faketoken")
                     contentType(ContentType.Application.Json)
                     setBody(
-                        eksisterendeUtkast
+                        // TODO: angi alle felter
+                        DTO.Skjema(
+                            virksomhet = DTO.Virksomhet(
+                                virksomhetsnummer = "1337",
+                                kontaktperson = DTO.Kontaktperson(
+                                    navn = "Donald Duck",
+                                    epost = "Donald@duck.co",
+                                    telefon = "12345678"
+                                )
+                            ),
+                            ansatt = DTO.Ansatt(
+                                fodselsnummer = "12345678910",
+                                navn = "Ole Olsen"
+                            ),
+                            ekspert = DTO.Ekspert(
+                                navn = "Egon Olsen",
+                                virksomhet = "Olsenbanden AS",
+                                kompetanse = "Bankran",
+                                problemstilling = "Hvordan gjennomføre et bankran?" // max 5000 chars
+                            ),                            tiltak = DTO.Tiltak(
+                                forTilrettelegging = "Tilrettelegging på arbeidsplassen"
+                            ),
+                            bestilling = DTO.Bestilling(
+                                kostnad = "42",
+                                startDato = "2024-10-10"
+                            ),
+                            nav = DTO.Nav(
+                                kontakt = "Navn Navnesen"
+                            ),
+                        )
                     )
                 }
             ) {
@@ -284,8 +335,7 @@ class SkjemaTest {
                 body<DTO.Skjema>().also { skjema ->
                     assertEquals(eksisterendeUtkast.id, skjema.id)
                     assertEquals("42", skjema.opprettetAv)
-                    assertEquals("skjema1", skjema.tittel)
-                    assertEquals("1337", skjema.organisasjonsnummer)
+                    assertEquals("1337", skjema.virksomhet.virksomhetsnummer)
 
                     // opprettetAv skal være den som sender inn skjema, ikke den som opprettet utkast
                     assertNotEquals(eksisterendeUtkast.opprettetAv, skjema.opprettetAv)
@@ -304,18 +354,43 @@ class SkjemaTest {
         suspendTransaction(dbConfig.database) {
             SkjemaTable.insert {
                 it[id] = UUID.randomUUID()
-                it[tittel] = "skjema1"
-                it[beskrivelse] = "skjema for org jeg har tilgang til"
-                it[organisasjonsnummer] = "1337"
+                it[virksomhetsnummer] = "1337"
                 it[opprettetAv] = "42"
+                it[tiltakForTilrettelegging] = "skjema for org jeg har tilgang til"
+
+                it[kontaktpersonNavn] = ""
+                it[kontaktpersonEpost] = ""
+                it[kontaktpersonTelefon] = ""
+                it[ansattFodselsnummer] = ""
+                it[ansattNavn] = ""
+                it[ekspertNavn] = ""
+                it[ekspertVirksomhet] = ""
+                it[ekspertKompetanse] = ""
+                it[ekspertProblemstilling] = ""
+                it[bestillingKostnad] = ""
+                it[bestillingStartDato] = ""
+                it[navKontakt] = ""
             }
 
             SkjemaTable.insert {
                 it[id] = UUID.randomUUID()
-                it[tittel] = "skjema2"
-                it[beskrivelse] = "skjema for org jeg ikke har tilgang til"
-                it[organisasjonsnummer] = "314"
+                it[virksomhetsnummer] = "314"
                 it[opprettetAv] = "43"
+                it[tiltakForTilrettelegging] = "skjema for org jeg ikke har tilgang til"
+
+                it[kontaktpersonNavn] = ""
+                it[kontaktpersonEpost] = ""
+                it[kontaktpersonTelefon] = ""
+                it[ansattFodselsnummer] = ""
+                it[ansattNavn] = ""
+                it[ekspertNavn] = ""
+                it[ekspertVirksomhet] = ""
+                it[ekspertKompetanse] = ""
+                it[ekspertProblemstilling] = ""
+                it[tiltakForTilrettelegging] = ""
+                it[bestillingKostnad] = ""
+                it[bestillingStartDato] = ""
+                it[navKontakt] = ""
             }
         }
 
@@ -372,9 +447,8 @@ class SkjemaTest {
                 assertEquals(HttpStatusCode.OK, status)
                 body<List<DTO.Skjema>>().also { skjemas ->
                     assertEquals(1, skjemas.size)
-                    assertEquals("skjema1", skjemas[0].tittel)
-                    assertEquals("skjema for org jeg har tilgang til", skjemas[0].beskrivelse)
-                    assertEquals("1337", skjemas[0].organisasjonsnummer)
+                    assertEquals("skjema for org jeg har tilgang til", skjemas[0].tiltak.forTilrettelegging)
+                    assertEquals("1337", skjemas[0].virksomhet.virksomhetsnummer)
                     assertEquals("42", skjemas[0].opprettetAv)
 
                     skjemaId = skjemas[0].id
