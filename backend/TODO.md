@@ -21,12 +21,11 @@
     - simplest, requires the client to be passed from test to app code
   - [ ] option 2 use mock server like wiremock or roll our own
     - more complex, but also more realistic, the client code is also tested including serdes and error handling
-- [ ] 
-- [ ] endepunkt for lagre utkast, men optional felt
-- [ ] endepunkt for sende inn søknad
-- [ ] endepunkt for hente virksomheter
-- [ ] validere mot jsonschema på send inn
-- [ ] validate input using shared json schema
+- [x] endepunkt for lagre utkast, men optional felt
+- [x] endepunkt for sende inn søknad
+- [x] endepunkt for hente virksomheter
+- [ ] kjøre app lokalt med lokal frontend
+- [ ] sette opp frontend til å kjøre mot lokal backend
 - [ ] postgres backed event bus for work coordination
   - EventBus publisher 
   - EventBus subscriber

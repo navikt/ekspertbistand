@@ -1,7 +1,6 @@
 package no.nav.ekspertbistand.skjema
 
 import io.ktor.http.*
-import io.ktor.server.auth.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -11,7 +10,6 @@ import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.DbConfig
-import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -246,12 +244,6 @@ class SkjemaApi(
 
         call.respond(innsendt)
     }
-
-    private val RoutingContext.subjectToken
-        get() = call.principal<TokenXPrincipal>()!!.subjectToken
-
-    private val RoutingContext.innloggetBruker
-        get() = call.principal<TokenXPrincipal>()!!.pid
 }
 
 sealed interface DTO {

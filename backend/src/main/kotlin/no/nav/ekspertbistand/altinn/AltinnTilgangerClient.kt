@@ -69,7 +69,9 @@ data class AltinnTilgangerClientResponse(
 
     @Serializable
     data class AltinnTilgang(
+        val erSlettet: Boolean,
         val orgnr: String,
+        val organisasjonsform: String,
         val navn: String,
         val underenheter: List<AltinnTilgang>,
 

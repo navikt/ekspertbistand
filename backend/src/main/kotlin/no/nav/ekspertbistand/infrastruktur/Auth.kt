@@ -5,14 +5,12 @@ import io.ktor.client.call.*
 import io.ktor.client.plugins.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
-import io.ktor.server.application.Application
-import io.ktor.server.application.install
-import io.ktor.server.auth.Authentication
-import io.ktor.server.auth.bearer
+import io.ktor.server.application.*
+import io.ktor.server.auth.*
+import io.ktor.server.plugins.di.*
 import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.json.*
-import no.nav.ekspertbistand.infrastruktur.IdentityProvider.TOKEN_X
 
 /**
  * Lånt med modifikasjoner fra https://github.com/nais/wonderwalled
@@ -159,16 +157,13 @@ data class TokenXPrincipal(
 
 const val TOKENX_PROVIDER = "TOKEN_X"
 
-fun Application.configureTokenXAuth(authConfig: TexasAuthConfig) {
-    install(Authentication) {
-        val authClient = AuthClient(
-            config = authConfig,
-            provider = TOKEN_X
-        )
+suspend fun Application.configureTokenXAuth() {
+    val introspector = dependencies.resolve<TokenIntrospector>()
 
+    install(Authentication) {
         bearer(TOKENX_PROVIDER) {
             authenticate { credentials ->
-                val introspection = authClient.introspect(credentials.token)
+                val introspection = introspector.introspect(credentials.token)
 
                 with(introspection) {
                     if (!active) return@authenticate null

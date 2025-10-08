@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.skjema
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
+import io.ktor.server.plugins.di.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
@@ -11,10 +12,9 @@ import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import java.util.*
 
-fun Application.skjemaApiV1(
-    dbConfig: DbConfig,
-    altinnTilgangerClient: AltinnTilgangerClient,
-) {
+suspend fun Application.skjemaApiV1() {
+    val dbConfig = dependencies.resolve<DbConfig>()
+    val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
     val skjemaApi = SkjemaApi(dbConfig, altinnTilgangerClient)
 
     routing {

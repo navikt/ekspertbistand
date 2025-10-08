@@ -11,6 +11,8 @@ import io.ktor.server.plugins.callid.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.compression.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.di.DependencyRegistry
+import io.ktor.server.plugins.di.dependencies
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.utils.io.*
@@ -31,28 +33,43 @@ import java.util.*
 
 
 fun main() {
-    ktorServer(
-        dbConfig = DbConfig.nais(),
-        authConfig = TexasAuthConfig.nais()
-    ).start(wait = true)
+    ktorServer {
+        val tokenxClient = AuthClient(
+            TexasAuthConfig.nais(),
+            IdentityProvider.TOKEN_X
+        )
+        provide<TokenIntrospector> {
+            tokenxClient
+        }
+        provide<DbConfig> {
+            DbConfig.nais()
+        }
+        provide<AltinnTilgangerClient> {
+            AltinnTilgangerClient(
+                tokenxClient
+            )
+        }
+    }.start(wait = true)
 }
 
 fun ktorServer(
-    dbConfig: DbConfig,
-    authConfig: TexasAuthConfig
+    provide: DependencyRegistry.() -> Unit
 ) = embeddedServer(
     CIO,
     port = 8080,
     host = "0.0.0.0"
 ) {
-    configureDatabase(dbConfig)
-    configureServer()
-    configureTokenXAuth(authConfig)
+    dependencies(provide)
 
-    skjemaApiV1(
-        dbConfig,
-        AltinnTilgangerClient(AuthClient(TexasAuthConfig.nais(), IdentityProvider.TOKEN_X))
-    )
+    configureAll()
+}
+
+suspend fun Application.configureAll() {
+    configureServer()
+    configureDatabase()
+    configureTokenXAuth()
+
+    skjemaApiV1()
     internal()
 }
 

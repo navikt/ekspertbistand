@@ -1,0 +1,86 @@
+### list alle innsendte skjemaer
+GET http://localhost:8080/api/skjema/v1
+Accept: application/json
+Authorization: Bearer faketoken
+
+### list alle utkast
+GET http://localhost:8080/api/skjema/v1?status=utkast
+Accept: application/json
+Authorization: Bearer faketoken
+
+### opprett ukast og få tilbake id
+POST http://localhost:8080/api/skjema/v1
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer faketoken
+
+> {% client.global.set("skjemaId", response.body.id); %}
+
+### hent utkast på id
+GET http://localhost:8080/api/skjema/v1/{{skjemaId}}
+Accept: application/json
+Authorization: Bearer faketoken
+
+### oppdater utkast på id
+PATCH http://localhost:8080/api/skjema/v1/{{skjemaId}}
+Content-Type: application/json
+Accept: application/json
+Authorization: Bearer faketoken
+
+{
+  "virksomhet": {
+    "virksomhetsnummer": "1337",
+    "kontaktperson": {
+        "navn": "Donald Duck",
+        "epost": "donald@duck.co",
+        "telefon": "12345678"
+    }
+  }
+}
+
+### delete utkast på id
+DELETE http://localhost:8080/api/skjema/v1/{{skjemaId}}
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer faketoken
+
+### send inn skjema på id
+PUT http://localhost:8080/api/skjema/v1/{{skjemaId}}
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer faketoken
+
+{
+  "id": "e14fb04f-4fdf-49e3-9f98-70a8cdc180da",
+  "virksomhet": {
+    "virksomhetsnummer": "1337",
+    "kontaktperson": {
+      "navn": "",
+      "epost": "",
+      "telefon": ""
+    }
+  },
+  "ansatt": {
+    "fodselsnummer": "",
+    "navn": ""
+  },
+  "ekspert": {
+    "navn": "",
+    "virksomhet": "",
+    "kompetanse": "",
+    "problemstilling": ""
+  },
+  "tiltak": {
+    "forTilrettelegging": ""
+  },
+  "bestilling": {
+    "kostnad": "",
+    "startDato": ""
+  },
+  "nav": {
+    "kontakt": ""
+  },
+  "opprettetAv": "42",
+  "opprettetTidspunkt": "2025-10-07T20:00:00.894024Z",
+  "status": "innsendt"
+}

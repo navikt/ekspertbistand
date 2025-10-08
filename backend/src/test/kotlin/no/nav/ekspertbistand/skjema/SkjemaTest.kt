@@ -1,28 +1,25 @@
 package no.nav.ekspertbistand.skjema
 
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import io.ktor.server.response.respond
+import io.ktor.server.plugins.di.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.test.runTest
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
-import no.nav.ekspertbistand.configureServer
-import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.infrastruktur.TokenExchanger
-import no.nav.ekspertbistand.infrastruktur.TokenResponse
-import no.nav.ekspertbistand.infrastruktur.mockTokenXAuthentication
-import no.nav.ekspertbistand.infrastruktur.mockTokenXPrincipal
+import no.nav.ekspertbistand.configureAll
+import no.nav.ekspertbistand.infrastruktur.*
 import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.insertReturning
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
-import java.util.UUID
+import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -64,20 +61,24 @@ class SkjemaTest {
             )
 
             application {
-                configureServer()
-                mockTokenXAuthentication(
-                    mapOf(
-                        "faketoken" to mockTokenXPrincipal.copy(pid = "42")
-                    )
-                )
+                dependencies {
+                    provide<TokenIntrospector> {
+                        MockTokenIntrospector {
+                            if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
+                        }
+                    }
+                    provide<DbConfig> {
+                        dbConfig
+                    }
+                    provide<AltinnTilgangerClient> {
+                        altinnTilgangerClient
+                    }
+                }
 
-                skjemaApiV1(
-                    dbConfig,
-                    altinnTilgangerClient
-                )
+                configureAll()
             }
 
-            var utkastId : String? = null
+            var utkastId: String? = null
 
             // opprett utkast
             with(
@@ -225,17 +226,21 @@ class SkjemaTest {
             )
 
             application {
-                configureServer()
-                mockTokenXAuthentication(
-                    mapOf(
-                        "faketoken" to mockTokenXPrincipal.copy(pid = "42")
-                    )
-                )
+                dependencies {
+                    provide<TokenIntrospector> {
+                        MockTokenIntrospector {
+                            if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
+                        }
+                    }
+                    provide<DbConfig> {
+                        dbConfig
+                    }
+                    provide<AltinnTilgangerClient> {
+                        altinnTilgangerClient
+                    }
+                }
 
-                skjemaApiV1(
-                    dbConfig,
-                    altinnTilgangerClient
-                )
+                configureAll()
             }
 
             // put skjema på id som ikke er uuid gir 400
@@ -317,7 +322,8 @@ class SkjemaTest {
                                 virksomhet = "Olsenbanden AS",
                                 kompetanse = "Bankran",
                                 problemstilling = "Hvordan gjennomføre et bankran?" // max 5000 chars
-                            ),                            tiltak = DTO.Tiltak(
+                            ),
+                            tiltak = DTO.Tiltak(
                                 forTilrettelegging = "Tilrettelegging på arbeidsplassen"
                             ),
                             bestilling = DTO.Bestilling(
@@ -425,17 +431,21 @@ class SkjemaTest {
             )
 
             application {
-                configureServer()
-                mockTokenXAuthentication(
-                    mapOf(
-                        "faketoken" to mockTokenXPrincipal.copy(pid = "42")
-                    )
-                )
+                dependencies {
+                    provide<TokenIntrospector> {
+                        MockTokenIntrospector {
+                            if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
+                        }
+                    }
+                    provide<DbConfig> {
+                        dbConfig
+                    }
+                    provide<AltinnTilgangerClient> {
+                        altinnTilgangerClient
+                    }
+                }
 
-                skjemaApiV1(
-                    dbConfig,
-                    altinnTilgangerClient
-                )
+                configureAll()
             }
 
             var skjemaId: String? = null
@@ -496,9 +506,21 @@ class SkjemaTest {
         })
         testApplication {
             application {
-                mockTokenXAuthentication(mapOf()) // simuler ugyldig token
+                dependencies {
+                    provide<TokenIntrospector> {
+                        MockTokenIntrospector {
+                            null
+                        }
+                    }
+                    provide<DbConfig> {
+                        dbConfig
+                    }
+                    provide<AltinnTilgangerClient> {
+                        altinnTilgangerClient
+                    }
+                }
 
-                skjemaApiV1(dbConfig, altinnTilgangerClient)
+                configureAll()
             }
 
             val response = client.get("/api/skjema/v1") {
