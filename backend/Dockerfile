@@ -1,4 +1,4 @@
-FROM cgr.dev/chainguard/jre:latest
+FROM cgr.dev/chainguard/jre:openjdk-22
 COPY target/ekspertbistand-backend/app.jar app.jar
 COPY target/ekspertbistand-backend/lib lib
 
