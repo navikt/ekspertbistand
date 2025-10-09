@@ -20,6 +20,6 @@ jobs:
         name: Deploy dev-gcp
         env:
           VAR: image=${{ steps.login.outputs.registry }}/ekspertbistand-backend:${{ github.sha }}
-          RESOURCE: nais/dev-gcp-altinn-backend.yaml
+          RESOURCE: nais/dev-gcp-backend.yaml
           CLUSTER: dev-gcp
 
