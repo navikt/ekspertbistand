@@ -150,11 +150,6 @@
             <version>11.7.2</version>
         </dependency>
         <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>r2dbc-postgresql</artifactId>
-            <version>1.0.7.RELEASE</version>
-        </dependency>
-        <dependency>
             <groupId>org.jetbrains.exposed</groupId>
             <artifactId>exposed-core</artifactId>
             <version>1.0.0-rc-1</version>
@@ -163,6 +158,11 @@
             <groupId>org.jetbrains.exposed</groupId>
             <artifactId>exposed-r2dbc</artifactId>
             <version>1.0.0-rc-1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>r2dbc-postgresql</artifactId>
+            <version>1.1.0.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.exposed</groupId>

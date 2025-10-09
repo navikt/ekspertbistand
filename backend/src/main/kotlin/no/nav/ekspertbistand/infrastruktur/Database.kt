@@ -6,6 +6,7 @@ import io.ktor.server.plugins.di.dependencies
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.configuration.FluentConfiguration
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabaseConfig
 import java.net.URI
 
 class DbConfig(
