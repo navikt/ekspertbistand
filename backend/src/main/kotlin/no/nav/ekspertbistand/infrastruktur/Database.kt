@@ -6,15 +6,16 @@ import io.ktor.server.plugins.di.dependencies
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.configuration.FluentConfiguration
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
-import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabaseConfig
 import java.net.URI
 
 class DbConfig(
     val url: String,
+    val connectRetries: Int,
 ) {
     companion object {
         fun nais() = DbConfig(
-            url = System.getenv("DB_JDBC_URL")!!
+            url = System.getenv("DB_JDBC_URL")!!,
+            connectRetries = 7
         )
     }
 
@@ -39,7 +40,7 @@ class DbConfig(
         Flyway.configure()
             .dataSource(dbUrl.jdbcUrl, dbUrl.username, dbUrl.password)
             .locations("db/migration") // default = db/migration, just being explicit
-            .connectRetries(7) // time waited after retries ca: 1=1s, 5=31s, 6=63s, 7=127s
+            .connectRetries(connectRetries) // time waited after retries ca: 1=1s, 5=31s, 6=63s, 7=127s
     }
 
     val flyway: Flyway by lazy {
