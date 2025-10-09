@@ -1,4 +1,5 @@
-FROM cgr.dev/chainguard/jre:openjdk-22
+# https://sikkerhet.nav.no/docs/verktoy/chainguard-dockerimages/#tilgjenglige-images
+FROM europe-north1-docker.pkg.dev/cgr-nav/pull-through/nav.no/jre:openjdk-21
 COPY target/ekspertbistand-backend/app.jar app.jar
 COPY target/ekspertbistand-backend/lib lib
 
