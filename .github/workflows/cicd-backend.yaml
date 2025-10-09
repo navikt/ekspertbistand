@@ -1,6 +1,10 @@
 name: CICD Backend
 on:
   push:
+    paths:
+      - backend/**
+      - nais/dev-gcp-backend.yaml
+      - nais/prod-gcp-backend.yaml
   workflow_dispatch:
   schedule:
     - cron: '0 6 * * 1' # bygg nytt image hver mandag morgen
@@ -8,69 +12,50 @@ on:
 
 jobs:
   build:
-    name: Bygg
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-
+    services:
+      postgres:
+        image: postgres:17.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRESQL_FSYNC: "off"
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 54321:5432
     steps:
       - uses: actions/checkout@v4
-      - uses: getong/redis-action@v1
-        with:
-          redis version: '6.2-alpine'
-          redis password: '123'
+
+      - run: PGPASSWORD=postgres psql -U postgres -h localhost -p 54321 -f ./local-db-init.sql
 
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: 21
+          java-version: 25
           cache: maven
+          cache-dependency-path: backend/pom.xml
 
       - run: mvn -B package
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.sha }}.bom.json
-          path: target/bom.json
+        working-directory: backend
 
       - uses: nais/docker-build-push@v0
         id: gar-push
         with:
           team: fager
           tag: ${{ github.sha }}
-          salsa: false
-
-    outputs:
-      image: ${{ steps.gar-push.outputs.image }}
-      digest: ${{ steps.gar-push.outputs.digest }}
-
-  salsa:
-    name: attest and sign image
-    needs: [ build ]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-    steps:
-      - uses: nais/login@v0
-        id: login
-        with:
-          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
-          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
-          team: fager
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: ${{ github.sha }}.bom.json
-          path: ./
-
-      - uses: nais/attest-sign@v1
-        with:
-          image_ref: ${{ needs.build.outputs.image }}@${{ needs.build.outputs.digest }}
-          sbom: bom.json
+          dockerfile: backend/Dockerfile
+          docker_context: backend
+          byosbom: backend/target/bom.json
 
   deploy-dev:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/main'
     needs: [ build ]
     runs-on: ubuntu-latest
     permissions:
@@ -83,18 +68,3 @@ jobs:
           VAR: image=${{ needs.build.outputs.image }}
           RESOURCE: nais/dev-gcp-backend.yaml
           CLUSTER: dev-gcp
-
-  deploy-prod:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: [ build ]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: nais/deploy/actions/deploy@v2
-        name: Deploy prod-gcp
-        env:
-          VAR: image=${{ needs.build.outputs.image }}
-          RESOURCE: nais/prod-gcp-backend.yaml
-          CLUSTER: prod-gcp
