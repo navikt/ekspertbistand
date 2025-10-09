@@ -3,7 +3,7 @@ package no.nav.ekspertbistand.infrastruktur
 object TestDatabase {
     val config by lazy {
         DbConfig(
-            url = "jdbc:postgresql://localhost:54321/ekspertbistand?user=postgres&password=postgres"
+            url = "jdbc:postgresql://localhost:5532/ekspertbistand?user=postgres&password=postgres"
         )
     }
 
