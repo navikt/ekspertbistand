@@ -56,8 +56,14 @@ fun ktorServer(
     provide: DependencyRegistry.() -> Unit
 ) = embeddedServer(
     CIO,
-    port = 8080,
-    host = "0.0.0.0"
+    configure = {
+        connector {
+            port = 8080
+            host = "0.0.0.0"
+        }
+        shutdownGracePeriod = 20_000
+        shutdownTimeout = 30_000
+    }
 ) {
     dependencies(provide)
 

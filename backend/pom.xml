@@ -3,10 +3,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>no.nav.arbeidsgiver.ekspertbistand</groupId>
-    <artifactId>ekspertbistand-api</artifactId>
+    <artifactId>ekspertbistand-backend</artifactId>
     <version>0.0.1</version>
-    <name>ekspertbistand-api</name>
-    <description>ekspertbistand-api</description>
+    <name>ekspertbistand-backend</name>
+    <description>ekspertbistand-backend</description>
     <properties>
         <kotlin.code.style>official</kotlin.code.style>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
