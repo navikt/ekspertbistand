@@ -22,7 +22,7 @@ class SkjemaApi(
     private val altinnTilgangerClient: AltinnTilgangerClient,
 ) {
     suspend fun RoutingContext.opprettUtkast() {
-        val opprettetUtkast = suspendTransaction(dbConfig.database) {
+        val opprettetUtkast = suspendTransaction {
             UtkastTable.insertReturning {
                 it[opprettetAv] = innloggetBruker
             }.single().tilUtkastDTO()
@@ -44,7 +44,7 @@ class SkjemaApi(
 
         when (statusParam) {
             SkjemaStatus.utkast -> {
-                val results = suspendTransaction(dbConfig.database) {
+                val results = suspendTransaction {
                     UtkastTable.selectAll()
                         .where { UtkastTable.opprettetAv eq innloggetBruker }
                         .orWhere { UtkastTable.virksomhetsnummer inList organisasjoner }
@@ -56,7 +56,7 @@ class SkjemaApi(
             }
 
             SkjemaStatus.innsendt -> {
-                val results = suspendTransaction(dbConfig.database) {
+                val results = suspendTransaction {
                     SkjemaTable.selectAll()
                         .where { SkjemaTable.virksomhetsnummer inList organisasjoner }
                         .orderBy(SkjemaTable.opprettetTidspunkt to SortOrder.DESC)
@@ -69,7 +69,7 @@ class SkjemaApi(
     }
 
     suspend fun RoutingContext.hentSkjemaById(idParam: UUID) {
-        val eksisterende = suspendTransaction(dbConfig.database) {
+        val eksisterende = suspendTransaction {
             findSkjemaOrUtkastById(idParam)
         }
 
@@ -102,7 +102,7 @@ class SkjemaApi(
     }
 
     suspend fun RoutingContext.oppdaterUtkast(idParam: UUID) {
-        val eksisterende = suspendTransaction(dbConfig.database) {
+        val eksisterende = suspendTransaction {
             findSkjemaOrUtkastById(idParam)
         }
 
@@ -128,7 +128,7 @@ class SkjemaApi(
             return
         }
 
-        val oppdatert = suspendTransaction(dbConfig.database) {
+        val oppdatert = suspendTransaction {
             UtkastTable.updateReturning(
                 where = { UtkastTable.id eq idParam }
             ) { utkast ->
@@ -165,7 +165,7 @@ class SkjemaApi(
     }
 
     suspend fun RoutingContext.slettUtkast(idParam: UUID) {
-        val eksisterende = suspendTransaction(dbConfig.database) {
+        val eksisterende = suspendTransaction {
             findSkjemaOrUtkastById(idParam)
         }
 
@@ -188,7 +188,7 @@ class SkjemaApi(
             return
         }
 
-        suspendTransaction(dbConfig.database) {
+        suspendTransaction {
             UtkastTable.deleteWhere { UtkastTable.id eq idParam }
         }
 
@@ -196,7 +196,7 @@ class SkjemaApi(
     }
 
     suspend fun RoutingContext.sendInnSkjema(idParam: UUID) {
-        val eksisterende = suspendTransaction(dbConfig.database) {
+        val eksisterende = suspendTransaction {
             findSkjemaOrUtkastById(idParam)
         }
 
@@ -219,7 +219,7 @@ class SkjemaApi(
             return
         }
 
-        val innsendt = suspendTransaction(dbConfig.database) {
+        val innsendt = suspendTransaction {
             SkjemaTable.insertReturning {
                 it[id] = idParam
                 it[virksomhetsnummer] = skjema.virksomhet.virksomhetsnummer
