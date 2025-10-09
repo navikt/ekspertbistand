@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: PGPASSWORD=postgres psql -U postgres -h localhost -p 54321 -f ./local-db-init.sql
+      - run: PGPASSWORD=postgres psql -U postgres -h localhost -p 54321 -f ./backend/local-db-init.sql
 
       - uses: actions/setup-java@v4
         with:
