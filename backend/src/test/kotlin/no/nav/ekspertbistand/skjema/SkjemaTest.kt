@@ -174,28 +174,6 @@ class SkjemaTest {
         // application setup
         val dbConfig = TestDatabase.initialize()
         val eksisterendeSkjemaId = UUID.randomUUID()
-        suspendTransaction(dbConfig.database) {
-            SkjemaTable.insert {
-                it[id] = eksisterendeSkjemaId
-                it[virksomhetsnummer] = "1337"
-                it[opprettetAv] = "42"
-
-                it[virksomhetsnummer] = ""
-                it[kontaktpersonNavn] = ""
-                it[kontaktpersonEpost] = ""
-                it[kontaktpersonTelefon] = ""
-                it[ansattFodselsnummer] = ""
-                it[ansattNavn] = ""
-                it[ekspertNavn] = ""
-                it[ekspertVirksomhet] = ""
-                it[ekspertKompetanse] = ""
-                it[ekspertProblemstilling] = ""
-                it[tiltakForTilrettelegging] = ""
-                it[bestillingKostnad] = ""
-                it[bestillingStartDato] = ""
-                it[navKontakt] = ""
-            }
-        }
         testApplication {
             mockAltinnTilganger(
                 AltinnTilgangerClientResponse(
@@ -241,6 +219,29 @@ class SkjemaTest {
                 }
 
                 configureAll()
+            }
+
+            suspendTransaction(dbConfig.database) {
+                SkjemaTable.insert {
+                    it[id] = eksisterendeSkjemaId
+                    it[virksomhetsnummer] = "1337"
+                    it[opprettetAv] = "42"
+
+                    it[virksomhetsnummer] = ""
+                    it[kontaktpersonNavn] = ""
+                    it[kontaktpersonEpost] = ""
+                    it[kontaktpersonTelefon] = ""
+                    it[ansattFodselsnummer] = ""
+                    it[ansattNavn] = ""
+                    it[ekspertNavn] = ""
+                    it[ekspertVirksomhet] = ""
+                    it[ekspertKompetanse] = ""
+                    it[ekspertProblemstilling] = ""
+                    it[tiltakForTilrettelegging] = ""
+                    it[bestillingKostnad] = ""
+                    it[bestillingStartDato] = ""
+                    it[navKontakt] = ""
+                }
             }
 
             // put skjema på id som ikke er uuid gir 400
@@ -357,49 +358,6 @@ class SkjemaTest {
     @Test
     fun `GET skjema henter mine skjema`() = runTest {
         val dbConfig = TestDatabase.initialize()
-        suspendTransaction(dbConfig.database) {
-            SkjemaTable.insert {
-                it[id] = UUID.randomUUID()
-                it[virksomhetsnummer] = "1337"
-                it[opprettetAv] = "42"
-                it[tiltakForTilrettelegging] = "skjema for org jeg har tilgang til"
-
-                it[kontaktpersonNavn] = ""
-                it[kontaktpersonEpost] = ""
-                it[kontaktpersonTelefon] = ""
-                it[ansattFodselsnummer] = ""
-                it[ansattNavn] = ""
-                it[ekspertNavn] = ""
-                it[ekspertVirksomhet] = ""
-                it[ekspertKompetanse] = ""
-                it[ekspertProblemstilling] = ""
-                it[bestillingKostnad] = ""
-                it[bestillingStartDato] = ""
-                it[navKontakt] = ""
-            }
-
-            SkjemaTable.insert {
-                it[id] = UUID.randomUUID()
-                it[virksomhetsnummer] = "314"
-                it[opprettetAv] = "43"
-                it[tiltakForTilrettelegging] = "skjema for org jeg ikke har tilgang til"
-
-                it[kontaktpersonNavn] = ""
-                it[kontaktpersonEpost] = ""
-                it[kontaktpersonTelefon] = ""
-                it[ansattFodselsnummer] = ""
-                it[ansattNavn] = ""
-                it[ekspertNavn] = ""
-                it[ekspertVirksomhet] = ""
-                it[ekspertKompetanse] = ""
-                it[ekspertProblemstilling] = ""
-                it[tiltakForTilrettelegging] = ""
-                it[bestillingKostnad] = ""
-                it[bestillingStartDato] = ""
-                it[navKontakt] = ""
-            }
-        }
-
         testApplication {
             mockAltinnTilganger(
                 AltinnTilgangerClientResponse(
@@ -446,6 +404,49 @@ class SkjemaTest {
                 }
 
                 configureAll()
+            }
+
+            suspendTransaction(dbConfig.database) {
+                SkjemaTable.insert {
+                    it[id] = UUID.randomUUID()
+                    it[virksomhetsnummer] = "1337"
+                    it[opprettetAv] = "42"
+                    it[tiltakForTilrettelegging] = "skjema for org jeg har tilgang til"
+
+                    it[kontaktpersonNavn] = ""
+                    it[kontaktpersonEpost] = ""
+                    it[kontaktpersonTelefon] = ""
+                    it[ansattFodselsnummer] = ""
+                    it[ansattNavn] = ""
+                    it[ekspertNavn] = ""
+                    it[ekspertVirksomhet] = ""
+                    it[ekspertKompetanse] = ""
+                    it[ekspertProblemstilling] = ""
+                    it[bestillingKostnad] = ""
+                    it[bestillingStartDato] = ""
+                    it[navKontakt] = ""
+                }
+
+                SkjemaTable.insert {
+                    it[id] = UUID.randomUUID()
+                    it[virksomhetsnummer] = "314"
+                    it[opprettetAv] = "43"
+                    it[tiltakForTilrettelegging] = "skjema for org jeg ikke har tilgang til"
+
+                    it[kontaktpersonNavn] = ""
+                    it[kontaktpersonEpost] = ""
+                    it[kontaktpersonTelefon] = ""
+                    it[ansattFodselsnummer] = ""
+                    it[ansattNavn] = ""
+                    it[ekspertNavn] = ""
+                    it[ekspertVirksomhet] = ""
+                    it[ekspertKompetanse] = ""
+                    it[ekspertProblemstilling] = ""
+                    it[tiltakForTilrettelegging] = ""
+                    it[bestillingKostnad] = ""
+                    it[bestillingStartDato] = ""
+                    it[navKontakt] = ""
+                }
             }
 
             var skjemaId: String? = null
