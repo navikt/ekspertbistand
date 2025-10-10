@@ -26,13 +26,6 @@ class LogConfig : ContextAwareBase(), Configurator {
     override fun configure(lc: LoggerContext): ExecutionStatus {
         val rootAppender = MaskingAppender().setup(lc) {
             appender = ConsoleAppender<ILoggingEvent>().setup(lc) {
-                /* logs too much pii for shared log */
-                addFilter(object : Filter<ILoggingEvent>() {
-                    override fun decide(event: ILoggingEvent) = when {
-                        event.loggerName.startsWith("org.apache.cxf") -> FilterReply.DENY
-                        else -> FilterReply.NEUTRAL
-                    }
-                })
                 if (clusterName.isNotEmpty()) {
                     encoder = LogstashEncoder().setup(lc)
                 } else {
@@ -49,7 +42,7 @@ class LogConfig : ContextAwareBase(), Configurator {
             level = basedOnEnv(
                 prod = { Level.INFO },
                 dev = { Level.INFO },
-                other = { Level.INFO }
+                other = { Level.TRACE }
             )
             addAppender(rootAppender)
         }
