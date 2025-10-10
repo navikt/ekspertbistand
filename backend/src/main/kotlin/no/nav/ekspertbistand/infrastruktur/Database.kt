@@ -38,6 +38,7 @@ class DbConfig(
 
     val flywayConfig: FluentConfiguration by lazy {
         Flyway.configure()
+            .initSql("select 1")
             .dataSource(dbUrl.jdbcUrl, dbUrl.username, dbUrl.password)
             .locations("db/migration") // default = db/migration, just being explicit
             .connectRetries(connectRetries) // time waited after retries ca: 1=1s, 5=31s, 6=63s, 7=127s
