@@ -42,7 +42,7 @@ class LogConfig : ContextAwareBase(), Configurator {
             level = basedOnEnv(
                 prod = { Level.INFO },
                 dev = { Level.INFO },
-                other = { Level.TRACE }
+                other = { Level.DEBUG }
             )
             addAppender(rootAppender)
         }
