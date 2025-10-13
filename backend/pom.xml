@@ -11,7 +11,7 @@
         <kotlin.code.style>official</kotlin.code.style>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
-        <main.class>no.nav.arbeidsgiver.ekspertbistand.ApplicationKt</main.class>
+        <main.class>no.nav.ekspertbistand.ApplicationKt</main.class>
 
         <kotlin.version>2.2.10</kotlin.version>
         <kotlinx.coroutines.version>1.10.2</kotlinx.coroutines.version>
