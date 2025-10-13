@@ -29,7 +29,7 @@ class SkjemaTest {
 
     @Test
     fun `CRUD utkast`() = runTest {
-        TestDatabase().use { testDb ->
+        TestDatabase.create().use { testDb ->
             val dbConfig = testDb.config
             testApplication {
                 mockAltinnTilganger(
@@ -172,7 +172,7 @@ class SkjemaTest {
 
     @Test
     fun `send inn skjema`() = runTest {
-        TestDatabase().use { testDb ->
+        TestDatabase.create().use { testDb ->
             val dbConfig = testDb.config
             val eksisterendeSkjemaId = UUID.randomUUID()
             testApplication {
@@ -358,7 +358,7 @@ class SkjemaTest {
 
     @Test
     fun `GET skjema henter mine skjema`() = runTest {
-        TestDatabase().use { testDb ->
+        TestDatabase.create().use { testDb ->
             val dbConfig = testDb.config
             testApplication {
                 mockAltinnTilganger(
@@ -501,7 +501,7 @@ class SkjemaTest {
     @Test
     fun `get skjema gir 401 ved ugyldig token`() = runTest {
 
-        TestDatabase().use { testDb ->
+        TestDatabase.create().use { testDb ->
             val dbConfig = testDb.config
             val altinnTilgangerClient = AltinnTilgangerClient(object : TokenExchanger {
                 override suspend fun exchange(

@@ -3,6 +3,8 @@ package no.nav.ekspertbistand.infrastruktur
 import io.ktor.http.*
 import io.ktor.server.application.Application
 import io.ktor.server.plugins.di.dependencies
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.configuration.FluentConfiguration
 import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
@@ -50,7 +52,9 @@ class DbConfig(
 }
 
 suspend fun Application.configureDatabase() = with(dependencies.resolve<DbConfig>()) {
-    flyway.migrate()
+    withContext(Dispatchers.IO) {
+        flyway.migrate()
+    }
     database
 }
 
