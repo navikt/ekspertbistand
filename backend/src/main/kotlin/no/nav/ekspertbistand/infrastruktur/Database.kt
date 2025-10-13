@@ -48,19 +48,17 @@ class DbConfig(
 
     val jdbcDatabase by lazy {
         Database.connect(
-            url = dbUrl.jdbcUrl,
+            url = url,
             databaseConfig = DatabaseConfig {
                 defaultIsolationLevel = Connection.TRANSACTION_READ_COMMITTED
             },
-            user = dbUrl.username,
-            password = dbUrl.password,
         )
     }
 
     val flywayConfig: FluentConfiguration by lazy {
         Flyway.configure()
             .initSql("select 1")
-            .dataSource(dbUrl.jdbcUrl, dbUrl.username, dbUrl.password)
+            .dataSource(url, dbUrl.username, dbUrl.password)
             .locations("db/migration") // default = db/migration, just being explicit
             .connectRetries(7) // time waited after retries ca: 1=1s, 5=31s, 6=63s, 7=127s
     }
