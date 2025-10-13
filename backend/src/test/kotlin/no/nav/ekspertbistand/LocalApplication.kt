@@ -16,7 +16,7 @@ import java.util.UUID
 
 
 suspend fun main() {
-    val dbConfig = TestDatabase.initialize()
+    val dbConfig = TestDatabase().config
     suspendTransaction(dbConfig.database) {
         SkjemaTable.insert {
             it[id] = UUID.randomUUID()
