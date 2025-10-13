@@ -1,23 +1,20 @@
 package no.nav.ekspertbistand.infrastruktur
 
 import io.ktor.http.*
-import io.ktor.server.application.Application
-import io.ktor.server.plugins.di.dependencies
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.configuration.FluentConfiguration
-import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+import org.jetbrains.exposed.v1.core.DatabaseConfig
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.net.URI
+import java.sql.Connection
 
 class DbConfig(
-    val url: String,
-    val connectRetries: Int,
+    val url: String
 ) {
     companion object {
         fun nais() = DbConfig(
-            url = System.getenv("DB_JDBC_URL")!!,
-            connectRetries = 7
+            url = System.getenv("DB_JDBC_URL")!!
         )
     }
 
@@ -29,31 +26,54 @@ class DbConfig(
      */
     val dbUrl = DbUrl(url)
 
-    val database: R2dbcDatabase
-        get() = R2dbcDatabase.connect(
-            driver = "postgresql",
-            url = dbUrl.r2dbcUrl,
+    /**
+     * mixing r2dbc with jdbc causes transactions issues due to the internal implementation og exposed sticking
+     * the last used transaction manager. And since we are using flyway which needs jdbc, we cannot use r2dbc here.
+     * If we want to use r2dbc, we need to find another way to run database migrations.
+     */
+    //val r2dbcDatabase by lazy {
+    //    R2dbcDatabase.connect(
+    //        url = dbUrl.r2dbcUrl,
+    //        databaseConfig = R2dbcDatabaseConfig {
+    //            defaultMaxAttempts = 1
+    //            defaultR2dbcIsolationLevel = IsolationLevel.READ_COMMITTED
+    //
+    //            connectionFactoryOptions {
+    //                option(ConnectionFactoryOptions.USER, dbUrl.username)
+    //                option(ConnectionFactoryOptions.PASSWORD, dbUrl.password)
+    //            }
+    //        }
+    //    )
+    //}
+
+    val jdbcDatabase by lazy {
+        Database.connect(
+            url = dbUrl.jdbcUrl,
+            databaseConfig = DatabaseConfig {
+                defaultIsolationLevel = Connection.TRANSACTION_READ_COMMITTED
+            },
             user = dbUrl.username,
             password = dbUrl.password,
         )
+    }
 
     val flywayConfig: FluentConfiguration by lazy {
         Flyway.configure()
             .initSql("select 1")
             .dataSource(dbUrl.jdbcUrl, dbUrl.username, dbUrl.password)
             .locations("db/migration") // default = db/migration, just being explicit
-            .connectRetries(connectRetries) // time waited after retries ca: 1=1s, 5=31s, 6=63s, 7=127s
+            .connectRetries(7) // time waited after retries ca: 1=1s, 5=31s, 6=63s, 7=127s
     }
 
     val flyway: Flyway by lazy {
         flywayConfig.load()
     }
-}
 
-suspend fun Application.configureDatabase() {
-    withContext(Dispatchers.IO) {
-        dependencies.resolve<() -> Flyway>()().apply {
-            migrate()
+    fun flywayAction(
+        action: Flyway.() -> Unit
+    ) {
+        transaction(jdbcDatabase) {
+            flyway.action()
         }
     }
 }

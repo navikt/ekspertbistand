@@ -1,11 +1,10 @@
 package no.nav.ekspertbistand.skjema
 
-import kotlinx.coroutines.flow.singleOrNull
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.dao.id.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.r2dbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.*
 import java.util.*
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -84,7 +83,7 @@ object UtkastTable : UUIDTable("utkast") {
     }
 }
 
-suspend fun findSkjemaOrUtkastById(id: UUID): DTO? =
+fun findSkjemaOrUtkastById(id: UUID): DTO? =
     SkjemaTable.selectAll()
         .where { SkjemaTable.id eq id }
         .singleOrNull()?.tilSkjemaDTO()

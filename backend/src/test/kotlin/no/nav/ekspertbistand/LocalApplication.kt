@@ -10,14 +10,13 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
-import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
-import org.jetbrains.exposed.v1.r2dbc.insert
-import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
-import java.util.*
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import java.util.UUID
 
 
 fun main() {
-    val testDb = TestDatabase.create()
+    val testDb = TestDatabase()
     val mockAltinnTilgangerServer = HttpClient(MockEngine { request ->
         respond(
             content = ByteReadChannel(altinnTilgangerResponse),
@@ -38,56 +37,55 @@ fun main() {
             ): TokenResponse = TokenResponse.Success("dummy", 3600)
         }
     )
-    ktorServer(setup = {
-        testDb.flyway.clean()
-        testDb.flyway.migrate()
-        suspendTransaction(testDb.database) {
-            SkjemaTable.insert {
-                it[id] = UUID.randomUUID()
-                it[virksomhetsnummer] = "1337"
-                it[opprettetAv] = "42"
 
-                it[kontaktpersonNavn] = ""
-                it[kontaktpersonEpost] = ""
-                it[kontaktpersonTelefon] = ""
-                it[ansattFodselsnummer] = ""
-                it[ansattNavn] = ""
-                it[ekspertNavn] = ""
-                it[ekspertVirksomhet] = ""
-                it[ekspertKompetanse] = ""
-                it[ekspertProblemstilling] = ""
-                it[tiltakForTilrettelegging] = ""
-                it[bestillingKostnad] = ""
-                it[bestillingStartDato] = ""
-                it[navKontakt] = ""
-            }
-            UtkastTable.insert {
-                it[virksomhetsnummer] = "1337"
-                it[opprettetAv] = "42"
+    testDb.clean()
+    transaction(testDb.config.jdbcDatabase) {
+        SkjemaTable.insert {
+            it[id] = UUID.randomUUID()
+            it[virksomhetsnummer] = "1337"
+            it[opprettetAv] = "42"
 
-                it[kontaktpersonNavn] = ""
-                it[kontaktpersonEpost] = ""
-                it[kontaktpersonTelefon] = ""
-                it[ansattFodselsnummer] = ""
-                it[ansattNavn] = ""
-                it[ekspertNavn] = ""
-                it[ekspertVirksomhet] = ""
-                it[ekspertKompetanse] = ""
-                it[ekspertProblemstilling] = ""
-                it[tiltakForTilrettelegging] = ""
-                it[bestillingKostnad] = ""
-                it[bestillingStartDato] = ""
-                it[navKontakt] = ""
-            }
+            it[kontaktpersonNavn] = ""
+            it[kontaktpersonEpost] = ""
+            it[kontaktpersonTelefon] = ""
+            it[ansattFodselsnummer] = ""
+            it[ansattNavn] = ""
+            it[ekspertNavn] = ""
+            it[ekspertVirksomhet] = ""
+            it[ekspertKompetanse] = ""
+            it[ekspertProblemstilling] = ""
+            it[tiltakForTilrettelegging] = ""
+            it[bestillingKostnad] = ""
+            it[bestillingStartDato] = ""
+            it[navKontakt] = ""
         }
-    }) {
+        UtkastTable.insert {
+            it[virksomhetsnummer] = "1337"
+            it[opprettetAv] = "42"
+
+            it[kontaktpersonNavn] = ""
+            it[kontaktpersonEpost] = ""
+            it[kontaktpersonTelefon] = ""
+            it[ansattFodselsnummer] = ""
+            it[ansattNavn] = ""
+            it[ekspertNavn] = ""
+            it[ekspertVirksomhet] = ""
+            it[ekspertKompetanse] = ""
+            it[ekspertProblemstilling] = ""
+            it[tiltakForTilrettelegging] = ""
+            it[bestillingKostnad] = ""
+            it[bestillingStartDato] = ""
+            it[navKontakt] = ""
+        }
+    }
+
+    ktorServer(
+        dbConfig = testDb.config,
+    ) {
         provide<TokenIntrospector> {
             MockTokenIntrospector {
                 if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
             }
-        }
-        provide<R2dbcDatabase> {
-            testDb.database
         }
         provide<AltinnTilgangerClient> {
             mockAltinnTilgangerClient

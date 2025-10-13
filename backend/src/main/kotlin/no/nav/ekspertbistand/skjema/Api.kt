@@ -4,24 +4,22 @@ import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.flow.single
-import kotlinx.coroutines.flow.toList
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.r2dbc.*
-import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.*
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 
 class SkjemaApi(
-    private val database: R2dbcDatabase,
+    private val database: Database,
     private val altinnTilgangerClient: AltinnTilgangerClient,
 ) {
     suspend fun RoutingContext.opprettUtkast() {
-        val opprettetUtkast = suspendTransaction(database) {
+        val opprettetUtkast = transaction(database) {
             UtkastTable.insertReturning {
                 it[opprettetAv] = innloggetBruker
             }.single().tilUtkastDTO()
@@ -43,7 +41,7 @@ class SkjemaApi(
 
         when (statusParam) {
             SkjemaStatus.utkast -> {
-                val results = suspendTransaction(database) {
+                val results = transaction(database) {
                     UtkastTable.selectAll()
                         .where { UtkastTable.opprettetAv eq innloggetBruker }
                         .orWhere { UtkastTable.virksomhetsnummer inList organisasjoner }
@@ -55,7 +53,7 @@ class SkjemaApi(
             }
 
             SkjemaStatus.innsendt -> {
-                val results = suspendTransaction(database) {
+                val results = transaction(database) {
                     SkjemaTable.selectAll()
                         .where { SkjemaTable.virksomhetsnummer inList organisasjoner }
                         .orderBy(SkjemaTable.opprettetTidspunkt to SortOrder.DESC)
@@ -68,7 +66,7 @@ class SkjemaApi(
     }
 
     suspend fun RoutingContext.hentSkjemaById(idParam: UUID) {
-        val eksisterende = suspendTransaction(database) {
+        val eksisterende = transaction(database) {
             findSkjemaOrUtkastById(idParam)
         }
 
@@ -101,7 +99,7 @@ class SkjemaApi(
     }
 
     suspend fun RoutingContext.oppdaterUtkast(idParam: UUID) {
-        val eksisterende = suspendTransaction(database) {
+        val eksisterende = transaction(database) {
             findSkjemaOrUtkastById(idParam)
         }
 
@@ -127,7 +125,7 @@ class SkjemaApi(
             return
         }
 
-        val oppdatert = suspendTransaction(database) {
+        val oppdatert = transaction(database) {
             UtkastTable.updateReturning(
                 where = { UtkastTable.id eq idParam }
             ) { utkast ->
@@ -164,7 +162,7 @@ class SkjemaApi(
     }
 
     suspend fun RoutingContext.slettUtkast(idParam: UUID) {
-        val eksisterende = suspendTransaction(database) {
+        val eksisterende = transaction(database) {
             findSkjemaOrUtkastById(idParam)
         }
 
@@ -187,7 +185,7 @@ class SkjemaApi(
             return
         }
 
-        suspendTransaction(database) {
+        transaction(database) {
             UtkastTable.deleteWhere { UtkastTable.id eq idParam }
         }
 
@@ -195,7 +193,7 @@ class SkjemaApi(
     }
 
     suspend fun RoutingContext.sendInnSkjema(idParam: UUID) {
-        val eksisterende = suspendTransaction(database) {
+        val eksisterende = transaction(database) {
             findSkjemaOrUtkastById(idParam)
         }
 
@@ -218,7 +216,7 @@ class SkjemaApi(
             return
         }
 
-        val innsendt = suspendTransaction(database) {
+        val innsendt = transaction(database) {
             SkjemaTable.insertReturning {
                 it[id] = idParam
                 it[virksomhetsnummer] = skjema.virksomhet.virksomhetsnummer

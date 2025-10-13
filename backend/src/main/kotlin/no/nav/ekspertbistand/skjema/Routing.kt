@@ -9,11 +9,11 @@ import io.ktor.server.routing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
-import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 
 suspend fun Application.skjemaApiV1() {
-    val database = dependencies.resolve<R2dbcDatabase>()
+    val database = dependencies.resolve<Database>()
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
     val skjemaApi = SkjemaApi(database, altinnTilgangerClient)
 

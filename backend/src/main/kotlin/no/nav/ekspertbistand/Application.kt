@@ -28,28 +28,19 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.Internal.internal
 import no.nav.ekspertbistand.skjema.skjemaApiV1
-import org.flywaydb.core.Flyway
-import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
 import java.util.*
 
 
 fun main() {
-    val dbConfig = DbConfig.nais()
-    ktorServer(
-        setup = {
-            dbConfig.flyway.migrate()
-        }
-    ) {
+    ktorServer(DbConfig.nais()) {
         val tokenxClient = AuthClient(
             TexasAuthConfig.nais(),
             IdentityProvider.TOKEN_X
         )
         provide<TokenIntrospector> {
             tokenxClient
-        }
-        provide<R2dbcDatabase> {
-            dbConfig.database
         }
         provide<AltinnTilgangerClient> {
             AltinnTilgangerClient(
@@ -60,7 +51,7 @@ fun main() {
 }
 
 fun ktorServer(
-    setup: suspend Application.() -> Unit = { },
+    dbConfig: DbConfig,
     provide: DependencyRegistry.() -> Unit,
 ) = embeddedServer(
     CIO,
@@ -75,16 +66,32 @@ fun ktorServer(
 ) {
     dependencies(provide)
 
-    configureAll()
-    setup()
+    configureAll(dbConfig)
 }
 
-suspend fun Application.configureAll() {
+suspend fun Application.configureAll(dbConfig: DbConfig) {
     configureServer()
     configureTokenXAuth()
+    configureDatabase(dbConfig)
 
     skjemaApiV1()
     internal()
+}
+
+fun Application.configureDatabase(dbConfig: DbConfig) {
+    dbConfig.flywayAction {
+        migrate()
+    }
+
+    dependencies {
+        // mixing r2dbc and jdbc does not work well together, so we use only jdbc for now
+        //provide<R2dbcDatabase> {
+        //    dbConfig.r2dbcDatabase
+        //}
+        provide<Database> {
+            dbConfig.jdbcDatabase
+        }
+    }
 }
 
 fun Application.configureServer() {

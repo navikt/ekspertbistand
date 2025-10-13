@@ -2,12 +2,12 @@ package no.nav.ekspertbistand.skjema
 
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import org.jetbrains.exposed.v1.core.ExperimentalDatabaseMigrationApi
-import org.jetbrains.exposed.v1.migration.r2dbc.MigrationUtils
-import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
 
 @OptIn(ExperimentalDatabaseMigrationApi::class)
-suspend fun main() {
-    suspendTransaction(TestDatabase.create().database) {
+fun main() {
+    transaction(TestDatabase().config.jdbcDatabase) {
         MigrationUtils.generateMigrationScript(
             SkjemaTable,
             UtkastTable,
