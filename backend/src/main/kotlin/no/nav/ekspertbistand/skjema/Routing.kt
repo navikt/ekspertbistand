@@ -3,19 +3,19 @@ package no.nav.ekspertbistand.skjema
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
-import io.ktor.server.plugins.di.*
+import io.ktor.server.plugins.di.dependencies
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
-import no.nav.ekspertbistand.infrastruktur.DbConfig
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
+import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import java.util.*
 
 suspend fun Application.skjemaApiV1() {
-    val dbConfig = dependencies.resolve<DbConfig>()
+    val database = dependencies.resolve<R2dbcDatabase>()
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
-    val skjemaApi = SkjemaApi(dbConfig, altinnTilgangerClient)
+    val skjemaApi = SkjemaApi(database, altinnTilgangerClient)
 
     routing {
         authenticate(TOKENX_PROVIDER) {

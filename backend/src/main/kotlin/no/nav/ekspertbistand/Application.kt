@@ -28,12 +28,19 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.Internal.internal
 import no.nav.ekspertbistand.skjema.skjemaApiV1
+import org.flywaydb.core.Flyway
+import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.slf4j.event.Level
 import java.util.*
 
 
 fun main() {
-    ktorServer {
+    val dbConfig = DbConfig.nais()
+    ktorServer(
+        setup = {
+            dbConfig.flyway.migrate()
+        }
+    ) {
         val tokenxClient = AuthClient(
             TexasAuthConfig.nais(),
             IdentityProvider.TOKEN_X
@@ -41,8 +48,8 @@ fun main() {
         provide<TokenIntrospector> {
             tokenxClient
         }
-        provide<DbConfig> {
-            DbConfig.nais()
+        provide<R2dbcDatabase> {
+            dbConfig.database
         }
         provide<AltinnTilgangerClient> {
             AltinnTilgangerClient(
@@ -53,7 +60,8 @@ fun main() {
 }
 
 fun ktorServer(
-    provide: DependencyRegistry.() -> Unit
+    setup: suspend Application.() -> Unit = { },
+    provide: DependencyRegistry.() -> Unit,
 ) = embeddedServer(
     CIO,
     configure = {
@@ -68,11 +76,11 @@ fun ktorServer(
     dependencies(provide)
 
     configureAll()
+    setup()
 }
 
 suspend fun Application.configureAll() {
     configureServer()
-    configureDatabase()
     configureTokenXAuth()
 
     skjemaApiV1()

@@ -10,53 +10,14 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
+import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
-import java.util.UUID
+import java.util.*
 
 
-suspend fun main() {
-    val dbConfig = TestDatabase.create().config
-    suspendTransaction(dbConfig.database) {
-        SkjemaTable.insert {
-            it[id] = UUID.randomUUID()
-            it[virksomhetsnummer] = "1337"
-            it[opprettetAv] = "42"
-
-            it[kontaktpersonNavn] = ""
-            it[kontaktpersonEpost] = ""
-            it[kontaktpersonTelefon] = ""
-            it[ansattFodselsnummer] = ""
-            it[ansattNavn] = ""
-            it[ekspertNavn] = ""
-            it[ekspertVirksomhet] = ""
-            it[ekspertKompetanse] = ""
-            it[ekspertProblemstilling] = ""
-            it[tiltakForTilrettelegging] = ""
-            it[bestillingKostnad] = ""
-            it[bestillingStartDato] = ""
-            it[navKontakt] = ""
-        }
-        UtkastTable.insert {
-            it[virksomhetsnummer] = "1337"
-            it[opprettetAv] = "42"
-
-            it[kontaktpersonNavn] = ""
-            it[kontaktpersonEpost] = ""
-            it[kontaktpersonTelefon] = ""
-            it[ansattFodselsnummer] = ""
-            it[ansattNavn] = ""
-            it[ekspertNavn] = ""
-            it[ekspertVirksomhet] = ""
-            it[ekspertKompetanse] = ""
-            it[ekspertProblemstilling] = ""
-            it[tiltakForTilrettelegging] = ""
-            it[bestillingKostnad] = ""
-            it[bestillingStartDato] = ""
-            it[navKontakt] = ""
-        }
-    }
-
+fun main() {
+    val testDb = TestDatabase.create()
     val mockAltinnTilgangerServer = HttpClient(MockEngine { request ->
         respond(
             content = ByteReadChannel(altinnTilgangerResponse),
@@ -77,14 +38,56 @@ suspend fun main() {
             ): TokenResponse = TokenResponse.Success("dummy", 3600)
         }
     )
-    ktorServer {
+    ktorServer(setup = {
+        testDb.flyway.clean()
+        testDb.flyway.migrate()
+        suspendTransaction(testDb.database) {
+            SkjemaTable.insert {
+                it[id] = UUID.randomUUID()
+                it[virksomhetsnummer] = "1337"
+                it[opprettetAv] = "42"
+
+                it[kontaktpersonNavn] = ""
+                it[kontaktpersonEpost] = ""
+                it[kontaktpersonTelefon] = ""
+                it[ansattFodselsnummer] = ""
+                it[ansattNavn] = ""
+                it[ekspertNavn] = ""
+                it[ekspertVirksomhet] = ""
+                it[ekspertKompetanse] = ""
+                it[ekspertProblemstilling] = ""
+                it[tiltakForTilrettelegging] = ""
+                it[bestillingKostnad] = ""
+                it[bestillingStartDato] = ""
+                it[navKontakt] = ""
+            }
+            UtkastTable.insert {
+                it[virksomhetsnummer] = "1337"
+                it[opprettetAv] = "42"
+
+                it[kontaktpersonNavn] = ""
+                it[kontaktpersonEpost] = ""
+                it[kontaktpersonTelefon] = ""
+                it[ansattFodselsnummer] = ""
+                it[ansattNavn] = ""
+                it[ekspertNavn] = ""
+                it[ekspertVirksomhet] = ""
+                it[ekspertKompetanse] = ""
+                it[ekspertProblemstilling] = ""
+                it[tiltakForTilrettelegging] = ""
+                it[bestillingKostnad] = ""
+                it[bestillingStartDato] = ""
+                it[navKontakt] = ""
+            }
+        }
+    }) {
         provide<TokenIntrospector> {
             MockTokenIntrospector {
                 if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
             }
         }
-        provide<DbConfig> {
-            dbConfig
+        provide<() -> R2dbcDatabase> {
+            { testDb.database }
         }
         provide<AltinnTilgangerClient> {
             mockAltinnTilgangerClient

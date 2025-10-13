@@ -51,11 +51,12 @@ class DbConfig(
     }
 }
 
-suspend fun Application.configureDatabase() = with(dependencies.resolve<DbConfig>()) {
+suspend fun Application.configureDatabase() {
     withContext(Dispatchers.IO) {
-        flyway.migrate()
+        dependencies.resolve<() -> Flyway>()().apply {
+            migrate()
+        }
     }
-    database
 }
 
 

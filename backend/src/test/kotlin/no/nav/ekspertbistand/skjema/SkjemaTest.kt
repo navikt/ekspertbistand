@@ -16,6 +16,7 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.configureAll
 import no.nav.ekspertbistand.infrastruktur.*
+import org.jetbrains.exposed.v1.r2dbc.R2dbcDatabase
 import org.jetbrains.exposed.v1.r2dbc.insert
 import org.jetbrains.exposed.v1.r2dbc.insertReturning
 import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
@@ -30,7 +31,7 @@ class SkjemaTest {
     @Test
     fun `CRUD utkast`() = runTest {
         TestDatabase.create().use { testDb ->
-            val dbConfig = testDb.config
+            testDb.clean()
             testApplication {
                 mockAltinnTilganger(
                     AltinnTilgangerClientResponse(
@@ -67,8 +68,8 @@ class SkjemaTest {
                                 if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                             }
                         }
-                        provide<DbConfig> {
-                            dbConfig
+                        provide<R2dbcDatabase> {
+                            testDb.database
                         }
                         provide<AltinnTilgangerClient> {
                             altinnTilgangerClient
@@ -173,7 +174,8 @@ class SkjemaTest {
     @Test
     fun `send inn skjema`() = runTest {
         TestDatabase.create().use { testDb ->
-            val dbConfig = testDb.config
+            testDb.clean()
+
             val eksisterendeSkjemaId = UUID.randomUUID()
             testApplication {
                 mockAltinnTilganger(
@@ -211,8 +213,8 @@ class SkjemaTest {
                                 if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                             }
                         }
-                        provide<DbConfig> {
-                            dbConfig
+                        provide<R2dbcDatabase> {
+                            testDb.database
                         }
                         provide<AltinnTilgangerClient> {
                             altinnTilgangerClient
@@ -222,7 +224,7 @@ class SkjemaTest {
                     configureAll()
                 }
 
-                suspendTransaction(dbConfig.database) {
+                suspendTransaction(testDb.database) {
                     SkjemaTable.insert {
                         it[id] = eksisterendeSkjemaId
                         it[virksomhetsnummer] = "1337"
@@ -275,7 +277,7 @@ class SkjemaTest {
                     assertEquals(HttpStatusCode.Conflict, status)
                 }
 
-                val eksisterendeUtkast = suspendTransaction(dbConfig.database) {
+                val eksisterendeUtkast = suspendTransaction(testDb.database) {
                     UtkastTable.insertReturning {
                         it[virksomhetsnummer] = "1337"
                         it[opprettetAv] = "T2000"
@@ -359,7 +361,7 @@ class SkjemaTest {
     @Test
     fun `GET skjema henter mine skjema`() = runTest {
         TestDatabase.create().use { testDb ->
-            val dbConfig = testDb.config
+            testDb.clean()
             testApplication {
                 mockAltinnTilganger(
                     AltinnTilgangerClientResponse(
@@ -397,8 +399,8 @@ class SkjemaTest {
                                 if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                             }
                         }
-                        provide<DbConfig> {
-                            dbConfig
+                        provide<R2dbcDatabase> {
+                            testDb.database
                         }
                         provide<AltinnTilgangerClient> {
                             altinnTilgangerClient
@@ -408,7 +410,7 @@ class SkjemaTest {
                     configureAll()
                 }
 
-                suspendTransaction(dbConfig.database) {
+                suspendTransaction(testDb.database) {
                     SkjemaTable.insert {
                         it[id] = UUID.randomUUID()
                         it[virksomhetsnummer] = "1337"
@@ -502,7 +504,7 @@ class SkjemaTest {
     fun `get skjema gir 401 ved ugyldig token`() = runTest {
 
         TestDatabase.create().use { testDb ->
-            val dbConfig = testDb.config
+            testDb.clean()
             val altinnTilgangerClient = AltinnTilgangerClient(object : TokenExchanger {
                 override suspend fun exchange(
                     target: String,
@@ -517,8 +519,8 @@ class SkjemaTest {
                                 null
                             }
                         }
-                        provide<DbConfig> {
-                            dbConfig
+                        provide<R2dbcDatabase> {
+                            testDb.database
                         }
                         provide<AltinnTilgangerClient> {
                             altinnTilgangerClient

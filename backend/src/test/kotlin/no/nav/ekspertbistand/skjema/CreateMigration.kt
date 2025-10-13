@@ -7,7 +7,7 @@ import org.jetbrains.exposed.v1.r2dbc.transactions.suspendTransaction
 
 @OptIn(ExperimentalDatabaseMigrationApi::class)
 suspend fun main() {
-    suspendTransaction(TestDatabase.create().config.database) {
+    suspendTransaction(TestDatabase.create().database) {
         MigrationUtils.generateMigrationScript(
             SkjemaTable,
             UtkastTable,
