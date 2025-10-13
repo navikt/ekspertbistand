@@ -86,8 +86,8 @@ fun main() {
                 if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
             }
         }
-        provide<() -> R2dbcDatabase> {
-            { testDb.database }
+        provide<R2dbcDatabase> {
+            testDb.database
         }
         provide<AltinnTilgangerClient> {
             mockAltinnTilgangerClient

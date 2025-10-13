@@ -29,14 +29,13 @@ class DbConfig(
      */
     val dbUrl = DbUrl(url)
 
-    val database by lazy {
-        R2dbcDatabase.connect(
+    val database: R2dbcDatabase
+        get() = R2dbcDatabase.connect(
             driver = "postgresql",
             url = dbUrl.r2dbcUrl,
             user = dbUrl.username,
             password = dbUrl.password,
         )
-    }
 
     val flywayConfig: FluentConfiguration by lazy {
         Flyway.configure()

@@ -19,6 +19,11 @@ class TestDatabase private constructor(
     ).apply {
         flywayConfig.cleanDisabled(false)
         flywayConfig.validateOnMigrate(false)
+        flywayConfig.lockRetryCount(10)
+        flywayConfig.configuration(mapOf(
+            "lockTimeout" to "30s",
+            "statementTimeout" to "30s"
+        ))
     }
 
     val database: R2dbcDatabase

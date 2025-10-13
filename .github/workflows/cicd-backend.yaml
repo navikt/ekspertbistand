@@ -41,12 +41,6 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
 
-      - run: mvn -version
-        working-directory: backend
-
-      - run: mvn dependency:tree
-        working-directory: backend
-
       - run: mvn -B package
         working-directory: backend
 
