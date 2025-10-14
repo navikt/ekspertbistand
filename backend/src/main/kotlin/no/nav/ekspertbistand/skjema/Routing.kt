@@ -12,7 +12,7 @@ import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 
-suspend fun Application.skjemaApiV1() {
+suspend fun Application.configureSkjemaApiV1() {
     val database = dependencies.resolve<Database>()
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
     val skjemaApi = SkjemaApi(database, altinnTilgangerClient)

@@ -11,8 +11,7 @@ import io.ktor.server.plugins.callid.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.compression.*
 import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.plugins.di.DependencyRegistry
-import io.ktor.server.plugins.di.dependencies
+import io.ktor.server.plugins.di.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.utils.io.*
@@ -26,33 +25,37 @@ import io.micrometer.core.instrument.binder.system.ProcessorMetrics
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.*
-import no.nav.ekspertbistand.internal.Internal.internal
-import no.nav.ekspertbistand.skjema.skjemaApiV1
+import no.nav.ekspertbistand.internal.configureInternal
+import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
 import java.util.*
 
 
 fun main() {
-    ktorServer(DbConfig.nais()) {
-        val tokenxClient = AuthClient(
-            TexasAuthConfig.nais(),
-            IdentityProvider.TOKEN_X
-        )
-        provide<TokenIntrospector> {
-            tokenxClient
-        }
-        provide<AltinnTilgangerClient> {
-            AltinnTilgangerClient(
+    val dbConfig = DbConfig.nais()
+    val authConfig = TexasAuthConfig.nais()
+    val tokenxClient = authConfig.authClient(IdentityProvider.TOKEN_X)
+
+    ktorServer {
+        dependencies {
+            provide {
+                dbConfig
+            }
+            provide<TokenIntrospector> {
                 tokenxClient
-            )
+            }
+            provide {
+                AltinnTilgangerClient(
+                    tokenxClient
+                )
+            }
         }
-    }.start(wait = true)
+    }
 }
 
 fun ktorServer(
-    dbConfig: DbConfig,
-    provide: DependencyRegistry.() -> Unit,
+    initialConfig: Application.() -> Unit,
 ) = embeddedServer(
     CIO,
     configure = {
@@ -64,21 +67,22 @@ fun ktorServer(
         shutdownTimeout = 30_000
     }
 ) {
-    dependencies(provide)
+    initialConfig()
+    module()
+}.start(wait = true)
 
-    configureAll(dbConfig)
-}
-
-suspend fun Application.configureAll(dbConfig: DbConfig) {
+suspend fun Application.module() {
     configureServer()
     configureTokenXAuth()
-    configureDatabase(dbConfig)
+    configureDatabase()
 
-    skjemaApiV1()
-    internal()
+    configureSkjemaApiV1()
+    configureInternal()
 }
 
-fun Application.configureDatabase(dbConfig: DbConfig) {
+private suspend fun Application.configureDatabase() {
+    val dbConfig = dependencies.resolve<DbConfig>()
+
     dbConfig.flywayAction {
         migrate()
     }
@@ -94,7 +98,7 @@ fun Application.configureDatabase(dbConfig: DbConfig) {
     }
 }
 
-fun Application.configureServer() {
+private fun Application.configureServer() {
     val log = logger()
 
     install(Compression) {

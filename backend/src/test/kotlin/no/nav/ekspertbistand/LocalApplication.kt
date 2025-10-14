@@ -5,6 +5,7 @@ import io.ktor.client.engine.mock.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.plugins.di.*
 import io.ktor.utils.io.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.*
@@ -12,12 +13,12 @@ import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.util.UUID
+import java.util.*
 
 
 fun main() {
     val testDb = TestDatabase()
-    val mockAltinnTilgangerServer = HttpClient(MockEngine { request ->
+    val mockAltinnTilgangerServer = HttpClient(MockEngine {
         respond(
             content = ByteReadChannel(altinnTilgangerResponse),
             status = HttpStatusCode.OK,
@@ -79,18 +80,21 @@ fun main() {
         }
     }
 
-    ktorServer(
-        dbConfig = testDb.config,
-    ) {
-        provide<TokenIntrospector> {
-            MockTokenIntrospector {
-                if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
+    ktorServer {
+        dependencies {
+            provide {
+                testDb.config
+            }
+            provide<TokenIntrospector> {
+                MockTokenIntrospector {
+                    if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
+                }
+            }
+            provide {
+                mockAltinnTilgangerClient
             }
         }
-        provide<AltinnTilgangerClient> {
-            mockAltinnTilgangerClient
-        }
-    }.start(wait = true)
+    }
 }
 
 // language=JSON

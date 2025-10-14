@@ -88,7 +88,7 @@ object TokenIntrospectionResponseSerializer : KSerializer<TokenIntrospectionResp
     }
 }
 
-data class TexasAuthConfig(
+class TexasAuthConfig(
     val tokenEndpoint: String,
     val tokenExchangeEndpoint: String,
     val tokenIntrospectionEndpoint: String,
@@ -100,6 +100,8 @@ data class TexasAuthConfig(
             tokenIntrospectionEndpoint = System.getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT"),
         )
     }
+
+    fun authClient(provider: IdentityProvider) = AuthClient(this, provider)
 }
 
 interface TokenExchanger {

@@ -12,8 +12,8 @@ import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
-import no.nav.ekspertbistand.configureAll
 import no.nav.ekspertbistand.infrastruktur.*
+import no.nav.ekspertbistand.module
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
@@ -26,7 +26,7 @@ class SkjemaTest {
 
     @Test
     fun `CRUD utkast`() = testApplication {
-        val testDb = TestDatabase().clean()
+
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
@@ -55,19 +55,23 @@ class SkjemaTest {
             }
         )
 
+        val testDb = TestDatabase().clean()
         application {
             dependencies {
+                provide {
+                    testDb.config
+                }
                 provide<TokenIntrospector> {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
                 }
-                provide<AltinnTilgangerClient> {
+                provide {
                     altinnTilgangerClient
                 }
             }
 
-            configureAll(testDb.config)
+            module()
         }
 
         var utkastId: String? = null
@@ -194,17 +198,20 @@ class SkjemaTest {
 
         application {
             dependencies {
+                provide {
+                    testDb.config
+                }
                 provide<TokenIntrospector> {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
                 }
-                provide<AltinnTilgangerClient> {
+                provide {
                     altinnTilgangerClient
                 }
             }
 
-            configureAll(testDb.config)
+            module()
 
             transaction(testDb.config.jdbcDatabase) {
                 SkjemaTable.insert {
@@ -374,17 +381,20 @@ class SkjemaTest {
 
         application {
             dependencies {
+                provide {
+                    testDb.config
+                }
                 provide<TokenIntrospector> {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
                 }
-                provide<AltinnTilgangerClient> {
+                provide {
                     altinnTilgangerClient
                 }
             }
 
-            configureAll(testDb.config)
+            module()
         }
 
         transaction(testDb.config.jdbcDatabase) {
@@ -486,17 +496,20 @@ class SkjemaTest {
         })
         application {
             dependencies {
+                provide {
+                    testDb.config
+                }
                 provide<TokenIntrospector> {
                     MockTokenIntrospector {
                         null
                     }
                 }
-                provide<AltinnTilgangerClient> {
+                provide {
                     altinnTilgangerClient
                 }
             }
 
-            configureAll(testDb.config)
+            module()
         }
 
         val response = client.get("/api/skjema/v1") {
