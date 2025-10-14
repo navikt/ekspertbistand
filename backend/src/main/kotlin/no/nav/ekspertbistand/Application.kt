@@ -27,7 +27,6 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
-import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
 import java.util.*
 
@@ -80,25 +79,7 @@ suspend fun Application.module() {
     configureInternal()
 }
 
-private suspend fun Application.configureDatabase() {
-    val dbConfig = dependencies.resolve<DbConfig>()
-
-    dbConfig.flywayAction {
-        migrate()
-    }
-
-    dependencies {
-        // mixing r2dbc and jdbc does not work well together, so we use only jdbc for now
-        //provide<R2dbcDatabase> {
-        //    dbConfig.r2dbcDatabase
-        //}
-        provide<Database> {
-            dbConfig.jdbcDatabase
-        }
-    }
-}
-
-private fun Application.configureServer() {
+fun Application.configureServer() {
     val log = logger()
 
     install(Compression) {
