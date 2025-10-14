@@ -3,7 +3,6 @@ package no.nav.ekspertbistand.infrastruktur
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.LoggerContext
-import ch.qos.logback.classic.PatternLayout
 import ch.qos.logback.classic.spi.Configurator
 import ch.qos.logback.classic.spi.Configurator.ExecutionStatus
 import ch.qos.logback.classic.spi.ILoggingEvent
@@ -11,12 +10,12 @@ import ch.qos.logback.classic.spi.IThrowableProxy
 import ch.qos.logback.core.Appender
 import ch.qos.logback.core.AppenderBase
 import ch.qos.logback.core.ConsoleAppender
-import ch.qos.logback.core.encoder.LayoutWrappingEncoder
-import ch.qos.logback.core.filter.Filter
 import ch.qos.logback.core.spi.ContextAware
 import ch.qos.logback.core.spi.ContextAwareBase
-import ch.qos.logback.core.spi.FilterReply
 import ch.qos.logback.core.spi.LifeCycle
+import net.logstash.logback.appender.LogstashTcpSocketAppender
+import net.logstash.logback.argument.StructuredArgument
+import net.logstash.logback.argument.StructuredArguments.kv
 import net.logstash.logback.encoder.LogstashEncoder
 import no.nav.ekspertbistand.infrastruktur.NaisEnvironment.clusterName
 import org.slf4j.LoggerFactory
@@ -26,14 +25,14 @@ class LogConfig : ContextAwareBase(), Configurator {
     override fun configure(lc: LoggerContext): ExecutionStatus {
         val rootAppender = MaskingAppender().setup(lc) {
             appender = ConsoleAppender<ILoggingEvent>().setup(lc) {
-                if (clusterName.isNotEmpty()) {
-                    encoder = LogstashEncoder().setup(lc)
-                } else {
-                    encoder = LayoutWrappingEncoder<ILoggingEvent>().setup(lc).apply {
-                        layout = PatternLayout().also {
-                            it.pattern = "%d %-5level [%thread] %logger: %msg %mdc%n"
-                        }.setup(lc)
-                    }
+                encoder = LogstashEncoder().setup(lc) {
+                    /**
+                     * isIncludeStructuredArguments settes til false for å unngå at
+                     * dette sendes til vanlig log. Dette logges kun til team-logs
+                     * i LogstashTcpSocketAppender nedenfor.
+                     */
+                    isIncludeStructuredArguments = false
+                    isIncludeMdc = true
                 }
             }
         }
@@ -45,6 +44,21 @@ class LogConfig : ContextAwareBase(), Configurator {
                 other = { Level.INFO }
             )
             addAppender(rootAppender)
+
+            if (clusterName.isNotEmpty()) {
+                addAppender(LogstashTcpSocketAppender().setup(lc) {
+                    this.name = "TEAMLOGS"
+                    addDestination("team-logs.nais-system:5170")
+                    this.encoder = LogstashEncoder().setup(lc) {
+                        this.customFields = """{
+                        |"google_cloud_project":"${System.getenv("GOOGLE_CLOUD_PROJECT")}",
+                        |"nais_namespace_name":"${System.getenv("NAIS_NAMESPACE")}",
+                        |"nais_pod_name":"${System.getenv("NAIS_POD_NAME")}",
+                        |"nais_container_name":"${System.getenv("NAIS_APP_NAME")}"
+                        |}""".trimMargin()
+                    }
+                })
+            }
         }
 
 
@@ -104,3 +118,10 @@ class MaskingAppender : AppenderBase<ILoggingEvent>() {
 }
 
 inline fun <reified T> T.logger(): org.slf4j.Logger = LoggerFactory.getLogger(T::class.qualifiedName)
+
+object TeamLogCtx {
+    fun of(ctx: Map<String, String>) = ctx.map {
+        kv(it.key, it.value)
+    }.toTypedArray<StructuredArgument>()
+}
+

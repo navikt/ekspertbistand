@@ -14,7 +14,7 @@
 - [x] add health endpoint
 - [x] add metrics endpoint
 - [x] add postgres and migration
-  - exposed with R2DBC
+  - exposed with -R2DBC- jdbc (see comment in db setup)
 - [x] integrate with arbeidsgiver-altinn-tilganger
 - [x] test with integration to other services like arbeidsgiver-altinn-tilganger, arena, gosys etc
   - [x] option 1 use externalServices available in ktor server tests
@@ -43,8 +43,8 @@
   - traceId=correlationId 
   - ktorServerReq/ktorServerRes 
   - ktorClientReq/ktorClientRes
-- [ ] set up github actions for build and test
-- [ ] teamlogs
+- [x] set up github actions for build and test
+- [x] teamlogs
   - with no masking
   - no marker routing, all logs go to both,
   - maskingappender masks all forms of pii
