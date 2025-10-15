@@ -1,5 +1,7 @@
 package no.nav.ekspertbistand.infrastruktur
 
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import io.ktor.http.*
 import io.ktor.server.application.Application
 import io.ktor.server.plugins.di.dependencies
@@ -10,6 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.net.URI
 import java.sql.Connection
+import javax.sql.DataSource
 
 class DbConfig(
     val url: String
@@ -28,8 +31,29 @@ class DbConfig(
      */
     val dbUrl = DbUrl(url)
 
+    private val hikari: DataSource by lazy {
+        HikariDataSource(HikariConfig().apply {
+            jdbcUrl = dbUrl.jdbcUrl
+            username = dbUrl.username
+            password = dbUrl.password
+            driverClassName = "org.postgresql.Driver"
+
+            maximumPoolSize = 20
+            minimumIdle = 5
+            connectionTimeout = 30000
+            idleTimeout = 600000
+            maxLifetime = 1800000
+            leakDetectionThreshold = 60000
+
+            connectionTestQuery = "SELECT 1"
+            validationTimeout = 5000
+
+            poolName = "EkspertbistandHikariPool"
+        })
+    }
+
     /**
-     * mixing r2dbc with jdbc causes transactions issues due to the internal implementation og exposed sticking
+     * mixing r2dbc with jdbc causes transactions issues due to the internal implementation of exposed sticking
      * the last used transaction manager. And since we are using flyway which needs jdbc, we cannot use r2dbc here.
      * If we want to use r2dbc, we need to find another way to run database migrations.
      */
@@ -50,7 +74,7 @@ class DbConfig(
 
     val jdbcDatabase by lazy {
         Database.connect(
-            url = url,
+            datasource = hikari,
             databaseConfig = DatabaseConfig {
                 defaultIsolationLevel = Connection.TRANSACTION_READ_COMMITTED
             },
@@ -60,7 +84,7 @@ class DbConfig(
     val flywayConfig: FluentConfiguration by lazy {
         Flyway.configure()
             .initSql("select 1")
-            .dataSource(url, dbUrl.username, dbUrl.password)
+            .dataSource(hikari)
             .locations("db/migration") // default = db/migration, just being explicit
             .connectRetries(7) // time waited after retries ca: 1=1s, 5=31s, 6=63s, 7=127s
     }
