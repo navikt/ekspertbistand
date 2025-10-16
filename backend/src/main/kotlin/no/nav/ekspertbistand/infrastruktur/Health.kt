@@ -1,5 +1,8 @@
 package no.nav.ekspertbistand.infrastruktur
 
+import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStopping
+import io.ktor.server.application.log
 import java.util.concurrent.atomic.AtomicBoolean
 
 interface RequiresReady {
@@ -26,5 +29,12 @@ object Health {
 
     fun terminate() {
         terminatingAtomic.set(true)
+    }
+}
+
+fun Application.registerShutdownListener() {
+    monitor.subscribe(ApplicationStopping) {
+        log.info("ApplicationStopping: signal Health.terminate()")
+        Health.terminate()
     }
 }

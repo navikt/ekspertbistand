@@ -77,6 +77,7 @@ suspend fun Application.module() {
 
     configureSkjemaApiV1()
     configureInternal()
+    registerShutdownListener()
 }
 
 fun Application.configureServer() {
