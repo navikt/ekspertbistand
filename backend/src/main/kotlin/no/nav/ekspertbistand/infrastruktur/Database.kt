@@ -34,8 +34,6 @@ class DbConfig(
     private val hikari: DataSource by lazy {
         HikariDataSource(HikariConfig().apply {
             jdbcUrl = url
-            username = dbUrl.username
-            password = dbUrl.password
             driverClassName = "org.postgresql.Driver"
 
             maximumPoolSize = 20
