@@ -33,7 +33,7 @@ class DbConfig(
 
     private val hikari: DataSource by lazy {
         HikariDataSource(HikariConfig().apply {
-            jdbcUrl = dbUrl.jdbcUrl
+            jdbcUrl = url
             username = dbUrl.username
             password = dbUrl.password
             driverClassName = "org.postgresql.Driver"
