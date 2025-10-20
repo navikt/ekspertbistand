@@ -17,6 +17,7 @@
         <kotlinx.coroutines.version>1.10.2</kotlinx.coroutines.version>
         <ktor.version>3.3.1</ktor.version>
         <java.version>21</java.version>
+        <graphql-kotlin.version>8.8.0</graphql-kotlin.version>
         <exposed.version>1.0.0-rc-2</exposed.version>
     </properties>
     <dependencies>
@@ -227,6 +228,17 @@
             <version>${kotlinx.coroutines.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.expediagroup</groupId>
+            <artifactId>graphql-kotlin-ktor-client</artifactId>
+            <version>${graphql-kotlin.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.expediagroup</groupId>
+            <artifactId>graphql-kotlin-client-serialization</artifactId>
+            <version>${graphql-kotlin.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <finalName>app</finalName>
@@ -338,6 +350,23 @@
                 <configuration>
                     <failIfNoTests>true</failIfNoTests>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.expediagroup</groupId>
+                <artifactId>graphql-kotlin-maven-plugin</artifactId>
+                <version>${graphql-kotlin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate-client</goal>
+                        </goals>
+                        <configuration>
+                            <schemaFile>${project.basedir}/src/main/resources/produsent.graphql</schemaFile>
+                            <packageName>no.nav.ekspertbistand.services.notifikasjon.graphql.generated</packageName>
+                            <serializer>KOTLINX</serializer>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
