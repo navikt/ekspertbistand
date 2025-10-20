@@ -1,0 +1,49 @@
+mutation OpprettNySak(
+    $grupperingsid: String!
+    $merkelapp: String!
+    $virksomhetsnummer: String!
+    $tittel: String!
+    $lenke: String!
+    $tidspunkt: ISO8601DateTime
+    $mottaker: MottakerInput!
+) {
+    nySak(
+        hardDelete: {
+            om: "PT17520H"
+        }
+        grupperingsid: $grupperingsid
+        merkelapp: $merkelapp
+        virksomhetsnummer: $virksomhetsnummer
+        mottakere: [
+            $mottaker
+        ]
+        tittel: $tittel
+        lenke: $lenke
+        initiellStatus: MOTTATT
+        tidspunkt: $tidspunkt
+    )
+    {
+        __typename
+        ... on NySakVellykket {
+            id
+        }
+        ... on UgyldigMerkelapp {
+            feilmelding
+        }
+        ... on UgyldigMottaker {
+            feilmelding
+        }
+        ... on UkjentProdusent {
+            feilmelding
+        }
+        ... on DuplikatGrupperingsid {
+            feilmelding
+        }
+        ... on DuplikatGrupperingsidEtterDelete {
+            feilmelding
+        }
+        ... on UkjentRolle {
+            feilmelding
+        }
+    }
+}
