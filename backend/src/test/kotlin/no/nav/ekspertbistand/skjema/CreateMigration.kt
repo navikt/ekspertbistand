@@ -10,21 +10,19 @@ import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
 @OptIn(ExperimentalDatabaseMigrationApi::class)
 fun main() {
     val testDatabase = TestDatabase()
-    testDatabase.clean()
+    testDatabase.flyway.clean()
     transaction(testDatabase.config.jdbcDatabase) {
-
         MigrationUtils.generateMigrationScript(
             SkjemaTable,
             UtkastTable,
             scriptDirectory = "backend/src/main/resources/db/migration",
-            scriptName = "V1__create_skjema_tables",
+            scriptName = "V1__init_skjema",
         )
         MigrationUtils.generateMigrationScript(
             Events,
             EventLog,
-            UtkastTable,
             scriptDirectory = "backend/src/main/resources/db/migration",
-            scriptName = "V2__create_event_tables",
+            scriptName = "V2__init_eventqueue",
         )
     }
 }

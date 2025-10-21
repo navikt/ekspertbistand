@@ -4,6 +4,8 @@ import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.logger
 
 class EventManager(
@@ -67,7 +69,11 @@ interface EventHandler<T : Event> {
 
 sealed class EventHandeledResult {
     class Success : EventHandeledResult()
-    class Error(val exception: Exception) : EventHandeledResult()
+    @Serializable
+    class Error(
+        @Contextual
+        val exception: Exception
+    ) : EventHandeledResult()
     class RetryableError(val exception: Exception) : EventHandeledResult()
 }
 

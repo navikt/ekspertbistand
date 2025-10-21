@@ -55,7 +55,7 @@ class SkjemaTest {
             }
         )
 
-        val testDb = TestDatabase().clean()
+        val testDb = TestDatabase().cleanMigrate()
         application {
             dependencies {
                 provide {
@@ -166,7 +166,7 @@ class SkjemaTest {
 
     @Test
     fun `send inn skjema`() = testApplication {
-        val testDb = TestDatabase().clean()
+        val testDb = TestDatabase().cleanMigrate()
         val eksisterendeSkjemaId = UUID.randomUUID()
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
@@ -349,7 +349,7 @@ class SkjemaTest {
 
     @Test
     fun `GET skjema henter mine skjema`() = testApplication {
-        val testDb = TestDatabase().clean()
+        val testDb = TestDatabase().cleanMigrate()
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
@@ -487,7 +487,7 @@ class SkjemaTest {
 
     @Test
     fun `get skjema gir 401 ved ugyldig token`() = testApplication {
-        val testDb = TestDatabase().clean()
+        val testDb = TestDatabase().cleanMigrate()
         val altinnTilgangerClient = AltinnTilgangerClient(object : TokenExchanger {
             override suspend fun exchange(
                 target: String,

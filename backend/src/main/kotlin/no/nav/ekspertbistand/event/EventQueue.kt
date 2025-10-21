@@ -17,7 +17,7 @@ import kotlin.time.Duration.Companion.minutes
 
 object Events : Table("events") {
     val id = long("id").autoIncrement()
-    val event = json<Event>("event", Json)
+    val event = json<Event>("event_json", Json)
     val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
     val attempts = integer("attempts").default(0)
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
@@ -30,7 +30,7 @@ object Events : Table("events") {
 
 object EventLog : Table("event_log") {
     val id = long("id")
-    val event = json<Event>("event", Json)
+    val event = json<Event>("event_json", Json)
     val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
     val errors = json<List<EventHandeledResult.Error>>("errors", Json).default(emptyList())
     val attempts = integer("attempts").default(0)
