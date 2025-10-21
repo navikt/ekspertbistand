@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS utkast
+(
+    id                         uuid PRIMARY KEY,
+    virksomhetsnummer          TEXT NULL,
+    kontaktperson_navn         TEXT NULL,
+    kontaktperson_epost        TEXT NULL,
+    kontaktperson_telefon      TEXT NULL,
+    ansatt_fodselsnummer       TEXT NULL,
+    ansatt_navn                TEXT NULL,
+    ekspert_navn               TEXT NULL,
+    ekspert_virksomhet         TEXT NULL,
+    ekspert_kompetanse         TEXT NULL,
+    ekspert_problemstilling    TEXT NULL,
+    tiltak_for_tilrettelegging TEXT NULL,
+    bestilling_kostnad         TEXT NULL,
+    bestilling_start_dato      TEXT NULL,
+    nav_kontakt                TEXT NULL,
+    opprettet_av               TEXT NOT NULL,
+    opprettet_tidspunkt        TEXT NOT NULL
+);
+CREATE INDEX utkast_virksomhetsnummer ON utkast (virksomhetsnummer);
+CREATE INDEX utkast_opprettet_av ON utkast (opprettet_av);
