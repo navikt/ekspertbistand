@@ -7,17 +7,19 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.logger
+import kotlin.time.ExperimentalTime
 
 class EventManager(
     val config: EventManagerConfig = EventManagerConfig(),
-    val q: EventQueue = EventQueue(),
     val eventHandlers: List<EventHandler<Event>> = emptyList()
 ) {
     private val log = logger()
+    private val q = EventQueue
 
+    @OptIn(ExperimentalTime::class)
     suspend fun consume() = withContext(Dispatchers.IO) {
         while (isActive) {
-            val ev = q.poll() ?: run {
+            val (id, ev) = q.poll() ?: run {
                 kotlinx.coroutines.delay(config.pollDelay)
                 continue
             }
@@ -35,21 +37,21 @@ class EventManager(
 
                 if ((fail + retryableError).isEmpty()) {
                     // all successful
-                    q.finalize(ev.id)
+                    q.finalize(id)
 
                 } else if (fail.isNotEmpty()) {
                     // at least one terminal error
 
                     log.error(
-                        "Event ${ev.id} handling failed ${fail.joinToString(", ") { it.exception.message ?: "" }}",
+                        "Event $id handling failed ${fail.joinToString(", ") { it.exception.message ?: "" }}",
                         fail.first().exception
                     )
-                    q.finalize(ev.id, fail)
+                    q.finalize(id, fail)
 
                 } else if (retryableError.isNotEmpty()) {
                     // at least one retry but no terminal errors. will be retried after abandoned timeout
 
-                    log.warn("Event ${ev.id} will be retried due to exception. ${retryableError.map { it.exception.message }}")
+                    log.warn("Event $id will be retried due to exception. ${retryableError.map { it.exception.message }}")
 
                 }
             } catch (e: CancellationException) {

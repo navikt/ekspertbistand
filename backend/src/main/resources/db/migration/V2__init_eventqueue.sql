@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS events
+CREATE TABLE IF NOT EXISTS event_queue
 (
     id         BIGSERIAL PRIMARY KEY,
     event_json JSON                                NOT NULL,

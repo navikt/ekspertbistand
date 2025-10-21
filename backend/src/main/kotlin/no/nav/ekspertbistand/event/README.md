@@ -1,106 +1,88 @@
-# EventBus
+# EventQueue
 
-Design and usage of the in-repo EventBus used for durable, at-least-once event processing.
+Durable, at-least-once event processing using a relational database queue and log.
 
 ## Overview
 
-- Events are stored in a relational database table `events`.
-- Workers acquire events with `SELECT … FOR UPDATE SKIP LOCKED` to avoid races across pods.
+- QueuedEvents are stored in the `event_queue` table.
+- EventManager acquires events using `SELECT ... FOR UPDATE SKIP LOCKED` to avoid races across pods/processes.
 - On completion, events are moved to `event_log` with a terminal status and removed from `events`.
-- If a pod dies mid-processing, the event becomes eligible for re-processing after an abandonment timeout.
+- If a process dies mid-processing, the event becomes eligible for re-processing after an abandonment timeout.
 
 ## Lifecycle
 
-- publish(event): Insert into `events` with status PENDING, attempts=0.
-- poll(): Atomically select the next eligible row and mark it PROCESSING, incrementing attempts.
-  - Eligibility: status = PENDING, or status = PROCESSING and `processing_started_at` older than the abandonment timeout.
-  - Uses `FOR UPDATE SKIP LOCKED` so only one worker acquires a row.
-  - On acquire: set `processing_started_at = now` and increment `attempts`.
-- finalize(id, success): Insert into `event_log` with status COMPLETED/FAILED and delete from `events`.
+- `publish(event: Event)`: Insert into `events` with status PENDING, attempts=0.
+- `poll(clock: Clock = Clock.System): QueuedEvent?`: Atomically select the next eligible row and mark it PROCESSING, incrementing attempts.
+  - Eligibility: status = PENDING, or status = PROCESSING and `updated_at` older than the abandonment timeout.
+  - Uses `FOR UPDATE SKIP LOCKED` so only one process acquires a row.
+  - On acquire: set `status = PROCESSING`, `updated_at = now`, and increment `attempts`.
+- `finalize(id: Long, errorResults: List<EventHandeledResult.Error> = emptyList())`: Insert into `event_log` with status COMPLETED or COMPLETED_WITH_ERRORS, and delete from `events`.
+  - Idempotent: If already finalized, does nothing.
 
-### Sequence diagrams
+### Sequence diagram
 
-Success and failure paths plus abandonment recovery.
+Event processing is managed by `EventManager`, which polls events from the queue and dispatches them to registered `EventHandler`s. On completion, events are finalized and moved to the log.
 
 ```mermaid
 sequenceDiagram
     participant P as Producer
-    participant EB as EventBus (DB)
-    participant W as Worker
-    participant R as Router/Handlers
+    participant Q as EventQueue (DB)
+    participant M as EventManager
+    participant H as EventHandlers
     participant L as Event Log
 
-    P->>EB: publish(event)
-    Note over EB: events += {status: PENDING, attempts: 0}
+    P->>Q: publish(event)
+    Note over Q: events += {status: PENDING, attempts: 0}
 
-    W->>EB: poll()
-    activate EB
-    EB-->>W: select next (row lock via FOR UPDATE SKIP LOCKED)
-    EB->>EB: set status=PROCESSING, attempts=+1, processing_started_at=now
-    deactivate EB
+    M->>Q: poll()
+    activate Q
+    Q-->>M: select next (row lock via FOR UPDATE SKIP LOCKED)
+    Q->>Q: set status=PROCESSING, attempts=+1, updated_at=now
+    deactivate Q
 
-    W->>R: route(event)
+    M->>H: handle(event) (dispatch to registered handlers)
     alt success
-      R-->>W: OK
-      W->>EB: finalize(id, success=true)
-      EB->>L: insert log(COMPLETED)
-      EB->>EB: delete from events
+      H-->>M: OK
+      M->>Q: finalize(id, errorResults=[])
+      Q->>L: insert log(COMPLETED)
+      Q->>Q: delete from events
     else failure
-      R-->>W: error
-      W->>EB: finalize(id, success=false)
-      EB->>L: insert log(FAILED)
-      EB->>EB: delete from events
+      H-->>M: error(s)
+      M->>Q: finalize(id, errorResults=[Error])
+      Q->>L: insert log(COMPLETED_WITH_ERRORS)
+      Q->>Q: delete from events
     end
 
-    Note over W: pod dies while PROCESSING
-    W--xR: crash
-    Note over EB: time passes
-    W2->>EB: poll()
-    EB-->>W2: select PROCESSING row where processing_started_at < now - timeout
-    EB->>EB: attempts=+1, processing_started_at=now (re-acquired)
-    W2->>R: route(event)
-    R-->>W2: OK or error
-    W2->>EB: finalize(...)
+    Note over M: process dies while PROCESSING
+    M--xH: crash
+    Note over Q: time passes
+    M->>Q: poll()
+    Q-->>M: select PROCESSING row where updated_at < now - timeout
+    Q->>Q: attempts=+1, updated_at=now (re-acquired)
+    M->>H: handle(event)
+    H-->>M: OK or error
+    M->>Q: finalize(...)
 ```
+
 
 ## Abandoned events
 
-- Default timeout: 5 minutes (configured in code).
-- Criteria: when status = PROCESSING and `processing_started_at < now - timeout`, the row is eligible to be re-acquired.
-- Re-acquire effect: attempts is incremented and `processing_started_at` is refreshed to now.
+- Default timeout: 1 minute (configurable in code).
+- Criteria: status = PROCESSING and `updated_at < now - timeout`.
+- Re-acquire effect: attempts is incremented and `updated_at` is refreshed to now.
 
 ## API (Kotlin)
 
-- publish(event: Event)
-- poll(): Event?  // non-blocking; returns null if none
-- finalize(id: Long, success: Boolean)
-
-Example worker loop:
-
-```kotlin
-while (isActive) {
-    val ev = EventBus.poll() ?: run {
-        kotlinx.coroutines.delay(10_000)
-        continue
-    }
-    try {
-        EventRouter.route(ev)
-        EventBus.finalize(ev.id, success = true)
-    } catch (e: CancelledException) {
-        throw e
-    } catch (e: Exception) {
-        EventBus.finalize(ev.id, success = false)
-    }
-}
-```
+- `publish(event: Event): QueuedEvent` 
+- `poll(clock: Clock = Clock.System): QueuedEvent?`  // non-blocking; returns null if none
+- `finalize(id: Long, errorResults: List<EventHandeledResult.Error> = emptyList())`
 
 ## Operational notes
 
 - Monitor queue depth, attempts, processing latency, and failure rate.
-- Consider a max attempts policy to shunt poison events to FAILED in `event_log`.
-- Add the composite index noted above for scale.
+- Consider a max attempts policy to shunt poison events to COMPLETED_WITH_ERRORS in `event_log`.
 
 ## Source
 
-- Implementation: `EventBus.kt`
-- Router and handler registration: `EventRouter.kt`
+- Implementation: `EventQueue.kt`
+- Manager and handler registration: `EventManager.kt`

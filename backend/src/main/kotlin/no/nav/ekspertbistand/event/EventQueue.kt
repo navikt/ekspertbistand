@@ -1,9 +1,9 @@
 package no.nav.ekspertbistand.event
 
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone.Companion.UTC
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
+import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.ForUpdate
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED
@@ -12,10 +12,12 @@ import org.jetbrains.exposed.v1.datetime.datetime
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.json.json
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.ExperimentalTime
 
 
-object Events : Table("events") {
+object QueuedEvents : Table("event_queue") {
     val id = long("id").autoIncrement()
     val event = json<Event>("event_json", Json)
     val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
@@ -26,6 +28,26 @@ object Events : Table("events") {
     override val primaryKey = PrimaryKey(id)
 
     // TODO: composite index on (status, updated_at, id)
+}
+
+data class QueuedEvent(
+    val id: Long,
+    val event: Event,
+    val status: ProcessingStatus,
+    val attempts: Int,
+    val createdAt: kotlinx.datetime.LocalDateTime,
+    val updatedAt: kotlinx.datetime.LocalDateTime
+) {
+    companion object {
+        fun ResultRow.tilQueuedEvent() = QueuedEvent(
+            id = this[QueuedEvents.id],
+            event = this[QueuedEvents.event],
+            status = this[QueuedEvents.status],
+            attempts = this[QueuedEvents.attempts],
+            createdAt = this[QueuedEvents.createdAt],
+            updatedAt = this[QueuedEvents.updatedAt]
+        )
+    }
 }
 
 object EventLog : Table("event_log") {
@@ -72,28 +94,30 @@ enum class ProcessingStatus {
  *
  * [EventQueue.publish] is used to add new events to the queue.
  */
-class EventQueue {
+object EventQueue {
     val abandonedTimeout = 1.minutes
 
     fun publish(ev: Event) = transaction {
-        Events.insert {
+        QueuedEvents.insertReturning {
             it[event] = ev
-        }
+        }.first().tilQueuedEvent()
     }
 
-    fun poll(clock: Clock = Clock.System): Event? {
+
+    @OptIn(ExperimentalTime::class)
+    fun poll(clock: Clock = Clock.System): QueuedEvent? {
         return transaction {
-            val row = Events
+            val row = QueuedEvents
                 .selectAll()
                 .where {
-                    Events.status eq ProcessingStatus.PENDING
+                    QueuedEvents.status eq ProcessingStatus.PENDING
                 }
                 .orWhere {
-                    Events.status eq ProcessingStatus.PROCESSING and Events.updatedAt.less(
-                        clock.now().minus(abandonedTimeout).toLocalDateTime(UTC)
+                    QueuedEvents.status eq ProcessingStatus.PROCESSING and QueuedEvents.updatedAt.less(
+                        clock.now().minus(abandonedTimeout).toLocalDateTime(TimeZone.currentSystemDefault())
                     )
                 }
-                .orderBy(Events.id, SortOrder.ASC)
+                .orderBy(QueuedEvents.id, SortOrder.ASC)
                 .limit(1)
                 .forUpdate(ForUpdate(SKIP_LOCKED))
                 .firstOrNull()
@@ -108,22 +132,22 @@ class EventQueue {
                     return@transaction null
                 }
                  */
-                Events.update({ Events.id eq r[Events.id] }) { up ->
+                QueuedEvents.update({ QueuedEvents.id eq r[QueuedEvents.id] }) { up ->
                     up[status] = ProcessingStatus.PROCESSING
                     up[updatedAt] = CurrentDateTime
                     up[attempts] = r[attempts] + 1
                 }
-                r[Events.event]
+                r.tilQueuedEvent()
             }
         }
     }
 
     // TODO: add failure reason to EventLog instead of just success/failure
     fun finalize(id: Long, errorResults: List<EventHandeledResult.Error> = emptyList()) = transaction {
-        val event = Events
+        val event = QueuedEvents
             .selectAll()
             .where {
-                Events.id eq id
+                QueuedEvents.id eq id
             }.firstOrNull()
 
         if (event == null) {
@@ -141,19 +165,19 @@ class EventQueue {
         }
 
         EventLog.insert {
-            it[EventLog.id] = event[Events.id]
-            it[this.event] = event[Events.event]
+            it[EventLog.id] = event[QueuedEvents.id]
+            it[this.event] = event[QueuedEvents.event]
             if (errorResults.isEmpty()) {
                 it[status] = ProcessingStatus.COMPLETED
             } else {
                 it[status] = ProcessingStatus.COMPLETED_WITH_ERRORS
                 it[errors] = errorResults
             }
-            it[attempts] = event[Events.attempts]
-            it[createdAt] = event[Events.createdAt]
+            it[attempts] = event[QueuedEvents.attempts]
+            it[createdAt] = event[QueuedEvents.createdAt]
             it[updatedAt] = CurrentDateTime
         }
 
-        Events.deleteWhere { Events.id eq id }
+        QueuedEvents.deleteWhere { QueuedEvents.id eq id }
     }
 }
