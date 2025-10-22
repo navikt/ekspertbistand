@@ -15,8 +15,9 @@
 
         <kotlin.version>2.2.10</kotlin.version>
         <kotlinx.coroutines.version>1.10.2</kotlinx.coroutines.version>
-        <ktor.version>3.3.0</ktor.version>
+        <ktor.version>3.3.1</ktor.version>
         <java.version>21</java.version>
+        <exposed.version>1.0.0-rc-2</exposed.version>
     </properties>
     <dependencies>
         <dependency>
@@ -63,6 +64,13 @@
             <groupId>io.ktor</groupId>
             <artifactId>ktor-server-default-headers-jvm</artifactId>
             <version>${ktor.version}</version>
+            <exclusions>
+                <exclusion>
+                    <!-- bug in ktor?, should not pull in this transitively -->
+                    <groupId>org.jetbrains.kotlinx</groupId>
+                    <artifactId>kotlinx-datetime-jvm</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.ktor</groupId>
@@ -161,22 +169,32 @@
         <dependency>
             <groupId>org.jetbrains.exposed</groupId>
             <artifactId>exposed-core</artifactId>
-            <version>1.0.0-rc-1</version>
+            <version>${exposed.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.exposed</groupId>
             <artifactId>exposed-jdbc</artifactId>
-            <version>1.0.0-rc-1</version>
+            <version>${exposed.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.exposed</groupId>
+            <artifactId>exposed-json</artifactId>
+            <version>${exposed.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.exposed</groupId>
+            <artifactId>exposed-kotlin-datetime</artifactId>
+            <version>${exposed.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.exposed</groupId>
             <artifactId>exposed-migration-core</artifactId>
-            <version>1.0.0-rc-1</version>
+            <version>${exposed.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.exposed</groupId>
             <artifactId>exposed-migration-jdbc</artifactId>
-            <version>1.0.0-rc-1</version>
+            <version>${exposed.version}</version>
         </dependency>
         <dependency>
             <groupId>com.zaxxer</groupId>

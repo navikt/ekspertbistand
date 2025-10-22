@@ -39,7 +39,7 @@ fun main() {
         }
     )
 
-    testDb.clean()
+    testDb.cleanMigrate()
     transaction(testDb.config.jdbcDatabase) {
         SkjemaTable.insert {
             it[id] = UUID.randomUUID()

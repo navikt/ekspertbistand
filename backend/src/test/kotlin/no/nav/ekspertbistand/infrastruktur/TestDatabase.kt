@@ -23,7 +23,7 @@ class TestDatabase(
     val flyway: Flyway
         get() = config.flyway
 
-    fun clean(): TestDatabase {
+    fun cleanMigrate(): TestDatabase {
         config.flywayAction {
             clean()
             migrate()
