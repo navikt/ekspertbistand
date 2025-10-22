@@ -10,6 +10,7 @@ import no.nav.ekspertbistand.infrastruktur.logger
 import org.junit.jupiter.api.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
@@ -39,17 +40,17 @@ class EventManagerTest {
             },
         )
         val manager = EventManager(config) {
-            handle<Event.Foo>("InlineSucceeds") {
+            register<Event.Foo>("InlineSucceeds") {
                 // inline handler
                 EventHandledResult.Success()
             }
-            handle<Event.Foo>("DelegatedSucceeds") {
+            register<Event.Foo>("DelegatedSucceeds") {
                 // delegated to object
                 DummyFooHandler.handle(it)
             }
 
             // handler via class instance
-            handler(FooRetryThenSucceedsHandler())
+            register(FooRetryThenSucceedsHandler())
         }
         val queuedEvent = EventQueue.publish(Event.Foo("test1"))
         val pollJob = launch { manager.runProcessLoop() }
@@ -121,10 +122,10 @@ class EventManagerTest {
             EventHandledResult.Success()
         )
         val manager = EventManager(config) {
-            handle<Event.Bar>("FailsFatally") {
+            register<Event.Bar>("FailsFatally") {
                 EventHandledResult.UnrecoverableError("fatal failure")
             }
-            handle<Event.Bar>("ShouldNotBeRetried") {
+            register<Event.Bar>("ShouldNotBeRetried") {
                 // because of fatal error in other handler, this should not be retried
                 answers.removeFirst()
             }
@@ -171,6 +172,21 @@ class EventManagerTest {
 
         pollJob.cancel()
         cleanupJob.cancel()
+    }
+
+    @Test
+    fun `validates that all handlers have unique id`() {
+        val exception = assertFailsWith<IllegalArgumentException> {
+            EventManager(EventManagerConfig()) {
+                register<Event.Foo>("DuplicateHandler") {
+                    EventHandledResult.Success()
+                }
+                register<Event.Bar>("DuplicateHandler") {
+                    EventHandledResult.Success()
+                }
+            }
+        }
+        assertEquals("Handler with id 'DuplicateHandler' is already registered", exception.message)
     }
 }
 

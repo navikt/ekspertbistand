@@ -1,6 +1,10 @@
-# EventQueue
+# EventQueue and EventManager
 
 Durable, at-least-once event processing using a relational database queue and log.
+
+## Usage
+- Use `EventQueue` to publish events and manage their lifecycle.
+- Use `EventManager` to process events from the queue, dispatching them to registered handlers.
 
 ## Overview
 
@@ -102,7 +106,33 @@ sequenceDiagram
 Handlers are registered via a builder lambda in the constructor:
 
 ```kotlin
-val manager = EventManager { register(MyEventHandler()) }
+val manager = EventManager {
+    /**
+     * handler via class instance 
+     * this is the recommended approach
+     */
+    register(FooHandler())
+
+    /**
+     * handler via block delegate
+     * useful for simple handlers or quick prototyping, 
+     * id is required and must be unique
+     */
+    register<Event.Foo>("handler1") {
+        if (stop == hammertime) {
+            EventHandledResult.Success()
+        } else {
+            EventHandledResult.TransientError()
+        }
+    }
+
+    /**
+     * another example of handler via block delegate
+     */
+    register<Event.Foo>("handler2") {
+        DummyFooHandler.handle(it)
+    }
+}
 ```
 
 ### Processing Logic
@@ -155,4 +185,5 @@ sequenceDiagram
 ```
 
 ### Source
-- Implementation: `EventManager.kt`
+- [EventQueue.kt](EventQueue.kt), 
+- [EventManager.kt](EventManager.kt)

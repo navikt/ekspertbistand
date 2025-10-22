@@ -220,23 +220,32 @@ sealed class EventHandledResult {
  * Provides a DSL for defining handlers inline or registering existing instances.
  * Usage:
  *  EventManager {
- *    handle<Event.Foo>("FooHandler") { event -> ... }
- *    handler(ExistingFooHandlerInstance)
+ *    register<Event.Foo>("FooHandler") { event -> ... }
+ *    register(ExistingFooHandlerInstance)
  *  }
  */
 class EventManagerBuilder {
     val handlers = mutableListOf<EventHandler<out Event>>()
 
-    inline fun <reified T : Event> handle(id: String, noinline block: (T) -> EventHandledResult) {
-        handlers += blockHandler(id, block)
+    inline fun <reified T : Event> register(id: String, noinline block: (T) -> EventHandledResult) {
+        val handler = createBlockHandler(id, block)
+        addHandler(handler)
     }
 
-    fun <T : Event> handler(instance: EventHandler<T>) {
-        handlers += instance
+    fun <T : Event> register(instance: EventHandler<T>) {
+        addHandler(instance)
+    }
+
+    fun addHandler(handler: EventHandler<out Event>) {
+        require(handlers.none { it.id == handler.id }) {
+            "Handler with id '${handler.id}' is already registered"
+        }
+
+        handlers += handler
     }
 }
 
-inline fun <reified T : Event> blockHandler(
+inline fun <reified T : Event> createBlockHandler(
     id: String,
     noinline block: (T) -> EventHandledResult
 ): EventHandler<T> = object : EventHandler<T> {
