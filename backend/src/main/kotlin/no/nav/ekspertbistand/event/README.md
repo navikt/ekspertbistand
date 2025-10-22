@@ -16,7 +16,7 @@ Durable, at-least-once event processing using a relational database queue and lo
   - Eligibility: status = PENDING, or status = PROCESSING and `updated_at` older than the abandonment timeout.
   - Uses `FOR UPDATE SKIP LOCKED` so only one process acquires a row.
   - On acquire: set `status = PROCESSING`, `updated_at = now`, and increment `attempts`.
-- `finalize(id: Long, errorResults: List<EventHandeledResult.Error> = emptyList())`: Insert into `event_log` with status COMPLETED or COMPLETED_WITH_ERRORS, and delete from `events`.
+- `finalize(id: Long, errorResults: List<EventHandledResult.Error> = emptyList())`: Insert into `event_log` with status COMPLETED or COMPLETED_WITH_ERRORS, and delete from `events`.
   - Idempotent: If already finalized, does nothing.
 
 ### Sequence diagram
@@ -75,7 +75,7 @@ sequenceDiagram
 
 - `publish(event: Event): QueuedEvent` 
 - `poll(clock: Clock = Clock.System): QueuedEvent?`  // non-blocking; returns null if none
-- `finalize(id: Long, errorResults: List<EventHandeledResult.Error> = emptyList())`
+- `finalize(id: Long, errorResults: List<EventHandledResult.Error> = emptyList())`
 
 ## Operational notes
 

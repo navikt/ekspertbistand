@@ -75,9 +75,9 @@ class EventManager(
                     it.canHandle(ev)
                 }
                 log.info("Found ${handlers.size} handlers for event ${ev::class.simpleName}: ${handlers.map { it.name }}")
-                val results : List<EventHandledResult> = handlers.map { handler ->
+                val results: List<EventHandledResult> = handlers.map { handler ->
                     val previousState = statePerHandler[handler.name]
-                    when(previousState?.result) {
+                    when (previousState?.result) {
                         // if previously handled resulting in FatalError or Success, skip
                         is EventHandledResult.Success,
                         is EventHandledResult.FatalError -> {
@@ -86,7 +86,7 @@ class EventManager(
 
                         // if previously handled resulting in RetryableError, process now
                         is EventHandledResult.TransientError,
-                        // if previously unhandled, process now
+                            // if previously unhandled, process now
                         null -> {
                             handler.handleAny(ev).also { result ->
                                 // TODO: store attempts, the whole queuedEvent?
@@ -180,6 +180,7 @@ data class EventManagerConfig(
 
 interface EventHandler<T : Event> {
     val eventType: KClass<T>
+
     // TODO: static id instead of name
     val name: String
         get() = this::class.simpleName ?: error("EventHandler is missing name")
@@ -221,8 +222,10 @@ abstract class BaseEventHandler<T : Event> : EventHandler<T> {
 sealed class EventHandledResult {
     @Serializable
     class Success : EventHandledResult()
+
     @Serializable
     class TransientError(val message: String) : EventHandledResult()
+
     @Serializable
     class FatalError(val message: String) : EventHandledResult()
 }
