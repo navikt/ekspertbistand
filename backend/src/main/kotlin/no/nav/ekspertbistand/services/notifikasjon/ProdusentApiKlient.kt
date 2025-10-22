@@ -2,7 +2,11 @@ package no.nav.ekspertbistand.services.notifikasjon
 
 import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
 import io.ktor.client.request.*
+import no.nav.ekspertbistand.infrastruktur.AuthClient
+import no.nav.ekspertbistand.infrastruktur.IdentityProvider
 import no.nav.ekspertbistand.infrastruktur.NaisEnvironment
+import no.nav.ekspertbistand.infrastruktur.TexasAuthConfig
+import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.services.entraId.EntraIdKlient
@@ -28,7 +32,7 @@ import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysa
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
 
 class ProdusentApiKlient(
-    private val entraIdClient: EntraIdKlient
+    private val tokenProvider: TokenProvider
 ) {
     private val url = URI("url").toURL()
 
@@ -47,7 +51,12 @@ class ProdusentApiKlient(
 
     private suspend fun hentEntraIdToken(): String {
         val scope = "api://${NaisEnvironment.clusterName}.fager.notifikasjon-produsent-api/.default"
-        return entraIdClient.getToken(scope)
+        return tokenProvider.token(scope).fold(
+            onSuccess = { it.accessToken },
+            onError = {
+                throw Exception("Feil ved henting av token for Notifikasjon Produsent API: ${it.error.errorDescription}")
+            }
+        )
     }
 
     suspend fun opprettNySak(
