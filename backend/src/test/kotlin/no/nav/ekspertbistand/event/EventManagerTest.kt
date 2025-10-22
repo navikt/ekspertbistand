@@ -76,11 +76,29 @@ class EventManagerTest {
             assertIs<EventHandledResult.TransientError>(handled["FooRetryThenSucceedsHandler"]?.result)
         }
 
+        delay(1) // give pollJob some time for processing
+
+        // no change yet, still within abandoned timeout
+        manager.handledEvents(queuedEvent.id).let { handled ->
+            assertEquals(
+                setOf(
+                    "InlineSucceeds",
+                    "DelegatedSucceeds",
+                    "FooRetryThenSucceedsHandler"
+                ),
+                handled.keys
+            )
+            assertIs<EventHandledResult.Success>(handled["InlineSucceeds"]?.result)
+            assertIs<EventHandledResult.Success>(handled["DelegatedSucceeds"]?.result)
+            assertIs<EventHandledResult.TransientError>(handled["FooRetryThenSucceedsHandler"]?.result)
+        }
+
         // move time forward to exceed abandoned timeout
         now += 2.seconds
 
         delay(1) // give pollJob some time for processing
 
+        // second attempt: all succeed
         manager.handledEvents(queuedEvent.id).let { handled ->
             assertEquals(
                 setOf(
@@ -99,6 +117,7 @@ class EventManagerTest {
 
         delay(1) // give cleanupJob some time for processing
 
+        // after cleanup, no handled events should remain due to finalization
         assertEquals(emptyMap(), manager.handledEvents(queuedEvent.id))
 
         pollJob.cancel()
