@@ -1,6 +1,6 @@
-# EventBus design
+# EventQueue design
 
-This document describes the in-repo EventBus used by the backend for durable, at-least-once event processing. It covers responsibilities, data model, flow, concurrency, failure recovery, and operational tips.
+This document describes the in-repo EventQueue used by the backend for durable, at-least-once event processing. It covers responsibilities, data model, flow, concurrency, failure recovery, and operational tips.
 
 ## Overview
 
@@ -68,7 +68,7 @@ Note: The current implementation determines abandonment based on `updated_at` ag
 ```mermaid
 sequenceDiagram
     participant P as Producer
-    participant EB as EventBus (DB)
+    participant EB as EventQueue (DB)
     participant W as Worker
     participant R as Router/Handlers
     participant L as Event Log
@@ -118,7 +118,7 @@ sequenceDiagram
 ## Abandoned events
 
 - Timeout: Events stuck in PROCESSING are considered abandoned when `updated_at < now - abandonedTimeout`.
-- Default timeout: 5 minutes (see `EventBus.abandonedTimeout`).
+- Default timeout: 5 minutes (see `EventQueue.abandonedTimeout`).
 - On re-acquire: attempts++ and updated_at is refreshed.
 
 ## API surface (Kotlin)
@@ -132,16 +132,16 @@ Minimal example:
 ```kotlin
 val job = GlobalScope.launch {
     while (isActive) {
-        val ev = EventBus.poll()
+        val ev = EventQueue.poll()
         if (ev == null) {
             delay(10.seconds.toJavaDuration())
             continue
         }
         try {
             EventRouter.route(ev)
-            EventBus.finalize(ev.id, success = true)
+            EventQueue.finalize(ev.id, success = true)
         } catch (t: Throwable) {
-            EventBus.finalize(ev.id, success = false)
+            EventQueue.finalize(ev.id, success = false)
         }
     }
 }
@@ -160,5 +160,5 @@ val job = GlobalScope.launch {
 
 ## References
 
-- Implementation: `backend/src/main/kotlin/no/nav/ekspertbistand/event/EventBus.kt`
+- Implementation: `backend/src/main/kotlin/no/nav/ekspertbistand/event/EventQueue.kt`
 - Router: `backend/src/main/kotlin/no/nav/ekspertbistand/event/EventRouter.kt` (handlers registration)
