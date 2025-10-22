@@ -67,21 +67,19 @@ class EventManager(
             try {
                 val results = routeToHandlers(queuedEvent)
                 val succeeded = results.filterIsInstance<EventHandledResult.Success>()
-                val fatalErrors = results.filterIsInstance<EventHandledResult.FatalError>()
+                val unrecoverableErrors = results.filterIsInstance<EventHandledResult.UnrecoverableError>()
                 val transientError = results.filterIsInstance<EventHandledResult.TransientError>()
 
                 if (results == succeeded) { // all succeeded
                     log.info("Event ${queuedEvent.id} handled successfully by all handlers.")
                     q.finalize(queuedEvent.id)
 
-                } else if (fatalErrors.isNotEmpty()) {
-                    log.error(
-                        "Event ${queuedEvent.id} handling failed ${fatalErrors.joinToString(", ") { it.message }}",
-                    )
-                    q.finalize(queuedEvent.id, fatalErrors)
+                } else if (unrecoverableErrors.isNotEmpty()) {
+                    log.error("Event ${queuedEvent.id} handling failed with urecoverable error: $unrecoverableErrors")
+                    q.finalize(queuedEvent.id, unrecoverableErrors)
 
                 } else if (transientError.isNotEmpty()) {
-                    log.warn("Event ${queuedEvent.id} will be retried due to exception. ${transientError.map { it.message }}")
+                    log.warn("Event ${queuedEvent.id} will be retried due to transient error: $transientError")
                     // skip finalize to allow retry via abandoned timeout
                 }
 
@@ -92,6 +90,11 @@ class EventManager(
         }
     }
 
+    /**
+     * Routes the given queued event to all applicable event handlers and returns their results.
+     * We use an explicit when statement here to ensure exhaustiveness as new event types are added.
+     * The routing code is duplicated but ensures type safety without unchecked casts.
+     */
     private fun routeToHandlers(queued: QueuedEvent) =
         handledEvents(queued.id).let { statePerHandler ->
 
@@ -116,7 +119,7 @@ class EventManager(
         return when (previousState?.result) {
             // if previously handled resulting in FatalError or Success, skip
             is EventHandledResult.Success,
-            is EventHandledResult.FatalError -> previousState.result
+            is EventHandledResult.UnrecoverableError -> previousState.result
 
 
             null, // if previously unhandled, process now
@@ -192,18 +195,34 @@ sealed class EventHandledResult {
     @Serializable
     class Success : EventHandledResult()
 
+    /**
+     * Indicates a temporary failure; the event is eligible for retry.
+     */
     @Serializable
-    class TransientError(val message: String) : EventHandledResult()
+    data class TransientError(val message: String) : EventHandledResult()
 
+    /**
+     * Indicates a permanent failure; the event will not be retried.
+     * Use this to skip further processing of an event.
+     */
     @Serializable
-    class FatalError(val message: String) : EventHandledResult()
+    data class UnrecoverableError(val message: String) : EventHandledResult()
 }
 
+/**
+ * Builder for registering event handlers with the EventManager.
+ * Provides a DSL for defining handlers inline or registering existing instances.
+ * Usage:
+ *  EventManager {
+ *    handle<Event.Foo>("FooHandler") { event -> ... }
+ *    handler(ExistingFooHandlerInstance)
+ *  }
+ */
 class EventManagerBuilder {
     val handlers = mutableListOf<EventHandler<out Event>>()
 
     inline fun <reified T : Event> handle(id: String, noinline block: (T) -> EventHandledResult) {
-        handlers += on(id, block)
+        handlers += blockHandler(id, block)
     }
 
     fun <T : Event> handler(instance: EventHandler<T>) {
@@ -211,8 +230,7 @@ class EventManagerBuilder {
     }
 }
 
-
-inline fun <reified T : Event> on(
+inline fun <reified T : Event> blockHandler(
     id: String,
     noinline block: (T) -> EventHandledResult
 ): EventHandler<T> = object : EventHandler<T> {

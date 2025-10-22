@@ -81,7 +81,7 @@ object EventQueue {
         }
     }
 
-    fun finalize(id: Long, errorResults: List<EventHandledResult.FatalError> = emptyList()) = transaction {
+    fun finalize(id: Long, errorResults: List<EventHandledResult.UnrecoverableError> = emptyList()) = transaction {
         val event = QueuedEvents
             .selectAll()
             .where {
@@ -161,7 +161,7 @@ object EventLog : Table("event_log") {
     val id = long("id")
     val event = json<Event>("event_json", Json)
     val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
-    val errors = json<List<EventHandledResult.FatalError>>("errors", Json).default(emptyList())
+    val errors = json<List<EventHandledResult.UnrecoverableError>>("errors", Json).default(emptyList())
     val attempts = integer("attempts").default(0)
     val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
     val updatedAt = datetime("updated_at").defaultExpression(CurrentDateTime)
