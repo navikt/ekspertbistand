@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS event_queue
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+CREATE INDEX statusOppdatert ON event_queue (status, updated_at, id);
 CREATE TABLE IF NOT EXISTS event_log
 (
     id         BIGINT PRIMARY KEY,
@@ -17,4 +18,12 @@ CREATE TABLE IF NOT EXISTS event_log
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
-CREATE SEQUENCE IF NOT EXISTS events_id_seq START WITH 1 MINVALUE 1 MAXVALUE 9223372036854775807;
+CREATE TABLE IF NOT EXISTS event_handler_states
+(
+    id            BIGINT,
+    handler_name  TEXT,
+    "result"      JSON NOT NULL,
+    error_message TEXT NULL,
+    CONSTRAINT pk_event_handler_states PRIMARY KEY (id, handler_name)
+);
+CREATE SEQUENCE IF NOT EXISTS event_queue_id_seq START WITH 1 MINVALUE 1 MAXVALUE 9223372036854775807;

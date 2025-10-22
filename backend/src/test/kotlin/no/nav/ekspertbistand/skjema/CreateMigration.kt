@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.skjema
 
+import no.nav.ekspertbistand.event.EventHandlerStates
 import no.nav.ekspertbistand.event.EventLog
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
@@ -21,6 +22,7 @@ fun main() {
         MigrationUtils.generateMigrationScript(
             QueuedEvents,
             EventLog,
+            EventHandlerStates,
             scriptDirectory = "backend/src/main/resources/db/migration",
             scriptName = "V2__init_eventqueue",
         )

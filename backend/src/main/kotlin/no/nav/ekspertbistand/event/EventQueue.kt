@@ -17,61 +17,8 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 
-object QueuedEvents : Table("event_queue") {
-    val id = long("id").autoIncrement()
-    val event = json<Event>("event_json", Json)
-    val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
-    val attempts = integer("attempts").default(0)
-    val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
-    val updatedAt = datetime("updated_at").defaultExpression(CurrentDateTime)
-
-    override val primaryKey = PrimaryKey(id)
-
-    // TODO: composite index on (status, updated_at, id)
-}
-
-data class QueuedEvent(
-    val id: Long,
-    val event: Event,
-    val status: ProcessingStatus,
-    val attempts: Int,
-    val createdAt: kotlinx.datetime.LocalDateTime,
-    val updatedAt: kotlinx.datetime.LocalDateTime
-) {
-    companion object {
-        fun ResultRow.tilQueuedEvent() = QueuedEvent(
-            id = this[QueuedEvents.id],
-            event = this[QueuedEvents.event],
-            status = this[QueuedEvents.status],
-            attempts = this[QueuedEvents.attempts],
-            createdAt = this[QueuedEvents.createdAt],
-            updatedAt = this[QueuedEvents.updatedAt]
-        )
-    }
-}
-
-object EventLog : Table("event_log") {
-    val id = long("id")
-    val event = json<Event>("event_json", Json)
-    val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
-    val errors = json<List<EventHandeledResult.Error>>("errors", Json).default(emptyList())
-    val attempts = integer("attempts").default(0)
-    val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
-    val updatedAt = datetime("updated_at").defaultExpression(CurrentDateTime)
-
-    override val primaryKey = PrimaryKey(id)
-}
-
-enum class ProcessingStatus {
-    PENDING,
-    PROCESSING,
-    COMPLETED,
-    COMPLETED_WITH_ERRORS
-}
-
-
 /**
- * EventBus is a simple event queue and log implementation using Exposed.
+ * EventQueue is a simple event queue and log implementation using Exposed.
  *
  * Responsibilities:
  * - publish: Add new events to the queue.
@@ -80,7 +27,7 @@ enum class ProcessingStatus {
  *
  * Event lifecycle:
  * 1. publish(Event) -> Event is stored in the queue (Events table).
- * 2. poll() -> Fetches the next PENDING event and marks it PROCESSING.
+ * 2. poll() -> Fetches the next PENDING (or abandoned) event and marks it PROCESSING.
  * 3. finalize(id, success) -> Moves event to EventLog table as COMPLETED or FAILED, deletes from queue.
  *
  * Concurrency:
@@ -88,9 +35,9 @@ enum class ProcessingStatus {
  * - finalize is idempotent: if event is already moved to log, does nothing.
  *
  * Usage:
- *   EventBus.publish(event)
- *   val event = EventBus.poll()
- *   EventBus.finalize(event.id, success)
+ *   EventQueue.publish(event)
+ *   val event = EventQueue.poll()
+ *   EventQueue.finalize(event.id, success)
  *
  * [EventQueue.publish] is used to add new events to the queue.
  */
@@ -124,14 +71,6 @@ object EventQueue {
 
 
             row?.let { r ->
-                /* TODO: consider if we want to fail events after too many attempts
-                if (row[Events.attempts] >= 42) {
-                    Events.update({ Events.id eq r[Events.id] }) {
-                        it[status] = ProcessingStatus.FAILED
-                    }
-                    return@transaction null
-                }
-                 */
                 QueuedEvents.update({ QueuedEvents.id eq r[QueuedEvents.id] }) { up ->
                     up[status] = ProcessingStatus.PROCESSING
                     up[updatedAt] = CurrentDateTime
@@ -142,8 +81,7 @@ object EventQueue {
         }
     }
 
-    // TODO: add failure reason to EventLog instead of just success/failure
-    fun finalize(id: Long, errorResults: List<EventHandeledResult.Error> = emptyList()) = transaction {
+    fun finalize(id: Long, errorResults: List<EventHandledResult.FatalError> = emptyList()) = transaction {
         val event = QueuedEvents
             .selectAll()
             .where {
@@ -180,4 +118,60 @@ object EventQueue {
 
         QueuedEvents.deleteWhere { QueuedEvents.id eq id }
     }
+}
+
+
+
+object QueuedEvents : Table("event_queue") {
+    val id = long("id").autoIncrement()
+    val event = json<Event>("event_json", Json)
+    val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
+    val attempts = integer("attempts").default(0)
+    val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
+    val updatedAt = datetime("updated_at").defaultExpression(CurrentDateTime)
+
+    override val primaryKey = PrimaryKey(id)
+
+    init {
+        index("statusOppdatert", isUnique = false, status, updatedAt, id)
+    }
+}
+
+data class QueuedEvent(
+    val id: Long,
+    val event: Event,
+    val status: ProcessingStatus,
+    val attempts: Int,
+    val createdAt: kotlinx.datetime.LocalDateTime,
+    val updatedAt: kotlinx.datetime.LocalDateTime
+) {
+    companion object {
+        fun ResultRow.tilQueuedEvent() = QueuedEvent(
+            id = this[QueuedEvents.id],
+            event = this[QueuedEvents.event],
+            status = this[QueuedEvents.status],
+            attempts = this[QueuedEvents.attempts],
+            createdAt = this[QueuedEvents.createdAt],
+            updatedAt = this[QueuedEvents.updatedAt]
+        )
+    }
+}
+
+object EventLog : Table("event_log") {
+    val id = long("id")
+    val event = json<Event>("event_json", Json)
+    val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
+    val errors = json<List<EventHandledResult.FatalError>>("errors", Json).default(emptyList())
+    val attempts = integer("attempts").default(0)
+    val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
+    val updatedAt = datetime("updated_at").defaultExpression(CurrentDateTime)
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+enum class ProcessingStatus {
+    PENDING,
+    PROCESSING,
+    COMPLETED,
+    COMPLETED_WITH_ERRORS
 }
