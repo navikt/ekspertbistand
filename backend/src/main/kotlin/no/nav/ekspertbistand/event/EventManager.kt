@@ -1,19 +1,3 @@
-/**
- * EventManager is responsible for polling, processing, and finalizing events using registered event handlers.
- *
- * Main responsibilities:
- * - Polls for new events from the EventQueue at a configurable interval.
- * - Dispatches events to all applicable EventHandlers.
- * - Tracks handler results (Success, TransientError, FatalError) and persists them.
- * - Finalizes events when all handlers succeed or any handler returns a fatal error.
- * - Supports retrying events with transient errors until abandoned timeout is reached.
- * - Cleans up finalized event handler states periodically.
- *
- * Usage:
- * Instantiate with a configuration and register handlers via the builder lambda.
- * Call runProcessLoop() to start event processing, and cleanupFinalizedEvents() to periodically clean up state.
- */
-
 package no.nav.ekspertbistand.event
 
 import io.ktor.utils.io.CancellationException
@@ -35,7 +19,21 @@ import org.jetbrains.exposed.v1.json.json
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-
+/**
+ * EventManager is responsible for polling, processing, and finalizing events using registered event handlers.
+ *
+ * Main responsibilities:
+ * - Polls for new events from the EventQueue at a configurable interval.
+ * - Dispatches events to all applicable EventHandlers.
+ * - Tracks handler results (Success, TransientError, FatalError) and persists them.
+ * - Finalizes events when all handlers succeed or any handler returns a fatal error.
+ * - Supports retrying events with transient errors until abandoned timeout is reached.
+ * - Cleans up finalized event handler states periodically.
+ *
+ * Usage:
+ * Instantiate with a configuration and register handlers via the builder lambda.
+ * Call runProcessLoop() to start event processing, and cleanupFinalizedEvents() to periodically clean up state.
+ */
 @OptIn(ExperimentalTime::class)
 class EventManager(
     val config: EventManagerConfig = EventManagerConfig(),
@@ -52,6 +50,11 @@ class EventManager(
         }
     }
 
+    /**
+     * Starts the main event processing loop.
+     * Continuously polls for new events, routes them to handlers, and finalizes them based on handler results.
+     * This function is designed to be run within a coroutine.
+     */
     @OptIn(ExperimentalTime::class)
     suspend fun runProcessLoop() = withContext(config.dispatcher) {
         while (isActive) {
@@ -97,40 +100,43 @@ class EventManager(
      */
     private fun routeToHandlers(queued: QueuedEvent) =
         handledEvents(queued.id).let { statePerHandler ->
-
-            // ROUTE EVENT
             when (val event = queued.event) {
-                is Event.Foo -> eventHandlers.filterIsInstance<EventHandler<Event.Foo>>().map { handler ->
-                    handleWithState(queued.id, statePerHandler[handler.id], event, handler)
-                }
-
-                is Event.Bar -> eventHandlers.filterIsInstance<EventHandler<Event.Bar>>().map { handler ->
-                    handleWithState(queued.id, statePerHandler[handler.id], event, handler)
-                }
+                is Event.Foo -> handleStatefully(event, statePerHandler, queued.id)
+                is Event.Bar -> handleStatefully(event, statePerHandler, queued.id)
             }
         }
 
-    private fun <T : Event> handleWithState(
-        eventId: Long,
-        previousState: EventHandlerState?,
+
+    /**
+     * Handles the given event with all applicable handlers, using the provided previous handler states to determine
+     * whether to process or skip each handler.
+     * Persists the result of each handler after processing.
+     */
+    private inline fun <reified T : Event> handleStatefully(
         event: T,
-        handler: EventHandler<T>
-    ): EventHandledResult {
-        return when (previousState?.result) {
-            // if previously handled resulting in FatalError or Success, skip
+        statePerHandler: Map<String, EventHandlerState>,
+        eventId: Long
+    ) = eventHandlers.filterIsInstance<EventHandler<T>>().map { handler ->
+        val previousState = statePerHandler[handler.id]
+        when (previousState?.result) {
+            // skip if previously handled resulting in Success or UnrecoverableError
             is EventHandledResult.Success,
-            is EventHandledResult.UnrecoverableError -> previousState.result
+            is EventHandledResult.UnrecoverableError,
+                -> previousState.result
 
 
-            null, // if previously unhandled, process now
-            is EventHandledResult.TransientError -> { // if previously handled resulting in TransientError, process now
-                handler.handle(event).also { result ->
+            null, // process now if previously unhandled,
+            is EventHandledResult.TransientError, // process now if previously handled resulting in TransientError
+                -> handler.handle(event).also { result ->
                     upsertHandlerResult(eventId, result, handler.id)
                 }
-            }
         }
     }
 
+    /**
+     * Cleans up finalized event handler states periodically.
+     * Finalized states are those for events that have been removed from the queue (and moved to the log).
+     */
     suspend fun cleanupFinalizedEvents() = withContext(config.dispatcher) {
         while (isActive) {
             log.info("Cleaning up finalized events...")

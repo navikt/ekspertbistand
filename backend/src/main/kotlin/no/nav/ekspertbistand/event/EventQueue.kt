@@ -51,6 +51,11 @@ object EventQueue {
     }
 
 
+    /**
+     * Polls the next pending event for processing.
+     * Marks the event as PROCESSING and increments attempt count.
+     * Uses SKIP LOCKED to avoid contention with other pollers.
+     */
     @OptIn(ExperimentalTime::class)
     fun poll(clock: Clock = Clock.System): QueuedEvent? {
         return transaction {
@@ -81,7 +86,15 @@ object EventQueue {
         }
     }
 
-    fun finalize(id: Long, errorResults: List<EventHandledResult.UnrecoverableError> = emptyList()) = transaction {
+    /**
+     * Finalizes processing of an event.
+     * Moves the event from the queue to the event log with the given status.
+     * If the event is not found in the queue, it checks if it's already in the log (idempotent).
+     */
+    fun finalize(
+        id: Long,
+        errorResults: List<EventHandledResult.UnrecoverableError> = emptyList()
+    ) = transaction {
         val event = QueuedEvents
             .selectAll()
             .where {
