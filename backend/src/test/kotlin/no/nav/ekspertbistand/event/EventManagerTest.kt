@@ -122,7 +122,7 @@ class EventManagerTest {
         )
         val manager = EventManager(config) {
             handle<Event.Bar>("FailsFatally") {
-                EventHandledResult.FatalError("fatal failure")
+                EventHandledResult.UnrecoverableError("fatal failure")
             }
             handle<Event.Bar>("ShouldNotBeRetried") {
                 // because of fatal error in other handler, this should not be retried
@@ -143,7 +143,7 @@ class EventManagerTest {
                 ),
                 handled.keys
             )
-            assertIs<EventHandledResult.FatalError>(handled["FailsFatally"]?.result)
+            assertIs<EventHandledResult.UnrecoverableError>(handled["FailsFatally"]?.result)
             assertIs<EventHandledResult.TransientError>(handled["ShouldNotBeRetried"]?.result)
         }
 
@@ -161,7 +161,7 @@ class EventManagerTest {
                 ),
                 handled.keys
             )
-            assertIs<EventHandledResult.FatalError>(handled["FailsFatally"]?.result)
+            assertIs<EventHandledResult.UnrecoverableError>(handled["FailsFatally"]?.result)
             assertIs<EventHandledResult.TransientError>(handled["ShouldNotBeRetried"]?.result)
         }
 
@@ -179,8 +179,9 @@ object DummyFooHandler {
     fun handle(event: Event.Foo) = EventHandledResult.Success()
 }
 
-class FooRetryThenSucceedsHandler() : BaseEventHandler<Event.Foo>() {
+class FooRetryThenSucceedsHandler : EventHandler<Event.Foo> {
     private var attempt = 0
+    override val id: String = "FooRetryThenSucceedsHandler"
     override fun handle(event: Event.Foo): EventHandledResult {
         logger().info("Handling Foo event with retry, attempt $attempt")
         return if (attempt < 1) {

@@ -1,19 +1,3 @@
-/**
- * EventManager is responsible for polling, processing, and finalizing events using registered event handlers.
- *
- * Main responsibilities:
- * - Polls for new events from the EventQueue at a configurable interval.
- * - Dispatches events to all applicable EventHandlers.
- * - Tracks handler results (Success, TransientError, FatalError) and persists them.
- * - Finalizes events when all handlers succeed or any handler returns a fatal error.
- * - Supports retrying events with transient errors until abandoned timeout is reached.
- * - Cleans up finalized event handler states periodically.
- *
- * Usage:
- * Instantiate with a configuration and register handlers via the builder lambda.
- * Call runProcessLoop() to start event processing, and cleanupFinalizedEvents() to periodically clean up state.
- */
-
 package no.nav.ekspertbistand.event
 
 import io.ktor.utils.io.CancellationException
@@ -32,11 +16,24 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.upsert
 import org.jetbrains.exposed.v1.json.json
-import kotlin.reflect.KClass
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-
+/**
+ * EventManager is responsible for polling, processing, and finalizing events using registered event handlers.
+ *
+ * Main responsibilities:
+ * - Polls for new events from the EventQueue at a configurable interval.
+ * - Dispatches events to all applicable EventHandlers.
+ * - Tracks handler results (Success, TransientError, FatalError) and persists them.
+ * - Finalizes events when all handlers succeed or any handler returns a fatal error.
+ * - Supports retrying events with transient errors until abandoned timeout is reached.
+ * - Cleans up finalized event handler states periodically.
+ *
+ * Usage:
+ * Instantiate with a configuration and register handlers via the builder lambda.
+ * Call runProcessLoop() to start event processing, and cleanupFinalizedEvents() to periodically clean up state.
+ */
 @OptIn(ExperimentalTime::class)
 class EventManager(
     val config: EventManagerConfig = EventManagerConfig(),
@@ -53,6 +50,11 @@ class EventManager(
         }
     }
 
+    /**
+     * Starts the main event processing loop.
+     * Continuously polls for new events, routes them to handlers, and finalizes them based on handler results.
+     * This function is designed to be run within a coroutine.
+     */
     @OptIn(ExperimentalTime::class)
     suspend fun runProcessLoop() = withContext(config.dispatcher) {
         while (isActive) {
@@ -65,57 +67,22 @@ class EventManager(
             }
 
             log.info("Processing event ${queuedEvent.id} of type ${queuedEvent.event::class.simpleName}")
-            val id = queuedEvent.id
-            val ev = queuedEvent.event
             try {
-                val statePerHandler = handledEvents(id)
-
-                // TODO: use explicit when instead of filter
-                val handlers = eventHandlers.filter {
-                    it.canHandle(ev)
-                }
-                log.info("Found ${handlers.size} handlers for event ${ev::class.simpleName}: ${handlers.map { it.name }}")
-                val results: List<EventHandledResult> = handlers.map { handler ->
-                    val previousState = statePerHandler[handler.name]
-                    when (previousState?.result) {
-                        // if previously handled resulting in FatalError or Success, skip
-                        is EventHandledResult.Success,
-                        is EventHandledResult.FatalError -> {
-                            previousState.result // null == skip this handler
-                        }
-
-                        // if previously handled resulting in RetryableError, process now
-                        is EventHandledResult.TransientError,
-                            // if previously unhandled, process now
-                        null -> {
-                            handler.handleAny(ev).also { result ->
-                                // TODO: store attempts, the whole queuedEvent?
-                                upsertHandlerResult(id, result, handler.name)
-                            }
-                        }
-                    }
-
-
-                }
+                val results = routeToHandlers(queuedEvent)
                 val succeeded = results.filterIsInstance<EventHandledResult.Success>()
-                val fatalErrors = results.filterIsInstance<EventHandledResult.FatalError>()
+                val unrecoverableErrors = results.filterIsInstance<EventHandledResult.UnrecoverableError>()
                 val transientError = results.filterIsInstance<EventHandledResult.TransientError>()
 
                 if (results == succeeded) { // all succeeded
-                    log.info("Event $id handled successfully by all handlers.")
-                    q.finalize(id)
+                    log.info("Event ${queuedEvent.id} handled successfully by all handlers.")
+                    q.finalize(queuedEvent.id)
 
-                    // TODO: should we clean the EventHandlerStates when finalizing, if so we need a tx
-                } else if (fatalErrors.isNotEmpty()) {
-                    log.error(
-                        "Event $id handling failed ${fatalErrors.joinToString(", ") { it.message }}",
-                    )
-                    q.finalize(id, fatalErrors)
-                    // TODO: should we clean the EventHandlerStates when finalizing, if so we need a tx
-                    // TODO: perhaps we clean EventHandlerStates in another job, e.g. delete from EventHandlerStates where in eventlog..
+                } else if (unrecoverableErrors.isNotEmpty()) {
+                    log.error("Event ${queuedEvent.id} handling failed with urecoverable error: $unrecoverableErrors")
+                    q.finalize(queuedEvent.id, unrecoverableErrors)
 
                 } else if (transientError.isNotEmpty()) {
-                    log.warn("Event $id will be retried due to exception. ${transientError.map { it.message }}")
+                    log.warn("Event ${queuedEvent.id} will be retried due to transient error: $transientError")
                     // skip finalize to allow retry via abandoned timeout
                 }
 
@@ -126,6 +93,50 @@ class EventManager(
         }
     }
 
+    /**
+     * Routes the given queued event to all applicable event handlers and returns their results.
+     * We use an explicit when statement here to ensure exhaustiveness as new event types are added.
+     * The routing code is duplicated but ensures type safety without unchecked casts.
+     */
+    private fun routeToHandlers(queued: QueuedEvent) =
+        handledEvents(queued.id).let { statePerHandler ->
+            when (val event = queued.event) {
+                is Event.Foo -> handleStatefully(event, statePerHandler, queued.id)
+                is Event.Bar -> handleStatefully(event, statePerHandler, queued.id)
+            }
+        }
+
+
+    /**
+     * Handles the given event with all applicable handlers, using the provided previous handler states to determine
+     * whether to process or skip each handler.
+     * Persists the result of each handler after processing.
+     */
+    private inline fun <reified T : Event> handleStatefully(
+        event: T,
+        statePerHandler: Map<String, EventHandlerState>,
+        eventId: Long
+    ) = eventHandlers.filterIsInstance<EventHandler<T>>().map { handler ->
+        val previousState = statePerHandler[handler.id]
+        when (previousState?.result) {
+            // skip if previously handled resulting in Success or UnrecoverableError
+            is EventHandledResult.Success,
+            is EventHandledResult.UnrecoverableError,
+                -> previousState.result
+
+
+            null, // process now if previously unhandled,
+            is EventHandledResult.TransientError, // process now if previously handled resulting in TransientError
+                -> handler.handle(event).also { result ->
+                    upsertHandlerResult(eventId, result, handler.id)
+                }
+        }
+    }
+
+    /**
+     * Cleans up finalized event handler states periodically.
+     * Finalized states are those for events that have been removed from the queue (and moved to the log).
+     */
     suspend fun cleanupFinalizedEvents() = withContext(config.dispatcher) {
         while (isActive) {
             log.info("Cleaning up finalized events...")
@@ -150,23 +161,23 @@ class EventManager(
     private fun upsertHandlerResult(
         eventId: Long,
         result: EventHandledResult,
-        handlerName: String
+        handlerId: String
     ) {
         transaction {
             EventHandlerStates.upsert {
                 it[EventHandlerStates.eventId] = eventId
-                it[EventHandlerStates.handlerName] = handlerName
+                it[EventHandlerStates.handlerId] = handlerId
                 it[EventHandlerStates.result] = result
             }
         }
     }
 
-    internal fun handledEvents(id: Long) = transaction {
+    internal fun handledEvents(eventId: Long) = transaction {
         EventHandlerStates
             .selectAll()
-            .where { EventHandlerStates.eventId eq id }
+            .where { EventHandlerStates.eventId eq eventId }
             .map { it.tilEventHandlerState() }
-            .associateBy { it.handlerName }
+            .associateBy { it.handlerId }
     }
 }
 
@@ -179,43 +190,10 @@ data class EventManagerConfig(
 )
 
 interface EventHandler<T : Event> {
-    val eventType: KClass<T>
-
-    // TODO: static id instead of name
-    val name: String
-        get() = this::class.simpleName ?: error("EventHandler is missing name")
-
+    val id: String
 
     fun handle(event: T): EventHandledResult
 
-    fun canHandle(event: Event): Boolean = eventType.isInstance(event)
-
-    @Suppress("UNCHECKED_CAST")
-    fun handleAny(event: Event): EventHandledResult {
-        require(canHandle(event)) { "Handler $name cannot handle ${event::class.simpleName}" }
-        return handle(event as T)
-    }
-}
-
-abstract class BaseEventHandler<T : Event> : EventHandler<T> {
-    // Automatically infer event type T from the subclass
-    override val eventType: KClass<T> by lazy {
-        @Suppress("UNCHECKED_CAST")
-        this::class.supertypes
-            .firstNotNullOfOrNull { type ->
-                val arg = type.arguments.firstOrNull()?.type?.classifier as? KClass<*>
-                if (Event::class.java.isAssignableFrom(arg!!.java)) arg as? KClass<T> else null
-            } ?: error("Cannot infer event type for ${this::class.simpleName}")
-    }
-
-    final override fun canHandle(event: Event): Boolean = eventType.isInstance(event)
-
-    final override fun handleAny(event: Event): EventHandledResult {
-        require(canHandle(event)) { "Handler $name cannot handle event of type ${event::class.simpleName}" }
-
-        @Suppress("UNCHECKED_CAST")
-        return handle(event as T)
-    }
 }
 
 @Serializable
@@ -223,18 +201,34 @@ sealed class EventHandledResult {
     @Serializable
     class Success : EventHandledResult()
 
+    /**
+     * Indicates a temporary failure; the event is eligible for retry.
+     */
     @Serializable
-    class TransientError(val message: String) : EventHandledResult()
+    data class TransientError(val message: String) : EventHandledResult()
 
+    /**
+     * Indicates a permanent failure; the event will not be retried.
+     * Use this to skip further processing of an event.
+     */
     @Serializable
-    class FatalError(val message: String) : EventHandledResult()
+    data class UnrecoverableError(val message: String) : EventHandledResult()
 }
 
+/**
+ * Builder for registering event handlers with the EventManager.
+ * Provides a DSL for defining handlers inline or registering existing instances.
+ * Usage:
+ *  EventManager {
+ *    handle<Event.Foo>("FooHandler") { event -> ... }
+ *    handler(ExistingFooHandlerInstance)
+ *  }
+ */
 class EventManagerBuilder {
     val handlers = mutableListOf<EventHandler<out Event>>()
 
-    inline fun <reified T : Event> handle(name: String, noinline block: (T) -> EventHandledResult) {
-        handlers += on(name, block)
+    inline fun <reified T : Event> handle(id: String, noinline block: (T) -> EventHandledResult) {
+        handlers += blockHandler(id, block)
     }
 
     fun <T : Event> handler(instance: EventHandler<T>) {
@@ -242,36 +236,33 @@ class EventManagerBuilder {
     }
 }
 
-
-inline fun <reified T : Event> on(
-    name: String? = null,
+inline fun <reified T : Event> blockHandler(
+    id: String,
     noinline block: (T) -> EventHandledResult
-): EventHandler<T> = object : BaseEventHandler<T>() {
-    // TODO: name must be required, otherwise refactor could break semantics. rename name to id
-    override val name: String = name ?: this::class.simpleName ?: error("EventHandler is missing name")
-    override val eventType: KClass<T> = T::class
+): EventHandler<T> = object : EventHandler<T> {
+    override val id: String = id
     override fun handle(event: T) = block(event)
 }
 
 object EventHandlerStates : Table("event_handler_states") {
     val eventId = long("id")
-    val handlerName = text("handler_name")
+    val handlerId = text("handler_name")
     val result = json<EventHandledResult>("result", Json)
     val errorMessage = text("error_message").nullable()
 
-    override val primaryKey = PrimaryKey(eventId, handlerName)
+    override val primaryKey = PrimaryKey(eventId, handlerId)
 }
 
 data class EventHandlerState(
     val eventId: Long,
-    val handlerName: String,
+    val handlerId: String,
     val result: EventHandledResult,
     val errorMessage: String?
 ) {
     companion object {
         fun ResultRow.tilEventHandlerState(): EventHandlerState = EventHandlerState(
             eventId = this[EventHandlerStates.eventId],
-            handlerName = this[EventHandlerStates.handlerName],
+            handlerId = this[EventHandlerStates.handlerId],
             result = this[EventHandlerStates.result],
             errorMessage = this[EventHandlerStates.errorMessage]
         )
