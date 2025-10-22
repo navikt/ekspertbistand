@@ -1,3 +1,19 @@
+/**
+ * EventManager is responsible for polling, processing, and finalizing events using registered event handlers.
+ *
+ * Main responsibilities:
+ * - Polls for new events from the EventQueue at a configurable interval.
+ * - Dispatches events to all applicable EventHandlers.
+ * - Tracks handler results (Success, TransientError, FatalError) and persists them.
+ * - Finalizes events when all handlers succeed or any handler returns a fatal error.
+ * - Supports retrying events with transient errors until abandoned timeout is reached.
+ * - Cleans up finalized event handler states periodically.
+ *
+ * Usage:
+ * Instantiate with a configuration and register handlers via the builder lambda.
+ * Call runProcessLoop() to start event processing, and cleanupFinalizedEvents() to periodically clean up state.
+ */
+
 package no.nav.ekspertbistand.event
 
 import io.ktor.utils.io.CancellationException
