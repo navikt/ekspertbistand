@@ -116,22 +116,24 @@ class EventManager(
         event: T,
         statePerHandler: Map<String, EventHandlerState>,
         eventId: Long
-    ) = eventHandlers.filterIsInstance<EventHandler<T>>().map { handler ->
-        val previousState = statePerHandler[handler.id]
-        when (previousState?.result) {
-            // skip if previously handled resulting in Success or UnrecoverableError
-            is EventHandledResult.Success,
-            is EventHandledResult.UnrecoverableError,
-                -> previousState.result
+    ) =
+        eventHandlers.filterIsInstance<EventHandler<T>>()
+            .map { handler ->
+                val previousState = statePerHandler[handler.id]
+                when (previousState?.result) {
+                    // skip if previously handled resulting in Success or UnrecoverableError
+                    is EventHandledResult.Success,
+                    is EventHandledResult.UnrecoverableError,
+                        -> previousState.result
 
 
-            null, // process now if previously unhandled,
-            is EventHandledResult.TransientError, // process now if previously handled resulting in TransientError
-                -> handler.handle(event).also { result ->
-                    upsertHandlerResult(eventId, result, handler.id)
+                    null, // process now if previously unhandled,
+                    is EventHandledResult.TransientError, // process now if previously handled resulting in TransientError
+                        -> handler.handle(event).also { result ->
+                        upsertHandlerResult(eventId, result, handler.id)
+                    }
                 }
-        }
-    }
+            }
 
     /**
      * Cleans up finalized event handler states periodically.
