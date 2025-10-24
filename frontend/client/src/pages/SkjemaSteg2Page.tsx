@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import type { CSSProperties } from "react";
 import { useNavigate, useLocation, Link as RouterLink } from "react-router-dom";
 import { type SubmitHandler, useForm, useWatch } from "react-hook-form";
-import { ArrowLeftIcon, ArrowRightIcon, FloppydiskIcon, TrashIcon } from "@navikt/aksel-icons";
+import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
   Button,
   ErrorSummary,
@@ -31,31 +30,35 @@ import {
 } from "./validation";
 import { useDraftNavigation } from "./useDraftNavigation";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
-import { DeleteDraftModal } from "../components/DeleteDraftModal";
-import { SaveDraftModal } from "../components/SaveDraftModal";
-
-const formColumnStyle: CSSProperties = { width: "100%", maxWidth: "36rem" };
+import { DraftActions } from "./DraftActions";
+import { DEFAULT_LANGUAGE_LINKS, FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
+import { useDraftAutosave } from "./useDraftAutosave";
+import { useErrorSummaryFocus } from "./useErrorSummaryFocus";
 
 export default function SkjemaSteg2Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const hasInitialisedRef = useRef(false);
-  const [todayIso] = React.useState(() => new Date().toISOString());
-  const todayDate = useMemo(() => new Date(todayIso), [todayIso]);
+  const todayDate = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }, []);
 
   const form = useForm<Inputs>({
     mode: "onSubmit",
     reValidateMode: "onSubmit",
     shouldFocusError: false,
     shouldUnregister: true,
-    defaultValues: { behovForBistand: { startDato: todayIso } },
   });
 
   const { register, unregister, trigger, setValue, formState } = form;
   const { errors, isSubmitted, submitCount } = formState;
   const watchedValues = useWatch<Inputs>({ control: form.control });
-  const lastSnapshotRef = useRef<string | null>(null);
+  const autosaveDeps = useMemo(() => [watchedValues], [watchedValues]);
+  const startDatoIso = watchedValues?.behovForBistand?.startDato;
+  const syncingDateRef = useRef(false);
   const { draftId, draft, hydrated, saveDraft, clearDraft } = useSoknadDraft();
   const { captureSnapshot, mergeValues } = useSkjemaFormState(form, location, navigate);
   const navigateWithDraft = useDraftNavigation({ captureSnapshot, saveDraft, navigate });
@@ -76,47 +79,68 @@ export default function SkjemaSteg2Page() {
   useEffect(() => {
     if (!hydrated || hasInitialisedRef.current) return;
     const initialData = mergeInputs(createEmptyInputs(), draft);
-    if (!initialData.behovForBistand.startDato) {
-      initialData.behovForBistand.startDato = todayIso;
-    }
     form.reset(initialData, { keepValues: false });
     mergeValues(initialData);
     hasInitialisedRef.current = true;
-  }, [draft, form, hydrated, mergeValues, todayIso]);
+  }, [draft, form, hydrated, mergeValues]);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    const snapshot = captureSnapshot();
-    const serialized = JSON.stringify(snapshot);
-    if (serialized === lastSnapshotRef.current) return;
-    lastSnapshotRef.current = serialized;
-    saveDraft(snapshot);
-  }, [captureSnapshot, hydrated, saveDraft, watchedValues]);
+  useDraftAutosave({
+    captureSnapshot,
+    saveDraft,
+    hydrated,
+    dependencies: autosaveDeps,
+  });
 
-  useEffect(() => {
-    if (!hydrated) return;
-    if (submitCount === 0) return;
-    if (Object.keys(errors).length === 0) return;
-    window.requestAnimationFrame(() => {
-      errorSummaryRef.current?.focus();
-    });
-  }, [errors, hydrated, submitCount]);
+  const shouldFocusErrorSummary = hydrated && submitCount > 0 && Object.keys(errors).length > 0;
+  const errorFocusDeps = useMemo(() => [errors], [errors]);
+  useErrorSummaryFocus({
+    ref: errorSummaryRef,
+    isActive: shouldFocusErrorSummary,
+    dependencies: errorFocusDeps,
+  });
 
   useEffect(() => {
     register("behovForBistand.startDato", { validate: validateStartDato });
     return () => unregister("behovForBistand.startDato");
   }, [register, unregister]);
 
-  const { datepickerProps, inputProps } = useDatepicker({
-    defaultSelected: todayDate,
+  const selectedDate = useMemo(() => {
+    if (!startDatoIso) return undefined;
+    const parsed = new Date(startDatoIso);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  }, [startDatoIso]);
+
+  const { datepickerProps, inputProps, setSelected, selectedDay } = useDatepicker({
+    defaultSelected: selectedDate,
+    defaultMonth: selectedDate ?? todayDate,
     fromDate: todayDate,
     onDateChange: (date) => {
+      if (syncingDateRef.current) {
+        syncingDateRef.current = false;
+        return;
+      }
       setValue("behovForBistand.startDato", date ? date.toISOString() : null, {
         shouldDirty: true,
         shouldValidate: isSubmitted,
       });
     },
   });
+
+  useEffect(() => {
+    if (!selectedDate) {
+      if (selectedDay) {
+        syncingDateRef.current = true;
+        setSelected(undefined);
+      }
+      return;
+    }
+    const currentSelectedTime = selectedDay?.getTime();
+    if (currentSelectedTime === selectedDate.getTime()) {
+      return;
+    }
+    syncingDateRef.current = true;
+    setSelected(selectedDate);
+  }, [selectedDate, selectedDay, setSelected]);
 
   const kostnadReg = register("behovForBistand.kostnad", {
     setValueAs: (value) => (value === "" || value === null ? "" : Number(value)),
@@ -130,21 +154,14 @@ export default function SkjemaSteg2Page() {
     navigateWithDraft(`/skjema/${draftId}/oppsummering`);
   }, [draftId, navigateWithDraft]);
 
-  const [continueModalOpen, setContinueModalOpen] = React.useState(false);
-  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
-
-  const onValid = useCallback<SubmitHandler<Inputs>>(() => {
+  const onValid: SubmitHandler<Inputs> = () => {
     goToSummary();
-  }, [goToSummary]);
+  };
+  const goToStepOneLink = withPreventDefault(goToStepOne);
+  const goToSummaryLink = withPreventDefault(goToSummary);
 
   return (
-    <DecoratedPage
-      blockProps={{ width: "lg", gutters: true }}
-      languages={[
-        { locale: "nb", url: "https://www.nav.no" },
-        { locale: "en", url: "https://www.nav.no/en" },
-      ]}
-    >
+    <DecoratedPage blockProps={{ width: "lg", gutters: true }} languages={DEFAULT_LANGUAGE_LINKS}>
       <form onSubmit={form.handleSubmit(onValid)}>
         <VStack gap="8">
           <Heading level="1" size="xlarge">
@@ -152,36 +169,17 @@ export default function SkjemaSteg2Page() {
           </Heading>
 
           <VStack gap="3">
-            <Link
-              as={RouterLink}
-              to={`/skjema/${draftId}/steg-1`}
-              onClick={(event) => {
-                event.preventDefault();
-                goToStepOne();
-              }}
-            >
+            <Link as={RouterLink} to={`/skjema/${draftId}/steg-1`} onClick={goToStepOneLink}>
               <ArrowLeftIcon aria-hidden /> Forrige steg
             </Link>
             <FormProgress activeStep={2} totalSteps={3}>
-              <FormProgress.Step
-                href="#"
-                onClick={(event) => {
-                  event.preventDefault();
-                  goToStepOne();
-                }}
-              >
+              <FormProgress.Step href="#" onClick={goToStepOneLink}>
                 Deltakere
               </FormProgress.Step>
               <FormProgress.Step href="#" onClick={(event) => event.preventDefault()}>
                 Behov for bistand
               </FormProgress.Step>
-              <FormProgress.Step
-                href="#"
-                onClick={(event) => {
-                  event.preventDefault();
-                  goToSummary();
-                }}
-              >
+              <FormProgress.Step href="#" onClick={goToSummaryLink}>
                 Oppsummering
               </FormProgress.Step>
             </FormProgress>
@@ -190,7 +188,7 @@ export default function SkjemaSteg2Page() {
           <Heading level="2" size="large">
             Behov for bistand
           </Heading>
-          <Fieldset legend="Behov for bistand" hideLegend style={formColumnStyle}>
+          <Fieldset legend="Behov for bistand" hideLegend style={FORM_COLUMN_STYLE}>
             <VStack gap="6">
               <Textarea
                 id="behovForBistand.problemstilling"
@@ -200,7 +198,7 @@ export default function SkjemaSteg2Page() {
                   validate: validateProblemstilling,
                 })}
                 aria-invalid={isSubmitted ? undefined : false}
-                style={formColumnStyle}
+                style={FORM_COLUMN_STYLE}
               />
               <Textarea
                 id="behovForBistand.bistand"
@@ -211,7 +209,7 @@ export default function SkjemaSteg2Page() {
                   validate: validateBehovForBistand,
                 })}
                 aria-invalid={isSubmitted ? undefined : false}
-                style={formColumnStyle}
+                style={FORM_COLUMN_STYLE}
               />
               <TextField
                 id="behovForBistand.kostnad"
@@ -222,7 +220,7 @@ export default function SkjemaSteg2Page() {
                 error={isSubmitted ? errors.behovForBistand?.kostnad?.message : undefined}
                 {...kostnadReg}
                 aria-invalid={isSubmitted ? undefined : false}
-                style={formColumnStyle}
+                style={FORM_COLUMN_STYLE}
               />
               <Textarea
                 id="behovForBistand.tiltak"
@@ -233,10 +231,10 @@ export default function SkjemaSteg2Page() {
                   validate: validateTiltakForTilrettelegging,
                 })}
                 aria-invalid={isSubmitted ? undefined : false}
-                style={formColumnStyle}
+                style={FORM_COLUMN_STYLE}
               />
               <div>
-                <Box paddingBlock="0" style={formColumnStyle}>
+                <Box paddingBlock="0" style={FORM_COLUMN_STYLE}>
                   <DatePicker {...datepickerProps}>
                     <DatePicker.Input
                       {...inputProps}
@@ -259,7 +257,7 @@ export default function SkjemaSteg2Page() {
                   validate: validateNavKontakt,
                 })}
                 aria-invalid={isSubmitted ? undefined : false}
-                style={formColumnStyle}
+                style={FORM_COLUMN_STYLE}
               />
             </VStack>
           </Fieldset>
@@ -301,52 +299,18 @@ export default function SkjemaSteg2Page() {
                 Neste steg
               </Button>
             </HGrid>
-            <HGrid
-              gap={{ xs: "4", sm: "8 4" }}
-              columns={{ xs: 1, sm: 2 }}
-              width={{ sm: "fit-content" }}
-            >
-              <Box asChild marginBlock={{ xs: "4 0", sm: "0" }}>
-                <Button
-                  type="button"
-                  variant="tertiary"
-                  icon={<FloppydiskIcon aria-hidden />}
-                  iconPosition="left"
-                  onClick={() => setContinueModalOpen(true)}
-                >
-                  Fortsett senere
-                </Button>
-              </Box>
-              <Button
-                type="button"
-                variant="tertiary"
-                icon={<TrashIcon aria-hidden />}
-                iconPosition="left"
-                onClick={() => setDeleteModalOpen(true)}
-              >
-                Slett søknaden
-              </Button>
-            </HGrid>
+            <DraftActions
+              onContinueLater={() => {
+                navigateWithDraft("/");
+              }}
+              onDeleteDraft={async () => {
+                await clearDraft();
+                navigate("/");
+              }}
+            />
           </VStack>
         </VStack>
       </form>
-      <DeleteDraftModal
-        open={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        onConfirm={async () => {
-          setDeleteModalOpen(false);
-          await clearDraft();
-          navigate("/");
-        }}
-      />
-      <SaveDraftModal
-        open={continueModalOpen}
-        onClose={() => setContinueModalOpen(false)}
-        onConfirm={() => {
-          setContinueModalOpen(false);
-          navigateWithDraft("/");
-        }}
-      />
     </DecoratedPage>
   );
 }

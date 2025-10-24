@@ -18,6 +18,8 @@ import {
   VStack,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
+import { DEFAULT_LANGUAGE_LINKS } from "./utils";
+import { focusErrorSummary } from "./useErrorSummaryFocus";
 
 export default function SoknadPage() {
   const navigate = useNavigate();
@@ -60,25 +62,17 @@ export default function SoknadPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Kunne ikke starte søknaden.";
       setApiError(message);
-      requestAnimationFrame(() => {
-        errorSummaryRef.current?.focus();
-      });
+      focusErrorSummary(errorSummaryRef);
     } finally {
       setCreating(false);
     }
   };
   const onInvalid: SubmitErrorHandler<IntroInputs> = () => {
-    errorSummaryRef.current?.focus();
+    focusErrorSummary(errorSummaryRef);
   };
 
   return (
-    <DecoratedPage
-      blockProps={{ width: "lg", gutters: true }}
-      languages={[
-        { locale: "nb", url: "https://www.nav.no" },
-        { locale: "en", url: "https://www.nav.no/en" },
-      ]}
-    >
+    <DecoratedPage blockProps={{ width: "lg", gutters: true }} languages={DEFAULT_LANGUAGE_LINKS}>
       <form onSubmit={handleSubmit(onValid, onInvalid)}>
         <VStack as="main" gap="8" data-aksel-template="form-intropage-v3">
           <VStack gap="3">

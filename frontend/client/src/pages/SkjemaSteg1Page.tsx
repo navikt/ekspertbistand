@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import type { CSSProperties } from "react";
 import { useNavigate, Link as RouterLink, useLocation } from "react-router-dom";
 import { Controller, type SubmitHandler, useForm, useWatch } from "react-hook-form";
-import { ArrowLeftIcon, ArrowRightIcon, FloppydiskIcon, TrashIcon } from "@navikt/aksel-icons";
+import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
   Button,
   ErrorSummary,
@@ -13,9 +12,11 @@ import {
   Fieldset,
   Link,
   FormProgress,
-  Box,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
+import { DEFAULT_LANGUAGE_LINKS, FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
+import { useDraftAutosave } from "./useDraftAutosave";
+import { useErrorSummaryFocus } from "./useErrorSummaryFocus";
 import { createEmptyInputs, mergeInputs, type Inputs } from "./types";
 import { useSkjemaFormState } from "./useSkjemaFormState";
 import { useDraftNavigation } from "./useDraftNavigation";
@@ -32,17 +33,13 @@ import {
 } from "./validation";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { VirksomhetPicker } from "../components/VirksomhetPicker";
-import { DeleteDraftModal } from "../components/DeleteDraftModal";
-import { SaveDraftModal } from "../components/SaveDraftModal";
-
-const formColumnStyle: CSSProperties = { width: "100%", maxWidth: "36rem" };
+import { DraftActions } from "./DraftActions";
 
 export default function SkjemaSteg1Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const hasInitialisedRef = useRef(false);
-  const [continueModalOpen, setContinueModalOpen] = React.useState(false);
 
   const form = useForm<Inputs>({
     mode: "onSubmit",
@@ -52,8 +49,8 @@ export default function SkjemaSteg1Page() {
   });
   const { control, register, setValue, getValues, formState } = form;
   const watchedValues = useWatch<Inputs>({ control: form.control });
-  const lastSnapshotRef = useRef<string | null>(null);
   const { errors, submitCount } = formState;
+  const autosaveDeps = useMemo(() => [watchedValues], [watchedValues]);
   const errorItems = [
     { id: "virksomhet.virksomhetsnummer", message: errors.virksomhet?.virksomhetsnummer?.message },
     {
@@ -87,23 +84,20 @@ export default function SkjemaSteg1Page() {
     hasInitialisedRef.current = true;
   }, [draft, form, hydrated, mergeValues]);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    const snapshot = captureSnapshot();
-    const serialized = JSON.stringify(snapshot);
-    if (serialized === lastSnapshotRef.current) return;
-    lastSnapshotRef.current = serialized;
-    saveDraft(snapshot);
-  }, [captureSnapshot, hydrated, saveDraft, watchedValues]);
+  useDraftAutosave({
+    captureSnapshot,
+    saveDraft,
+    hydrated,
+    dependencies: autosaveDeps,
+  });
 
-  useEffect(() => {
-    if (!hydrated) return;
-    if (submitCount === 0) return;
-    if (Object.keys(errors).length === 0) return;
-    window.requestAnimationFrame(() => {
-      errorSummaryRef.current?.focus();
-    });
-  }, [errors, hydrated, submitCount]);
+  const shouldFocusErrorSummary = hydrated && submitCount > 0 && Object.keys(errors).length > 0;
+  const errorFocusDeps = useMemo(() => [errors], [errors]);
+  useErrorSummaryFocus({
+    ref: errorSummaryRef,
+    isActive: shouldFocusErrorSummary,
+    dependencies: errorFocusDeps,
+  });
 
   const goToStepTwo = useCallback(() => {
     navigateWithDraft(`/skjema/${draftId}/steg-2`);
@@ -113,46 +107,15 @@ export default function SkjemaSteg1Page() {
     navigateWithDraft(`/skjema/${draftId}/oppsummering`);
   }, [draftId, navigateWithDraft]);
 
-  const handleContinueLater = useCallback(() => {
-    setContinueModalOpen(true);
-  }, []);
-
-  const closeContinueModal = useCallback(() => setContinueModalOpen(false), []);
-
-  const confirmContinueLater = useCallback(() => {
-    setContinueModalOpen(false);
-    navigateWithDraft("/");
-  }, [navigateWithDraft]);
-
-  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
-
-  const handleDeleteDraft = useCallback(() => {
-    setDeleteModalOpen(true);
-  }, []);
-
-  const closeDeleteModal = useCallback(() => setDeleteModalOpen(false), []);
-
-  const confirmDeleteDraft = useCallback(async () => {
-    setDeleteModalOpen(false);
-    await clearDraft();
-    navigate("/");
-  }, [clearDraft, navigate]);
-
-  const onValid = useCallback<SubmitHandler<Inputs>>(() => {
+  const onValid: SubmitHandler<Inputs> = () => {
     goToStepTwo();
-  }, [goToStepTwo]);
-
-  const onSubmit = useMemo(() => form.handleSubmit(onValid), [form, onValid]);
+  };
+  const goToStepTwoLink = withPreventDefault(goToStepTwo);
+  const goToSummaryLink = withPreventDefault(goToSummary);
 
   return (
-    <DecoratedPage
-      blockProps={{ width: "lg", gutters: true }}
-      languages={[
-        { locale: "nb", url: "https://www.nav.no" },
-        { locale: "en", url: "https://www.nav.no/en" },
-      ]}
-    >
-      <form onSubmit={onSubmit}>
+    <DecoratedPage blockProps={{ width: "lg", gutters: true }} languages={DEFAULT_LANGUAGE_LINKS}>
+      <form onSubmit={form.handleSubmit(onValid)}>
         <VStack gap="8">
           <Heading level="1" size="xlarge">
             Søknadsskjema – ekspertbistand
@@ -166,29 +129,17 @@ export default function SkjemaSteg1Page() {
               <FormProgress.Step href="#" onClick={(event) => event.preventDefault()}>
                 Deltakere
               </FormProgress.Step>
-              <FormProgress.Step
-                href="#"
-                onClick={(event) => {
-                  event.preventDefault();
-                  goToStepTwo();
-                }}
-              >
+              <FormProgress.Step href="#" onClick={goToStepTwoLink}>
                 Behov for bistand
               </FormProgress.Step>
-              <FormProgress.Step
-                href="#"
-                onClick={(event) => {
-                  event.preventDefault();
-                  goToSummary();
-                }}
-              >
+              <FormProgress.Step href="#" onClick={goToSummaryLink}>
                 Oppsummering
               </FormProgress.Step>
             </FormProgress>
           </VStack>
 
           <VStack gap="6">
-            <div style={formColumnStyle}>
+            <div style={FORM_COLUMN_STYLE}>
               <Controller
                 name="virksomhet.virksomhetsnummer"
                 control={control}
@@ -215,7 +166,7 @@ export default function SkjemaSteg1Page() {
             </div>
             <input type="hidden" {...register("virksomhet.navn")} />
 
-            <Fieldset legend="Kontaktperson i virksomheten" style={formColumnStyle}>
+            <Fieldset legend="Kontaktperson i virksomheten" style={FORM_COLUMN_STYLE}>
               <TextField
                 id="virksomhet.kontaktperson.navn"
                 label="Navn"
@@ -246,7 +197,7 @@ export default function SkjemaSteg1Page() {
             </Fieldset>
           </VStack>
 
-          <Fieldset legend="Ansatt" style={formColumnStyle}>
+          <Fieldset legend="Ansatt" style={FORM_COLUMN_STYLE}>
             <VStack gap="6">
               <TextField
                 id="ansatt.fodselsnummer"
@@ -268,7 +219,7 @@ export default function SkjemaSteg1Page() {
             </VStack>
           </Fieldset>
 
-          <Fieldset legend="Ekspert" style={formColumnStyle}>
+          <Fieldset legend="Ekspert" style={FORM_COLUMN_STYLE}>
             <VStack gap="6">
               <TextField
                 id="ekspert.navn"
@@ -335,45 +286,18 @@ export default function SkjemaSteg1Page() {
                 Neste steg
               </Button>
             </HGrid>
-            <HGrid
-              gap={{ xs: "4", sm: "8 4" }}
-              columns={{ xs: 1, sm: 2 }}
-              width={{ sm: "fit-content" }}
-            >
-              <Box asChild marginBlock={{ xs: "4 0", sm: "0" }}>
-                <Button
-                  type="button"
-                  variant="tertiary"
-                  icon={<FloppydiskIcon aria-hidden />}
-                  iconPosition="left"
-                  onClick={handleContinueLater}
-                >
-                  Fortsett senere
-                </Button>
-              </Box>
-              <Button
-                type="button"
-                variant="tertiary"
-                icon={<TrashIcon aria-hidden />}
-                iconPosition="left"
-                onClick={handleDeleteDraft}
-              >
-                Slett søknaden
-              </Button>
-            </HGrid>
+            <DraftActions
+              onContinueLater={() => {
+                navigateWithDraft("/");
+              }}
+              onDeleteDraft={async () => {
+                await clearDraft();
+                navigate("/");
+              }}
+            />
           </VStack>
         </VStack>
       </form>
-      <DeleteDraftModal
-        open={deleteModalOpen}
-        onClose={closeDeleteModal}
-        onConfirm={confirmDeleteDraft}
-      />
-      <SaveDraftModal
-        open={continueModalOpen}
-        onClose={closeContinueModal}
-        onConfirm={confirmContinueLater}
-      />
     </DecoratedPage>
   );
 }

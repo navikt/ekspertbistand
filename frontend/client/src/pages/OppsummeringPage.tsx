@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeftIcon, FloppydiskIcon, PaperplaneIcon, TrashIcon } from "@navikt/aksel-icons";
+import { ArrowLeftIcon, PaperplaneIcon } from "@navikt/aksel-icons";
 import {
   BodyLong,
   BodyShort,
@@ -19,10 +19,33 @@ import { mergeInputs, type Inputs } from "./types";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { validateInputs, type ValidationError } from "./validation";
 import { FormSummaryAnswer } from "@navikt/ds-react/FormSummary";
-import { DeleteDraftModal } from "../components/DeleteDraftModal";
-import { SaveDraftModal } from "../components/SaveDraftModal";
+import { DEFAULT_LANGUAGE_LINKS, withPreventDefault } from "./utils";
+import { DraftActions } from "./DraftActions";
+import { focusErrorSummary } from "./useErrorSummaryFocus";
 
-type SummaryError = ValidationError;
+const numberFormatter = new Intl.NumberFormat("nb-NO");
+
+const formatValue = (value: unknown): string => {
+  if (typeof value === "number") return Number.isFinite(value) ? value.toString() : "—";
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : "—";
+  }
+  return "—";
+};
+
+const formatCurrency = (value: Inputs["behovForBistand"]["kostnad"]): string => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `${numberFormatter.format(value)} kr`;
+  }
+  return formatValue(value);
+};
+
+const formatDate = (value: Inputs["behovForBistand"]["startDato"]): string => {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString("nb-NO");
+};
 
 export default function OppsummeringPage() {
   const navigate = useNavigate();
@@ -33,89 +56,38 @@ export default function OppsummeringPage() {
     if (state) return mergeInputs(undefined, state);
     return draft;
   }, [draft, location.state]);
+  const { virksomhet, ansatt, ekspert, behovForBistand } = formData;
   const errorSummaryRef = useRef<HTMLDivElement>(null);
-  const [submitErrors, setSubmitErrors] = useState<SummaryError[]>([]);
+  const [submitErrors, setSubmitErrors] = useState<ValidationError[]>([]);
 
-  const formatValue = (value: unknown): string => {
-    if (typeof value === "number") return Number.isFinite(value) ? value.toString() : "—";
-    if (typeof value === "string") {
-      const trimmed = value.trim();
-      return trimmed.length > 0 ? trimmed : "—";
-    }
-    return "—";
-  };
-
-  const formatCurrency = (value: Inputs["behovForBistand"]["kostnad"]): string => {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return `${new Intl.NumberFormat("nb-NO").format(value)} kr`;
-    }
-    return formatValue(value);
-  };
-
-  const formatDate = (value: Inputs["behovForBistand"]["startDato"]): string => {
-    if (!value) return "—";
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString("nb-NO");
-  };
-
-  const handleNavigate = useCallback(
-    (path: string) => (event: React.MouseEvent<HTMLElement>) => {
-      event.preventDefault();
+  const navigateTo = useCallback(
+    (path: string) => {
       setSubmitErrors([]);
       saveDraft(formData);
       navigate(path, { state: { formData } });
     },
-    [navigate, formData, saveDraft]
+    [formData, navigate, saveDraft]
   );
+  const step1Path = `/skjema/${draftId}/steg-1`;
+  const step2Path = `/skjema/${draftId}/steg-2`;
+  const goToStep1 = withPreventDefault(() => navigateTo(step1Path));
+  const goToStep2 = withPreventDefault(() => navigateTo(step2Path));
 
   const handleSubmit = useCallback(() => {
     const errors = validateInputs(formData);
     setSubmitErrors(errors);
     if (errors.length > 0) {
-      requestAnimationFrame(() => {
-        errorSummaryRef.current?.focus();
-      });
+      focusErrorSummary(errorSummaryRef);
       return;
     }
     saveDraft(formData);
     console.log(formData);
   }, [formData, saveDraft]);
 
-  const [continueModalOpen, setContinueModalOpen] = useState(false);
-
-  const handleContinueLater = useCallback(() => {
-    setContinueModalOpen(true);
-  }, []);
-
-  const closeContinueModal = useCallback(() => setContinueModalOpen(false), []);
-
-  const confirmContinueLater = useCallback(() => {
-    setContinueModalOpen(false);
-    saveDraft(formData);
-    navigate("/");
-  }, [formData, navigate, saveDraft]);
-
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-
-  const handleDeleteDraft = useCallback(() => {
-    setDeleteModalOpen(true);
-  }, []);
-
-  const closeDeleteModal = useCallback(() => setDeleteModalOpen(false), []);
-
-  const confirmDeleteDraft = useCallback(async () => {
-    setDeleteModalOpen(false);
-    await clearDraft();
-    navigate("/");
-  }, [clearDraft, navigate]);
-
   return (
     <DecoratedPage
       blockProps={{ as: "main", width: "lg", gutters: true }}
-      languages={[
-        { locale: "nb", url: "https://www.nav.no" },
-        { locale: "en", url: "https://www.nav.no/en" },
-      ]}
+      languages={DEFAULT_LANGUAGE_LINKS}
     >
       <VStack gap="8" data-aksel-template="form-summarypage-v3">
         <VStack gap="3">
@@ -125,11 +97,7 @@ export default function OppsummeringPage() {
         </VStack>
 
         <div>
-          <Link
-            as={RouterLink}
-            to={`/skjema/${draftId}/steg-2`}
-            onClick={handleNavigate(`/skjema/${draftId}/steg-2`)}
-          >
+          <Link as={RouterLink} to={step2Path} onClick={goToStep2}>
             <ArrowLeftIcon aria-hidden /> Forrige steg
           </Link>
           <Box paddingBlock="6 5">
@@ -139,10 +107,10 @@ export default function OppsummeringPage() {
           </Box>
 
           <FormProgress activeStep={3} totalSteps={3}>
-            <FormProgress.Step href="#" onClick={handleNavigate(`/skjema/${draftId}/steg-1`)}>
+            <FormProgress.Step href="#" onClick={goToStep1}>
               Deltakere
             </FormProgress.Step>
-            <FormProgress.Step href="#" onClick={handleNavigate(`/skjema/${draftId}/steg-2`)}>
+            <FormProgress.Step href="#" onClick={goToStep2}>
               Behov for bistand
             </FormProgress.Step>
             <FormProgress.Step href="#" onClick={(event) => event.preventDefault()}>
@@ -176,13 +144,11 @@ export default function OppsummeringPage() {
           <FormSummary.Answers>
             <FormSummary.Answer>
               <FormSummary.Label>Navn på virksomhet</FormSummary.Label>
-              <FormSummary.Value>{formatValue(formData.virksomhet.navn)}</FormSummary.Value>
+              <FormSummary.Value>{formatValue(virksomhet.navn)}</FormSummary.Value>
             </FormSummary.Answer>
             <FormSummary.Answer>
               <FormSummary.Label>Organisasjonsnummer</FormSummary.Label>
-              <FormSummary.Value>
-                {formatValue(formData.virksomhet.virksomhetsnummer)}
-              </FormSummary.Value>
+              <FormSummary.Value>{formatValue(virksomhet.virksomhetsnummer)}</FormSummary.Value>
             </FormSummary.Answer>
             <FormSummaryAnswer>
               <FormSummary.Label>Kontaktperson i virksomheten</FormSummary.Label>
@@ -191,19 +157,19 @@ export default function OppsummeringPage() {
                   <FormSummary.Answer>
                     <FormSummary.Label>Navn</FormSummary.Label>
                     <FormSummary.Value>
-                      {formatValue(formData.virksomhet.kontaktperson.navn)}
+                      {formatValue(virksomhet.kontaktperson.navn)}
                     </FormSummary.Value>
                   </FormSummary.Answer>
                   <FormSummary.Answer>
                     <FormSummary.Label>E-post</FormSummary.Label>
                     <FormSummary.Value>
-                      {formatValue(formData.virksomhet.kontaktperson.epost)}
+                      {formatValue(virksomhet.kontaktperson.epost)}
                     </FormSummary.Value>
                   </FormSummary.Answer>
                   <FormSummary.Answer>
                     <FormSummary.Label>Telefonnummer</FormSummary.Label>
                     <FormSummary.Value>
-                      {formatValue(formData.virksomhet.kontaktperson.telefon)}
+                      {formatValue(virksomhet.kontaktperson.telefon)}
                     </FormSummary.Value>
                   </FormSummary.Answer>
                 </FormSummary.Answers>
@@ -216,13 +182,11 @@ export default function OppsummeringPage() {
                 <FormSummary.Answers>
                   <FormSummary.Answer>
                     <FormSummary.Label>Navn</FormSummary.Label>
-                    <FormSummary.Value>{formatValue(formData.ansatt.navn)}</FormSummary.Value>
+                    <FormSummary.Value>{formatValue(ansatt.navn)}</FormSummary.Value>
                   </FormSummary.Answer>
                   <FormSummary.Answer>
                     <FormSummary.Label>Fødselsnummer</FormSummary.Label>
-                    <FormSummary.Value>
-                      {formatValue(formData.ansatt.fodselsnummer)}
-                    </FormSummary.Value>
+                    <FormSummary.Value>{formatValue(ansatt.fodselsnummer)}</FormSummary.Value>
                   </FormSummary.Answer>
                 </FormSummary.Answers>
               </FormSummary.Value>
@@ -234,26 +198,22 @@ export default function OppsummeringPage() {
                 <FormSummary.Answers>
                   <FormSummary.Answer>
                     <FormSummary.Label>Navn</FormSummary.Label>
-                    <FormSummary.Value>{formatValue(formData.ekspert.navn)}</FormSummary.Value>
+                    <FormSummary.Value>{formatValue(ekspert.navn)}</FormSummary.Value>
                   </FormSummary.Answer>
                   <FormSummary.Answer>
                     <FormSummary.Label>Tilknyttet virksomhet</FormSummary.Label>
-                    <FormSummary.Value>
-                      {formatValue(formData.ekspert.virksomhet)}
-                    </FormSummary.Value>
+                    <FormSummary.Value>{formatValue(ekspert.virksomhet)}</FormSummary.Value>
                   </FormSummary.Answer>
                   <FormSummary.Answer>
                     <FormSummary.Label>Kompetanse / autorisasjon</FormSummary.Label>
-                    <FormSummary.Value>
-                      {formatValue(formData.ekspert.kompetanse)}
-                    </FormSummary.Value>
+                    <FormSummary.Value>{formatValue(ekspert.kompetanse)}</FormSummary.Value>
                   </FormSummary.Answer>
                 </FormSummary.Answers>
               </FormSummary.Value>
             </FormSummaryAnswer>
           </FormSummary.Answers>
           <FormSummary.Footer>
-            <FormSummary.EditLink href="#" onClick={handleNavigate(`/skjema/${draftId}/steg-1`)} />
+            <FormSummary.EditLink href="#" onClick={goToStep1} />
           </FormSummary.Footer>
         </FormSummary>
 
@@ -267,46 +227,38 @@ export default function OppsummeringPage() {
                 Beskriv den ansattes arbeidssituasjon, sykefravær og hvorfor dere ser behov for
                 ekspertbistand
               </FormSummary.Label>
-              <FormSummary.Value>
-                {formatValue(formData.behovForBistand.problemstilling)}
-              </FormSummary.Value>
+              <FormSummary.Value>{formatValue(behovForBistand.problemstilling)}</FormSummary.Value>
             </FormSummary.Answer>
             <FormSummary.Answer>
               <FormSummary.Label>
                 Hva vil dere har hjelp til fra eksperten, og hvor mange timer tror dere at det vil
                 ta?
               </FormSummary.Label>
-              <FormSummary.Value>{formatValue(formData.behovForBistand.bistand)}</FormSummary.Value>
+              <FormSummary.Value>{formatValue(behovForBistand.bistand)}</FormSummary.Value>
             </FormSummary.Answer>
             <FormSummary.Answer>
               <FormSummary.Label>
                 Hvilke tiltak for tilrettelegging har dere allerede gjort, vurdert eller forsøkt?
               </FormSummary.Label>
-              <FormSummary.Value>{formatValue(formData.behovForBistand.tiltak)}</FormSummary.Value>
+              <FormSummary.Value>{formatValue(behovForBistand.tiltak)}</FormSummary.Value>
             </FormSummary.Answer>
             <FormSummary.Answer>
               <FormSummary.Label>Estimert kostnad for ekspertbistand</FormSummary.Label>
-              <FormSummary.Value>
-                {formatCurrency(formData.behovForBistand.kostnad)}
-              </FormSummary.Value>
+              <FormSummary.Value>{formatCurrency(behovForBistand.kostnad)}</FormSummary.Value>
             </FormSummary.Answer>
             <FormSummary.Answer>
               <FormSummary.Label>Startdato</FormSummary.Label>
-              <FormSummary.Value>
-                {formatDate(formData.behovForBistand.startDato)}
-              </FormSummary.Value>
+              <FormSummary.Value>{formatDate(behovForBistand.startDato)}</FormSummary.Value>
             </FormSummary.Answer>
             <FormSummary.Answer>
               <FormSummary.Label>
                 Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?
               </FormSummary.Label>
-              <FormSummary.Value>
-                {formatValue(formData.behovForBistand.navKontakt)}
-              </FormSummary.Value>
+              <FormSummary.Value>{formatValue(behovForBistand.navKontakt)}</FormSummary.Value>
             </FormSummary.Answer>
           </FormSummary.Answers>
           <FormSummary.Footer>
-            <FormSummary.EditLink href="#" onClick={handleNavigate(`/skjema/${draftId}/steg-2`)} />
+            <FormSummary.EditLink href="#" onClick={goToStep2} />
           </FormSummary.Footer>
         </FormSummary>
 
@@ -325,7 +277,7 @@ export default function OppsummeringPage() {
               variant="secondary"
               icon={<ArrowLeftIcon aria-hidden />}
               iconPosition="left"
-              onClick={handleNavigate(`/skjema/${draftId}/steg-2`)}
+              onClick={() => navigateTo(step2Path)}
             >
               Forrige steg
             </Button>
@@ -338,40 +290,19 @@ export default function OppsummeringPage() {
             >
               Send søknad
             </Button>
-
-            <Box asChild marginBlock={{ xs: "4 0", sm: "0" }}>
-              <Button
-                variant="tertiary"
-                icon={<FloppydiskIcon aria-hidden />}
-                iconPosition="left"
-                type="button"
-                onClick={handleContinueLater}
-              >
-                Fortsett senere
-              </Button>
-            </Box>
-            <Button
-              variant="tertiary"
-              icon={<TrashIcon aria-hidden />}
-              iconPosition="left"
-              type="button"
-              onClick={handleDeleteDraft}
-            >
-              Slett søknaden
-            </Button>
           </HGrid>
+          <DraftActions
+            onContinueLater={() => {
+              saveDraft(formData);
+              navigate("/");
+            }}
+            onDeleteDraft={async () => {
+              await clearDraft();
+              navigate("/");
+            }}
+          />
         </VStack>
       </VStack>
-      <DeleteDraftModal
-        open={deleteModalOpen}
-        onClose={closeDeleteModal}
-        onConfirm={confirmDeleteDraft}
-      />
-      <SaveDraftModal
-        open={continueModalOpen}
-        onClose={closeContinueModal}
-        onConfirm={confirmContinueLater}
-      />
     </DecoratedPage>
   );
 }
