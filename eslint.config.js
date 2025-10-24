@@ -6,6 +6,9 @@ import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 import { defineConfig, globalIgnores } from "eslint/config";
 
+const reactHooksRecommended = reactHooks.configs["recommended-latest"];
+const reactRefreshVite = reactRefresh.configs.vite;
+
 export default defineConfig([
   // Ignore build artifacts and declaration files everywhere
   globalIgnores(["**/dist/**", "**/build/**", "node_modules", "backend/**", "**/*.d.ts"]),
@@ -16,9 +19,12 @@ export default defineConfig([
     ignores: ["**/dist/**", "**/build/**"],
     extends: [
       js.configs.recommended,
-      tseslint.configs.recommended,
+      ...tseslint.configs.recommended,
       prettier
     ],
+    plugins: {
+      "@typescript-eslint": tseslint.plugin
+    },
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "warn",
@@ -30,10 +36,14 @@ export default defineConfig([
   // Client (React + browser)
   {
     files: ["frontend/client/**/*.{ts,tsx,js,jsx}"],
-    extends: [
-      reactHooks.configs["recommended-latest"],
-      reactRefresh.configs.vite
-    ],
+    plugins: {
+      "react-hooks": reactHooks,
+      "react-refresh": reactRefresh,
+    },
+    rules: {
+      ...(reactHooksRecommended?.rules ?? {}),
+      ...(reactRefreshVite?.rules ?? {}),
+    },
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser

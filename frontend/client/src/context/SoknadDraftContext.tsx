@@ -47,14 +47,12 @@ const deleteDraft = (draftId: string): Promise<void> =>
 
 const toInputs = (payload: DraftDto | null | undefined) => {
   if (!payload) return createEmptyInputs();
-  const {
-    id: _id,
-    status: _status,
-    opprettetAv: _createdBy,
-    opprettetTidspunkt: _createdAt,
-    innsendtTidspunkt: _submittedAt,
-    ...rest
-  } = payload;
+  const { id, status, opprettetAv, opprettetTidspunkt, innsendtTidspunkt, ...rest } = payload;
+  void id;
+  void status;
+  void opprettetAv;
+  void opprettetTidspunkt;
+  void innsendtTidspunkt;
   return mergeInputs(createEmptyInputs(), rest as Partial<Inputs>);
 };
 

@@ -29,7 +29,6 @@ import {
   validateStartDato,
   validateNavKontakt,
 } from "./validation";
-import { useDraftNavigation } from "./useDraftNavigation";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "./DraftActions";
 import { DEFAULT_LANGUAGE_LINKS, FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
@@ -55,8 +54,15 @@ export default function SkjemaSteg2Page() {
     | Inputs["behovForBistand"]["startDato"]
     | undefined;
   const syncingDateRef = useRef(false);
-  const { draftId, hydrated, clearDraft } = useSoknadDraft();
-  const navigateWithDraft = useDraftNavigation({ navigate });
+  const { draftId, hydrated, clearDraft, saveDraft } = useSoknadDraft();
+  const { getValues } = form;
+  const navigateWithDraft = useCallback(
+    (path: string) => {
+      saveDraft(getValues());
+      navigate(path);
+    },
+    [getValues, navigate, saveDraft]
+  );
   const errorItems = attemptedSubmit
     ? [
         {

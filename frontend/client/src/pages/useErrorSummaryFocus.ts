@@ -1,20 +1,8 @@
 import { useEffect, type RefObject } from "react";
 
-export const focusErrorSummary = <ElementType extends HTMLDivElement>(
-  ref: RefObject<ElementType>
-) => {
-  const focus = () => {
-    ref.current?.focus();
-  };
-
-  const raf = typeof window === "undefined" ? undefined : window.requestAnimationFrame;
-  if (typeof raf === "function") {
-    raf(focus);
-    return;
-  }
-
-  focus();
-};
+export function focusErrorSummary<ElementType extends HTMLDivElement>(ref: RefObject<ElementType>) {
+  ref.current?.focus();
+}
 
 type UseErrorSummaryFocusArgs<ElementType extends HTMLDivElement> = {
   ref: RefObject<ElementType>;
@@ -24,15 +12,15 @@ type UseErrorSummaryFocusArgs<ElementType extends HTMLDivElement> = {
 
 const EMPTY_DEPS: ReadonlyArray<unknown> = [];
 
-export const useErrorSummaryFocus = <ElementType extends HTMLDivElement>({
+export function useErrorSummaryFocus<ElementType extends HTMLDivElement>({
   ref,
   isActive,
   dependencies,
-}: UseErrorSummaryFocusArgs<ElementType>) => {
+}: UseErrorSummaryFocusArgs<ElementType>) {
   const dependencyList = dependencies ?? EMPTY_DEPS;
 
   useEffect(() => {
     if (!isActive) return;
     focusErrorSummary(ref);
-  }, [isActive, ref, dependencyList]);
-};
+  }, [dependencyList, isActive, ref]);
+}

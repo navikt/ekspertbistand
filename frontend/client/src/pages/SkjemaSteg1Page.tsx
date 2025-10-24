@@ -19,7 +19,6 @@ import { DEFAULT_LANGUAGE_LINKS, FORM_COLUMN_STYLE, withPreventDefault } from ".
 import { useErrorSummaryFocus } from "./useErrorSummaryFocus";
 import type { Inputs } from "./types";
 import { STEP1_FIELDS } from "./types";
-import { useDraftNavigation } from "./useDraftNavigation";
 import {
   validateVirksomhetsnummer,
   validateKontaktpersonNavn,
@@ -66,8 +65,14 @@ export default function SkjemaSteg1Page() {
     { id: "ekspert.kompetanse", message: errors.ekspert?.kompetanse?.message },
   ].filter((item): item is { id: string; message: string } => typeof item.message === "string");
 
-  const { draftId, hydrated, clearDraft } = useSoknadDraft();
-  const navigateWithDraft = useDraftNavigation({ navigate });
+  const { draftId, hydrated, clearDraft, saveDraft } = useSoknadDraft();
+  const navigateWithDraft = useCallback(
+    (path: string) => {
+      saveDraft(getValues());
+      navigate(path);
+    },
+    [getValues, navigate, saveDraft]
+  );
 
   useEffect(() => {
     if (!attemptedSubmitFromLocation) return;
