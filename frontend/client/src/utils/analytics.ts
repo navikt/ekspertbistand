@@ -12,8 +12,10 @@ const mockGetAnalyticsInstance = (origin: string): AnalyticsLogger => {
   }) as unknown as AnalyticsLogger;
 };
 
+const createProductionLogger = () => getAnalyticsInstance<CustomEvents>("permittering");
+
 export const logger = envSwitch({
-  prod: () => getAnalyticsInstance<CustomEvents>("permittering"),
-  dev: () => getAnalyticsInstance<CustomEvents>("permittering"),
+  prod: createProductionLogger,
+  dev: createProductionLogger,
   other: () => mockGetAnalyticsInstance("permittering"),
 });

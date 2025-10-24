@@ -7,172 +7,95 @@
     "virksomhet": {
       "type": "object",
       "properties": {
+        "navn": {
+          "type": "string"
+        },
         "virksomhetsnummer": {
-          "type": "string",
-          "pattern": "^\\d{9}$",
-          "errorMessage": {
-            "pattern": "Virksomhetsnummer må være 9 siffer."
-          }
+          "type": "string"
         },
         "kontaktperson": {
           "type": "object",
           "properties": {
             "navn": {
-              "type": "string",
-              "minLength": 1,
-              "errorMessage": { "minLength": "Du må fylle ut navn." }
+              "type": "string"
             },
             "epost": {
-              "type": "string",
-              "format": "email",
-              "errorMessage": { "format": "Ugyldig e-postadresse." }
+              "type": "string"
             },
             "telefon": {
-              "type": "string",
-              "pattern": "^\\d{8}$",
-              "errorMessage": { "pattern": "Telefonnummer må være 8 siffer." }
+              "type": "string"
             }
           },
           "required": ["navn", "epost", "telefon"],
-          "additionalProperties": false,
-          "errorMessage": {
-            "required": {
-              "navn": "Du må fylle ut navn.",
-              "epost": "Du må fylle ut e-post.",
-              "telefon": "Du må fylle ut telefonnummer."
-            }
-          }
+          "additionalProperties": false
         }
       },
-      "required": ["virksomhetsnummer", "kontaktperson"],
-      "additionalProperties": false,
-      "errorMessage": {
-        "required": {
-          "virksomhetsnummer": "Du må fylle ut virksomhetsnummer.",
-          "kontaktperson": "Kontaktperson mangler."
-        }
-      }
+      "required": ["navn", "virksomhetsnummer", "kontaktperson"],
+      "additionalProperties": false
     },
     "ansatt": {
       "type": "object",
       "properties": {
         "fodselsnummer": {
-          "type": "string",
-          "pattern": "^\\d{11}$",
-          "errorMessage": { "pattern": "Fødselsnummer må være 11 siffer." }
+          "type": "string"
         },
         "navn": {
-          "type": "string",
-          "minLength": 1,
-          "errorMessage": { "minLength": "Du må fylle ut navn." }
+          "type": "string"
         }
       },
       "required": ["fodselsnummer", "navn"],
-      "additionalProperties": false,
-      "errorMessage": {
-        "required": {
-          "fodselsnummer": "Du må fylle ut fødselsnummer.",
-          "navn": "Du må fylle ut navn."
-        }
-      }
+      "additionalProperties": false
     },
     "ekspert": {
       "type": "object",
       "properties": {
         "navn": {
-          "type": "string",
-          "minLength": 1,
-          "errorMessage": { "minLength": "Du må fylle ut navn på ekspert." }
+          "type": "string"
         },
         "virksomhet": {
-          "type": "string",
-          "minLength": 1,
-          "errorMessage": { "minLength": "Du må fylle ut tilknyttet virksomhet." }
+          "type": "string"
         },
         "kompetanse": {
-          "type": "string",
-          "minLength": 1,
-          "errorMessage": { "minLength": "Du må beskrive ekspertens kompetanse." }
-        },
+          "type": "string"
+        }
+      },
+      "required": ["navn", "virksomhet", "kompetanse"],
+      "additionalProperties": false
+    },
+    "behovForBistand": {
+      "type": "object",
+      "properties": {
         "problemstilling": {
-          "type": "string",
-          "minLength": 1,
-          "errorMessage": { "minLength": "Du må beskrive problemstillingen." }
-        }
-      },
-      "required": ["navn", "virksomhet", "kompetanse", "problemstilling"],
-      "additionalProperties": false,
-      "errorMessage": {
-        "required": {
-          "navn": "Du må fylle ut navn på ekspert.",
-          "virksomhet": "Du må fylle ut tilknyttet virksomhet.",
-          "kompetanse": "Du må beskrive ekspertens kompetanse.",
-          "problemstilling": "Du må beskrive problemstillingen."
-        }
-      }
-    },
-    "tiltak": {
-      "type": "object",
-      "properties": {
-        "forTilrettelegging": {
-          "type": "string",
-          "minLength": 1,
-          "errorMessage": { "minLength": "Du må beskrive tiltak for tilrettelegging." }
-        }
-      },
-      "required": ["forTilrettelegging"],
-      "additionalProperties": false,
-      "errorMessage": {
-        "required": { "forTilrettelegging": "Du må beskrive tiltak for tilrettelegging." }
-      }
-    },
-    "bestilling": {
-      "type": "object",
-      "properties": {
+          "type": "string"
+        },
+        "bistand": {
+          "type": "string"
+        },
+        "tiltak": {
+          "type": "string"
+        },
         "kostnad": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 25000,
-          "errorMessage": {
-            "type": "Kostnad må være et tall.",
-            "minimum": "Kostnad kan ikke være negativ.",
-            "maximum": "Maksimalt beløp er 25 000."
-          }
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ]
         },
         "startDato": {
-          "type": "string",
-          "format": "date-time",
-          "errorMessage": {
-            "type": "Du må velge en dato.",
-            "format": "Ugyldig dato."
-          }
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "navKontakt": {
+          "type": "string"
         }
       },
-      "required": ["kostnad", "startDato"],
-      "additionalProperties": false,
-      "errorMessage": {
-        "required": {
-          "kostnad": "Du må anslå kostnad.",
-          "startDato": "Du må velge en dato."
-        }
-      }
-    },
-    "nav": {
-      "type": "object",
-      "properties": {
-        "kontakt": {
-          "type": "string",
-          "minLength": 1,
-          "errorMessage": { "minLength": "Du må fylle ut hvem i Nav du har drøftet med." }
-        }
-      },
-      "required": ["kontakt"],
-      "additionalProperties": false,
-      "errorMessage": {
-        "required": { "kontakt": "Du må fylle ut hvem i Nav du har drøftet med." }
-      }
+      "required": ["problemstilling", "bistand", "tiltak", "kostnad", "startDato", "navKontakt"],
+      "additionalProperties": false
     }
   },
-  "required": ["virksomhet", "ansatt", "ekspert", "tiltak", "bestilling", "nav"],
+  "required": ["virksomhet", "ansatt", "ekspert", "behovForBistand"],
   "additionalProperties": false
 }

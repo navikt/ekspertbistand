@@ -1,6 +1,4 @@
 import { setupServer } from "msw/node";
-import { http, HttpResponse } from "msw";
+import { handlers } from "../mocks/handlers";
 
-export const server = setupServer(
-  http.get("/api/health", () => HttpResponse.json({ status: "ok" }))
-);
+export const server = setupServer(...handlers);

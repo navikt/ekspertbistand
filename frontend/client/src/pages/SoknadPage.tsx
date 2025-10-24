@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRightIcon } from "@navikt/aksel-icons";
 import { type SubmitErrorHandler, type SubmitHandler, useForm } from "react-hook-form";
@@ -6,7 +6,6 @@ import {
   Accordion,
   Bleed,
   BodyLong,
-  BodyShort,
   Box,
   Button,
   Checkbox,
@@ -15,6 +14,7 @@ import {
   ErrorSummary,
   Link,
   List,
+  Alert,
   VStack,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
@@ -22,6 +22,8 @@ import DecoratedPage from "../components/DecoratedPage";
 export default function SoknadPage() {
   const navigate = useNavigate();
   const errorSummaryRef = React.useRef<HTMLDivElement>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   type IntroInputs = {
     bekreftRiktige: boolean;
@@ -38,14 +40,40 @@ export default function SoknadPage() {
     defaultValues: { bekreftRiktige: false, bekreftSamraad: false },
   });
 
-  const onValid: SubmitHandler<IntroInputs> = () => navigate("/skjema");
+  const onValid: SubmitHandler<IntroInputs> = async () => {
+    setApiError(null);
+    setCreating(true);
+    try {
+      const res = await fetch("/api/skjema/v1", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) {
+        throw new Error(`Opprettelse av utkast feilet (${res.status})`);
+      }
+      const payload = (await res.json()) as { id?: string } | null;
+      const id = payload?.id;
+      if (!id) {
+        throw new Error("Svar manglet id");
+      }
+      navigate(`/skjema/${id}/steg-1`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Kunne ikke starte søknaden.";
+      setApiError(message);
+      requestAnimationFrame(() => {
+        errorSummaryRef.current?.focus();
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
   const onInvalid: SubmitErrorHandler<IntroInputs> = () => {
     errorSummaryRef.current?.focus();
   };
 
   return (
     <DecoratedPage
-      blockProps={{ width: "text", gutters: true }}
+      blockProps={{ width: "lg", gutters: true }}
       languages={[
         { locale: "nb", url: "https://www.nav.no" },
         { locale: "en", url: "https://www.nav.no/en" },
@@ -65,7 +93,6 @@ export default function SoknadPage() {
               </Box>
             </Bleed>
             <VStack gap="1">
-              <BodyShort size="small">Nav 10-07.03 (om relevant)</BodyShort>
               <Heading level="1" size="xlarge">
                 Søknad om tilskudd til ekspertbistand
               </Heading>
@@ -77,8 +104,10 @@ export default function SoknadPage() {
               Hei!
             </Heading>
             <BodyLong spacing>
-              Tilskuddet dekker hjelp til arbeidsgiver og ansatt fra en nøytral ekspert som har
-              kompetanse på sykefravær og arbeidsmiljø.
+              Ekspertbistand dekker hjelp fra en nøytral ekspert som har kompetanse på sykefravær og
+              arbeidsmiljø. Eksperten prøver å avdekke mulige årsaker til sykefraværet, og foreslår
+              tiltak som gjør at den ansatte kanskje unngår å bli syk igjen. Eksperten skal ikke
+              selv behandle.
             </BodyLong>
             <BodyLong>
               Les mer om tilskudd til{" "}
@@ -91,41 +120,45 @@ export default function SoknadPage() {
             </Heading>
             <List>
               <List.Item>
-                Du har snakket med Nav og den ansatte og dere er enige om at det er hensiktsmessig
-                med ekspertbistand.
+                Du må ha snakket med Nav om denne konkrete saken knyttet til ekspertbistand. Husk å
+                notere hvem du har drøftet det med.
               </List.Item>
               <List.Item>
-                Du har vet hvilken ekspert du ønsker å bruke og hvilken hjelp denne kan tilby.
+                Du, den ansatte og Nav er enige om at det er hensiktsmessig med ekspertbistand.
+              </List.Item>
+              <List.Item>
+                Du vet hvilken ekspert du ønsker å bruke og hvilken hjelp denne kan tilby.
+              </List.Item>
+              <List.Item>
+                Du har blitt tildelt Altinn-tilgangen “Ekspertbistand” på riktig virksomhet.
               </List.Item>
             </List>
           </div>
           <div>
             <Accordion>
               <Accordion.Item>
-                <Accordion.Header>Informasjon vi henter om deg</Accordion.Header>
-                <Accordion.Content>
-                  <BodyLong>
-                    Vi henter ut hvilke virksomheter du har Altinn enkeltrettighten “XX”
-                  </BodyLong>
-                </Accordion.Content>
-              </Accordion.Item>
-              <Accordion.Item>
                 <Accordion.Header>Hvordan vi behandler personopplysninger</Accordion.Header>
                 <Accordion.Content>
                   <BodyLong>
-                    Her skal det stå informasjon om hvordan vi behandler personopplysningene til
-                    søkeren.
+                    Søknader og utkast om tilskudd til ekspertbistand er synlig for alle som har
+                    Altinn-tilgangen “Ekspertbistand” i virksomheten. Av hensyn til personvernet
+                    fjerner vi deres tilgang til søknaden 8 måneder etter at tiltaket er avsluttet.
                   </BodyLong>
                 </Accordion.Content>
               </Accordion.Item>
               <Accordion.Item>
                 <Accordion.Header>Vi lagrer svar underveis</Accordion.Header>
                 <Accordion.Content>
+                  <BodyLong spacing>
+                    Svarene dine lagres automatisk mens du fyller ut søknaden. Det betyr at du kan
+                    ta pauser og fortsette senere.
+                  </BodyLong>
+                  <BodyLong spacing>
+                    Utkastet er synlig for alle som har Altinn-tilgangen “Ekspertbistand” i
+                    virksomheten.
+                  </BodyLong>
                   <BodyLong>
-                    Her skal det stå informasjon om hvordan denne søknaden mellomlagrer
-                    informasjonen til søkeren og hvor lenge informasjonen lagres. Vi skal informere
-                    om mellomlagring ved både automatisk lagring og ved samtykke til lagring med
-                    lagre-knapp.
+                    Hvis du ikke fortsetter innen 48 timer, blir utkastet slettet.
                   </BodyLong>
                 </Accordion.Content>
               </Accordion.Item>
@@ -147,7 +180,7 @@ export default function SoknadPage() {
                   required: "Du må bekrefte at du vil svare så riktig som mulig.",
                 })}
               >
-                Jeg bekrefter at jeg vil svare så riktig som jeg kan.
+                Jeg vil svare så godt jeg kan på spørsmålene i søknaden.
               </Checkbox>
               <Checkbox
                 id="bekreftSamraad"
@@ -161,7 +194,7 @@ export default function SoknadPage() {
               </Checkbox>
             </Box>
             <VStack gap="6">
-              {Object.values(errors).length > 0 && (
+              {(Object.values(errors).length > 0 || apiError) && (
                 <ErrorSummary
                   ref={errorSummaryRef}
                   heading="Du må rette disse feilene før du kan fortsette:"
@@ -171,13 +204,23 @@ export default function SoknadPage() {
                       {error?.message as string}
                     </ErrorSummary.Item>
                   ))}
+                  {apiError ? (
+                    <ErrorSummary.Item href="#start-soknad-feil">{apiError}</ErrorSummary.Item>
+                  ) : null}
                 </ErrorSummary>
               )}
+              {apiError ? (
+                <Alert variant="error" inline>
+                  {apiError}
+                </Alert>
+              ) : null}
               <Button
                 type="submit"
                 variant="primary"
+                id="start-soknad-feil"
                 icon={<ArrowRightIcon aria-hidden />}
                 iconPosition="right"
+                loading={creating}
               >
                 Start søknad
               </Button>

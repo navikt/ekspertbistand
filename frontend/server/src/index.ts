@@ -41,6 +41,16 @@ spa.get("*", (_req, res) => {
 const mountAt = (bp: string) => {
   app.use(bp, router);
   app.use(bp, spa);
+
+  // Simple in-memory draft store for autosave
+  let currentDraft: unknown | null = null;
+  router.get("/api/soknad/draft", (_req, res) => {
+    res.json(currentDraft ?? {});
+  });
+  router.post("/api/soknad/draft", express.json({ limit: "1mb" }), (req, res) => {
+    currentDraft = req.body ?? {};
+    res.status(204).send();
+  });
 };
 
 mountAt(basePath);
