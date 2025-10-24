@@ -153,13 +153,12 @@ export function SoknadDraftProvider({
   const saveDraft = useCallback(
     (snapshot: Inputs) => {
       if (clearingRef.current) return;
-      const merged = mergeInputs(createEmptyInputs(), snapshot);
-      const snapshotJson = JSON.stringify(merged);
+      const snapshotJson = JSON.stringify(snapshot);
       if (snapshotJson !== lastSavedRef.current) {
-        setDraft(merged);
+        setDraft(snapshot);
         lastSavedRef.current = snapshotJson;
       }
-      schedulePersist(merged);
+      schedulePersist(snapshot);
     },
     [schedulePersist]
   );

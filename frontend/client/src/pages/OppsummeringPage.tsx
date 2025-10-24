@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { useCallback, useRef, useState } from "react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { useFormContext } from "react-hook-form";
 import { ArrowLeftIcon, PaperplaneIcon } from "@navikt/aksel-icons";
 import {
   BodyLong,
@@ -15,7 +16,8 @@ import {
   VStack,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
-import { mergeInputs, type Inputs } from "./types";
+import type { Inputs } from "./types";
+import { STEP1_FIELDS, STEP2_FIELDS } from "./types";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { validateInputs, type ValidationError } from "./validation";
 import { FormSummaryAnswer } from "@navikt/ds-react/FormSummary";
@@ -49,13 +51,8 @@ const formatDate = (value: Inputs["behovForBistand"]["startDato"]): string => {
 
 export default function OppsummeringPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { draftId, draft, saveDraft, clearDraft, lastPersistedAt } = useSoknadDraft();
-  const formData = useMemo(() => {
-    const state = (location.state as { formData?: Partial<Inputs> } | null)?.formData;
-    if (state) return mergeInputs(undefined, state);
-    return draft;
-  }, [draft, location.state]);
+  const { draftId, draft: formData, saveDraft, clearDraft, lastPersistedAt } = useSoknadDraft();
+  const form = useFormContext<Inputs>();
   const { virksomhet, ansatt, ekspert, behovForBistand } = formData;
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const [submitErrors, setSubmitErrors] = useState<ValidationError[]>([]);
@@ -64,7 +61,7 @@ export default function OppsummeringPage() {
     (path: string) => {
       setSubmitErrors([]);
       saveDraft(formData);
-      navigate(path, { state: { formData } });
+      navigate(path);
     },
     [formData, navigate, saveDraft]
   );
@@ -73,7 +70,18 @@ export default function OppsummeringPage() {
   const goToStep1 = withPreventDefault(() => navigateTo(step1Path));
   const goToStep2 = withPreventDefault(() => navigateTo(step2Path));
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
+    // Validate registered fields across both steps
+    const valid = await form.trigger([...STEP1_FIELDS, ...STEP2_FIELDS], { shouldFocus: false });
+    if (!valid) {
+      const hasStep1Error = STEP1_FIELDS.some((name) => form.getFieldState(name).invalid);
+      const target = hasStep1Error ? step1Path : step2Path;
+      saveDraft(formData);
+      navigate(target, { state: { attemptedSubmit: true } });
+      return;
+    }
+
+    // Keep existing domain-level validation and error summary on summary page
     const errors = validateInputs(formData);
     setSubmitErrors(errors);
     if (errors.length > 0) {
@@ -82,7 +90,7 @@ export default function OppsummeringPage() {
     }
     saveDraft(formData);
     console.log(formData);
-  }, [formData, saveDraft]);
+  }, [form, formData, navigate, saveDraft, step1Path, step2Path]);
 
   return (
     <DecoratedPage

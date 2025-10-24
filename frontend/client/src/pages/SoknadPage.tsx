@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useRef, useState } from "react";
+import type { SVGProps } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRightIcon } from "@navikt/aksel-icons";
 import { type SubmitErrorHandler, type SubmitHandler, useForm } from "react-hook-form";
@@ -23,7 +24,7 @@ import { focusErrorSummary } from "./useErrorSummaryFocus";
 
 export default function SoknadPage() {
   const navigate = useNavigate();
-  const errorSummaryRef = React.useRef<HTMLDivElement>(null);
+  const errorSummaryRef = useRef<HTMLDivElement>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -226,7 +227,7 @@ export default function SoknadPage() {
   );
 }
 
-const ApplicationPictogram = (props: React.SVGProps<SVGSVGElement>) => (
+const ApplicationPictogram = (props: SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width="96"

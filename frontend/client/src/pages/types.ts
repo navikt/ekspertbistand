@@ -27,35 +27,27 @@ export type Inputs = {
   };
 };
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
+export const STEP1_FIELDS = [
+  "virksomhet.virksomhetsnummer",
+  "virksomhet.navn",
+  "virksomhet.kontaktperson.navn",
+  "virksomhet.kontaktperson.epost",
+  "virksomhet.kontaktperson.telefon",
+  "ansatt.fodselsnummer",
+  "ansatt.navn",
+  "ekspert.navn",
+  "ekspert.virksomhet",
+  "ekspert.kompetanse",
+] as const satisfies ReadonlyArray<keyof Inputs | string>;
 
-const deepClone = <T>(value: T): T => {
-  if (Array.isArray(value)) {
-    return value.map((item) => deepClone(item)) as unknown as T;
-  }
-  if (isPlainObject(value)) {
-    const clone: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(value)) {
-      clone[key] = deepClone(val);
-    }
-    return clone as T;
-  }
-  return value;
-};
-
-const mergeObjects = (target: Record<string, unknown>, source: Record<string, unknown>) => {
-  for (const [key, val] of Object.entries(source)) {
-    if (val === undefined) continue;
-    if (isPlainObject(val)) {
-      const base = isPlainObject(target[key]) ? (target[key] as Record<string, unknown>) : {};
-      target[key] = mergeObjects({ ...base }, val);
-    } else {
-      target[key] = deepClone(val);
-    }
-  }
-  return target;
-};
+export const STEP2_FIELDS = [
+  "behovForBistand.problemstilling",
+  "behovForBistand.bistand",
+  "behovForBistand.tiltak",
+  "behovForBistand.kostnad",
+  "behovForBistand.startDato",
+  "behovForBistand.navKontakt",
+] as const satisfies ReadonlyArray<keyof Inputs | string>;
 
 export const createEmptyInputs = (): Inputs => ({
   virksomhet: {
@@ -86,10 +78,26 @@ export const createEmptyInputs = (): Inputs => ({
   },
 });
 
+// Shallow merge helper that ignores undefined values.
+const mergeShallow = <T extends Record<string, unknown>>(base: T, update?: Partial<T>): T => {
+  if (!update) return { ...base } as T;
+  const result = { ...base } as Record<string, unknown>;
+  for (const [key, val] of Object.entries(update)) {
+    if (val !== undefined) result[key] = val;
+  }
+  return result as T;
+};
+
 export const mergeInputs = (base: Partial<Inputs> | undefined, update: Partial<Inputs>): Inputs => {
-  const result = base ? deepClone(base) : createEmptyInputs();
-  return mergeObjects(
-    result as unknown as Record<string, unknown>,
-    update as unknown as Record<string, unknown>
-  ) as Inputs;
+  const b = (base as Inputs | undefined) ?? createEmptyInputs();
+
+  const virksomhet = mergeShallow(b.virksomhet, update.virksomhet);
+  const kontaktperson = mergeShallow(b.virksomhet.kontaktperson, update.virksomhet?.kontaktperson);
+
+  return {
+    virksomhet: { ...virksomhet, kontaktperson },
+    ansatt: mergeShallow(b.ansatt, update.ansatt),
+    ekspert: mergeShallow(b.ekspert, update.ekspert),
+    behovForBistand: mergeShallow(b.behovForBistand, update.behovForBistand),
+  };
 };

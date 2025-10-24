@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEventHandler } from "react";
 import { useNavigate, Link as RouterLink, useLocation } from "react-router-dom";
-import { Controller, type SubmitHandler, useForm, useWatch } from "react-hook-form";
+import { Controller, type SubmitHandler, useFormContext } from "react-hook-form";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
   Button,
@@ -15,10 +16,9 @@ import {
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { DEFAULT_LANGUAGE_LINKS, FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
-import { useDraftAutosave } from "./useDraftAutosave";
 import { useErrorSummaryFocus } from "./useErrorSummaryFocus";
-import { createEmptyInputs, mergeInputs, type Inputs } from "./types";
-import { useSkjemaFormState } from "./useSkjemaFormState";
+import type { Inputs } from "./types";
+import { STEP1_FIELDS } from "./types";
 import { useDraftNavigation } from "./useDraftNavigation";
 import {
   validateVirksomhetsnummer,
@@ -39,18 +39,12 @@ export default function SkjemaSteg1Page() {
   const navigate = useNavigate();
   const location = useLocation();
   const errorSummaryRef = useRef<HTMLDivElement>(null);
-  const hasInitialisedRef = useRef(false);
-
-  const form = useForm<Inputs>({
-    mode: "onSubmit",
-    reValidateMode: "onSubmit",
-    shouldFocusError: false,
-    shouldUnregister: true,
-  });
+  const form = useFormContext<Inputs>();
   const { control, register, setValue, getValues, formState } = form;
-  const watchedValues = useWatch<Inputs>({ control: form.control });
-  const { errors, submitCount } = formState;
-  const autosaveDeps = useMemo(() => [watchedValues], [watchedValues]);
+  const { errors } = formState;
+  const locationState = (location.state as { attemptedSubmit?: boolean } | null) ?? null;
+  const attemptedSubmitFromLocation = locationState?.attemptedSubmit ?? false;
+  const [attemptedSubmit, setAttemptedSubmit] = useState(attemptedSubmitFromLocation);
   const errorItems = [
     { id: "virksomhet.virksomhetsnummer", message: errors.virksomhet?.virksomhetsnummer?.message },
     {
@@ -72,26 +66,15 @@ export default function SkjemaSteg1Page() {
     { id: "ekspert.kompetanse", message: errors.ekspert?.kompetanse?.message },
   ].filter((item): item is { id: string; message: string } => typeof item.message === "string");
 
-  const { draftId, draft, hydrated, saveDraft, clearDraft } = useSoknadDraft();
-  const { captureSnapshot, mergeValues } = useSkjemaFormState(form, location, navigate);
-  const navigateWithDraft = useDraftNavigation({ captureSnapshot, saveDraft, navigate });
+  const { draftId, hydrated, clearDraft } = useSoknadDraft();
+  const navigateWithDraft = useDraftNavigation({ navigate });
 
   useEffect(() => {
-    if (!hydrated || hasInitialisedRef.current) return;
-    const initialData = mergeInputs(createEmptyInputs(), draft);
-    form.reset(initialData, { keepValues: false });
-    mergeValues(initialData);
-    hasInitialisedRef.current = true;
-  }, [draft, form, hydrated, mergeValues]);
+    if (!attemptedSubmitFromLocation) return;
+    navigate(location.pathname, { replace: true, state: null });
+  }, [attemptedSubmitFromLocation, location.pathname, navigate]);
 
-  useDraftAutosave({
-    captureSnapshot,
-    saveDraft,
-    hydrated,
-    dependencies: autosaveDeps,
-  });
-
-  const shouldFocusErrorSummary = hydrated && submitCount > 0 && Object.keys(errors).length > 0;
+  const shouldFocusErrorSummary = hydrated && attemptedSubmit && Object.keys(errors).length > 0;
   const errorFocusDeps = useMemo(() => [errors], [errors]);
   useErrorSummaryFocus({
     ref: errorSummaryRef,
@@ -110,12 +93,22 @@ export default function SkjemaSteg1Page() {
   const onValid: SubmitHandler<Inputs> = () => {
     goToStepTwo();
   };
+  const handleSubmitStep1: FormEventHandler<HTMLFormElement> = async (e) => {
+    e.preventDefault();
+    const valid = await form.trigger(STEP1_FIELDS, { shouldFocus: false });
+    if (valid) {
+      setAttemptedSubmit(false);
+      onValid(form.getValues());
+    } else {
+      setAttemptedSubmit(true);
+    }
+  };
   const goToStepTwoLink = withPreventDefault(goToStepTwo);
   const goToSummaryLink = withPreventDefault(goToSummary);
 
   return (
     <DecoratedPage blockProps={{ width: "lg", gutters: true }} languages={DEFAULT_LANGUAGE_LINKS}>
-      <form onSubmit={form.handleSubmit(onValid)}>
+      <form onSubmit={handleSubmitStep1}>
         <VStack gap="8">
           <Heading level="1" size="xlarge">
             Søknadsskjema – ekspertbistand

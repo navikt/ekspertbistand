@@ -1,31 +1,18 @@
 import { useCallback } from "react";
 import type { NavigateFunction } from "react-router-dom";
+import { useFormContext } from "react-hook-form";
 import type { Inputs } from "./types";
+import { useSoknadDraft } from "../context/SoknadDraftContext";
 
-type DraftNavigateOptions = Omit<Parameters<NavigateFunction>[1], "state"> & {
-  state?: Record<string, unknown>;
-};
-
-type UseDraftNavigationArgs = {
-  captureSnapshot: () => Inputs;
-  saveDraft: (snapshot: Inputs) => void;
-  navigate: NavigateFunction;
-};
-
-export function useDraftNavigation({
-  captureSnapshot,
-  saveDraft,
-  navigate,
-}: UseDraftNavigationArgs) {
+export function useDraftNavigation({ navigate }: { navigate: NavigateFunction }) {
+  const form = useFormContext<Inputs>();
+  const { saveDraft } = useSoknadDraft();
   return useCallback(
-    (path: string, options?: DraftNavigateOptions) => {
-      const snapshot = captureSnapshot();
+    (path: string, options?: Parameters<NavigateFunction>[1]) => {
+      const snapshot = form.getValues();
       saveDraft(snapshot);
-      navigate(path, {
-        ...options,
-        state: { ...options?.state, formData: snapshot },
-      });
+      navigate(path, options);
     },
-    [captureSnapshot, navigate, saveDraft]
+    [form, navigate, saveDraft]
   );
 }

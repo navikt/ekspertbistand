@@ -7,8 +7,9 @@ export const focusErrorSummary = <ElementType extends HTMLDivElement>(
     ref.current?.focus();
   };
 
-  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
-    window.requestAnimationFrame(focus);
+  const raf = typeof window === "undefined" ? undefined : window.requestAnimationFrame;
+  if (typeof raf === "function") {
+    raf(focus);
     return;
   }
 
@@ -33,5 +34,5 @@ export const useErrorSummaryFocus = <ElementType extends HTMLDivElement>({
   useEffect(() => {
     if (!isActive) return;
     focusErrorSummary(ref);
-  }, [isActive, ref, ...dependencyList]);
+  }, [isActive, ref, dependencyList]);
 };
