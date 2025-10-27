@@ -2,14 +2,10 @@ package no.nav.ekspertbistand.services.notifikasjon
 
 import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
 import io.ktor.client.request.*
-import no.nav.ekspertbistand.infrastruktur.AuthClient
-import no.nav.ekspertbistand.infrastruktur.IdentityProvider
 import no.nav.ekspertbistand.infrastruktur.NaisEnvironment
-import no.nav.ekspertbistand.infrastruktur.TexasAuthConfig
 import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 import no.nav.ekspertbistand.infrastruktur.logger
-import no.nav.ekspertbistand.services.entraId.EntraIdKlient
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.ISO8601DateTime
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.OpprettNyBeskjed
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.OpprettNySak
