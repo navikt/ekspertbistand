@@ -21,9 +21,9 @@ CREATE TABLE IF NOT EXISTS event_log
 CREATE TABLE IF NOT EXISTS event_handler_states
 (
     id            BIGINT,
-    handler_name  TEXT,
+    handler_id    TEXT,
     "result"      JSON NOT NULL,
     error_message TEXT NULL,
-    CONSTRAINT pk_event_handler_states PRIMARY KEY (id, handler_name)
+    CONSTRAINT pk_event_handler_states PRIMARY KEY (id, handler_id)
 );
 CREATE SEQUENCE IF NOT EXISTS event_queue_id_seq START WITH 1 MINVALUE 1 MAXVALUE 9223372036854775807;

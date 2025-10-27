@@ -1,14 +1,12 @@
 package no.nav.ekspertbistand.event
 
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import org.jetbrains.exposed.v1.core.*
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.ForUpdate
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED
-import org.jetbrains.exposed.v1.datetime.CurrentDateTime
-import org.jetbrains.exposed.v1.datetime.datetime
+import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
+import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.json.json
@@ -66,7 +64,7 @@ object EventQueue {
                 }
                 .orWhere {
                     QueuedEvents.status eq ProcessingStatus.PROCESSING and QueuedEvents.updatedAt.less(
-                        clock.now().minus(abandonedTimeout).toLocalDateTime(TimeZone.currentSystemDefault())
+                        clock.now().minus(abandonedTimeout)
                     )
                 }
                 .orderBy(QueuedEvents.id, SortOrder.ASC)
@@ -78,7 +76,7 @@ object EventQueue {
             row?.let { r ->
                 QueuedEvents.update({ QueuedEvents.id eq r[QueuedEvents.id] }) { up ->
                     up[status] = ProcessingStatus.PROCESSING
-                    up[updatedAt] = CurrentDateTime
+                    up[updatedAt] = CurrentTimestamp
                     up[attempts] = r[attempts] + 1
                 }
                 r.tilQueuedEvent()
@@ -91,6 +89,7 @@ object EventQueue {
      * Moves the event from the queue to the event log with the given status.
      * If the event is not found in the queue, it checks if it's already in the log (idempotent).
      */
+    @OptIn(ExperimentalTime::class)
     fun finalize(
         id: Long,
         errorResults: List<EventHandledResult.UnrecoverableError> = emptyList()
@@ -126,7 +125,7 @@ object EventQueue {
             }
             it[attempts] = event[QueuedEvents.attempts]
             it[createdAt] = event[QueuedEvents.createdAt]
-            it[updatedAt] = CurrentDateTime
+            it[updatedAt] = CurrentTimestamp
         }
 
         QueuedEvents.deleteWhere { QueuedEvents.id eq id }
@@ -135,13 +134,14 @@ object EventQueue {
 
 
 
+@OptIn(ExperimentalTime::class)
 object QueuedEvents : Table("event_queue") {
     val id = long("id").autoIncrement()
     val event = json<Event>("event_json", Json)
     val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
     val attempts = integer("attempts").default(0)
-    val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
-    val updatedAt = datetime("updated_at").defaultExpression(CurrentDateTime)
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
 
     override val primaryKey = PrimaryKey(id)
 
@@ -150,13 +150,14 @@ object QueuedEvents : Table("event_queue") {
     }
 }
 
+@OptIn(ExperimentalTime::class)
 data class QueuedEvent(
     val id: Long,
     val event: Event,
     val status: ProcessingStatus,
     val attempts: Int,
-    val createdAt: kotlinx.datetime.LocalDateTime,
-    val updatedAt: kotlinx.datetime.LocalDateTime
+    val createdAt: kotlin.time.Instant,
+    val updatedAt: kotlin.time.Instant
 ) {
     companion object {
         fun ResultRow.tilQueuedEvent() = QueuedEvent(
@@ -170,14 +171,15 @@ data class QueuedEvent(
     }
 }
 
+@OptIn(ExperimentalTime::class)
 object EventLog : Table("event_log") {
     val id = long("id")
     val event = json<Event>("event_json", Json)
     val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
     val errors = json<List<EventHandledResult.UnrecoverableError>>("errors", Json).default(emptyList())
     val attempts = integer("attempts").default(0)
-    val createdAt = datetime("created_at").defaultExpression(CurrentDateTime)
-    val updatedAt = datetime("updated_at").defaultExpression(CurrentDateTime)
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
 
     override val primaryKey = PrimaryKey(id)
 }
