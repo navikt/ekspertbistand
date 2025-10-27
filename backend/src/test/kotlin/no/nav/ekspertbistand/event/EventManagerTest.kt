@@ -40,11 +40,11 @@ class EventManagerTest {
             },
         )
         val manager = EventManager(config) {
-            register<Event.Foo>("InlineSucceeds") {
+            register<EventData.Foo>("InlineSucceeds") {
                 // inline handler
                 EventHandledResult.Success()
             }
-            register<Event.Foo>("DelegatedSucceeds") {
+            register<EventData.Foo>("DelegatedSucceeds") {
                 // delegated to object
                 DummyFooHandler.handle(it)
             }
@@ -52,7 +52,7 @@ class EventManagerTest {
             // handler via class instance
             register(FooRetryThenSucceedsHandler())
         }
-        val queuedEvent = EventQueue.publish(Event.Foo("test1"))
+        val queuedEvent = EventQueue.publish(EventData.Foo("test1"))
         val pollJob = launch { manager.runProcessLoop() }
 
 
@@ -141,15 +141,15 @@ class EventManagerTest {
             EventHandledResult.Success()
         )
         val manager = EventManager(config) {
-            register<Event.Bar>("FailsFatally") {
+            register<EventData.Bar>("FailsFatally") {
                 EventHandledResult.UnrecoverableError("fatal failure")
             }
-            register<Event.Bar>("ShouldNotBeRetried") {
+            register<EventData.Bar>("ShouldNotBeRetried") {
                 // because of fatal error in other handler, this should not be retried
                 answers.removeFirst()
             }
         }
-        val queuedEvent = EventQueue.publish(Event.Bar("testFatal"))
+        val queuedEvent = EventQueue.publish(EventData.Bar("testFatal"))
         val pollJob = launch { manager.runProcessLoop() }
 
         delay(1) // give pollJob some time for processing
@@ -197,10 +197,10 @@ class EventManagerTest {
     fun `validates that all handlers have unique id`() {
         val exception = assertFailsWith<IllegalArgumentException> {
             EventManager(EventManagerConfig()) {
-                register<Event.Foo>("DuplicateHandler") {
+                register<EventData.Foo>("DuplicateHandler") {
                     EventHandledResult.Success()
                 }
-                register<Event.Bar>("DuplicateHandler") {
+                register<EventData.Bar>("DuplicateHandler") {
                     EventHandledResult.Success()
                 }
             }
@@ -211,13 +211,13 @@ class EventManagerTest {
 
 
 object DummyFooHandler {
-    fun handle(event: Event.Foo) = EventHandledResult.Success()
+    fun handle(event: Event<EventData.Foo>) = EventHandledResult.Success()
 }
 
-class FooRetryThenSucceedsHandler : EventHandler<Event.Foo> {
+class FooRetryThenSucceedsHandler : EventHandler<EventData.Foo> {
     private var attempt = 0
     override val id: String = "FooRetryThenSucceedsHandler"
-    override fun handle(event: Event.Foo): EventHandledResult {
+    override fun handle(event: Event<EventData.Foo>): EventHandledResult {
         logger().info("Handling Foo event with retry, attempt $attempt")
         return if (attempt < 1) {
             attempt++

@@ -1,6 +1,5 @@
 package no.nav.ekspertbistand.event
 
-import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -41,7 +40,7 @@ class EventManager(
 ) {
     private val log = logger()
     private val q = EventQueue
-    private val eventHandlers: List<EventHandler<out Event>>
+    private val eventHandlers: List<EventHandler<out EventData>>
 
     init {
         EventManagerBuilder().also {
@@ -66,30 +65,27 @@ class EventManager(
                 continue
             }
 
-            log.info("Processing event ${queuedEvent.id} of type ${queuedEvent.event::class.simpleName}")
-            try {
-                val results = routeToHandlers(queuedEvent)
-                val succeeded = results.filterIsInstance<EventHandledResult.Success>()
-                val unrecoverableErrors = results.filterIsInstance<EventHandledResult.UnrecoverableError>()
-                val transientError = results.filterIsInstance<EventHandledResult.TransientError>()
+            log.info("Processing event ${queuedEvent.id} of type ${queuedEvent.eventData::class.simpleName}")
 
-                if (results == succeeded) { // all succeeded
-                    log.info("Event ${queuedEvent.id} handled successfully by all handlers.")
-                    q.finalize(queuedEvent.id)
+            val results = routeToHandlers(queuedEvent)
+            val succeeded = results.filterIsInstance<EventHandledResult.Success>()
+            val unrecoverableErrors = results.filterIsInstance<EventHandledResult.UnrecoverableError>()
+            val transientError = results.filterIsInstance<EventHandledResult.TransientError>()
 
-                } else if (unrecoverableErrors.isNotEmpty()) {
-                    log.error("Event ${queuedEvent.id} handling failed with urecoverable error: $unrecoverableErrors")
-                    q.finalize(queuedEvent.id, unrecoverableErrors)
+            if (results == succeeded) { // all succeeded
+                log.info("Event ${queuedEvent.id} handled successfully by all handlers.")
+                q.finalize(queuedEvent.id)
 
-                } else if (transientError.isNotEmpty()) {
-                    log.warn("Event ${queuedEvent.id} will be retried due to transient error: $transientError")
-                    // skip finalize to allow retry via abandoned timeout
-                }
+            } else if (unrecoverableErrors.isNotEmpty()) {
+                log.error("Event ${queuedEvent.id} handling failed with urecoverable error: $unrecoverableErrors")
+                q.finalize(queuedEvent.id, unrecoverableErrors)
 
-                delay(config.pollDelayMs)
-            } catch (e: CancellationException) {
-                throw e
+            } else if (transientError.isNotEmpty()) {
+                log.warn("Event ${queuedEvent.id} will be retried due to transient error: $transientError")
+                // skip finalize to allow retry via abandoned timeout
             }
+
+            delay(config.pollDelayMs)
         }
     }
 
@@ -100,9 +96,9 @@ class EventManager(
      */
     private fun routeToHandlers(queued: QueuedEvent) =
         handledEvents(queued.id).let { statePerHandler ->
-            when (val event = queued.event) {
-                is Event.Foo -> handleStatefully(event, statePerHandler, queued.id)
-                is Event.Bar -> handleStatefully(event, statePerHandler, queued.id)
+            when (queued.event.data) {
+                is EventData.Foo -> handleStatefully(queued.event, statePerHandler, queued.id)
+                is EventData.Bar -> handleStatefully(queued.event, statePerHandler, queued.id)
             }
         }
 
@@ -112,8 +108,8 @@ class EventManager(
      * whether to process or skip each handler.
      * Persists the result of each handler after processing.
      */
-    private inline fun <reified T : Event> handleStatefully(
-        event: T,
+    private inline fun <reified T : EventData> handleStatefully(
+        event: Event<T>,
         statePerHandler: Map<String, EventHandlerState>,
         eventId: Long
     ) =
@@ -142,21 +138,18 @@ class EventManager(
     suspend fun cleanupFinalizedEvents() = withContext(config.dispatcher) {
         while (isActive) {
             log.info("Cleaning up finalized events...")
-            try {
-                val deletedRows = transaction {
-                    EventHandlerStates.deleteWhere {
-                        notExists(
-                            QueuedEvents
-                                .select(QueuedEvents.id)
-                                .where { QueuedEvents.id eq EventHandlerStates.eventId }
-                        )
-                    }
+
+            val deletedRows = transaction {
+                EventHandlerStates.deleteWhere {
+                    notExists(
+                        QueuedEvents
+                            .select(QueuedEvents.id)
+                            .where { QueuedEvents.id eq EventHandlerStates.eventId }
+                    )
                 }
-                log.info("Deleted $deletedRows finalized states. Delaying for ${config.cleanupDelayMs}ms")
-                delay(config.cleanupDelayMs)
-            } catch (e: CancellationException) {
-                throw e
             }
+            log.info("Deleted $deletedRows finalized states. Delaying for ${config.cleanupDelayMs}ms")
+            delay(config.cleanupDelayMs)
         }
     }
 
@@ -191,10 +184,11 @@ data class EventManagerConfig(
     val dispatcher: CoroutineDispatcher = Dispatchers.IO
 )
 
-interface EventHandler<T : Event> {
+
+interface EventHandler<T : EventData> {
     val id: String
 
-    fun handle(event: T): EventHandledResult
+    fun handle(event: Event<T>): EventHandledResult
 
 }
 
@@ -227,18 +221,18 @@ sealed class EventHandledResult {
  *  }
  */
 class EventManagerBuilder {
-    val handlers = mutableListOf<EventHandler<out Event>>()
+    val handlers = mutableListOf<EventHandler<out EventData>>()
 
-    inline fun <reified T : Event> register(id: String, noinline block: (T) -> EventHandledResult) {
+    inline fun <reified T : EventData> register(id: String, noinline block: (Event<T>) -> EventHandledResult) {
         val handler = createBlockHandler(id, block)
         addHandler(handler)
     }
 
-    fun <T : Event> register(instance: EventHandler<T>) {
+    fun <T : EventData> register(instance: EventHandler<T>) {
         addHandler(instance)
     }
 
-    fun addHandler(handler: EventHandler<out Event>) {
+    fun addHandler(handler: EventHandler<out EventData>) {
         require(handlers.none { it.id == handler.id }) {
             "Handler with id '${handler.id}' is already registered"
         }
@@ -247,17 +241,17 @@ class EventManagerBuilder {
     }
 }
 
-inline fun <reified T : Event> createBlockHandler(
+inline fun <reified T : EventData> createBlockHandler(
     id: String,
-    noinline block: (T) -> EventHandledResult
+    noinline block: (Event<T>) -> EventHandledResult
 ): EventHandler<T> = object : EventHandler<T> {
     override val id: String = id
-    override fun handle(event: T) = block(event)
+    override fun handle(event: Event<T>) = block(event)
 }
 
 object EventHandlerStates : Table("event_handler_states") {
     val eventId = long("id")
-    val handlerId = text("handler_name")
+    val handlerId = text("handler_id")
     val result = json<EventHandledResult>("result", Json)
     val errorMessage = text("error_message").nullable()
 

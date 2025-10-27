@@ -25,19 +25,19 @@ class EventQueueTest {
 
     @Test
     fun `publish and poll returns event`() {
-        val event = Event.Foo(fooName = "bar")
+        val event = EventData.Foo(fooName = "bar")
         queue.publish(event)
         val polled = queue.poll()
-        assertEquals(event, polled!!.event)
+        assertEquals(event, polled!!.eventData)
     }
 
     @Test
     fun `finalize moves event to log and removes from queue`() {
-        val event = Event.Foo(fooName = "baz")
+        val event = EventData.Foo(fooName = "baz")
         val published = queue.publish(event)
         val polled = queue.poll()
         assertNotNull(polled)
-        assertEquals(event, polled.event)
+        assertEquals(event, polled.eventData)
         queue.finalize(polled.id)
 
         transaction(testDb.config.jdbcDatabase) {
@@ -48,7 +48,7 @@ class EventQueueTest {
 
     @Test
     fun `concurrent poll only returns event to one process`() = runTest {
-        val event = Event.Foo(fooName = "concurrent")
+        val event = EventData.Foo(fooName = "concurrent")
         val published = queue.publish(event)
         val results = mutableListOf<QueuedEvent>()
         coroutineScope {
@@ -61,18 +61,18 @@ class EventQueueTest {
             }
         }
         assertEquals(1, results.size)
-        assertEquals(event, results.first().event)
-        assertEquals(published.event, results.first().event)
+        assertEquals(event, results.first().eventData)
+        assertEquals(published.eventData, results.first().eventData)
     }
 
     @Test
     fun `abandoned event is made available after timeout`() {
-        val event = Event.Foo(fooName = "timeout")
+        val event = EventData.Foo(fooName = "timeout")
         val published = queue.publish(event)
 
         // Poll and leave in PROCESSING
         val polled = queue.poll()
-        assertEquals(event, polled!!.event)
+        assertEquals(event, polled!!.eventData)
 
         // Poll again returns null before timeout
         queue.poll().also {
@@ -84,39 +84,39 @@ class EventQueueTest {
             // Simulate time passing beyond abandonedTimeout
             override fun now(): Instant = Clock.System.now().plus(3.minutes)
         }).also {
-            assertEquals(event, it!!.event)
-            assertEquals(event, published.event)
+            assertEquals(event, it!!.eventData)
+            assertEquals(event, published.eventData)
         }
     }
 
     @Test
     fun `abandoned event is made available after timeout even while other events are published`() {
-        val event = Event.Foo(fooName = "timeout")
+        val event = EventData.Foo(fooName = "timeout")
         val published = queue.publish(event)
 
         // Poll and leave in PROCESSING
         val polled = queue.poll()
-        assertEquals(event, polled!!.event)
+        assertEquals(event, polled!!.eventData)
 
         // publish other events
-        queue.publish(Event.Foo(fooName = "another event"))
-        queue.publish(Event.Foo(fooName = "and another event"))
+        queue.publish(EventData.Foo(fooName = "another event"))
+        queue.publish(EventData.Foo(fooName = "and another event"))
 
         queue.poll(object : Clock {
             // Simulate time passing beyond abandonedTimeout
             override fun now(): Instant = Clock.System.now().plus(3.minutes)
         }).also {
-            assertEquals(event, it!!.event)
-            assertEquals(event, published.event)
+            assertEquals(event, it!!.eventData)
+            assertEquals(event, published.eventData)
         }
     }
 
     @Test
     fun `finalize is idempotent`() {
-        val event = Event.Foo(fooName = "idempotent")
+        val event = EventData.Foo(fooName = "idempotent")
         val published = queue.publish(event)
         val polled = queue.poll()
-        assertEquals(event, polled!!.event)
+        assertEquals(event, polled!!.eventData)
         queue.finalize(published.id)
         // Second finalize should not throw or duplicate
         queue.finalize(published.id)

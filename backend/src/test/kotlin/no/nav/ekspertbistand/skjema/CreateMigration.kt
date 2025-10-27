@@ -16,15 +16,11 @@ fun main() {
         MigrationUtils.generateMigrationScript(
             SkjemaTable,
             UtkastTable,
-            scriptDirectory = "backend/src/main/resources/db/migration",
-            scriptName = "V1__init_skjema",
-        )
-        MigrationUtils.generateMigrationScript(
             QueuedEvents,
             EventLog,
             EventHandlerStates,
             scriptDirectory = "backend/src/main/resources/db/migration",
-            scriptName = "V2__init_eventqueue",
+            scriptName = "V1__initial_setup",
         )
     }
 }

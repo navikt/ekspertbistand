@@ -3,20 +3,26 @@ package no.nav.ekspertbistand.event
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+
+data class Event<T: EventData>(
+    val id: Long,
+    val data: T
+)
+
 @Serializable
-sealed interface Event {
+sealed interface EventData {
 
 
     @Serializable
     @SerialName("foo")
     data class Foo(
         val fooName: String
-    ) : Event
+    ) : EventData
 
     @Serializable
     @SerialName("bar")
     data class Bar(
         val barName: String
-    ) : Event
+    ) : EventData
 }
 
