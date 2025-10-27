@@ -1,40 +1,49 @@
 package no.nav.ekspertbistand.services.notifikasjon
 
+import kotlinx.coroutines.runBlocking
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
+import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.skjema.DTO
-import java.util.UUID
-import kotlin.random.Random
+import java.util.*
 
+private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
+private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 
 class OpprettNySakEventHandler(
-    private val produsentApiKlient: ProdusentApiKlient
+    private val produsentApiKlient: ProdusentApiKlient,
+    private val idempotencyGuard: IdempotencyGuard
 ) : EventHandler<Event.SkjemaInnsendt> {
-
+    
     // DO NOT CHANGE THIS!
     override val id: String = "8642b600-2601-47e2-9798-5849bb362433"
 
     // må være suspending
     override fun handle(event: Event.SkjemaInnsendt): EventHandledResult {
-        TODO()
+        return runBlocking {
+            handle2(event)
+        }
     }
 
     suspend fun handle2(event: Event.SkjemaInnsendt): EventHandledResult {
-        nySak(event.skjema).onFailure {
-            return EventHandledResult.TransientError(it.message!!)
+        if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
+            nySak(event.skjema).fold(
+                onSuccess = { idempotencyGuard.guard(event, nySakSubTask) },
+                onFailure = { return EventHandledResult.TransientError(it.message!!) }
+            )
         }
-        nyBeskjed(event.skjema).onFailure {
-            return EventHandledResult.TransientError(it.message!!)
+        if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
+            nyBeskjed(event.skjema).fold(
+                onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
+                onFailure = { return EventHandledResult.TransientError(it.message!!) }
+            )
         }
 
         return EventHandledResult.Success()
     }
 
     private suspend fun nySak(skjema: DTO.Skjema): Result<String> {
-        if (true) {// Har vi opprettet Beskjed for dette skjemaet allerede?
-            return Result.success("Allerede opprettet sak for skjema ${skjema.id}")
-        }
         return try {
             produsentApiKlient.opprettNySak(
                 grupperingsid = UUID.randomUUID().toString(),
@@ -51,10 +60,6 @@ class OpprettNySakEventHandler(
 
 
     private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
-        // Har vi opprettet sak for dette skjemaet allerede?
-        if (true) {// Har vi opprettet Beskjed for dette skjemaet allerede?
-            return Result.success("Allerede opprettet beskjed for skjema ${skjema.id}")
-        }
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = UUID.randomUUID().toString(),
