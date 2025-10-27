@@ -81,19 +81,19 @@ class ProdusentApiKlient(
         }
 
         when (val nySak = resultat.data?.nySak) {
-            null -> throw Exception("Uventet feil: Ny sak er null, resultat: $resultat")
+            null -> throw SakOpprettetException("Uventet feil: Ny sak er null, resultat: $resultat")
 
             is NySakVellykket -> log.info("Opprettet ny sak {}", nySak.id)
 
             is DuplikatGrupperingsid -> log.info("Sak finnes allerede. hopper over. {}", nySak.feilmelding)
             is DuplikatGrupperingsidEtterDelete -> log.info("Sak finnes allerede. hopper over. {}", nySak.feilmelding)
 
-            is NySakUgyldigMerkelapp -> throw Exception(nySak.feilmelding)
-            is NySakUgyldigMottaker -> throw Exception(nySak.feilmelding)
-            is NySakUkjentProdusent -> throw Exception(nySak.feilmelding)
-            is NySakUkjentRolle -> throw Exception(nySak.feilmelding)
+            is NySakUgyldigMerkelapp -> throw SakOpprettetException(nySak.feilmelding)
+            is NySakUgyldigMottaker -> throw SakOpprettetException(nySak.feilmelding)
+            is NySakUkjentProdusent -> throw SakOpprettetException(nySak.feilmelding)
+            is NySakUkjentRolle -> throw SakOpprettetException(nySak.feilmelding)
 
-            is DefaultNySakResultatImplementation -> throw Exception("Uventet feil: $resultat")
+            is DefaultNySakResultatImplementation -> throw SakOpprettetException("Uventet feil: $resultat")
         }
     }
 
@@ -123,7 +123,7 @@ class ProdusentApiKlient(
         }
 
         when (val nyBeskjed = resultat.data?.nyBeskjed) {
-            null -> throw Exception("Uventet feil: Ny beskjed er null, resultat: $resultat")
+            null -> throw BeskjedOpprettetException("Uventet feil: Ny beskjed er null, resultat: $resultat")
 
             is NyBeskjedVellykket -> log.info("Opprettet ny beskjed {}", nyBeskjed.id)
 
@@ -132,11 +132,14 @@ class ProdusentApiKlient(
                 nyBeskjed.feilmelding
             )
 
-            is NyBeskjedUgyldigMerkelapp -> throw Exception(nyBeskjed.feilmelding)
-            is NyBeskjedUgyldigMottaker -> throw Exception(nyBeskjed.feilmelding)
-            is NyBeskjedUkjentProdusent -> throw Exception(nyBeskjed.feilmelding)
+            is NyBeskjedUgyldigMerkelapp -> throw BeskjedOpprettetException(nyBeskjed.feilmelding)
+            is NyBeskjedUgyldigMottaker -> throw BeskjedOpprettetException(nyBeskjed.feilmelding)
+            is NyBeskjedUkjentProdusent -> throw BeskjedOpprettetException(nyBeskjed.feilmelding)
 
-            is DefaultNyBeskjedResultatImplementation -> throw Exception("Uventet feil: $resultat")
+            is DefaultNyBeskjedResultatImplementation -> throw BeskjedOpprettetException("Uventet feil: $resultat")
         }
     }
 }
+
+class SakOpprettetException(message: String) : Exception(message)
+class BeskjedOpprettetException(message: String) : Exception(message)

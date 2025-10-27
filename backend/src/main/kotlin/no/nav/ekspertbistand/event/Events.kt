@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.skjema.DummyBarHandler
 import no.nav.ekspertbistand.skjema.DummyFooHandler
 import kotlin.time.ExperimentalTime
+import no.nav.ekspertbistand.skjema.DTO
 
 
 data class Event<T: EventData>(
@@ -18,7 +19,6 @@ data class Event<T: EventData>(
 
 @Serializable
 sealed interface EventData {
-
 
     @Serializable
     @SerialName("foo")
@@ -30,6 +30,12 @@ sealed interface EventData {
     @SerialName("bar")
     data class Bar(
         val barName: String
+    ) : EventData
+
+    @Serializable
+    @SerialName("bar")
+    data class SkjemaInnsendt(
+        val skjema: DTO.Skjema
     ) : EventData
 }
 
