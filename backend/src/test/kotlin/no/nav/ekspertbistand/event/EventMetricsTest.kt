@@ -36,17 +36,17 @@ class EventMetricsTest {
         transaction {
             QueuedEvents.insert {
                 it[QueuedEvents.status] = PENDING
-                it[QueuedEvents.event] = Event.Foo("dummy1")
+                it[QueuedEvents.event_data] = EventData.Foo("dummy1")
                 it[QueuedEvents.updatedAt] = CurrentTimestamp
             }
             QueuedEvents.insert {
                 it[QueuedEvents.status] = PENDING
-                it[QueuedEvents.event] = Event.Foo("dummy2")
+                it[QueuedEvents.event_data] = EventData.Foo("dummy2")
                 it[QueuedEvents.updatedAt] = CurrentTimestamp
             }
             QueuedEvents.insert {
                 it[QueuedEvents.status] = PROCESSING
-                it[QueuedEvents.event] = Event.Foo("dummy3")
+                it[QueuedEvents.event_data] = EventData.Foo("dummy3")
                 it[QueuedEvents.updatedAt] = CurrentTimestamp
             }
         }
@@ -79,22 +79,22 @@ class EventMetricsTest {
         val now = Clock.System.now()
         transaction {
             QueuedEvents.insert {
-                it[QueuedEvents.event] = Event.Foo("dummy")
+                it[QueuedEvents.event_data] = EventData.Foo("dummy")
                 it[QueuedEvents.status] = PROCESSING
                 it[QueuedEvents.updatedAt] = now.minus(30.seconds) // <1m
             }
             QueuedEvents.insert {
-                it[QueuedEvents.event] = Event.Foo("dummy")
+                it[QueuedEvents.event_data] = EventData.Foo("dummy")
                 it[QueuedEvents.status] = PROCESSING
                 it[QueuedEvents.updatedAt] = now.minus(4.minutes) // <5m
             }
             QueuedEvents.insert {
-                it[QueuedEvents.event] = Event.Foo("dummy")
+                it[QueuedEvents.event_data] = EventData.Foo("dummy")
                 it[QueuedEvents.status] = PROCESSING
                 it[QueuedEvents.updatedAt] = now.minus(10.minutes) // <15m
             }
             QueuedEvents.insert {
-                it[QueuedEvents.event] = Event.Foo("dummy")
+                it[QueuedEvents.event_data] = EventData.Foo("dummy")
                 it[QueuedEvents.status] = PROCESSING
                 it[QueuedEvents.updatedAt] = now.minus(35.minutes) // >30m
             }

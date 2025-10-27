@@ -40,7 +40,7 @@ class EventManager(
 ) {
     private val log = logger()
     private val q = EventQueue
-    private val eventHandlers: List<EventHandler<out Event>>
+    private val eventHandlers: List<EventHandler<out EventData>>
 
     init {
         EventManagerBuilder().also {
@@ -65,7 +65,7 @@ class EventManager(
                 continue
             }
 
-            log.info("Processing event ${queuedEvent.id} of type ${queuedEvent.event::class.simpleName}")
+            log.info("Processing event ${queuedEvent.id} of type ${queuedEvent.eventData::class.simpleName}")
 
             val results = routeToHandlers(queuedEvent)
             val succeeded = results.filterIsInstance<EventHandledResult.Success>()
@@ -96,9 +96,9 @@ class EventManager(
      */
     private fun routeToHandlers(queued: QueuedEvent) =
         handledEvents(queued.id).let { statePerHandler ->
-            when (val event = queued.event) {
-                is Event.Foo -> handleStatefully(event, statePerHandler, queued.id)
-                is Event.Bar -> handleStatefully(event, statePerHandler, queued.id)
+            when (queued.event.data) {
+                is EventData.Foo -> handleStatefully(queued.event, statePerHandler, queued.id)
+                is EventData.Bar -> handleStatefully(queued.event, statePerHandler, queued.id)
             }
         }
 
@@ -108,8 +108,8 @@ class EventManager(
      * whether to process or skip each handler.
      * Persists the result of each handler after processing.
      */
-    private inline fun <reified T : Event> handleStatefully(
-        event: T,
+    private inline fun <reified T : EventData> handleStatefully(
+        event: Event<T>,
         statePerHandler: Map<String, EventHandlerState>,
         eventId: Long
     ) =
@@ -184,10 +184,11 @@ data class EventManagerConfig(
     val dispatcher: CoroutineDispatcher = Dispatchers.IO
 )
 
-interface EventHandler<T : Event> {
+
+interface EventHandler<T : EventData> {
     val id: String
 
-    fun handle(event: T): EventHandledResult
+    fun handle(event: Event<T>): EventHandledResult
 
 }
 
@@ -220,18 +221,18 @@ sealed class EventHandledResult {
  *  }
  */
 class EventManagerBuilder {
-    val handlers = mutableListOf<EventHandler<out Event>>()
+    val handlers = mutableListOf<EventHandler<out EventData>>()
 
-    inline fun <reified T : Event> register(id: String, noinline block: (T) -> EventHandledResult) {
+    inline fun <reified T : EventData> register(id: String, noinline block: (Event<T>) -> EventHandledResult) {
         val handler = createBlockHandler(id, block)
         addHandler(handler)
     }
 
-    fun <T : Event> register(instance: EventHandler<T>) {
+    fun <T : EventData> register(instance: EventHandler<T>) {
         addHandler(instance)
     }
 
-    fun addHandler(handler: EventHandler<out Event>) {
+    fun addHandler(handler: EventHandler<out EventData>) {
         require(handlers.none { it.id == handler.id }) {
             "Handler with id '${handler.id}' is already registered"
         }
@@ -240,12 +241,12 @@ class EventManagerBuilder {
     }
 }
 
-inline fun <reified T : Event> createBlockHandler(
+inline fun <reified T : EventData> createBlockHandler(
     id: String,
-    noinline block: (T) -> EventHandledResult
+    noinline block: (Event<T>) -> EventHandledResult
 ): EventHandler<T> = object : EventHandler<T> {
     override val id: String = id
-    override fun handle(event: T) = block(event)
+    override fun handle(event: Event<T>) = block(event)
 }
 
 object EventHandlerStates : Table("event_handler_states") {

@@ -42,9 +42,9 @@ import kotlin.time.ExperimentalTime
 object EventQueue {
     val abandonedTimeout = 1.minutes
 
-    fun publish(ev: Event) = transaction {
+    fun publish(ev: EventData) = transaction {
         QueuedEvents.insertReturning {
-            it[event] = ev
+            it[event_data] = ev
         }.first().tilQueuedEvent()
     }
 
@@ -116,7 +116,7 @@ object EventQueue {
 
         EventLog.insert {
             it[EventLog.id] = event[QueuedEvents.id]
-            it[this.event] = event[QueuedEvents.event]
+            it[this.event] = event[QueuedEvents.event_data]
             if (errorResults.isEmpty()) {
                 it[status] = ProcessingStatus.COMPLETED
             } else {
@@ -137,7 +137,7 @@ object EventQueue {
 @OptIn(ExperimentalTime::class)
 object QueuedEvents : Table("event_queue") {
     val id = long("id").autoIncrement()
-    val event = json<Event>("event_json", Json)
+    val event_data = json<EventData>("event_json", Json)
     val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
     val attempts = integer("attempts").default(0)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
@@ -153,16 +153,22 @@ object QueuedEvents : Table("event_queue") {
 @OptIn(ExperimentalTime::class)
 data class QueuedEvent(
     val id: Long,
-    val event: Event,
+    val eventData: EventData,
     val status: ProcessingStatus,
     val attempts: Int,
     val createdAt: kotlin.time.Instant,
     val updatedAt: kotlin.time.Instant
 ) {
+    val event
+        get() = Event(
+            id = id,
+            data = eventData
+        )
+
     companion object {
         fun ResultRow.tilQueuedEvent() = QueuedEvent(
             id = this[QueuedEvents.id],
-            event = this[QueuedEvents.event],
+            eventData = this[QueuedEvents.event_data],
             status = this[QueuedEvents.status],
             attempts = this[QueuedEvents.attempts],
             createdAt = this[QueuedEvents.createdAt],
@@ -174,7 +180,7 @@ data class QueuedEvent(
 @OptIn(ExperimentalTime::class)
 object EventLog : Table("event_log") {
     val id = long("id")
-    val event = json<Event>("event_json", Json)
+    val event = json<EventData>("event_json", Json)
     val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
     val errors = json<List<EventHandledResult.UnrecoverableError>>("errors", Json).default(emptyList())
     val attempts = integer("attempts").default(0)
