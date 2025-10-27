@@ -12,7 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 class IdempotencyGuard(private val database: Database) {
     fun guard(event: Event, subTask: String) {
         transaction(database) {
-            IdempotencyRecords.insert {
+            IdempotencyGuardRecords.insert {
                 it[this.eventId] = event.id
                 it[this.subTask] = subTask
                 it[this.eventName] = event::class.simpleName!!
@@ -23,19 +23,19 @@ class IdempotencyGuard(private val database: Database) {
 
     fun isGuarded(eventId: Long, subTask: String): Boolean {
         return transaction(database) {
-            IdempotencyRecords
+            IdempotencyGuardRecords
                 .select(
-                    IdempotencyRecords.status
+                    IdempotencyGuardRecords.status
                 ).where(
-                    (IdempotencyRecords.eventId eq eventId)
-                            and (IdempotencyRecords.subTask eq subTask)
-                ).map { it[IdempotencyRecords.status] }
+                    (IdempotencyGuardRecords.eventId eq eventId)
+                            and (IdempotencyGuardRecords.subTask eq subTask)
+                ).map { it[IdempotencyGuardRecords.status] }
                 .first() == IdempotencyStatus.COMPLETED
         }
     }
 }
 
-object IdempotencyRecords : CompositeIdTable("idempotency_records") {
+object IdempotencyGuardRecords : CompositeIdTable("idempotency_guard_records") {
     val eventId = long("event_id").entityId()
     val subTask = varchar("sub_task", 50).entityId()
     val eventName = varchar("event_name", 50)

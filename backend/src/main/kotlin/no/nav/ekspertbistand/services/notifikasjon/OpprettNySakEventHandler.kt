@@ -15,7 +15,7 @@ class OpprettNySakEventHandler(
     private val produsentApiKlient: ProdusentApiKlient,
     private val idempotencyGuard: IdempotencyGuard
 ) : EventHandler<Event.SkjemaInnsendt> {
-    
+
     // DO NOT CHANGE THIS!
     override val id: String = "8642b600-2601-47e2-9798-5849bb362433"
 
