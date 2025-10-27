@@ -1,6 +1,5 @@
 package no.nav.ekspertbistand.event
 
-import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -67,29 +66,26 @@ class EventManager(
             }
 
             log.info("Processing event ${queuedEvent.id} of type ${queuedEvent.event::class.simpleName}")
-            try {
-                val results = routeToHandlers(queuedEvent)
-                val succeeded = results.filterIsInstance<EventHandledResult.Success>()
-                val unrecoverableErrors = results.filterIsInstance<EventHandledResult.UnrecoverableError>()
-                val transientError = results.filterIsInstance<EventHandledResult.TransientError>()
 
-                if (results == succeeded) { // all succeeded
-                    log.info("Event ${queuedEvent.id} handled successfully by all handlers.")
-                    q.finalize(queuedEvent.id)
+            val results = routeToHandlers(queuedEvent)
+            val succeeded = results.filterIsInstance<EventHandledResult.Success>()
+            val unrecoverableErrors = results.filterIsInstance<EventHandledResult.UnrecoverableError>()
+            val transientError = results.filterIsInstance<EventHandledResult.TransientError>()
 
-                } else if (unrecoverableErrors.isNotEmpty()) {
-                    log.error("Event ${queuedEvent.id} handling failed with urecoverable error: $unrecoverableErrors")
-                    q.finalize(queuedEvent.id, unrecoverableErrors)
+            if (results == succeeded) { // all succeeded
+                log.info("Event ${queuedEvent.id} handled successfully by all handlers.")
+                q.finalize(queuedEvent.id)
 
-                } else if (transientError.isNotEmpty()) {
-                    log.warn("Event ${queuedEvent.id} will be retried due to transient error: $transientError")
-                    // skip finalize to allow retry via abandoned timeout
-                }
+            } else if (unrecoverableErrors.isNotEmpty()) {
+                log.error("Event ${queuedEvent.id} handling failed with urecoverable error: $unrecoverableErrors")
+                q.finalize(queuedEvent.id, unrecoverableErrors)
 
-                delay(config.pollDelayMs)
-            } catch (e: CancellationException) {
-                throw e
+            } else if (transientError.isNotEmpty()) {
+                log.warn("Event ${queuedEvent.id} will be retried due to transient error: $transientError")
+                // skip finalize to allow retry via abandoned timeout
             }
+
+            delay(config.pollDelayMs)
         }
     }
 
@@ -142,21 +138,18 @@ class EventManager(
     suspend fun cleanupFinalizedEvents() = withContext(config.dispatcher) {
         while (isActive) {
             log.info("Cleaning up finalized events...")
-            try {
-                val deletedRows = transaction {
-                    EventHandlerStates.deleteWhere {
-                        notExists(
-                            QueuedEvents
-                                .select(QueuedEvents.id)
-                                .where { QueuedEvents.id eq EventHandlerStates.eventId }
-                        )
-                    }
+
+            val deletedRows = transaction {
+                EventHandlerStates.deleteWhere {
+                    notExists(
+                        QueuedEvents
+                            .select(QueuedEvents.id)
+                            .where { QueuedEvents.id eq EventHandlerStates.eventId }
+                    )
                 }
-                log.info("Deleted $deletedRows finalized states. Delaying for ${config.cleanupDelayMs}ms")
-                delay(config.cleanupDelayMs)
-            } catch (e: CancellationException) {
-                throw e
             }
+            log.info("Deleted $deletedRows finalized states. Delaying for ${config.cleanupDelayMs}ms")
+            delay(config.cleanupDelayMs)
         }
     }
 
@@ -257,7 +250,7 @@ inline fun <reified T : Event> createBlockHandler(
 
 object EventHandlerStates : Table("event_handler_states") {
     val eventId = long("id")
-    val handlerId = text("handler_name")
+    val handlerId = text("handler_id")
     val result = json<EventHandledResult>("result", Json)
     val errorMessage = text("error_message").nullable()
 
