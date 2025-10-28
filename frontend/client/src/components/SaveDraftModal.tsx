@@ -8,7 +8,7 @@ type SaveDraftModalProps = {
 
 export function SaveDraftModal({ open, onClose, onConfirm }: SaveDraftModalProps) {
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} aria-label="Lagre utkast">
       <Modal.Header>
         <Heading level="2" size="medium">
           Fortsett senere - lagre som utkast
