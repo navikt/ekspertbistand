@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FormEventHandler } from "react";
 import { useNavigate, Link as RouterLink, useLocation } from "react-router-dom";
 import { Controller, type SubmitHandler, useFormContext } from "react-hook-form";
@@ -16,7 +16,6 @@ import {
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { DEFAULT_LANGUAGE_LINKS, FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
-import { useErrorSummaryFocus } from "./useErrorSummaryFocus";
 import type { Inputs } from "./types";
 import { STEP1_FIELDS } from "./types";
 import {
@@ -32,18 +31,19 @@ import {
 } from "./validation";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { VirksomhetPicker } from "../components/VirksomhetPicker";
-import { DraftActions } from "./DraftActions";
+import { DraftActions } from "../components/DraftActions.tsx";
+import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
 
 export default function SkjemaSteg1Page() {
   const navigate = useNavigate();
   const location = useLocation();
-  const errorSummaryRef = useRef<HTMLDivElement>(null);
   const form = useFormContext<Inputs>();
   const { control, register, setValue, getValues, formState } = form;
   const { errors } = formState;
   const locationState = (location.state as { attemptedSubmit?: boolean } | null) ?? null;
   const attemptedSubmitFromLocation = locationState?.attemptedSubmit ?? false;
   const [attemptedSubmit, setAttemptedSubmit] = useState(attemptedSubmitFromLocation);
+  const [errorFocusKey, setErrorFocusKey] = useState(() => (attemptedSubmitFromLocation ? 1 : 0));
   const errorItems = [
     { id: "virksomhet.virksomhetsnummer", message: errors.virksomhet?.virksomhetsnummer?.message },
     {
@@ -80,12 +80,6 @@ export default function SkjemaSteg1Page() {
   }, [attemptedSubmitFromLocation, location.pathname, navigate]);
 
   const shouldFocusErrorSummary = hydrated && attemptedSubmit && Object.keys(errors).length > 0;
-  const errorFocusDeps = useMemo(() => [errors], [errors]);
-  useErrorSummaryFocus({
-    ref: errorSummaryRef,
-    isActive: shouldFocusErrorSummary,
-    dependencies: errorFocusDeps,
-  });
 
   const goToStepTwo = useCallback(() => {
     navigateWithDraft(`/skjema/${draftId}/steg-2`);
@@ -106,6 +100,7 @@ export default function SkjemaSteg1Page() {
       onValid(form.getValues());
     } else {
       setAttemptedSubmit(true);
+      setErrorFocusKey((key) => key + 1);
     }
   };
   const goToStepTwoLink = withPreventDefault(goToStepTwo);
@@ -248,8 +243,9 @@ export default function SkjemaSteg1Page() {
           </Fieldset>
 
           {errorItems.length > 0 && (
-            <ErrorSummary
-              ref={errorSummaryRef}
+            <FocusedErrorSummary
+              isActive={shouldFocusErrorSummary}
+              focusKey={errorFocusKey}
               heading="Du må rette disse feilene før du kan fortsette:"
             >
               {errorItems.map(({ id, message }) => (
@@ -257,7 +253,7 @@ export default function SkjemaSteg1Page() {
                   {message}
                 </ErrorSummary.Item>
               ))}
-            </ErrorSummary>
+            </FocusedErrorSummary>
           )}
 
           <VStack gap="4">

@@ -30,14 +30,13 @@ import {
   validateNavKontakt,
 } from "./validation";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
-import { DraftActions } from "./DraftActions";
+import { DraftActions } from "../components/DraftActions.tsx";
 import { DEFAULT_LANGUAGE_LINKS, FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
-import { useErrorSummaryFocus } from "./useErrorSummaryFocus";
+import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
 
 export default function SkjemaSteg2Page() {
   const navigate = useNavigate();
   const location = useLocation();
-  const errorSummaryRef = useRef<HTMLDivElement>(null);
   const todayDate = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -50,6 +49,7 @@ export default function SkjemaSteg2Page() {
   const locationState = (location.state as { attemptedSubmit?: boolean } | null) ?? null;
   const attemptedSubmitFromLocation = locationState?.attemptedSubmit ?? false;
   const [attemptedSubmit, setAttemptedSubmit] = useState(attemptedSubmitFromLocation);
+  const [errorFocusKey, setErrorFocusKey] = useState(() => (attemptedSubmitFromLocation ? 1 : 0));
   const startDatoIso = useWatch({ name: "behovForBistand.startDato" }) as
     | Inputs["behovForBistand"]["startDato"]
     | undefined;
@@ -78,12 +78,6 @@ export default function SkjemaSteg2Page() {
     : [];
 
   const shouldFocusErrorSummary = hydrated && attemptedSubmit && Object.keys(errors).length > 0;
-  const errorFocusDeps = useMemo(() => [errors], [errors]);
-  useErrorSummaryFocus({
-    ref: errorSummaryRef,
-    isActive: shouldFocusErrorSummary,
-    dependencies: errorFocusDeps,
-  });
 
   useEffect(() => {
     register("behovForBistand.startDato", { validate: validateStartDato });
@@ -155,6 +149,7 @@ export default function SkjemaSteg2Page() {
       onValid(form.getValues());
     } else {
       setAttemptedSubmit(true);
+      setErrorFocusKey((key) => key + 1);
     }
   };
   const goToStepOneLink = withPreventDefault(goToStepOne);
@@ -267,8 +262,9 @@ export default function SkjemaSteg2Page() {
           </Fieldset>
 
           {errorItems.length > 0 && (
-            <ErrorSummary
-              ref={errorSummaryRef}
+            <FocusedErrorSummary
+              isActive={shouldFocusErrorSummary}
+              focusKey={errorFocusKey}
               heading="Du må rette disse feilene før du kan fortsette:"
             >
               {errorItems.map(({ id, message }) => (
@@ -276,7 +272,7 @@ export default function SkjemaSteg2Page() {
                   {message}
                 </ErrorSummary.Item>
               ))}
-            </ErrorSummary>
+            </FocusedErrorSummary>
           )}
 
           <VStack gap="4">

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useFormContext } from "react-hook-form";
 import { ArrowLeftIcon, PaperplaneIcon } from "@navikt/aksel-icons";
@@ -22,8 +22,8 @@ import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { validateInputs, type ValidationError } from "./validation";
 import { FormSummaryAnswer } from "@navikt/ds-react/FormSummary";
 import { DEFAULT_LANGUAGE_LINKS, withPreventDefault } from "./utils";
-import { DraftActions } from "./DraftActions";
-import { focusErrorSummary } from "./useErrorSummaryFocus";
+import { DraftActions } from "../components/DraftActions.tsx";
+import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
 
 const numberFormatter = new Intl.NumberFormat("nb-NO");
 
@@ -54,8 +54,8 @@ export default function OppsummeringPage() {
   const { draftId, draft: formData, saveDraft, clearDraft, lastPersistedAt } = useSoknadDraft();
   const form = useFormContext<Inputs>();
   const { virksomhet, ansatt, ekspert, behovForBistand } = formData;
-  const errorSummaryRef = useRef<HTMLDivElement>(null);
   const [submitErrors, setSubmitErrors] = useState<ValidationError[]>([]);
+  const [errorFocusKey, setErrorFocusKey] = useState(0);
 
   const navigateTo = useCallback(
     (path: string) => {
@@ -85,7 +85,7 @@ export default function OppsummeringPage() {
     const errors = validateInputs(formData);
     setSubmitErrors(errors);
     if (errors.length > 0) {
-      focusErrorSummary(errorSummaryRef);
+      setErrorFocusKey((key) => key + 1);
       return;
     }
     saveDraft(formData);
@@ -133,8 +133,9 @@ export default function OppsummeringPage() {
         </BodyLong>
 
         {submitErrors.length > 0 && (
-          <ErrorSummary
-            ref={errorSummaryRef}
+          <FocusedErrorSummary
+            isActive={submitErrors.length > 0}
+            focusKey={errorFocusKey}
             heading="Du må rette disse feilene før du kan sende inn søknaden:"
           >
             {submitErrors.map(({ id, message }) => (
@@ -142,7 +143,7 @@ export default function OppsummeringPage() {
                 {message}
               </ErrorSummary.Item>
             ))}
-          </ErrorSummary>
+          </FocusedErrorSummary>
         )}
 
         <FormSummary>

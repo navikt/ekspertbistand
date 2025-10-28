@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
-import type { Inputs } from "./types";
-import { useSoknadDraft } from "../context/SoknadDraftContext";
+import type { Inputs } from "../pages/types.ts";
+import { useSoknadDraft } from "../context/SoknadDraftContext.tsx";
 
 export function SkjemaFormProvider({ children }: { children: ReactNode }) {
   const { draft, hydrated, saveDraft } = useSoknadDraft();

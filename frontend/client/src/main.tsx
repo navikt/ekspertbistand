@@ -24,10 +24,7 @@ async function bootstrap() {
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      <BrowserRouter
-        basename={routerBasename}
-        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-      >
+      <BrowserRouter basename={routerBasename}>
         <Theme theme="light">
           <FaroErrorBoundary
             fallback={

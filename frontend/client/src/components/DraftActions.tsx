@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import { Box, Button, HGrid } from "@navikt/ds-react";
 import { FloppydiskIcon, TrashIcon } from "@navikt/aksel-icons";
-import { DeleteDraftModal } from "../components/DeleteDraftModal";
-import { SaveDraftModal } from "../components/SaveDraftModal";
+import { DeleteDraftModal } from "./DeleteDraftModal.tsx";
+import { SaveDraftModal } from "./SaveDraftModal.tsx";
 
 type DraftActionsProps = {
   onContinueLater: () => void | Promise<void>;

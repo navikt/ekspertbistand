@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { SVGProps } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRightIcon } from "@navikt/aksel-icons";
@@ -20,13 +20,13 @@ import {
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { DEFAULT_LANGUAGE_LINKS } from "./utils";
-import { focusErrorSummary } from "./useErrorSummaryFocus";
+import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
 
 export default function SoknadPage() {
   const navigate = useNavigate();
-  const errorSummaryRef = useRef<HTMLDivElement>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [errorFocusKey, setErrorFocusKey] = useState(0);
 
   type IntroInputs = {
     bekreftRiktige: boolean;
@@ -63,13 +63,13 @@ export default function SoknadPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Kunne ikke starte søknaden.";
       setApiError(message);
-      focusErrorSummary(errorSummaryRef);
+      setErrorFocusKey((key) => key + 1);
     } finally {
       setCreating(false);
     }
   };
   const onInvalid: SubmitErrorHandler<IntroInputs> = () => {
-    focusErrorSummary(errorSummaryRef);
+    setErrorFocusKey((key) => key + 1);
   };
 
   return (
@@ -190,8 +190,9 @@ export default function SoknadPage() {
             </Box>
             <VStack gap="6">
               {(Object.values(errors).length > 0 || apiError) && (
-                <ErrorSummary
-                  ref={errorSummaryRef}
+                <FocusedErrorSummary
+                  isActive={Object.values(errors).length > 0 || Boolean(apiError)}
+                  focusKey={errorFocusKey}
                   heading="Du må rette disse feilene før du kan fortsette:"
                 >
                   {Object.entries(errors).map(([key, error]) => (
@@ -202,7 +203,7 @@ export default function SoknadPage() {
                   {apiError ? (
                     <ErrorSummary.Item href="#start-soknad-feil">{apiError}</ErrorSummary.Item>
                   ) : null}
-                </ErrorSummary>
+                </FocusedErrorSummary>
               )}
               {apiError ? (
                 <Alert variant="error" inline>

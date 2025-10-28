@@ -5,7 +5,7 @@ import SkjemaSteg1Page from "./pages/SkjemaSteg1Page";
 import SkjemaSteg2Page from "./pages/SkjemaSteg2Page";
 import OppsummeringPage from "./pages/OppsummeringPage";
 import { SoknadDraftProvider } from "./context/SoknadDraftContext";
-import { SkjemaFormProvider } from "./pages/SkjemaFormProvider";
+import { SkjemaFormProvider } from "./providers/SkjemaFormProvider.tsx";
 import { ScrollToTop } from "./components/ScrollToTop";
 
 function SkjemaDraftRoute() {
@@ -26,7 +26,7 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
-      <Routes future={{ v7_relativeSplatPath: true }}>
+      <Routes>
         <Route path="/" element={<SoknadPage />} />
         <Route path="/skjema" element={<Navigate to="/" replace />} />
         <Route path="/skjema/:id" element={<SkjemaDraftRoute />}>
