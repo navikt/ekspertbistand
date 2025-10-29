@@ -30,7 +30,7 @@ import kotlin.time.ExperimentalTime
 class DummyFooHandler : EventHandler<EventData.Foo> {
     override val id = "dummy-foo-handler"
 
-    override fun handle(event: Event<EventData.Foo>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.Foo>): EventHandledResult {
         return EventHandledResult.Success()
     }
 

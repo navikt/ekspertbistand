@@ -258,7 +258,7 @@ object DummyFooHandler {
 class FooRetryThenSucceedsHandler : EventHandler<EventData.Foo> {
     private var attempt = 0
     override val id: String = "FooRetryThenSucceedsHandler"
-    override fun handle(event: Event<EventData.Foo>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.Foo>): EventHandledResult {
         logger().info("Handling Foo event with retry, attempt $attempt")
         return if (attempt < 1) {
             attempt++

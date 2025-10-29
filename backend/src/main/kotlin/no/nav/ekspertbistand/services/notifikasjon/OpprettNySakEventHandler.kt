@@ -27,14 +27,7 @@ class OpprettNySakEventHandler(
     // DO NOT CHANGE THIS!
     override val id: String = "8642b600-2601-47e2-9798-5849bb362433"
 
-    // må være suspending
-    override fun handle(event: Event<EventData.SkjemaInnsendt>): EventHandledResult {
-        return runBlocking {
-            handle2(event)
-        }
-    }
-
-    suspend fun handle2(event: Event<EventData.SkjemaInnsendt>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.SkjemaInnsendt>): EventHandledResult {
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
             nySak(event.data.skjema).fold(
                 onSuccess = { idempotencyGuard.guard(event, nySakSubTask) },

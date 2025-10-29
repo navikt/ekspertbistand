@@ -59,7 +59,7 @@ class OpprettNySakEventHandlerTest {
                 skjema = skjema1
             )
         )
-        assertTrue(handler.handle2(event) is EventHandledResult.Success)
+        assertTrue(handler.handle(event) is EventHandledResult.Success)
     }
 
     @Test
@@ -78,7 +78,7 @@ class OpprettNySakEventHandlerTest {
                 skjema = skjema1
             )
         )
-        assertTrue(handler.handle2(event) is EventHandledResult.TransientError)
+        assertTrue(handler.handle(event) is EventHandledResult.TransientError)
     }
 
     @Test
@@ -98,8 +98,8 @@ class OpprettNySakEventHandlerTest {
                     skjema = skjema1
                 )
             )
-            assertTrue(handler.handle2(event) is EventHandledResult.TransientError) // Sak velykket, beskjed feilet
-            assertTrue(handler.handle2(event) is EventHandledResult.Success) // Sak guardet, beskjed velykket
+            assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Sak velykket, beskjed feilet
+            assertTrue(handler.handle(event) is EventHandledResult.Success) // Sak guardet, beskjed velykket
         }
 }
 

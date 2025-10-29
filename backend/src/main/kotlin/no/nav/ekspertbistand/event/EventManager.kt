@@ -100,7 +100,7 @@ class EventManager internal constructor(
      * whether to process or skip each handler.
      * Persists the result of each handler after processing.
      */
-    private inline fun <reified T : EventData> handleStatefully(
+    private suspend inline fun <reified T : EventData> handleStatefully(
         event: Event<T>,
         statePerHandler: Map<String, EventHandlerState>,
         eventId: Long
@@ -199,7 +199,7 @@ data class EventManagerConfig(
 interface EventHandler<T : EventData> {
     val id: String
 
-    fun handle(event: Event<T>): EventHandledResult
+    suspend fun handle(event: Event<T>): EventHandledResult
 
 }
 
@@ -257,7 +257,7 @@ inline fun <reified T : EventData> createBlockHandler(
     noinline block: (Event<T>) -> EventHandledResult
 ): EventHandler<T> = object : EventHandler<T> {
     override val id: String = id
-    override fun handle(event: Event<T>) = block(event)
+    override suspend fun handle(event: Event<T>) = block(event)
 }
 
 object EventHandlerStates : Table("event_handler_states") {
