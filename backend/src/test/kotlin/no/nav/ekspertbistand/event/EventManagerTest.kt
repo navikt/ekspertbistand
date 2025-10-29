@@ -5,8 +5,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.logger
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
@@ -206,6 +209,44 @@ class EventManagerTest {
             }
         }
         assertEquals("Handler with id 'DuplicateHandler' is already registered", exception.message)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `unhandled events are retried indefinitely`() = runTest {
+        var now = Clock.System.now()
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val config = EventManagerConfig(
+            pollDelayMs = 1,
+            dispatcher = dispatcher,
+            clock = object : Clock {
+                override fun now() = now
+            },
+        )
+        val manager = EventManager(config) {
+            // no handlers for foo registered
+        }
+        val queuedEvent = EventQueue.publish(EventData.Foo("test1"))
+        val pollJob = launch { manager.runProcessLoop() }
+        delay(config.pollDelayMs)
+
+        for (attempt in 1..10) {
+            transaction {
+                QueuedEvents
+                    .selectAll()
+                    .map { it.tilQueuedEvent() }
+            }.let { queuedEvents ->
+                assertEquals(1, queuedEvents.size)
+                assertEquals(queuedEvent.id, queuedEvents.first().id)
+                assertEquals(ProcessingStatus.PROCESSING, queuedEvents.first().status)
+                assertEquals(attempt, queuedEvents.first().attempts)
+            }
+
+            now += (EventQueue.abandonedTimeout + 1.seconds)
+            delay(config.pollDelayMs) // give pollJob some time for processing
+        }
+
+        pollJob.cancel()
     }
 }
 

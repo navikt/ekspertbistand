@@ -6,6 +6,7 @@ import io.ktor.server.auth.*
 import io.ktor.server.plugins.di.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -14,18 +15,45 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
+import no.nav.ekspertbistand.event.EventQueue
+import no.nav.ekspertbistand.infrastruktur.Health
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
+import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
+import no.nav.ekspertbistand.infrastruktur.logger
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 class DummyFooHandler : EventHandler<EventData.Foo> {
     override val id = "dummy-foo-handler"
 
-    override fun handle(event: Event<EventData.Foo>) = EventHandledResult.Success()
+    override fun handle(event: Event<EventData.Foo>): EventHandledResult {
+        if (event.id % 3 == 0L) {
+            return EventHandledResult.TransientError("Simulated transient error for event id ${event.id}")
+        }
+        if (event.id % 5 == 0L) {
+            return EventHandledResult.UnrecoverableError("Simulated unrecoverable error for event id ${event.id}")
+        }
+        return EventHandledResult.Success()
+    }
 
+}
+
+class DummyBarHandler : EventHandler<EventData.Bar> {
+    override val id = "dummy-bar-handler"
+
+    override fun handle(event: Event<EventData.Bar>): EventHandledResult {
+        if (event.id % 2 == 0L) {
+            return EventHandledResult.TransientError("Simulated transient error for event id ${event.id}")
+        }
+        if (event.id % 9 == 0L) {
+            return EventHandledResult.UnrecoverableError("Simulated unrecoverable error for event id ${event.id}")
+        }
+        return EventHandledResult.Success()
+    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -34,14 +62,27 @@ suspend fun Application.configureSkjemaApiV1() {
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
     val skjemaApi = SkjemaApi(database, altinnTilgangerClient)
 
+    val dummyFooHandler = DummyFooHandler()
+    val dummyBarHandler = DummyBarHandler()
     dependencies.provide<DummyFooHandler> {
-        DummyFooHandler()
+        dummyFooHandler
+    }
+    dependencies.provide<DummyBarHandler> {
+        dummyBarHandler
     }
 
     launch {
-        while (isActive) {
+        while (isActiveAndNotTerminating) {
             skjemaApi.slettGamleUtkast()
             delay(10.minutes)
+        }
+    }
+
+    launch {
+        while (isActiveAndNotTerminating) {
+            EventQueue.publish(EventData.Foo("${UUID.randomUUID()}"))
+            EventQueue.publish(EventData.Bar("${UUID.randomUUID()}"))
+            delay(5.seconds)
         }
     }
 
@@ -131,7 +172,6 @@ suspend fun Application.configureSkjemaApiV1() {
         }
     }
 }
-
 
 
 internal val RoutingContext.subjectToken

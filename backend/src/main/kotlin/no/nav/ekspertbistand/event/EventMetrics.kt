@@ -1,11 +1,11 @@
 package no.nav.ekspertbistand.event
 
-import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.MultiGauge
 import io.micrometer.core.instrument.Tags
 import kotlinx.coroutines.*
 import no.nav.ekspertbistand.infrastruktur.Metrics
+import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
 import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.select
@@ -20,7 +20,6 @@ class EventMetrics(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     meterRegistry: MeterRegistry = Metrics.meterRegistry,
 ) {
-
     val eventQueueSizeGauge: MultiGauge = MultiGauge.builder("eventqueue.size")
         .description("The number of items in eventqueue by status")
         .register(meterRegistry)
@@ -82,7 +81,7 @@ class EventMetrics(
 
     @OptIn(ExperimentalTime::class)
     suspend fun updateGaugesProcessingLoop(clock: Clock = Clock.System) = withContext(dispatcher) {
-        while (isActive) {
+        while (isActiveAndNotTerminating) {
             eventQueueSizeGauge.register(
                 queueSizeByStatus()
                     .map { (status, count) ->

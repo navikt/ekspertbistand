@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.event.EventHandlerState.Companion.tilEventHandlerState
+import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
 import no.nav.ekspertbistand.infrastruktur.logger
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
@@ -48,7 +49,7 @@ class EventManager internal constructor(
      */
     @OptIn(ExperimentalTime::class)
     suspend fun runProcessLoop() = withContext(config.dispatcher) {
-        while (isActive) {
+        while (isActiveAndNotTerminating) {
 
             val queuedEvent = q.poll(config.clock) ?: run {
                 delay(config.pollDelayMs)
@@ -84,13 +85,13 @@ class EventManager internal constructor(
      * We use an explicit when statement here to ensure exhaustiveness as new event types are added.
      * The routing code is duplicated but ensures type safety without unchecked casts.
      */
-    private fun routeToHandlers(queued: QueuedEvent) =
-        handledEvents(queued.id).let { statePerHandler ->
-            when (queued.event.data) {
-                is EventData.Foo -> handleStatefully(queued.event, statePerHandler, queued.id)
-                is EventData.Bar -> handleStatefully(queued.event, statePerHandler, queued.id)
-            }
+    private fun routeToHandlers(queued: QueuedEvent): List<EventHandledResult> {
+        val previousStatePerHandler = handledEvents(queued.id)
+        return when (queued.event.data) {
+            is EventData.Foo -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
+            is EventData.Bar -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
         }
+    }
 
 
     /**
@@ -102,31 +103,37 @@ class EventManager internal constructor(
         event: Event<T>,
         statePerHandler: Map<String, EventHandlerState>,
         eventId: Long
-    ) =
-        eventHandlers.filterIsInstance<EventHandler<T>>()
-            .map { handler ->
-                val previousState = statePerHandler[handler.id]
-                when (previousState?.result) {
-                    // skip if previously handled resulting in Success or UnrecoverableError
-                    is EventHandledResult.Success,
-                    is EventHandledResult.UnrecoverableError,
-                        -> previousState.result
+    ): List<EventHandledResult> {
+        val handlers = eventHandlers.filterIsInstance<EventHandler<T>>()
+        return if(handlers.isEmpty()) {
+            listOf(EventHandledResult.TransientError("No handlers registered for event type ${T::class.simpleName}"))
+        } else {
+            handlers
+                .map { handler ->
+                    val previousState = statePerHandler[handler.id]
+                    when (previousState?.result) {
+                        // skip if previously handled resulting in Success or UnrecoverableError
+                        is EventHandledResult.Success,
+                        is EventHandledResult.UnrecoverableError,
+                            -> previousState.result
 
 
-                    null, // process now if previously unhandled,
-                    is EventHandledResult.TransientError, // process now if previously handled resulting in TransientError
-                        -> handler.handle(event).also { result ->
-                        upsertHandlerResult(eventId, result, handler.id)
+                        null, // process now if previously unhandled,
+                        is EventHandledResult.TransientError, // process now if previously handled resulting in TransientError
+                            -> handler.handle(event).also { result ->
+                            upsertHandlerResult(eventId, result, handler.id)
+                        }
                     }
                 }
-            }
+        }
+    }
 
     /**
      * Cleans up finalized event handler states periodically.
      * Finalized states are those for events that have been removed from the queue (and moved to the log).
      */
     suspend fun cleanupFinalizedEvents() = withContext(config.dispatcher) {
-        while (isActive) {
+        while (isActiveAndNotTerminating) {
             log.info("Cleaning up finalized events...")
 
             val deletedRows = transaction {

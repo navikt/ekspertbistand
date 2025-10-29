@@ -30,12 +30,15 @@ class LogConfig : ContextAwareBase(), Configurator {
                      * isIncludeStructuredArguments settes til false for å unngå at
                      * dette sendes til vanlig log. Dette logges kun til team-logs
                      * i LogstashTcpSocketAppender nedenfor.
+                     * se [TeamLogCtx]
                      */
                     isIncludeStructuredArguments = false
                     isIncludeMdc = true
                 }
             }
         }
+
+        lc.getLogger("org.flywaydb.core.internal").level = Level.WARN
 
         lc.getLogger(Logger.ROOT_LOGGER_NAME).apply {
             level = basedOnEnv(
@@ -119,6 +122,11 @@ class MaskingAppender : AppenderBase<ILoggingEvent>() {
 
 inline fun <reified T> T.logger(): org.slf4j.Logger = LoggerFactory.getLogger(T::class.qualifiedName)
 
+
+/**
+ * eksempel bruk:
+ * log.info("FOO", *TeamLogCtx.of(sensitiveDataMap))
+ */
 object TeamLogCtx {
     fun of(ctx: Map<String, String>) = ctx.map {
         kv(it.key, it.value)
