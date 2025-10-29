@@ -128,7 +128,7 @@ private fun ApplicationTestBuilder.produsentApi(
                 json(
                     Json {
                         serializersModule = SerializersModule {
-                            classDiscriminator = "type"
+                            classDiscriminator = "__typename"
                             polymorphic(NySakResultat::class) {
                                 subclass(DefaultNySakResultatImplementation::class)
                                 subclass(DuplikatGrupperingsid::class)
@@ -141,6 +141,7 @@ private fun ApplicationTestBuilder.produsentApi(
                             }
                             polymorphic(NyBeskjedResultat::class) {
                                 subclass(DefaultNyBeskjedResultatImplementation::class)
+                                subclass(DefaultNyBeskjedResultatImplementation::class)
                                 subclass(DuplikatEksternIdOgMerkelapp::class)
                                 subclass(NyBeskjedVellykket::class)
                                 subclass(NyBeskjedUgyldigMerkelapp::class)
@@ -148,6 +149,8 @@ private fun ApplicationTestBuilder.produsentApi(
                                 subclass(NyBeskjedUkjentProdusent::class)
                             }
                         }
+                        ignoreUnknownKeys = true
+                        prettyPrint = true
                     }
                 )
             }
