@@ -194,7 +194,7 @@ class EventManagerTest {
     }
 
     @Test
-    fun `validates that all handlers have unique id`() {
+    fun `validates that all handlers have unique id`() = runTest {
         val exception = assertFailsWith<IllegalArgumentException> {
             EventManager(EventManagerConfig()) {
                 register<EventData.Foo>("DuplicateHandler") {

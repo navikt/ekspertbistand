@@ -7,6 +7,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import no.nav.ekspertbistand.event.ProcessingStatus.COMPLETED
+import no.nav.ekspertbistand.event.ProcessingStatus.COMPLETED_WITH_ERRORS
 import no.nav.ekspertbistand.event.ProcessingStatus.PENDING
 import no.nav.ekspertbistand.event.ProcessingStatus.PROCESSING
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
@@ -36,17 +38,17 @@ class EventMetricsTest {
         transaction {
             QueuedEvents.insert {
                 it[QueuedEvents.status] = PENDING
-                it[QueuedEvents.event_data] = EventData.Foo("dummy1")
+                it[QueuedEvents.eventData] = EventData.Foo("dummy1")
                 it[QueuedEvents.updatedAt] = CurrentTimestamp
             }
             QueuedEvents.insert {
                 it[QueuedEvents.status] = PENDING
-                it[QueuedEvents.event_data] = EventData.Foo("dummy2")
+                it[QueuedEvents.eventData] = EventData.Foo("dummy2")
                 it[QueuedEvents.updatedAt] = CurrentTimestamp
             }
             QueuedEvents.insert {
                 it[QueuedEvents.status] = PROCESSING
-                it[QueuedEvents.event_data] = EventData.Foo("dummy3")
+                it[QueuedEvents.eventData] = EventData.Foo("dummy3")
                 it[QueuedEvents.updatedAt] = CurrentTimestamp
             }
         }
@@ -74,27 +76,73 @@ class EventMetricsTest {
     }
 
     @Test
+    fun `eventLogSizeGauge reflects database rows`() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        transaction {
+            EventLog.insert {
+                it[EventLog.id] = 1L
+                it[EventLog.status] = COMPLETED_WITH_ERRORS
+                it[EventLog.eventData] = EventData.Foo("dummy1")
+                it[EventLog.updatedAt] = CurrentTimestamp
+            }
+            EventLog.insert {
+                it[EventLog.id] = 2L
+                it[EventLog.status] = COMPLETED
+                it[EventLog.eventData] = EventData.Foo("dummy2")
+                it[EventLog.updatedAt] = CurrentTimestamp
+            }
+            EventLog.insert {
+                it[EventLog.id] = 3L
+                it[EventLog.status] = COMPLETED
+                it[EventLog.eventData] = EventData.Foo("dummy3")
+                it[EventLog.updatedAt] = CurrentTimestamp
+            }
+        }
+
+        val meterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+        with(EventMetrics(dispatcher, meterRegistry)) {
+            val updateGaugeJob = launch { updateGaugesProcessingLoop(Clock.System) }
+            delay(60.seconds)
+            updateGaugeJob.cancel()
+
+            meterRegistry
+                .get("eventlog.size")
+                .tag("status", COMPLETED.name)
+                .gauge().let {
+                    assertEquals(2.0, it.value())
+                }
+
+            meterRegistry
+                .get("eventlog.size")
+                .tag("status", COMPLETED_WITH_ERRORS.name)
+                .gauge().let {
+                    assertEquals(1.0, it.value())
+                }
+        }
+    }
+
+    @Test
     fun `processingEventsAgeGauge reflects correct age buckets`() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         val now = Clock.System.now()
         transaction {
             QueuedEvents.insert {
-                it[QueuedEvents.event_data] = EventData.Foo("dummy")
+                it[QueuedEvents.eventData] = EventData.Foo("dummy")
                 it[QueuedEvents.status] = PROCESSING
                 it[QueuedEvents.updatedAt] = now.minus(30.seconds) // <1m
             }
             QueuedEvents.insert {
-                it[QueuedEvents.event_data] = EventData.Foo("dummy")
+                it[QueuedEvents.eventData] = EventData.Foo("dummy")
                 it[QueuedEvents.status] = PROCESSING
                 it[QueuedEvents.updatedAt] = now.minus(4.minutes) // <5m
             }
             QueuedEvents.insert {
-                it[QueuedEvents.event_data] = EventData.Foo("dummy")
+                it[QueuedEvents.eventData] = EventData.Foo("dummy")
                 it[QueuedEvents.status] = PROCESSING
                 it[QueuedEvents.updatedAt] = now.minus(10.minutes) // <15m
             }
             QueuedEvents.insert {
-                it[QueuedEvents.event_data] = EventData.Foo("dummy")
+                it[QueuedEvents.eventData] = EventData.Foo("dummy")
                 it[QueuedEvents.status] = PROCESSING
                 it[QueuedEvents.updatedAt] = now.minus(35.minutes) // >30m
             }

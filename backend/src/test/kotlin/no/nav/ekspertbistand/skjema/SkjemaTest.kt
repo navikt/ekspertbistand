@@ -162,6 +162,13 @@ class SkjemaTest {
         ) {
             assertEquals(HttpStatusCode.NoContent, status)
         }
+        with(
+            client.get("/api/skjema/v1/$utkastId") {
+                bearerAuth("faketoken")
+            }
+        ) {
+            assertEquals(HttpStatusCode.NotFound, status)
+        }
     }
 
     @Test

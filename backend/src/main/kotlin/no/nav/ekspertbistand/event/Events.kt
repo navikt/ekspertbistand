@@ -1,7 +1,12 @@
 package no.nav.ekspertbistand.event
 
+import io.ktor.server.application.Application
+import io.ktor.server.plugins.di.dependencies
+import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.skjema.DummyFooHandler
+import kotlin.time.ExperimentalTime
 
 
 data class Event<T: EventData>(
@@ -26,3 +31,27 @@ sealed interface EventData {
     ) : EventData
 }
 
+@OptIn(ExperimentalTime::class)
+suspend fun Application.configureEventHandlers() {
+    val eventManager = EventManager {
+        // Registrer all event handlers here
+
+        dependencies.resolve<DummyFooHandler>()
+
+    }
+
+
+
+    // Start event processing loop
+    launch {
+        eventManager.runProcessLoop()
+    }
+
+    val metrics = EventMetrics(
+        dispatcher = eventManager.config.dispatcher
+    )
+    // Start metrics processing loop
+    launch {
+        metrics.updateGaugesProcessingLoop()
+    }
+}

@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.event
 
+import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.MultiGauge
 import io.micrometer.core.instrument.Tags
@@ -28,12 +29,27 @@ class EventMetrics(
         .description("The number of items in processing state bucketed by age")
         .register(meterRegistry)
 
+    val eventLogSizeGauge: MultiGauge = MultiGauge.builder("eventlog.size")
+        .description("The number of finalized items in event log by status")
+        .register(meterRegistry)
+
+    // TODO: EventHandlerStates gauge for realtime monitoring of handler health
+
 
     fun queueSizeByStatus(): Map<ProcessingStatus, Double> = transaction {
         QueuedEvents
             .select(QueuedEvents.id.count(), QueuedEvents.status)
             .groupBy(QueuedEvents.status).associate {
                 it[QueuedEvents.status] to it[QueuedEvents.id.count()].toDouble()
+            }
+    }
+
+
+    fun logSizeByStatus(): Map<ProcessingStatus, Double> = transaction {
+        EventLog
+            .select(EventLog.id.count(), EventLog.status)
+            .groupBy(EventLog.status).associate {
+                it[EventLog.status] to it[EventLog.id.count()].toDouble()
             }
     }
 
@@ -65,10 +81,20 @@ class EventMetrics(
     }
 
     @OptIn(ExperimentalTime::class)
-    suspend fun updateGaugesProcessingLoop(clock: Clock) = withContext(dispatcher) {
+    suspend fun updateGaugesProcessingLoop(clock: Clock = Clock.System) = withContext(dispatcher) {
         while (isActive) {
             eventQueueSizeGauge.register(
                 queueSizeByStatus()
+                    .map { (status, count) ->
+                        MultiGauge.Row.of(
+                            Tags.of("status", status.name),
+                            count
+                        )
+                    },
+                true
+            )
+            eventLogSizeGauge.register(
+                logSizeByStatus()
                     .map { (status, count) ->
                         MultiGauge.Row.of(
                             Tags.of("status", status.name),
