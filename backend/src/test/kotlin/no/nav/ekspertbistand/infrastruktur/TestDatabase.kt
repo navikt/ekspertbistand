@@ -39,7 +39,9 @@ class TestDatabase(
     }
 }
 
-fun testApplicationWithDatabase(block: suspend ApplicationTestBuilder.(testDatabase: TestDatabase) -> Unit) = testApplication {
+fun testApplicationWithDatabase(
+    block: suspend ApplicationTestBuilder.(testDatabase: TestDatabase) -> Unit
+) = testApplication {
     TestDatabase().cleanMigrate().use { testDatabase ->
         block(testDatabase)
     }
