@@ -202,6 +202,7 @@ interface EventHandler<T : EventData> {
 
 }
 
+
 @Serializable
 sealed class EventHandledResult {
     @Serializable

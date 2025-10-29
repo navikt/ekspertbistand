@@ -7,16 +7,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import no.nav.ekspertbistand.event.ProcessingStatus.COMPLETED
-import no.nav.ekspertbistand.event.ProcessingStatus.COMPLETED_WITH_ERRORS
-import no.nav.ekspertbistand.event.ProcessingStatus.PENDING
-import no.nav.ekspertbistand.event.ProcessingStatus.PROCESSING
+import no.nav.ekspertbistand.event.ProcessingStatus.*
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
@@ -184,6 +180,116 @@ class EventMetricsTest {
                     .tag("age", ">30m")
                     .gauge().let {
                         assertEquals(1.0, it.value())
+                    }
+            }
+        }
+    }
+
+    @Test
+    fun `eventHandlerStateGauge reflects EventHandlerStates rows grouped by handlerId and result`() = runTest {
+        TestDatabase().cleanMigrate().use {
+            val dispatcher = UnconfinedTestDispatcher(testScheduler)
+            transaction {
+                EventHandlerStates.insert {
+                    it[eventId] = 1L
+                    it[handlerId] = "handlerA"
+                    it[result] = EventHandledResult.Success()
+                    it[errorMessage] = null
+                }
+                EventHandlerStates.insert {
+                    it[eventId] = 1L
+                    it[handlerId] = "handlerB"
+                    it[result] = EventHandledResult.Success()
+                    it[errorMessage] = null
+                }
+                EventHandlerStates.insert {
+                    it[eventId] = 2L
+                    it[handlerId] = "handlerA"
+                    it[result] = EventHandledResult.TransientError("fail")
+                    it[errorMessage] = "fail"
+                }
+                EventHandlerStates.insert {
+                    it[eventId] = 3L
+                    it[handlerId] = "handlerB"
+                    it[result] = EventHandledResult.Success()
+                    it[errorMessage] = null
+                }
+            }
+            val meterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+            with(EventMetrics(dispatcher, meterRegistry)) {
+                val updateGaugeJob = launch { updateGaugesProcessingLoop(Clock.System) }
+                delay(60.seconds)
+                updateGaugeJob.cancel()
+                meterRegistry.get("eventhandlerstate.size")
+                    .tag("handlerId", "handlerA")
+                    .tag("result", "Success")
+                    .gauge().let {
+                        assertEquals(1.0, it.value())
+                    }
+                meterRegistry.get("eventhandlerstate.size")
+                    .tag("handlerId", "handlerA")
+                    .tag("result", "TransientError")
+                    .gauge().let {
+                        assertEquals(1.0, it.value())
+                    }
+                meterRegistry.get("eventhandlerstate.size")
+                    .tag("handlerId", "handlerB")
+                    .tag("result", "Success")
+                    .gauge().let {
+                        assertEquals(2.0, it.value())
+                    }
+            }
+        }
+    }
+
+    @Test
+    fun `eventQueueRetriesPerEventId reflects retries for each event id`() = runTest {
+        TestDatabase().cleanMigrate().use {
+            val dispatcher = UnconfinedTestDispatcher(testScheduler)
+            transaction {
+                QueuedEvents.insert {
+                    it[QueuedEvents.id] = 1L
+                    it[QueuedEvents.status] = PROCESSING
+                    it[QueuedEvents.eventData] = EventData.Foo("dummy1")
+                    it[QueuedEvents.updatedAt] = CurrentTimestamp
+                    it[QueuedEvents.attempts] = 2
+                }
+                QueuedEvents.insert {
+                    it[QueuedEvents.id] = 2L
+                    it[QueuedEvents.status] = PROCESSING
+                    it[QueuedEvents.eventData] = EventData.Foo("dummy2")
+                    it[QueuedEvents.updatedAt] = CurrentTimestamp
+                    it[QueuedEvents.attempts] = 0
+                }
+                QueuedEvents.insert {
+                    it[QueuedEvents.id] = 3L
+                    it[QueuedEvents.status] = PROCESSING
+                    it[QueuedEvents.eventData] = EventData.Bar("dummy3")
+                    it[QueuedEvents.updatedAt] = CurrentTimestamp
+                    it[QueuedEvents.attempts] = 5
+                }
+                QueuedEvents.insert {
+                    it[QueuedEvents.id] = 4L
+                    it[QueuedEvents.status] = PROCESSING
+                    it[QueuedEvents.eventData] = EventData.Bar("dummy4")
+                    it[QueuedEvents.updatedAt] = CurrentTimestamp
+                    it[QueuedEvents.attempts] = 1
+                }
+            }
+            val meterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+            with(EventMetrics(dispatcher, meterRegistry)) {
+                val updateGaugeJob = launch { updateGaugesProcessingLoop(Clock.System) }
+                delay(60.seconds)
+                updateGaugeJob.cancel()
+                meterRegistry.get("eventqueue.retries")
+                    .tag("event", "foo") // see SerialName in EventData
+                    .gauge().let {
+                        assertEquals(2.0, it.value())
+                    }
+                meterRegistry.get("eventqueue.retries")
+                    .tag("event", "bar") // see SerialName in EventData
+                    .gauge().let {
+                        assertEquals(6.0, it.value())
                     }
             }
         }
