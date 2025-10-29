@@ -90,6 +90,7 @@ class EventManager internal constructor(
         return when (queued.event.data) {
             is EventData.Foo -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
             is EventData.Bar -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
+            is EventData.SkjemaInnsendt -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
         }
     }
 
@@ -201,7 +202,6 @@ interface EventHandler<T : EventData> {
     fun handle(event: Event<T>): EventHandledResult
 
 }
-
 
 @Serializable
 sealed class EventHandledResult {

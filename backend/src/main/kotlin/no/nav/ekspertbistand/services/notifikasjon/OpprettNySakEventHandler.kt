@@ -2,6 +2,7 @@ package no.nav.ekspertbistand.services.notifikasjon
 
 import kotlinx.coroutines.runBlocking
 import no.nav.ekspertbistand.event.Event
+import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.services.IdempotencyGuard
@@ -14,27 +15,27 @@ private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 class OpprettNySakEventHandler(
     private val produsentApiKlient: ProdusentApiKlient,
     private val idempotencyGuard: IdempotencyGuard
-) : EventHandler<Event.SkjemaInnsendt> {
+) : EventHandler<EventData.SkjemaInnsendt> {
 
     // DO NOT CHANGE THIS!
     override val id: String = "8642b600-2601-47e2-9798-5849bb362433"
 
     // må være suspending
-    override fun handle(event: Event.SkjemaInnsendt): EventHandledResult {
+    override fun handle(event: Event<EventData.SkjemaInnsendt>): EventHandledResult {
         return runBlocking {
             handle2(event)
         }
     }
 
-    suspend fun handle2(event: Event.SkjemaInnsendt): EventHandledResult {
+    suspend fun handle2(event: Event<EventData.SkjemaInnsendt>): EventHandledResult {
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
-            nySak(event.skjema).fold(
+            nySak(event.data.skjema).fold(
                 onSuccess = { idempotencyGuard.guard(event, nySakSubTask) },
                 onFailure = { return EventHandledResult.TransientError(it.message!!) }
             )
         }
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
-            nyBeskjed(event.skjema).fold(
+            nyBeskjed(event.data.skjema).fold(
                 onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
                 onFailure = { return EventHandledResult.TransientError(it.message!!) }
             )

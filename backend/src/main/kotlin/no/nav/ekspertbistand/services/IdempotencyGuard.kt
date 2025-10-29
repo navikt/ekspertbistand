@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.services
 
 import no.nav.ekspertbistand.event.Event
+import no.nav.ekspertbistand.event.EventData
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.CompositeIdTable
 import org.jetbrains.exposed.v1.core.eq
@@ -10,7 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 class IdempotencyGuard(private val database: Database) {
-    fun guard(event: Event, subTask: String) {
+    fun <T: EventData> guard(event: Event<T>, subTask: String) {
         transaction(database) {
             IdempotencyGuardRecords.insert {
                 it[this.eventId] = event.id
@@ -30,7 +31,7 @@ class IdempotencyGuard(private val database: Database) {
                     (IdempotencyGuardRecords.eventId eq eventId)
                             and (IdempotencyGuardRecords.subTask eq subTask)
                 ).map { it[IdempotencyGuardRecords.status] }
-                .first() == IdempotencyStatus.COMPLETED
+                .firstOrNull() == IdempotencyStatus.COMPLETED
         }
     }
 }

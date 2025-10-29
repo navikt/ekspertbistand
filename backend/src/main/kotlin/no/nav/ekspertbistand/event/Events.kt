@@ -33,7 +33,7 @@ sealed interface EventData {
     ) : EventData
 
     @Serializable
-    @SerialName("bar")
+    @SerialName("skjemaInnsendt")
     data class SkjemaInnsendt(
         val skjema: DTO.Skjema
     ) : EventData
