@@ -82,7 +82,7 @@ class OpprettNySakEventHandlerTest {
     }
 
     @Test
-    fun `Idempotens sekk`() =
+    fun `Idempotens sjekk`() =
         testApplication {
             setupTestApplication()
             setProdusentApiResultat(
@@ -174,7 +174,7 @@ private fun ApplicationTestBuilder.setProdusentApiResultat(
     nyBeskjedResultat: MutableList<() -> NyBeskjedResultat>,
 ) {
     externalServices {
-        hosts("https://notifikasjonsplatform.com") {
+        hosts("http://notifikasjon-produsent-api.fager") {
             install(ServerContentNegotiation) {
                 json(
                     Json {
@@ -206,7 +206,7 @@ private fun ApplicationTestBuilder.setProdusentApiResultat(
                 )
             }
             routing {
-                post("/api") {
+                post("/api/graphql") {
                     val json = parseToJsonElement(call.receiveText()) as JsonObject
                     val operation = json["operationName"]!!.jsonPrimitive.content
                     when (operation) {

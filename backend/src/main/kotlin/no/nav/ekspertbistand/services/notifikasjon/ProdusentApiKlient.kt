@@ -31,7 +31,7 @@ class ProdusentApiKlient(
     private val tokenProvider: TokenProvider,
     private val httpClient: HttpClient
 ) {
-    private val url = URI("https://notifikasjonsplatform.com/api").toURL()
+    private val url = URI("http://notifikasjon-produsent-api.fager/api/graphql").toURL()
 
     private val log = logger()
     private val client = GraphQLKtorClient(
