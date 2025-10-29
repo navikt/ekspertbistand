@@ -61,7 +61,7 @@ class OpprettNySakEventHandler(
                 lenke = "https://ekspertbistand.nav.no/skjema/",
             )
             Result.success("Opprettet beskjed for skjema ${skjema.id}")
-        } catch (ex: BeskjedOpprettetException) {
+        } catch (ex: Exception) {
             Result.failure(ex)
         }
     }
@@ -77,7 +77,7 @@ class OpprettNySakEventHandler(
                 lenke = "https://ekspertbistand.nav.no/skjema/"
             )
             Result.success("Opprettet beskjed for skjema ${skjema.id}")
-        } catch (ex: BeskjedOpprettetException) {
+        } catch (ex: Exception) {
             Result.failure(ex)
         }
     }

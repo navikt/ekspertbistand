@@ -1,12 +1,10 @@
 package no.nav.ekspertbistand.services.notifikasjon
 
 import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.*
 import io.ktor.client.request.*
 import no.nav.ekspertbistand.infrastruktur.NaisEnvironment
 import no.nav.ekspertbistand.infrastruktur.TokenProvider
-import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.ISO8601DateTime
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.OpprettNyBeskjed
@@ -20,6 +18,7 @@ import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysa
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsid
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsidEtterDelete
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.NySakVellykket
+import java.net.URI
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.UkjentProdusent as NyBeskjedUkjentProdusent
@@ -27,7 +26,6 @@ import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysa
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UgyldigMottaker as NySakUgyldigMottaker
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
-import java.net.URI
 
 class ProdusentApiKlient(
     private val tokenProvider: TokenProvider,

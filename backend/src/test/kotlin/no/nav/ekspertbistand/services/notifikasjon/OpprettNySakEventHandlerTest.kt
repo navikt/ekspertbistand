@@ -17,6 +17,7 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.OpprettNyBeskjed
@@ -28,6 +29,7 @@ import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybe
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.*
 import no.nav.ekspertbistand.skjema.DTO
 import kotlin.test.Test
+import kotlin.test.assertTrue
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
@@ -41,39 +43,32 @@ import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysa
 class OpprettNySakEventHandlerTest {
 
     @Test
-    fun `Event prosesseres og sak med beskjed opprettes`() = testApplication {
-        produsentApi(NySakVellykket(id = "sak-123"), NyBeskjedVellykket(id = "beskjed-456"))
-        val client = createClient {
-            install(ClientContentNegotiation) {
-                json()
-            }
-        }
-        val db = TestDatabase().cleanMigrate()
-        application {
-            dependencies {
-                provide { db.config }
-                provide<TokenIntrospector> {
-                    MockTokenIntrospector {
-                        if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
-                    }
-                }
-                provide<TokenProvider> {
-                    object : TokenProvider {
-                        override suspend fun token(target: String): TokenResponse {
-                            return TokenResponse.Success(
-                                accessToken = "faketoken",
-                                expiresInSeconds = 3600
-                            )
-                        }
-                    }
-                }
-                provide<IdempotencyGuard>(IdempotencyGuard::class)
-            }
-            configureDatabase()
-            configureTokenXAuth()
-            configureOpprettNySakEventHandler(client)
-        }
+    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplication {
+        setupTestApplication()
+        setProdusentApiResultat(
+            mutableListOf({ NySakVellykket(id = "sak-123") }),
+            mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") })
+        )
+        startApplication()
 
+        val handler = application.dependencies.resolve<OpprettNySakEventHandler>()
+
+        val event = Event(
+            id = 1L,
+            data = EventData.SkjemaInnsendt(
+                skjema = skjema1
+            )
+        )
+        assertTrue(handler.handle2(event) is EventHandledResult.Success)
+    }
+
+    @Test
+    fun `Event prosesseres, men sak gir ugyldig merkelapp`() = testApplication {
+        setupTestApplication()
+        setProdusentApiResultat(
+            mutableListOf({ NySakUgyldigMerkelapp("ugyldig merkelapp") }),
+            mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") })
+        )
         startApplication()
         val handler = application.dependencies.resolve<OpprettNySakEventHandler>()
 
@@ -83,9 +78,31 @@ class OpprettNySakEventHandlerTest {
                 skjema = skjema1
             )
         )
-        handler.handle2(event)
+        assertTrue(handler.handle2(event) is EventHandledResult.TransientError)
     }
+
+    @Test
+    fun `Idempotens sekk`() =
+        testApplication {
+            setupTestApplication()
+            setProdusentApiResultat(
+                mutableListOf({ NySakVellykket(id = "sak-123") }),
+                mutableListOf({ throw Exception("Test feil") }, { NyBeskjedVellykket(id = "beskjed-456") })
+            )
+            startApplication()
+            val handler = application.dependencies.resolve<OpprettNySakEventHandler>()
+
+            val event = Event(
+                id = 1L,
+                data = EventData.SkjemaInnsendt(
+                    skjema = skjema1
+                )
+            )
+            assertTrue(handler.handle2(event) is EventHandledResult.TransientError) // Sak velykket, beskjed feilet
+            assertTrue(handler.handle2(event) is EventHandledResult.Success) // Sak guardet, beskjed velykket
+        }
 }
+
 
 private val skjema1 = DTO.Skjema(
     virksomhet = DTO.Virksomhet(
@@ -118,9 +135,43 @@ private val skjema1 = DTO.Skjema(
     ),
 )
 
-private fun ApplicationTestBuilder.produsentApi(
-    nySakResultat: NySakResultat,
-    nyBeskjedResultat: NyBeskjedResultat
+
+private fun ApplicationTestBuilder.setupTestApplication() {
+    val client = createClient {
+        install(ClientContentNegotiation) {
+            json()
+        }
+    }
+    val db = TestDatabase().cleanMigrate()
+    application {
+        dependencies {
+            provide { db.config }
+            provide<TokenIntrospector> {
+                MockTokenIntrospector {
+                    if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
+                }
+            }
+            provide<TokenProvider> {
+                object : TokenProvider {
+                    override suspend fun token(target: String): TokenResponse {
+                        return TokenResponse.Success(
+                            accessToken = "faketoken",
+                            expiresInSeconds = 3600
+                        )
+                    }
+                }
+            }
+            provide<IdempotencyGuard>(IdempotencyGuard::class)
+        }
+        configureDatabase()
+        configureTokenXAuth()
+        configureOpprettNySakEventHandler(client)
+    }
+}
+
+private fun ApplicationTestBuilder.setProdusentApiResultat(
+    nySakResultat: MutableList<() -> NySakResultat>,
+    nyBeskjedResultat: MutableList<() -> NyBeskjedResultat>,
 ) {
     externalServices {
         hosts("https://notifikasjonsplatform.com") {
@@ -160,16 +211,27 @@ private fun ApplicationTestBuilder.produsentApi(
                     val operation = json["operationName"]!!.jsonPrimitive.content
                     when (operation) {
                         "OpprettNySak" -> {
-                            call.respond(KotlinxGraphQLResponse(OpprettNySak.Result(nySakResultat)))
+                            call.respond(
+                                KotlinxGraphQLResponse(
+                                    OpprettNySak.Result(
+                                        nySakResultat.removeFirst().invoke()
+                                    )
+                                )
+                            )
                         }
 
                         "OpprettNyBeskjed" -> {
-                            call.respond(KotlinxGraphQLResponse(OpprettNyBeskjed.Result(nyBeskjedResultat)))
+                            call.respond(
+                                KotlinxGraphQLResponse(
+                                    OpprettNyBeskjed.Result(
+                                        nyBeskjedResultat.removeFirst().invoke()
+                                    )
+                                )
+                            )
                         }
 
                         else -> error("Ukjent mutation: $operation")
                     }
-
                 }
             }
         }
