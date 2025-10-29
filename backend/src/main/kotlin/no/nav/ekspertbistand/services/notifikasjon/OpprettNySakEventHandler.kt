@@ -1,10 +1,17 @@
 package no.nav.ekspertbistand.services.notifikasjon
 
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.server.application.Application
+import io.ktor.server.plugins.di.DependencyKey
+import io.ktor.server.plugins.di.dependencies
 import kotlinx.coroutines.runBlocking
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
+import no.nav.ekspertbistand.infrastruktur.TokenProvider
+import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.skjema.DTO
 import java.util.*
@@ -73,5 +80,26 @@ class OpprettNySakEventHandler(
         } catch (ex: BeskjedOpprettetException) {
             Result.failure(ex)
         }
+    }
+}
+
+suspend fun Application.configureOpprettNySakEventHandler(
+    httpClient: HttpClient = defaultHttpClient(customizeMetrics = {
+        clientName = "notifikasjon.produsent.api.klient"
+    }) {
+        install(HttpTimeout) {
+            requestTimeoutMillis = 5_000
+        }
+    }
+) {
+    val idempotencyGuard = dependencies.resolve<IdempotencyGuard>()
+    val tokenProvider = dependencies.resolve<TokenProvider>()
+    val produsentApiKlient = ProdusentApiKlient(tokenProvider, httpClient)
+
+    dependencies.provide<OpprettNySakEventHandler> {
+        OpprettNySakEventHandler(
+            produsentApiKlient = produsentApiKlient,
+            idempotencyGuard = idempotencyGuard
+        )
     }
 }
