@@ -49,10 +49,8 @@ class EventManager internal constructor(
     @OptIn(ExperimentalTime::class)
     suspend fun runProcessLoop() = withContext(config.dispatcher) {
         while (isActive) {
-            log.info("Polling for events...")
 
             val queuedEvent = q.poll(config.clock) ?: run {
-                log.info("No events found, delaying for ${config.pollDelayMs}ms")
                 delay(config.pollDelayMs)
                 continue
             }
