@@ -3,19 +3,47 @@ package no.nav.ekspertbistand.skjema
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
-import io.ktor.server.plugins.di.dependencies
+import io.ktor.server.plugins.di.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.event.Event
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.ExperimentalTime
 
+class DummyFooHandler : EventHandler<EventData.Foo> {
+    override val id = "dummy-foo-handler"
+
+    override fun handle(event: Event<EventData.Foo>) = EventHandledResult.Success()
+
+}
+
+@OptIn(ExperimentalTime::class)
 suspend fun Application.configureSkjemaApiV1() {
     val database = dependencies.resolve<Database>()
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
     val skjemaApi = SkjemaApi(database, altinnTilgangerClient)
+
+    dependencies.provide<DummyFooHandler> {
+        DummyFooHandler()
+    }
+
+    launch {
+        while (isActive) {
+            skjemaApi.slettGamleUtkast()
+            delay(10.minutes)
+        }
+    }
 
     routing {
         authenticate(TOKENX_PROVIDER) {
@@ -103,6 +131,7 @@ suspend fun Application.configureSkjemaApiV1() {
         }
     }
 }
+
 
 
 internal val RoutingContext.subjectToken

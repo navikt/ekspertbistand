@@ -24,6 +24,7 @@ import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
@@ -71,11 +72,19 @@ fun ktorServer(
 }.start(wait = true)
 
 suspend fun Application.module() {
+    // base setup
     configureServer()
     configureTokenXAuth()
     configureDatabase()
 
+    // application modules
     configureSkjemaApiV1()
+
+
+    // event manager and event handlers
+    configureEventHandlers()
+
+    // internal endpoints and lifecycle hooks
     configureInternal()
     registerShutdownListener()
 }

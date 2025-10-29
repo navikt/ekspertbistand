@@ -34,20 +34,12 @@ import kotlin.time.ExperimentalTime
  * Call runProcessLoop() to start event processing, and cleanupFinalizedEvents() to periodically clean up state.
  */
 @OptIn(ExperimentalTime::class)
-class EventManager(
+class EventManager internal constructor(
     val config: EventManagerConfig = EventManagerConfig(),
-    builder: EventManagerBuilder.() -> Unit = {},
+    internal val eventHandlers: List<EventHandler<out EventData>>
 ) {
     private val log = logger()
     private val q = EventQueue
-    private val eventHandlers: List<EventHandler<out EventData>>
-
-    init {
-        EventManagerBuilder().also {
-            builder(it)
-            eventHandlers = it.handlers
-        }
-    }
 
     /**
      * Starts the main event processing loop.
@@ -174,6 +166,19 @@ class EventManager(
             .map { it.tilEventHandlerState() }
             .associateBy { it.handlerId }
     }
+}
+
+@OptIn(ExperimentalTime::class)
+suspend fun EventManager(
+    config: EventManagerConfig = EventManagerConfig(),
+    build: suspend EventManagerBuilder.() -> Unit = {}
+): EventManager {
+    return EventManager(
+        config,
+        EventManagerBuilder().apply {
+            build()
+        }.handlers
+    )
 }
 
 @OptIn(ExperimentalTime::class)

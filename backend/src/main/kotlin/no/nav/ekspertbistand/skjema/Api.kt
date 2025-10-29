@@ -4,20 +4,35 @@ import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.infrastruktur.logger
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
+import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 class SkjemaApi(
     private val database: Database,
     private val altinnTilgangerClient: AltinnTilgangerClient,
 ) {
+    val log = logger()
+
+    // TODO: metrikk på antall utkast by alder
+
     suspend fun RoutingContext.opprettUtkast() {
         val opprettetUtkast = transaction(database) {
             UtkastTable.insertReturning {
@@ -240,6 +255,17 @@ class SkjemaApi(
         }
 
         call.respond(innsendt)
+    }
+
+    fun slettGamleUtkast(
+        ttl: Duration = 30.days,
+        clock: Clock = Clock.System,
+    ) = transaction {
+        UtkastTable.deleteWhere {
+            UtkastTable.opprettetTidspunkt lessEq (clock.now() - ttl) // 24 timer
+        }.let {
+            log.info("Slettet $it gamle utkast eldre enn $ttl")
+        }
     }
 }
 

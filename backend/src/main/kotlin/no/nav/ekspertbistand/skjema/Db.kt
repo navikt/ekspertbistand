@@ -4,6 +4,8 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.dao.id.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
+import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.*
 import java.util.*
 import kotlin.time.Clock
@@ -78,9 +80,7 @@ object UtkastTable : UUIDTable("utkast") {
     // Metadata
     val opprettetAv = text("opprettet_av").index()
     @OptIn(ExperimentalTime::class)
-    val opprettetTidspunkt = text("opprettet_tidspunkt").clientDefault {
-        Clock.System.now().toString()
-    }
+    val opprettetTidspunkt = timestamp("opprettet_tidspunkt").defaultExpression(CurrentTimestamp)
 }
 
 fun findSkjemaOrUtkastById(id: UUID): DTO? =
@@ -126,6 +126,7 @@ fun ResultRow.tilSkjemaDTO() = DTO.Skjema(
     opprettetTidspunkt = this[SkjemaTable.opprettetTidspunkt]
 )
 
+@OptIn(ExperimentalTime::class)
 fun ResultRow.tilUtkastDTO() = DTO.Utkast(
     id = this[UtkastTable.id].value.toString(),
     virksomhet = this[UtkastTable.virksomhetsnummer]?.let { virksomhetsnummer ->
@@ -165,5 +166,5 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
         DTO.Nav(kontakt = kontakt)
     },
     opprettetAv = this[UtkastTable.opprettetAv],
-    opprettetTidspunkt = this[UtkastTable.opprettetTidspunkt]
+    opprettetTidspunkt = this[UtkastTable.opprettetTidspunkt].toString()
 )
