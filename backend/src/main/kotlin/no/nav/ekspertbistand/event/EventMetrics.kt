@@ -101,7 +101,7 @@ class EventMetrics(
             .select(eventType, QueuedEvents.attempts)
             .groupBy { it[eventType] }
             .mapValues { (_, rows) -> rows.sumOf { it[QueuedEvents.attempts].toDouble() } }
-            .filterValues { it > 0  }
+            .filterValues { it > 0 }
     }
     
 
@@ -142,10 +142,6 @@ class EventMetrics(
 
             eventHandlerStateGauge.register(
                 eventHandlerStates()
-                    .let {
-                        println(it)
-                        it
-                    }
                     .map { (key, count) ->
                         val (handlerId, result) = key
                         MultiGauge.Row.of(

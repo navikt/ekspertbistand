@@ -105,7 +105,7 @@ class EventManager internal constructor(
         eventId: Long
     ): List<EventHandledResult> {
         val handlers = eventHandlers.filterIsInstance<EventHandler<T>>()
-        return if(handlers.isEmpty()) {
+        return if (handlers.isEmpty()) {
             listOf(EventHandledResult.TransientError("No handlers registered for event type ${T::class.simpleName}"))
         } else {
             handlers
