@@ -12,9 +12,10 @@ import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
+import no.nav.ekspertbistand.configureBaseSetup
 import no.nav.ekspertbistand.infrastruktur.*
-import no.nav.ekspertbistand.module
-import org.jetbrains.exposed.v1.jdbc.*
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
@@ -25,8 +26,7 @@ import kotlin.test.fail
 class SkjemaTest {
 
     @Test
-    fun `CRUD utkast`() = testApplication {
-
+    fun `CRUD utkast`() = testApplicationWithDatabase { testDb ->
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
@@ -54,8 +54,6 @@ class SkjemaTest {
                 ): TokenResponse = TokenResponse.Success("dummy", 3600)
             }
         )
-
-        val testDb = TestDatabase().cleanMigrate()
         application {
             dependencies {
                 provide {
@@ -71,7 +69,8 @@ class SkjemaTest {
                 }
             }
 
-            module()
+            configureBaseSetup()
+            configureSkjemaApiV1()
         }
 
         var utkastId: String? = null
@@ -169,11 +168,11 @@ class SkjemaTest {
         ) {
             assertEquals(HttpStatusCode.NotFound, status)
         }
+
     }
 
     @Test
-    fun `send inn skjema`() = testApplication {
-        val testDb = TestDatabase().cleanMigrate()
+    fun `send inn skjema`() = testApplicationWithDatabase { testDb ->
         val eksisterendeSkjemaId = UUID.randomUUID()
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
@@ -218,7 +217,8 @@ class SkjemaTest {
                 }
             }
 
-            module()
+            configureBaseSetup()
+            configureSkjemaApiV1()
 
             transaction(testDb.config.jdbcDatabase) {
                 SkjemaTable.insert {
@@ -352,11 +352,11 @@ class SkjemaTest {
             }
         }
 
+
     }
 
     @Test
-    fun `GET skjema henter mine skjema`() = testApplication {
-        val testDb = TestDatabase().cleanMigrate()
+    fun `GET skjema henter mine skjema`() = testApplicationWithDatabase { testDb ->
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
@@ -401,7 +401,8 @@ class SkjemaTest {
                 }
             }
 
-            module()
+            configureBaseSetup()
+            configureSkjemaApiV1()
         }
 
         transaction(testDb.config.jdbcDatabase) {
@@ -489,12 +490,10 @@ class SkjemaTest {
         ) {
             assertEquals(HttpStatusCode.BadRequest, status)
         }
-
     }
 
     @Test
-    fun `get skjema gir 401 ved ugyldig token`() = testApplication {
-        val testDb = TestDatabase().cleanMigrate()
+    fun `get skjema gir 401 ved ugyldig token`() = testApplicationWithDatabase { testDb ->
         val altinnTilgangerClient = AltinnTilgangerClient(object : TokenExchanger {
             override suspend fun exchange(
                 target: String,
@@ -516,7 +515,8 @@ class SkjemaTest {
                 }
             }
 
-            module()
+            configureBaseSetup()
+            configureSkjemaApiV1()
         }
 
         val response = client.get("/api/skjema/v1") {

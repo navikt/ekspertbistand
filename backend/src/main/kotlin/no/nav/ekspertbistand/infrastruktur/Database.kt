@@ -16,7 +16,7 @@ import javax.sql.DataSource
 
 class DbConfig(
     val url: String
-) {
+) : AutoCloseable {
     companion object {
         fun nais() = DbConfig(
             url = System.getenv("DB_JDBC_URL")!!
@@ -97,6 +97,10 @@ class DbConfig(
         transaction(jdbcDatabase) {
             flyway.action()
         }
+    }
+
+    override fun close() {
+        (hikari as HikariDataSource).close()
     }
 }
 

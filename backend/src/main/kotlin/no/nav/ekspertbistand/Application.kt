@@ -73,9 +73,7 @@ fun ktorServer(
 
 suspend fun Application.module() {
     // base setup
-    configureServer()
-    configureTokenXAuth()
-    configureDatabase()
+    configureBaseSetup()
 
     // application modules
     configureSkjemaApiV1()
@@ -87,6 +85,12 @@ suspend fun Application.module() {
     // internal endpoints and lifecycle hooks
     configureInternal()
     registerShutdownListener()
+}
+
+suspend fun Application.configureBaseSetup() {
+    configureServer()
+    configureTokenXAuth()
+    configureDatabase()
 }
 
 fun Application.configureServer() {

@@ -3,6 +3,8 @@ package no.nav.ekspertbistand.infrastruktur
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopping
 import io.ktor.server.application.log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.isActive
 import java.util.concurrent.atomic.AtomicBoolean
 
 interface RequiresReady {
@@ -31,6 +33,9 @@ object Health {
         terminatingAtomic.set(true)
     }
 }
+
+val CoroutineScope.isActiveAndNotTerminating: Boolean
+    get() = isActive && !Health.terminating
 
 fun Application.registerShutdownListener() {
     monitor.subscribe(ApplicationStopping) {
