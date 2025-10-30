@@ -78,14 +78,6 @@ suspend fun Application.configureSkjemaApiV1() {
         }
     }
 
-    launch {
-        while (isActiveAndNotTerminating) {
-            EventQueue.publish(EventData.Foo("${UUID.randomUUID()}"))
-            EventQueue.publish(EventData.Bar("${UUID.randomUUID()}"))
-            delay(5.seconds)
-        }
-    }
-
     routing {
         authenticate(TOKENX_PROVIDER) {
 
