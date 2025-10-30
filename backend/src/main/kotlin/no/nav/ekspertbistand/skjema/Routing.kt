@@ -6,25 +6,19 @@ import io.ktor.server.auth.*
 import io.ktor.server.plugins.di.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
-import no.nav.ekspertbistand.event.EventQueue
-import no.nav.ekspertbistand.infrastruktur.Health
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
-import no.nav.ekspertbistand.infrastruktur.logger
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 class DummyFooHandler : EventHandler<EventData.Foo> {
