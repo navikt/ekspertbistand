@@ -85,7 +85,7 @@ class EventManager internal constructor(
      * We use an explicit when statement here to ensure exhaustiveness as new event types are added.
      * The routing code is duplicated but ensures type safety without unchecked casts.
      */
-    private fun routeToHandlers(queued: QueuedEvent): List<EventHandledResult> {
+    private suspend fun routeToHandlers(queued: QueuedEvent): List<EventHandledResult> {
         val previousStatePerHandler = handledEvents(queued.id)
         return when (queued.event.data) {
             is EventData.Foo -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
@@ -198,9 +198,7 @@ data class EventManagerConfig(
 
 interface EventHandler<T : EventData> {
     val id: String
-
     suspend fun handle(event: Event<T>): EventHandledResult
-
 }
 
 @Serializable

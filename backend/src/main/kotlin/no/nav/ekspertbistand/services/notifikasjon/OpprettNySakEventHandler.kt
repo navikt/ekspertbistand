@@ -1,11 +1,9 @@
 package no.nav.ekspertbistand.services.notifikasjon
 
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.server.application.Application
-import io.ktor.server.plugins.di.DependencyKey
-import io.ktor.server.plugins.di.dependencies
-import kotlinx.coroutines.runBlocking
+import io.ktor.client.*
+import io.ktor.client.plugins.*
+import io.ktor.server.application.*
+import io.ktor.server.plugins.di.*
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult

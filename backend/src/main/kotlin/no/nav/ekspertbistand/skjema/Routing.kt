@@ -39,7 +39,7 @@ class DummyFooHandler : EventHandler<EventData.Foo> {
 class DummyBarHandler : EventHandler<EventData.Bar> {
     override val id = "dummy-bar-handler"
 
-    override fun handle(event: Event<EventData.Bar>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.Bar>): EventHandledResult {
         return EventHandledResult.Success()
     }
 }
