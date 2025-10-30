@@ -1,0 +1,46 @@
+mutation OpprettNyBeskjed(
+    $grupperingsid: String!
+    $merkelapp: String!
+    $virksomhetsnummer: String!
+    $tekst: String!
+    $lenke: String!
+    $tidspunkt: ISO8601DateTime
+    $mottaker: MottakerInput!
+) {
+    nyBeskjed(
+        nyBeskjed: {
+            notifikasjon: {
+                merkelapp: $merkelapp
+                lenke: $lenke
+                tekst: $tekst
+            }
+            metadata: {
+                opprettetTidspunkt: $tidspunkt
+                grupperingsid: $grupperingsid
+                eksternId: $grupperingsid
+                virksomhetsnummer: $virksomhetsnummer
+            }
+            mottakere: [
+                $mottaker
+            ]
+        }
+    )
+    {
+        __typename
+        ... on NyBeskjedVellykket {
+            id
+        }
+        ... on DuplikatEksternIdOgMerkelapp {
+            feilmelding
+        }
+        ... on UgyldigMerkelapp {
+            feilmelding
+        }
+        ... on UgyldigMottaker {
+            feilmelding
+        }
+        ... on UkjentProdusent {
+            feilmelding
+        }
+    }
+}

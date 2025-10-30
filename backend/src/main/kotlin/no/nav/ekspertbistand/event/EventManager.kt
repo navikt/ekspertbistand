@@ -85,11 +85,12 @@ class EventManager internal constructor(
      * We use an explicit when statement here to ensure exhaustiveness as new event types are added.
      * The routing code is duplicated but ensures type safety without unchecked casts.
      */
-    private fun routeToHandlers(queued: QueuedEvent): List<EventHandledResult> {
+    private suspend fun routeToHandlers(queued: QueuedEvent): List<EventHandledResult> {
         val previousStatePerHandler = handledEvents(queued.id)
         return when (queued.event.data) {
             is EventData.Foo -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
             is EventData.Bar -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
+            is EventData.SkjemaInnsendt -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
         }
     }
 
@@ -99,7 +100,7 @@ class EventManager internal constructor(
      * whether to process or skip each handler.
      * Persists the result of each handler after processing.
      */
-    private inline fun <reified T : EventData> handleStatefully(
+    private suspend inline fun <reified T : EventData> handleStatefully(
         event: Event<T>,
         statePerHandler: Map<String, EventHandlerState>,
         eventId: Long
@@ -197,11 +198,8 @@ data class EventManagerConfig(
 
 interface EventHandler<T : EventData> {
     val id: String
-
-    fun handle(event: Event<T>): EventHandledResult
-
+    suspend fun handle(event: Event<T>): EventHandledResult
 }
-
 
 @Serializable
 sealed class EventHandledResult {
@@ -257,7 +255,7 @@ inline fun <reified T : EventData> createBlockHandler(
     noinline block: (Event<T>) -> EventHandledResult
 ): EventHandler<T> = object : EventHandler<T> {
     override val id: String = id
-    override fun handle(event: Event<T>) = block(event)
+    override suspend fun handle(event: Event<T>) = block(event)
 }
 
 object EventHandlerStates : Table("event_handler_states") {

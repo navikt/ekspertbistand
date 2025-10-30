@@ -4,6 +4,7 @@ import no.nav.ekspertbistand.event.EventHandlerStates
 import no.nav.ekspertbistand.event.EventLog
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
+import no.nav.ekspertbistand.services.IdempotencyGuardRecords
 import org.jetbrains.exposed.v1.core.ExperimentalDatabaseMigrationApi
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
@@ -19,6 +20,7 @@ fun main() {
             QueuedEvents,
             EventLog,
             EventHandlerStates,
+            IdempotencyGuardRecords,
             scriptDirectory = "backend/src/main/resources/db/migration",
             scriptName = "V1__initial_setup",
         )
