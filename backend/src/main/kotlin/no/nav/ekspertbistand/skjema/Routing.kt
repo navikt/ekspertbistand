@@ -31,12 +31,6 @@ class DummyFooHandler : EventHandler<EventData.Foo> {
     override val id = "dummy-foo-handler"
 
     override fun handle(event: Event<EventData.Foo>): EventHandledResult {
-        if (event.id % 3 == 0L) {
-            return EventHandledResult.TransientError("Simulated transient error for event id ${event.id}")
-        }
-        if (event.id % 5 == 0L) {
-            return EventHandledResult.UnrecoverableError("Simulated unrecoverable error for event id ${event.id}")
-        }
         return EventHandledResult.Success()
     }
 
@@ -46,12 +40,6 @@ class DummyBarHandler : EventHandler<EventData.Bar> {
     override val id = "dummy-bar-handler"
 
     override fun handle(event: Event<EventData.Bar>): EventHandledResult {
-        if (event.id % 2 == 0L) {
-            return EventHandledResult.TransientError("Simulated transient error for event id ${event.id}")
-        }
-        if (event.id % 9 == 0L) {
-            return EventHandledResult.UnrecoverableError("Simulated unrecoverable error for event id ${event.id}")
-        }
         return EventHandledResult.Success()
     }
 }
