@@ -13,16 +13,15 @@ import io.ktor.server.testing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.configureBaseSetup
-import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
-import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
-import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.fail
 
 class SkjemaTest {
 
@@ -351,15 +350,9 @@ class SkjemaTest {
                 // opprettetTidspunkt skal være nytt
                 assertNotEquals(eksisterendeUtkast.opprettetTidspunkt, skjema.opprettetTidspunkt)
             }
-
-            // SkjeamInnsendt event skal være lagt til i QueuedEvents
-            val events = transaction(testDb.config.jdbcDatabase) {
-                QueuedEvents.selectAll().map { it.tilQueuedEvent() }
-            }
-
-            assertEquals(1, events.count())
-            assertTrue(events.first().eventData is EventData.SkjemaInnsendt)
         }
+
+
     }
 
     @Test

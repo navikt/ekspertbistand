@@ -51,6 +51,3 @@ spec:
       rules:
         - application: logging
           namespace: nais-system
-
-        - application: notifikasjon-produsent-api
-          namespace: fager

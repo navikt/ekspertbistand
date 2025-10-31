@@ -4,11 +4,12 @@ import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
-import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.logger
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
@@ -20,6 +21,7 @@ import java.util.*
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -230,7 +232,7 @@ class SkjemaApi(
         }
 
         val innsendt = transaction(database) {
-            val skjema = SkjemaTable.insertReturning {
+            SkjemaTable.insertReturning {
                 it[id] = idParam
                 it[virksomhetsnummer] = skjema.virksomhet.virksomhetsnummer
                 it[kontaktpersonNavn] = skjema.virksomhet.kontaktperson.navn
@@ -250,12 +252,6 @@ class SkjemaApi(
             }.single().tilSkjemaDTO().also {
                 UtkastTable.deleteWhere { UtkastTable.id eq idParam }
             }
-
-            QueuedEvents.insert {
-                it[eventData] = EventData.SkjemaInnsendt(skjema)
-            }
-
-            skjema
         }
 
         call.respond(innsendt)
