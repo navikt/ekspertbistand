@@ -144,7 +144,10 @@ class DbUrl(
 suspend fun Application.configureDatabase() {
     val dbConfig = dependencies.resolve<DbConfig>()
 
+    dbConfig.flywayConfig.cleanDisabled(false)
+    dbConfig.flywayConfig.validateOnMigrate(false)
     dbConfig.flywayAction {
+        clean()
         migrate()
     }
 
