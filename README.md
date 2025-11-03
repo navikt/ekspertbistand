@@ -14,13 +14,9 @@ Dette repoet erstatter funksjonalitet som tidligere var tilgjengelig i Altinn 2 
 Tidligere sendte arbeidsgiver inn søknader om ekspertbistand via Altinn 2, hvor de ble rutet videre til saksbehandler.
 Dette mottaket har vært under utfasing men er [beskrevet på confluence](https://confluence.adeo.no/spaces/TAD/pages/90553562/Verdikjeder). 
 
-![altinn 2 mottak](doc/altinn2mottak.png)
-
 Når søknad sendes inn opprettes det en midlertidig journalpost og det sendes en kafka melding som lyttes på av [Dokumentfordeling](https://github.com/navikt/dokumentfordeling) applikasjonen.
 Den applikasjonen ruter så videre journalposten til riktig saksbehandler basert på regler definert i applikasjonen.
-Løsningsbeskrivelse for denne appen finnes [på confluence](https://confluence.adeo.no/spaces/AR/pages/294497858/Dokumentfordeling+-+tiltak+-+Funksjonell+bekrivelse#DokumentfordelingtiltakFunksjonellbekrivelse-Ruting). 
-
-![dokumentfordeling flyt](doc/dokumentfordeling_flyt.png)
+Løsningsbeskrivelse for denne appen finnes [på confluence](https://confluence.adeo.no/spaces/AR/pages/294497858/Dokumentfordeling+-+tiltak+-+Funksjonell+bekrivelse#DokumentfordelingtiltakFunksjonellbekrivelse-Ruting).
 
 ## Ny løsning 
 
