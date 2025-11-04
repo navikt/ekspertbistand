@@ -27,6 +27,8 @@ import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysa
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
 
+private const val merkelapp = "Ekspertbistand"
+
 class ProdusentApiKlient(
     private val tokenProvider: TokenProvider,
     private val httpClient: HttpClient
@@ -58,7 +60,6 @@ class ProdusentApiKlient(
 
     suspend fun opprettNySak(
         grupperingsid: String,
-        merkelapp: String,
         virksomhetsnummer: String,
         tittel: String,
         lenke: String,
@@ -100,7 +101,6 @@ class ProdusentApiKlient(
 
     suspend fun opprettNyBeskjed(
         grupperingsid: String,
-        merkelapp: String,
         virksomhetsnummer: String,
         tekst: String,
         lenke: String,
