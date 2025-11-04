@@ -57,5 +57,6 @@ spec:
     periodSeconds: 5
 
   accessPolicy:
-    rules:
-      - application: ekspertbistand-backend
+    outbound:
+      rules:
+        - application: ekspertbistand-backend
