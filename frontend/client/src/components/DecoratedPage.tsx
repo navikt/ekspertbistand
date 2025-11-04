@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Page, type PageBlockProps } from "@navikt/ds-react";
 import { injectDecoratorClientSide } from "@navikt/nav-dekoratoren-moduler";
 import { EKSPERTBISTAND_URL } from "../utils/constants";
+import { envSwitch } from "../utils/env";
 
 type DecoratedPageProps = {
   children: React.ReactNode;
@@ -34,7 +35,12 @@ function useDekorator() {
     const win = window as unknown as { __navDecoratorInjected?: boolean };
     if (!win.__navDecoratorInjected) {
       win.__navDecoratorInjected = true;
-      const env = import.meta.env.PROD ? "prod" : "dev";
+      const env = envSwitch({
+        prod: () => "prod",
+        dev: () => "dev",
+        local: () => "dev",
+        other: () => "dev",
+      });
       injectDecoratorClientSide({
         env,
         params: {
