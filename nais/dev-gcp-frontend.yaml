@@ -6,17 +6,37 @@ metadata:
   labels:
     team: fager
 spec:
-  image: {{ image }}
+  image: { { image } }
   port: 4000
   ingresses:
     - https://arbeidsgiver.intern.dev.nav.no/ekspertbistand
   env:
     - name: BASE_PATH
       value: "/ekspertbistand"
+    - name: SCHEMA_API_BASE_URL
+      value: "http://ekspertbistand-backend"
+    - name: SCHEMA_API_AUDIENCE
+      value: "dev-gcp:fager:ekspertbistand-backend"
 
   replicas:
     min: 2
     max: 2
+
+  tokenx:
+    enabled: true
+
+  idporten:
+    enabled: true
+    sidecar:
+      enabled: true
+
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: nodejs
+    logging:
+      destinations:
+        - id: loki
 
   resources:
     requests:
@@ -36,4 +56,6 @@ spec:
     initialDelay: 3
     periodSeconds: 5
 
-  accessPolicy: {}
+  accessPolicy:
+    rules:
+      - application: ekspertbistand-backend

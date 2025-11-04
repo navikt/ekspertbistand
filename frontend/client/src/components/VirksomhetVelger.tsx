@@ -25,7 +25,7 @@ const mapToOrganisasjon = (data: RemoteVirksomhet): Organisasjon => ({
   underenheter: (data.underenheter ?? []).map(mapToOrganisasjon),
 });
 
-export function VirksomhetPicker({ label, value, onChange, error }: VirksomhetPickerProps) {
+export function VirksomhetVelger({ label, value, onChange, error }: VirksomhetPickerProps) {
   const [organisasjoner, setOrganisasjoner] = useState<Organisasjon[]>([]);
   const [loading, setLoading] = useState(true);
 

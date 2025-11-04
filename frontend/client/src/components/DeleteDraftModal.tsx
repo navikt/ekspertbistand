@@ -8,7 +8,7 @@ type DeleteDraftModalProps = {
 
 export function DeleteDraftModal({ open, onClose, onConfirm }: DeleteDraftModalProps) {
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} aria-label="Slett Søknad">
       <Modal.Header>
         <Heading level="2" size="medium">
           Slett søknad?

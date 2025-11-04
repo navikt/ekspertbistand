@@ -1,5 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { createEmptyInputs, mergeInputs, type Inputs } from "../pages/types";
+import { SKJEMA_API_PATH } from "../utils/constants";
 
 const virksomheter = [
   {
@@ -87,7 +88,12 @@ const skjemaStore = new Map<string, MockSkjema>();
 
 const randomId = () => crypto.randomUUID();
 const nowIso = () => new Date().toISOString();
-const deepCopy = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const deepCopy = <T>(value: T): T => {
+  if (value === undefined || value === null) {
+    return value;
+  }
+  return JSON.parse(JSON.stringify(value)) as T;
+};
 
 const SKJEMA_CACHE_NAME = "mock-skjema-v1-store";
 const SKJEMA_CACHE_URL = "/mock/skjema/store";
@@ -130,28 +136,34 @@ const ensureSkjemaStoreLoaded = async () => {
   skjemaStoreLoaded = true;
 };
 
-const toUtkastDto = (entry: MockSkjema) => ({
-  id: entry.id,
-  status: "utkast" as const,
-  virksomhet: deepCopy(entry.data.virksomhet),
-  ansatt: deepCopy(entry.data.ansatt),
-  ekspert: deepCopy(entry.data.ekspert),
-  behovForBistand: deepCopy(entry.data.behovForBistand),
-  opprettetAv: entry.opprettetAv,
-  opprettetTidspunkt: entry.opprettetTidspunkt,
-});
+const toUtkastDto = (entry: MockSkjema) => {
+  const data = entry.data ?? createEmptyInputs();
+  return {
+    id: entry.id,
+    status: "utkast" as const,
+    virksomhet: deepCopy(data.virksomhet),
+    ansatt: deepCopy(data.ansatt),
+    ekspert: deepCopy(data.ekspert),
+    behovForBistand: deepCopy(data.behovForBistand),
+    opprettetAv: entry.opprettetAv,
+    opprettetTidspunkt: entry.opprettetTidspunkt,
+  };
+};
 
-const toSkjemaDto = (entry: MockSkjema) => ({
-  id: entry.id,
-  status: "innsendt" as const,
-  virksomhet: deepCopy(entry.data.virksomhet),
-  ansatt: deepCopy(entry.data.ansatt),
-  ekspert: deepCopy(entry.data.ekspert),
-  behovForBistand: deepCopy(entry.data.behovForBistand),
-  opprettetAv: entry.opprettetAv,
-  opprettetTidspunkt: entry.opprettetTidspunkt,
-  innsendtTidspunkt: entry.innsendtTidspunkt,
-});
+const toSkjemaDto = (entry: MockSkjema) => {
+  const data = entry.data ?? createEmptyInputs();
+  return {
+    id: entry.id,
+    status: "innsendt" as const,
+    virksomhet: deepCopy(data.virksomhet),
+    ansatt: deepCopy(data.ansatt),
+    ekspert: deepCopy(data.ekspert),
+    behovForBistand: deepCopy(data.behovForBistand),
+    opprettetAv: entry.opprettetAv,
+    opprettetTidspunkt: entry.opprettetTidspunkt,
+    innsendtTidspunkt: entry.innsendtTidspunkt,
+  };
+};
 
 const getSkjemaStatusParam = (request: Request): SkjemaStatus | null => {
   const url = new URL(request.url);
@@ -191,7 +203,7 @@ export const handlers = [
     await persistDraftLocal(null);
     return HttpResponse.json({ status: "deleted" });
   }),
-  http.post("/api/skjema/v1", async () => {
+  http.post(SKJEMA_API_PATH, async () => {
     await ensureSkjemaStoreLoaded();
     const id = randomId();
     const now = nowIso();
@@ -206,7 +218,7 @@ export const handlers = [
     await persistSkjemaStore();
     return HttpResponse.json(toUtkastDto(entry), { status: 201 });
   }),
-  http.get("/api/skjema/v1", async ({ request }) => {
+  http.get(SKJEMA_API_PATH, async ({ request }) => {
     await ensureSkjemaStoreLoaded();
     const status = getSkjemaStatusParam(request);
     if (!status) {
@@ -221,7 +233,7 @@ export const handlers = [
       .map((entry) => (entry.status === "utkast" ? toUtkastDto(entry) : toSkjemaDto(entry)));
     return HttpResponse.json(results);
   }),
-  http.get("/api/skjema/v1/:id", async ({ params }) => {
+  http.get(`${SKJEMA_API_PATH}/:id`, async ({ params }) => {
     await ensureSkjemaStoreLoaded();
     const id = params.id;
     if (!id) {
@@ -233,7 +245,7 @@ export const handlers = [
     }
     return HttpResponse.json(entry.status === "utkast" ? toUtkastDto(entry) : toSkjemaDto(entry));
   }),
-  http.patch("/api/skjema/v1/:id", async ({ params, request }) => {
+  http.patch(`${SKJEMA_API_PATH}/:id`, async ({ params, request }) => {
     await ensureSkjemaStoreLoaded();
     const id = params.id;
     if (!id) {
@@ -254,7 +266,7 @@ export const handlers = [
     await persistSkjemaStore();
     return HttpResponse.json(toUtkastDto(entry));
   }),
-  http.delete("/api/skjema/v1/:id", async ({ params }) => {
+  http.delete(`${SKJEMA_API_PATH}/:id`, async ({ params }) => {
     await ensureSkjemaStoreLoaded();
     const id = params.id;
     if (!id) {
@@ -268,7 +280,7 @@ export const handlers = [
     await persistSkjemaStore();
     return new HttpResponse(null, { status: 204 });
   }),
-  http.put("/api/skjema/v1/:id", async ({ params, request }) => {
+  http.put(`${SKJEMA_API_PATH}/:id`, async ({ params, request }) => {
     await ensureSkjemaStoreLoaded();
     const id = params.id;
     if (!id) {

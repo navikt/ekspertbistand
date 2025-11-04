@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEventHandler } from "react";
-import { useNavigate, Link as RouterLink, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { type SubmitHandler, useFormContext, useWatch } from "react-hook-form";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
@@ -15,7 +15,6 @@ import {
   Box,
   DatePicker,
   useDatepicker,
-  Link,
   FormProgress,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
@@ -31,8 +30,12 @@ import {
 } from "./validation";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
-import { DEFAULT_LANGUAGE_LINKS, FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
+import { FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
 import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
+import { useErrorFocus } from "../hooks/useErrorFocus";
+import { useDraftNavigation } from "../hooks/useDraftNavigation";
+import { BackLink } from "../components/BackLink";
+import { APPLICATIONS_PATH } from "../utils/constants";
 
 export default function SkjemaSteg2Page() {
   const navigate = useNavigate();
@@ -49,20 +52,16 @@ export default function SkjemaSteg2Page() {
   const locationState = (location.state as { attemptedSubmit?: boolean } | null) ?? null;
   const attemptedSubmitFromLocation = locationState?.attemptedSubmit ?? false;
   const [attemptedSubmit, setAttemptedSubmit] = useState(attemptedSubmitFromLocation);
-  const [errorFocusKey, setErrorFocusKey] = useState(() => (attemptedSubmitFromLocation ? 1 : 0));
+  const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus(() =>
+    attemptedSubmitFromLocation ? 1 : 0
+  );
   const startDatoIso = useWatch({ name: "behovForBistand.startDato" }) as
     | Inputs["behovForBistand"]["startDato"]
     | undefined;
   const syncingDateRef = useRef(false);
-  const { draftId, hydrated, clearDraft, saveDraft } = useSoknadDraft();
+  const { draftId, hydrated, clearDraft } = useSoknadDraft();
   const { getValues } = form;
-  const navigateWithDraft = useCallback(
-    (path: string) => {
-      saveDraft(getValues());
-      navigate(path);
-    },
-    [getValues, navigate, saveDraft]
-  );
+  const navigateWithDraft = useDraftNavigation();
   const errorItems = attemptedSubmit
     ? [
         {
@@ -132,11 +131,11 @@ export default function SkjemaSteg2Page() {
   });
 
   const goToStepOne = useCallback(() => {
-    navigateWithDraft(`/skjema/${draftId}/steg-1`);
-  }, [draftId, navigateWithDraft]);
+    navigateWithDraft(`/skjema/${draftId}/steg-1`, () => getValues());
+  }, [draftId, getValues, navigateWithDraft]);
   const goToSummary = useCallback(() => {
-    navigateWithDraft(`/skjema/${draftId}/oppsummering`);
-  }, [draftId, navigateWithDraft]);
+    navigateWithDraft(`/skjema/${draftId}/oppsummering`, () => getValues());
+  }, [draftId, getValues, navigateWithDraft]);
 
   const onValid: SubmitHandler<Inputs> = () => {
     goToSummary();
@@ -149,14 +148,14 @@ export default function SkjemaSteg2Page() {
       onValid(form.getValues());
     } else {
       setAttemptedSubmit(true);
-      setErrorFocusKey((key) => key + 1);
+      bumpFocusKey();
     }
   };
   const goToStepOneLink = withPreventDefault(goToStepOne);
   const goToSummaryLink = withPreventDefault(goToSummary);
 
   return (
-    <DecoratedPage blockProps={{ width: "lg", gutters: true }} languages={DEFAULT_LANGUAGE_LINKS}>
+    <DecoratedPage blockProps={{ width: "lg", gutters: true }}>
       <form onSubmit={handleSubmitStep2}>
         <VStack gap="8">
           <Heading level="1" size="xlarge">
@@ -164,9 +163,9 @@ export default function SkjemaSteg2Page() {
           </Heading>
 
           <VStack gap="3">
-            <Link as={RouterLink} to={`/skjema/${draftId}/steg-1`} onClick={goToStepOneLink}>
-              <ArrowLeftIcon aria-hidden /> Forrige steg
-            </Link>
+            <BackLink to={`/skjema/${draftId}/steg-1`} onClick={goToStepOneLink}>
+              Forrige steg
+            </BackLink>
             <FormProgress activeStep={2} totalSteps={3}>
               <FormProgress.Step href="#" onClick={goToStepOneLink}>
                 Deltakere
@@ -301,11 +300,11 @@ export default function SkjemaSteg2Page() {
             </HGrid>
             <DraftActions
               onContinueLater={() => {
-                navigateWithDraft("/");
+                navigateWithDraft(APPLICATIONS_PATH, () => getValues());
               }}
               onDeleteDraft={async () => {
                 await clearDraft();
-                navigate("/");
+                navigate(APPLICATIONS_PATH);
               }}
             />
           </VStack>

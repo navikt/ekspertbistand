@@ -1,18 +1,90 @@
 import express from "express";
+import type { NextFunction, Request, Response } from "express";
 import type { ApiHealth } from "shared";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { createProxyMiddleware } from "http-proxy-middleware";
+import { getToken, requestTokenxOboToken } from "@navikt/oasis";
+import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
+import type { Socket } from "net";
 
 const app = express();
 const port = process.env.PORT || 4000;
-const basePath = process.env.BASE_PATH || "/";
+const basePathEnv = process.env.BASE_PATH || "/";
+const basePath =
+  basePathEnv !== "/" && basePathEnv.endsWith("/") ? basePathEnv.slice(0, -1) : basePathEnv;
 
 const router = express.Router();
 
-router.get("/api/health", (_req, res) => {
+router.get("/api/health", (_req: Request, res: Response) => {
   const health: ApiHealth = { status: "ok" };
   res.json(health);
+});
+
+const skjemaTarget =
+  process.env.SCHEMA_API_BASE_URL || process.env.SCHEMA_API_URL || "http://localhost:8080";
+
+const tokenxEnabled = Boolean(process.env.TOKEN_X_ISSUER);
+const skjemaAudience = process.env.SCHEMA_API_AUDIENCE || process.env.SCHEMA_API_CLIENT_ID;
+
+if (tokenxEnabled && !skjemaAudience) {
+  throw new Error(
+    "Mangler SCHEMA_API_AUDIENCE (eller SCHEMA_API_CLIENT_ID) for TokenX OBO. Sett miljøvariabelen til mål-tjenestens audience."
+  );
+}
+
+const skjemaProxy = createProxyMiddleware({
+  target: skjemaTarget,
+  changeOrigin: true,
+  on: {
+    proxyReq(proxyReq: ClientRequest) {
+      proxyReq.removeHeader("cookie");
+    },
+    error(err: Error, _req: IncomingMessage, res: ServerResponse | Socket) {
+      console.error("Proxy error mot skjema-api:", err);
+      if ("writeHead" in res && typeof res.writeHead === "function") {
+        const serverRes = res as ServerResponse;
+        if (!serverRes.headersSent) {
+          serverRes.writeHead(502, { "Content-Type": "application/json" });
+        }
+        if (!serverRes.writableEnded) {
+          serverRes.end(JSON.stringify({ message: "Kunne ikke kontakte skjema-tjenesten." }));
+        }
+      }
+    },
+  },
+});
+
+router.use("/api/skjema", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    delete req.headers.cookie;
+
+    if (!tokenxEnabled) {
+      const localToken = process.env.LOCAL_SUBJECT_TOKEN || "faketoken";
+      req.headers.authorization = `Bearer ${localToken}`;
+      return skjemaProxy(req, res, next);
+    }
+
+    const subjectToken = getToken(req);
+    if (!subjectToken) {
+      res.status(401).json({ message: "Mangler innloggings-token." });
+      return;
+    }
+
+    const oboResult = await requestTokenxOboToken(subjectToken, skjemaAudience!);
+    if (!oboResult.ok) {
+      console.error("TokenX OBO feilet:", oboResult.error);
+      res.status(401).json({ message: "Kunne ikke hente tilgangstoken." });
+      return;
+    }
+
+    req.headers.authorization = `Bearer ${oboResult.token}`;
+    return skjemaProxy(req, res, next);
+  } catch (error) {
+    console.error("Uventet feil ved TokenX OBO:", error);
+    res.status(500).json({ message: "Uventet feil ved tokenutveksling." });
+  }
 });
 
 app.use(basePath, router);
@@ -41,16 +113,6 @@ spa.get("*", (_req, res) => {
 const mountAt = (bp: string) => {
   app.use(bp, router);
   app.use(bp, spa);
-
-  // Simple in-memory draft store for autosave
-  let currentDraft: unknown | null = null;
-  router.get("/api/soknad/draft", (_req, res) => {
-    res.json(currentDraft ?? {});
-  });
-  router.post("/api/soknad/draft", express.json({ limit: "1mb" }), (req, res) => {
-    currentDraft = req.body ?? {};
-    res.status(204).send();
-  });
 };
 
 mountAt(basePath);

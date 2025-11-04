@@ -9,21 +9,21 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint frontend",
     "lint:fix": "eslint frontend --fix",
-    "format": "prettier --check .",
-    "format:fix": "prettier --write ."
+    "format": "prettier --check frontend",
+    "format:fix": "prettier --write frontend"
   },
   "devDependencies": {
-    "@eslint/js": "9.38.0",
+    "@eslint/js": "9.39.1",
     "concurrently": "^9.2.1",
-    "eslint": "^9.38.0",
+    "eslint": "^9.39.1",
     "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-react-hooks": "7.0.0",
+    "eslint-plugin-react-hooks": "7.0.1",
     "eslint-plugin-react-refresh": "0.4.24",
-    "globals": "16.4.0",
+    "globals": "16.5.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
     "prettier": "^3.6.2",
-    "typescript-eslint": "8.46.2"
+    "typescript-eslint": "8.46.3"
   },
   "lint-staged": {
     "frontend/**/*.{ts,tsx,js,jsx}": [

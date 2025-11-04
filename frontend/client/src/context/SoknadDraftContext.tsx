@@ -7,7 +7,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { createEmptyInputs, mergeInputs, type Inputs } from "../pages/types";
+import { createEmptyInputs, type Inputs } from "../pages/types";
+import { buildDraftPayload, draftDtoToInputs, type DraftDto } from "../utils/soknadPayload";
+import { SKJEMA_API_PATH } from "../utils/constants";
 
 type DraftContextValue = {
   draftId: string;
@@ -18,43 +20,24 @@ type DraftContextValue = {
   lastPersistedAt: Date | null;
 };
 
-type DraftDto = Partial<Inputs> & {
-  id?: string;
-  status?: "utkast" | "innsendt";
-  opprettetAv?: string | null;
-  opprettetTidspunkt?: string | null;
-  innsendtTidspunkt?: string | null;
-};
-
 const SoknadDraftContext = createContext<DraftContextValue | undefined>(undefined);
 const PERSIST_DELAY = 800;
 
 const persistDraft = (draftId: string, data: Inputs): Promise<void> =>
-  fetch(`/api/skjema/v1/${draftId}`, {
+  fetch(`${SKJEMA_API_PATH}/${draftId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify(buildDraftPayload(data)),
   })
     .then(() => undefined)
     .catch(() => undefined);
 
 const deleteDraft = (draftId: string): Promise<void> =>
-  fetch(`/api/skjema/v1/${draftId}`, {
+  fetch(`${SKJEMA_API_PATH}/${draftId}`, {
     method: "DELETE",
   })
     .then(() => undefined)
     .catch(() => undefined);
-
-const toInputs = (payload: DraftDto | null | undefined) => {
-  if (!payload) return createEmptyInputs();
-  const { id, status, opprettetAv, opprettetTidspunkt, innsendtTidspunkt, ...rest } = payload;
-  void id;
-  void status;
-  void opprettetAv;
-  void opprettetTidspunkt;
-  void innsendtTidspunkt;
-  return mergeInputs(createEmptyInputs(), rest as Partial<Inputs>);
-};
 
 export function SoknadDraftProvider({
   draftId,
@@ -117,14 +100,14 @@ export function SoknadDraftProvider({
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`/api/skjema/v1/${draftId}`, {
+        const res = await fetch(`${SKJEMA_API_PATH}/${draftId}`, {
           headers: { Accept: "application/json" },
           signal: controller.signal,
         });
         if (!active || controller.signal.aborted) return;
         if (res.ok) {
           const payload = (await res.json()) as DraftDto | null;
-          const merged = toInputs(payload);
+          const merged = draftDtoToInputs(payload);
           const snapshot = JSON.stringify(merged);
           setDraft(merged);
           lastPersistedRef.current = snapshot;
