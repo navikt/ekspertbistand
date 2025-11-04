@@ -5,17 +5,14 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
-import io.ktor.server.application.*
 import io.ktor.server.plugins.di.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
-import io.ktor.server.testing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.configureBaseSetup
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.mocks.mockAltinnTilganger
 import no.nav.ekspertbistand.infrastruktur.*
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
@@ -71,6 +68,7 @@ class SkjemaTest {
             }
 
             configureBaseSetup()
+            configureDatabase()
             configureSkjemaApiV1()
         }
 
@@ -219,6 +217,7 @@ class SkjemaTest {
             }
 
             configureBaseSetup()
+            configureDatabase()
             configureSkjemaApiV1()
 
             transaction(testDb.config.jdbcDatabase) {
@@ -409,6 +408,7 @@ class SkjemaTest {
             }
 
             configureBaseSetup()
+            configureDatabase()
             configureSkjemaApiV1()
         }
 
@@ -523,6 +523,7 @@ class SkjemaTest {
             }
 
             configureBaseSetup()
+            configureDatabase()
             configureSkjemaApiV1()
         }
 
@@ -530,23 +531,5 @@ class SkjemaTest {
             header(HttpHeaders.Authorization, "Bearer faketoken")
         }
         assertEquals(HttpStatusCode.Unauthorized, response.status)
-    }
-}
-
-private fun ApplicationTestBuilder.mockAltinnTilganger(
-    tilgangerResponse: AltinnTilgangerClientResponse
-) {
-    externalServices {
-        hosts(AltinnTilgangerClient.ingress) {
-            install(io.ktor.server.plugins.contentnegotiation.ContentNegotiation) {
-                json()
-            }
-
-            routing {
-                post("altinn-tilganger") {
-                    call.respond(tilgangerResponse)
-                }
-            }
-        }
     }
 }
