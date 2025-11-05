@@ -4,7 +4,7 @@ import { Alert, BodyLong, BodyShort, Box, Heading, Loader, VStack } from "@navik
 import DecoratedPage from "../components/DecoratedPage";
 import { SoknadSummary } from "../components/SoknadSummary";
 import { draftDtoToInputs, type DraftDto } from "../utils/soknadPayload";
-import { APPLICATIONS_PATH, SKJEMA_API_PATH } from "../utils/constants";
+import { APPLICATIONS_PATH, EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { parseErrorMessage } from "../utils/http";
 import { formatDateTime } from "../utils/date";
 import type { Inputs } from "./types";
@@ -36,7 +36,7 @@ export default function KvitteringPage() {
 
     (async () => {
       try {
-        const response = await fetch(`${SKJEMA_API_PATH}/${id}`, {
+        const response = await fetch(`${EKSPERTBISTAND_API_PATH}/${id}`, {
           headers: { Accept: "application/json" },
           signal: controller.signal,
         });

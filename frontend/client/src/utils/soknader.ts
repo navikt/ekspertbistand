@@ -1,6 +1,6 @@
 import type { TagProps } from "@navikt/ds-react";
 
-import { SKJEMA_API_PATH } from "./constants";
+import { EKSPERTBISTAND_API_PATH } from "./constants";
 import { formatDateTime } from "./date";
 import { parseErrorMessage } from "./http";
 
@@ -55,7 +55,7 @@ const STATUSES_TO_FETCH: Array<Extract<SkjemaStatus, "innsendt" | "utkast">> = [
 export async function fetchApplications(signal: AbortSignal): Promise<ApplicationListItem[]> {
   const rawResults = await Promise.all(
     STATUSES_TO_FETCH.map(async (status) => {
-      const response = await fetch(`${SKJEMA_API_PATH}?status=${status}`, {
+      const response = await fetch(`${EKSPERTBISTAND_API_PATH}?status=${status}`, {
         headers: { Accept: "application/json" },
         signal,
       });

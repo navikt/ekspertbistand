@@ -20,7 +20,9 @@ export const EKSPERTBISTAND_URL = envSwitch({
   local: () => "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand",
 });
 
-export const SKJEMA_API_PATH = "/ekspertbistand-backend/api/skjema/v1";
+const baseUrl = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+
+export const EKSPERTBISTAND_API_PATH = `${baseUrl}/ekspertbistand-backend/api/skjema/v1`;
 
 export const APPLICATIONS_PATH = "/soknader";
 

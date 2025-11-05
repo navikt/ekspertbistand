@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { createEmptyInputs, mergeInputs, type Inputs } from "../pages/types";
-import { SKJEMA_API_PATH } from "../utils/constants";
+import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 
 const virksomheter = [
   {
@@ -203,7 +203,7 @@ export const handlers = [
     await persistDraftLocal(null);
     return HttpResponse.json({ status: "deleted" });
   }),
-  http.post(SKJEMA_API_PATH, async () => {
+  http.post(EKSPERTBISTAND_API_PATH, async () => {
     await ensureSkjemaStoreLoaded();
     const id = randomId();
     const now = nowIso();
@@ -218,7 +218,7 @@ export const handlers = [
     await persistSkjemaStore();
     return HttpResponse.json(toUtkastDto(entry), { status: 201 });
   }),
-  http.get(SKJEMA_API_PATH, async ({ request }) => {
+  http.get(EKSPERTBISTAND_API_PATH, async ({ request }) => {
     await ensureSkjemaStoreLoaded();
     const status = getSkjemaStatusParam(request);
     if (!status) {
@@ -233,7 +233,7 @@ export const handlers = [
       .map((entry) => (entry.status === "utkast" ? toUtkastDto(entry) : toSkjemaDto(entry)));
     return HttpResponse.json(results);
   }),
-  http.get(`${SKJEMA_API_PATH}/:id`, async ({ params }) => {
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params }) => {
     await ensureSkjemaStoreLoaded();
     const id = params.id;
     if (!id) {
@@ -245,7 +245,7 @@ export const handlers = [
     }
     return HttpResponse.json(entry.status === "utkast" ? toUtkastDto(entry) : toSkjemaDto(entry));
   }),
-  http.patch(`${SKJEMA_API_PATH}/:id`, async ({ params, request }) => {
+  http.patch(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params, request }) => {
     await ensureSkjemaStoreLoaded();
     const id = params.id;
     if (!id) {
@@ -266,7 +266,7 @@ export const handlers = [
     await persistSkjemaStore();
     return HttpResponse.json(toUtkastDto(entry));
   }),
-  http.delete(`${SKJEMA_API_PATH}/:id`, async ({ params }) => {
+  http.delete(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params }) => {
     await ensureSkjemaStoreLoaded();
     const id = params.id;
     if (!id) {
@@ -280,7 +280,7 @@ export const handlers = [
     await persistSkjemaStore();
     return new HttpResponse(null, { status: 204 });
   }),
-  http.put(`${SKJEMA_API_PATH}/:id`, async ({ params, request }) => {
+  http.put(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params, request }) => {
     await ensureSkjemaStoreLoaded();
     const id = params.id;
     if (!id) {

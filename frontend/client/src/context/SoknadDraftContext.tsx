@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { createEmptyInputs, type Inputs } from "../pages/types";
 import { buildDraftPayload, draftDtoToInputs, type DraftDto } from "../utils/soknadPayload";
-import { SKJEMA_API_PATH } from "../utils/constants";
+import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 
 type DraftContextValue = {
   draftId: string;
@@ -24,7 +24,7 @@ const SoknadDraftContext = createContext<DraftContextValue | undefined>(undefine
 const PERSIST_DELAY = 800;
 
 const persistDraft = (draftId: string, data: Inputs): Promise<void> =>
-  fetch(`${SKJEMA_API_PATH}/${draftId}`, {
+  fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(buildDraftPayload(data)),
@@ -33,7 +33,7 @@ const persistDraft = (draftId: string, data: Inputs): Promise<void> =>
     .catch(() => undefined);
 
 const deleteDraft = (draftId: string): Promise<void> =>
-  fetch(`${SKJEMA_API_PATH}/${draftId}`, {
+  fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
     method: "DELETE",
   })
     .then(() => undefined)
@@ -100,7 +100,7 @@ export function SoknadDraftProvider({
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`${SKJEMA_API_PATH}/${draftId}`, {
+        const res = await fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
           headers: { Accept: "application/json" },
           signal: controller.signal,
         });

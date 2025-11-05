@@ -20,7 +20,7 @@ import {
 import DecoratedPage from "../components/DecoratedPage";
 import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
 import { ApplicationPictogram } from "../components/ApplicationPictogram";
-import { SKJEMA_API_PATH } from "../utils/constants";
+import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { useErrorFocus } from "../hooks/useErrorFocus";
 
 export default function SoknadPage() {
@@ -48,7 +48,7 @@ export default function SoknadPage() {
     setApiError(null);
     setCreating(true);
     try {
-      const res = await fetch(SKJEMA_API_PATH, {
+      const res = await fetch(EKSPERTBISTAND_API_PATH, {
         method: "POST",
         headers: { Accept: "application/json" },
       });

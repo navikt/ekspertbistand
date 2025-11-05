@@ -24,7 +24,7 @@ import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
 import { buildSkjemaPayload } from "../utils/soknadPayload";
 import { SoknadSummary } from "../components/SoknadSummary";
 import { withPreventDefault } from "./utils.ts";
-import { APPLICATIONS_PATH, SKJEMA_API_PATH } from "../utils/constants";
+import { APPLICATIONS_PATH, EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { parseErrorMessage } from "../utils/http";
 import { useErrorFocus } from "../hooks/useErrorFocus";
 import { useDraftNavigation } from "../hooks/useDraftNavigation";
@@ -71,7 +71,7 @@ export default function OppsummeringPage() {
     setSubmitting(true);
     try {
       const payload = buildSkjemaPayload(draftId, formData);
-      const response = await fetch(`${SKJEMA_API_PATH}/${draftId}`, {
+      const response = await fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
