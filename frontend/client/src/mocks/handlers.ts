@@ -1,32 +1,33 @@
 import { http, HttpResponse } from "msw";
 import { createEmptyInputs, mergeInputs, type Inputs } from "../pages/types";
+import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 
-const virksomheter = [
+const organisasjoner: Organisasjon[] = [
   {
-    organisasjonsnummer: "123456789",
+    orgnr: "123456789",
     navn: "Eksempel Bedrift AS",
     underenheter: [
-      { organisasjonsnummer: "123456780", navn: "Eksempel Bedrift AS Avd. Oslo", underenheter: [] },
+      { orgnr: "123456780", navn: "Eksempel Bedrift AS Avd. Oslo", underenheter: [] },
       {
-        organisasjonsnummer: "123456781",
+        orgnr: "123456781",
         navn: "Eksempel Bedrift AS Avd. Bergen",
         underenheter: [],
       },
     ],
   },
   {
-    organisasjonsnummer: "987654321",
+    orgnr: "987654321",
     navn: "Testfirma Norge AS",
     underenheter: [],
   },
   {
-    organisasjonsnummer: "111222333",
+    orgnr: "111222333",
     navn: "Demo Solutions AS",
     underenheter: [],
   },
   {
-    organisasjonsnummer: "444555666",
+    orgnr: "444555666",
     navn: "Navn & Co AS",
     underenheter: [],
   },
@@ -136,6 +137,18 @@ const ensureSkjemaStoreLoaded = async () => {
   skjemaStoreLoaded = true;
 };
 
+const toKostnadString = (value: Inputs["bestilling"]["kostnad"]): string => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value.toString() : "";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  return "";
+};
+
+const toStartDatoString = (value: Inputs["bestilling"]["startDato"]): string => value?.trim() ?? "";
+
 const toUtkastDto = (entry: MockSkjema) => {
   const data = entry.data ?? createEmptyInputs();
   return {
@@ -144,7 +157,13 @@ const toUtkastDto = (entry: MockSkjema) => {
     virksomhet: deepCopy(data.virksomhet),
     ansatt: deepCopy(data.ansatt),
     ekspert: deepCopy(data.ekspert),
-    behovForBistand: deepCopy(data.behovForBistand),
+    bistand: data.bistand,
+    tiltak: deepCopy(data.tiltak),
+    bestilling: {
+      kostnad: toKostnadString(data.bestilling.kostnad),
+      startDato: toStartDatoString(data.bestilling.startDato),
+    },
+    nav: deepCopy(data.nav),
     opprettetAv: entry.opprettetAv,
     opprettetTidspunkt: entry.opprettetTidspunkt,
   };
@@ -158,7 +177,13 @@ const toSkjemaDto = (entry: MockSkjema) => {
     virksomhet: deepCopy(data.virksomhet),
     ansatt: deepCopy(data.ansatt),
     ekspert: deepCopy(data.ekspert),
-    behovForBistand: deepCopy(data.behovForBistand),
+    bistand: data.bistand,
+    tiltak: deepCopy(data.tiltak),
+    bestilling: {
+      kostnad: toKostnadString(data.bestilling.kostnad),
+      startDato: toStartDatoString(data.bestilling.startDato),
+    },
+    nav: deepCopy(data.nav),
     opprettetAv: entry.opprettetAv,
     opprettetTidspunkt: entry.opprettetTidspunkt,
     innsendtTidspunkt: entry.innsendtTidspunkt,
@@ -185,7 +210,7 @@ const loginSessionJson = {
 
 export const handlers = [
   http.get("/api/health", () => HttpResponse.json({ status: "ok" })),
-  http.get("/api/virksomheter", () => HttpResponse.json({ virksomheter })),
+  http.get("/api/virksomheter", () => HttpResponse.json({ organisasjoner })),
   http.get("/api/soknad/draft", async () => {
     const currentDraft = await loadDraft();
     return HttpResponse.json(currentDraft);

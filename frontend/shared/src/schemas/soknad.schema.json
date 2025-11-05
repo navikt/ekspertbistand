@@ -57,45 +57,52 @@
         },
         "kompetanse": {
           "type": "string"
-        }
-      },
-      "required": ["navn", "virksomhet", "kompetanse"],
-      "additionalProperties": false
-    },
-    "behovForBistand": {
-      "type": "object",
-      "properties": {
+        },
         "problemstilling": {
           "type": "string"
-        },
-        "bistand": {
+        }
+      },
+      "required": ["navn", "virksomhet", "kompetanse", "problemstilling"],
+      "additionalProperties": false
+    },
+    "bistand": {
+      "type": "string"
+    },
+    "tiltak": {
+      "type": "object",
+      "properties": {
+        "forTilrettelegging": {
           "type": "string"
-        },
-        "tiltak": {
-          "type": "string"
-        },
+        }
+      },
+      "required": ["forTilrettelegging"],
+      "additionalProperties": false
+    },
+    "bestilling": {
+      "type": "object",
+      "properties": {
         "kostnad": {
-          "oneOf": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "string"
-            }
-          ]
+          "oneOf": [{ "type": "number" }, { "type": "string" }]
         },
         "startDato": {
           "type": ["string", "null"],
           "format": "date-time"
-        },
-        "navKontakt": {
+        }
+      },
+      "required": ["kostnad", "startDato"],
+      "additionalProperties": false
+    },
+    "nav": {
+      "type": "object",
+      "properties": {
+        "kontakt": {
           "type": "string"
         }
       },
-      "required": ["problemstilling", "bistand", "tiltak", "kostnad", "startDato", "navKontakt"],
+      "required": ["kontakt"],
       "additionalProperties": false
     }
   },
-  "required": ["virksomhet", "ansatt", "ekspert", "behovForBistand"],
+  "required": ["virksomhet", "ansatt", "ekspert", "bistand", "tiltak", "bestilling", "nav"],
   "additionalProperties": false
 }

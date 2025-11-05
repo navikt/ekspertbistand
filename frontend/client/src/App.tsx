@@ -7,7 +7,7 @@ import SkjemaSteg1Page from "./pages/SkjemaSteg1Page";
 import SkjemaSteg2Page from "./pages/SkjemaSteg2Page";
 import OppsummeringPage from "./pages/OppsummeringPage";
 import KvitteringPage from "./pages/KvitteringPage";
-import { SoknadDraftProvider } from "./context/SoknadDraftContext";
+import { SoknadDraftProvider, useSoknadDraft } from "./context/SoknadDraftContext";
 import { SkjemaFormProvider } from "./providers/SkjemaFormProvider.tsx";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { APPLICATIONS_PATH } from "./utils/constants";
@@ -19,10 +19,22 @@ function SkjemaDraftRoute() {
   }
   return (
     <SoknadDraftProvider draftId={id}>
-      <SkjemaFormProvider>
-        <Outlet />
-      </SkjemaFormProvider>
+      <SkjemaDraftOutlet />
     </SoknadDraftProvider>
+  );
+}
+
+function SkjemaDraftOutlet() {
+  const { draftId, status, hydrated } = useSoknadDraft();
+
+  if (hydrated && status === "innsendt") {
+    return <Navigate to={`/skjema/${draftId}/kvittering`} replace />;
+  }
+
+  return (
+    <SkjemaFormProvider>
+      <Outlet />
+    </SkjemaFormProvider>
   );
 }
 

@@ -16,14 +16,18 @@ export type Inputs = {
     navn: string;
     virksomhet: string;
     kompetanse: string;
-  };
-  behovForBistand: {
     problemstilling: string;
-    bistand: string;
-    tiltak: string;
+  };
+  bistand: string;
+  tiltak: {
+    forTilrettelegging: string;
+  };
+  bestilling: {
     kostnad: number | string;
     startDato: string | null;
-    navKontakt: string;
+  };
+  nav: {
+    kontakt: string;
   };
 };
 
@@ -41,12 +45,12 @@ export const STEP1_FIELDS = [
 ] as const satisfies ReadonlyArray<keyof Inputs | string>;
 
 export const STEP2_FIELDS = [
-  "behovForBistand.problemstilling",
-  "behovForBistand.bistand",
-  "behovForBistand.tiltak",
-  "behovForBistand.kostnad",
-  "behovForBistand.startDato",
-  "behovForBistand.navKontakt",
+  "ekspert.problemstilling",
+  "bistand",
+  "tiltak.forTilrettelegging",
+  "bestilling.kostnad",
+  "bestilling.startDato",
+  "nav.kontakt",
 ] as const satisfies ReadonlyArray<keyof Inputs | string>;
 
 export const createEmptyInputs = (): Inputs => ({
@@ -67,14 +71,18 @@ export const createEmptyInputs = (): Inputs => ({
     navn: "",
     virksomhet: "",
     kompetanse: "",
-  },
-  behovForBistand: {
     problemstilling: "",
-    bistand: "",
-    tiltak: "",
+  },
+  bistand: "",
+  tiltak: {
+    forTilrettelegging: "",
+  },
+  bestilling: {
     kostnad: "",
     startDato: null,
-    navKontakt: "",
+  },
+  nav: {
+    kontakt: "",
   },
 });
 
@@ -98,6 +106,9 @@ export const mergeInputs = (base: Partial<Inputs> | undefined, update: Partial<I
     virksomhet: { ...virksomhet, kontaktperson },
     ansatt: mergeShallow(b.ansatt, update.ansatt),
     ekspert: mergeShallow(b.ekspert, update.ekspert),
-    behovForBistand: mergeShallow(b.behovForBistand, update.behovForBistand),
+    bistand: (update.bistand as string | undefined) ?? b.bistand,
+    tiltak: mergeShallow(b.tiltak, update.tiltak),
+    bestilling: mergeShallow(b.bestilling, update.bestilling),
+    nav: mergeShallow(b.nav, update.nav),
   };
 };

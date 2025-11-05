@@ -15,7 +15,7 @@ const formatValue = (value: unknown): string => {
   return "—";
 };
 
-const formatCurrency = (value: Inputs["behovForBistand"]["kostnad"]): string => {
+const formatCurrency = (value: Inputs["bestilling"]["kostnad"]): string => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return `${numberFormatter.format(value)} kr`;
   }
@@ -33,7 +33,7 @@ const formatCurrency = (value: Inputs["behovForBistand"]["kostnad"]): string => 
   return formatValue(value);
 };
 
-const formatDate = (value: Inputs["behovForBistand"]["startDato"]): string => {
+const formatDate = (value: Inputs["bestilling"]["startDato"]): string => {
   if (!value) return "—";
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString("nb-NO");
@@ -52,7 +52,7 @@ export function SoknadSummary({
   onEditStep1,
   onEditStep2,
 }: SoknadSummaryProps) {
-  const { virksomhet, ansatt, ekspert, behovForBistand } = data;
+  const { virksomhet, ansatt, ekspert, bistand, tiltak, bestilling, nav } = data;
 
   return (
     <>
@@ -148,33 +148,33 @@ export function SoknadSummary({
               Beskriv den ansattes arbeidssituasjon, sykefravær og hvorfor dere ser behov for
               ekspertbistand
             </FormSummary.Label>
-            <FormSummary.Value>{formatValue(behovForBistand.problemstilling)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(ekspert.problemstilling)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>
               Hva vil dere har hjelp til fra eksperten, og hvor mange timer tror dere at det vil ta?
             </FormSummary.Label>
-            <FormSummary.Value>{formatValue(behovForBistand.bistand)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(bistand)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>
               Hvilke tiltak for tilrettelegging har dere allerede gjort, vurdert eller forsøkt?
             </FormSummary.Label>
-            <FormSummary.Value>{formatValue(behovForBistand.tiltak)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(tiltak.forTilrettelegging)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Estimert kostnad for ekspertbistand</FormSummary.Label>
-            <FormSummary.Value>{formatCurrency(behovForBistand.kostnad)}</FormSummary.Value>
+            <FormSummary.Value>{formatCurrency(bestilling.kostnad)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Startdato</FormSummary.Label>
-            <FormSummary.Value>{formatDate(behovForBistand.startDato)}</FormSummary.Value>
+            <FormSummary.Value>{formatDate(bestilling.startDato)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>
               Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?
             </FormSummary.Label>
-            <FormSummary.Value>{formatValue(behovForBistand.navKontakt)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(nav.kontakt)}</FormSummary.Value>
           </FormSummary.Answer>
         </FormSummary.Answers>
         {editable && onEditStep2 && (

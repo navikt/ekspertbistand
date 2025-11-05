@@ -23,6 +23,12 @@ const {
 
 const port = Number(PORT);
 
+type Organisasjon = {
+  orgnr: string;
+  navn: string;
+  underenheter?: Organisasjon[];
+};
+
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
 
 const tokenxEnabled = Boolean(TOKEN_X_ISSUER);
@@ -60,15 +66,54 @@ const ekspertbistandApiProxy = createProxyMiddleware({
   },
 });
 
-const withTokenX = tokenxEnabled
-  ? [
-      tokenXMiddleware({
-        enabled: true,
-        audience: EKSPERTBISTAND_API_AUDIENCE,
-        localSubjectToken: LOCAL_SUBJECT_TOKEN,
-      }),
-    ]
-  : [];
+const withTokenX = [
+  tokenXMiddleware({
+    enabled: tokenxEnabled,
+    audience: EKSPERTBISTAND_API_AUDIENCE,
+    localSubjectToken: LOCAL_SUBJECT_TOKEN,
+  }),
+];
+
+api.get("/api/virksomheter", ...withTokenX, async (req: Request, res: Response) => {
+  try {
+    const authorization = Array.isArray(req.headers.authorization)
+      ? req.headers.authorization[0]
+      : (req.headers.authorization ?? "");
+
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    };
+    if (authorization) {
+      headers.Authorization = authorization;
+    }
+
+    const upstream = await fetch(`${EKSPERTBISTAND_API_BASEURL}/api/organisasjoner/v1`, {
+      headers,
+    });
+
+    if (!upstream.ok) {
+      res.status(upstream.status).json({ message: "Kunne ikke hente organisasjoner." });
+      return;
+    }
+
+    const payload = (await upstream.json()) as {
+      hierarki?: Organisasjon[];
+    };
+
+    const mapOrganisasjon = (node: Organisasjon): Organisasjon => ({
+      orgnr: node.orgnr,
+      navn: node.navn,
+      underenheter: (node.underenheter ?? []).map(mapOrganisasjon),
+    });
+
+    const organisasjoner = payload.hierarki?.map(mapOrganisasjon) ?? [];
+
+    res.json({ organisasjoner });
+  } catch (error) {
+    logger.error({ error }, "Feil ved henting av organisasjoner");
+    res.status(502).json({ message: "Kunne ikke kontakte ekspertbistand-api." });
+  }
+});
 
 api.use("/ekspertbistand-backend", ...withTokenX, ekspertbistandApiProxy);
 

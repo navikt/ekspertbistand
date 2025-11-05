@@ -1,4 +1,3 @@
-import { Link as RouterLink } from "react-router-dom";
 import { BodyLong, Button, Heading, LinkPanel, VStack } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { TILGANGSSTYRING_URL, LOGIN_URL } from "../utils/constants";
@@ -22,7 +21,7 @@ export default function LandingPage() {
           </VStack>
         </VStack>
 
-        <Button as={RouterLink} to={LOGIN_URL} type="button">
+        <Button as="a" href={LOGIN_URL}>
           Logg inn
         </Button>
 

@@ -15,6 +15,7 @@ type DraftContextValue = {
   draftId: string;
   draft: Inputs;
   hydrated: boolean;
+  status: DraftDto["status"] | null;
   saveDraft: (snapshot: Inputs) => void;
   clearDraft: () => Promise<void>;
   lastPersistedAt: Date | null;
@@ -48,6 +49,7 @@ export function SoknadDraftProvider({
 }) {
   const [draft, setDraft] = useState<Inputs>(createEmptyInputs);
   const [hydrated, setHydrated] = useState(false);
+  const [status, setStatus] = useState<DraftDto["status"] | null>(null);
   const [lastPersistedAt, setLastPersistedAt] = useState<Date | null>(null);
 
   const debounceRef = useRef<number | null>(null);
@@ -90,6 +92,7 @@ export function SoknadDraftProvider({
   useEffect(() => {
     setHydrated(false);
     setDraft(createEmptyInputs);
+    setStatus(null);
     setLastPersistedAt(null);
     lastPersistedRef.current = null;
     lastSavedRef.current = null;
@@ -110,6 +113,7 @@ export function SoknadDraftProvider({
           const merged = draftDtoToInputs(payload);
           const snapshot = JSON.stringify(merged);
           setDraft(merged);
+          setStatus(payload?.status ?? null);
           lastPersistedRef.current = snapshot;
           lastSavedRef.current = snapshot;
           const persistedIso = payload?.opprettetTidspunkt ?? payload?.innsendtTidspunkt ?? null;
@@ -133,7 +137,7 @@ export function SoknadDraftProvider({
 
   const saveDraft = useCallback(
     (snapshot: Inputs) => {
-      if (clearingRef.current) return;
+      if (clearingRef.current || status === "innsendt") return;
       const snapshotJson = JSON.stringify(snapshot);
       if (snapshotJson !== lastSavedRef.current) {
         setDraft(snapshot);
@@ -141,13 +145,14 @@ export function SoknadDraftProvider({
       }
       schedulePersist(snapshot);
     },
-    [schedulePersist]
+    [schedulePersist, status]
   );
 
   const clearDraft = useCallback(async () => {
     clearingRef.current = true;
     cancelPendingPersist();
     setDraft(createEmptyInputs);
+    setStatus(null);
     lastPersistedRef.current = null;
     lastSavedRef.current = null;
     const pendingPersist = activePersistRef.current;
@@ -171,11 +176,12 @@ export function SoknadDraftProvider({
       draftId,
       draft,
       hydrated,
+      status,
       saveDraft,
       clearDraft,
       lastPersistedAt,
     }),
-    [clearDraft, draft, draftId, hydrated, lastPersistedAt, saveDraft]
+    [clearDraft, draft, draftId, hydrated, lastPersistedAt, saveDraft, status]
   );
 
   return <SoknadDraftContext.Provider value={value}>{children}</SoknadDraftContext.Provider>;
