@@ -22,21 +22,19 @@ router.get("/api/health", (_req: Request, res: Response) => {
   res.json(health);
 });
 
-const skjemaTarget =
-  process.env.SCHEMA_API_BASE_URL || process.env.SCHEMA_API_URL || "http://localhost:8080";
+const skjemaTarget = process.env.EKSPERTBISTAND_API_BASEURL || "http://localhost:8080";
 
 const tokenxEnabled = Boolean(process.env.TOKEN_X_ISSUER);
-const skjemaAudience = process.env.SCHEMA_API_AUDIENCE || process.env.SCHEMA_API_CLIENT_ID;
+const skjemaAudience = process.env.EKSPERTBISTAND_API_AUDIENCE;
 
 if (tokenxEnabled && !skjemaAudience) {
-  throw new Error(
-    "Mangler SCHEMA_API_AUDIENCE (eller SCHEMA_API_CLIENT_ID) for TokenX OBO. Sett miljøvariabelen til mål-tjenestens audience."
-  );
+  throw new Error("Mangler EKSPERTBISTAND_API_AUDIENCE for TokenX OBO.");
 }
 
 const skjemaProxy = createProxyMiddleware({
   target: skjemaTarget,
   changeOrigin: true,
+  pathRewrite: (path) => path.replace(/^\/ekspertbistand-backend/, ""),
   on: {
     proxyReq(proxyReq: ClientRequest) {
       proxyReq.removeHeader("cookie");
@@ -56,7 +54,7 @@ const skjemaProxy = createProxyMiddleware({
   },
 });
 
-router.use("/api/skjema", async (req: Request, res: Response, next: NextFunction) => {
+router.use("/ekspertbistand-backend", async (req: Request, res: Response, next: NextFunction) => {
   try {
     delete req.headers.cookie;
 

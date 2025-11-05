@@ -13,9 +13,9 @@ spec:
   env:
     - name: BASE_PATH
       value: "/ekspertbistand"
-    - name: SCHEMA_API_BASE_URL
+    - name: EKSPERTBISTAND_API_BASEURL
       value: "http://ekspertbistand-backend"
-    - name: SCHEMA_API_AUDIENCE
+    - name: EKSPERTBISTAND_API_AUDIENCE
       value: "dev-gcp:fager:ekspertbistand-backend"
 
   replicas:
