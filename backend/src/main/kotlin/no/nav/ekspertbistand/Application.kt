@@ -14,6 +14,9 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.di.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
 import io.ktor.utils.io.*
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics
 import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics
@@ -28,6 +31,7 @@ import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
+import no.nav.ekspertbistand.skjema.subjectToken
 import org.slf4j.event.Level
 import java.util.*
 
@@ -75,9 +79,12 @@ suspend fun Application.module() {
     // base setup
     configureBaseSetup()
 
+    // database
+    configureDatabase()
+
     // application modules
     configureSkjemaApiV1()
-
+    configureOrganisasjonerApiV1()
 
     // event manager and event handlers
     configureEventHandlers()
@@ -87,10 +94,22 @@ suspend fun Application.module() {
     registerShutdownListener()
 }
 
+suspend fun Application.configureOrganisasjonerApiV1() {
+    val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
+    routing {
+        authenticate(TOKENX_PROVIDER) {
+            with(altinnTilgangerClient) {
+                get("api/organisasjoner/v1") {
+                    call.respond(hentTilganger(subjectToken))
+                }
+            }
+        }
+    }
+}
+
 suspend fun Application.configureBaseSetup() {
     configureServer()
     configureTokenXAuth()
-    configureDatabase()
 }
 
 fun Application.configureServer() {
