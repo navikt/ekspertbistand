@@ -9,6 +9,7 @@ import { tokenXMiddleware } from "./tokenx.js";
 import { logger } from "@navikt/pino-logger";
 import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import type { Socket } from "net";
+import rateLimit from "express-rate-limit";
 
 const {
   PORT = "4000",
@@ -38,6 +39,18 @@ if (tokenxEnabled && !EKSPERTBISTAND_API_AUDIENCE) {
 
 const app = express();
 const api = express.Router();
+
+const limiterConfig = {
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+} as const;
+
+const apiLimiter = rateLimit(limiterConfig);
+const staticLimiter = rateLimit(limiterConfig);
+
+api.use(apiLimiter);
 
 api.get("/api/health", (_req: Request, res: Response) => {
   const health: ApiHealth = { status: "ok" };
@@ -136,6 +149,7 @@ const resolveStaticDir = (): string => {
 const staticDir = resolveStaticDir();
 
 const spa = express.Router();
+spa.use(staticLimiter);
 spa.use(express.static(staticDir, { index: false }));
 spa.get("*", (_req, res) => res.sendFile(path.join(staticDir, "index.html")));
 
