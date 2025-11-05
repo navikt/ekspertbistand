@@ -56,6 +56,7 @@ const skjemaProxy = createProxyMiddleware({
 
 router.use("/ekspertbistand-backend", async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const subjectToken = tokenxEnabled ? getToken(req) : undefined;
     delete req.headers.cookie;
 
     if (!tokenxEnabled) {
@@ -64,7 +65,6 @@ router.use("/ekspertbistand-backend", async (req: Request, res: Response, next: 
       return skjemaProxy(req, res, next);
     }
 
-    const subjectToken = getToken(req);
     if (!subjectToken) {
       res.status(401).json({ message: "Mangler innloggings-token." });
       return;
