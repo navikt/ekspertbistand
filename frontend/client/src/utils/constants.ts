@@ -1,6 +1,5 @@
 import { envSwitch } from "./env";
 
-// Collector URL for forwarding NAIS telemetry events
 export const TELEMETRY_COLLECTOR_URL = envSwitch({
   prod: () => "https://telemetry.nav.no/collect",
   dev: () => "https://telemetry.ekstern.dev.nav.no/collect",
@@ -27,8 +26,8 @@ export const EKSPERTBISTAND_API_PATH = `${baseUrl}/ekspertbistand-backend/api/sk
 export const APPLICATIONS_PATH = "/soknader";
 
 export const LOGIN_URL = envSwitch({
-  prod: () => "/oauth2/login?redirect=/ekspertbistand/soknader",
-  dev: () => "/oauth2/login?redirect=/ekspertbistand/soknader",
+  prod: () => "oauth2/login?redirect=/ekspertbistand/soknader",
+  dev: () => "oauth2/login?redirect=/ekspertbistand/soknader",
   local: () => "/soknader",
 });
 
