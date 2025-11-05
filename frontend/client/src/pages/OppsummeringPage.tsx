@@ -80,7 +80,6 @@ export default function OppsummeringPage() {
         const message = await parseErrorMessage(response);
         throw new Error(message ?? `Kunne ikke sende søknaden (${response.status}).`);
       }
-      await clearDraft();
       navigate(`/skjema/${draftId}/kvittering`, {
         replace: true,
         state: { submissionSuccess: true },
@@ -93,17 +92,7 @@ export default function OppsummeringPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [
-    bumpFocusKey,
-    clearDraft,
-    draftId,
-    form,
-    formData,
-    navigate,
-    navigateWithDraft,
-    step1Path,
-    step2Path,
-  ]);
+  }, [bumpFocusKey, draftId, form, formData, navigate, navigateWithDraft, step1Path, step2Path]);
 
   return (
     <DecoratedPage blockProps={{ width: "lg", gutters: true }}>

@@ -64,7 +64,7 @@ export const validateTiltakForTilrettelegging = (value: unknown) =>
 export const validateNavKontakt = (value: unknown) =>
   requireText(value, "Du må fylle ut hvem i Nav du har drøftet med.");
 
-export const validateKostnad = (value: Inputs["behovForBistand"]["kostnad"]) => {
+export const validateKostnad = (value: Inputs["bestilling"]["kostnad"]) => {
   if (value === "" || value === null) return "Du må anslå kostnad.";
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return "Kostnad må være et tall.";
@@ -73,7 +73,7 @@ export const validateKostnad = (value: Inputs["behovForBistand"]["kostnad"]) => 
   return true;
 };
 
-export const validateStartDato = (value: Inputs["behovForBistand"]["startDato"]) => {
+export const validateStartDato = (value: Inputs["bestilling"]["startDato"]) => {
   if (!value) return "Du må velge en dato.";
   if (Number.isNaN(Date.parse(value))) return "Ugyldig dato.";
   return true;
@@ -123,31 +123,19 @@ export const validateInputs = (values: Inputs): ValidationError[] => {
   collectError(validateEkspertVirksomhet(values.ekspert.virksomhet), "ekspert.virksomhet", errors);
   collectError(validateEkspertKompetanse(values.ekspert.kompetanse), "ekspert.kompetanse", errors);
   collectError(
-    validateProblemstilling(values.behovForBistand.problemstilling),
-    "behovForBistand.problemstilling",
+    validateProblemstilling(values.ekspert.problemstilling),
+    "ekspert.problemstilling",
     errors
   );
+  collectError(validateBehovForBistand(values.bistand), "bistand", errors);
   collectError(
-    validateBehovForBistand(values.behovForBistand.bistand),
-    "behovForBistand.bistand",
+    validateTiltakForTilrettelegging(values.tiltak.forTilrettelegging),
+    "tiltak.forTilrettelegging",
     errors
   );
-  collectError(
-    validateTiltakForTilrettelegging(values.behovForBistand.tiltak),
-    "behovForBistand.tiltak",
-    errors
-  );
-  collectError(validateKostnad(values.behovForBistand.kostnad), "behovForBistand.kostnad", errors);
-  collectError(
-    validateStartDato(values.behovForBistand.startDato),
-    "behovForBistand.startDato",
-    errors
-  );
-  collectError(
-    validateNavKontakt(values.behovForBistand.navKontakt),
-    "behovForBistand.navKontakt",
-    errors
-  );
+  collectError(validateKostnad(values.bestilling.kostnad), "bestilling.kostnad", errors);
+  collectError(validateStartDato(values.bestilling.startDato), "bestilling.startDato", errors);
+  collectError(validateNavKontakt(values.nav.kontakt), "nav.kontakt", errors);
 
   return errors;
 };

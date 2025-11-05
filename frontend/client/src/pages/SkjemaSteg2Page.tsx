@@ -55,8 +55,8 @@ export default function SkjemaSteg2Page() {
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus(() =>
     attemptedSubmitFromLocation ? 1 : 0
   );
-  const startDatoIso = useWatch({ name: "behovForBistand.startDato" }) as
-    | Inputs["behovForBistand"]["startDato"]
+  const startDatoIso = useWatch({ name: "bestilling.startDato" }) as
+    | Inputs["bestilling"]["startDato"]
     | undefined;
   const syncingDateRef = useRef(false);
   const { draftId, hydrated, clearDraft } = useSoknadDraft();
@@ -65,21 +65,21 @@ export default function SkjemaSteg2Page() {
   const errorItems = attemptedSubmit
     ? [
         {
-          id: "behovForBistand.problemstilling",
-          message: errors.behovForBistand?.problemstilling?.message,
+          id: "ekspert.problemstilling",
+          message: errors.ekspert?.problemstilling?.message,
         },
-        { id: "behovForBistand.bistand", message: errors.behovForBistand?.bistand?.message },
-        { id: "behovForBistand.tiltak", message: errors.behovForBistand?.tiltak?.message },
-        { id: "behovForBistand.kostnad", message: errors.behovForBistand?.kostnad?.message },
-        { id: "behovForBistand.startDato", message: errors.behovForBistand?.startDato?.message },
-        { id: "behovForBistand.navKontakt", message: errors.behovForBistand?.navKontakt?.message },
+        { id: "bistand", message: errors.bistand?.message },
+        { id: "tiltak.forTilrettelegging", message: errors.tiltak?.forTilrettelegging?.message },
+        { id: "bestilling.kostnad", message: errors.bestilling?.kostnad?.message },
+        { id: "bestilling.startDato", message: errors.bestilling?.startDato?.message },
+        { id: "nav.kontakt", message: errors.nav?.kontakt?.message },
       ].filter((item): item is { id: string; message: string } => typeof item.message === "string")
     : [];
 
   const shouldFocusErrorSummary = hydrated && attemptedSubmit && Object.keys(errors).length > 0;
 
   useEffect(() => {
-    register("behovForBistand.startDato", { validate: validateStartDato });
+    register("bestilling.startDato", { validate: validateStartDato });
   }, [register]);
 
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function SkjemaSteg2Page() {
         syncingDateRef.current = false;
         return;
       }
-      setValue("behovForBistand.startDato", date ? date.toISOString() : null, {
+      setValue("bestilling.startDato", date ? date.toISOString() : null, {
         shouldDirty: true,
         shouldValidate: attemptedSubmit,
       });
@@ -125,7 +125,7 @@ export default function SkjemaSteg2Page() {
     setSelected(selectedDate);
   }, [selectedDate, selectedDay, setSelected]);
 
-  const kostnadReg = register("behovForBistand.kostnad", {
+  const kostnadReg = register("bestilling.kostnad", {
     setValueAs: (value) => (value === "" || value === null ? "" : Number(value)),
     validate: validateKostnad,
   });
@@ -185,45 +185,43 @@ export default function SkjemaSteg2Page() {
           <Fieldset legend="Behov for bistand" hideLegend style={FORM_COLUMN_STYLE}>
             <VStack gap="6">
               <Textarea
-                id="behovForBistand.problemstilling"
+                id="ekspert.problemstilling"
                 label="Beskriv den ansattes arbeidssituasjon, sykefravær og hvorfor dere ser behov for ekspertbistand"
-                error={
-                  attemptedSubmit ? errors.behovForBistand?.problemstilling?.message : undefined
-                }
-                {...register("behovForBistand.problemstilling", {
+                error={attemptedSubmit ? errors.ekspert?.problemstilling?.message : undefined}
+                {...register("ekspert.problemstilling", {
                   validate: validateProblemstilling,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}
               />
               <Textarea
-                id="behovForBistand.bistand"
+                id="bistand"
                 label="Hva vil dere har hjelp til fra eksperten, og hvor mange timer tror dere at det vil ta?"
                 description="f.eks. fleksibel arbeidstid, hjemmekontor, tilpassing av arbeidsoppgaver, hjelpemiddel, opplæring, ekstra oppfølging."
-                error={attemptedSubmit ? errors.behovForBistand?.bistand?.message : undefined}
-                {...register("behovForBistand.bistand", {
+                error={attemptedSubmit ? errors.bistand?.message : undefined}
+                {...register("bistand", {
                   validate: validateBehovForBistand,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}
               />
               <TextField
-                id="behovForBistand.kostnad"
+                id="bestilling.kostnad"
                 label="Estimert kostnad for ekspertbistand"
                 type="number"
                 inputMode="numeric"
                 max={25000}
-                error={attemptedSubmit ? errors.behovForBistand?.kostnad?.message : undefined}
+                error={attemptedSubmit ? errors.bestilling?.kostnad?.message : undefined}
                 {...kostnadReg}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}
               />
               <Textarea
-                id="behovForBistand.tiltak"
+                id="tiltak.forTilrettelegging"
                 label="Hvilken tilrettelegging har dere allerede tilbudt/prøvd ut og hvordan gikk det?"
                 description="Fleksibel arbeidstid, hjemmekontor, hjelpemiddel, tilpassing av arbeidsoppgaver, opplæring, ekstra oppfølging etc."
-                error={attemptedSubmit ? errors.behovForBistand?.tiltak?.message : undefined}
-                {...register("behovForBistand.tiltak", {
+                error={attemptedSubmit ? errors.tiltak?.forTilrettelegging?.message : undefined}
+                {...register("tiltak.forTilrettelegging", {
                   validate: validateTiltakForTilrettelegging,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
@@ -234,24 +232,22 @@ export default function SkjemaSteg2Page() {
                   <DatePicker {...datepickerProps}>
                     <DatePicker.Input
                       {...inputProps}
-                      id="behovForBistand.startDato"
+                      id="bestilling.startDato"
                       label="Startdato"
-                      error={
-                        attemptedSubmit ? errors.behovForBistand?.startDato?.message : undefined
-                      }
+                      error={attemptedSubmit ? errors.bestilling?.startDato?.message : undefined}
                       onBlur={(e) => {
                         inputProps.onBlur?.(e);
-                        if (attemptedSubmit) void trigger("behovForBistand.startDato");
+                        if (attemptedSubmit) void trigger("bestilling.startDato");
                       }}
                     />
                   </DatePicker>
                 </Box>
               </div>
               <TextField
-                id="behovForBistand.navKontakt"
+                id="nav.kontakt"
                 label="Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?"
-                error={attemptedSubmit ? errors.behovForBistand?.navKontakt?.message : undefined}
-                {...register("behovForBistand.navKontakt", {
+                error={attemptedSubmit ? errors.nav?.kontakt?.message : undefined}
+                {...register("nav.kontakt", {
                   validate: validateNavKontakt,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}

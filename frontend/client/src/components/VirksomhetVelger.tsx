@@ -6,24 +6,12 @@ import {
 } from "@navikt/virksomhetsvelger";
 import "@navikt/virksomhetsvelger/dist/assets/style.css";
 
-type RemoteVirksomhet = {
-  organisasjonsnummer: string;
-  navn: string;
-  underenheter?: RemoteVirksomhet[];
-};
-
 type VirksomhetPickerProps = {
   label: React.ReactNode;
   value: string;
   onChange: (organisasjonsnummer: string, virksomhet?: Organisasjon) => void;
   error?: React.ReactNode;
 };
-
-const mapToOrganisasjon = (data: RemoteVirksomhet): Organisasjon => ({
-  orgnr: data.organisasjonsnummer,
-  navn: data.navn,
-  underenheter: (data.underenheter ?? []).map(mapToOrganisasjon),
-});
 
 export function VirksomhetVelger({ label, value, onChange, error }: VirksomhetPickerProps) {
   const [organisasjoner, setOrganisasjoner] = useState<Organisasjon[]>([]);
@@ -38,9 +26,8 @@ export function VirksomhetVelger({ label, value, onChange, error }: VirksomhetPi
           signal: controller.signal,
         });
         if (res.ok) {
-          const payload = (await res.json()) as { virksomheter?: RemoteVirksomhet[] };
-          const mapped = (payload.virksomheter ?? []).map(mapToOrganisasjon);
-          setOrganisasjoner(mapped);
+          const payload = (await res.json()) as { organisasjoner?: Organisasjon[] };
+          setOrganisasjoner(payload.organisasjoner ?? []);
         } else {
           setOrganisasjoner([]);
         }
