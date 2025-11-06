@@ -163,17 +163,17 @@ fun Application.configureDatabase() = runBlocking {
 /**
  * cleans all data in database. Should only be used in dev/test environments.
  */
-suspend fun Application.destroyExistingDatabase() {
+fun Application.destroyExistingDatabase() = runBlocking {
     basedOnEnv(
         prod = { error("destroyExistingDatabase enabled! Cannot destroy database in prod environment") },
         other = Unit,
     )
 
-    val dbConfig = dependencies.resolve<DbConfig>()
-
-    dbConfig.flywayConfig.cleanDisabled(false)
-    dbConfig.flywayConfig.validateOnMigrate(false)
-    dbConfig.flywayAction {
-        clean()
+    with(dependencies.resolve<DbConfig>()) {
+        flywayConfig.cleanDisabled(false)
+        flywayConfig.validateOnMigrate(false)
+        flywayAction {
+            clean()
+        }
     }
 }
