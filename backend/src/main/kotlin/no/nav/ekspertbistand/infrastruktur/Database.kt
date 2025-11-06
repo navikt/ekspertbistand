@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource
 import io.ktor.http.*
 import io.ktor.server.application.Application
 import io.ktor.server.plugins.di.dependencies
+import kotlinx.coroutines.runBlocking
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.configuration.FluentConfiguration
 import org.jetbrains.exposed.v1.core.DatabaseConfig
@@ -141,8 +142,10 @@ class DbUrl(
     override fun toString() = "jdbc:$uri"
 }
 
-suspend fun Application.configureDatabase() {
-    val dbConfig = dependencies.resolve<DbConfig>()
+fun Application.configureDatabase() {
+    val dbConfig = runBlocking {
+        dependencies.resolve<DbConfig>()
+    }
 
     dbConfig.flywayAction {
         migrate()
