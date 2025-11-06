@@ -64,6 +64,7 @@ jobs:
       digest: ${{ steps.docker-build-push.outputs.digest }}
 
   salsa:
+    if: github.ref == 'refs/heads/main'
     name: attest and sign image
     needs: [ build ]
     runs-on: ubuntu-latest
