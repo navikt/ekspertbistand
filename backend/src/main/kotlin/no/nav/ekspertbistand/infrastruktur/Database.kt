@@ -142,10 +142,8 @@ class DbUrl(
     override fun toString() = "jdbc:$uri"
 }
 
-fun Application.configureDatabase() {
-    val dbConfig = runBlocking {
-        dependencies.resolve<DbConfig>()
-    }
+fun Application.configureDatabase() = runBlocking {
+    val dbConfig = dependencies.resolve<DbConfig>()
 
     dbConfig.flywayAction {
         migrate()
