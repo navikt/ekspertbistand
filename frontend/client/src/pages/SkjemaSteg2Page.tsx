@@ -21,12 +21,12 @@ import DecoratedPage from "../components/DecoratedPage";
 import type { Inputs } from "./types";
 import { STEP2_FIELDS } from "./types";
 import {
-  validateProblemstilling,
-  validateBehovForBistand,
-  validateTiltakForTilrettelegging,
-  validateKostnad,
-  validateStartDato,
-  validateNavKontakt,
+  validateBegrunnelse,
+  validateBehov,
+  validateTilrettelegging,
+  validateEstimertKostnad,
+  validateStartdato,
+  validateNavKontaktperson,
 } from "./validation";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
@@ -55,8 +55,8 @@ export default function SkjemaSteg2Page() {
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus(() =>
     attemptedSubmitFromLocation ? 1 : 0
   );
-  const startDatoIso = useWatch({ name: "bestilling.startDato" }) as
-    | Inputs["bestilling"]["startDato"]
+  const startdato = useWatch({ name: "behovForBistand.startdato" }) as
+    | Inputs["behovForBistand"]["startdato"]
     | undefined;
   const syncingDateRef = useRef(false);
   const { draftId, hydrated, clearDraft } = useSoknadDraft();
@@ -65,21 +65,33 @@ export default function SkjemaSteg2Page() {
   const errorItems = attemptedSubmit
     ? [
         {
-          id: "ekspert.problemstilling",
-          message: errors.ekspert?.problemstilling?.message,
+          id: "behovForBistand.begrunnelse",
+          message: errors.behovForBistand?.begrunnelse?.message,
         },
-        { id: "bistand", message: errors.bistand?.message },
-        { id: "tiltak.forTilrettelegging", message: errors.tiltak?.forTilrettelegging?.message },
-        { id: "bestilling.kostnad", message: errors.bestilling?.kostnad?.message },
-        { id: "bestilling.startDato", message: errors.bestilling?.startDato?.message },
-        { id: "nav.kontakt", message: errors.nav?.kontakt?.message },
+        {
+          id: "behovForBistand.behov",
+          message: errors.behovForBistand?.behov?.message,
+        },
+        {
+          id: "behovForBistand.tilrettelegging",
+          message: errors.behovForBistand?.tilrettelegging?.message,
+        },
+        {
+          id: "behovForBistand.estimertKostnad",
+          message: errors.behovForBistand?.estimertKostnad?.message,
+        },
+        {
+          id: "behovForBistand.startdato",
+          message: errors.behovForBistand?.startdato?.message,
+        },
+        { id: "nav.kontaktperson", message: errors.nav?.kontaktperson?.message },
       ].filter((item): item is { id: string; message: string } => typeof item.message === "string")
     : [];
 
   const shouldFocusErrorSummary = hydrated && attemptedSubmit && Object.keys(errors).length > 0;
 
   useEffect(() => {
-    register("bestilling.startDato", { validate: validateStartDato });
+    register("behovForBistand.startdato", { validate: validateStartdato });
   }, [register]);
 
   useEffect(() => {
@@ -87,30 +99,39 @@ export default function SkjemaSteg2Page() {
     navigate(location.pathname, { replace: true, state: null });
   }, [attemptedSubmitFromLocation, location.pathname, navigate]);
 
-  const selectedDate = useMemo(() => {
-    if (!startDatoIso) return undefined;
-    const parsed = new Date(startDatoIso);
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-  }, [startDatoIso]);
+  const toDateString = useCallback((date: Date) => {
+    const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    return utcDate.toISOString().slice(0, 10);
+  }, []);
 
-  const { datepickerProps, inputProps, setSelected, selectedDay } = useDatepicker({
-    defaultSelected: selectedDate,
-    defaultMonth: selectedDate ?? todayDate,
-    fromDate: todayDate,
-    onDateChange: (date) => {
-      if (syncingDateRef.current) {
-        syncingDateRef.current = false;
-        return;
-      }
-      setValue("bestilling.startDato", date ? date.toISOString() : null, {
-        shouldDirty: true,
-        shouldValidate: attemptedSubmit,
-      });
+  const parsedStartdato = useMemo(() => {
+    if (!startdato) return undefined;
+    const [year, month, day] = startdato.split("-").map((part) => Number.parseInt(part, 10));
+    if ([year, month, day].some((value) => Number.isNaN(value))) return undefined;
+    return new Date(year, month - 1, day);
+  }, [startdato]);
+
+  const { datepickerProps, inputProps, setSelected, selectedDay } = useDatepicker(
+    {
+      defaultSelected: parsedStartdato,
+      defaultMonth: parsedStartdato ?? todayDate,
+      fromDate: todayDate,
+      onDateChange: (date) => {
+        if (syncingDateRef.current) {
+          syncingDateRef.current = false;
+          return;
+        }
+        setValue("behovForBistand.startdato", date ? toDateString(date) : null, {
+          shouldDirty: true,
+          shouldValidate: attemptedSubmit,
+        });
+      },
     },
-  });
+    [attemptedSubmit, parsedStartdato, setValue, toDateString, todayDate]
+  );
 
   useEffect(() => {
-    if (!selectedDate) {
+    if (!parsedStartdato) {
       if (selectedDay) {
         syncingDateRef.current = true;
         setSelected(undefined);
@@ -118,16 +139,16 @@ export default function SkjemaSteg2Page() {
       return;
     }
     const currentSelectedTime = selectedDay?.getTime();
-    if (currentSelectedTime === selectedDate.getTime()) {
+    if (currentSelectedTime === parsedStartdato.getTime()) {
       return;
     }
     syncingDateRef.current = true;
-    setSelected(selectedDate);
-  }, [selectedDate, selectedDay, setSelected]);
+    setSelected(parsedStartdato);
+  }, [parsedStartdato, selectedDay, setSelected]);
 
-  const kostnadReg = register("bestilling.kostnad", {
+  const kostnadReg = register("behovForBistand.estimertKostnad", {
     setValueAs: (value) => (value === "" || value === null ? "" : Number(value)),
-    validate: validateKostnad,
+    validate: validateEstimertKostnad,
   });
 
   const goToStepOne = useCallback(() => {
@@ -185,44 +206,48 @@ export default function SkjemaSteg2Page() {
           <Fieldset legend="Behov for bistand" hideLegend style={FORM_COLUMN_STYLE}>
             <VStack gap="6">
               <Textarea
-                id="ekspert.problemstilling"
+                id="behovForBistand.begrunnelse"
                 label="Beskriv den ansattes arbeidssituasjon, sykefravær og hvorfor dere ser behov for ekspertbistand"
-                error={attemptedSubmit ? errors.ekspert?.problemstilling?.message : undefined}
-                {...register("ekspert.problemstilling", {
-                  validate: validateProblemstilling,
+                error={attemptedSubmit ? errors.behovForBistand?.begrunnelse?.message : undefined}
+                {...register("behovForBistand.begrunnelse", {
+                  validate: validateBegrunnelse,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}
               />
               <Textarea
-                id="bistand"
+                id="behovForBistand.behov"
                 label="Hva vil dere har hjelp til fra eksperten, og hvor mange timer tror dere at det vil ta?"
                 description="f.eks. fleksibel arbeidstid, hjemmekontor, tilpassing av arbeidsoppgaver, hjelpemiddel, opplæring, ekstra oppfølging."
-                error={attemptedSubmit ? errors.bistand?.message : undefined}
-                {...register("bistand", {
-                  validate: validateBehovForBistand,
+                error={attemptedSubmit ? errors.behovForBistand?.behov?.message : undefined}
+                {...register("behovForBistand.behov", {
+                  validate: validateBehov,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}
               />
               <TextField
-                id="bestilling.kostnad"
+                id="behovForBistand.estimertKostnad"
                 label="Estimert kostnad for ekspertbistand"
                 type="number"
                 inputMode="numeric"
                 max={25000}
-                error={attemptedSubmit ? errors.bestilling?.kostnad?.message : undefined}
+                error={
+                  attemptedSubmit ? errors.behovForBistand?.estimertKostnad?.message : undefined
+                }
                 {...kostnadReg}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}
               />
               <Textarea
-                id="tiltak.forTilrettelegging"
+                id="behovForBistand.tilrettelegging"
                 label="Hvilken tilrettelegging har dere allerede tilbudt/prøvd ut og hvordan gikk det?"
                 description="Fleksibel arbeidstid, hjemmekontor, hjelpemiddel, tilpassing av arbeidsoppgaver, opplæring, ekstra oppfølging etc."
-                error={attemptedSubmit ? errors.tiltak?.forTilrettelegging?.message : undefined}
-                {...register("tiltak.forTilrettelegging", {
-                  validate: validateTiltakForTilrettelegging,
+                error={
+                  attemptedSubmit ? errors.behovForBistand?.tilrettelegging?.message : undefined
+                }
+                {...register("behovForBistand.tilrettelegging", {
+                  validate: validateTilrettelegging,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}
@@ -232,23 +257,25 @@ export default function SkjemaSteg2Page() {
                   <DatePicker {...datepickerProps}>
                     <DatePicker.Input
                       {...inputProps}
-                      id="bestilling.startDato"
+                      id="behovForBistand.startdato"
                       label="Startdato"
-                      error={attemptedSubmit ? errors.bestilling?.startDato?.message : undefined}
+                      error={
+                        attemptedSubmit ? errors.behovForBistand?.startdato?.message : undefined
+                      }
                       onBlur={(e) => {
                         inputProps.onBlur?.(e);
-                        if (attemptedSubmit) void trigger("bestilling.startDato");
+                        if (attemptedSubmit) void trigger("behovForBistand.startdato");
                       }}
                     />
                   </DatePicker>
                 </Box>
               </div>
               <TextField
-                id="nav.kontakt"
+                id="nav.kontaktperson"
                 label="Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?"
-                error={attemptedSubmit ? errors.nav?.kontakt?.message : undefined}
-                {...register("nav.kontakt", {
-                  validate: validateNavKontakt,
+                error={attemptedSubmit ? errors.nav?.kontaktperson?.message : undefined}
+                {...register("nav.kontaktperson", {
+                  validate: validateNavKontaktperson,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}

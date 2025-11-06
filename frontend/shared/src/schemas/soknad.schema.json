@@ -1,108 +1,90 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.com/schemas/soknad.schema.json",
-  "title": "Søknadsskjema",
+  "title": "Ekspertbistand",
   "type": "object",
   "properties": {
     "virksomhet": {
       "type": "object",
       "properties": {
-        "navn": {
-          "type": "string"
-        },
-        "virksomhetsnummer": {
-          "type": "string"
-        },
+        "virksomhetsnummer": { "type": "string" },
+        "virksomhetsnavn": { "type": "string" },
         "kontaktperson": {
           "type": "object",
           "properties": {
-            "navn": {
-              "type": "string"
-            },
-            "epost": {
-              "type": "string"
-            },
-            "telefon": {
-              "type": "string"
-            }
+            "navn": { "type": "string" },
+            "epost": { "type": "string" },
+            "telefonnummer": { "type": "string" }
           },
-          "required": ["navn", "epost", "telefon"],
-          "additionalProperties": false
+          "required": ["navn", "epost", "telefonnummer"]
         }
       },
-      "required": ["navn", "virksomhetsnummer", "kontaktperson"],
-      "additionalProperties": false
+      "required": ["virksomhetsnummer", "virksomhetsnavn", "kontaktperson"]
     },
     "ansatt": {
       "type": "object",
       "properties": {
-        "fodselsnummer": {
-          "type": "string"
-        },
-        "navn": {
-          "type": "string"
-        }
+        "fnr": { "type": "string" },
+        "navn": { "type": "string" }
       },
-      "required": ["fodselsnummer", "navn"],
-      "additionalProperties": false
+      "required": ["fnr", "navn"]
     },
     "ekspert": {
       "type": "object",
       "properties": {
-        "navn": {
-          "type": "string"
-        },
-        "virksomhet": {
-          "type": "string"
-        },
-        "kompetanse": {
-          "type": "string"
-        },
-        "problemstilling": {
-          "type": "string"
-        }
+        "navn": { "type": "string" },
+        "virksomhet": { "type": "string" },
+        "kompetanse": { "type": "string" }
       },
-      "required": ["navn", "virksomhet", "kompetanse", "problemstilling"],
-      "additionalProperties": false
+      "required": ["navn", "virksomhet", "kompetanse"]
     },
-    "bistand": {
-      "type": "string"
-    },
-    "tiltak": {
+    "behovForBistand": {
       "type": "object",
       "properties": {
-        "forTilrettelegging": {
-          "type": "string"
-        }
+        "begrunnelse": { "type": "string" },
+        "behov": { "type": "string" },
+        "estimertKostnad": { "type": "number" },
+        "tilrettelegging": { "type": "string" },
+        "startdato": { "type": "string", "format": "date" }
       },
-      "required": ["forTilrettelegging"],
-      "additionalProperties": false
-    },
-    "bestilling": {
-      "type": "object",
-      "properties": {
-        "kostnad": {
-          "oneOf": [{ "type": "number" }, { "type": "string" }]
-        },
-        "startDato": {
-          "type": ["string", "null"],
-          "format": "date-time"
-        }
-      },
-      "required": ["kostnad", "startDato"],
-      "additionalProperties": false
+      "required": ["begrunnelse", "behov", "estimertKostnad", "startdato"]
     },
     "nav": {
       "type": "object",
       "properties": {
-        "kontakt": {
-          "type": "string"
-        }
+        "kontaktperson": { "type": "string" }
       },
-      "required": ["kontakt"],
-      "additionalProperties": false
+      "required": ["kontaktperson"]
     }
   },
-  "required": ["virksomhet", "ansatt", "ekspert", "bistand", "tiltak", "bestilling", "nav"],
-  "additionalProperties": false
+  "required": ["virksomhet", "ansatt", "ekspert", "behovForBistand", "nav"],
+  "example": {
+    "virksomhet": {
+      "virksomhetsnummer": "211511052",
+      "virksomhetsnavn": "LOLPATROL",
+      "kontaktperson": {
+        "navn": "Ola Nordmann",
+        "epost": "ola.nordmann@firma.no",
+        "telefonnummer": "+47 99881337"
+      }
+    },
+    "ansatt": {
+      "fnr": "12058512345",
+      "navn": "Kari Nordmann"
+    },
+    "ekspert": {
+      "navn": "Ekspert NN",
+      "virksomhet": "ErgoConsult AS",
+      "kompetanse": "Ergoterapeut, autorisasjon HPR 1337"
+    },
+    "behovForBistand": {
+      "begrunnelse": "Langvarig skulderplage med 50% sykefravær",
+      "behov": "Arbeidsplassvurdering og ergonomisk veiledning",
+      "estimertKostnad": 9000,
+      "tilrettelegging": "Høydejustert bord testet, noe bedring",
+      "startdato": "2025-11-15"
+    },
+    "nav": {
+      "kontaktperson": "Sakbehandler NN"
+    }
+  }
 }

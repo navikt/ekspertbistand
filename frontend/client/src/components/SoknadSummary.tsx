@@ -15,7 +15,7 @@ const formatValue = (value: unknown): string => {
   return "—";
 };
 
-const formatCurrency = (value: Inputs["bestilling"]["kostnad"]): string => {
+const formatCurrency = (value: Inputs["behovForBistand"]["estimertKostnad"]): string => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return `${numberFormatter.format(value)} kr`;
   }
@@ -33,9 +33,11 @@ const formatCurrency = (value: Inputs["bestilling"]["kostnad"]): string => {
   return formatValue(value);
 };
 
-const formatDate = (value: Inputs["bestilling"]["startDato"]): string => {
+const formatDate = (value: Inputs["behovForBistand"]["startdato"]): string => {
   if (!value) return "—";
-  const parsed = new Date(value);
+  const [year, month, day] = value.split("-").map((part) => Number.parseInt(part, 10));
+  if ([year, month, day].some((part) => Number.isNaN(part))) return "—";
+  const parsed = new Date(year, month - 1, day);
   return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString("nb-NO");
 };
 
@@ -52,7 +54,7 @@ export function SoknadSummary({
   onEditStep1,
   onEditStep2,
 }: SoknadSummaryProps) {
-  const { virksomhet, ansatt, ekspert, bistand, tiltak, bestilling, nav } = data;
+  const { virksomhet, ansatt, ekspert, behovForBistand, nav } = data;
 
   return (
     <>
@@ -88,7 +90,7 @@ export function SoknadSummary({
                 <FormSummary.Answer>
                   <FormSummary.Label>Telefonnummer</FormSummary.Label>
                   <FormSummary.Value>
-                    {formatValue(virksomhet.kontaktperson.telefon)}
+                    {formatValue(virksomhet.kontaktperson.telefonnummer)}
                   </FormSummary.Value>
                 </FormSummary.Answer>
               </FormSummary.Answers>
@@ -105,7 +107,7 @@ export function SoknadSummary({
                 </FormSummary.Answer>
                 <FormSummary.Answer>
                   <FormSummary.Label>Fødselsnummer</FormSummary.Label>
-                  <FormSummary.Value>{formatValue(ansatt.fodselsnummer)}</FormSummary.Value>
+                  <FormSummary.Value>{formatValue(ansatt.fnr)}</FormSummary.Value>
                 </FormSummary.Answer>
               </FormSummary.Answers>
             </FormSummary.Value>
@@ -148,33 +150,33 @@ export function SoknadSummary({
               Beskriv den ansattes arbeidssituasjon, sykefravær og hvorfor dere ser behov for
               ekspertbistand
             </FormSummary.Label>
-            <FormSummary.Value>{formatValue(ekspert.problemstilling)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(behovForBistand.begrunnelse)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>
               Hva vil dere har hjelp til fra eksperten, og hvor mange timer tror dere at det vil ta?
             </FormSummary.Label>
-            <FormSummary.Value>{formatValue(bistand)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(behovForBistand.behov)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>
               Hvilke tiltak for tilrettelegging har dere allerede gjort, vurdert eller forsøkt?
             </FormSummary.Label>
-            <FormSummary.Value>{formatValue(tiltak.forTilrettelegging)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(behovForBistand.tilrettelegging)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Estimert kostnad for ekspertbistand</FormSummary.Label>
-            <FormSummary.Value>{formatCurrency(bestilling.kostnad)}</FormSummary.Value>
+            <FormSummary.Value>{formatCurrency(behovForBistand.estimertKostnad)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Startdato</FormSummary.Label>
-            <FormSummary.Value>{formatDate(bestilling.startDato)}</FormSummary.Value>
+            <FormSummary.Value>{formatDate(behovForBistand.startdato)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>
               Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?
             </FormSummary.Label>
-            <FormSummary.Value>{formatValue(nav.kontakt)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(nav.kontaktperson)}</FormSummary.Value>
           </FormSummary.Answer>
         </FormSummary.Answers>
         {editable && onEditStep2 && (

@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { createEmptyInputs, mergeInputs, type Inputs } from "../pages/types";
+import { createEmptyInputs, type Inputs } from "../pages/types";
 import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 
@@ -96,6 +96,29 @@ const deepCopy = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T;
 };
 
+// Shallow merge helper that ignores undefined values to keep existing data intact.
+const mergeShallow = <T extends Record<string, unknown>>(base: T, update?: Partial<T>): T =>
+  ({
+    ...base,
+    ...Object.fromEntries(Object.entries(update ?? {}).filter(([, val]) => val !== undefined)),
+  }) as T;
+
+const mergeInputs = (base: Partial<Inputs> | undefined, update: Partial<Inputs>): Inputs => {
+  const b = (base as Inputs | undefined) ?? createEmptyInputs();
+
+  const virksomhet = mergeShallow(b.virksomhet, update.virksomhet);
+  const kontaktperson = mergeShallow(b.virksomhet.kontaktperson, update.virksomhet?.kontaktperson);
+  const behovForBistand = mergeShallow(b.behovForBistand, update.behovForBistand);
+
+  return {
+    virksomhet: { ...virksomhet, kontaktperson },
+    ansatt: mergeShallow(b.ansatt, update.ansatt),
+    ekspert: mergeShallow(b.ekspert, update.ekspert),
+    behovForBistand,
+    nav: mergeShallow(b.nav, update.nav),
+  };
+};
+
 const SKJEMA_CACHE_NAME = "mock-skjema-v1-store";
 const SKJEMA_CACHE_URL = "/mock/skjema/store";
 
@@ -137,17 +160,34 @@ const ensureSkjemaStoreLoaded = async () => {
   skjemaStoreLoaded = true;
 };
 
-const toKostnadString = (value: Inputs["bestilling"]["kostnad"]): string => {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value.toString() : "";
+const toEstimertKostnadNumber = (value: Inputs["behovForBistand"]["estimertKostnad"]): number => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value);
   }
   if (typeof value === "string") {
-    return value;
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return 0;
+    const parsed = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(parsed)) {
+      return Math.round(parsed);
+    }
   }
-  return "";
+  return 0;
 };
 
-const toStartDatoString = (value: Inputs["bestilling"]["startDato"]): string => value?.trim() ?? "";
+const createTodayDateString = () => {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${today.getFullYear()}-${month}-${day}`;
+};
+
+const toStartdatoString = (value: Inputs["behovForBistand"]["startdato"]): string => {
+  if (typeof value === "string" && value.trim().length === 10) {
+    return value.trim();
+  }
+  return createTodayDateString();
+};
 
 const toUtkastDto = (entry: MockSkjema) => {
   const data = entry.data ?? createEmptyInputs();
@@ -157,11 +197,10 @@ const toUtkastDto = (entry: MockSkjema) => {
     virksomhet: deepCopy(data.virksomhet),
     ansatt: deepCopy(data.ansatt),
     ekspert: deepCopy(data.ekspert),
-    bistand: data.bistand,
-    tiltak: deepCopy(data.tiltak),
-    bestilling: {
-      kostnad: toKostnadString(data.bestilling.kostnad),
-      startDato: toStartDatoString(data.bestilling.startDato),
+    behovForBistand: {
+      ...deepCopy(data.behovForBistand),
+      estimertKostnad: toEstimertKostnadNumber(data.behovForBistand.estimertKostnad),
+      startdato: toStartdatoString(data.behovForBistand.startdato),
     },
     nav: deepCopy(data.nav),
     opprettetAv: entry.opprettetAv,
@@ -177,11 +216,10 @@ const toSkjemaDto = (entry: MockSkjema) => {
     virksomhet: deepCopy(data.virksomhet),
     ansatt: deepCopy(data.ansatt),
     ekspert: deepCopy(data.ekspert),
-    bistand: data.bistand,
-    tiltak: deepCopy(data.tiltak),
-    bestilling: {
-      kostnad: toKostnadString(data.bestilling.kostnad),
-      startDato: toStartDatoString(data.bestilling.startDato),
+    behovForBistand: {
+      ...deepCopy(data.behovForBistand),
+      estimertKostnad: toEstimertKostnadNumber(data.behovForBistand.estimertKostnad),
+      startdato: toStartdatoString(data.behovForBistand.startdato),
     },
     nav: deepCopy(data.nav),
     opprettetAv: entry.opprettetAv,
@@ -209,8 +247,10 @@ const loginSessionJson = {
 };
 
 export const handlers = [
-  http.get("/api/health", () => HttpResponse.json({ status: "ok" })),
-  http.get("/api/virksomheter", () => HttpResponse.json({ organisasjoner })),
+  http.get("/internal/isAlive", () => HttpResponse.json({ status: "ok" })),
+  http.get("/ekspertbistand-backend/api/organisasjoner/v1", () =>
+    HttpResponse.json({ organisasjoner })
+  ),
   http.get("/api/soknad/draft", async () => {
     const currentDraft = await loadDraft();
     return HttpResponse.json(currentDraft);

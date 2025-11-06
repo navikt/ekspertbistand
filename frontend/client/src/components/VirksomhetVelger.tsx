@@ -21,13 +21,13 @@ export function VirksomhetVelger({ label, value, onChange, error }: VirksomhetPi
     const controller = new AbortController();
     (async () => {
       try {
-        const res = await fetch("/api/virksomheter", {
+        const res = await fetch("/ekspertbistand-backend/api/organisasjoner/v1", {
           headers: { Accept: "application/json" },
           signal: controller.signal,
         });
         if (res.ok) {
-          const payload = (await res.json()) as { organisasjoner?: Organisasjon[] };
-          setOrganisasjoner(payload.organisasjoner ?? []);
+          const payload = (await res.json()) as { hierarki?: Organisasjon[] };
+          setOrganisasjoner(payload.hierarki ?? []);
         } else {
           setOrganisasjoner([]);
         }
