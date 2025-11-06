@@ -80,7 +80,6 @@ suspend fun Application.module() {
     configureBaseSetup()
 
     // database
-    destroyExistingDatabase() // TODO: remove
     configureDatabase()
 
     // application modules
