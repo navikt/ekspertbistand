@@ -53,6 +53,7 @@ jobs:
         id: docker-build-push
         with:
           team: fager
+          image_suffix: backend
           tag: ${{ github.sha }}
           dockerfile: backend/Dockerfile
           docker_context: backend
