@@ -8,6 +8,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.Json.Default.parseToJsonElement
 import kotlinx.serialization.json.JsonObject
@@ -107,31 +108,31 @@ class OpprettNySakEventHandlerTest {
 private val skjema1 = DTO.Skjema(
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "1337",
+        virksomhetsnavn = "foo bar AS",
         kontaktperson = DTO.Kontaktperson(
             navn = "Donald Duck",
             epost = "Donald@duck.co",
-            telefon = "12345678"
+            telefonnummer = "12345678"
         )
     ),
     ansatt = DTO.Ansatt(
-        fodselsnummer = "12345678910",
+        fnr = "12345678910",
         navn = "Ole Olsen"
     ),
     ekspert = DTO.Ekspert(
         navn = "Egon Olsen",
         virksomhet = "Olsenbanden AS",
         kompetanse = "Bankran",
-        problemstilling = "Hvordan gjennomføre et bankran?" // max 5000 chars
     ),
-    tiltak = DTO.Tiltak(
-        forTilrettelegging = "Tilrettelegging på arbeidsplassen"
-    ),
-    bestilling = DTO.Bestilling(
-        kostnad = "42",
-        startDato = "2024-10-10"
+    behovForBistand = DTO.BehovForBistand(
+        behov = "Tilrettelegging",
+        begrunnelse = "Tilrettelegging på arbeidsplassen",
+        estimertKostnad = 4200,
+        tilrettelegging = "Spesialtilpasset kontor",
+        startdato = LocalDate.parse("2024-11-15")
     ),
     nav = DTO.Nav(
-        kontakt = "Navn Navnesen"
+        kontaktperson = "Navn Navnesen"
     ),
 )
 

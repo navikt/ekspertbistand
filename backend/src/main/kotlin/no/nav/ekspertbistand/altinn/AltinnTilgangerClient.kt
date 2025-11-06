@@ -24,7 +24,7 @@ class AltinnTilgangerClient(
 ) {
     companion object {
         const val altinn2Tjenestekode = "5384:1"
-        const val altinn3Ressursid = "nav_ekspertbistand_soknad" // TODO: navn på denne er ikke bestemt enda
+        const val altinn3Ressursid = "nav_tiltak_ekspertbistand"
         const val ingress = "http://arbeidsgiver-altinn-tilganger.fager" // service discovery
     }
 
@@ -49,7 +49,7 @@ class AltinnTilgangerClient(
                 mapOf(
                     "filter" to mapOf(
                         "altinn2Tilganger" to listOf(altinn2Tjenestekode),
-                        "altinn3Tilganger" to listOf(altinn3Ressursid),
+                        //altinn3Tilganger" to listOf(altinn3Ressursid), TODO: enable when resource exists in tt02
                     )
                 )
             )

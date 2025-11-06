@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource
 import io.ktor.http.*
 import io.ktor.server.application.Application
 import io.ktor.server.plugins.di.dependencies
+import kotlinx.coroutines.runBlocking
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.configuration.FluentConfiguration
 import org.jetbrains.exposed.v1.core.DatabaseConfig
@@ -141,7 +142,7 @@ class DbUrl(
     override fun toString() = "jdbc:$uri"
 }
 
-suspend fun Application.configureDatabase() {
+fun Application.configureDatabase() = runBlocking {
     val dbConfig = dependencies.resolve<DbConfig>()
 
     dbConfig.flywayAction {
@@ -156,5 +157,23 @@ suspend fun Application.configureDatabase() {
         provide<Database> {
             dbConfig.jdbcDatabase
         }
+    }
+}
+
+/**
+ * cleans all data in database. Should only be used in dev/test environments.
+ */
+suspend fun Application.destroyExistingDatabase() {
+    basedOnEnv(
+        prod = { error("destroyExistingDatabase enabled! Cannot destroy database in prod environment") },
+        other = Unit,
+    )
+
+    val dbConfig = dependencies.resolve<DbConfig>()
+
+    dbConfig.flywayConfig.cleanDisabled(false)
+    dbConfig.flywayConfig.validateOnMigrate(false)
+    dbConfig.flywayAction {
+        clean()
     }
 }

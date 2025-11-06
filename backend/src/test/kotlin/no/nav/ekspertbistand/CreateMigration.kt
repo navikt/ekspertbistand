@@ -1,10 +1,12 @@
-package no.nav.ekspertbistand.skjema
+package no.nav.ekspertbistand
 
 import no.nav.ekspertbistand.event.EventHandlerStates
 import no.nav.ekspertbistand.event.EventLog
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.services.IdempotencyGuardRecords
+import no.nav.ekspertbistand.skjema.SkjemaTable
+import no.nav.ekspertbistand.skjema.UtkastTable
 import org.jetbrains.exposed.v1.core.ExperimentalDatabaseMigrationApi
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
