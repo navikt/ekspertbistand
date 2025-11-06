@@ -1,10 +1,11 @@
 package no.nav.ekspertbistand.skjema
 
 import io.ktor.http.*
+import io.ktor.http.content.NullBody
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.Contextual
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.event.EventData
@@ -144,29 +145,29 @@ class SkjemaApi(
             ) { utkast ->
                 oppdatertUtkast.virksomhet?.also { v ->
                     utkast[virksomhetsnummer] = v.virksomhetsnummer
+                    utkast[virksomhetsnavn] = v.virksomhetsnavn
                     utkast[kontaktpersonNavn] = v.kontaktperson.navn
                     utkast[kontaktpersonEpost] = v.kontaktperson.epost
-                    utkast[kontaktpersonTelefon] = v.kontaktperson.telefon
+                    utkast[kontaktpersonTelefon] = v.kontaktperson.telefonnummer
                 }
                 oppdatertUtkast.ansatt?.also { a ->
-                    utkast[ansattFodselsnummer] = a.fodselsnummer
+                    utkast[ansattFnr] = a.fnr
                     utkast[ansattNavn] = a.navn
                 }
                 oppdatertUtkast.ekspert?.also { e ->
                     utkast[ekspertNavn] = e.navn
                     utkast[ekspertVirksomhet] = e.virksomhet
                     utkast[ekspertKompetanse] = e.kompetanse
-                    utkast[ekspertProblemstilling] = e.problemstilling
                 }
-                oppdatertUtkast.tiltak?.also { t ->
-                    utkast[tiltakForTilrettelegging] = t.forTilrettelegging
-                }
-                oppdatertUtkast.bestilling?.also { b ->
-                    utkast[bestillingKostnad] = b.kostnad
-                    utkast[bestillingStartDato] = b.startDato
+                oppdatertUtkast.behovForBistand?.also { t ->
+                    utkast[behovForBistand] = t.behov
+                    utkast[behovForBistandBegrunnelse] = t.begrunnelse
+                    utkast[behovForBistandEstimertKostnad] = t.estimertKostnad
+                    utkast[behovForBistandTilrettelegging] = t.tilrettelegging
+                    utkast[behovForBistandStartdato] = t.startdato
                 }
                 oppdatertUtkast.nav?.also { n ->
-                    utkast[navKontakt] = n.kontakt
+                    utkast[navKontaktPerson] = n.kontaktperson
                 }
             }.single().tilUtkastDTO()
         }
@@ -202,7 +203,7 @@ class SkjemaApi(
             UtkastTable.deleteWhere { UtkastTable.id eq idParam }
         }
 
-        call.respond(status = HttpStatusCode.NoContent, message = "utkast slettet")
+        call.respond(status = HttpStatusCode.NoContent, NullBody)
     }
 
     suspend fun RoutingContext.sendInnSkjema(idParam: UUID) {
@@ -233,19 +234,22 @@ class SkjemaApi(
             val skjema = SkjemaTable.insertReturning {
                 it[id] = idParam
                 it[virksomhetsnummer] = skjema.virksomhet.virksomhetsnummer
+                it[virksomhetsnavn] = skjema.virksomhet.virksomhetsnavn
                 it[kontaktpersonNavn] = skjema.virksomhet.kontaktperson.navn
                 it[kontaktpersonEpost] = skjema.virksomhet.kontaktperson.epost
-                it[kontaktpersonTelefon] = skjema.virksomhet.kontaktperson.telefon
-                it[ansattFodselsnummer] = skjema.ansatt.fodselsnummer
+                it[kontaktpersonTelefon] = skjema.virksomhet.kontaktperson.telefonnummer
+                it[ansattFnr] = skjema.ansatt.fnr
                 it[ansattNavn] = skjema.ansatt.navn
                 it[ekspertNavn] = skjema.ekspert.navn
                 it[ekspertVirksomhet] = skjema.ekspert.virksomhet
                 it[ekspertKompetanse] = skjema.ekspert.kompetanse
-                it[ekspertProblemstilling] = skjema.ekspert.problemstilling
-                it[tiltakForTilrettelegging] = skjema.tiltak.forTilrettelegging
-                it[bestillingKostnad] = skjema.bestilling.kostnad
-                it[bestillingStartDato] = skjema.bestilling.startDato
-                it[navKontakt] = skjema.nav.kontakt
+                it[behovForBistand] = skjema.behovForBistand.behov
+                it[behovForBistandBegrunnelse] = skjema.behovForBistand.begrunnelse
+                it[behovForBistandEstimertKostnad] = skjema.behovForBistand.estimertKostnad
+                it[behovForBistandTilrettelegging] = skjema.behovForBistand.tilrettelegging
+                it[behovForBistandStartdato] = skjema.behovForBistand.startdato!!
+
+                it[navKontaktPerson] = skjema.nav.kontaktperson
                 it[opprettetAv] = innloggetBruker
             }.single().tilSkjemaDTO().also {
                 UtkastTable.deleteWhere { UtkastTable.id eq idParam }
@@ -280,8 +284,7 @@ sealed interface DTO {
         val virksomhet: Virksomhet,
         val ansatt: Ansatt,
         val ekspert: Ekspert,
-        val tiltak: Tiltak,
-        val bestilling: Bestilling,
+        val behovForBistand: BehovForBistand,
         val nav: Nav,
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
@@ -295,8 +298,7 @@ sealed interface DTO {
         val virksomhet: Virksomhet? = null,
         val ansatt: Ansatt? = null,
         val ekspert: Ekspert? = null,
-        val tiltak: Tiltak? = null,
-        val bestilling: Bestilling? = null,
+        val behovForBistand: BehovForBistand? = null,
         val nav: Nav? = null,
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
@@ -307,6 +309,7 @@ sealed interface DTO {
     @Serializable
     data class Virksomhet(
         val virksomhetsnummer: String,
+        val virksomhetsnavn: String,
         val kontaktperson: Kontaktperson
     )
 
@@ -314,12 +317,12 @@ sealed interface DTO {
     data class Kontaktperson(
         val navn: String,
         val epost: String,
-        val telefon: String
+        val telefonnummer: String
     )
 
     @Serializable
     data class Ansatt(
-        val fodselsnummer: String,
+        val fnr: String,
         val navn: String
     )
 
@@ -327,25 +330,21 @@ sealed interface DTO {
     data class Ekspert(
         val navn: String,
         val virksomhet: String,
-        val kompetanse: String,
-        val problemstilling: String
+        val kompetanse: String
     )
 
     @Serializable
-    data class Tiltak(
-        val forTilrettelegging: String
-    )
-
-    @Serializable
-    data class Bestilling(
-        @Contextual
-        val kostnad: String,
-        val startDato: String
+    data class BehovForBistand(
+        val begrunnelse: String,
+        val behov: String,
+        val estimertKostnad: Int,
+        val tilrettelegging: String,
+        val startdato: LocalDate,
     )
 
     @Serializable
     data class Nav(
-        val kontakt: String
+        val kontaktperson: String
     )
 }
 

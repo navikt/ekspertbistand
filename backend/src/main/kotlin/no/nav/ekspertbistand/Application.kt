@@ -90,6 +90,7 @@ suspend fun Application.module() {
 suspend fun Application.configureBaseSetup() {
     configureServer()
     configureTokenXAuth()
+    destroyExistingDatabase() // TODO: remove
     configureDatabase()
 }
 

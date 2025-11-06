@@ -1,12 +1,16 @@
 package no.nav.ekspertbistand.skjema
 
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone.Companion.currentSystemDefault
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.dao.id.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
+import org.jetbrains.exposed.v1.datetime.date
 import org.jetbrains.exposed.v1.datetime.timestamp
-import org.jetbrains.exposed.v1.jdbc.*
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.*
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -16,29 +20,29 @@ object SkjemaTable : Table("skjema") {
 
     // Virksomhet
     val virksomhetsnummer = text("virksomhetsnummer").index()
+    val virksomhetsnavn = text("virksomhetsnavn")
     val kontaktpersonNavn = text("kontaktperson_navn")
     val kontaktpersonEpost = text("kontaktperson_epost")
     val kontaktpersonTelefon = text("kontaktperson_telefon")
 
     // Ansatt
-    val ansattFodselsnummer = text("ansatt_fodselsnummer")
+    val ansattFnr = text("ansatt_fnr")
     val ansattNavn = text("ansatt_navn")
 
     // Ekspert
     val ekspertNavn = text("ekspert_navn")
     val ekspertVirksomhet = text("ekspert_virksomhet")
     val ekspertKompetanse = text("ekspert_kompetanse")
-    val ekspertProblemstilling = text("ekspert_problemstilling")
 
-    // Tiltak
-    val tiltakForTilrettelegging = text("tiltak_for_tilrettelegging")
-
-    // Bestilling
-    val bestillingKostnad = text("bestilling_kostnad")
-    val bestillingStartDato = text("bestilling_start_dato")
+    // Behov for bistand
+    val behovForBistandBegrunnelse = text("behov_for_bistand_begrunnelse")
+    val behovForBistand = text("behov_for_bistand")
+    val behovForBistandEstimertKostnad = integer("behov_for_bistand_estimert_kostnad")
+    val behovForBistandTilrettelegging = text("behov_for_bistand_tilrettelegging")
+    val behovForBistandStartdato = date("behov_for_bistand_startdato")
 
     // NAV
-    val navKontakt = text("nav_kontakt")
+    val navKontaktPerson = text("nav_kontaktperson")
 
     // Metadata
     val opprettetAv = text("opprettet_av")
@@ -53,29 +57,29 @@ object SkjemaTable : Table("skjema") {
 object UtkastTable : UUIDTable("utkast") {
     // Virksomhet
     val virksomhetsnummer = text("virksomhetsnummer").nullable().index()
+    val virksomhetsnavn = text("virksomhetsnavn").nullable()
     val kontaktpersonNavn = text("kontaktperson_navn").nullable()
     val kontaktpersonEpost = text("kontaktperson_epost").nullable()
     val kontaktpersonTelefon = text("kontaktperson_telefon").nullable()
 
     // Ansatt
-    val ansattFodselsnummer = text("ansatt_fodselsnummer").nullable()
+    val ansattFnr = text("ansatt_fnr").nullable()
     val ansattNavn = text("ansatt_navn").nullable()
 
     // Ekspert
     val ekspertNavn = text("ekspert_navn").nullable()
     val ekspertVirksomhet = text("ekspert_virksomhet").nullable()
     val ekspertKompetanse = text("ekspert_kompetanse").nullable()
-    val ekspertProblemstilling = text("ekspert_problemstilling").nullable()
 
-    // Tiltak
-    val tiltakForTilrettelegging = text("tiltak_for_tilrettelegging").nullable()
-
-    // Bestilling
-    val bestillingKostnad = text("bestilling_kostnad").nullable()
-    val bestillingStartDato = text("bestilling_start_dato").nullable()
+    // Behov for bistand
+    val behovForBistandBegrunnelse = text("behov_for_bistand_begrunnelse").nullable()
+    val behovForBistand = text("behov_for_bistand").nullable()
+    val behovForBistandEstimertKostnad = integer("behov_for_bistand_estimert_kostnad").nullable()
+    val behovForBistandTilrettelegging = text("behov_for_bistand_tilrettelegging").nullable()
+    val behovForBistandStartdato = date("behov_for_bistand_startdato").nullable()
 
     // NAV
-    val navKontakt = text("nav_kontakt").nullable()
+    val navKontaktPerson = text("nav_kontaktperson").nullable()
 
     // Metadata
     val opprettetAv = text("opprettet_av").index()
@@ -96,31 +100,32 @@ fun ResultRow.tilSkjemaDTO() = DTO.Skjema(
     id = this[SkjemaTable.id].toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = this[SkjemaTable.virksomhetsnummer],
+        virksomhetsnavn = this[SkjemaTable.virksomhetsnavn],
         kontaktperson = DTO.Kontaktperson(
             navn = this[SkjemaTable.kontaktpersonNavn],
             epost = this[SkjemaTable.kontaktpersonEpost],
-            telefon = this[SkjemaTable.kontaktpersonTelefon]
+            telefonnummer = this[SkjemaTable.kontaktpersonTelefon]
         )
     ),
     ansatt = DTO.Ansatt(
-        fodselsnummer = this[SkjemaTable.ansattFodselsnummer],
+        fnr = this[SkjemaTable.ansattFnr],
         navn = this[SkjemaTable.ansattNavn]
     ),
     ekspert = DTO.Ekspert(
         navn = this[SkjemaTable.ekspertNavn],
         virksomhet = this[SkjemaTable.ekspertVirksomhet],
         kompetanse = this[SkjemaTable.ekspertKompetanse],
-        problemstilling = this[SkjemaTable.ekspertProblemstilling]
     ),
-    tiltak = DTO.Tiltak(
-        forTilrettelegging = this[SkjemaTable.tiltakForTilrettelegging]
-    ),
-    bestilling = DTO.Bestilling(
-        kostnad = this[SkjemaTable.bestillingKostnad],
-        startDato = this[SkjemaTable.bestillingStartDato]
+    behovForBistand = DTO.BehovForBistand(
+        begrunnelse = this[SkjemaTable.behovForBistandBegrunnelse],
+        behov = this[SkjemaTable.behovForBistand],
+        estimertKostnad = this[SkjemaTable.behovForBistandEstimertKostnad],
+        tilrettelegging = this[SkjemaTable.behovForBistandTilrettelegging],
+        startdato = this[SkjemaTable.behovForBistandStartdato],
+
     ),
     nav = DTO.Nav(
-        kontakt = this[SkjemaTable.navKontakt]
+        kontaktperson = this[SkjemaTable.navKontaktPerson]
     ),
     opprettetAv = this[SkjemaTable.opprettetAv],
     opprettetTidspunkt = this[SkjemaTable.opprettetTidspunkt]
@@ -132,16 +137,17 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
     virksomhet = this[UtkastTable.virksomhetsnummer]?.let { virksomhetsnummer ->
         DTO.Virksomhet(
             virksomhetsnummer = virksomhetsnummer,
+            virksomhetsnavn = this[UtkastTable.virksomhetsnavn] ?: "",
             kontaktperson = DTO.Kontaktperson(
                 navn = this[UtkastTable.kontaktpersonNavn] ?: "",
                 epost = this[UtkastTable.kontaktpersonEpost] ?: "",
-                telefon = this[UtkastTable.kontaktpersonTelefon] ?: ""
+                telefonnummer = this[UtkastTable.kontaktpersonTelefon] ?: ""
             )
         )
     },
-    ansatt = this[UtkastTable.ansattFodselsnummer]?.let { fodselsnummer ->
+    ansatt = this[UtkastTable.ansattFnr]?.let { fnr ->
         DTO.Ansatt(
-            fodselsnummer = fodselsnummer,
+            fnr = fnr,
             navn = this[UtkastTable.ansattNavn] ?: ""
         )
     },
@@ -150,21 +156,22 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
             navn = navn,
             virksomhet = this[UtkastTable.ekspertVirksomhet] ?: "",
             kompetanse = this[UtkastTable.ekspertKompetanse] ?: "",
-            problemstilling = this[UtkastTable.ekspertProblemstilling] ?: ""
         )
     },
-    tiltak = this[UtkastTable.tiltakForTilrettelegging]?.let { forTilrettelegging ->
-        DTO.Tiltak(forTilrettelegging = forTilrettelegging)
-    },
-    bestilling = this[UtkastTable.bestillingKostnad]?.let { kostnad ->
-        DTO.Bestilling(
-            kostnad = kostnad,
-            startDato = this[UtkastTable.bestillingStartDato] ?: ""
-        )
-    },
-    nav = this[UtkastTable.navKontakt]?.let { kontakt ->
-        DTO.Nav(kontakt = kontakt)
+    behovForBistand = DTO.BehovForBistand(
+        begrunnelse = this[UtkastTable.behovForBistandBegrunnelse] ?: "",
+        behov = this[UtkastTable.behovForBistand] ?: "",
+        estimertKostnad = this[UtkastTable.behovForBistandEstimertKostnad] ?: 0,
+        tilrettelegging = this[UtkastTable.behovForBistandTilrettelegging] ?: "",
+        startdato = this[UtkastTable.behovForBistandStartdato] ?: LocalDate.today(),
+
+    ),
+    nav = this[UtkastTable.navKontaktPerson]?.let { kontaktperson ->
+        DTO.Nav(kontaktperson = kontaktperson)
     },
     opprettetAv = this[UtkastTable.opprettetAv],
     opprettetTidspunkt = this[UtkastTable.opprettetTidspunkt].toString()
 )
+
+@OptIn(ExperimentalTime::class)
+private fun LocalDate.Companion.today(): LocalDate = Clock.System.now().toLocalDateTime(currentSystemDefault()).date

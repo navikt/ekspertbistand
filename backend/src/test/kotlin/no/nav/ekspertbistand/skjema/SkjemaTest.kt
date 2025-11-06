@@ -10,6 +10,7 @@ import io.ktor.server.plugins.di.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
+import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.configureBaseSetup
@@ -17,6 +18,7 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
+import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -114,10 +116,11 @@ class SkjemaTest {
                     DTO.Utkast(
                         virksomhet = DTO.Virksomhet(
                             virksomhetsnummer = "314",
+                            virksomhetsnavn = "Andeby AS",
                             kontaktperson = DTO.Kontaktperson(
                                 navn = "Donald Duck",
                                 epost = "donald@duck.co",
-                                telefon = "12345678",
+                                telefonnummer = "12345678",
                             )
                         )
                     )
@@ -136,10 +139,11 @@ class SkjemaTest {
                     DTO.Utkast(
                         virksomhet = DTO.Virksomhet(
                             virksomhetsnummer = "1337",
+                            virksomhetsnavn = "foo bar AS",
                             kontaktperson = DTO.Kontaktperson(
                                 navn = "Donald Duck",
                                 epost = "donald@duck.co",
-                                telefon = "12345678",
+                                telefonnummer = "12345678",
                             )
                         )
                     )
@@ -224,23 +228,24 @@ class SkjemaTest {
             transaction(testDb.config.jdbcDatabase) {
                 SkjemaTable.insert {
                     it[id] = eksisterendeSkjemaId
+                    it[virksomhetsnavn] = "foo bar AS"
                     it[virksomhetsnummer] = "1337"
                     it[opprettetAv] = "42"
 
-                    it[virksomhetsnummer] = ""
                     it[kontaktpersonNavn] = ""
                     it[kontaktpersonEpost] = ""
                     it[kontaktpersonTelefon] = ""
-                    it[ansattFodselsnummer] = ""
+                    it[ansattFnr] = ""
                     it[ansattNavn] = ""
                     it[ekspertNavn] = ""
                     it[ekspertVirksomhet] = ""
                     it[ekspertKompetanse] = ""
-                    it[ekspertProblemstilling] = ""
-                    it[tiltakForTilrettelegging] = ""
-                    it[bestillingKostnad] = ""
-                    it[bestillingStartDato] = ""
-                    it[navKontakt] = ""
+                    it[behovForBistand] = ""
+                    it[behovForBistandBegrunnelse] = ""
+                    it[behovForBistandTilrettelegging] = ""
+                    it[behovForBistandEstimertKostnad] = 0
+                    it[behovForBistandStartdato] = CurrentDate
+                    it[navKontaktPerson] = ""
                 }
             }
         }
@@ -279,6 +284,7 @@ class SkjemaTest {
         val eksisterendeUtkast = transaction(testDb.config.jdbcDatabase) {
             UtkastTable.insertReturning {
                 it[virksomhetsnummer] = "1337"
+                it[virksomhetsnavn] = "foo bar AS"
                 it[opprettetAv] = "T2000"
             }.single().tilUtkastDTO()
         }
@@ -300,6 +306,7 @@ class SkjemaTest {
             assertEquals(HttpStatusCode.BadRequest, status)
         }
 
+        logger().error("WTF M8!")
         // put med gyldig payload gir 200 og skjema i retur
         with(
             client.put("/api/skjema/v1/${eksisterendeUtkast.id}") {
@@ -310,31 +317,31 @@ class SkjemaTest {
                     DTO.Skjema(
                         virksomhet = DTO.Virksomhet(
                             virksomhetsnummer = "1337",
+                            virksomhetsnavn = "foo bar AS",
                             kontaktperson = DTO.Kontaktperson(
                                 navn = "Donald Duck",
                                 epost = "Donald@duck.co",
-                                telefon = "12345678"
+                                telefonnummer = "12345678"
                             )
                         ),
                         ansatt = DTO.Ansatt(
-                            fodselsnummer = "12345678910",
+                            fnr = "12345678910",
                             navn = "Ole Olsen"
                         ),
                         ekspert = DTO.Ekspert(
                             navn = "Egon Olsen",
                             virksomhet = "Olsenbanden AS",
                             kompetanse = "Bankran",
-                            problemstilling = "Hvordan gjennomføre et bankran?" // max 5000 chars
                         ),
-                        tiltak = DTO.Tiltak(
-                            forTilrettelegging = "Tilrettelegging på arbeidsplassen"
-                        ),
-                        bestilling = DTO.Bestilling(
-                            kostnad = "42",
-                            startDato = "2024-10-10"
+                        behovForBistand = DTO.BehovForBistand(
+                            behov = "Tilrettelegging",
+                            begrunnelse = "Tilrettelegging på arbeidsplassen",
+                            estimertKostnad = 4200,
+                            tilrettelegging = "Spesialtilpasset kontor",
+                            startdato = LocalDate.parse("2024-11-15")
                         ),
                         nav = DTO.Nav(
-                            kontakt = "Navn Navnesen"
+                            kontaktperson = "Navn Navnesen"
                         ),
                     )
                 )
@@ -416,41 +423,45 @@ class SkjemaTest {
             SkjemaTable.insert {
                 it[id] = UUID.randomUUID()
                 it[virksomhetsnummer] = "1337"
+                it[virksomhetsnavn] =" foo bar AS"
                 it[opprettetAv] = "42"
-                it[tiltakForTilrettelegging] = "skjema for org jeg har tilgang til"
+                it[behovForBistand] = "skjema for org jeg har tilgang til"
+                it[behovForBistandTilrettelegging] = ""
+                it[behovForBistandBegrunnelse] = ""
+                it[behovForBistandEstimertKostnad] = 42
+                it[behovForBistandStartdato] = CurrentDate
 
                 it[kontaktpersonNavn] = ""
                 it[kontaktpersonEpost] = ""
                 it[kontaktpersonTelefon] = ""
-                it[ansattFodselsnummer] = ""
+                it[ansattFnr] = ""
                 it[ansattNavn] = ""
                 it[ekspertNavn] = ""
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
-                it[ekspertProblemstilling] = ""
-                it[bestillingKostnad] = ""
-                it[bestillingStartDato] = ""
-                it[navKontakt] = ""
+                it[navKontaktPerson] = ""
             }
 
             SkjemaTable.insert {
                 it[id] = UUID.randomUUID()
                 it[virksomhetsnummer] = "314"
+                it[virksomhetsnavn] = "andeby AS"
                 it[opprettetAv] = "43"
-                it[tiltakForTilrettelegging] = "skjema for org jeg ikke har tilgang til"
+                it[behovForBistand] = "skjema for org jeg ikke har tilgang til"
+                it[behovForBistandTilrettelegging] = ""
+                it[behovForBistandBegrunnelse] = ""
+                it[behovForBistandEstimertKostnad] = 42
+                it[behovForBistandStartdato] = CurrentDate
 
                 it[kontaktpersonNavn] = ""
                 it[kontaktpersonEpost] = ""
                 it[kontaktpersonTelefon] = ""
-                it[ansattFodselsnummer] = ""
+                it[ansattFnr] = ""
                 it[ansattNavn] = ""
                 it[ekspertNavn] = ""
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
-                it[ekspertProblemstilling] = ""
-                it[bestillingKostnad] = ""
-                it[bestillingStartDato] = ""
-                it[navKontakt] = ""
+                it[navKontaktPerson] = ""
             }
         }
 
@@ -463,7 +474,7 @@ class SkjemaTest {
             assertEquals(HttpStatusCode.OK, status)
             body<List<DTO.Skjema>>().also { skjemas ->
                 assertEquals(1, skjemas.size)
-                assertEquals("skjema for org jeg har tilgang til", skjemas[0].tiltak.forTilrettelegging)
+                assertEquals("skjema for org jeg har tilgang til", skjemas[0].behovForBistand.behov)
                 assertEquals("1337", skjemas[0].virksomhet.virksomhetsnummer)
                 assertEquals("42", skjemas[0].opprettetAv)
 
