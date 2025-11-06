@@ -13,10 +13,30 @@ spec:
   env:
     - name: BASE_PATH
       value: "/ekspertbistand"
+    - name: EKSPERTBISTAND_API_BASEURL
+      value: "http://ekspertbistand-backend"
+    - name: EKSPERTBISTAND_API_AUDIENCE
+      value: "dev-gcp:fager:ekspertbistand-backend"
 
   replicas:
     min: 2
     max: 2
+
+  tokenx:
+    enabled: true
+
+  idporten:
+    enabled: true
+    sidecar:
+      enabled: true
+
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: nodejs
+    logging:
+      destinations:
+        - id: loki
 
   resources:
     requests:
@@ -36,4 +56,7 @@ spec:
     initialDelay: 3
     periodSeconds: 5
 
-  accessPolicy: {}
+  accessPolicy:
+    outbound:
+      rules:
+        - application: ekspertbistand-backend

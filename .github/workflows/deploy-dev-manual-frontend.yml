@@ -1,0 +1,57 @@
+name: Manuell deploy dev frontend
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy-dev:
+    name: Build image and deploy dev-gcp
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to NAIS (sets registry and OIDC)
+        id: login
+        uses: nais/login@v0
+        with:
+          team: fager
+
+      - name: Build and push image with SBOM
+        id: docker-build-push
+        uses: nais/docker-build-push@v0
+        with:
+          team: fager
+          tag: ${{ github.sha }}
+          docker_context: .
+          dockerfile: Dockerfile
+          build_args: |
+            NODE_AUTH_TOKEN=${{ secrets.READER_TOKEN }}
+            BASE_PATH=/ekspertbistand
+          salsa: true
+
+      - name: Update tags (dev, latest)
+        env:
+          IMAGE: ${{ steps.docker-build-push.outputs.image }}
+        run: |
+          docker pull "${IMAGE}"
+          IMAGE_BASE="${IMAGE%:*}"
+          echo "Tagging ${IMAGE} as: ${IMAGE_BASE}:dev and ${IMAGE_BASE}:latest"
+          docker tag "${IMAGE}" "${IMAGE_BASE}:dev"
+          docker tag "${IMAGE}" "${IMAGE_BASE}:latest"
+          docker push "${IMAGE_BASE}:dev"
+          docker push "${IMAGE_BASE}:latest"
+
+      - name: Deploy dev-gcp
+        uses: nais/deploy/actions/deploy@v2
+        env:
+          CLUSTER: dev-gcp
+          RESOURCE: nais/dev-gcp-frontend.yaml
+          PRINT_PAYLOAD: "true"
+          VAR: commit=${{ github.sha }},image=${{ steps.docker-build-push.outputs.image }}
+          REF: ${{ github.sha }}

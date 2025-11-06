@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEventHandler } from "react";
-import { useNavigate, Link as RouterLink, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { type SubmitHandler, useFormContext, useWatch } from "react-hook-form";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
@@ -15,7 +15,6 @@ import {
   Box,
   DatePicker,
   useDatepicker,
-  Link,
   FormProgress,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
@@ -31,8 +30,12 @@ import {
 } from "./validation";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
-import { DEFAULT_LANGUAGE_LINKS, FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
+import { FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
 import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
+import { useErrorFocus } from "../hooks/useErrorFocus";
+import { useDraftNavigation } from "../hooks/useDraftNavigation";
+import { BackLink } from "../components/BackLink";
+import { APPLICATIONS_PATH } from "../utils/constants";
 
 export default function SkjemaSteg2Page() {
   const navigate = useNavigate();
@@ -49,38 +52,34 @@ export default function SkjemaSteg2Page() {
   const locationState = (location.state as { attemptedSubmit?: boolean } | null) ?? null;
   const attemptedSubmitFromLocation = locationState?.attemptedSubmit ?? false;
   const [attemptedSubmit, setAttemptedSubmit] = useState(attemptedSubmitFromLocation);
-  const [errorFocusKey, setErrorFocusKey] = useState(() => (attemptedSubmitFromLocation ? 1 : 0));
-  const startDatoIso = useWatch({ name: "behovForBistand.startDato" }) as
-    | Inputs["behovForBistand"]["startDato"]
+  const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus(() =>
+    attemptedSubmitFromLocation ? 1 : 0
+  );
+  const startDatoIso = useWatch({ name: "bestilling.startDato" }) as
+    | Inputs["bestilling"]["startDato"]
     | undefined;
   const syncingDateRef = useRef(false);
-  const { draftId, hydrated, clearDraft, saveDraft } = useSoknadDraft();
+  const { draftId, hydrated, clearDraft } = useSoknadDraft();
   const { getValues } = form;
-  const navigateWithDraft = useCallback(
-    (path: string) => {
-      saveDraft(getValues());
-      navigate(path);
-    },
-    [getValues, navigate, saveDraft]
-  );
+  const navigateWithDraft = useDraftNavigation();
   const errorItems = attemptedSubmit
     ? [
         {
-          id: "behovForBistand.problemstilling",
-          message: errors.behovForBistand?.problemstilling?.message,
+          id: "ekspert.problemstilling",
+          message: errors.ekspert?.problemstilling?.message,
         },
-        { id: "behovForBistand.bistand", message: errors.behovForBistand?.bistand?.message },
-        { id: "behovForBistand.tiltak", message: errors.behovForBistand?.tiltak?.message },
-        { id: "behovForBistand.kostnad", message: errors.behovForBistand?.kostnad?.message },
-        { id: "behovForBistand.startDato", message: errors.behovForBistand?.startDato?.message },
-        { id: "behovForBistand.navKontakt", message: errors.behovForBistand?.navKontakt?.message },
+        { id: "bistand", message: errors.bistand?.message },
+        { id: "tiltak.forTilrettelegging", message: errors.tiltak?.forTilrettelegging?.message },
+        { id: "bestilling.kostnad", message: errors.bestilling?.kostnad?.message },
+        { id: "bestilling.startDato", message: errors.bestilling?.startDato?.message },
+        { id: "nav.kontakt", message: errors.nav?.kontakt?.message },
       ].filter((item): item is { id: string; message: string } => typeof item.message === "string")
     : [];
 
   const shouldFocusErrorSummary = hydrated && attemptedSubmit && Object.keys(errors).length > 0;
 
   useEffect(() => {
-    register("behovForBistand.startDato", { validate: validateStartDato });
+    register("bestilling.startDato", { validate: validateStartDato });
   }, [register]);
 
   useEffect(() => {
@@ -103,7 +102,7 @@ export default function SkjemaSteg2Page() {
         syncingDateRef.current = false;
         return;
       }
-      setValue("behovForBistand.startDato", date ? date.toISOString() : null, {
+      setValue("bestilling.startDato", date ? date.toISOString() : null, {
         shouldDirty: true,
         shouldValidate: attemptedSubmit,
       });
@@ -126,17 +125,17 @@ export default function SkjemaSteg2Page() {
     setSelected(selectedDate);
   }, [selectedDate, selectedDay, setSelected]);
 
-  const kostnadReg = register("behovForBistand.kostnad", {
+  const kostnadReg = register("bestilling.kostnad", {
     setValueAs: (value) => (value === "" || value === null ? "" : Number(value)),
     validate: validateKostnad,
   });
 
   const goToStepOne = useCallback(() => {
-    navigateWithDraft(`/skjema/${draftId}/steg-1`);
-  }, [draftId, navigateWithDraft]);
+    navigateWithDraft(`/skjema/${draftId}/steg-1`, () => getValues());
+  }, [draftId, getValues, navigateWithDraft]);
   const goToSummary = useCallback(() => {
-    navigateWithDraft(`/skjema/${draftId}/oppsummering`);
-  }, [draftId, navigateWithDraft]);
+    navigateWithDraft(`/skjema/${draftId}/oppsummering`, () => getValues());
+  }, [draftId, getValues, navigateWithDraft]);
 
   const onValid: SubmitHandler<Inputs> = () => {
     goToSummary();
@@ -149,14 +148,14 @@ export default function SkjemaSteg2Page() {
       onValid(form.getValues());
     } else {
       setAttemptedSubmit(true);
-      setErrorFocusKey((key) => key + 1);
+      bumpFocusKey();
     }
   };
   const goToStepOneLink = withPreventDefault(goToStepOne);
   const goToSummaryLink = withPreventDefault(goToSummary);
 
   return (
-    <DecoratedPage blockProps={{ width: "lg", gutters: true }} languages={DEFAULT_LANGUAGE_LINKS}>
+    <DecoratedPage blockProps={{ width: "lg", gutters: true }}>
       <form onSubmit={handleSubmitStep2}>
         <VStack gap="8">
           <Heading level="1" size="xlarge">
@@ -164,9 +163,9 @@ export default function SkjemaSteg2Page() {
           </Heading>
 
           <VStack gap="3">
-            <Link as={RouterLink} to={`/skjema/${draftId}/steg-1`} onClick={goToStepOneLink}>
-              <ArrowLeftIcon aria-hidden /> Forrige steg
-            </Link>
+            <BackLink to={`/skjema/${draftId}/steg-1`} onClick={goToStepOneLink}>
+              Forrige steg
+            </BackLink>
             <FormProgress activeStep={2} totalSteps={3}>
               <FormProgress.Step href="#" onClick={goToStepOneLink}>
                 Deltakere
@@ -186,45 +185,43 @@ export default function SkjemaSteg2Page() {
           <Fieldset legend="Behov for bistand" hideLegend style={FORM_COLUMN_STYLE}>
             <VStack gap="6">
               <Textarea
-                id="behovForBistand.problemstilling"
+                id="ekspert.problemstilling"
                 label="Beskriv den ansattes arbeidssituasjon, sykefravær og hvorfor dere ser behov for ekspertbistand"
-                error={
-                  attemptedSubmit ? errors.behovForBistand?.problemstilling?.message : undefined
-                }
-                {...register("behovForBistand.problemstilling", {
+                error={attemptedSubmit ? errors.ekspert?.problemstilling?.message : undefined}
+                {...register("ekspert.problemstilling", {
                   validate: validateProblemstilling,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}
               />
               <Textarea
-                id="behovForBistand.bistand"
+                id="bistand"
                 label="Hva vil dere har hjelp til fra eksperten, og hvor mange timer tror dere at det vil ta?"
                 description="f.eks. fleksibel arbeidstid, hjemmekontor, tilpassing av arbeidsoppgaver, hjelpemiddel, opplæring, ekstra oppfølging."
-                error={attemptedSubmit ? errors.behovForBistand?.bistand?.message : undefined}
-                {...register("behovForBistand.bistand", {
+                error={attemptedSubmit ? errors.bistand?.message : undefined}
+                {...register("bistand", {
                   validate: validateBehovForBistand,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}
               />
               <TextField
-                id="behovForBistand.kostnad"
+                id="bestilling.kostnad"
                 label="Estimert kostnad for ekspertbistand"
                 type="number"
                 inputMode="numeric"
                 max={25000}
-                error={attemptedSubmit ? errors.behovForBistand?.kostnad?.message : undefined}
+                error={attemptedSubmit ? errors.bestilling?.kostnad?.message : undefined}
                 {...kostnadReg}
                 aria-invalid={attemptedSubmit ? undefined : false}
                 style={FORM_COLUMN_STYLE}
               />
               <Textarea
-                id="behovForBistand.tiltak"
+                id="tiltak.forTilrettelegging"
                 label="Hvilken tilrettelegging har dere allerede tilbudt/prøvd ut og hvordan gikk det?"
                 description="Fleksibel arbeidstid, hjemmekontor, hjelpemiddel, tilpassing av arbeidsoppgaver, opplæring, ekstra oppfølging etc."
-                error={attemptedSubmit ? errors.behovForBistand?.tiltak?.message : undefined}
-                {...register("behovForBistand.tiltak", {
+                error={attemptedSubmit ? errors.tiltak?.forTilrettelegging?.message : undefined}
+                {...register("tiltak.forTilrettelegging", {
                   validate: validateTiltakForTilrettelegging,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
@@ -235,24 +232,22 @@ export default function SkjemaSteg2Page() {
                   <DatePicker {...datepickerProps}>
                     <DatePicker.Input
                       {...inputProps}
-                      id="behovForBistand.startDato"
+                      id="bestilling.startDato"
                       label="Startdato"
-                      error={
-                        attemptedSubmit ? errors.behovForBistand?.startDato?.message : undefined
-                      }
+                      error={attemptedSubmit ? errors.bestilling?.startDato?.message : undefined}
                       onBlur={(e) => {
                         inputProps.onBlur?.(e);
-                        if (attemptedSubmit) void trigger("behovForBistand.startDato");
+                        if (attemptedSubmit) void trigger("bestilling.startDato");
                       }}
                     />
                   </DatePicker>
                 </Box>
               </div>
               <TextField
-                id="behovForBistand.navKontakt"
+                id="nav.kontakt"
                 label="Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?"
-                error={attemptedSubmit ? errors.behovForBistand?.navKontakt?.message : undefined}
-                {...register("behovForBistand.navKontakt", {
+                error={attemptedSubmit ? errors.nav?.kontakt?.message : undefined}
+                {...register("nav.kontakt", {
                   validate: validateNavKontakt,
                 })}
                 aria-invalid={attemptedSubmit ? undefined : false}
@@ -301,11 +296,11 @@ export default function SkjemaSteg2Page() {
             </HGrid>
             <DraftActions
               onContinueLater={() => {
-                navigateWithDraft("/");
+                navigateWithDraft(APPLICATIONS_PATH, () => getValues());
               }}
               onDeleteDraft={async () => {
                 await clearDraft();
-                navigate("/");
+                navigate(APPLICATIONS_PATH);
               }}
             />
           </VStack>

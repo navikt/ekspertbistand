@@ -10,30 +10,20 @@ const reactHooksRecommended = reactHooks.configs["recommended-latest"];
 const reactRefreshVite = reactRefresh.configs.vite;
 
 export default defineConfig([
-  // Ignore build artifacts and declaration files everywhere
   globalIgnores(["**/dist/**", "**/build/**", "node_modules", "backend/**", "**/*.d.ts"]),
 
-  // Default for everything
   {
     files: ["**/*.{ts,tsx,js,jsx}"],
     ignores: ["**/dist/**", "**/build/**"],
-    extends: [
-      js.configs.recommended,
-      ...tseslint.configs.recommended,
-      prettier
-    ],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended, prettier],
     plugins: {
-      "@typescript-eslint": tseslint.plugin
+      "@typescript-eslint": tseslint.plugin,
     },
     rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_" }
-      ]
-    }
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+    },
   },
 
-  // Client (React + browser)
   {
     files: ["frontend/client/**/*.{ts,tsx,js,jsx}"],
     plugins: {
@@ -46,25 +36,23 @@ export default defineConfig([
     },
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser
-    }
+      globals: globals.browser,
+    },
   },
 
-  // Server (Express + Node.js)
   {
     files: ["frontend/server/**/*.{ts,tsx,js,jsx}"],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.node
-    }
+      globals: globals.node,
+    },
   },
 
-  // Shared (pure TS, no globals needed beyond ES2020)
   {
     files: ["frontend/shared/**/*.{ts,tsx,js}"],
     languageOptions: {
       ecmaVersion: 2020,
-      globals: {}
-    }
-  }
+      globals: {},
+    },
+  },
 ]);

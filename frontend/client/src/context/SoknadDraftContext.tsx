@@ -7,54 +7,38 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { createEmptyInputs, mergeInputs, type Inputs } from "../pages/types";
+import { createEmptyInputs, type Inputs } from "../pages/types";
+import { buildDraftPayload, draftDtoToInputs, type DraftDto } from "../utils/soknadPayload";
+import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 
 type DraftContextValue = {
   draftId: string;
   draft: Inputs;
   hydrated: boolean;
+  status: DraftDto["status"] | null;
   saveDraft: (snapshot: Inputs) => void;
   clearDraft: () => Promise<void>;
   lastPersistedAt: Date | null;
-};
-
-type DraftDto = Partial<Inputs> & {
-  id?: string;
-  status?: "utkast" | "innsendt";
-  opprettetAv?: string | null;
-  opprettetTidspunkt?: string | null;
-  innsendtTidspunkt?: string | null;
 };
 
 const SoknadDraftContext = createContext<DraftContextValue | undefined>(undefined);
 const PERSIST_DELAY = 800;
 
 const persistDraft = (draftId: string, data: Inputs): Promise<void> =>
-  fetch(`/api/skjema/v1/${draftId}`, {
+  fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify(buildDraftPayload(data)),
   })
     .then(() => undefined)
     .catch(() => undefined);
 
 const deleteDraft = (draftId: string): Promise<void> =>
-  fetch(`/api/skjema/v1/${draftId}`, {
+  fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
     method: "DELETE",
   })
     .then(() => undefined)
     .catch(() => undefined);
-
-const toInputs = (payload: DraftDto | null | undefined) => {
-  if (!payload) return createEmptyInputs();
-  const { id, status, opprettetAv, opprettetTidspunkt, innsendtTidspunkt, ...rest } = payload;
-  void id;
-  void status;
-  void opprettetAv;
-  void opprettetTidspunkt;
-  void innsendtTidspunkt;
-  return mergeInputs(createEmptyInputs(), rest as Partial<Inputs>);
-};
 
 export function SoknadDraftProvider({
   draftId,
@@ -65,6 +49,7 @@ export function SoknadDraftProvider({
 }) {
   const [draft, setDraft] = useState<Inputs>(createEmptyInputs);
   const [hydrated, setHydrated] = useState(false);
+  const [status, setStatus] = useState<DraftDto["status"] | null>(null);
   const [lastPersistedAt, setLastPersistedAt] = useState<Date | null>(null);
 
   const debounceRef = useRef<number | null>(null);
@@ -107,6 +92,7 @@ export function SoknadDraftProvider({
   useEffect(() => {
     setHydrated(false);
     setDraft(createEmptyInputs);
+    setStatus(null);
     setLastPersistedAt(null);
     lastPersistedRef.current = null;
     lastSavedRef.current = null;
@@ -117,16 +103,17 @@ export function SoknadDraftProvider({
     let active = true;
     (async () => {
       try {
-        const res = await fetch(`/api/skjema/v1/${draftId}`, {
+        const res = await fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
           headers: { Accept: "application/json" },
           signal: controller.signal,
         });
         if (!active || controller.signal.aborted) return;
         if (res.ok) {
           const payload = (await res.json()) as DraftDto | null;
-          const merged = toInputs(payload);
+          const merged = draftDtoToInputs(payload);
           const snapshot = JSON.stringify(merged);
           setDraft(merged);
+          setStatus(payload?.status ?? null);
           lastPersistedRef.current = snapshot;
           lastSavedRef.current = snapshot;
           const persistedIso = payload?.opprettetTidspunkt ?? payload?.innsendtTidspunkt ?? null;
@@ -150,7 +137,7 @@ export function SoknadDraftProvider({
 
   const saveDraft = useCallback(
     (snapshot: Inputs) => {
-      if (clearingRef.current) return;
+      if (clearingRef.current || status === "innsendt") return;
       const snapshotJson = JSON.stringify(snapshot);
       if (snapshotJson !== lastSavedRef.current) {
         setDraft(snapshot);
@@ -158,13 +145,14 @@ export function SoknadDraftProvider({
       }
       schedulePersist(snapshot);
     },
-    [schedulePersist]
+    [schedulePersist, status]
   );
 
   const clearDraft = useCallback(async () => {
     clearingRef.current = true;
     cancelPendingPersist();
     setDraft(createEmptyInputs);
+    setStatus(null);
     lastPersistedRef.current = null;
     lastSavedRef.current = null;
     const pendingPersist = activePersistRef.current;
@@ -188,11 +176,12 @@ export function SoknadDraftProvider({
       draftId,
       draft,
       hydrated,
+      status,
       saveDraft,
       clearDraft,
       lastPersistedAt,
     }),
-    [clearDraft, draft, draftId, hydrated, lastPersistedAt, saveDraft]
+    [clearDraft, draft, draftId, hydrated, lastPersistedAt, saveDraft, status]
   );
 
   return <SoknadDraftContext.Provider value={value}>{children}</SoknadDraftContext.Provider>;

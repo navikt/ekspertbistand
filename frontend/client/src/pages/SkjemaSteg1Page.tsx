@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEventHandler } from "react";
-import { useNavigate, Link as RouterLink, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Controller, type SubmitHandler, useFormContext } from "react-hook-form";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
@@ -11,11 +11,10 @@ import {
   TextField,
   VStack,
   Fieldset,
-  Link,
   FormProgress,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
-import { DEFAULT_LANGUAGE_LINKS, FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
+import { FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
 import type { Inputs } from "./types";
 import { STEP1_FIELDS } from "./types";
 import {
@@ -30,9 +29,13 @@ import {
   validateEkspertKompetanse,
 } from "./validation";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
-import { VirksomhetPicker } from "../components/VirksomhetPicker";
+import { VirksomhetVelger } from "../components/VirksomhetVelger.tsx";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
+import { useErrorFocus } from "../hooks/useErrorFocus";
+import { useDraftNavigation } from "../hooks/useDraftNavigation";
+import { BackLink } from "../components/BackLink";
+import { APPLICATIONS_PATH } from "../utils/constants";
 
 export default function SkjemaSteg1Page() {
   const navigate = useNavigate();
@@ -43,7 +46,9 @@ export default function SkjemaSteg1Page() {
   const locationState = (location.state as { attemptedSubmit?: boolean } | null) ?? null;
   const attemptedSubmitFromLocation = locationState?.attemptedSubmit ?? false;
   const [attemptedSubmit, setAttemptedSubmit] = useState(attemptedSubmitFromLocation);
-  const [errorFocusKey, setErrorFocusKey] = useState(() => (attemptedSubmitFromLocation ? 1 : 0));
+  const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus(() =>
+    attemptedSubmitFromLocation ? 1 : 0
+  );
   const errorItems = [
     { id: "virksomhet.virksomhetsnummer", message: errors.virksomhet?.virksomhetsnummer?.message },
     {
@@ -65,14 +70,8 @@ export default function SkjemaSteg1Page() {
     { id: "ekspert.kompetanse", message: errors.ekspert?.kompetanse?.message },
   ].filter((item): item is { id: string; message: string } => typeof item.message === "string");
 
-  const { draftId, hydrated, clearDraft, saveDraft } = useSoknadDraft();
-  const navigateWithDraft = useCallback(
-    (path: string) => {
-      saveDraft(getValues());
-      navigate(path);
-    },
-    [getValues, navigate, saveDraft]
-  );
+  const { draftId, hydrated, clearDraft } = useSoknadDraft();
+  const navigateWithDraft = useDraftNavigation();
 
   useEffect(() => {
     if (!attemptedSubmitFromLocation) return;
@@ -82,12 +81,12 @@ export default function SkjemaSteg1Page() {
   const shouldFocusErrorSummary = hydrated && attemptedSubmit && Object.keys(errors).length > 0;
 
   const goToStepTwo = useCallback(() => {
-    navigateWithDraft(`/skjema/${draftId}/steg-2`);
-  }, [draftId, navigateWithDraft]);
+    navigateWithDraft(`/skjema/${draftId}/steg-2`, () => getValues());
+  }, [draftId, getValues, navigateWithDraft]);
 
   const goToSummary = useCallback(() => {
-    navigateWithDraft(`/skjema/${draftId}/oppsummering`);
-  }, [draftId, navigateWithDraft]);
+    navigateWithDraft(`/skjema/${draftId}/oppsummering`, () => getValues());
+  }, [draftId, getValues, navigateWithDraft]);
 
   const onValid: SubmitHandler<Inputs> = () => {
     goToStepTwo();
@@ -100,14 +99,14 @@ export default function SkjemaSteg1Page() {
       onValid(form.getValues());
     } else {
       setAttemptedSubmit(true);
-      setErrorFocusKey((key) => key + 1);
+      bumpFocusKey();
     }
   };
   const goToStepTwoLink = withPreventDefault(goToStepTwo);
   const goToSummaryLink = withPreventDefault(goToSummary);
 
   return (
-    <DecoratedPage blockProps={{ width: "lg", gutters: true }} languages={DEFAULT_LANGUAGE_LINKS}>
+    <DecoratedPage blockProps={{ width: "lg", gutters: true }}>
       <form onSubmit={handleSubmitStep1}>
         <VStack gap="8">
           <Heading level="1" size="xlarge">
@@ -115,9 +114,7 @@ export default function SkjemaSteg1Page() {
           </Heading>
 
           <VStack gap="3">
-            <Link as={RouterLink} to="/">
-              <ArrowLeftIcon aria-hidden /> Forrige steg
-            </Link>
+            <BackLink to={APPLICATIONS_PATH}>Forrige steg</BackLink>
             <FormProgress activeStep={1} totalSteps={3}>
               <FormProgress.Step href="#" onClick={(event) => event.preventDefault()}>
                 Deltakere
@@ -138,7 +135,7 @@ export default function SkjemaSteg1Page() {
                 control={control}
                 rules={{ validate: validateVirksomhetsnummer }}
                 render={({ field, fieldState }) => (
-                  <VirksomhetPicker
+                  <VirksomhetVelger
                     label="Velg underenhet"
                     value={field.value ?? ""}
                     onChange={(orgnr, virksomhet) => {
@@ -267,7 +264,7 @@ export default function SkjemaSteg1Page() {
                 variant="secondary"
                 icon={<ArrowLeftIcon aria-hidden />}
                 iconPosition="left"
-                onClick={() => navigate("/")}
+                onClick={() => navigate(APPLICATIONS_PATH)}
               >
                 Forrige steg
               </Button>
@@ -282,11 +279,11 @@ export default function SkjemaSteg1Page() {
             </HGrid>
             <DraftActions
               onContinueLater={() => {
-                navigateWithDraft("/");
+                navigateWithDraft(APPLICATIONS_PATH, () => getValues());
               }}
               onDeleteDraft={async () => {
                 await clearDraft();
-                navigate("/");
+                navigate(APPLICATIONS_PATH);
               }}
             />
           </VStack>
