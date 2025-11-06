@@ -5,6 +5,7 @@ import {
   type Organisasjon,
 } from "@navikt/virksomhetsvelger";
 import "@navikt/virksomhetsvelger/dist/assets/style.css";
+import { EKSPERTBISTAND_ORGANISASJONER_PATH } from "../utils/constants";
 
 type VirksomhetPickerProps = {
   label: React.ReactNode;
@@ -21,7 +22,7 @@ export function VirksomhetVelger({ label, value, onChange, error }: VirksomhetPi
     const controller = new AbortController();
     (async () => {
       try {
-        const res = await fetch("/ekspertbistand-backend/api/organisasjoner/v1", {
+        const res = await fetch(EKSPERTBISTAND_ORGANISASJONER_PATH, {
           headers: { Accept: "application/json" },
           signal: controller.signal,
         });

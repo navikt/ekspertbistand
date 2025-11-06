@@ -22,6 +22,7 @@ export const EKSPERTBISTAND_URL = envSwitch({
 const apiBaseUrl = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
 
 export const EKSPERTBISTAND_API_PATH = `${apiBaseUrl}/ekspertbistand-backend/api/skjema/v1`;
+export const EKSPERTBISTAND_ORGANISASJONER_PATH = `${apiBaseUrl}/ekspertbistand-backend/api/organisasjoner/v1`;
 
 export const APPLICATIONS_PATH = "/soknader";
 
