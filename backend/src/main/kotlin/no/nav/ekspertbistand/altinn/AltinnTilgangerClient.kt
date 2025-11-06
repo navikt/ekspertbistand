@@ -23,9 +23,8 @@ class AltinnTilgangerClient(
     }
 ) {
     companion object {
-        const val altinn2Tjenestekode = "5384:1"
         const val altinn3Ressursid = "nav_tiltak_ekspertbistand"
-        const val ingress = "http://arbeidsgiver-altinn-tilganger.fager" // service discovery
+        const val ingress = "http://arbeidsgiver-altinn-tilganger.fager"
     }
 
     private val targetAudience = "${NaisEnvironment.clusterName}:fager:arbeidsgiver-altinn-tilganger"
@@ -48,8 +47,7 @@ class AltinnTilgangerClient(
             setBody(
                 mapOf(
                     "filter" to mapOf(
-                        "altinn2Tilganger" to listOf(altinn2Tjenestekode),
-                        //altinn3Tilganger" to listOf(altinn3Ressursid), TODO: enable when resource exists in tt02
+                        "altinn3Tilganger" to listOf(altinn3Ressursid),
                     )
                 )
             )
@@ -80,16 +78,12 @@ data class AltinnTilgangerClientResponse(
     )
 
     fun harTilgang(orgnr: String): Boolean = orgNrTilTilganger[orgnr]?.any {
-        it == AltinnTilgangerClient.altinn3Ressursid || it == AltinnTilgangerClient.altinn2Tjenestekode
+        it == AltinnTilgangerClient.altinn3Ressursid
     } == true
 
     val organisasjoner: Set<String>
         get() {
-            val orgnummerForAltinn3 =
-                tilgangTilOrgNr[AltinnTilgangerClient.altinn3Ressursid] ?: emptySet()
-            val orgnummerForAltinn2 =
-                tilgangTilOrgNr[AltinnTilgangerClient.altinn2Tjenestekode] ?: emptySet()
-            return orgnummerForAltinn3 + orgnummerForAltinn2
+            return tilgangTilOrgNr[AltinnTilgangerClient.altinn3Ressursid] ?: emptySet()
         }
 }
 

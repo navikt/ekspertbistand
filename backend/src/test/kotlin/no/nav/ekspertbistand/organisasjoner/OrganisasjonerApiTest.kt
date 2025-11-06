@@ -8,6 +8,7 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.plugins.di.*
 import io.ktor.server.testing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.altinn.AltinnTilgangerClient.Companion.altinn3Ressursid
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.configureBaseSetup
 import no.nav.ekspertbistand.configureOrganisasjonerApiV1
@@ -41,22 +42,21 @@ class OrganisasjonerApiTest {
                                 orgnr = "1338",
                                 organisasjonsform = "AS",
                                 navn = "Olsenbanden AS",
-                                altinn2Tilganger = setOf("5384:1"),
-                                altinn3Tilganger = setOf("nav_ekspertbistand_soknad"),
+                                altinn2Tilganger = setOf(),
+                                altinn3Tilganger = setOf(altinn3Ressursid),
                                 underenheter = listOf()
                             )
                         ),
-                        altinn2Tilganger = setOf("5384:1"),
-                        altinn3Tilganger = setOf("nav_ekspertbistand_soknad"),
+                        altinn2Tilganger = setOf(),
+                        altinn3Tilganger = setOf(altinn3Ressursid),
                     )
                 ),
                 orgNrTilTilganger = mapOf(
-                    "1337" to setOf("5384:1", "nav_ekspertbistand_soknad"),
-                    "1338" to setOf("5384:1", "nav_ekspertbistand_soknad")
+                    "1337" to setOf(altinn3Ressursid),
+                    "1338" to setOf(altinn3Ressursid)
                 ),
                 tilgangTilOrgNr = mapOf(
-                    "5384:1" to setOf("1337", "1338"),
-                    "nav_ekspertbistand_soknad" to setOf("1337"),
+                    altinn3Ressursid to setOf("1337", "1338"),
                 )
             )
         )
@@ -114,38 +114,29 @@ class OrganisasjonerApiTest {
                       "navn": "Olsenbanden AS",
                       "underenheter": [],
                       "altinn3Tilganger": [
-                        "nav_ekspertbistand_soknad"
+                        "nav_tiltak_ekspertbistand"
                       ],
-                      "altinn2Tilganger": [
-                        "5384:1"
-                      ]
+                      "altinn2Tilganger": []
                     }
                   ],
                   "altinn3Tilganger": [
-                    "nav_ekspertbistand_soknad"
+                    "nav_tiltak_ekspertbistand"
                   ],
-                  "altinn2Tilganger": [
-                    "5384:1"
-                  ]
+                  "altinn2Tilganger": []
                 }
               ],
               "orgNrTilTilganger": {
                 "1337": [
-                  "5384:1",
-                  "nav_ekspertbistand_soknad"
+                  "nav_tiltak_ekspertbistand"
                 ],
                 "1338": [
-                  "5384:1",
-                  "nav_ekspertbistand_soknad"
+                  "nav_tiltak_ekspertbistand"
                 ]
               },
               "tilgangTilOrgNr": {
-                "5384:1": [
+                "nav_tiltak_ekspertbistand": [
                   "1337",
                   "1338"
-                ],
-                "nav_ekspertbistand_soknad": [
-                  "1337"
                 ]
               }
             }

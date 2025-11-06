@@ -8,6 +8,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.altinn.AltinnTilgangerClient.Companion.altinn3Ressursid
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.configureBaseSetup
 import no.nav.ekspertbistand.event.EventData
@@ -32,11 +33,10 @@ class SkjemaTest {
                 isError = false,
                 hierarki = emptyList(),
                 orgNrTilTilganger = mapOf(
-                    "1337" to setOf("5384:1", "nav_ekspertbistand_soknad")
+                    "1337" to setOf(altinn3Ressursid)
                 ),
                 tilgangTilOrgNr = mapOf(
-                    "5384:1" to setOf("1337"),
-                    "nav_ekspertbistand_soknad" to setOf("1337"),
+                    altinn3Ressursid to setOf("1337"),
                 )
             )
         )
@@ -182,11 +182,10 @@ class SkjemaTest {
                 isError = false,
                 hierarki = emptyList(),
                 orgNrTilTilganger = mapOf(
-                    "1337" to setOf("5384:1", "nav_ekspertbistand_soknad")
+                    "1337" to setOf(altinn3Ressursid)
                 ),
                 tilgangTilOrgNr = mapOf(
-                    "5384:1" to setOf("1337"),
-                    "nav_ekspertbistand_soknad" to setOf("1337"),
+                    altinn3Ressursid to setOf("1337"),
                 )
             )
         )
@@ -374,11 +373,10 @@ class SkjemaTest {
                 isError = false,
                 hierarki = emptyList(),
                 orgNrTilTilganger = mapOf(
-                    "1337" to setOf("5384:1", "nav_ekspertbistand_soknad")
+                    "1337" to setOf(altinn3Ressursid)
                 ),
                 tilgangTilOrgNr = mapOf(
-                    "5384:1" to setOf("1337"),
-                    "nav_ekspertbistand_soknad" to setOf("1337"),
+                    altinn3Ressursid to setOf("1337"),
                 )
             )
         )
