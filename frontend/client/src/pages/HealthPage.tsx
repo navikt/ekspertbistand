@@ -5,7 +5,7 @@ export default function HealthPage() {
   const [health, setHealth] = useState<ApiHealth | null>(null);
 
   useEffect(() => {
-    fetch("/api/health")
+    fetch("/internal/isAlive")
       .then((res) => res.json())
       .then((data: ApiHealth) => setHealth(data));
   }, []);

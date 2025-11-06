@@ -21,8 +21,8 @@ import {
   validateVirksomhetsnummer,
   validateKontaktpersonNavn,
   validateKontaktpersonEpost,
-  validateKontaktpersonTelefon,
-  validateAnsattFodselsnummer,
+  validateKontaktpersonTelefonnummer,
+  validateAnsattFnr,
   validateAnsattNavn,
   validateEkspertNavn,
   validateEkspertVirksomhet,
@@ -60,10 +60,10 @@ export default function SkjemaSteg1Page() {
       message: errors.virksomhet?.kontaktperson?.epost?.message,
     },
     {
-      id: "virksomhet.kontaktperson.telefon",
-      message: errors.virksomhet?.kontaktperson?.telefon?.message,
+      id: "virksomhet.kontaktperson.telefonnummer",
+      message: errors.virksomhet?.kontaktperson?.telefonnummer?.message,
     },
-    { id: "ansatt.fodselsnummer", message: errors.ansatt?.fodselsnummer?.message },
+    { id: "ansatt.fnr", message: errors.ansatt?.fnr?.message },
     { id: "ansatt.navn", message: errors.ansatt?.navn?.message },
     { id: "ekspert.navn", message: errors.ekspert?.navn?.message },
     { id: "ekspert.virksomhet", message: errors.ekspert?.virksomhet?.message },
@@ -175,13 +175,13 @@ export default function SkjemaSteg1Page() {
                 })}
               />
               <TextField
-                id="virksomhet.kontaktperson.telefon"
+                id="virksomhet.kontaktperson.telefonnummer"
                 label="Telefonnummer"
                 inputMode="numeric"
                 htmlSize={8}
-                error={errors.virksomhet?.kontaktperson?.telefon?.message}
-                {...register("virksomhet.kontaktperson.telefon", {
-                  validate: validateKontaktpersonTelefon,
+                error={errors.virksomhet?.kontaktperson?.telefonnummer?.message}
+                {...register("virksomhet.kontaktperson.telefonnummer", {
+                  validate: validateKontaktpersonTelefonnummer,
                 })}
               />
             </Fieldset>
@@ -190,12 +190,12 @@ export default function SkjemaSteg1Page() {
           <Fieldset legend="Ansatt" style={FORM_COLUMN_STYLE}>
             <VStack gap="6">
               <TextField
-                id="ansatt.fodselsnummer"
+                id="ansatt.fnr"
                 label="Fødselsnummer"
                 htmlSize={11}
-                error={errors.ansatt?.fodselsnummer?.message}
-                {...register("ansatt.fodselsnummer", {
-                  validate: validateAnsattFodselsnummer,
+                error={errors.ansatt?.fnr?.message}
+                {...register("ansatt.fnr", {
+                  validate: validateAnsattFnr,
                 })}
               />
               <TextField

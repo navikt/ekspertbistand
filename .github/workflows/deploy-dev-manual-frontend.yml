@@ -35,23 +35,11 @@ jobs:
             BASE_PATH=/ekspertbistand
           salsa: true
 
-      - name: Update tags (dev, latest)
-        env:
-          IMAGE: ${{ steps.docker-build-push.outputs.image }}
-        run: |
-          docker pull "${IMAGE}"
-          IMAGE_BASE="${IMAGE%:*}"
-          echo "Tagging ${IMAGE} as: ${IMAGE_BASE}:dev and ${IMAGE_BASE}:latest"
-          docker tag "${IMAGE}" "${IMAGE_BASE}:dev"
-          docker tag "${IMAGE}" "${IMAGE_BASE}:latest"
-          docker push "${IMAGE_BASE}:dev"
-          docker push "${IMAGE_BASE}:latest"
-
       - name: Deploy dev-gcp
         uses: nais/deploy/actions/deploy@v2
         env:
           CLUSTER: dev-gcp
           RESOURCE: nais/dev-gcp-frontend.yaml
           PRINT_PAYLOAD: "true"
-          VAR: commit=${{ github.sha }},image=${{ steps.docker-build-push.outputs.image }}
+          VAR: image=${{ steps.docker-build-push.outputs.image }}
           REF: ${{ github.sha }}

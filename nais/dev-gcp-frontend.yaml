@@ -6,7 +6,7 @@ metadata:
   labels:
     team: fager
 spec:
-  image: {{ image }}
+  image: {{{ image }}}
   port: 4000
   ingresses:
     - https://arbeidsgiver.intern.dev.nav.no/ekspertbistand
@@ -47,14 +47,10 @@ spec:
       memory: 512Mi
 
   liveness:
-    path: /ekspertbistand/api/health
-    initialDelay: 10
-    periodSeconds: 10
+    path: /ekspertbistand/internal/isAlive
 
   readiness:
-    path: /ekspertbistand/api/health
-    initialDelay: 3
-    periodSeconds: 5
+    path: /ekspertbistand/internal/isAlive
 
   accessPolicy:
     outbound:

@@ -45,6 +45,7 @@ fun main() {
         SkjemaTable.insert {
             it[id] = UUID.randomUUID()
             it[virksomhetsnummer] = "1337"
+            it[virksomhetsnavn] = "LOLWUT LTD"
             it[opprettetAv] = "42"
 
             it[kontaktpersonNavn] = ""
@@ -65,6 +66,7 @@ fun main() {
         }
         UtkastTable.insert {
             it[virksomhetsnummer] = "1337"
+            it[virksomhetsnavn] = "LOLWUT LTD"
             it[opprettetAv] = "42"
 
             it[kontaktpersonNavn] = ""

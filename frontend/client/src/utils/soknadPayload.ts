@@ -5,33 +5,32 @@ export type DraftDto = {
   status?: "utkast" | "innsendt";
   virksomhet?: {
     virksomhetsnummer: string;
+    virksomhetsnavn: string;
     kontaktperson: {
       navn: string;
       epost: string;
-      telefon: string;
+      telefonnummer: string;
     };
   };
   ansatt?: {
-    fodselsnummer: string;
+    fnr: string;
     navn: string;
   };
   ekspert?: {
     navn: string;
     virksomhet: string;
     kompetanse: string;
-    problemstilling: string;
   };
-  tiltak?: {
-    forTilrettelegging: string;
-  };
-  bestilling?: {
-    kostnad: string;
-    startDato: string;
+  behovForBistand?: {
+    begrunnelse: string;
+    behov: string;
+    estimertKostnad: number;
+    tilrettelegging: string;
+    startdato: string;
   };
   nav?: {
-    kontakt: string;
+    kontaktperson: string;
   };
-  bistand?: string;
   opprettetAv?: string | null;
   opprettetTidspunkt?: string | null;
   innsendtTidspunkt?: string | null;
@@ -40,31 +39,31 @@ export type DraftDto = {
 export type DraftPayload = {
   virksomhet: {
     virksomhetsnummer: string;
+    virksomhetsnavn: string;
     kontaktperson: {
       navn: string;
       epost: string;
-      telefon: string;
+      telefonnummer: string;
     };
   };
   ansatt: {
-    fodselsnummer: string;
+    fnr: string;
     navn: string;
   };
   ekspert: {
     navn: string;
     virksomhet: string;
     kompetanse: string;
-    problemstilling: string;
   };
-  tiltak: {
-    forTilrettelegging: string;
-  };
-  bestilling: {
-    kostnad: string;
-    startDato: string;
+  behovForBistand: {
+    begrunnelse: string;
+    behov: string;
+    estimertKostnad: number;
+    tilrettelegging: string;
+    startdato: string;
   };
   nav: {
-    kontakt: string;
+    kontaktperson: string;
   };
 };
 
@@ -72,46 +71,66 @@ export type SkjemaPayload = DraftPayload & {
   id: string;
 };
 
-const normalizeKostnad = (value: Inputs["bestilling"]["kostnad"]) => {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value.toString() : "";
+const normalizeEstimertKostnad = (value: Inputs["behovForBistand"]["estimertKostnad"]): number => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value);
   }
   if (typeof value === "string") {
-    return value.trim();
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return 0;
+    const parsed = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(parsed)) {
+      return Math.round(parsed);
+    }
   }
-  return "";
+  return 0;
 };
 
-const normalizeStartDato = (value: Inputs["bestilling"]["startDato"]) => value?.trim() ?? "";
+const createTodayDateString = () => {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${today.getFullYear()}-${month}-${day}`;
+};
+
+const normalizeStartdato = (value: Inputs["behovForBistand"]["startdato"]): string => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.length === 10) {
+      return trimmed;
+    }
+  }
+  return createTodayDateString();
+};
 
 export const buildDraftPayload = (inputs: Inputs): DraftPayload => ({
   virksomhet: {
     virksomhetsnummer: inputs.virksomhet.virksomhetsnummer,
+    virksomhetsnavn: inputs.virksomhet.navn,
     kontaktperson: {
       navn: inputs.virksomhet.kontaktperson.navn,
       epost: inputs.virksomhet.kontaktperson.epost,
-      telefon: inputs.virksomhet.kontaktperson.telefon,
+      telefonnummer: inputs.virksomhet.kontaktperson.telefonnummer,
     },
   },
   ansatt: {
-    fodselsnummer: inputs.ansatt.fodselsnummer,
+    fnr: inputs.ansatt.fnr,
     navn: inputs.ansatt.navn,
   },
   ekspert: {
     navn: inputs.ekspert.navn,
     virksomhet: inputs.ekspert.virksomhet,
     kompetanse: inputs.ekspert.kompetanse,
-    problemstilling: inputs.ekspert.problemstilling,
   },
-  tiltak: {
-    forTilrettelegging: inputs.tiltak.forTilrettelegging,
-  },
-  bestilling: {
-    kostnad: normalizeKostnad(inputs.bestilling.kostnad),
-    startDato: normalizeStartDato(inputs.bestilling.startDato),
+  behovForBistand: {
+    begrunnelse: inputs.behovForBistand.begrunnelse,
+    behov: inputs.behovForBistand.behov,
+    estimertKostnad: normalizeEstimertKostnad(inputs.behovForBistand.estimertKostnad),
+    tilrettelegging: inputs.behovForBistand.tilrettelegging,
+    startdato: normalizeStartdato(inputs.behovForBistand.startdato),
   },
   nav: {
-    kontakt: inputs.nav.kontakt,
+    kontaktperson: inputs.nav.kontaktperson,
   },
 });
 
@@ -126,13 +145,14 @@ export const draftDtoToInputs = (dto: DraftDto | null | undefined): Inputs => {
 
   if (dto.virksomhet) {
     result.virksomhet.virksomhetsnummer = dto.virksomhet.virksomhetsnummer;
+    result.virksomhet.navn = dto.virksomhet.virksomhetsnavn;
     result.virksomhet.kontaktperson.navn = dto.virksomhet.kontaktperson.navn;
     result.virksomhet.kontaktperson.epost = dto.virksomhet.kontaktperson.epost;
-    result.virksomhet.kontaktperson.telefon = dto.virksomhet.kontaktperson.telefon;
+    result.virksomhet.kontaktperson.telefonnummer = dto.virksomhet.kontaktperson.telefonnummer;
   }
 
   if (dto.ansatt) {
-    result.ansatt.fodselsnummer = dto.ansatt.fodselsnummer;
+    result.ansatt.fnr = dto.ansatt.fnr;
     result.ansatt.navn = dto.ansatt.navn;
   }
 
@@ -140,27 +160,23 @@ export const draftDtoToInputs = (dto: DraftDto | null | undefined): Inputs => {
     result.ekspert.navn = dto.ekspert.navn;
     result.ekspert.virksomhet = dto.ekspert.virksomhet;
     result.ekspert.kompetanse = dto.ekspert.kompetanse;
-    result.ekspert.problemstilling = dto.ekspert.problemstilling;
   }
 
-  if (dto.tiltak) {
-    result.tiltak.forTilrettelegging = dto.tiltak.forTilrettelegging;
-  }
-
-  if (dto.bestilling) {
-    const kostnad = dto.bestilling.kostnad;
-    result.bestilling.kostnad = kostnad ?? "";
-
-    const startDato = dto.bestilling.startDato?.trim();
-    result.bestilling.startDato = startDato ? startDato : null;
+  if (dto.behovForBistand) {
+    result.behovForBistand.begrunnelse = dto.behovForBistand.begrunnelse ?? "";
+    result.behovForBistand.behov = dto.behovForBistand.behov ?? "";
+    const kostnad = dto.behovForBistand.estimertKostnad;
+    result.behovForBistand.estimertKostnad =
+      typeof kostnad === "number" && Number.isFinite(kostnad) ? kostnad : "";
+    result.behovForBistand.tilrettelegging = dto.behovForBistand.tilrettelegging ?? "";
+    result.behovForBistand.startdato =
+      typeof dto.behovForBistand.startdato === "string" && dto.behovForBistand.startdato.length > 0
+        ? dto.behovForBistand.startdato
+        : null;
   }
 
   if (dto.nav) {
-    result.nav.kontakt = dto.nav.kontakt;
-  }
-
-  if (dto.bistand !== undefined) {
-    result.bistand = dto.bistand;
+    result.nav.kontaktperson = dto.nav.kontaktperson;
   }
 
   return result;

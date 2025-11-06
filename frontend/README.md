@@ -44,7 +44,6 @@ Enkel oversikt over hvordan du kjører frontend lokalt.
 ### Verifisering
 
 - App: `http://localhost:4000/` (eller `http://localhost:4000/ekspertbistand/` hvis `BASE_PATH` settes)
-- Health: `curl -s http://localhost:4000/api/health` (eller `/ekspertbistand/api/health`)
 - Logger: `docker compose logs -f`
 
 ## Teknologier

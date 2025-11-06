@@ -24,12 +24,6 @@ const {
 
 const port = Number(PORT);
 
-type Organisasjon = {
-  orgnr: string;
-  navn: string;
-  underenheter?: Organisasjon[];
-};
-
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
 
 const tokenxEnabled = Boolean(TOKEN_X_ISSUER);
@@ -50,17 +44,17 @@ const limiterConfig = {
 const apiLimiter = rateLimit(limiterConfig);
 const staticLimiter = rateLimit(limiterConfig);
 
-api.use(apiLimiter);
+// api.use(apiLimiter);
 
-api.get("/api/health", (_req: Request, res: Response) => {
+api.get("/internal/isAlive", (_req: Request, res: Response) => {
   const health: ApiHealth = { status: "ok" };
   res.json(health);
 });
 
-const ekspertbistandApiProxy = createProxyMiddleware({
+const ekspertbistandBackendProxy = createProxyMiddleware({
   target: EKSPERTBISTAND_API_BASEURL,
   changeOrigin: true,
-  pathRewrite: (p) => p.replace(/^\/ekspertbistand-backend/, ""),
+  pathRewrite: (path) => path.replace(/^\/ekspertbistand-backend/, ""),
   on: {
     proxyReq(proxyReq: ClientRequest) {
       proxyReq.removeHeader("cookie");
@@ -87,48 +81,7 @@ const withTokenX = [
   }),
 ];
 
-api.get("/api/virksomheter", ...withTokenX, async (req: Request, res: Response) => {
-  try {
-    const authorization = Array.isArray(req.headers.authorization)
-      ? req.headers.authorization[0]
-      : (req.headers.authorization ?? "");
-
-    const headers: Record<string, string> = {
-      Accept: "application/json",
-    };
-    if (authorization) {
-      headers.Authorization = authorization;
-    }
-
-    const upstream = await fetch(`${EKSPERTBISTAND_API_BASEURL}/api/organisasjoner/v1`, {
-      headers,
-    });
-
-    if (!upstream.ok) {
-      res.status(upstream.status).json({ message: "Kunne ikke hente organisasjoner." });
-      return;
-    }
-
-    const payload = (await upstream.json()) as {
-      hierarki?: Organisasjon[];
-    };
-
-    const mapOrganisasjon = (node: Organisasjon): Organisasjon => ({
-      orgnr: node.orgnr,
-      navn: node.navn,
-      underenheter: (node.underenheter ?? []).map(mapOrganisasjon),
-    });
-
-    const organisasjoner = payload.hierarki?.map(mapOrganisasjon) ?? [];
-
-    res.json({ organisasjoner });
-  } catch (error) {
-    logger.error({ error }, "Feil ved henting av organisasjoner");
-    res.status(502).json({ message: "Kunne ikke kontakte ekspertbistand-api." });
-  }
-});
-
-api.use("/ekspertbistand-backend", ...withTokenX, ekspertbistandApiProxy);
+api.use("/ekspertbistand-backend", ...withTokenX, ekspertbistandBackendProxy);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -149,7 +102,7 @@ const resolveStaticDir = (): string => {
 const staticDir = resolveStaticDir();
 
 const spa = express.Router();
-spa.use(staticLimiter);
+// spa.use(staticLimiter);
 spa.use(express.static(staticDir, { index: false }));
 spa.get("*", (_req, res) => res.sendFile(path.join(staticDir, "index.html")));
 

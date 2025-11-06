@@ -2,7 +2,7 @@ import type { Inputs } from "./types";
 
 export const virksomhetsnummerPattern = /^\d{9}$/;
 export const telephonePattern = /^\d{8}$/;
-export const fodselsnummerPattern = /^\d{11}$/;
+export const fnrPattern = /^\d{11}$/;
 export const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ensureText = (value: unknown) => (typeof value === "string" ? value.trim() : "");
@@ -27,17 +27,17 @@ export const validateKontaktpersonEpost = (value: unknown) => {
   return true;
 };
 
-export const validateKontaktpersonTelefon = (value: unknown) => {
+export const validateKontaktpersonTelefonnummer = (value: unknown) => {
   const text = ensureText(value);
   if (!text) return "Du må fylle ut telefonnummer.";
   if (!telephonePattern.test(text)) return "Telefonnummer må være 8 siffer.";
   return true;
 };
 
-export const validateAnsattFodselsnummer = (value: unknown) => {
+export const validateAnsattFnr = (value: unknown) => {
   const text = ensureText(value);
   if (!text) return "Du må fylle ut fødselsnummer.";
-  if (!fodselsnummerPattern.test(text)) return "Fødselsnummer må være 11 siffer.";
+  if (!fnrPattern.test(text)) return "Fødselsnummer må være 11 siffer.";
   return true;
 };
 
@@ -52,19 +52,19 @@ export const validateEkspertVirksomhet = (value: unknown) =>
 export const validateEkspertKompetanse = (value: unknown) =>
   requireText(value, "Du må beskrive ekspertens kompetanse.");
 
-export const validateProblemstilling = (value: unknown) =>
+export const validateBegrunnelse = (value: unknown) =>
   requireText(value, "Du må beskrive problemstillingen.");
 
-export const validateBehovForBistand = (value: unknown) =>
+export const validateBehov = (value: unknown) =>
   requireText(value, "Du må beskrive hva dere ønsker hjelp til fra eksperten.");
 
-export const validateTiltakForTilrettelegging = (value: unknown) =>
+export const validateTilrettelegging = (value: unknown) =>
   requireText(value, "Du må beskrive tiltak for tilrettelegging.");
 
-export const validateNavKontakt = (value: unknown) =>
+export const validateNavKontaktperson = (value: unknown) =>
   requireText(value, "Du må fylle ut hvem i Nav du har drøftet med.");
 
-export const validateKostnad = (value: Inputs["bestilling"]["kostnad"]) => {
+export const validateEstimertKostnad = (value: Inputs["behovForBistand"]["estimertKostnad"]) => {
   if (value === "" || value === null) return "Du må anslå kostnad.";
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return "Kostnad må være et tall.";
@@ -73,7 +73,7 @@ export const validateKostnad = (value: Inputs["bestilling"]["kostnad"]) => {
   return true;
 };
 
-export const validateStartDato = (value: Inputs["bestilling"]["startDato"]) => {
+export const validateStartdato = (value: Inputs["behovForBistand"]["startdato"]) => {
   if (!value) return "Du må velge en dato.";
   if (Number.isNaN(Date.parse(value))) return "Ugyldig dato.";
   return true;
@@ -109,33 +109,37 @@ export const validateInputs = (values: Inputs): ValidationError[] => {
     errors
   );
   collectError(
-    validateKontaktpersonTelefon(values.virksomhet.kontaktperson.telefon),
-    "virksomhet.kontaktperson.telefon",
+    validateKontaktpersonTelefonnummer(values.virksomhet.kontaktperson.telefonnummer),
+    "virksomhet.kontaktperson.telefonnummer",
     errors
   );
-  collectError(
-    validateAnsattFodselsnummer(values.ansatt.fodselsnummer),
-    "ansatt.fodselsnummer",
-    errors
-  );
+  collectError(validateAnsattFnr(values.ansatt.fnr), "ansatt.fnr", errors);
   collectError(validateAnsattNavn(values.ansatt.navn), "ansatt.navn", errors);
   collectError(validateEkspertNavn(values.ekspert.navn), "ekspert.navn", errors);
   collectError(validateEkspertVirksomhet(values.ekspert.virksomhet), "ekspert.virksomhet", errors);
   collectError(validateEkspertKompetanse(values.ekspert.kompetanse), "ekspert.kompetanse", errors);
   collectError(
-    validateProblemstilling(values.ekspert.problemstilling),
-    "ekspert.problemstilling",
+    validateBegrunnelse(values.behovForBistand.begrunnelse),
+    "behovForBistand.begrunnelse",
     errors
   );
-  collectError(validateBehovForBistand(values.bistand), "bistand", errors);
+  collectError(validateBehov(values.behovForBistand.behov), "behovForBistand.behov", errors);
   collectError(
-    validateTiltakForTilrettelegging(values.tiltak.forTilrettelegging),
-    "tiltak.forTilrettelegging",
+    validateTilrettelegging(values.behovForBistand.tilrettelegging),
+    "behovForBistand.tilrettelegging",
     errors
   );
-  collectError(validateKostnad(values.bestilling.kostnad), "bestilling.kostnad", errors);
-  collectError(validateStartDato(values.bestilling.startDato), "bestilling.startDato", errors);
-  collectError(validateNavKontakt(values.nav.kontakt), "nav.kontakt", errors);
+  collectError(
+    validateEstimertKostnad(values.behovForBistand.estimertKostnad),
+    "behovForBistand.estimertKostnad",
+    errors
+  );
+  collectError(
+    validateStartdato(values.behovForBistand.startdato),
+    "behovForBistand.startdato",
+    errors
+  );
+  collectError(validateNavKontaktperson(values.nav.kontaktperson), "nav.kontaktperson", errors);
 
   return errors;
 };
