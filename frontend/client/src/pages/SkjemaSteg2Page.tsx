@@ -218,7 +218,7 @@ export default function SkjemaSteg2Page() {
               <Textarea
                 id="behovForBistand.behov"
                 label="Hva vil dere har hjelp til fra eksperten, og hvor mange timer tror dere at det vil ta?"
-                description="f.eks. fleksibel arbeidstid, hjemmekontor, tilpassing av arbeidsoppgaver, hjelpemiddel, opplæring, ekstra oppfølging."
+                description="F.eks. kartlegging, arbeidsplassvurdering. Tilskuddet gis ikke til behandling."
                 error={attemptedSubmit ? errors.behovForBistand?.behov?.message : undefined}
                 {...register("behovForBistand.behov", {
                   validate: validateBehov,
@@ -259,6 +259,7 @@ export default function SkjemaSteg2Page() {
                       {...inputProps}
                       id="behovForBistand.startdato"
                       label="Startdato"
+                      description="Tiltaket må være godkjent for dere kan begynne."
                       error={
                         attemptedSubmit ? errors.behovForBistand?.startdato?.message : undefined
                       }
