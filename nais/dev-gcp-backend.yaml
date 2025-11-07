@@ -52,6 +52,4 @@ spec:
         - application: logging
           namespace: nais-system
         - application: notifikasjon-produsent-api
-          namespace: fager
         - application: arbeidsgiver-altinn-tilganger
-          namespace: fager

@@ -38,7 +38,7 @@ class ProdusentApiKlient(
         url = url,
         httpClient = httpClient
     )
-    private val ressursId = "eksperbistandRessurs"
+    private val ressursId = "nav_tiltak_ekspertbistand"
 
     private val mottaker = MottakerInput(
         altinn = null,
