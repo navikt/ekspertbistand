@@ -46,7 +46,7 @@ class OpprettNySakEventHandler(
             produsentApiKlient.opprettNySak(
                 grupperingsid = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                tittel = "Ekspertbistand ${skjema.ansatt.navn} f. ${skjema.ansatt.fodselsnummer.tilFøselsdato()}",
+                tittel = "Ekspertbistand ${skjema.ansatt.navn} f. ${skjema.ansatt.fnr.tilFødselsdato()}",
                 lenke = ""
             )
             Result.success("Opprettet sak for skjema ${skjema.id}")
@@ -71,7 +71,7 @@ class OpprettNySakEventHandler(
     }
 }
 
-private fun String.tilFøselsdato(): String {
+private fun String.tilFødselsdato(): String {
     if (length != 11) throw IllegalArgumentException("Fødselsnummer må være eksakt 11 tegn langt")
     return "${substring(0, 2)}.${substring(2, 4)}.${substring(4, 6)}"
 }
