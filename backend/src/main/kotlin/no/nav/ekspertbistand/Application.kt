@@ -30,6 +30,7 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
+import no.nav.ekspertbistand.services.notifikasjon.configureOpprettNySakEventHandler
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import no.nav.ekspertbistand.skjema.subjectToken
 import org.slf4j.event.Level
@@ -87,6 +88,7 @@ suspend fun Application.module() {
     configureOrganisasjonerApiV1()
 
     // event manager and event handlers
+    configureOpprettNySakEventHandler()
     configureEventHandlers()
 
     // internal endpoints and lifecycle hooks
