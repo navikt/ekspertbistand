@@ -44,44 +44,47 @@ fun main() {
     transaction(testDb.config.jdbcDatabase) {
         SkjemaTable.insert {
             it[id] = UUID.randomUUID()
-            it[virksomhetsnummer] = "1337"
-            it[virksomhetsnavn] = "LOLWUT LTD"
+            it[virksomhetsnummer] = "123456780"
+            it[virksomhetsnavn] = "Eksempel Bedrift AS Avd. Oslo"
             it[opprettetAv] = "42"
 
-            it[kontaktpersonNavn] = ""
-            it[kontaktpersonEpost] = ""
-            it[kontaktpersonTelefon] = ""
-            it[ansattFnr] = ""
-            it[ansattNavn] = ""
-            it[ekspertNavn] = ""
-            it[ekspertVirksomhet] = ""
-            it[ekspertKompetanse] = ""
-            it[behovForBistand] = ""
-            it[behovForBistandBegrunnelse] = ""
-            it[behovForBistandEstimertKostnad] = 0
-            it[behovForBistandTilrettelegging] = ""
+            it[kontaktpersonNavn] = "Kontaktperson NN"
+            it[kontaktpersonEpost] = "kontaktperson@bedrift.no"
+            it[kontaktpersonTelefon] = "415199999"
+            it[ansattFnr] = "12058512345"
+            it[ansattNavn] = "Asnatt NN"
+            it[ekspertNavn] = "Ekspert NN"
+            it[ekspertVirksomhet] = "ErgoConsult AS"
+            it[ekspertKompetanse] = "Ergoterapeut, autorisasjon HPR 1337"
+            it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
+            it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
+            it[behovForBistandEstimertKostnad] = 9999
+            it[behovForBistandTilrettelegging] = "Høydejustert bord testet, noe bedring"
             it[behovForBistandStartdato] = CurrentDate
 
-            it[navKontaktPerson] = ""
+            it[navKontaktPerson] = "Navkontaktperson NN"
         }
         UtkastTable.insert {
-            it[virksomhetsnummer] = "1337"
-            it[virksomhetsnavn] = "LOLWUT LTD"
+            it[id] = UUID.randomUUID()
+            it[virksomhetsnummer] = "123456780"
+            it[virksomhetsnavn] = "Eksempel Bedrift AS Avd. Oslo"
             it[opprettetAv] = "42"
 
-            it[kontaktpersonNavn] = ""
-            it[kontaktpersonEpost] = ""
-            it[kontaktpersonTelefon] = ""
-            it[ansattFnr] = ""
-            it[ansattNavn] = ""
-            it[ekspertNavn] = ""
-            it[ekspertVirksomhet] = ""
-            it[ekspertKompetanse] = ""
-            it[behovForBistand] = ""
-            it[behovForBistandBegrunnelse] = ""
-            it[behovForBistandEstimertKostnad] = 0
-            it[behovForBistandTilrettelegging] = ""
-            it[navKontaktPerson] = ""
+            it[kontaktpersonNavn] = "Kontaktperson NN"
+            it[kontaktpersonEpost] = "kontaktperson@bedrift.no"
+            it[kontaktpersonTelefon] = "415199999"
+            it[ansattFnr] = "12058512345"
+            it[ansattNavn] = "Asnatt NN"
+            it[ekspertNavn] = "Ekspert NN"
+            it[ekspertVirksomhet] = "ErgoConsult AS"
+            it[ekspertKompetanse] = "Ergoterapeut, autorisasjon HPR 1337"
+            it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
+            it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
+            it[behovForBistandEstimertKostnad] = 9999
+            it[behovForBistandTilrettelegging] = "Høydejustert bord testet, noe bedring"
+            it[behovForBistandStartdato] = CurrentDate
+
+            it[navKontaktPerson] = "Navkontaktperson NN"
         }
     }
 
@@ -107,257 +110,102 @@ const val altinnTilgangerResponse = """{
   "isError": false,
   "hierarki": [
     {
-      "orgnr": "313199770",
-      "altinn3Tilganger": [],
-      "altinn2Tilganger": [
-        "5384:1"
-      ],
+      "erSlettet": false,
+      "orgnr": "123456789",
+      "organisasjonsform": "AS",
+      "navn": "Eksempel Bedrift AS",
       "underenheter": [
         {
-          "orgnr": "211511052",
-          "altinn3Tilganger": [],
-          "altinn2Tilganger": [
-            "5384:1"
-          ],
-          "underenheter": [],
-          "navn": "ALLSIDIG UTMERKET TIGER AS",
+          "erSlettet": false,
+          "orgnr": "123456780",
           "organisasjonsform": "BEDR",
-          "erSlettet": false
+          "navn": "Eksempel Bedrift AS Avd. Oslo",
+          "underenheter": [],
+          "altinn3Tilganger": [
+            "nav_tiltak_ekspertbistand"
+          ],
+          "altinn2Tilganger": []
         },
         {
-          "orgnr": "1337",
-          "altinn3Tilganger": [],
-          "altinn2Tilganger": [
-            "5384:1"
-          ],
-          "underenheter": [],
-          "navn": "LOLWUT LTD",
+          "erSlettet": false,
+          "orgnr": "123456781",
           "organisasjonsform": "BEDR",
-          "erSlettet": false
+          "navn": "Eksempel Bedrift AS Avd. Bergen",
+          "underenheter": [],
+          "altinn3Tilganger": [
+            "nav_tiltak_ekspertbistand"
+          ],
+          "altinn2Tilganger": []
         }
       ],
-      "navn": "ALLSIDIG UTMERKET TIGER AS",
-      "organisasjonsform": "AS",
-      "erSlettet": false
+      "altinn3Tilganger": [
+        "nav_tiltak_ekspertbistand"
+      ],
+      "altinn2Tilganger": []
     },
     {
-      "orgnr": "310276111",
-      "altinn3Tilganger": [],
-      "altinn2Tilganger": [
-        "5384:1"
-      ],
-      "underenheter": [
-        {
-          "orgnr": "311601881",
-          "altinn3Tilganger": [],
-          "altinn2Tilganger": [
-            "5384:1"
-          ],
-          "underenheter": [],
-          "navn": "BEGEISTRET VISSEN TIGER AS",
-          "organisasjonsform": "BEDR",
-          "erSlettet": false
-        }
-      ],
-      "navn": "BEGEISTRET VISSEN TIGER AS",
+      "erSlettet": false,
+      "orgnr": "987654321",
       "organisasjonsform": "AS",
-      "erSlettet": false
-    },
-    {
-      "orgnr": "314279913",
-      "altinn3Tilganger": [],
-      "altinn2Tilganger": [
-        "5384:1"
-      ],
-      "underenheter": [
-        {
-          "orgnr": "314569083",
-          "altinn3Tilganger": [],
-          "altinn2Tilganger": [
-            "5384:1"
-          ],
-          "underenheter": [],
-          "navn": "DEMOKRATISK LILLA TIGER AS",
-          "organisasjonsform": "BEDR",
-          "erSlettet": false
-        }
-      ],
-      "navn": "DEMOKRATISK LILLA TIGER AS",
-      "organisasjonsform": "AS",
-      "erSlettet": false
-    },
-    {
-      "orgnr": "310614777",
-      "altinn3Tilganger": [],
-      "altinn2Tilganger": [
-        "5384:1"
-      ],
-      "underenheter": [
-        {
-          "orgnr": "315784220",
-          "altinn3Tilganger": [],
-          "altinn2Tilganger": [
-            "5384:1"
-          ],
-          "underenheter": [],
-          "navn": "DYNAMISK AVANSERT TIGER AS",
-          "organisasjonsform": "BEDR",
-          "erSlettet": false
-        }
-      ],
-      "navn": "DYNAMISK AVANSERT TIGER AS",
-      "organisasjonsform": "AS",
-      "erSlettet": false
-    },
-    {
-      "orgnr": "312593351",
-      "altinn3Tilganger": [],
-      "altinn2Tilganger": [
-        "5384:1"
-      ],
-      "underenheter": [
-        {
-          "orgnr": "315291720",
-          "altinn3Tilganger": [],
-          "altinn2Tilganger": [
-            "5384:1"
-          ],
-          "underenheter": [],
-          "navn": "FREDFULL URIMELIG TIGER AS",
-          "organisasjonsform": "BEDR",
-          "erSlettet": false
-        }
-      ],
-      "navn": "FREDFULL URIMELIG TIGER AS",
-      "organisasjonsform": "AS",
-      "erSlettet": false
-    },
-    {
-      "orgnr": "311750453",
-      "altinn3Tilganger": [],
-      "altinn2Tilganger": [
-        "5384:1"
-      ],
+      "navn": "Testfirma Norge AS",
       "underenheter": [],
-      "navn": "REDELIG UNGT TIGER AS",
-      "organisasjonsform": "AS",
-      "erSlettet": false
+      "altinn3Tilganger": [
+        "nav_tiltak_ekspertbistand"
+      ],
+      "altinn2Tilganger": []
     },
     {
-      "orgnr": "310740071",
-      "altinn3Tilganger": [],
-      "altinn2Tilganger": [
-        "5384:1"
-      ],
-      "underenheter": [
-        {
-          "orgnr": "315801729",
-          "altinn3Tilganger": [],
-          "altinn2Tilganger": [
-            "5384:1"
-          ],
-          "underenheter": [],
-          "navn": "TRÅDLØS SOLID TIGER AS",
-          "organisasjonsform": "BEDR",
-          "erSlettet": false
-        }
-      ],
-      "navn": "TRÅDLØS SOLID TIGER AS",
+      "erSlettet": false,
+      "orgnr": "111222333",
       "organisasjonsform": "AS",
-      "erSlettet": false
+      "navn": "Demo Solutions AS",
+      "underenheter": [],
+      "altinn3Tilganger": [
+        "nav_tiltak_ekspertbistand"
+      ],
+      "altinn2Tilganger": []
     },
     {
-      "orgnr": "313990265",
-      "altinn3Tilganger": [],
-      "altinn2Tilganger": [
-        "5384:1"
-      ],
-      "underenheter": [
-        {
-          "orgnr": "315538890",
-          "altinn3Tilganger": [],
-          "altinn2Tilganger": [
-            "5384:1"
-          ],
-          "underenheter": [],
-          "navn": "ARITMETISK UTGÅTT TIGER AS",
-          "organisasjonsform": "BEDR",
-          "erSlettet": false
-        }
-      ],
-      "navn": "ARITMETISK UTGÅTT TIGER AS",
+      "erSlettet": false,
+      "orgnr": "444555666",
       "organisasjonsform": "AS",
-      "erSlettet": false
+      "navn": "Navn & Co AS",
+      "underenheter": [],
+      "altinn3Tilganger": [
+        "nav_tiltak_ekspertbistand"
+      ],
+      "altinn2Tilganger": []
     }
   ],
   "orgNrTilTilganger": {
-    "211511052": [
-      "5384:1"
+    "123456789": [
+      "nav_tiltak_ekspertbistand"
     ],
-    "1337": [
-      "5384:1"
+    "123456780": [
+      "nav_tiltak_ekspertbistand"
     ],
-    "310276111": [
-      "5384:1"
+    "123456781": [
+      "nav_tiltak_ekspertbistand"
     ],
-    "310614777": [
-      "5384:1"
+    "987654321": [
+      "nav_tiltak_ekspertbistand"
     ],
-    "310740071": [
-      "5384:1"
+    "111222333": [
+      "nav_tiltak_ekspertbistand"
     ],
-    "311601881": [
-      "5384:1"
-    ],
-    "311750453": [
-      "5384:1"
-    ],
-    "312593351": [
-      "5384:1"
-    ],
-    "313199770": [
-      "5384:1"
-    ],
-    "313990265": [
-      "5384:1"
-    ],
-    "314279913": [
-      "5384:1"
-    ],
-    "314569083": [
-      "5384:1"
-    ],
-    "315291720": [
-      "5384:1"
-    ],
-    "315538890": [
-      "5384:1"
-    ],
-    "315784220": [
-      "5384:1"
-    ],
-    "315801729": [
-      "5384:1"
+    "444555666": [
+      "nav_tiltak_ekspertbistand"
     ]
   },
   "tilgangTilOrgNr": {
-    "5384:1": [
-      "211511052",
-      "1337",
-      "310276111",
-      "310614777",
-      "310740071",
-      "311601881",
-      "311750453",
-      "312593351",
-      "313199770",
-      "313990265",
-      "314279913",
-      "314569083",
-      "315291720",
-      "315538890",
-      "315784220",
-      "315801729"
+    "nav_tiltak_ekspertbistand": [
+      "123456789",
+      "123456780",
+      "123456781",
+      "987654321",
+      "111222333",
+      "444555666"
     ]
   }
-}"""
+}
+"""

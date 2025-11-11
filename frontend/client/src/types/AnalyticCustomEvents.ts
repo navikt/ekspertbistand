@@ -1,4 +1,4 @@
-import { AnalyticsEvent } from "@navikt/nav-dekoratoren-moduler";
+import type { AnalyticsEvent } from "@navikt/nav-dekoratoren-moduler";
 
 type SkjemaInnsendingAvbrutt = AnalyticsEvent<
   "skjema innsending avbrutt",

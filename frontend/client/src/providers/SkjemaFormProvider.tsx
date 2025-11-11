@@ -1,33 +1,51 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import type { ReactNode } from "react";
-import { FormProvider, useForm, useWatch } from "react-hook-form";
-import type { Inputs } from "../pages/types.ts";
-import { useSoknadDraft } from "../context/SoknadDraftContext.tsx";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { createEmptyInputs, soknadSchema, type SoknadInputs } from "../features/soknad/schema";
+import { useSoknadDraft } from "../context/SoknadDraftContext";
+import { useAutosaveDraft } from "../hooks/useAutosaveDraft";
+import { DraftAutosaveContext } from "./DraftAutosaveContext";
+
+type HydratedSnapshot = {
+  id: string;
+  snapshot: string;
+};
 
 export function SkjemaFormProvider({ children }: { children: ReactNode }) {
-  const { draft, hydrated, saveDraft } = useSoknadDraft();
-  const form = useForm<Inputs>({
+  const { draft, draftId, hydrated, saveDraft } = useSoknadDraft();
+  const resolver = useMemo(() => zodResolver(soknadSchema), []);
+
+  const form = useForm<SoknadInputs>({
     mode: "onSubmit",
     reValidateMode: "onSubmit",
     shouldFocusError: false,
     shouldUnregister: false,
+    defaultValues: createEmptyInputs(),
+    resolver,
   });
 
-  const hasInitialisedRef = useRef(false);
-
-  useEffect(() => {
-    if (!hydrated || hasInitialisedRef.current) return;
-    form.reset(draft, { keepValues: false });
-    hasInitialisedRef.current = true;
-  }, [draft, form, hydrated]);
-
-  const values = useWatch<Inputs>({ control: form.control });
-  const { getValues } = form;
+  const { isDirty } = form.formState;
+  const appliedSnapshotRef = useRef<HydratedSnapshot | null>(null);
 
   useEffect(() => {
     if (!hydrated) return;
-    saveDraft(getValues());
-  }, [getValues, hydrated, saveDraft, values]);
+    const snapshot = JSON.stringify(draft);
+    const applied = appliedSnapshotRef.current;
+    const hasAppliedSnapshot = applied?.id === draftId && applied.snapshot === snapshot;
+    if (hasAppliedSnapshot) return;
+    if (isDirty && applied?.id === draftId) return;
+    form.reset(draft);
+    appliedSnapshotRef.current = { id: draftId, snapshot };
+  }, [draft, draftId, form, hydrated, isDirty]);
 
-  return <FormProvider {...form}>{children}</FormProvider>;
+  const { flushDraft } = useAutosaveDraft(form, hydrated, saveDraft);
+
+  const autosaveContextValue = useMemo(() => ({ flushDraft }), [flushDraft]);
+
+  return (
+    <DraftAutosaveContext.Provider value={autosaveContextValue}>
+      <FormProvider {...form}>{children}</FormProvider>
+    </DraftAutosaveContext.Provider>
+  );
 }

@@ -1,4 +1,5 @@
-import { createEmptyInputs, type Inputs } from "../pages/types";
+import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema";
+import { ensureIsoDateString } from "./dates";
 
 export type DraftDto = {
   id?: string;
@@ -71,7 +72,9 @@ export type SkjemaPayload = DraftPayload & {
   id: string;
 };
 
-const normalizeEstimertKostnad = (value: Inputs["behovForBistand"]["estimertKostnad"]): number => {
+const normalizeEstimertKostnad = (
+  value: SoknadInputs["behovForBistand"]["estimertKostnad"]
+): number => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.round(value);
   }
@@ -86,24 +89,10 @@ const normalizeEstimertKostnad = (value: Inputs["behovForBistand"]["estimertKost
   return 0;
 };
 
-const createTodayDateString = () => {
-  const today = new Date();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${today.getFullYear()}-${month}-${day}`;
-};
+const normalizeStartdato = (value: SoknadInputs["behovForBistand"]["startdato"]): string =>
+  ensureIsoDateString(typeof value === "string" ? value : null);
 
-const normalizeStartdato = (value: Inputs["behovForBistand"]["startdato"]): string => {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (trimmed.length === 10) {
-      return trimmed;
-    }
-  }
-  return createTodayDateString();
-};
-
-export const buildDraftPayload = (inputs: Inputs): DraftPayload => ({
+export const buildDraftPayload = (inputs: SoknadInputs): DraftPayload => ({
   virksomhet: {
     virksomhetsnummer: inputs.virksomhet.virksomhetsnummer,
     virksomhetsnavn: inputs.virksomhet.navn,
@@ -134,12 +123,12 @@ export const buildDraftPayload = (inputs: Inputs): DraftPayload => ({
   },
 });
 
-export const buildSkjemaPayload = (id: string, inputs: Inputs): SkjemaPayload => ({
+export const buildSkjemaPayload = (id: string, inputs: SoknadInputs): SkjemaPayload => ({
   id,
   ...buildDraftPayload(inputs),
 });
 
-export const draftDtoToInputs = (dto: DraftDto | null | undefined): Inputs => {
+export const draftDtoToInputs = (dto: DraftDto | null | undefined): SoknadInputs => {
   const result = createEmptyInputs();
   if (!dto) return result;
 
@@ -166,13 +155,10 @@ export const draftDtoToInputs = (dto: DraftDto | null | undefined): Inputs => {
     result.behovForBistand.begrunnelse = dto.behovForBistand.begrunnelse ?? "";
     result.behovForBistand.behov = dto.behovForBistand.behov ?? "";
     const kostnad = dto.behovForBistand.estimertKostnad;
-    result.behovForBistand.estimertKostnad =
-      typeof kostnad === "number" && Number.isFinite(kostnad) ? kostnad : "";
+    result.behovForBistand.estimertKostnad = Number.isFinite(kostnad) ? kostnad : "";
     result.behovForBistand.tilrettelegging = dto.behovForBistand.tilrettelegging ?? "";
     result.behovForBistand.startdato =
-      typeof dto.behovForBistand.startdato === "string" && dto.behovForBistand.startdato.length > 0
-        ? dto.behovForBistand.startdato
-        : null;
+      dto.behovForBistand.startdato.length > 0 ? dto.behovForBistand.startdato : null;
   }
 
   if (dto.nav) {

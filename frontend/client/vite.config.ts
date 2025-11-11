@@ -20,13 +20,29 @@ export default defineConfig(() => {
     server: {
       proxy: {
         "/api": "http://localhost:4000",
+        "/ekspertbistand-backend": {
+          target: "http://localhost:4000",
+          changeOrigin: true,
+        },
       },
+    },
+    ssr: {
+      noExternal: ["react-router", "react-router-dom"],
     },
     test: {
       globals: true,
       environment: "jsdom",
-      setupFiles: "./src/test/setup.ts",
+      pool: "vmThreads",
+      setupFiles: ["./src/test/polyfills.ts", "./src/test/setup.ts"],
       css: true,
+      deps: {
+        inline: [/react-router/, /react-router-dom/],
+      },
+      server: {
+        deps: {
+          inline: ["react-router", "react-router-dom"],
+        },
+      },
       exclude: ["e2e/**", "node_modules/**"],
       coverage: { reporter: ["text", "lcov"] },
     },

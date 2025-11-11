@@ -9,7 +9,7 @@ import { tokenXMiddleware } from "./tokenx.js";
 import { logger } from "@navikt/pino-logger";
 import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import type { Socket } from "net";
-import rateLimit from "express-rate-limit";
+// import rateLimit from "express-rate-limit";
 
 const {
   PORT = "4000",
@@ -33,16 +33,17 @@ if (tokenxEnabled && !EKSPERTBISTAND_API_AUDIENCE) {
 
 const app = express();
 const api = express.Router();
+const localSessionEnabled = NODE_ENV !== "production";
 
-const limiterConfig = {
-  windowMs: 15 * 60 * 1000,
-  limit: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-} as const;
+// const limiterConfig = {
+//   windowMs: 15 * 60 * 1000,
+//   limit: 100,
+//   standardHeaders: true,
+//   legacyHeaders: false,
+// } as const;
 
-const apiLimiter = rateLimit(limiterConfig);
-const staticLimiter = rateLimit(limiterConfig);
+// const apiLimiter = rateLimit(limiterConfig);
+// const staticLimiter = rateLimit(limiterConfig);
 
 // api.use(apiLimiter);
 
@@ -50,6 +51,15 @@ api.get("/internal/isAlive", (_req: Request, res: Response) => {
   const health: ApiHealth = { status: "ok" };
   res.json(health);
 });
+
+if (localSessionEnabled) {
+  api.get("/oauth2/session", (_req: Request, res: Response) => {
+    res.json({
+      session: { ends_in_seconds: 3600 },
+      tokens: { expire_in_seconds: 3600 },
+    });
+  });
+}
 
 const ekspertbistandBackendProxy = createProxyMiddleware({
   target: EKSPERTBISTAND_API_BASEURL,

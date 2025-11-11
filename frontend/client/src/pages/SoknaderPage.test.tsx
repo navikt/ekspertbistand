@@ -1,4 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createElement, Fragment, type ReactNode } from "react";
+
+vi.mock("react-router-dom", () => ({
+  MemoryRouter: ({ children }: { children?: ReactNode }) => createElement(Fragment, null, children),
+  Link: ({ to, children }: { to?: string; children?: ReactNode }) =>
+    createElement("a", { href: to ?? "" }, children),
+}));
+
 import { MemoryRouter } from "react-router-dom";
 import { render, screen, waitFor } from "@testing-library/react";
 import SoknaderPage from "./SoknaderPage.tsx";

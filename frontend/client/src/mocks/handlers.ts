@@ -1,5 +1,6 @@
 import { http, HttpResponse } from "msw";
-import { createEmptyInputs, type Inputs } from "../pages/types";
+import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema";
+import { ensureIsoDateString } from "../utils/dates";
 import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 
@@ -36,23 +37,23 @@ const organisasjoner: Organisasjon[] = [
 const DRAFT_CACHE_NAME = "mock-soknad-draft";
 const DRAFT_CACHE_URL = "/mock/soknad/draft";
 
-let draft: Inputs | null = null;
+let draft: SoknadInputs | null = null;
 
-const loadDraft = async (): Promise<Inputs | null> => {
+const loadDraft = async (): Promise<SoknadInputs | null> => {
   if (typeof caches === "undefined") return draft;
 
   try {
     const cache = await caches.open(DRAFT_CACHE_NAME);
     const cached = await cache.match(DRAFT_CACHE_URL);
     if (!cached) return draft;
-    draft = (await cached.json()) as Inputs;
+    draft = (await cached.json()) as SoknadInputs;
   } catch {
     // Ignore cache errors; rely on in-memory data.
   }
   return draft;
 };
 
-const persistDraftLocal = async (value: Inputs | null) => {
+const persistDraftLocal = async (value: SoknadInputs | null) => {
   draft = value;
   if (typeof caches === "undefined") return;
 
@@ -78,7 +79,7 @@ type SkjemaStatus = "utkast" | "innsendt";
 type MockSkjema = {
   id: string;
   status: SkjemaStatus;
-  data: Inputs;
+  data: SoknadInputs;
   opprettetAv: string;
   opprettetTidspunkt: string;
   innsendtTidspunkt?: string;
@@ -103,8 +104,11 @@ const mergeShallow = <T extends Record<string, unknown>>(base: T, update?: Parti
     ...Object.fromEntries(Object.entries(update ?? {}).filter(([, val]) => val !== undefined)),
   }) as T;
 
-const mergeInputs = (base: Partial<Inputs> | undefined, update: Partial<Inputs>): Inputs => {
-  const b = (base as Inputs | undefined) ?? createEmptyInputs();
+const mergeInputs = (
+  base: Partial<SoknadInputs> | undefined,
+  update: Partial<SoknadInputs>
+): SoknadInputs => {
+  const b = (base as SoknadInputs | undefined) ?? createEmptyInputs();
 
   const virksomhet = mergeShallow(b.virksomhet, update.virksomhet);
   const kontaktperson = mergeShallow(b.virksomhet.kontaktperson, update.virksomhet?.kontaktperson);
@@ -160,7 +164,9 @@ const ensureSkjemaStoreLoaded = async () => {
   skjemaStoreLoaded = true;
 };
 
-const toEstimertKostnadNumber = (value: Inputs["behovForBistand"]["estimertKostnad"]): number => {
+const toEstimertKostnadNumber = (
+  value: SoknadInputs["behovForBistand"]["estimertKostnad"]
+): number => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.round(value);
   }
@@ -175,19 +181,8 @@ const toEstimertKostnadNumber = (value: Inputs["behovForBistand"]["estimertKostn
   return 0;
 };
 
-const createTodayDateString = () => {
-  const today = new Date();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${today.getFullYear()}-${month}-${day}`;
-};
-
-const toStartdatoString = (value: Inputs["behovForBistand"]["startdato"]): string => {
-  if (typeof value === "string" && value.trim().length === 10) {
-    return value.trim();
-  }
-  return createTodayDateString();
-};
+const toStartdatoString = (value: SoknadInputs["behovForBistand"]["startdato"]): string =>
+  ensureIsoDateString(typeof value === "string" ? value : null);
 
 const toUtkastDto = (entry: MockSkjema) => {
   const data = entry.data ?? createEmptyInputs();
@@ -237,6 +232,11 @@ const getSkjemaStatusParam = (request: Request): SkjemaStatus | null => {
   return null;
 };
 
+const getParamValue = (value: string | readonly string[] | undefined): string | null => {
+  if (!value) return null;
+  return typeof value === "string" ? value : (value[0] ?? null);
+};
+
 const loginSessionJson = {
   session: {
     ends_in_seconds: 3600,
@@ -249,7 +249,7 @@ const loginSessionJson = {
 export const handlers = [
   http.get("/internal/isAlive", () => HttpResponse.json({ status: "ok" })),
   http.get("/ekspertbistand-backend/api/organisasjoner/v1", () =>
-    HttpResponse.json({ organisasjoner })
+    HttpResponse.json({ hierarki: organisasjoner })
   ),
   http.get("/api/soknad/draft", async () => {
     const currentDraft = await loadDraft();
@@ -257,7 +257,7 @@ export const handlers = [
   }),
   http.post("/api/soknad/draft", async ({ request }) => {
     try {
-      const payload = (await request.json()) as Inputs;
+      const payload = (await request.json()) as SoknadInputs;
       await persistDraftLocal(payload);
     } catch {
       await persistDraftLocal(null);
@@ -300,7 +300,7 @@ export const handlers = [
   }),
   http.get(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params }) => {
     await ensureSkjemaStoreLoaded();
-    const id = params.id;
+    const id = getParamValue(params.id);
     if (!id) {
       return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
     }
@@ -312,7 +312,7 @@ export const handlers = [
   }),
   http.patch(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params, request }) => {
     await ensureSkjemaStoreLoaded();
-    const id = params.id;
+    const id = getParamValue(params.id);
     if (!id) {
       return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
     }
@@ -320,20 +320,20 @@ export const handlers = [
     if (!entry || entry.status !== "utkast") {
       return HttpResponse.json({ message: "skjema ikke i utkast-status" }, { status: 409 });
     }
-    let payload: Partial<Inputs>;
+    let payload: Partial<SoknadInputs>;
     try {
-      payload = (await request.json()) as Partial<Inputs>;
+      payload = (await request.json()) as Partial<SoknadInputs>;
     } catch {
       return HttpResponse.json({ message: "ugyldig payload" }, { status: 400 });
     }
-    entry.data = mergeInputs(entry.data as Partial<Inputs>, payload);
+    entry.data = mergeInputs(entry.data as Partial<SoknadInputs>, payload);
     skjemaStore.set(id, entry);
     await persistSkjemaStore();
     return HttpResponse.json(toUtkastDto(entry));
   }),
   http.delete(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params }) => {
     await ensureSkjemaStoreLoaded();
-    const id = params.id;
+    const id = getParamValue(params.id);
     if (!id) {
       return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
     }
@@ -347,7 +347,7 @@ export const handlers = [
   }),
   http.put(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params, request }) => {
     await ensureSkjemaStoreLoaded();
-    const id = params.id;
+    const id = getParamValue(params.id);
     if (!id) {
       return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
     }
@@ -355,9 +355,9 @@ export const handlers = [
     if (!entry || entry.status !== "utkast") {
       return HttpResponse.json({ message: "skjema ikke i utkast-status" }, { status: 409 });
     }
-    let payload: Inputs;
+    let payload: SoknadInputs;
     try {
-      payload = (await request.json()) as Inputs;
+      payload = (await request.json()) as SoknadInputs;
     } catch {
       return HttpResponse.json({ message: "ugyldig payload" }, { status: 400 });
     }
@@ -371,4 +371,5 @@ export const handlers = [
   http.get("https://login.ekstern.dev.nav.no/oauth2/session", () =>
     HttpResponse.json(loginSessionJson)
   ),
+  http.get("/oauth2/session", () => HttpResponse.json(loginSessionJson)),
 ];

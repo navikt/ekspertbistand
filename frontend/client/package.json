@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "lint": "eslint ../../frontend/client",
+    "lint:fix": "eslint ../../frontend/client --fix",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:cov": "vitest run --coverage",
@@ -27,7 +29,9 @@
     "react-dom": "19.2.0",
     "react-hook-form": "7.65.0",
     "react-router-dom": "7.9.4",
-    "shared": "workspace:*"
+    "shared": "workspace:*",
+    "swr": "2.3.6",
+    "zod": "4.1.12"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",
