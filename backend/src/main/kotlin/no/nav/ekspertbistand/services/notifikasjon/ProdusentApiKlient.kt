@@ -27,11 +27,14 @@ import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysa
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
 
+private const val merkelapp = "Ekspertbistand"
+private const val notifikasjonBaseUrl = "http://notifikasjon-produsent-api.fager/api/graphql"
+
 class ProdusentApiKlient(
     private val tokenProvider: TokenProvider,
     private val httpClient: HttpClient
 ) {
-    private val url = URI("http://notifikasjon-produsent-api.fager/api/graphql").toURL()
+    private val url = URI(notifikasjonBaseUrl).toURL()
 
     private val log = logger()
     private val client = GraphQLKtorClient(
@@ -58,7 +61,6 @@ class ProdusentApiKlient(
 
     suspend fun opprettNySak(
         grupperingsid: String,
-        merkelapp: String,
         virksomhetsnummer: String,
         tittel: String,
         lenke: String,
@@ -100,7 +102,6 @@ class ProdusentApiKlient(
 
     suspend fun opprettNyBeskjed(
         grupperingsid: String,
-        merkelapp: String,
         virksomhetsnummer: String,
         tekst: String,
         lenke: String,
