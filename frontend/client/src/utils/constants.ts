@@ -20,6 +20,10 @@ export const EKSPERTBISTAND_URL = envSwitch({
 });
 
 const apiBaseUrl = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+const withBasePath = (path: string) => {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${apiBaseUrl}${normalized}`;
+};
 
 export const EKSPERTBISTAND_API_PATH = `${apiBaseUrl}/ekspertbistand-backend/api/skjema/v1`;
 export const EKSPERTBISTAND_ORGANISASJONER_PATH = `${apiBaseUrl}/ekspertbistand-backend/api/organisasjoner/v1`;
@@ -27,10 +31,12 @@ export const EKSPERTBISTAND_ORGANISASJONER_PATH = `${apiBaseUrl}/ekspertbistand-
 export const APPLICATIONS_PATH = "/soknader";
 
 export const LOGIN_URL = envSwitch({
-  prod: () => "oauth2/login?redirect=/ekspertbistand/soknader",
-  dev: () => "oauth2/login?redirect=/ekspertbistand/soknader",
-  local: () => "/soknader",
+  prod: () => `${withBasePath("/oauth2/login")}?redirect=${withBasePath(APPLICATIONS_PATH)}`,
+  dev: () => `${withBasePath("/oauth2/login")}?redirect=${withBasePath(APPLICATIONS_PATH)}`,
+  local: () => withBasePath(APPLICATIONS_PATH),
 });
+
+export const SESSION_URL = withBasePath("/oauth2/session");
 
 export const TILGANGSSTYRING_URL =
   "https://www.nav.no/arbeidsgiver/min-side-arbeidsgiver/tilgangsstyring";

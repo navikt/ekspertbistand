@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { Alert, BodyLong, BodyShort, Box, Heading, Loader, VStack } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { SoknadSummary } from "../components/SoknadSummary";
 import { draftDtoToInputs, type DraftDto } from "../utils/soknadPayload";
 import { APPLICATIONS_PATH, EKSPERTBISTAND_API_PATH } from "../utils/constants";
-import { parseErrorMessage } from "../utils/http";
 import { formatDateTime } from "../utils/date";
-import type { Inputs } from "./types";
 import { BackLink } from "../components/BackLink";
+import useSWR from "swr";
 
 type LocationState = {
   submissionSuccess?: boolean;
@@ -21,51 +20,28 @@ type KvitteringMetadata = {
 
 export default function KvitteringPage() {
   const { id } = useParams<{ id: string }>();
-  const location = useLocation<LocationState>();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<Inputs | null>(null);
-  const [metadata, setMetadata] = useState<KvitteringMetadata>({});
+  const location = useLocation();
+  const locationState = (location.state as LocationState | null) ?? null;
+  const {
+    data: draft,
+    error,
+    isLoading,
+  } = useSWR<DraftDto | null>(id ? `${EKSPERTBISTAND_API_PATH}/${id}` : null);
 
-  useEffect(() => {
-    if (!id) return;
+  const formData = useMemo(() => (draft ? draftDtoToInputs(draft) : null), [draft]);
+  const metadata = useMemo<KvitteringMetadata>(() => {
+    if (!draft) return {};
+    return {
+      status: draft?.status ?? null,
+      innsendtTidspunkt: draft?.innsendtTidspunkt ?? draft?.opprettetTidspunkt ?? null,
+    };
+  }, [draft]);
 
-    const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-
-    (async () => {
-      try {
-        const response = await fetch(`${EKSPERTBISTAND_API_PATH}/${id}`, {
-          headers: { Accept: "application/json" },
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          const message = await parseErrorMessage(response);
-          throw new Error(message ?? `Kunne ikke hente søknaden (${response.status}).`);
-        }
-
-        const payload = (await response.json()) as DraftDto;
-        setData(draftDtoToInputs(payload));
-        setMetadata({
-          status: payload?.status ?? null,
-          innsendtTidspunkt: payload?.innsendtTidspunkt ?? payload?.opprettetTidspunkt ?? null,
-        });
-      } catch (err) {
-        if (controller.signal.aborted) return;
-        const message =
-          err instanceof Error ? err.message : "Kunne ikke hente søknaden akkurat nå.";
-        setError(message);
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => controller.abort();
-  }, [id]);
+  const errorMessage = error
+    ? error instanceof Error
+      ? error.message
+      : "Kunne ikke hente søknaden akkurat nå."
+    : null;
 
   const innsendtTekst = useMemo(() => {
     if (!metadata.innsendtTidspunkt) return null;
@@ -73,7 +49,7 @@ export default function KvitteringPage() {
   }, [metadata.innsendtTidspunkt]);
 
   return (
-    <DecoratedPage blockProps={{ width: "lg", gutters: true }}>
+    <DecoratedPage>
       <VStack gap="8">
         <VStack gap="3">
           <BackLink to={APPLICATIONS_PATH}>Gå til oversikt</BackLink>
@@ -87,25 +63,25 @@ export default function KvitteringPage() {
           </BodyLong>
         </VStack>
 
-        {location.state?.submissionSuccess && (
+        {locationState?.submissionSuccess && (
           <Alert variant="success" role="status">
             Søknaden er sendt inn.
           </Alert>
         )}
 
-        {loading && (
+        {isLoading && (
           <Box aria-live="polite">
             <Loader size="large" title="Laster kvittering" />
           </Box>
         )}
 
-        {error && (
+        {errorMessage && (
           <Alert variant="error" role="alert">
-            {error}
+            {errorMessage}
           </Alert>
         )}
 
-        {!loading && !error && data && (
+        {!isLoading && !errorMessage && formData && (
           <VStack gap="6">
             <Box>
               <BodyShort size="small" textColor="subtle">
@@ -117,7 +93,7 @@ export default function KvitteringPage() {
                 </BodyShort>
               )}
             </Box>
-            <SoknadSummary data={data} />
+            <SoknadSummary data={formData} />
           </VStack>
         )}
 

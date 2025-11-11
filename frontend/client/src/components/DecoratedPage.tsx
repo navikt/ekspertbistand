@@ -4,6 +4,8 @@ import { injectDecoratorClientSide } from "@navikt/nav-dekoratoren-moduler";
 import { EKSPERTBISTAND_URL } from "../utils/constants";
 import { envSwitch } from "../utils/env";
 
+type DecoratorEnv = Exclude<Parameters<typeof injectDecoratorClientSide>[0]["env"], "localhost">;
+
 type DecoratedPageProps = {
   children: React.ReactNode;
   blockProps?: PageBlockProps;
@@ -12,10 +14,17 @@ type DecoratedPageProps = {
 export function DecoratedPage({ children, blockProps }: DecoratedPageProps) {
   useDekorator();
 
+  const mergedBlockProps: PageBlockProps = {
+    width: "lg",
+    gutters: true,
+    ...blockProps,
+    className: "page-content",
+  };
+
   return (
     <Page footer={<Footer />}>
       <Header />
-      <Page.Block {...blockProps}>{children}</Page.Block>
+      <Page.Block {...mergedBlockProps}>{children}</Page.Block>
     </Page>
   );
 }
@@ -35,7 +44,7 @@ function useDekorator() {
     const win = window as unknown as { __navDecoratorInjected?: boolean };
     if (!win.__navDecoratorInjected) {
       win.__navDecoratorInjected = true;
-      const env = envSwitch({
+      const env = envSwitch<DecoratorEnv>({
         prod: () => "prod",
         dev: () => "dev",
         local: () => "dev",

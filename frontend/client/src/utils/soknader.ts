@@ -2,7 +2,7 @@ import type { TagProps } from "@navikt/ds-react";
 
 import { EKSPERTBISTAND_API_PATH } from "./constants";
 import { formatDateTime } from "./date";
-import { parseErrorMessage } from "./http";
+import { fetchJson } from "./api";
 
 const DEFAULT_TITLE = "Søknad om tilskudd til ekspertbistand";
 
@@ -52,20 +52,11 @@ const STATUSES_TO_FETCH: Array<Extract<SkjemaStatus, "innsendt" | "utkast">> = [
   "utkast",
 ];
 
-export async function fetchApplications(signal: AbortSignal): Promise<ApplicationListItem[]> {
+export async function fetchApplications(): Promise<ApplicationListItem[]> {
   const rawResults = await Promise.all(
     STATUSES_TO_FETCH.map(async (status) => {
-      const response = await fetch(`${EKSPERTBISTAND_API_PATH}?status=${status}`, {
-        headers: { Accept: "application/json" },
-        signal,
-      });
-
-      if (!response.ok) {
-        const message = await parseErrorMessage(response);
-        throw new Error(message ?? `Klarte ikke å hente søknader (${response.status}).`);
-      }
-
-      return await parseJsonArray(response);
+      const response = await fetchJson<RawSkjema[]>(`${EKSPERTBISTAND_API_PATH}?status=${status}`);
+      return response ?? [];
     })
   );
 
@@ -114,24 +105,6 @@ function mapSkjemaToSoknad(raw: RawSkjema): ApplicationWithSort | null {
     tag: { label, variant: statusConfig.variant },
     sortKey,
   };
-}
-
-async function parseJsonArray(response: Response): Promise<RawSkjema[]> {
-  if (response.status === 204) {
-    return [];
-  }
-
-  const body = await response.text();
-  if (!body || body.trim().length === 0) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(body) as unknown;
-    return Array.isArray(parsed) ? (parsed as RawSkjema[]) : [];
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : "Kunne ikke tolke svar fra serveren.");
-  }
 }
 
 function capitalize(value: string) {

@@ -1,5 +1,5 @@
-import { type JSX, useEffect, useState } from "react";
-import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { type JSX } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { Alert, BodyShort, Box, Heading, Loader, Tag, VStack } from "@navikt/ds-react";
 import { LinkCard } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
@@ -8,37 +8,10 @@ import { MIN_SIDE_URL } from "../utils/constants";
 import { BackLink } from "../components/BackLink";
 import { useSoknader } from "../hooks/useSoknader.ts";
 
-type LocationState = {
-  submissionSuccess?: boolean;
-};
-
 export default function SoknaderPage() {
   const { applications, error, loading } = useSoknader();
-  const location = useLocation();
-  const locationState = location.state as LocationState | undefined;
-  const navigate = useNavigate();
-  const [showSuccess, setShowSuccess] = useState<boolean>(() =>
-    Boolean(locationState?.submissionSuccess)
-  );
-  const submissionSuccess = locationState?.submissionSuccess;
 
-  useEffect(() => {
-    if (!submissionSuccess) return;
-
-    const timeout = window.setTimeout(() => setShowSuccess(true), 0);
-    const path = `${location.pathname}${location.search}${location.hash}`;
-    navigate(path, { replace: true });
-
-    return () => window.clearTimeout(timeout);
-  }, [submissionSuccess, location.pathname, location.search, location.hash, navigate]);
-
-  useEffect(() => {
-    if (!showSuccess) return;
-    const timer = window.setTimeout(() => setShowSuccess(false), 10_000);
-    return () => window.clearTimeout(timer);
-  }, [showSuccess]);
-
-  let content: JSX.Element | null = null;
+  let content: JSX.Element | null;
   if (loading) {
     content = (
       <Box className="home-page__loader" aria-live="polite">
@@ -78,19 +51,8 @@ export default function SoknaderPage() {
   }
 
   return (
-    <DecoratedPage blockProps={{ width: "lg", gutters: true }}>
+    <DecoratedPage>
       <main className="home-page">
-        {showSuccess && (
-          <Alert
-            variant="success"
-            className="home-page__success"
-            role="alert"
-            closeButton
-            onClose={() => setShowSuccess(false)}
-          >
-            Du har sendt søknaden.
-          </Alert>
-        )}
         <BackLink href={MIN_SIDE_URL}>Tilbake til Min side - arbeidsgiver</BackLink>
 
         <LinkCard className="home-page__create-card" size="medium" arrowPosition="center">

@@ -4,7 +4,7 @@ import { TILGANGSSTYRING_URL, LOGIN_URL } from "../utils/constants";
 
 export default function LandingPage() {
   return (
-    <DecoratedPage blockProps={{ width: "lg", gutters: true }}>
+    <DecoratedPage>
       <VStack gap="8">
         <VStack gap="4">
           <Heading level="1" size="xlarge">

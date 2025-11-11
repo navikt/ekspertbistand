@@ -1,85 +1,54 @@
 import { useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useFormContext } from "react-hook-form";
 import { ArrowLeftIcon, PaperplaneIcon } from "@navikt/aksel-icons";
-import {
-  Alert,
-  BodyLong,
-  BodyShort,
-  Box,
-  Button,
-  ErrorSummary,
-  FormProgress,
-  Heading,
-  HGrid,
-  VStack,
-} from "@navikt/ds-react";
+import { Alert, BodyLong, BodyShort, Box, Button, Heading, HGrid, VStack } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
-import type { Inputs } from "./types";
-import { STEP1_FIELDS, STEP2_FIELDS } from "./types";
+import { soknadSchema } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
-import { validateInputs, type ValidationError } from "./validation";
 import { DraftActions } from "../components/DraftActions.tsx";
-import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
 import { buildSkjemaPayload } from "../utils/soknadPayload";
 import { SoknadSummary } from "../components/SoknadSummary";
-import { withPreventDefault } from "./utils.ts";
-import { APPLICATIONS_PATH, EKSPERTBISTAND_API_PATH } from "../utils/constants";
-import { parseErrorMessage } from "../utils/http";
-import { useErrorFocus } from "../hooks/useErrorFocus";
-import { useDraftNavigation } from "../hooks/useDraftNavigation";
+import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { BackLink } from "../components/BackLink";
+import useSWRMutation from "swr/mutation";
+import { fetchJson } from "../utils/api";
+import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
+import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
+import { useNavigate } from "react-router-dom";
 
 export default function OppsummeringPage() {
   const navigate = useNavigate();
   const { draftId, draft: formData, clearDraft, lastPersistedAt } = useSoknadDraft();
-  const form = useFormContext<Inputs>();
-  const [submitErrors, setSubmitErrors] = useState<ValidationError[]>([]);
-  const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
-  const [submitting, setSubmitting] = useState(false);
+  const { goToApplications, goToStep1, goToStep2, createLinkHandler } = useSkjemaNavigation();
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const navigateWithDraft = useDraftNavigation();
-
-  const navigateTo = useCallback(
-    (path: string) => {
-      setSubmitErrors([]);
-      navigateWithDraft(path, formData);
-    },
-    [formData, navigateWithDraft]
+  const { trigger: submitDraft, isMutating: submitting } = useSWRMutation<
+    null,
+    Error,
+    [string, string],
+    RequestInit
+  >(["submit-draft", draftId], ([, id], { arg }) =>
+    fetchJson<null>(`${EKSPERTBISTAND_API_PATH}/${id}`, arg)
   );
-  const step1Path = `/skjema/${draftId}/steg-1`;
-  const step2Path = `/skjema/${draftId}/steg-2`;
-  const goToStep1 = withPreventDefault(() => navigateTo(step1Path));
-  const goToStep2 = withPreventDefault(() => navigateTo(step2Path));
+
+  const handleStep1Link = createLinkHandler(goToStep1);
+  const handleStep2Link = createLinkHandler(goToStep2);
 
   const handleSubmit = useCallback(async () => {
-    const valid = await form.trigger([...STEP1_FIELDS, ...STEP2_FIELDS], { shouldFocus: false });
-    if (!valid) {
-      const hasStep1Error = STEP1_FIELDS.some((name) => form.getFieldState(name).invalid);
-      const target = hasStep1Error ? step1Path : step2Path;
-      navigateWithDraft(target, formData, { state: { attemptedSubmit: true } });
-      return;
-    }
-
-    const errors = validateInputs(formData);
-    setSubmitErrors(errors);
-    if (errors.length > 0) {
-      bumpFocusKey();
+    const result = soknadSchema.safeParse(formData);
+    if (!result.success) {
+      setSubmitError(
+        "Du må fylle ut alle feltene før du sender inn. Gå tilbake til stegene og fyll inn manglende opplysninger."
+      );
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     setSubmitError(null);
-    setSubmitting(true);
     try {
       const payload = buildSkjemaPayload(draftId, formData);
-      const response = await fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
+      await submitDraft({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) {
-        const message = await parseErrorMessage(response);
-        throw new Error(message ?? `Kunne ikke sende søknaden (${response.status}).`);
-      }
       navigate(`/skjema/${draftId}/kvittering`, {
         replace: true,
         state: { submissionSuccess: true },
@@ -89,13 +58,11 @@ export default function OppsummeringPage() {
         error instanceof Error ? error.message : "Kunne ikke sende søknaden akkurat nå.";
       setSubmitError(message);
       window.scrollTo({ top: 0, behavior: "smooth" });
-    } finally {
-      setSubmitting(false);
     }
-  }, [bumpFocusKey, draftId, form, formData, navigate, navigateWithDraft, step1Path, step2Path]);
+  }, [draftId, formData, navigate, submitDraft]);
 
   return (
-    <DecoratedPage blockProps={{ width: "lg", gutters: true }}>
+    <DecoratedPage>
       <VStack gap="8" data-aksel-template="form-summarypage-v3">
         <VStack gap="3">
           <Heading level="1" size="xlarge">
@@ -104,7 +71,7 @@ export default function OppsummeringPage() {
         </VStack>
 
         <div>
-          <BackLink to={step2Path} onClick={goToStep2}>
+          <BackLink to={`/skjema/${draftId}/steg-2`} onClick={handleStep2Link}>
             Forrige steg
           </BackLink>
           <Box paddingBlock="6 5">
@@ -112,18 +79,7 @@ export default function OppsummeringPage() {
               Oppsummering
             </Heading>
           </Box>
-
-          <FormProgress activeStep={3} totalSteps={3}>
-            <FormProgress.Step href="#" onClick={goToStep1}>
-              Deltakere
-            </FormProgress.Step>
-            <FormProgress.Step href="#" onClick={goToStep2}>
-              Behov for bistand
-            </FormProgress.Step>
-            <FormProgress.Step href="#" onClick={(event) => event.preventDefault()}>
-              Oppsummering
-            </FormProgress.Step>
-          </FormProgress>
+          <SkjemaFormProgress activeStep={3} onStep1={handleStep1Link} onStep2={handleStep2Link} />
         </div>
 
         <BodyLong>
@@ -137,21 +93,12 @@ export default function OppsummeringPage() {
           </Alert>
         )}
 
-        {submitErrors.length > 0 && (
-          <FocusedErrorSummary
-            isActive={submitErrors.length > 0}
-            focusKey={errorFocusKey}
-            heading="Du må rette disse feilene før du kan sende inn søknaden:"
-          >
-            {submitErrors.map(({ id, message }) => (
-              <ErrorSummary.Item key={id} href={`#${id}`}>
-                {message}
-              </ErrorSummary.Item>
-            ))}
-          </FocusedErrorSummary>
-        )}
-
-        <SoknadSummary data={formData} editable onEditStep1={goToStep1} onEditStep2={goToStep2} />
+        <SoknadSummary
+          data={formData}
+          editable
+          onEditStep1={handleStep1Link}
+          onEditStep2={handleStep2Link}
+        />
 
         <VStack gap="4">
           {lastPersistedAt && (
@@ -168,7 +115,7 @@ export default function OppsummeringPage() {
               variant="secondary"
               icon={<ArrowLeftIcon aria-hidden />}
               iconPosition="left"
-              onClick={() => navigateTo(step2Path)}
+              onClick={goToStep2}
             >
               Forrige steg
             </Button>
@@ -185,11 +132,11 @@ export default function OppsummeringPage() {
           </HGrid>
           <DraftActions
             onContinueLater={() => {
-              navigateWithDraft(APPLICATIONS_PATH, formData);
+              goToApplications();
             }}
             onDeleteDraft={async () => {
               await clearDraft();
-              navigate(APPLICATIONS_PATH);
+              goToApplications();
             }}
           />
         </VStack>
