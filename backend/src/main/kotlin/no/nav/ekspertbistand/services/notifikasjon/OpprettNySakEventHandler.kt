@@ -8,6 +8,8 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
+import no.nav.ekspertbistand.infrastruktur.IdentityProvider
+import no.nav.ekspertbistand.infrastruktur.TexasAuthConfig
 import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 import no.nav.ekspertbistand.services.IdempotencyGuard
@@ -85,8 +87,9 @@ suspend fun Application.configureOpprettNySakEventHandler(
         }
     }
 ) {
+    val authConfig = TexasAuthConfig.nais()
+    val tokenProvider = authConfig.authClient(IdentityProvider.AZURE_AD)
     val idempotencyGuard = dependencies.resolve<IdempotencyGuard>()
-    val tokenProvider = dependencies.resolve<TokenProvider>()
     val produsentApiKlient = ProdusentApiKlient(tokenProvider, httpClient)
 
     dependencies.provide<OpprettNySakEventHandler> {

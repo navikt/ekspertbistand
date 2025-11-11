@@ -51,9 +51,6 @@ fun main() {
             provide<TokenIntrospector> {
                 tokenxClient
             }
-            provide<TokenProvider>{
-                tokenxClient
-            }
             provide {
                 AltinnTilgangerClient(
                     tokenxClient
