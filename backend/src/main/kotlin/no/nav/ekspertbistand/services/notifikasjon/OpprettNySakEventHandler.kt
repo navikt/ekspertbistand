@@ -8,6 +8,7 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
+import no.nav.ekspertbistand.infrastruktur.AuthClient
 import no.nav.ekspertbistand.infrastruktur.IdentityProvider
 import no.nav.ekspertbistand.infrastruktur.TexasAuthConfig
 import no.nav.ekspertbistand.infrastruktur.TokenProvider
@@ -85,10 +86,9 @@ suspend fun Application.configureOpprettNySakEventHandler(
         install(HttpTimeout) {
             requestTimeoutMillis = 5_000
         }
-    }
+    },
+    tokenProvider: TokenProvider = TexasAuthConfig.nais().authClient(IdentityProvider.AZURE_AD)
 ) {
-    val authConfig = TexasAuthConfig.nais()
-    val tokenProvider = authConfig.authClient(IdentityProvider.AZURE_AD)
     val idempotencyGuard = dependencies.resolve<IdempotencyGuard>()
     val produsentApiKlient = ProdusentApiKlient(tokenProvider, httpClient)
 

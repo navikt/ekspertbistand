@@ -154,21 +154,18 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
             }
-            provide<TokenProvider> {
-                object : TokenProvider {
-                    override suspend fun token(target: String): TokenResponse {
-                        return TokenResponse.Success(
-                            accessToken = "faketoken",
-                            expiresInSeconds = 3600
-                        )
-                    }
-                }
-            }
             provide<IdempotencyGuard>(IdempotencyGuard::class)
         }
         configureDatabase()
         configureTokenXAuth()
-        configureOpprettNySakEventHandler(client)
+        configureOpprettNySakEventHandler(client, object : TokenProvider {
+            override suspend fun token(target: String): TokenResponse {
+                return TokenResponse.Success(
+                    accessToken = "faketoken",
+                    expiresInSeconds = 3600
+                )
+            }
+        })
     }
 }
 
