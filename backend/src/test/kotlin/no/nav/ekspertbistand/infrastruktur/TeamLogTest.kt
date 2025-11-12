@@ -14,18 +14,16 @@ class TeamLogTest {
      * sensitive data kan lekke i loggene.
      */
     @Test
-    fun `vanlig logg skal ikke inneholde verdier i teamLogCtx`() {
+    fun `vanlig logg skal ikke inneholde verdier i teamLog`() {
         val log = logger()
-        val ctx = mapOf("secret" to "shhh")
+        val teamLog = teamLogger()
         val stdout = captureStdout {
-            log.info("FOO", *TeamLogCtx.of(ctx))
+            log.info("FOO")
+            teamLog.info("BAR")
         }
 
-        assertTrue(stdout.contains("FOO"))
-        for (arg in ctx) {
-            assertFalse(stdout.contains(arg.key), "StructuredArgument skal være slått av i vanlig log. se LogConfig")
-            assertFalse(stdout.contains(arg.value), "StructuredArgument skal være slått av i vanlig log. se LogConfig")
-        }
+        assertTrue(stdout.contains("FOO"), "forventet å finne vanlig logg-melding")
+        assertFalse(stdout.contains("BAR"), "forventet å ikke finne team logg-melding")
     }
 
     @Test
