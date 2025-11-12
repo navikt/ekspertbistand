@@ -8,9 +8,14 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
 import io.ktor.utils.io.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
+import no.nav.ekspertbistand.internal.configureInternal
+import no.nav.ekspertbistand.services.configureIdempotencyGuard
+import no.nav.ekspertbistand.services.notifikasjon.configureOpprettNySakEventHandler
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
+import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -102,6 +107,30 @@ fun main() {
                 mockAltinnTilgangerClient
             }
         }
+        configureBaseSetup()
+
+        // database
+        configureDatabase()
+
+        // application modules
+        configureSkjemaApiV1()
+        configureOrganisasjonerApiV1()
+
+        // event manager and event handlers
+        configureIdempotencyGuard()
+        configureOpprettNySakEventHandler(tokenProvider = object : TokenProvider {
+            override suspend fun token(target: String): TokenResponse {
+                return TokenResponse.Success(
+                    accessToken = "faketoken",
+                    expiresInSeconds = 3600
+                )
+            }
+        })
+        configureEventHandlers()
+
+        // internal endpoints and lifecycle hooks
+        configureInternal()
+        registerShutdownListener()
     }
 }
 

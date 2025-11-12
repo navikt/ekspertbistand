@@ -57,11 +57,28 @@ fun main() {
                 )
             }
         }
+        configureBaseSetup()
+
+        // database
+        configureDatabase()
+
+        // application modules
+        configureSkjemaApiV1()
+        configureOrganisasjonerApiV1()
+
+        // event manager and event handlers
+        configureIdempotencyGuard()
+        configureOpprettNySakEventHandler()
+        configureEventHandlers()
+
+        // internal endpoints and lifecycle hooks
+        configureInternal()
+        registerShutdownListener()
     }
 }
 
 fun ktorServer(
-    initialConfig: Application.() -> Unit,
+    initialConfig: suspend Application.() -> Unit,
 ) = embeddedServer(
     CIO,
     configure = {
@@ -74,29 +91,7 @@ fun ktorServer(
     }
 ) {
     initialConfig()
-    module()
 }.start(wait = true)
-
-suspend fun Application.module() {
-    // base setup
-    configureBaseSetup()
-
-    // database
-    configureDatabase()
-
-    // application modules
-    configureSkjemaApiV1()
-    configureOrganisasjonerApiV1()
-
-    // event manager and event handlers
-    configureIdempotencyGuard()
-    configureOpprettNySakEventHandler()
-    configureEventHandlers()
-
-    // internal endpoints and lifecycle hooks
-    configureInternal()
-    registerShutdownListener()
-}
 
 suspend fun Application.configureOrganisasjonerApiV1() {
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
