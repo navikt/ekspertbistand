@@ -1,6 +1,7 @@
 import { FormSummary } from "@navikt/ds-react";
 import { FormSummaryAnswer } from "@navikt/ds-react/FormSummary";
-import type { Inputs } from "../pages/types";
+import type { SoknadInputs } from "../features/soknad/schema";
+import { parseIsoDate } from "../utils/dates";
 
 const numberFormatter = new Intl.NumberFormat("nb-NO");
 
@@ -15,7 +16,7 @@ const formatValue = (value: unknown): string => {
   return "—";
 };
 
-const formatCurrency = (value: Inputs["behovForBistand"]["estimertKostnad"]): string => {
+const formatCurrency = (value: SoknadInputs["behovForBistand"]["estimertKostnad"]): string => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return `${numberFormatter.format(value)} kr`;
   }
@@ -33,16 +34,13 @@ const formatCurrency = (value: Inputs["behovForBistand"]["estimertKostnad"]): st
   return formatValue(value);
 };
 
-const formatDate = (value: Inputs["behovForBistand"]["startdato"]): string => {
-  if (!value) return "—";
-  const [year, month, day] = value.split("-").map((part) => Number.parseInt(part, 10));
-  if ([year, month, day].some((part) => Number.isNaN(part))) return "—";
-  const parsed = new Date(year, month - 1, day);
-  return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString("nb-NO");
+const formatDate = (value: SoknadInputs["behovForBistand"]["startdato"]): string => {
+  const parsed = parseIsoDate(value);
+  return parsed ? parsed.toLocaleDateString("nb-NO") : "—";
 };
 
 type SoknadSummaryProps = {
-  data: Inputs;
+  data: SoknadInputs;
   editable?: boolean;
   onEditStep1?: React.MouseEventHandler<HTMLAnchorElement>;
   onEditStep2?: React.MouseEventHandler<HTMLAnchorElement>;

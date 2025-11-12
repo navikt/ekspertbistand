@@ -1,44 +1,38 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { createEmptyInputs, type Inputs } from "../pages/types";
+import React, { createContext, useCallback, useContext, useMemo } from "react";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
+import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema";
 import { buildDraftPayload, draftDtoToInputs, type DraftDto } from "../utils/soknadPayload";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
+import { fetchJson } from "../utils/api";
 
 type DraftContextValue = {
   draftId: string;
-  draft: Inputs;
+  draft: SoknadInputs;
   hydrated: boolean;
   status: DraftDto["status"] | null;
-  saveDraft: (snapshot: Inputs) => void;
+  saveDraft: (snapshot: SoknadInputs) => void;
   clearDraft: () => Promise<void>;
   lastPersistedAt: Date | null;
 };
 
 const SoknadDraftContext = createContext<DraftContextValue | undefined>(undefined);
-const PERSIST_DELAY = 800;
 
-const persistDraft = (draftId: string, data: Inputs): Promise<void> =>
-  fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(buildDraftPayload(data)),
-  })
-    .then(() => undefined)
-    .catch(() => undefined);
-
-const deleteDraft = (draftId: string): Promise<void> =>
-  fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
-    method: "DELETE",
-  })
-    .then(() => undefined)
-    .catch(() => undefined);
+const mergeSnapshotIntoDraftDto = (
+  snapshot: SoknadInputs,
+  draftId: string,
+  current: DraftDto | null | undefined,
+  persistedIso?: string
+): DraftDto => {
+  const payload = buildDraftPayload(snapshot);
+  return {
+    ...current,
+    ...payload,
+    id: current?.id ?? draftId,
+    status: current?.status ?? "utkast",
+    opprettetTidspunkt: persistedIso ?? current?.opprettetTidspunkt ?? null,
+  };
+};
 
 export function SoknadDraftProvider({
   draftId,
@@ -47,129 +41,63 @@ export function SoknadDraftProvider({
   draftId: string;
   children: React.ReactNode;
 }) {
-  const [draft, setDraft] = useState<Inputs>(createEmptyInputs);
-  const [hydrated, setHydrated] = useState(false);
-  const [status, setStatus] = useState<DraftDto["status"] | null>(null);
-  const [lastPersistedAt, setLastPersistedAt] = useState<Date | null>(null);
+  const draftUrl = `${EKSPERTBISTAND_API_PATH}/${draftId}`;
+  const { data: draftDto, isLoading } = useSWR<DraftDto | null>(draftUrl);
 
-  const debounceRef = useRef<number | null>(null);
-  const lastPersistedRef = useRef<string | null>(null);
-  const lastSavedRef = useRef<string | null>(null);
-  const clearingRef = useRef(false);
-  const activePersistRef = useRef<Promise<void> | null>(null);
-
-  const cancelPendingPersist = useCallback(() => {
-    if (debounceRef.current !== null) {
-      window.clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
-  }, []);
-
-  const schedulePersist = useCallback(
-    (data: Inputs) => {
-      const snapshot = JSON.stringify(data);
-      if (snapshot === lastPersistedRef.current) return;
-
-      cancelPendingPersist();
-      debounceRef.current = window.setTimeout(() => {
-        debounceRef.current = null;
-        lastPersistedRef.current = snapshot;
-        const persistPromise = persistDraft(draftId, data).then(() => {
-          if (!clearingRef.current) {
-            setLastPersistedAt(new Date());
-          }
-        });
-        activePersistRef.current = persistPromise.finally(() => {
-          if (activePersistRef.current === persistPromise) {
-            activePersistRef.current = null;
-          }
-        });
-      }, PERSIST_DELAY);
-    },
-    [cancelPendingPersist, draftId]
+  const { trigger: persistDraft } = useSWRMutation<DraftDto | null, Error, string, SoknadInputs>(
+    draftUrl,
+    async (url, { arg }) =>
+      fetchJson<DraftDto | null>(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildDraftPayload(arg)),
+      })
   );
 
-  useEffect(() => {
-    setHydrated(false);
-    setDraft(createEmptyInputs);
-    setStatus(null);
-    setLastPersistedAt(null);
-    lastPersistedRef.current = null;
-    lastSavedRef.current = null;
-    activePersistRef.current = null;
-    clearingRef.current = false;
-
-    const controller = new AbortController();
-    let active = true;
-    (async () => {
-      try {
-        const res = await fetch(`${EKSPERTBISTAND_API_PATH}/${draftId}`, {
-          headers: { Accept: "application/json" },
-          signal: controller.signal,
-        });
-        if (!active || controller.signal.aborted) return;
-        if (res.ok) {
-          const payload = (await res.json()) as DraftDto | null;
-          const merged = draftDtoToInputs(payload);
-          const snapshot = JSON.stringify(merged);
-          setDraft(merged);
-          setStatus(payload?.status ?? null);
-          lastPersistedRef.current = snapshot;
-          lastSavedRef.current = snapshot;
-          const persistedIso = payload?.opprettetTidspunkt ?? payload?.innsendtTidspunkt ?? null;
-          setLastPersistedAt(persistedIso ? new Date(persistedIso) : new Date());
-        }
-      } catch (error) {
-        if (import.meta.env.DEV && !controller.signal.aborted) {
-          console.warn("Failed to fetch persisted draft, continuing without cached data", error);
-        }
-      } finally {
-        if (active && !controller.signal.aborted) setHydrated(true);
-      }
-    })();
-
-    return () => {
-      active = false;
-      cancelPendingPersist();
-      controller.abort();
-    };
-  }, [cancelPendingPersist, draftId]);
+  const { trigger: deleteDraft } = useSWRMutation<DraftDto | null, Error, string, void>(
+    draftUrl,
+    (url) =>
+      fetchJson<DraftDto | null>(url, {
+        method: "DELETE",
+      })
+  );
 
   const saveDraft = useCallback(
-    (snapshot: Inputs) => {
-      if (clearingRef.current || status === "innsendt") return;
-      const snapshotJson = JSON.stringify(snapshot);
-      if (snapshotJson !== lastSavedRef.current) {
-        setDraft(snapshot);
-        lastSavedRef.current = snapshotJson;
-      }
-      schedulePersist(snapshot);
+    (snapshot: SoknadInputs) => {
+      if (draftDto?.status === "innsendt") return;
+      const optimisticPersistedIso = new Date().toISOString();
+      void persistDraft(snapshot, {
+        optimisticData: (current) =>
+          mergeSnapshotIntoDraftDto(snapshot, draftId, current, optimisticPersistedIso),
+        rollbackOnError: true,
+        revalidate: false,
+        populateCache: false,
+      }).catch(() => undefined);
     },
-    [schedulePersist, status]
+    [draftDto?.status, draftId, persistDraft]
   );
 
   const clearDraft = useCallback(async () => {
-    clearingRef.current = true;
-    cancelPendingPersist();
-    setDraft(createEmptyInputs);
-    setStatus(null);
-    lastPersistedRef.current = null;
-    lastSavedRef.current = null;
-    const pendingPersist = activePersistRef.current;
-    if (pendingPersist) {
-      try {
-        await pendingPersist;
-      } catch {
-        // ignore persist errors while clearing
-      }
-    }
     try {
-      await deleteDraft(draftId);
-      setLastPersistedAt(new Date());
-    } finally {
-      clearingRef.current = false;
+      await deleteDraft(undefined, {
+        optimisticData: () => null,
+        rollbackOnError: true,
+        revalidate: false,
+        populateCache: true,
+      });
+    } catch {
+      // ignore – delete best-effort only
     }
-  }, [cancelPendingPersist, draftId]);
+  }, [deleteDraft]);
+
+  const emptyInputs = useMemo(() => createEmptyInputs(), []);
+  const draft = draftDto ? draftDtoToInputs(draftDto) : emptyInputs;
+  const status = draftDto?.status ?? null;
+  const hydrated = !isLoading && draftDto !== undefined;
+  const lastPersistedAt = useMemo(() => {
+    const persistedIso = draftDto?.innsendtTidspunkt ?? draftDto?.opprettetTidspunkt ?? null;
+    return persistedIso ? new Date(persistedIso) : null;
+  }, [draftDto]);
 
   const value = useMemo<DraftContextValue>(
     () => ({

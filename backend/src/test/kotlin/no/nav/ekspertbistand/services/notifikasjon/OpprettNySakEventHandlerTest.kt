@@ -29,6 +29,7 @@ import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybe
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedVellykket
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.*
 import no.nav.ekspertbistand.skjema.DTO
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
@@ -106,6 +107,7 @@ class OpprettNySakEventHandlerTest {
 
 
 private val skjema1 = DTO.Skjema(
+    id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "1337",
         virksomhetsnavn = "foo bar AS",
@@ -152,21 +154,18 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
             }
-            provide<TokenProvider> {
-                object : TokenProvider {
-                    override suspend fun token(target: String): TokenResponse {
-                        return TokenResponse.Success(
-                            accessToken = "faketoken",
-                            expiresInSeconds = 3600
-                        )
-                    }
-                }
-            }
             provide<IdempotencyGuard>(IdempotencyGuard::class)
         }
         configureDatabase()
         configureTokenXAuth()
-        configureOpprettNySakEventHandler(client)
+        configureOpprettNySakEventHandler(client, object : TokenProvider {
+            override suspend fun token(target: String): TokenResponse {
+                return TokenResponse.Success(
+                    accessToken = "faketoken",
+                    expiresInSeconds = 3600
+                )
+            }
+        })
     }
 }
 

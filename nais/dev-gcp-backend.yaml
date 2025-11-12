@@ -31,7 +31,9 @@ spec:
 
   tokenx:
     enabled: true
-
+  azure:
+    application:
+      enabled: true
   gcp:
     sqlInstances:
       - name: ekspertbistand-backend

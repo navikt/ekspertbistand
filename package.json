@@ -7,8 +7,8 @@
     "dev": "concurrently \"pnpm --filter ./frontend/client dev\" \"pnpm --filter ./frontend/server dev\"",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "lint": "eslint frontend",
-    "lint:fix": "eslint frontend --fix",
+    "lint": "pnpm --filter ./frontend/client lint && pnpm --filter ./frontend/server lint && eslint frontend/shared",
+    "lint:fix": "pnpm --filter ./frontend/client lint:fix && pnpm --filter ./frontend/server lint:fix && eslint frontend/shared --fix",
     "format": "prettier --check frontend",
     "format:fix": "prettier --write frontend"
   },
@@ -33,5 +33,6 @@
     "frontend/**/*.{json,md,css,scss}": [
       "prettier --write"
     ]
-  }
+  },
+  "dependencies": {}
 }

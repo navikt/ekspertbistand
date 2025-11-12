@@ -1,14 +1,8 @@
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import type { ApiHealth } from "shared";
 
 export default function HealthPage() {
-  const [health, setHealth] = useState<ApiHealth | null>(null);
+  const { data } = useSWR<ApiHealth>("/internal/isAlive");
 
-  useEffect(() => {
-    fetch("/internal/isAlive")
-      .then((res) => res.json())
-      .then((data: ApiHealth) => setHealth(data));
-  }, []);
-
-  return <p>Health: {health?.status ?? "loading..."}</p>;
+  return <p>Health: {data?.status ?? "loading..."}</p>;
 }

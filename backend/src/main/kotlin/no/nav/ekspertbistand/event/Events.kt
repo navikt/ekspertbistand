@@ -6,6 +6,7 @@ import io.ktor.server.plugins.di.dependencies
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.services.notifikasjon.OpprettNySakEventHandler
 import no.nav.ekspertbistand.skjema.DummyBarHandler
 import no.nav.ekspertbistand.skjema.DummyFooHandler
 import kotlin.time.ExperimentalTime
@@ -46,8 +47,9 @@ suspend fun Application.configureEventHandlers() {
 
         register(dependencies.resolve<DummyFooHandler>())
         register(dependencies.resolve<DummyBarHandler>())
+        register(dependencies.resolve<OpprettNySakEventHandler>())
 
-        register<EventData>("InlineAllEventsHandler") { event ->
+        register<EventData>("InlineAlEventsHandler") { event ->
             // Inline handler example
             log.debug("event handled: {}", event)
             EventHandledResult.Success()

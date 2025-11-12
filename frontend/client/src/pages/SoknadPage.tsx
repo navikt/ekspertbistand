@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRightIcon } from "@navikt/aksel-icons";
-import { type SubmitErrorHandler, type SubmitHandler, useForm } from "react-hook-form";
+import { type Path, type SubmitHandler, useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Accordion,
   Bleed,
@@ -11,28 +13,44 @@ import {
   Checkbox,
   GuidePanel,
   Heading,
-  ErrorSummary,
   Link,
   List,
   Alert,
   VStack,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
-import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
+import { FormErrorSummary } from "../components/FormErrorSummary";
 import { ApplicationPictogram } from "../components/ApplicationPictogram";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { useErrorFocus } from "../hooks/useErrorFocus";
+import useSWRMutation from "swr/mutation";
+import { fetchJson } from "../utils/api";
+
+const introSchema = z.object({
+  bekreftRiktige: z
+    .boolean()
+    .refine(Boolean, { message: "Du må bekrefte at du vil svare så riktig som mulig." }),
+  bekreftSamraad: z
+    .boolean()
+    .refine(Boolean, { message: "Du må bekrefte at søknaden fylles ut i samråd med den ansatte." }),
+});
+
+type IntroInputs = z.infer<typeof introSchema>;
+
+const INTRO_FIELD_PATHS = ["bekreftRiktige", "bekreftSamraad"] as const satisfies ReadonlyArray<
+  Path<IntroInputs>
+>;
 
 export default function SoknadPage() {
   const navigate = useNavigate();
   const [apiError, setApiError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
-
-  type IntroInputs = {
-    bekreftRiktige: boolean;
-    bekreftSamraad: boolean;
-  };
+  const { trigger: createDraft, isMutating: creating } = useSWRMutation<
+    { id?: string } | null,
+    Error,
+    string,
+    RequestInit
+  >(EKSPERTBISTAND_API_PATH, (url, { arg }) => fetchJson<{ id?: string } | null>(url, arg));
 
   const {
     register,
@@ -42,20 +60,13 @@ export default function SoknadPage() {
     reValidateMode: "onBlur",
     shouldFocusError: false,
     defaultValues: { bekreftRiktige: false, bekreftSamraad: false },
+    resolver: zodResolver(introSchema),
   });
 
   const onValid: SubmitHandler<IntroInputs> = async () => {
     setApiError(null);
-    setCreating(true);
     try {
-      const res = await fetch(EKSPERTBISTAND_API_PATH, {
-        method: "POST",
-        headers: { Accept: "application/json" },
-      });
-      if (!res.ok) {
-        throw new Error(`Opprettelse av utkast feilet (${res.status})`);
-      }
-      const payload = (await res.json()) as { id?: string } | null;
+      const payload = await createDraft({ method: "POST" });
       const id = payload?.id;
       if (!id) {
         throw new Error("Svar manglet id");
@@ -65,17 +76,12 @@ export default function SoknadPage() {
       const message = error instanceof Error ? error.message : "Kunne ikke starte søknaden.";
       setApiError(message);
       bumpFocusKey();
-    } finally {
-      setCreating(false);
     }
-  };
-  const onInvalid: SubmitErrorHandler<IntroInputs> = () => {
-    bumpFocusKey();
   };
 
   return (
-    <DecoratedPage blockProps={{ width: "lg", gutters: true }}>
-      <form onSubmit={handleSubmit(onValid, onInvalid)}>
+    <DecoratedPage>
+      <form onSubmit={handleSubmit(onValid, () => bumpFocusKey())}>
         <VStack as="main" gap="8" data-aksel-template="form-intropage-v3">
           <VStack gap="3">
             <Bleed asChild marginInline={{ lg: "32" }}>
@@ -171,41 +177,32 @@ export default function SoknadPage() {
             <Box paddingBlock="4 8">
               <Checkbox
                 id="bekreftRiktige"
-                error={!!errors.bekreftRiktige}
-                {...register("bekreftRiktige", {
-                  required: "Du må bekrefte at du vil svare så riktig som mulig.",
-                })}
+                error={Boolean(errors.bekreftRiktige)}
+                {...register("bekreftRiktige")}
               >
                 Jeg vil svare så godt jeg kan på spørsmålene i søknaden.
               </Checkbox>
               <Checkbox
                 id="bekreftSamraad"
-                error={!!errors.bekreftSamraad}
-                {...register("bekreftSamraad", {
-                  required: "Du må bekrefte at søknaden fylles ut i samråd med den ansatte.",
-                })}
+                error={Boolean(errors.bekreftSamraad)}
+                {...register("bekreftSamraad")}
               >
                 Jeg bekrefter at søknaden fylles ut i samråd med den ansatte. Arbeidsgiver og ansatt
                 er enige om at ekspertbistand er hensiktsmessig.
               </Checkbox>
             </Box>
             <VStack gap="6">
-              {(Object.values(errors).length > 0 || apiError) && (
-                <FocusedErrorSummary
-                  isActive={Object.values(errors).length > 0 || Boolean(apiError)}
-                  focusKey={errorFocusKey}
-                  heading="Du må rette disse feilene før du kan fortsette:"
-                >
-                  {Object.entries(errors).map(([key, error]) => (
-                    <ErrorSummary.Item key={key} href={`#${key}`}>
-                      {error?.message as string}
-                    </ErrorSummary.Item>
-                  ))}
-                  {apiError ? (
-                    <ErrorSummary.Item href="#start-soknad-feil">{apiError}</ErrorSummary.Item>
-                  ) : null}
-                </FocusedErrorSummary>
-              )}
+              <FormErrorSummary
+                errors={errors}
+                fields={INTRO_FIELD_PATHS}
+                heading="Du må rette disse feilene før du kan fortsette:"
+                focusKey={errorFocusKey}
+                extraItems={
+                  apiError
+                    ? [{ id: "start-soknad-feil", message: apiError, href: "#start-soknad-feil" }]
+                    : undefined
+                }
+              />
               {apiError ? (
                 <Alert variant="error" inline>
                   {apiError}

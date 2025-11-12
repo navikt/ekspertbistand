@@ -30,6 +30,8 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
+import no.nav.ekspertbistand.services.configureIdempotencyGuard
+import no.nav.ekspertbistand.services.notifikasjon.configureOpprettNySakEventHandler
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import no.nav.ekspertbistand.skjema.subjectToken
 import org.slf4j.event.Level
@@ -59,11 +61,28 @@ fun main() {
                 )
             }
         }
+        configureBaseSetup()
+
+        // database
+        configureDatabase()
+
+        // application modules
+        configureSkjemaApiV1()
+        configureOrganisasjonerApiV1()
+
+        // event manager and event handlers
+        configureIdempotencyGuard()
+        configureOpprettNySakEventHandler()
+        configureEventHandlers()
+
+        // internal endpoints and lifecycle hooks
+        configureInternal()
+        registerShutdownListener()
     }
 }
 
 fun ktorServer(
-    initialConfig: Application.() -> Unit,
+    initialConfig: suspend Application.() -> Unit,
 ) = embeddedServer(
     CIO,
     configure = {
@@ -76,27 +95,7 @@ fun ktorServer(
     }
 ) {
     initialConfig()
-    module()
 }.start(wait = true)
-
-suspend fun Application.module() {
-    // base setup
-    configureBaseSetup()
-
-    // database
-    configureDatabase()
-
-    // application modules
-    configureSkjemaApiV1()
-    configureOrganisasjonerApiV1()
-
-    // event manager and event handlers
-    configureEventHandlers()
-
-    // internal endpoints and lifecycle hooks
-    configureInternal()
-    registerShutdownListener()
-}
 
 suspend fun Application.configureOrganisasjonerApiV1() {
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()

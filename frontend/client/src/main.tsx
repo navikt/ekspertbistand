@@ -9,6 +9,10 @@ import App from "./App.tsx";
 import { detectEnv } from "./utils/env";
 import { FaroErrorBoundary } from "@grafana/faro-react";
 import { Alert, Button } from "@navikt/ds-react";
+import { TELEMETRY_COLLECTOR_URL } from "./utils/constants";
+import { SimpleErrorBoundary } from "./components/SimpleErrorBoundary";
+import { SWRConfig } from "swr";
+import { fetchJson } from "./utils/api";
 
 const routerBasename = detectEnv() === "dev" ? "/ekspertbistand" : "/";
 
@@ -22,27 +26,36 @@ async function startMockServiceWorker() {
 async function bootstrap() {
   await startMockServiceWorker();
 
+  const ErrorBoundaryComponent = TELEMETRY_COLLECTOR_URL ? FaroErrorBoundary : SimpleErrorBoundary;
+
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <BrowserRouter basename={routerBasename}>
         <Theme theme="light">
-          <FaroErrorBoundary
-            fallback={
-              <div style={{ padding: "1rem" }}>
-                <Alert variant="error" inline={false} fullWidth>
-                  <strong>Oops! Noe gikk galt.</strong>
-                  <div>Vi har registrert feilen. Prøv å laste siden på nytt.</div>
-                  <div style={{ marginTop: "0.75rem" }}>
-                    <Button size="small" onClick={() => window.location.reload()}>
-                      Last inn på nytt
-                    </Button>
-                  </div>
-                </Alert>
-              </div>
-            }
+          <SWRConfig
+            value={{
+              fetcher: fetchJson,
+              revalidateOnFocus: false,
+            }}
           >
-            <App />
-          </FaroErrorBoundary>
+            <ErrorBoundaryComponent
+              fallback={
+                <div style={{ padding: "1rem" }}>
+                  <Alert variant="error" inline={false} fullWidth>
+                    <strong>Oops! Noe gikk galt.</strong>
+                    <div>Vi har registrert feilen. Prøv å laste siden på nytt.</div>
+                    <div style={{ marginTop: "0.75rem" }}>
+                      <Button size="small" onClick={() => window.location.reload()}>
+                        Last inn på nytt
+                      </Button>
+                    </div>
+                  </Alert>
+                </div>
+              }
+            >
+              <App />
+            </ErrorBoundaryComponent>
+          </SWRConfig>
         </Theme>
       </BrowserRouter>
     </StrictMode>

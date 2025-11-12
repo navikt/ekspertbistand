@@ -1,112 +1,49 @@
-import { useCallback, useEffect, useState } from "react";
-import type { FormEventHandler } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Controller, type SubmitHandler, useFormContext } from "react-hook-form";
+import { type FormEvent } from "react";
+import { Controller, useFormContext } from "react-hook-form";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
-import {
-  Button,
-  ErrorSummary,
-  HGrid,
-  Heading,
-  TextField,
-  VStack,
-  Fieldset,
-  FormProgress,
-} from "@navikt/ds-react";
+import { Button, HGrid, Heading, TextField, VStack, Fieldset } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
-import { FORM_COLUMN_STYLE, withPreventDefault } from "./utils";
-import type { Inputs } from "./types";
-import { STEP1_FIELDS } from "./types";
-import {
-  validateVirksomhetsnummer,
-  validateKontaktpersonNavn,
-  validateKontaktpersonEpost,
-  validateKontaktpersonTelefonnummer,
-  validateAnsattFnr,
-  validateAnsattNavn,
-  validateEkspertNavn,
-  validateEkspertVirksomhet,
-  validateEkspertKompetanse,
-} from "./validation";
+import { FORM_COLUMN_STYLE } from "../styles/forms";
+import type { SoknadInputs } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { VirksomhetVelger } from "../components/VirksomhetVelger.tsx";
 import { DraftActions } from "../components/DraftActions.tsx";
-import { FocusedErrorSummary } from "../components/FocusedErrorSummary";
 import { useErrorFocus } from "../hooks/useErrorFocus";
-import { useDraftNavigation } from "../hooks/useDraftNavigation";
 import { BackLink } from "../components/BackLink";
+import { useAttemptedSubmitRedirect } from "../hooks/useAttemptedSubmitRedirect";
+import { FormErrorSummary } from "../components/FormErrorSummary";
+import { STEP1_FIELDS } from "../features/soknad/schema";
+import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
+import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { APPLICATIONS_PATH } from "../utils/constants";
 
 export default function SkjemaSteg1Page() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const form = useFormContext<Inputs>();
+  const form = useFormContext<SoknadInputs>();
   const { control, register, setValue, getValues, formState } = form;
   const { errors } = formState;
-  const locationState = (location.state as { attemptedSubmit?: boolean } | null) ?? null;
-  const attemptedSubmitFromLocation = locationState?.attemptedSubmit ?? false;
-  const [attemptedSubmit, setAttemptedSubmit] = useState(attemptedSubmitFromLocation);
-  const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus(() =>
-    attemptedSubmitFromLocation ? 1 : 0
-  );
-  const errorItems = [
-    { id: "virksomhet.virksomhetsnummer", message: errors.virksomhet?.virksomhetsnummer?.message },
-    {
-      id: "virksomhet.kontaktperson.navn",
-      message: errors.virksomhet?.kontaktperson?.navn?.message,
-    },
-    {
-      id: "virksomhet.kontaktperson.epost",
-      message: errors.virksomhet?.kontaktperson?.epost?.message,
-    },
-    {
-      id: "virksomhet.kontaktperson.telefonnummer",
-      message: errors.virksomhet?.kontaktperson?.telefonnummer?.message,
-    },
-    { id: "ansatt.fnr", message: errors.ansatt?.fnr?.message },
-    { id: "ansatt.navn", message: errors.ansatt?.navn?.message },
-    { id: "ekspert.navn", message: errors.ekspert?.navn?.message },
-    { id: "ekspert.virksomhet", message: errors.ekspert?.virksomhet?.message },
-    { id: "ekspert.kompetanse", message: errors.ekspert?.kompetanse?.message },
-  ].filter((item): item is { id: string; message: string } => typeof item.message === "string");
+  const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
 
-  const { draftId, hydrated, clearDraft } = useSoknadDraft();
-  const navigateWithDraft = useDraftNavigation();
+  const { clearDraft } = useSoknadDraft();
+  const { goToApplications, goToStep2, goToSummary, createLinkHandler } = useSkjemaNavigation();
 
-  useEffect(() => {
-    if (!attemptedSubmitFromLocation) return;
-    navigate(location.pathname, { replace: true, state: null });
-  }, [attemptedSubmitFromLocation, location.pathname, navigate]);
+  useAttemptedSubmitRedirect(form, { fields: STEP1_FIELDS, onValidationFailed: bumpFocusKey });
 
-  const shouldFocusErrorSummary = hydrated && attemptedSubmit && Object.keys(errors).length > 0;
+  const handleBackLink = createLinkHandler(goToApplications);
+  const handleStepTwoLink = createLinkHandler(goToStep2);
+  const handleSummaryLink = createLinkHandler(goToSummary);
 
-  const goToStepTwo = useCallback(() => {
-    navigateWithDraft(`/skjema/${draftId}/steg-2`, () => getValues());
-  }, [draftId, getValues, navigateWithDraft]);
-
-  const goToSummary = useCallback(() => {
-    navigateWithDraft(`/skjema/${draftId}/oppsummering`, () => getValues());
-  }, [draftId, getValues, navigateWithDraft]);
-
-  const onValid: SubmitHandler<Inputs> = () => {
-    goToStepTwo();
-  };
-  const handleSubmitStep1: FormEventHandler<HTMLFormElement> = async (e) => {
-    e.preventDefault();
-    const valid = await form.trigger(STEP1_FIELDS, { shouldFocus: false });
-    if (valid) {
-      setAttemptedSubmit(false);
-      onValid(form.getValues());
-    } else {
-      setAttemptedSubmit(true);
+  const handleSubmitStep1 = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const valid = await form.trigger(STEP1_FIELDS);
+    if (!valid) {
       bumpFocusKey();
+      return;
     }
+    goToStep2();
   };
-  const goToStepTwoLink = withPreventDefault(goToStepTwo);
-  const goToSummaryLink = withPreventDefault(goToSummary);
 
   return (
-    <DecoratedPage blockProps={{ width: "lg", gutters: true }}>
+    <DecoratedPage>
       <form onSubmit={handleSubmitStep1}>
         <VStack gap="8">
           <Heading level="1" size="xlarge">
@@ -114,18 +51,14 @@ export default function SkjemaSteg1Page() {
           </Heading>
 
           <VStack gap="3">
-            <BackLink to={APPLICATIONS_PATH}>Forrige steg</BackLink>
-            <FormProgress activeStep={1} totalSteps={3}>
-              <FormProgress.Step href="#" onClick={(event) => event.preventDefault()}>
-                Deltakere
-              </FormProgress.Step>
-              <FormProgress.Step href="#" onClick={goToStepTwoLink}>
-                Behov for bistand
-              </FormProgress.Step>
-              <FormProgress.Step href="#" onClick={goToSummaryLink}>
-                Oppsummering
-              </FormProgress.Step>
-            </FormProgress>
+            <BackLink to={APPLICATIONS_PATH} onClick={handleBackLink}>
+              Forrige steg
+            </BackLink>
+            <SkjemaFormProgress
+              activeStep={1}
+              onStep2={handleStepTwoLink}
+              onSummary={handleSummaryLink}
+            />
           </VStack>
 
           <VStack gap="6">
@@ -133,7 +66,6 @@ export default function SkjemaSteg1Page() {
               <Controller
                 name="virksomhet.virksomhetsnummer"
                 control={control}
-                rules={{ validate: validateVirksomhetsnummer }}
                 render={({ field, fieldState }) => (
                   <VirksomhetVelger
                     label="Velg underenhet"
@@ -161,18 +93,14 @@ export default function SkjemaSteg1Page() {
                 id="virksomhet.kontaktperson.navn"
                 label="Navn"
                 error={errors.virksomhet?.kontaktperson?.navn?.message}
-                {...register("virksomhet.kontaktperson.navn", {
-                  validate: validateKontaktpersonNavn,
-                })}
+                {...register("virksomhet.kontaktperson.navn")}
               />
               <TextField
                 id="virksomhet.kontaktperson.epost"
                 label="E-post"
                 type="email"
                 error={errors.virksomhet?.kontaktperson?.epost?.message}
-                {...register("virksomhet.kontaktperson.epost", {
-                  validate: validateKontaktpersonEpost,
-                })}
+                {...register("virksomhet.kontaktperson.epost")}
               />
               <TextField
                 id="virksomhet.kontaktperson.telefonnummer"
@@ -180,9 +108,7 @@ export default function SkjemaSteg1Page() {
                 inputMode="numeric"
                 htmlSize={8}
                 error={errors.virksomhet?.kontaktperson?.telefonnummer?.message}
-                {...register("virksomhet.kontaktperson.telefonnummer", {
-                  validate: validateKontaktpersonTelefonnummer,
-                })}
+                {...register("virksomhet.kontaktperson.telefonnummer")}
               />
             </Fieldset>
           </VStack>
@@ -194,17 +120,13 @@ export default function SkjemaSteg1Page() {
                 label="Fødselsnummer"
                 htmlSize={11}
                 error={errors.ansatt?.fnr?.message}
-                {...register("ansatt.fnr", {
-                  validate: validateAnsattFnr,
-                })}
+                {...register("ansatt.fnr")}
               />
               <TextField
                 id="ansatt.navn"
                 label="Navn"
                 error={errors.ansatt?.navn?.message}
-                {...register("ansatt.navn", {
-                  validate: validateAnsattNavn,
-                })}
+                {...register("ansatt.navn")}
               />
             </VStack>
           </Fieldset>
@@ -215,43 +137,30 @@ export default function SkjemaSteg1Page() {
                 id="ekspert.navn"
                 label="Navn"
                 error={errors.ekspert?.navn?.message}
-                {...register("ekspert.navn", {
-                  validate: validateEkspertNavn,
-                })}
+                {...register("ekspert.navn")}
               />
               <TextField
                 id="ekspert.virksomhet"
                 label="Tilknyttet virksomhet"
                 error={errors.ekspert?.virksomhet?.message}
-                {...register("ekspert.virksomhet", {
-                  validate: validateEkspertVirksomhet,
-                })}
+                {...register("ekspert.virksomhet")}
               />
               <TextField
                 id="ekspert.kompetanse"
                 label="Kompetanse / autorisasjon"
                 description="f.eks. psykolog, ergoterapeut, fysioterapeut"
                 error={errors.ekspert?.kompetanse?.message}
-                {...register("ekspert.kompetanse", {
-                  validate: validateEkspertKompetanse,
-                })}
+                {...register("ekspert.kompetanse")}
               />
             </VStack>
           </Fieldset>
 
-          {errorItems.length > 0 && (
-            <FocusedErrorSummary
-              isActive={shouldFocusErrorSummary}
-              focusKey={errorFocusKey}
-              heading="Du må rette disse feilene før du kan fortsette:"
-            >
-              {errorItems.map(({ id, message }) => (
-                <ErrorSummary.Item key={id} href={`#${id}`}>
-                  {message}
-                </ErrorSummary.Item>
-              ))}
-            </FocusedErrorSummary>
-          )}
+          <FormErrorSummary
+            errors={errors}
+            fields={STEP1_FIELDS}
+            heading="Du må rette disse feilene før du kan fortsette:"
+            focusKey={errorFocusKey}
+          />
 
           <VStack gap="4">
             <HGrid
@@ -264,7 +173,7 @@ export default function SkjemaSteg1Page() {
                 variant="secondary"
                 icon={<ArrowLeftIcon aria-hidden />}
                 iconPosition="left"
-                onClick={() => navigate(APPLICATIONS_PATH)}
+                onClick={goToApplications}
               >
                 Forrige steg
               </Button>
@@ -279,11 +188,11 @@ export default function SkjemaSteg1Page() {
             </HGrid>
             <DraftActions
               onContinueLater={() => {
-                navigateWithDraft(APPLICATIONS_PATH, () => getValues());
+                goToApplications();
               }}
               onDeleteDraft={async () => {
                 await clearDraft();
-                navigate(APPLICATIONS_PATH);
+                goToApplications();
               }}
             />
           </VStack>

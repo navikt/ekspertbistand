@@ -1,8 +1,16 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Source Sans 3", "Source Sans Pro", Arial, sans-serif;
+  font-optical-sizing: auto;
 }
 
 .home-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a-spacing-8);
+  padding-block: var(--a-spacing-12);
+}
+
+.page-content {
   display: flex;
   flex-direction: column;
   gap: var(--a-spacing-8);

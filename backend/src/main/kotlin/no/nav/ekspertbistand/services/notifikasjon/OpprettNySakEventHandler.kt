@@ -8,11 +8,13 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
+import no.nav.ekspertbistand.infrastruktur.AuthClient
+import no.nav.ekspertbistand.infrastruktur.IdentityProvider
+import no.nav.ekspertbistand.infrastruktur.TexasAuthConfig
 import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.skjema.DTO
-import java.util.*
 
 private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
@@ -45,13 +47,12 @@ class OpprettNySakEventHandler(
     private suspend fun nySak(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNySak(
-                grupperingsid = UUID.randomUUID().toString(),
-                merkelapp = "Ekspertbistand",
+                grupperingsid = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                tittel = "Søknad om ekspertbistand",
-                lenke = "https://ekspertbistand.nav.no/skjema/",
+                tittel = "Ekspertbistand ${skjema.ansatt.navn} f. ${skjema.ansatt.fnr.tilFødselsdato()}",
+                lenke = ""
             )
-            Result.success("Opprettet beskjed for skjema ${skjema.id}")
+            Result.success("Opprettet sak for skjema ${skjema.id}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }
@@ -61,17 +62,21 @@ class OpprettNySakEventHandler(
     private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
-                grupperingsid = UUID.randomUUID().toString(),
-                merkelapp = "Ekspertbistand",
+                grupperingsid = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                tekst = "Skjema innsendt",
-                lenke = "https://ekspertbistand.nav.no/skjema/"
+                tekst = "Nav har mottatt deres søknad om ekspertbistand.",
+                lenke = "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand/skjema/:id" //TODO: håndter// produksjonslink når prod er klart
             )
             Result.success("Opprettet beskjed for skjema ${skjema.id}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }
     }
+}
+
+private fun String.tilFødselsdato(): String {
+    if (length != 11) throw IllegalArgumentException("Fødselsnummer må være eksakt 11 tegn langt")
+    return "${substring(0, 2)}.${substring(2, 4)}.${substring(4, 6)}"
 }
 
 suspend fun Application.configureOpprettNySakEventHandler(
@@ -81,10 +86,10 @@ suspend fun Application.configureOpprettNySakEventHandler(
         install(HttpTimeout) {
             requestTimeoutMillis = 5_000
         }
-    }
+    },
+    tokenProvider: TokenProvider = TexasAuthConfig.nais().authClient(IdentityProvider.AZURE_AD)
 ) {
     val idempotencyGuard = dependencies.resolve<IdempotencyGuard>()
-    val tokenProvider = dependencies.resolve<TokenProvider>()
     val produsentApiKlient = ProdusentApiKlient(tokenProvider, httpClient)
 
     dependencies.provide<OpprettNySakEventHandler> {
