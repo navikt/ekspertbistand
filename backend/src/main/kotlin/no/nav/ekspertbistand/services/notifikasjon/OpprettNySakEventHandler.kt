@@ -87,9 +87,9 @@ suspend fun Application.configureOpprettNySakEventHandler(
             requestTimeoutMillis = 5_000
         }
     },
-    tokenProvider: TokenProvider = TexasAuthConfig.nais().authClient(IdentityProvider.AZURE_AD)
 ) {
     val idempotencyGuard = dependencies.resolve<IdempotencyGuard>()
+    val tokenProvider = dependencies.resolve<TokenProvider>()
     val produsentApiKlient = ProdusentApiKlient(tokenProvider, httpClient)
 
     dependencies.provide<OpprettNySakEventHandler> {
