@@ -60,6 +60,7 @@ jobs:
           team: fager
           source: ./frontend/client/dist
           destination: ${{ env.CDN_DESTINATION }}
+          source_keep_parent_name: false
 
       - name: Login to NAIS (sets registry and OIDC)
         id: login
