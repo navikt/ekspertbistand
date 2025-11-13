@@ -18,7 +18,7 @@ class AltinnTilgangerClient(
         clientName = "altinn.tilganger.client"
     }) {
         install(HttpTimeout) {
-            requestTimeoutMillis = 5_000
+            requestTimeoutMillis = 15_000
         }
     }
 ) {

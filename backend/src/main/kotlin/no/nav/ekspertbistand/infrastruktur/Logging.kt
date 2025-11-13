@@ -1,7 +1,6 @@
 package no.nav.ekspertbistand.infrastruktur
 
 import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.spi.Configurator
 import ch.qos.logback.classic.spi.Configurator.ExecutionStatus
@@ -10,37 +9,45 @@ import ch.qos.logback.classic.spi.IThrowableProxy
 import ch.qos.logback.core.Appender
 import ch.qos.logback.core.AppenderBase
 import ch.qos.logback.core.ConsoleAppender
+import ch.qos.logback.core.filter.Filter
 import ch.qos.logback.core.spi.ContextAware
 import ch.qos.logback.core.spi.ContextAwareBase
+import ch.qos.logback.core.spi.FilterReply
 import ch.qos.logback.core.spi.LifeCycle
 import net.logstash.logback.appender.LogstashTcpSocketAppender
-import net.logstash.logback.argument.StructuredArgument
-import net.logstash.logback.argument.StructuredArguments.kv
 import net.logstash.logback.encoder.LogstashEncoder
 import no.nav.ekspertbistand.infrastruktur.NaisEnvironment.clusterName
+import org.slf4j.Logger
+import org.slf4j.Logger.ROOT_LOGGER_NAME
 import org.slf4j.LoggerFactory
+import org.slf4j.Marker
+import org.slf4j.MarkerFactory
+import java.lang.reflect.Proxy
+
+const val TEAM_LOGS = "TEAM_LOGS"
+val teamLogsMarker = MarkerFactory.getMarker(TEAM_LOGS)
 
 /* used by resources/META-INF/services/ch.qos.logback.classic.spi */
 class LogConfig : ContextAwareBase(), Configurator {
+
     override fun configure(lc: LoggerContext): ExecutionStatus {
         val rootAppender = MaskingAppender().setup(lc) {
             appender = ConsoleAppender<ILoggingEvent>().setup(lc) {
                 encoder = LogstashEncoder().setup(lc) {
-                    /**
-                     * isIncludeStructuredArguments settes til false for å unngå at
-                     * dette sendes til vanlig log. Dette logges kun til team-logs
-                     * i LogstashTcpSocketAppender nedenfor.
-                     * se [TeamLogCtx]
-                     */
-                    isIncludeStructuredArguments = false
                     isIncludeMdc = true
                 }
+                addFilter(object : Filter<ILoggingEvent>() {
+                    override fun decide(event: ILoggingEvent) = when {
+                        (event.markerList ?: emptyList()).contains(teamLogsMarker) -> FilterReply.DENY
+                        else -> FilterReply.NEUTRAL
+                    }
+                })
             }
         }
 
         lc.getLogger("org.flywaydb.core.internal").level = Level.WARN
 
-        lc.getLogger(Logger.ROOT_LOGGER_NAME).apply {
+        lc.getLogger(ROOT_LOGGER_NAME).apply {
             level = basedOnEnv(
                 prod = { Level.INFO },
                 dev = { Level.INFO },
@@ -120,16 +127,45 @@ class MaskingAppender : AppenderBase<ILoggingEvent>() {
     }
 }
 
-inline fun <reified T> T.logger(): org.slf4j.Logger = LoggerFactory.getLogger(T::class.qualifiedName)
+inline fun <reified T> T.logger(): Logger = LoggerFactory.getLogger(T::class.qualifiedName)
+inline fun <reified T> T.teamLogger(): Logger =
+    markerProxy(LoggerFactory.getLogger(T::class.qualifiedName), teamLogsMarker)
 
+@Suppress("UNCHECKED_CAST")
+fun markerProxy(delegate: Logger, marker: Marker): Logger {
+    // optimization: precompute methods that take Marker as first parameter
+    val markerMethods = delegate.javaClass.methods
+        .filter { it.parameterTypes.firstOrNull() == Marker::class.java }
 
-/**
- * eksempel bruk:
- * log.info("FOO", *TeamLogCtx.of(sensitiveDataMap))
- */
-object TeamLogCtx {
-    fun of(ctx: Map<String, String>) = ctx.map {
-        kv(it.key, it.value)
-    }.toTypedArray<StructuredArgument>()
+    return Proxy.newProxyInstance(
+        Logger::class.java.classLoader,
+        arrayOf(Logger::class.java)
+    ) { _, method, args ->
+        when {
+            // prevent direct use of Marker in marked logger
+            args?.firstOrNull() is Marker ->
+                error("Direct use of Marker in marked logger is not allowed: ${method.name}")
+
+            // handle equals/hashCode/toString properly (Proxy quirk)
+            method.name == "equals" && args?.size == 1 ->
+                delegate == Proxy.getInvocationHandler(args[0])
+
+            method.name == "hashCode" && (args == null || args.isEmpty()) ->
+                delegate.hashCode()
+
+            method.name == "toString" && (args == null || args.isEmpty()) ->
+                "MarkedLogger(delegate=${delegate.name}, marker=$marker)"
+
+            // inject marker into method call
+            else -> {
+                val argCount = args?.size ?: 0
+                val markerMethod = markerMethods.find {
+                    it.name == method.name && it.parameterTypes.size == argCount + 1
+                } ?: error("No marker overload found for method '${method.name}' with ${argCount + 1} params on ${delegate.javaClass.name}")
+
+                val withMarkerArgs = if (args == null) arrayOf(marker) else arrayOf(marker, *args)
+                markerMethod.invoke(delegate, *withMarkerArgs)
+            }
+        }
+    } as Logger
 }
-

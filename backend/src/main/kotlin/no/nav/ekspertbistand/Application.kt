@@ -42,6 +42,7 @@ fun main() {
     val dbConfig = DbConfig.nais()
     val authConfig = TexasAuthConfig.nais()
     val tokenxClient = authConfig.authClient(IdentityProvider.TOKEN_X)
+    val azureClient = authConfig.authClient(IdentityProvider.AZURE_AD)
 
     ktorServer {
         dependencies {
@@ -50,6 +51,9 @@ fun main() {
             }
             provide<TokenIntrospector> {
                 tokenxClient
+            }
+            provide<TokenProvider> {
+                azureClient
             }
             provide {
                 AltinnTilgangerClient(

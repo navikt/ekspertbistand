@@ -103,6 +103,16 @@ fun main() {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
             }
+            provide<TokenProvider> {
+                object : TokenProvider {
+                    override suspend fun token(target: String): TokenResponse {
+                        return TokenResponse.Success(
+                            accessToken = "faketoken",
+                            expiresInSeconds = 3600
+                        )
+                    }
+                }
+            }
             provide {
                 mockAltinnTilgangerClient
             }
@@ -118,14 +128,7 @@ fun main() {
 
         // event manager and event handlers
         configureIdempotencyGuard()
-        configureOpprettNySakEventHandler(tokenProvider = object : TokenProvider {
-            override suspend fun token(target: String): TokenResponse {
-                return TokenResponse.Success(
-                    accessToken = "faketoken",
-                    expiresInSeconds = 3600
-                )
-            }
-        })
+        configureOpprettNySakEventHandler()
         configureEventHandlers()
 
         // internal endpoints and lifecycle hooks

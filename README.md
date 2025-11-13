@@ -21,7 +21,7 @@ Løsningsbeskrivelse for denne appen finnes [på confluence](https://confluence.
 ## Ny løsning 
 
 I den nye løsningen sendes søknader direkte til Ekspertbistand applikasjonen uten å gå via Altinn 2.
-Applikasjonen mottar søknader via en REST API som autentiseres med Azure AD.
+Applikasjonen mottar søknader via en REST API som autentiseres med TokenX.
 
 Når en søknad mottas starter følgende prosess i applikasjonen:
 
@@ -40,9 +40,17 @@ Når en søknad mottas starter følgende prosess i applikasjonen:
    - Untak: dersom behandlende enhet er NAV_ARBEIDSLIVSSENTER_NORDLAND:1891 må denne mappes om til 1899 som er NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA
      - TODO: sjekke om dette fortsatt gjelder og finne ut hvorfor?
 3. opprett journalpost
-4. opprett sak i arena
+4. opprett sak i arena og ta vare på saksnummer
 5. ferdigstill journalpost (TOOD: kan vi opprette og ferdigstille som et steg?)
 6. send bekreftelse til arbeidsgiver via notifikasjonsplattformen
 7. TODO: vurdere å sende melding til arbeidstaker på min side. Dette ser ikke ut som blir gjort i dagens løsning.
+8. Når vedtak blir gjort i arena får denne applikasjonen vite det via en melding på kafka topic i arena. Dette håndteres i dag av tiltak-tilsagnsbrev applikasjonen.
+   Siden tilsagnsbrev håndteres av to applikasjoner må vi sørge for at det ikke blir dobbelthåndtering av vedtak. Enten ved å skru av behandling av tiltakKode=EKSPERTBIST i tiltak-tilsagnsbrev applikasjonen eller ved å implementere logikk for å sjekke om vedtak allerede er håndtert i denne applikasjonen.
+   I denne applikasjonen sjekker vi:
+   Dersom saksnummer i meldingen samsvarer med en sak i denne applikasjonen oppdateres status på søknaden og lager melding om godkjent søknad (tidligere tilsagnsbrev).
+   Dersom saksnummer ikke finnes i denne applikasjonen ignoreres meldingen, dette for å hindre dobbelthåndtering av vedtak gjort i eksisterende løsning (tiltak-tilsagnsbrev).
+   Vurdere om tiltak-tilsagnsbrev kan gjøre en sjekk mot denne applikasjonen for å se om vedtak allerede er håndtert her før tilsagnsbrev sendes ut, eller bare skru av behandling av EKSPERTBIST der.
+ 
+ 
 
 

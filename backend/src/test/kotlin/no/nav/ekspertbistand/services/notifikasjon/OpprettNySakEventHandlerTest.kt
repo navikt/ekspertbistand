@@ -155,17 +155,20 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                 }
             }
             provide<IdempotencyGuard>(IdempotencyGuard::class)
+            provide<TokenProvider> {
+                object : TokenProvider {
+                    override suspend fun token(target: String): TokenResponse {
+                        return TokenResponse.Success(
+                            accessToken = "faketoken",
+                            expiresInSeconds = 3600
+                        )
+                    }
+                }
+            }
         }
         configureDatabase()
         configureTokenXAuth()
-        configureOpprettNySakEventHandler(client, object : TokenProvider {
-            override suspend fun token(target: String): TokenResponse {
-                return TokenResponse.Success(
-                    accessToken = "faketoken",
-                    expiresInSeconds = 3600
-                )
-            }
-        })
+        configureOpprettNySakEventHandler(client)
     }
 }
 
