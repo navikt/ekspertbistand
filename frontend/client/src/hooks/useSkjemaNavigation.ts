@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { MouseEventHandler } from "react";
-import { APPLICATIONS_PATH } from "../utils/constants";
+import { SOKNADER_PATH } from "../utils/constants";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { useAutosaveNavigate } from "./useAutosaveNavigate";
 
@@ -10,8 +10,8 @@ export const useSkjemaNavigation = () => {
   const { draftId } = useSoknadDraft();
   const autosaveNavigate = useAutosaveNavigate();
 
-  const goToApplications = useCallback(() => {
-    autosaveNavigate(APPLICATIONS_PATH);
+  const goToSoknader = useCallback(() => {
+    autosaveNavigate(SOKNADER_PATH);
   }, [autosaveNavigate]);
 
   const navigateToSegment = useCallback(
@@ -35,7 +35,7 @@ export const useSkjemaNavigation = () => {
   );
 
   return {
-    goToApplications,
+    goToSoknader,
     goToStep1,
     goToStep2,
     goToSummary,

@@ -1,11 +1,15 @@
 import { z } from "zod";
 import type { Path } from "react-hook-form";
+import { startOfToday } from "../../utils/date";
 z.config(z.locales.no());
 
 const virksomhetsnummerPattern = /^\d{9}$/;
 const telephonePattern = /^\d{8}$/;
 const fnrPattern = /^\d{11}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const MIN_ESTIMERT_KOSTNAD = 0;
+export const MAX_ESTIMERT_KOSTNAD = 100_000;
 
 const trimmedText = (message: string) => z.string().trim().min(1, { message });
 
@@ -42,12 +46,12 @@ const estimertKostnadSchema = z.union([z.number(), z.string()]).superRefine((val
     ctx.addIssue({ code: "custom", message: "Kostnad må være et tall." });
     return;
   }
-  if (numeric < 0) {
+  if (numeric < MIN_ESTIMERT_KOSTNAD) {
     ctx.addIssue({ code: "custom", message: "Kostnad kan ikke være negativ." });
     return;
   }
-  if (numeric > 25000) {
-    ctx.addIssue({ code: "custom", message: "Maksimalt beløp er 25 000." });
+  if (numeric > MAX_ESTIMERT_KOSTNAD) {
+    ctx.addIssue({ code: "custom", message: `Maksimalt beløp er ${MAX_ESTIMERT_KOSTNAD}.` });
   }
 });
 
@@ -56,8 +60,19 @@ const startdatoSchema = z.union([z.string().trim(), z.null()]).superRefine((valu
     ctx.addIssue({ code: "custom", message: "Du må velge en dato." });
     return;
   }
-  if (Number.isNaN(Date.parse(value))) {
+  // Basic ISO date pattern check.
+  const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+  if (!isoPattern.test(value)) {
     ctx.addIssue({ code: "custom", message: "Ugyldig dato." });
+    return;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || value !== date.toISOString().slice(0, 10)) {
+    ctx.addIssue({ code: "custom", message: "Ugyldig dato." });
+    return;
+  }
+  if (date < startOfToday()) {
+    ctx.addIssue({ code: "custom", message: "Startdato kan ikke være i fortiden." });
   }
 });
 
@@ -115,17 +130,6 @@ export const STEP2_FIELDS = [
   "behovForBistand.startdato",
   "nav.kontaktperson",
 ] as const satisfies ReadonlyArray<Path<SoknadInputs>>;
-
-export const soknadStep1Schema = soknadSchema.extend({
-  behovForBistand: z.any(),
-  nav: z.any(),
-});
-
-export const soknadStep2Schema = soknadSchema.extend({
-  virksomhet: z.any(),
-  ansatt: z.any(),
-  ekspert: z.any(),
-});
 
 export const createEmptyInputs = (): SoknadInputs => ({
   virksomhet: {

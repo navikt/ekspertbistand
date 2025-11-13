@@ -23,7 +23,7 @@ export function VirksomhetVelger({ label, value, onChange, error }: VirksomhetPi
       {isLoading && (
         <BodyShort size="small">
           <Loader size="small" title="Laster virksomheter" aria-live="polite" /> Laster virksomheter
-          …
+          ...
         </BodyShort>
       )}
       {organisasjoner.length > 0 ? (
@@ -33,6 +33,7 @@ export function VirksomhetVelger({ label, value, onChange, error }: VirksomhetPi
           onChange={(org) => {
             onChange(org.orgnr, org);
           }}
+          friKomponent
         />
       ) : null}
       {error ? <ErrorMessage>{error}</ErrorMessage> : null}

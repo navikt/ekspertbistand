@@ -1,5 +1,10 @@
 import { envSwitch } from "./env";
 
+export const APP_BASE_PATH = import.meta.env.VITE_APP_BASE_PATH || "/";
+
+const withBasePath = (path: `/${string}`) =>
+  APP_BASE_PATH === "/" ? path : `${APP_BASE_PATH}${path}`;
+
 export const TELEMETRY_COLLECTOR_URL = envSwitch({
   prod: () => "https://telemetry.nav.no/collect",
   dev: () => "https://telemetry.ekstern.dev.nav.no/collect",
@@ -19,21 +24,17 @@ export const EKSPERTBISTAND_URL = envSwitch({
   local: () => "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand",
 });
 
-const apiBaseUrl = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
-const withBasePath = (path: string) => {
-  const normalized = path.startsWith("/") ? path : `/${path}`;
-  return `${apiBaseUrl}${normalized}`;
-};
+export const EKSPERTBISTAND_API_PATH = withBasePath("/ekspertbistand-backend/api/skjema/v1");
+export const EKSPERTBISTAND_ORGANISASJONER_PATH = withBasePath(
+  "/ekspertbistand-backend/api/organisasjoner/v1"
+);
 
-export const EKSPERTBISTAND_API_PATH = `${apiBaseUrl}/ekspertbistand-backend/api/skjema/v1`;
-export const EKSPERTBISTAND_ORGANISASJONER_PATH = `${apiBaseUrl}/ekspertbistand-backend/api/organisasjoner/v1`;
-
-export const APPLICATIONS_PATH = "/soknader";
+export const SOKNADER_PATH = "/soknader";
 
 export const LOGIN_URL = envSwitch({
-  prod: () => `${withBasePath("/oauth2/login")}?redirect=${withBasePath(APPLICATIONS_PATH)}`,
-  dev: () => `${withBasePath("/oauth2/login")}?redirect=${withBasePath(APPLICATIONS_PATH)}`,
-  local: () => withBasePath(APPLICATIONS_PATH),
+  prod: () => `${withBasePath("/oauth2/login")}?redirect=${withBasePath(SOKNADER_PATH)}`,
+  dev: () => `${withBasePath("/oauth2/login")}?redirect=${withBasePath(SOKNADER_PATH)}`,
+  local: () => withBasePath(SOKNADER_PATH),
 });
 
 export const SESSION_URL = withBasePath("/oauth2/session");

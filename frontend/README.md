@@ -15,7 +15,7 @@ Enkel oversikt over hvordan du kjører frontend lokalt.
 
 - Klient (Vite/React): `http://localhost:5173`
 - BFF/Server (Express): `http://localhost:4000`
-- Klienten proxyer kall til `/api` videre til BFF på port 4000.
+- Klienten proxyer kall til `/ekspertbistand-backend` videre til BFF på port 4000.
 
 ## Bygg og kjør
 
@@ -38,13 +38,25 @@ Enkel oversikt over hvordan du kjører frontend lokalt.
 ### Miljøvariabler
 
 - `PORT`: standard `4000` (eksponeres som `http://localhost:PORT`)
-- `BASE_PATH`: standard `/` (bruk f.eks. `/ekspertbistand` for sub-path)
-- `NODE_AUTH_TOKEN`: GitHub Packages token for å hente `@navikt`-pakker under build (kun nødvendig ved første install)
+- `BASE_PATH`: standard `/` (bruk f.eks. `/ekspertbistand` for sub-path, uten trailing slash)
+- `VITE_APP_BASE_PATH`: settes lik `BASE_PATH`, må starte med `/` og kan ikke ha trailing slash; brukes av `BrowserRouter` og API-paths.
+- `VITE_BASE_PATH`: **kun** nødvendig når bygget lastes til CDN – sett til full URL (f.eks. `https://cdn.nav.no/fager/ekspertbistand/<sha>`).
+- `NODE_AUTH_TOKEN`: GitHub Packages token for å hente `@navikt`-pakker
 
 ### Verifisering
 
 - App: `http://localhost:4000/` (eller `http://localhost:4000/ekspertbistand/` hvis `BASE_PATH` settes)
 - Logger: `docker compose logs -f`
+
+### Kjøre frontend og backend
+
+1. Start database: `docker-compose -f backend/docker-compose.yml up`
+2. Start backend: Kjør LocalApplication.kt
+3. Bygg og start frontend: `npm --filter client run build && \
+EKSPERTBISTAND_API_BASE_URL=http://localhost:8080 \
+LOCAL_SUBJECT_TOKEN=faketoken \
+pnpm --filter server run dev`
+4. Åpne http://localhost:4000
 
 ## Teknologier
 

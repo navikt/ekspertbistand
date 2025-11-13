@@ -15,7 +15,7 @@ import { FormErrorSummary } from "../components/FormErrorSummary";
 import { STEP1_FIELDS } from "../features/soknad/schema";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
-import { APPLICATIONS_PATH } from "../utils/constants";
+import { SOKNADER_PATH } from "../utils/constants";
 
 export default function SkjemaSteg1Page() {
   const form = useFormContext<SoknadInputs>();
@@ -24,11 +24,11 @@ export default function SkjemaSteg1Page() {
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
 
   const { clearDraft } = useSoknadDraft();
-  const { goToApplications, goToStep2, goToSummary, createLinkHandler } = useSkjemaNavigation();
+  const { goToSoknader, goToStep2, goToSummary, createLinkHandler } = useSkjemaNavigation();
 
   useAttemptedSubmitRedirect(form, { fields: STEP1_FIELDS, onValidationFailed: bumpFocusKey });
 
-  const handleBackLink = createLinkHandler(goToApplications);
+  const handleBackLink = createLinkHandler(goToSoknader);
   const handleStepTwoLink = createLinkHandler(goToStep2);
   const handleSummaryLink = createLinkHandler(goToSummary);
 
@@ -51,7 +51,7 @@ export default function SkjemaSteg1Page() {
           </Heading>
 
           <VStack gap="3">
-            <BackLink to={APPLICATIONS_PATH} onClick={handleBackLink}>
+            <BackLink to={SOKNADER_PATH} onClick={handleBackLink}>
               Forrige steg
             </BackLink>
             <SkjemaFormProgress
@@ -173,7 +173,7 @@ export default function SkjemaSteg1Page() {
                 variant="secondary"
                 icon={<ArrowLeftIcon aria-hidden />}
                 iconPosition="left"
-                onClick={goToApplications}
+                onClick={goToSoknader}
               >
                 Forrige steg
               </Button>
@@ -188,11 +188,11 @@ export default function SkjemaSteg1Page() {
             </HGrid>
             <DraftActions
               onContinueLater={() => {
-                goToApplications();
+                goToSoknader();
               }}
               onDeleteDraft={async () => {
                 await clearDraft();
-                goToApplications();
+                goToSoknader();
               }}
             />
           </VStack>

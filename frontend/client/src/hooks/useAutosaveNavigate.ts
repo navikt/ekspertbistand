@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useNavigate, type NavigateOptions, type To } from "react-router-dom";
-import { useDraftAutosave } from "../providers/DraftAutosaveContext";
+import { useDraftAutosave } from "../context/DraftAutosaveContext";
 
 export const useAutosaveNavigate = () => {
   const navigate = useNavigate();

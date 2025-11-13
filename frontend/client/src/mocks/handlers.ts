@@ -1,6 +1,11 @@
 import { http, HttpResponse } from "msw";
-import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema";
-import { ensureIsoDateString } from "../utils/dates";
+import {
+  MAX_ESTIMERT_KOSTNAD,
+  MIN_ESTIMERT_KOSTNAD,
+  createEmptyInputs,
+  type SoknadInputs,
+} from "../features/soknad/schema";
+import { ensureIsoDateString } from "../utils/date";
 import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 
@@ -167,18 +172,19 @@ const ensureSkjemaStoreLoaded = async () => {
 const toEstimertKostnadNumber = (
   value: SoknadInputs["behovForBistand"]["estimertKostnad"]
 ): number => {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.round(value);
+  const numeric =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseInt(value.trim(), 10)
+        : Number.NaN;
+
+  if (!Number.isFinite(numeric)) {
+    return MIN_ESTIMERT_KOSTNAD;
   }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (trimmed.length === 0) return 0;
-    const parsed = Number.parseInt(trimmed, 10);
-    if (Number.isFinite(parsed)) {
-      return Math.round(parsed);
-    }
-  }
-  return 0;
+
+  const rounded = Math.round(numeric);
+  return Math.min(MAX_ESTIMERT_KOSTNAD, Math.max(MIN_ESTIMERT_KOSTNAD, rounded));
 };
 
 const toStartdatoString = (value: SoknadInputs["behovForBistand"]["startdato"]): string =>

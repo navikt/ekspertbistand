@@ -5,7 +5,7 @@ import DecoratedPage from "../components/DecoratedPage";
 import { soknadSchema } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
-import { buildSkjemaPayload } from "../utils/soknadPayload";
+import { buildSkjemaPayload } from "../features/soknad/payload";
 import { SoknadSummary } from "../components/SoknadSummary";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { BackLink } from "../components/BackLink";
@@ -18,7 +18,7 @@ import { useNavigate } from "react-router-dom";
 export default function OppsummeringPage() {
   const navigate = useNavigate();
   const { draftId, draft: formData, clearDraft, lastPersistedAt } = useSoknadDraft();
-  const { goToApplications, goToStep1, goToStep2, createLinkHandler } = useSkjemaNavigation();
+  const { goToSoknader, goToStep1, goToStep2, createLinkHandler } = useSkjemaNavigation();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { trigger: submitDraft, isMutating: submitting } = useSWRMutation<
     null,
@@ -132,11 +132,11 @@ export default function OppsummeringPage() {
           </HGrid>
           <DraftActions
             onContinueLater={() => {
-              goToApplications();
+              goToSoknader();
             }}
             onDeleteDraft={async () => {
               await clearDraft();
-              goToApplications();
+              goToSoknader();
             }}
           />
         </VStack>

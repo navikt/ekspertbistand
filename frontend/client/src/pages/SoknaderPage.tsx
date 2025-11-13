@@ -9,7 +9,7 @@ import { BackLink } from "../components/BackLink";
 import { useSoknader } from "../hooks/useSoknader.ts";
 
 export default function SoknaderPage() {
-  const { applications, error, loading } = useSoknader();
+  const { soknader, error, loading } = useSoknader();
 
   let content: JSX.Element | null;
   if (loading) {
@@ -24,12 +24,12 @@ export default function SoknaderPage() {
         {error}
       </Alert>
     );
-  } else if (applications.length === 0) {
+  } else if (soknader.length === 0) {
     content = <BodyShort>Du har ingen søknader ennå.</BodyShort>;
   } else {
     content = (
       <VStack as="ul" gap="3" className="home-page__application-list">
-        {applications.map((application) => (
+        {soknader.map((application) => (
           <li key={application.id}>
             <LinkCard className="home-page__application-card">
               <LinkCard.Title as="h3">

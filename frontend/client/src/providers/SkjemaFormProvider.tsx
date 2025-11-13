@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createEmptyInputs, soknadSchema, type SoknadInputs } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { useAutosaveDraft } from "../hooks/useAutosaveDraft";
-import { DraftAutosaveContext } from "./DraftAutosaveContext";
+import { DraftAutosaveContext } from "../context/DraftAutosaveContext";
 
 type HydratedSnapshot = {
   id: string;

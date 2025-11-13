@@ -1,22 +1,11 @@
-import React, { createContext, useCallback, useContext, useMemo } from "react";
+import { type ReactNode, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema";
-import { buildDraftPayload, draftDtoToInputs, type DraftDto } from "../utils/soknadPayload";
+import { buildDraftPayload, draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { fetchJson } from "../utils/api";
-
-type DraftContextValue = {
-  draftId: string;
-  draft: SoknadInputs;
-  hydrated: boolean;
-  status: DraftDto["status"] | null;
-  saveDraft: (snapshot: SoknadInputs) => void;
-  clearDraft: () => Promise<void>;
-  lastPersistedAt: Date | null;
-};
-
-const SoknadDraftContext = createContext<DraftContextValue | undefined>(undefined);
+import { SoknadDraftContext, type SoknadDraftContextValue } from "../context/SoknadDraftContext";
 
 const mergeSnapshotIntoDraftDto = (
   snapshot: SoknadInputs,
@@ -39,7 +28,7 @@ export function SoknadDraftProvider({
   children,
 }: {
   draftId: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const draftUrl = `${EKSPERTBISTAND_API_PATH}/${draftId}`;
   const { data: draftDto, isLoading } = useSWR<DraftDto | null>(draftUrl);
@@ -99,7 +88,7 @@ export function SoknadDraftProvider({
     return persistedIso ? new Date(persistedIso) : null;
   }, [draftDto]);
 
-  const value = useMemo<DraftContextValue>(
+  const value = useMemo<SoknadDraftContextValue>(
     () => ({
       draftId,
       draft,
@@ -113,11 +102,4 @@ export function SoknadDraftProvider({
   );
 
   return <SoknadDraftContext.Provider value={value}>{children}</SoknadDraftContext.Provider>;
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function useSoknadDraft() {
-  const ctx = useContext(SoknadDraftContext);
-  if (!ctx) throw new Error("useSoknadDraft must be used inside SoknadDraftProvider");
-  return ctx;
 }

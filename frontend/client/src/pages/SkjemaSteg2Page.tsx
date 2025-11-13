@@ -15,7 +15,7 @@ import {
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import type { SoknadInputs } from "../features/soknad/schema";
-import { STEP2_FIELDS } from "../features/soknad/schema";
+import { MAX_ESTIMERT_KOSTNAD, STEP2_FIELDS } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { FORM_COLUMN_STYLE } from "../styles/forms";
@@ -25,7 +25,7 @@ import { FormErrorSummary } from "../components/FormErrorSummary";
 import { useErrorFocus } from "../hooks/useErrorFocus";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
-import { formatDateToIso, parseIsoDate, startOfToday } from "../utils/dates";
+import { formatDateToIso, parseIsoDate, startOfToday } from "../utils/date";
 
 export default function SkjemaSteg2Page() {
   const todayDate = useMemo(() => startOfToday(), []);
@@ -39,7 +39,7 @@ export default function SkjemaSteg2Page() {
     | undefined;
   const syncingDateRef = useRef(false);
   const { draftId, clearDraft } = useSoknadDraft();
-  const { goToApplications, goToStep1, goToSummary, createLinkHandler } = useSkjemaNavigation();
+  const { goToSoknader, goToStep1, goToSummary, createLinkHandler } = useSkjemaNavigation();
   const handleStepOneLink = createLinkHandler(goToStep1);
   const handleSummaryLink = createLinkHandler(goToSummary);
 
@@ -49,7 +49,7 @@ export default function SkjemaSteg2Page() {
 
   useAttemptedSubmitRedirect(form, { fields: STEP2_FIELDS, onValidationFailed: bumpFocusKey });
 
-  const parsedStartdato = useMemo(() => parseIsoDate(startdato), [startdato]);
+  const parsedStartdato = useMemo(() => parseIsoDate(startdato) ?? undefined, [startdato]);
 
   const handleDateChange = useCallback(
     (date?: Date) => {
@@ -148,7 +148,7 @@ export default function SkjemaSteg2Page() {
                 label="Estimert kostnad for ekspertbistand"
                 type="number"
                 inputMode="numeric"
-                max={25000}
+                max={MAX_ESTIMERT_KOSTNAD}
                 error={errors.behovForBistand?.estimertKostnad?.message}
                 {...kostnadReg}
                 aria-invalid={errors.behovForBistand?.estimertKostnad ? true : undefined}
@@ -226,11 +226,11 @@ export default function SkjemaSteg2Page() {
             </HGrid>
             <DraftActions
               onContinueLater={() => {
-                goToApplications();
+                goToSoknader();
               }}
               onDeleteDraft={async () => {
                 await clearDraft();
-                goToApplications();
+                goToSoknader();
               }}
             />
           </VStack>
