@@ -7,10 +7,11 @@ import SkjemaSteg1Page from "./pages/SkjemaSteg1Page";
 import SkjemaSteg2Page from "./pages/SkjemaSteg2Page";
 import OppsummeringPage from "./pages/OppsummeringPage";
 import KvitteringPage from "./pages/KvitteringPage";
-import { SoknadDraftProvider, useSoknadDraft } from "./context/SoknadDraftContext";
+import { useSoknadDraft } from "./context/SoknadDraftContext";
+import { SoknadDraftProvider } from "./providers/SoknadDraftProvider";
 import { SkjemaFormProvider } from "./providers/SkjemaFormProvider.tsx";
 import { ScrollToTop } from "./components/ScrollToTop";
-import { APPLICATIONS_PATH } from "./utils/constants";
+import { SOKNADER_PATH } from "./utils/constants";
 import { useOrganisasjoner } from "./hooks/useOrganisasjoner";
 import ManglerTilgangPage from "./pages/ManglerTilgangPage";
 import TilgangFeilPage from "./pages/TilgangFeilPage";
@@ -21,7 +22,7 @@ import LoginRequiredPage from "./pages/LoginRequiredPage";
 function SkjemaDraftRoute() {
   const { id } = useParams<{ id: string }>();
   if (!id) {
-    return <Navigate to={APPLICATIONS_PATH} replace />;
+    return <Navigate to={SOKNADER_PATH} replace />;
   }
   return (
     <SoknadDraftProvider draftId={id}>
@@ -79,7 +80,7 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route element={<LoginGate />}>
           <Route element={<OrganisasjonerGate />}>
-            <Route path={APPLICATIONS_PATH} element={<SoknaderPage />} />
+            <Route path={SOKNADER_PATH} element={<SoknaderPage />} />
             <Route path="/skjema" element={<Navigate to="/skjema/start" replace />} />
             <Route path="/skjema/start" element={<SoknadPage />} />
             <Route path="/skjema/:id/kvittering" element={<KvitteringPage />} />

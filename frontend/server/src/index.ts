@@ -20,6 +20,8 @@ const {
   LOCAL_SUBJECT_TOKEN,
   STATIC_DIR,
   NODE_ENV,
+  GIT_COMMIT,
+  NAIS_APP_IMAGE,
 } = process.env;
 
 const port = Number(PORT);
@@ -83,43 +85,58 @@ const ekspertbistandBackendProxy = createProxyMiddleware({
   },
 });
 
-const withTokenX = [
-  tokenXMiddleware({
-    enabled: tokenxEnabled,
-    audience: EKSPERTBISTAND_API_AUDIENCE,
-    localSubjectToken: LOCAL_SUBJECT_TOKEN,
-  }),
-];
+const tokenX = tokenXMiddleware({
+  enabled: tokenxEnabled,
+  audience: EKSPERTBISTAND_API_AUDIENCE,
+  localSubjectToken: LOCAL_SUBJECT_TOKEN,
+});
 
-api.use("/ekspertbistand-backend", ...withTokenX, ekspertbistandBackendProxy);
+api.use("/ekspertbistand-backend", tokenX, ekspertbistandBackendProxy);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const resolveStaticDir = (): string => {
-  const candidates = [
-    STATIC_DIR && path.resolve(STATIC_DIR),
-    path.resolve(__dirname, "../client/dist"),
-    path.resolve(__dirname, "../../client/dist"),
-  ].filter(Boolean) as string[];
+  const defaultDir = path.resolve(__dirname, "../../client/dist");
+  const resolvedPath = path.resolve(STATIC_DIR ?? defaultDir);
 
-  for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
+  if (fs.existsSync(resolvedPath)) {
+    return resolvedPath;
   }
-  throw new Error(`Client build not found. Tried: ${candidates.join(", ")}`);
+
+  throw new Error(`Client build not found at ${resolvedPath}`);
 };
 
 const staticDir = resolveStaticDir();
 
 const spa = express.Router();
+const staticIndexPath = path.join(staticDir, "index.html");
 // spa.use(staticLimiter);
-spa.use(express.static(staticDir, { index: false }));
-spa.get("*", (_req, res) => res.sendFile(path.join(staticDir, "index.html")));
+spa.use(
+  express.static(staticDir, {
+    index: false,
+    maxAge: "1h",
+    cacheControl: true,
+  })
+);
+spa.get("{/*splat}", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const etagValue = GIT_COMMIT ?? NAIS_APP_IMAGE;
+  if (etagValue) {
+    res.setHeader("ETag", etagValue);
+  }
+  res.sendFile(staticIndexPath);
+});
 
-app.use(basePath, api, spa);
+const routes = [api, spa] as const;
+const mountPaths = [basePath];
 
 if (NODE_ENV !== "production" && basePath !== "/") {
-  app.use("/", api, spa);
+  mountPaths.push("/");
+}
+
+for (const mountPath of mountPaths) {
+  app.use(mountPath, ...routes);
 }
 
 app.listen(port, () => {

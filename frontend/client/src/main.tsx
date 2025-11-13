@@ -6,15 +6,14 @@ import "@navikt/ds-css/darkside";
 import { Theme } from "@navikt/ds-react/Theme";
 import "./index.css";
 import App from "./App.tsx";
-import { detectEnv } from "./utils/env";
 import { FaroErrorBoundary } from "@grafana/faro-react";
 import { Alert, Button } from "@navikt/ds-react";
-import { TELEMETRY_COLLECTOR_URL } from "./utils/constants";
+import { APP_BASE_PATH, TELEMETRY_COLLECTOR_URL } from "./utils/constants";
 import { SimpleErrorBoundary } from "./components/SimpleErrorBoundary";
 import { SWRConfig } from "swr";
 import { fetchJson } from "./utils/api";
 
-const routerBasename = detectEnv() === "dev" ? "/ekspertbistand" : "/";
+const routerBasename = APP_BASE_PATH || "/";
 
 async function startMockServiceWorker() {
   if (import.meta.env.DEV) {

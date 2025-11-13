@@ -3,8 +3,8 @@ import { useLocation, useParams } from "react-router-dom";
 import { Alert, BodyLong, BodyShort, Box, Heading, Loader, VStack } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { SoknadSummary } from "../components/SoknadSummary";
-import { draftDtoToInputs, type DraftDto } from "../utils/soknadPayload";
-import { APPLICATIONS_PATH, EKSPERTBISTAND_API_PATH } from "../utils/constants";
+import { draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
+import { SOKNADER_PATH, EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { formatDateTime } from "../utils/date";
 import { BackLink } from "../components/BackLink";
 import useSWR from "swr";
@@ -52,7 +52,7 @@ export default function KvitteringPage() {
     <DecoratedPage>
       <VStack gap="8">
         <VStack gap="3">
-          <BackLink to={APPLICATIONS_PATH}>Gå til oversikt</BackLink>
+          <BackLink to={SOKNADER_PATH}>Gå til oversikt</BackLink>
 
           <Heading level="1" size="xlarge">
             Kvittering for søknad om ekspertbistand
@@ -97,7 +97,7 @@ export default function KvitteringPage() {
           </VStack>
         )}
 
-        <BackLink to={APPLICATIONS_PATH}>Gå til oversikt</BackLink>
+        <BackLink to={SOKNADER_PATH}>Gå til oversikt</BackLink>
       </VStack>
     </DecoratedPage>
   );

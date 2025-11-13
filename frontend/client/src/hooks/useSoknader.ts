@@ -1,18 +1,18 @@
 import useSWR from "swr";
 
-import { fetchApplications, type ApplicationListItem } from "../utils/soknader.ts";
+import { fetchSkjema, type SkjemaListItem } from "../features/soknad/soknader";
 
 export function useSoknader() {
-  const { data, error, isLoading } = useSWR<ApplicationListItem[]>(
-    "ekspertbistand-applications",
-    fetchApplications,
+  const { data, error, isLoading } = useSWR<SkjemaListItem[]>(
+    "ekspertbistand-soknader",
+    fetchSkjema,
     {
       revalidateOnFocus: true,
     }
   );
 
   return {
-    applications: data ?? [],
+    soknader: data ?? [],
     error: error
       ? error instanceof Error
         ? error.message
@@ -22,4 +22,4 @@ export function useSoknader() {
   } as const;
 }
 
-export type { ApplicationListItem };
+export type { SkjemaListItem };

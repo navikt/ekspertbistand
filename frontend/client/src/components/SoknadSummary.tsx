@@ -1,7 +1,7 @@
 import { FormSummary } from "@navikt/ds-react";
 import { FormSummaryAnswer } from "@navikt/ds-react/FormSummary";
 import type { SoknadInputs } from "../features/soknad/schema";
-import { parseIsoDate } from "../utils/dates";
+import { parseIsoDate } from "../utils/date";
 
 const numberFormatter = new Intl.NumberFormat("nb-NO");
 

@@ -10,20 +10,21 @@
     "lint": "pnpm --filter ./frontend/client lint && pnpm --filter ./frontend/server lint && eslint frontend/shared",
     "lint:fix": "pnpm --filter ./frontend/client lint:fix && pnpm --filter ./frontend/server lint:fix && eslint frontend/shared --fix",
     "format": "prettier --check frontend",
-    "format:fix": "prettier --write frontend"
+    "format:fix": "prettier --write frontend",
+    "test": "pnpm --filter ./frontend/client test:run"
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
-    "concurrently": "^9.2.1",
-    "eslint": "^9.39.1",
+    "concurrently": "9.2.1",
+    "eslint": "9.39.1",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react-hooks": "7.0.1",
     "eslint-plugin-react-refresh": "0.4.24",
     "globals": "16.5.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.2.6",
-    "prettier": "^3.6.2",
-    "typescript-eslint": "8.46.3"
+    "husky": "9.1.7",
+    "lint-staged": "16.2.6",
+    "prettier": "3.6.2",
+    "typescript-eslint": "8.46.4"
   },
   "lint-staged": {
     "frontend/**/*.{ts,tsx,js,jsx}": [

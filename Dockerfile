@@ -19,16 +19,22 @@ ARG NODE_AUTH_TOKEN
 RUN NODE_AUTH_TOKEN=$NODE_AUTH_TOKEN pnpm install --frozen-lockfile
 
 ARG BASE_PATH=/
+ARG VITE_BASE_PATH=/
 ENV BASE_PATH=${BASE_PATH}
+ENV VITE_APP_BASE_PATH=${BASE_PATH}
+ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 COPY frontend ./frontend
-RUN pnpm --filter ./frontend/client build \
- && pnpm --filter ./frontend/server build
+RUN if [ ! -d frontend/client/dist ]; then \
+      pnpm --filter ./frontend/client build; \
+    fi
+RUN pnpm --filter ./frontend/server build
 
 RUN pnpm --filter ./frontend/server deploy --prod --legacy /deploy/server
 
 
 FROM ${RUNNER_IMAGE} AS runner
 ENV NODE_ENV=production
+ENV STATIC_DIR=/app/client/dist
 WORKDIR /app
 
 COPY --from=builder /deploy/server/ ./

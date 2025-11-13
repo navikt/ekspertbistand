@@ -5,7 +5,9 @@ import react from "@vitejs/plugin-react-swc";
 
 // https://vite.dev/config/
 export default defineConfig(() => {
-  const envBase = process.env.BASE_PATH || process.env.VITE_BASE_PATH;
+  const appBasePath = process.env.VITE_APP_BASE_PATH || process.env.BASE_PATH || "/";
+  process.env.VITE_APP_BASE_PATH = appBasePath;
+  const envBase = process.env.VITE_BASE_PATH || process.env.BASE_PATH;
   const base = envBase && envBase !== "/" ? (envBase.endsWith("/") ? envBase : `${envBase}/`) : "/";
 
   return {
@@ -19,7 +21,6 @@ export default defineConfig(() => {
     },
     server: {
       proxy: {
-        "/api": "http://localhost:4000",
         "/ekspertbistand-backend": {
           target: "http://localhost:4000",
           changeOrigin: true,
