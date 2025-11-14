@@ -2,17 +2,14 @@ package no.nav.ekspertbistand.services.pdl
 
 import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
 import io.ktor.client.*
-import io.ktor.client.request.bearerAuth
-import no.nav.ekspertbistand.infrastruktur.NaisEnvironment
+import io.ktor.client.request.*
 import no.nav.ekspertbistand.infrastruktur.TokenExchanger
-import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.services.pdl.graphql.generated.HentGeografiskTilknytning
 import no.nav.ekspertbistand.services.pdl.graphql.generated.HentPerson
 import no.nav.ekspertbistand.services.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
 import no.nav.ekspertbistand.services.pdl.graphql.generated.hentperson.Person
-import org.jetbrains.exposed.v1.jdbc.Except
 import java.net.URI
 
 private val pdlBaseUrl = basedOnEnv(
@@ -27,9 +24,8 @@ private val targetCluster = basedOnEnv(
     other = { "Dette bør kanskje mockes?" }
 )
 
-private const val behandlingsNummer =
-    "B591" // https://behandlingskatalog.intern.nav.no/process/purpose/SYFO/de1355ba-13b8-498d-8cdc-74463ba1a514
-
+// https://behandlingskatalog.intern.nav.no/process/purpose/SYFO/de1355ba-13b8-498d-8cdc-74463ba1a514
+private const val behandlingsNummer = "B591"
 
 class PdlApiKlient(
     private val principal: TokenXPrincipal,
@@ -63,6 +59,7 @@ class PdlApiKlient(
             )
         ) {
             bearerAuth(token)
+            header("Behandlingsnummer", behandlingsNummer)
         }
 
         return when (val person = response.data?.hentPerson) {
@@ -81,6 +78,7 @@ class PdlApiKlient(
             )
         ) {
             bearerAuth(token)
+            header("Behandlingsnummer", behandlingsNummer)
         }
 
         return when (val tilknytning = response.data?.hentGeografiskTilknytning) {
@@ -89,7 +87,6 @@ class PdlApiKlient(
         }
     }
 }
-
 
 class PdlClientException(message: String) : Exception(message)
 
