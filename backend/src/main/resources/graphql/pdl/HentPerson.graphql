@@ -1,28 +1,11 @@
 query($ident: ID!) {
     hentPerson(ident: $ident) {
-        navn {
-            fornavn mellomnavn etternavn
-            metadata { master }
+        adressebeskyttelse {
+            gradering
+            folkeregistermetadata {
+                gyldighetstidspunkt
+                opphoerstidspunkt
+            }
         }
-        bostedsadresse(historikk: false) {
-            angittFlyttedato
-            gyldigFraOgMed
-            gyldigTilOgMed
-            vegadresse { kommunenummer }
-            matrikkeladresse{ kommunenummer }
-            ukjentBosted{ bostedskommune }
-        }
-        statsborgerskap { land }
-        foedselsdato { foedselsdato }
-        doedsfall { doedsdato }
-        adressebeskyttelse { gradering }
-        kjoenn { kjoenn }
-    }
-
-    hentGeografiskTilknytning(ident: $ident) {
-        gtType,
-        gtLand,
-        gtKommune,
-        gtBydel
     }
 }
