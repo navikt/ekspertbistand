@@ -24,6 +24,7 @@ data class OpprettJournalpostRequest(
     val journalposttype: String,
     val kanal: String,
     val tema: String,
+    val behandlingstema: String,
     val sak: Sak,
 ) {
     @Serializable

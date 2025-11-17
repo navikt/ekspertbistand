@@ -66,8 +66,8 @@ class DokArkivClient(
             dokumenter = listOf(
                 Dokument(
                     tittel = tittel,
-                    // TODO: finn riktig brevkode
-                    brevkode = "NAV 76-13.90",
+                    // TODO: sjekke at dette er riktig brevkode
+                    brevkode = "5384",
                     dokumentvarianter = listOf(
                         DokumentVariant(
                             fysiskDokument = encodeToBase64(dokumentPdfAsBytes),
@@ -79,7 +79,8 @@ class DokArkivClient(
             ),
             journalposttype = "INNGAAENDE",
             kanal = "NAV_NO",
-            tema = "PER",
+            tema = "TIL",
+            behandlingstema = "ab0423",
             sak = Sak(sakstype = "GENERELL_SAK"),
         )
         val response = httpClient.post {
@@ -119,6 +120,7 @@ private data class Journalpost(
     val journalposttype: String,
     val kanal: String,
     val tema: String,
+    val behandlingstema: String,
     val sak: Sak,
 )
 

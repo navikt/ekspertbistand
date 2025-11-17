@@ -18,7 +18,7 @@ class DokArkivClientTest {
         val dokumentPdfAsBytes = ByteArray(10) { 0x1F.toByte() }
 
         mockDokArkiv { request: OpprettJournalpostRequest ->
-            assertEquals("Dokument tittel", request.tittel)
+            assertEquals("Søknad om tilskudd til ekspertbistand", request.tittel)
             assertEquals("123456789", request.bruker.id)
             assertEquals("ORGNR", request.bruker.idType)
             assertEquals("123456789", request.avsenderMottaker.id)
@@ -27,12 +27,13 @@ class DokArkivClientTest {
             assertEquals("9999", request.journalfoerendeEnhet)
             assertEquals("INNGAAENDE", request.journalposttype)
             assertEquals("NAV_NO", request.kanal)
-            assertEquals("PER", request.tema)
+            assertEquals("TIL", request.tema)
+            assertEquals("ab0423", request.behandlingstema)
             assertEquals("GENERELL_SAK", request.sak.sakstype)
 
             val dokument = request.dokumenter.single()
-            assertEquals("Dokument tittel", dokument.tittel)
-            assertEquals("NAV 76-13.90", dokument.brevkode)
+            assertEquals("Søknad om tilskudd til ekspertbistand", dokument.tittel)
+            assertEquals("5384", dokument.brevkode)
             val dokumentVariant = dokument.dokumentvarianter.single()
             assertEquals(encodeToBase64(dokumentPdfAsBytes), dokumentVariant.fysiskDokument)
             assertEquals("PDFA", dokumentVariant.filtype)
@@ -57,7 +58,7 @@ class DokArkivClientTest {
         )
 
         dokArkivClient.opprettOgFerdigstillJournalpost(
-            tittel = "Dokument tittel",
+            tittel = "Søknad om tilskudd til ekspertbistand",
             virksomhetsnummer = "123456789",
             eksternReferanseId = "ekstern-ref-123",
             dokumentPdfAsBytes = dokumentPdfAsBytes
