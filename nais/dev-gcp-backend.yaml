@@ -52,6 +52,7 @@ spec:
     outbound:
       external:
         - host: pdl-api.dev-fss-pub.nais.io
+        - host: dokarkiv.dev-fss-pub.nais.io
       rules:
         - application: logging
           namespace: nais-system
