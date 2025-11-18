@@ -1,0 +1,11 @@
+query HentPerson($ident: ID!) {
+    hentPerson(ident: $ident) {
+        adressebeskyttelse {
+            gradering
+            folkeregistermetadata {
+                gyldighetstidspunkt
+                opphoerstidspunkt
+            }
+        }
+    }
+}

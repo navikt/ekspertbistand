@@ -50,8 +50,13 @@ spec:
       rules:
         - application: ekspertbistand-frontend
     outbound:
+      external:
+        - host: pdl-api.dev-fss-pub.nais.io
       rules:
         - application: logging
           namespace: nais-system
         - application: notifikasjon-produsent-api
+          namespace: fager
         - application: arbeidsgiver-altinn-tilganger
+          namespace: fager
+

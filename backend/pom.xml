@@ -17,7 +17,7 @@
         <kotlinx.coroutines.version>1.10.2</kotlinx.coroutines.version>
         <ktor.version>3.3.1</ktor.version>
         <java.version>21</java.version>
-        <graphql-kotlin.version>8.8.0</graphql-kotlin.version>
+        <graphql-kotlin.version>8.8.1</graphql-kotlin.version>
         <exposed.version>1.0.0-rc-2</exposed.version>
     </properties>
     <dependencies>
@@ -368,11 +368,26 @@
                 <version>${graphql-kotlin.version}</version>
                 <executions>
                     <execution>
+                        <id>generate pdl api client</id>
                         <goals>
                             <goal>generate-client</goal>
                         </goals>
                         <configuration>
-                            <schemaFile>${project.basedir}/src/main/resources/produsent.graphql</schemaFile>
+                            <schemaFile>${project.basedir}/src/main/resources/graphql/pdl/pdl.graphql</schemaFile>
+                            <queryFileDirectory>${project.basedir}/src/main/resources/graphql/pdl</queryFileDirectory>
+                            <packageName>no.nav.ekspertbistand.services.pdl.graphql.generated</packageName>
+                            <serializer>KOTLINX</serializer>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate produsent api client</id>
+                        <goals>
+                            <goal>generate-client</goal>
+                        </goals>
+                        <configuration>
+                            <schemaFile>${project.basedir}/src/main/resources/graphql/notifikasjon/produsent.graphql
+                            </schemaFile>
+                            <queryFileDirectory>${project.basedir}/src/main/resources/graphql/notifikasjon</queryFileDirectory>
                             <packageName>no.nav.ekspertbistand.services.notifikasjon.graphql.generated</packageName>
                             <serializer>KOTLINX</serializer>
                         </configuration>

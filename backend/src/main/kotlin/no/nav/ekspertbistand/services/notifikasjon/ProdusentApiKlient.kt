@@ -34,19 +34,15 @@ class ProdusentApiKlient(
     private val tokenProvider: TokenProvider,
     private val httpClient: HttpClient
 ) {
-    private val url = URI(notifikasjonBaseUrl).toURL()
-
     private val log = logger()
     private val client = GraphQLKtorClient(
-        url = url,
+        url = URI(notifikasjonBaseUrl).toURL(),
         httpClient = httpClient
     )
     private val ressursId = "nav_tiltak_ekspertbistand"
 
     private val mottaker = MottakerInput(
-        altinn = null,
         altinnRessurs = AltinnRessursMottakerInput(ressursId = ressursId),
-        naermesteLeder = null
     )
 
     private suspend fun hentEntraIdToken(): String {
