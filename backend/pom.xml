@@ -373,7 +373,7 @@
                             <goal>generate-client</goal>
                         </goals>
                         <configuration>
-                            <schemaFile>${project.basedir}/src/main/resources/graphql/pdl/pdl.graphqls</schemaFile>
+                            <schemaFile>${project.basedir}/src/main/resources/graphql/pdl/pdl.graphql</schemaFile>
                             <queryFileDirectory>${project.basedir}/src/main/resources/graphql/pdl</queryFileDirectory>
                             <packageName>no.nav.ekspertbistand.services.pdl.graphql.generated</packageName>
                             <serializer>KOTLINX</serializer>
