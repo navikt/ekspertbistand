@@ -28,6 +28,7 @@ class DokArkivClientTest {
             assertEquals("INNGAAENDE", request.journalposttype)
             assertEquals("NAV_NO", request.kanal)
             assertEquals("TIL", request.tema)
+            // Se https://kodeverk.ansatt.nav.no/kodeverk/Behandlingstema/21824
             assertEquals("ab0423", request.behandlingstema)
             assertEquals("GENERELL_SAK", request.sak.sakstype)
 
