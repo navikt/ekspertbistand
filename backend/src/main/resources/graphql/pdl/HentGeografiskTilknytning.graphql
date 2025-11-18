@@ -1,4 +1,4 @@
-query($ident: ID!) {
+query HentGeografiskTilknytning($ident: ID!) {
     hentGeografiskTilknytning(ident: $ident) {
         gtType,
         gtLand,

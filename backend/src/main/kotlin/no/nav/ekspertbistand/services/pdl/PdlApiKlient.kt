@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.services.pdl
 import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
 import io.ktor.client.*
 import io.ktor.client.request.*
+import io.ktor.server.application.Application
 import no.nav.ekspertbistand.infrastruktur.TokenExchanger
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
@@ -12,28 +13,16 @@ import no.nav.ekspertbistand.services.pdl.graphql.generated.hentgeografisktilkny
 import no.nav.ekspertbistand.services.pdl.graphql.generated.hentperson.Person
 import java.net.URI
 
-private val pdlBaseUrl = basedOnEnv(
-    prod = { "https://pdl-api.prod-fss-pub.nais.io/graphql" },
-    dev = { "https://pdl-api.dev-fss-pub.nais.io/graphql" },
-    other = { "Dette bør kanskje mockes?" }
-)
-
-private val targetCluster = basedOnEnv(
-    prod = { "prod-fss" },
-    dev = { "dev-fss" },
-    other = { "Dette bør kanskje mockes?" }
-)
-
 // https://behandlingskatalog.intern.nav.no/process/purpose/SYFO/de1355ba-13b8-498d-8cdc-74463ba1a514
 private const val behandlingsNummer = "B591"
 
 class PdlApiKlient(
-    private val principal: TokenXPrincipal,
+    private val subjectToken: String,
     private val tokenExchanger: TokenExchanger, // bruk tokenX OBO
     private val httpClient: HttpClient
 ) {
     private val client = GraphQLKtorClient(
-        url = URI(pdlBaseUrl).toURL(),
+        url = URI("$baseUrl/graphql").toURL(),
         httpClient = httpClient
     )
 
@@ -41,7 +30,7 @@ class PdlApiKlient(
         val target = "${targetCluster}.pdl.pdl-api"
         return tokenExchanger.exchange(
             target = target,
-            userToken = principal.subjectToken
+            userToken = subjectToken
         ).fold(
             onSuccess = { it.accessToken },
             onError = { throw Exception("Feil ved henting av token for pdl api: ${it.error.errorDescription}") }
@@ -86,7 +75,23 @@ class PdlApiKlient(
             else -> tilknytning
         }
     }
+
+    companion object {
+        val baseUrl = basedOnEnv(
+            prod = { "https://pdl-api.prod-fss-pub.nais.io" },
+            other = { "https://pdl-api.dev-fss-pub.nais.io" }
+        )
+
+        private val targetCluster = basedOnEnv(
+            prod = { "prod-fss" },
+            other = { "dev-fss" }
+        )
+    }
 }
 
 class PdlClientException(message: String) : Exception(message)
 
+
+fun Application.configurePdlKlient() {
+
+}
