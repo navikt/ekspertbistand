@@ -1,0 +1,3 @@
+schema:
+  - produsent.graphql
+documents: '*.graphql'

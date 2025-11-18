@@ -4,4 +4,4 @@ schema:
       headers:
         Authorization: Bearer ${OBO_TOKEN}
         Behandlingsnummer: {$BEHANDLINGS_NUMMER}
-documents: '**/*.graphql'
+documents: '*.graphql'
