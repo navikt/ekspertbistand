@@ -24,6 +24,16 @@ const normalizeEstimertKostnad = (
 const normalizeStartdato = (value: SoknadInputs["behovForBistand"]["startdato"]): string =>
   ensureIsoDateString(typeof value === "string" ? value : null);
 
+const normalizeTimer = (value: SoknadInputs["behovForBistand"]["timer"]): number => {
+  const numeric = typeof value === "number" ? value : Number.parseInt(value.trim(), 10);
+
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.trunc(numeric));
+};
+
 const mapInputsToPayload = (inputs: SoknadInputs) => ({
   virksomhet: {
     virksomhetsnummer: inputs.virksomhet.virksomhetsnummer,
@@ -46,6 +56,7 @@ const mapInputsToPayload = (inputs: SoknadInputs) => ({
   behovForBistand: {
     begrunnelse: inputs.behovForBistand.begrunnelse,
     behov: inputs.behovForBistand.behov,
+    timer: normalizeTimer(inputs.behovForBistand.timer),
     estimertKostnad: normalizeEstimertKostnad(inputs.behovForBistand.estimertKostnad),
     tilrettelegging: inputs.behovForBistand.tilrettelegging,
     startdato: normalizeStartdato(inputs.behovForBistand.startdato),
@@ -98,6 +109,8 @@ const draftDtoToInputsSchema = draftDtoServerSchema.transform((dto) => {
   if (dto.behovForBistand) {
     inputs.behovForBistand.begrunnelse = dto.behovForBistand.begrunnelse ?? "";
     inputs.behovForBistand.behov = dto.behovForBistand.behov ?? "";
+    const timer = dto.behovForBistand.timer;
+    inputs.behovForBistand.timer = typeof timer === "number" && Number.isFinite(timer) ? timer : "";
     const kostnad = dto.behovForBistand.estimertKostnad;
     inputs.behovForBistand.estimertKostnad =
       typeof kostnad === "number" && Number.isFinite(kostnad) ? kostnad : "";

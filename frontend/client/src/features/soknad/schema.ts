@@ -35,6 +35,28 @@ const fnrField = trimmedText("Du må fylle ut fødselsnummer.").refine(
   { message: "Fødselsnummer må være 11 siffer." }
 );
 
+const timerSchema = z.union([z.number(), z.string()]).superRefine((value, ctx) => {
+  if (value === "" || value === null) {
+    ctx.addIssue({ code: "custom", message: "Du må anslå hvor mange timer dere trenger." });
+    return;
+  }
+
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) {
+    ctx.addIssue({ code: "custom", message: "Antall timer må være et tall." });
+    return;
+  }
+
+  if (numeric <= 0) {
+    ctx.addIssue({ code: "custom", message: "Antall timer må være større enn 0." });
+    return;
+  }
+
+  if (!Number.isInteger(numeric)) {
+    ctx.addIssue({ code: "custom", message: "Antall timer må være hele timer." });
+  }
+});
+
 const estimertKostnadSchema = z.union([z.number(), z.string()]).superRefine((value, ctx) => {
   if (value === "" || value === null) {
     ctx.addIssue({ code: "custom", message: "Du må anslå kostnad." });
@@ -98,6 +120,7 @@ export const soknadSchema = z.object({
   behovForBistand: z.object({
     begrunnelse: trimmedText("Du må beskrive problemstillingen."),
     behov: trimmedText("Du må beskrive hva dere ønsker hjelp til fra eksperten."),
+    timer: timerSchema,
     estimertKostnad: estimertKostnadSchema,
     tilrettelegging: trimmedText("Du må beskrive tiltak for tilrettelegging."),
     startdato: startdatoSchema,
@@ -120,15 +143,16 @@ export const STEP1_FIELDS = [
   "ekspert.navn",
   "ekspert.virksomhet",
   "ekspert.kompetanse",
+  "nav.kontaktperson",
 ] as const satisfies ReadonlyArray<Path<SoknadInputs>>;
 
 export const STEP2_FIELDS = [
   "behovForBistand.begrunnelse",
   "behovForBistand.behov",
+  "behovForBistand.timer",
   "behovForBistand.estimertKostnad",
   "behovForBistand.tilrettelegging",
   "behovForBistand.startdato",
-  "nav.kontaktperson",
 ] as const satisfies ReadonlyArray<Path<SoknadInputs>>;
 
 export const createEmptyInputs = (): SoknadInputs => ({
@@ -153,6 +177,7 @@ export const createEmptyInputs = (): SoknadInputs => ({
   behovForBistand: {
     begrunnelse: "",
     behov: "",
+    timer: "",
     estimertKostnad: "",
     tilrettelegging: "",
     startdato: null,

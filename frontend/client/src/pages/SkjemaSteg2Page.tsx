@@ -26,6 +26,7 @@ import { useErrorFocus } from "../hooks/useErrorFocus";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { formatDateToIso, parseIsoDate, startOfToday } from "../utils/date";
+import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 
 export default function SkjemaSteg2Page() {
   const todayDate = useMemo(() => startOfToday(), []);
@@ -38,7 +39,7 @@ export default function SkjemaSteg2Page() {
     | SoknadInputs["behovForBistand"]["startdato"]
     | undefined;
   const syncingDateRef = useRef(false);
-  const { draftId, clearDraft } = useSoknadDraft();
+  const { draftId, clearDraft, lastPersistedAt } = useSoknadDraft();
   const { goToSoknader, goToStep1, goToSummary, createLinkHandler } = useSkjemaNavigation();
   const handleStepOneLink = createLinkHandler(goToStep1);
   const handleSummaryLink = createLinkHandler(goToSummary);
@@ -88,6 +89,10 @@ export default function SkjemaSteg2Page() {
     setSelected(parsedStartdato);
   }, [parsedStartdato, selectedDay, setSelected]);
 
+  const timerReg = register("behovForBistand.timer", {
+    setValueAs: (value) => (value === "" || value === null ? "" : Number(value)),
+  });
+
   const kostnadReg = register("behovForBistand.estimertKostnad", {
     setValueAs: (value) => (value === "" || value === null ? "" : Number(value)),
   });
@@ -128,15 +133,25 @@ export default function SkjemaSteg2Page() {
             <VStack gap="6">
               <Textarea
                 id="behovForBistand.begrunnelse"
-                label="Beskriv den ansattes arbeidssituasjon, sykefravær og hvorfor dere ser behov for ekspertbistand"
+                label="Beskriv den ansattes arbeidssituasjon"
+                description="F.eks stilling, arbeidsoppgaver og arbeidstid."
                 error={errors.behovForBistand?.begrunnelse?.message}
                 {...register("behovForBistand.begrunnelse")}
                 aria-invalid={errors.behovForBistand?.begrunnelse ? true : undefined}
                 style={FORM_COLUMN_STYLE}
               />
               <Textarea
+                id="behovForBistand.tilrettelegging"
+                label="Beskriv den ansattes sykefravær, og hvilken oppfølging og tilrettelegging dere allerede har tilbudt/prøvd ut?"
+                description="Si noe om omfang på sykefraværet og tilrettelegging som f.eks i arbeidsoppgaver, arbeidstid, opplæring, hjelpemiddler og ekstra oppfølging."
+                error={errors.behovForBistand?.tilrettelegging?.message}
+                {...register("behovForBistand.tilrettelegging")}
+                aria-invalid={errors.behovForBistand?.tilrettelegging ? true : undefined}
+                style={FORM_COLUMN_STYLE}
+              />
+              <Textarea
                 id="behovForBistand.behov"
-                label="Hva vil dere har hjelp til fra eksperten, og hvor mange timer tror dere at det vil ta?"
+                label="Hva skal eksperten hjelpe dere med?"
                 description="F.eks. kartlegging, arbeidsplassvurdering. Tilskuddet gis ikke til behandling."
                 error={errors.behovForBistand?.behov?.message}
                 {...register("behovForBistand.behov")}
@@ -144,23 +159,22 @@ export default function SkjemaSteg2Page() {
                 style={FORM_COLUMN_STYLE}
               />
               <TextField
+                id="behovForBistand.timer"
+                label="Hvor mange timer skal eksperten hjelpe dere?"
+                inputMode="numeric"
+                error={errors.behovForBistand?.timer?.message}
+                {...timerReg}
+                aria-invalid={errors.behovForBistand?.timer ? true : undefined}
+                style={FORM_COLUMN_STYLE}
+              />
+              <TextField
                 id="behovForBistand.estimertKostnad"
                 label="Estimert kostnad for ekspertbistand"
-                type="number"
                 inputMode="numeric"
                 max={MAX_ESTIMERT_KOSTNAD}
                 error={errors.behovForBistand?.estimertKostnad?.message}
                 {...kostnadReg}
                 aria-invalid={errors.behovForBistand?.estimertKostnad ? true : undefined}
-                style={FORM_COLUMN_STYLE}
-              />
-              <Textarea
-                id="behovForBistand.tilrettelegging"
-                label="Hvilken tilrettelegging har dere allerede tilbudt/prøvd ut og hvordan gikk det?"
-                description="Fleksibel arbeidstid, hjemmekontor, hjelpemiddel, tilpassing av arbeidsoppgaver, opplæring, ekstra oppfølging etc."
-                error={errors.behovForBistand?.tilrettelegging?.message}
-                {...register("behovForBistand.tilrettelegging")}
-                aria-invalid={errors.behovForBistand?.tilrettelegging ? true : undefined}
                 style={FORM_COLUMN_STYLE}
               />
               <div>
@@ -182,14 +196,6 @@ export default function SkjemaSteg2Page() {
                   </DatePicker>
                 </Box>
               </div>
-              <TextField
-                id="nav.kontaktperson"
-                label="Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?"
-                error={errors.nav?.kontaktperson?.message}
-                {...register("nav.kontaktperson")}
-                aria-invalid={errors.nav?.kontaktperson ? true : undefined}
-                style={FORM_COLUMN_STYLE}
-              />
             </VStack>
           </Fieldset>
 
@@ -201,6 +207,7 @@ export default function SkjemaSteg2Page() {
           />
 
           <VStack gap="4">
+            <SistLagretInfo timestamp={lastPersistedAt} />
             <HGrid
               gap={{ xs: "4", sm: "8 4" }}
               columns={{ xs: 1, sm: 2 }}

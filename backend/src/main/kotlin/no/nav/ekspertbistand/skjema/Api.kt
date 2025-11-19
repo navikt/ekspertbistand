@@ -163,6 +163,7 @@ class SkjemaApi(
                     utkast[behovForBistand] = t.behov
                     utkast[behovForBistandBegrunnelse] = t.begrunnelse
                     utkast[behovForBistandEstimertKostnad] = t.estimertKostnad
+                    utkast[behovForBistandTimer] = t.timer
                     utkast[behovForBistandTilrettelegging] = t.tilrettelegging
                     utkast[behovForBistandStartdato] = t.startdato
                 }
@@ -246,6 +247,7 @@ class SkjemaApi(
                 it[behovForBistand] = skjema.behovForBistand.behov
                 it[behovForBistandBegrunnelse] = skjema.behovForBistand.begrunnelse
                 it[behovForBistandEstimertKostnad] = skjema.behovForBistand.estimertKostnad
+                it[behovForBistandTimer] = skjema.behovForBistand.timer
                 it[behovForBistandTilrettelegging] = skjema.behovForBistand.tilrettelegging
                 it[behovForBistandStartdato] = skjema.behovForBistand.startdato!!
 
@@ -338,6 +340,7 @@ sealed interface DTO {
         val begrunnelse: String,
         val behov: String,
         val estimertKostnad: Int,
+        val timer: Int,
         val tilrettelegging: String,
         val startdato: LocalDate,
     )

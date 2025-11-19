@@ -64,6 +64,7 @@ fun main() {
             it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
             it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
             it[behovForBistandEstimertKostnad] = 9999
+            it[behovForBistandTimer] = 16
             it[behovForBistandTilrettelegging] = "Høydejustert bord testet, noe bedring"
             it[behovForBistandStartdato] = CurrentDate
 
@@ -86,6 +87,7 @@ fun main() {
             it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
             it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
             it[behovForBistandEstimertKostnad] = 9999
+            it[behovForBistandTimer] = 16
             it[behovForBistandTilrettelegging] = "Høydejustert bord testet, noe bedring"
             it[behovForBistandStartdato] = CurrentDate
 

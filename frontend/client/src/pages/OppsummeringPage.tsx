@@ -1,25 +1,27 @@
 import { useCallback, useState } from "react";
 import { ArrowLeftIcon, PaperplaneIcon } from "@navikt/aksel-icons";
-import { Alert, BodyLong, BodyShort, Box, Button, Heading, HGrid, VStack } from "@navikt/ds-react";
+import { Alert, BodyLong, Box, Button, Heading, HGrid, VStack } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { soknadSchema } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { buildSkjemaPayload } from "../features/soknad/payload";
 import { SoknadSummary } from "../components/SoknadSummary";
-import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
+import { EKSPERTBISTAND_API_PATH, LOGIN_URL } from "../utils/constants";
 import { BackLink } from "../components/BackLink";
 import useSWRMutation from "swr/mutation";
 import { fetchJson } from "../utils/api";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useNavigate } from "react-router-dom";
+import { resolveApiError, type ApiErrorInfo } from "../utils/http";
+import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 
 export default function OppsummeringPage() {
   const navigate = useNavigate();
   const { draftId, draft: formData, clearDraft, lastPersistedAt } = useSoknadDraft();
   const { goToSoknader, goToStep1, goToStep2, createLinkHandler } = useSkjemaNavigation();
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<ApiErrorInfo | null>(null);
   const { trigger: submitDraft, isMutating: submitting } = useSWRMutation<
     null,
     Error,
@@ -35,9 +37,11 @@ export default function OppsummeringPage() {
   const handleSubmit = useCallback(async () => {
     const result = soknadSchema.safeParse(formData);
     if (!result.success) {
-      setSubmitError(
-        "Du må fylle ut alle feltene før du sender inn. Gå tilbake til stegene og fyll inn manglende opplysninger."
-      );
+      setSubmitError({
+        message:
+          "Du må fylle ut alle feltene før du sender inn. Gå tilbake til stegene og fyll inn manglende opplysninger.",
+        requiresLogin: false,
+      });
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -54,9 +58,7 @@ export default function OppsummeringPage() {
         state: { submissionSuccess: true },
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Kunne ikke sende søknaden akkurat nå.";
-      setSubmitError(message);
+      setSubmitError(resolveApiError(error, "Kunne ikke sende søknaden akkurat nå."));
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [draftId, formData, navigate, submitDraft]);
@@ -89,7 +91,14 @@ export default function OppsummeringPage() {
 
         {submitError && (
           <Alert variant="error" role="alert">
-            {submitError}
+            <VStack gap="3">
+              <BodyLong>{submitError.message}</BodyLong>
+              {submitError.requiresLogin ? (
+                <Button as="a" href={LOGIN_URL} size="small" variant="primary">
+                  Logg inn
+                </Button>
+              ) : null}
+            </VStack>
           </Alert>
         )}
 
@@ -101,11 +110,7 @@ export default function OppsummeringPage() {
         />
 
         <VStack gap="4">
-          {lastPersistedAt && (
-            <BodyShort size="small" textColor="subtle">
-              Sist lagret: {lastPersistedAt.toLocaleString("nb-NO")}
-            </BodyShort>
-          )}
+          <SistLagretInfo timestamp={lastPersistedAt} />
           <HGrid
             gap={{ xs: "4", sm: "8 4" }}
             columns={{ xs: 1, sm: 2 }}

@@ -242,6 +242,7 @@ class SkjemaTest {
                     it[behovForBistandBegrunnelse] = ""
                     it[behovForBistandTilrettelegging] = ""
                     it[behovForBistandEstimertKostnad] = 0
+                    it[behovForBistandTimer] = 0
                     it[behovForBistandStartdato] = CurrentDate
                     it[navKontaktPerson] = ""
                 }
@@ -334,6 +335,7 @@ class SkjemaTest {
                             behov = "Tilrettelegging",
                             begrunnelse = "Tilrettelegging på arbeidsplassen",
                             estimertKostnad = 4200,
+                            timer = 16,
                             tilrettelegging = "Spesialtilpasset kontor",
                             startdato = LocalDate.parse("2024-11-15")
                         ),
@@ -426,6 +428,7 @@ class SkjemaTest {
                 it[behovForBistandTilrettelegging] = ""
                 it[behovForBistandBegrunnelse] = ""
                 it[behovForBistandEstimertKostnad] = 42
+                it[behovForBistandTimer] = 9
                 it[behovForBistandStartdato] = CurrentDate
 
                 it[kontaktpersonNavn] = ""
@@ -448,6 +451,7 @@ class SkjemaTest {
                 it[behovForBistandTilrettelegging] = ""
                 it[behovForBistandBegrunnelse] = ""
                 it[behovForBistandEstimertKostnad] = 42
+                it[behovForBistandTimer] = 9
                 it[behovForBistandStartdato] = CurrentDate
 
                 it[kontaktpersonNavn] = ""

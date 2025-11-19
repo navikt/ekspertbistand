@@ -64,6 +64,7 @@ fun main() {
         configureBaseSetup()
 
         // database
+        destroyExistingDatabase()
         configureDatabase()
 
         // application modules

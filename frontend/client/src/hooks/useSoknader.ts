@@ -1,6 +1,7 @@
 import useSWR from "swr";
 
 import { fetchSkjema, type SkjemaListItem } from "../features/soknad/soknader";
+import { resolveApiError } from "../utils/http";
 
 export function useSoknader() {
   const { data, error, isLoading } = useSWR<SkjemaListItem[]>(
@@ -10,14 +11,12 @@ export function useSoknader() {
       revalidateOnFocus: true,
     }
   );
+  const apiError = error ? resolveApiError(error, "Kunne ikke hente søknader akkurat nå.") : null;
 
   return {
     soknader: data ?? [],
-    error: error
-      ? error instanceof Error
-        ? error.message
-        : "Kunne ikke hente søknader akkurat nå."
-      : null,
+    error: apiError?.message ?? null,
+    requiresLogin: apiError?.requiresLogin ?? false,
     loading: isLoading,
   } as const;
 }

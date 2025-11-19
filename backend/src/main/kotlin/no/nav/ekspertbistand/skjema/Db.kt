@@ -38,6 +38,7 @@ object SkjemaTable : Table("skjema") {
     val behovForBistandBegrunnelse = text("behov_for_bistand_begrunnelse")
     val behovForBistand = text("behov_for_bistand")
     val behovForBistandEstimertKostnad = integer("behov_for_bistand_estimert_kostnad")
+    val behovForBistandTimer = integer("behov_for_bistand_timer")
     val behovForBistandTilrettelegging = text("behov_for_bistand_tilrettelegging")
     val behovForBistandStartdato = date("behov_for_bistand_startdato")
 
@@ -75,6 +76,7 @@ object UtkastTable : UUIDTable("utkast") {
     val behovForBistandBegrunnelse = text("behov_for_bistand_begrunnelse").nullable()
     val behovForBistand = text("behov_for_bistand").nullable()
     val behovForBistandEstimertKostnad = integer("behov_for_bistand_estimert_kostnad").nullable()
+    val behovForBistandTimer = integer("behov_for_bistand_timer").nullable()
     val behovForBistandTilrettelegging = text("behov_for_bistand_tilrettelegging").nullable()
     val behovForBistandStartdato = date("behov_for_bistand_startdato").nullable()
 
@@ -120,6 +122,7 @@ fun ResultRow.tilSkjemaDTO() = DTO.Skjema(
         begrunnelse = this[SkjemaTable.behovForBistandBegrunnelse],
         behov = this[SkjemaTable.behovForBistand],
         estimertKostnad = this[SkjemaTable.behovForBistandEstimertKostnad],
+        timer = this[SkjemaTable.behovForBistandTimer],
         tilrettelegging = this[SkjemaTable.behovForBistandTilrettelegging],
         startdato = this[SkjemaTable.behovForBistandStartdato],
 
@@ -162,6 +165,7 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
         begrunnelse = this[UtkastTable.behovForBistandBegrunnelse] ?: "",
         behov = this[UtkastTable.behovForBistand] ?: "",
         estimertKostnad = this[UtkastTable.behovForBistandEstimertKostnad] ?: 0,
+        timer = this[UtkastTable.behovForBistandTimer] ?: 0,
         tilrettelegging = this[UtkastTable.behovForBistandTilrettelegging] ?: "",
         startdato = this[UtkastTable.behovForBistandStartdato] ?: LocalDate.today(),
 
