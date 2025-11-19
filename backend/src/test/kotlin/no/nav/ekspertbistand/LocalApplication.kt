@@ -2,21 +2,24 @@ package no.nav.ekspertbistand
 
 import io.ktor.client.*
 import io.ktor.client.engine.mock.*
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
+import io.ktor.server.plugins.di.resolve
 import io.ktor.utils.io.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
-import no.nav.ekspertbistand.services.configureIdempotencyGuard
-import no.nav.ekspertbistand.services.notifikasjon.configureOpprettNySakEventHandler
+import no.nav.ekspertbistand.services.IdempotencyGuard
+import no.nav.ekspertbistand.services.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import org.jetbrains.exposed.v1.datetime.CurrentDate
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
@@ -95,15 +98,15 @@ fun main() {
 
     ktorServer {
         dependencies {
-            provide {
-                testDb.config
+            provide<Database> {
+                testDb.config.jdbcDatabase
             }
-            provide<TokenIntrospector> {
+            provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
                 MockTokenIntrospector {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
             }
-            provide<TokenProvider> {
+            provide<TokenProvider>(IdentityProvider.AZURE_AD.alias) {
                 object : TokenProvider {
                     override suspend fun token(target: String): TokenResponse {
                         return TokenResponse.Success(
@@ -116,19 +119,28 @@ fun main() {
             provide {
                 mockAltinnTilgangerClient
             }
+            provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
+            provide<ProdusentApiKlient> {
+                ProdusentApiKlient(
+                    tokenProvider = resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias),
+                    httpClient = defaultHttpClient(customizeMetrics = {
+                        clientName = "notifikasjon.produsent.api.klient"
+                    }) {
+                        install(HttpTimeout) {
+                            requestTimeoutMillis = 5_000
+                        }
+                    }
+                )
+            }
         }
-        configureBaseSetup()
-
-        // database
-        configureDatabase()
+        configureServer()
+        configureTokenXAuth()
 
         // application modules
         configureSkjemaApiV1()
         configureOrganisasjonerApiV1()
 
         // event manager and event handlers
-        configureIdempotencyGuard()
-        configureOpprettNySakEventHandler()
         configureEventHandlers()
 
         // internal endpoints and lifecycle hooks

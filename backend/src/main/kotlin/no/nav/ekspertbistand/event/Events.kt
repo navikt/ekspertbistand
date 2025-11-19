@@ -1,19 +1,20 @@
 package no.nav.ekspertbistand.event
 
-import io.ktor.server.application.Application
-import io.ktor.server.application.log
-import io.ktor.server.plugins.di.dependencies
+import io.ktor.server.application.*
+import io.ktor.server.plugins.di.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.services.notifikasjon.OpprettNySakEventHandler
+import no.nav.ekspertbistand.services.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
 import no.nav.ekspertbistand.skjema.DummyFooHandler
 import kotlin.time.ExperimentalTime
-import no.nav.ekspertbistand.skjema.DTO
 
 
-data class Event<T: EventData>(
+data class Event<T : EventData>(
     val id: Long,
     val data: T
 )
@@ -44,10 +45,14 @@ sealed interface EventData {
 suspend fun Application.configureEventHandlers() {
     val eventManager = EventManager {
         // Registrer all event handlers here
-
-        register(dependencies.resolve<DummyFooHandler>())
-        register(dependencies.resolve<DummyBarHandler>())
-        register(dependencies.resolve<OpprettNySakEventHandler>())
+        register(DummyFooHandler())
+        register(DummyBarHandler())
+        register(
+            OpprettNySakEventHandler(
+                dependencies.resolve<ProdusentApiKlient>(),
+                dependencies.resolve<IdempotencyGuard>()
+            )
+        )
 
         register<EventData>("InlineAlEventsHandler") { event ->
             // Inline handler example
@@ -56,7 +61,6 @@ suspend fun Application.configureEventHandlers() {
         }
 
     }
-
 
 
     // Start event processing loop

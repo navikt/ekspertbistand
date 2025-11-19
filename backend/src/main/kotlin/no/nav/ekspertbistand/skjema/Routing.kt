@@ -44,15 +44,6 @@ suspend fun Application.configureSkjemaApiV1() {
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
     val skjemaApi = SkjemaApi(database, altinnTilgangerClient)
 
-    val dummyFooHandler = DummyFooHandler()
-    val dummyBarHandler = DummyBarHandler()
-    dependencies.provide<DummyFooHandler> {
-        dummyFooHandler
-    }
-    dependencies.provide<DummyBarHandler> {
-        dummyBarHandler
-    }
-
     launch {
         while (isActiveAndNotTerminating) {
             skjemaApi.slettGamleUtkast()

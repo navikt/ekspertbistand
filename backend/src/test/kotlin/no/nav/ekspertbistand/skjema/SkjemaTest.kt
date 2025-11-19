@@ -10,7 +10,7 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient.Companion.altinn3Ressursid
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
-import no.nav.ekspertbistand.configureBaseSetup
+import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
@@ -57,9 +57,9 @@ class SkjemaTest {
         application {
             dependencies {
                 provide {
-                    testDb.config
+                    testDb.config.jdbcDatabase
                 }
-                provide<TokenIntrospector> {
+                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
@@ -69,8 +69,8 @@ class SkjemaTest {
                 }
             }
 
-            configureBaseSetup()
-            configureDatabase()
+            configureTokenXAuth()
+            configureServer()
             configureSkjemaApiV1()
         }
 
@@ -207,9 +207,9 @@ class SkjemaTest {
         application {
             dependencies {
                 provide {
-                    testDb.config
+                    testDb.config.jdbcDatabase
                 }
-                provide<TokenIntrospector> {
+                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
@@ -219,8 +219,8 @@ class SkjemaTest {
                 }
             }
 
-            configureBaseSetup()
-            configureDatabase()
+            configureTokenXAuth()
+            configureServer()
             configureSkjemaApiV1()
 
             transaction(testDb.config.jdbcDatabase) {
@@ -399,9 +399,9 @@ class SkjemaTest {
         application {
             dependencies {
                 provide {
-                    testDb.config
+                    testDb.config.jdbcDatabase
                 }
-                provide<TokenIntrospector> {
+                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
@@ -411,8 +411,8 @@ class SkjemaTest {
                 }
             }
 
-            configureBaseSetup()
-            configureDatabase()
+            configureTokenXAuth()
+            configureServer()
             configureSkjemaApiV1()
         }
 
@@ -518,9 +518,9 @@ class SkjemaTest {
         application {
             dependencies {
                 provide {
-                    testDb.config
+                    testDb.config.jdbcDatabase
                 }
-                provide<TokenIntrospector> {
+                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
                     MockTokenIntrospector {
                         null
                     }
@@ -530,8 +530,8 @@ class SkjemaTest {
                 }
             }
 
-            configureBaseSetup()
-            configureDatabase()
+            configureTokenXAuth()
+            configureServer()
             configureSkjemaApiV1()
         }
 

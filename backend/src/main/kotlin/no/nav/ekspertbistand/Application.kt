@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand
 
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -30,10 +31,11 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
-import no.nav.ekspertbistand.services.configureIdempotencyGuard
-import no.nav.ekspertbistand.services.notifikasjon.configureOpprettNySakEventHandler
+import no.nav.ekspertbistand.services.IdempotencyGuard
+import no.nav.ekspertbistand.services.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import no.nav.ekspertbistand.skjema.subjectToken
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
 import java.util.*
 
@@ -46,33 +48,43 @@ fun main() {
 
     ktorServer {
         dependencies {
-            provide {
-                dbConfig
+            provide<Database> {
+                dbConfig.flywayAction {
+                    migrate()
+                }
+                // mixing r2dbc and jdbc does not work well together, so we use only jdbc for now
+                //    dbConfig.r2dbcDatabase
+                dbConfig.jdbcDatabase
             }
-            provide<TokenIntrospector> {
-                tokenxClient
-            }
-            provide<TokenProvider> {
-                azureClient
-            }
-            provide {
-                AltinnTilgangerClient(
-                    tokenxClient
+            provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) { tokenxClient }
+            provide<TokenProvider>(IdentityProvider.AZURE_AD.alias) { azureClient }
+            provide { AltinnTilgangerClient(tokenxClient) }
+            provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
+            provide<ProdusentApiKlient> {
+                ProdusentApiKlient(
+                    tokenProvider = resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias),
+                    httpClient = defaultHttpClient(customizeMetrics = {
+                        clientName = "notifikasjon.produsent.api.klient"
+                    }) {
+                        install(HttpTimeout) {
+                            requestTimeoutMillis = 5_000
+                        }
+                    }
                 )
             }
         }
-        configureBaseSetup()
 
-        // database
-        configureDatabase()
+        // configure standard server stuff
+        configureServer()
 
-        // application modules
+        // configure authentication of clients
+        configureTokenXAuth()
+
+        // configure application modules and endpoints
         configureSkjemaApiV1()
         configureOrganisasjonerApiV1()
 
         // event manager and event handlers
-        configureIdempotencyGuard()
-        configureOpprettNySakEventHandler()
         configureEventHandlers()
 
         // internal endpoints and lifecycle hooks
@@ -108,11 +120,6 @@ suspend fun Application.configureOrganisasjonerApiV1() {
             }
         }
     }
-}
-
-suspend fun Application.configureBaseSetup() {
-    configureServer()
-    configureTokenXAuth()
 }
 
 fun Application.configureServer() {
