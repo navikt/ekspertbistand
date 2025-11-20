@@ -16,6 +16,7 @@ import { STEP1_FIELDS } from "../features/soknad/schema";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { SOKNADER_PATH } from "../utils/constants";
+import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 
 export default function SkjemaSteg1Page() {
   const form = useFormContext<SoknadInputs>();
@@ -23,7 +24,7 @@ export default function SkjemaSteg1Page() {
   const { errors } = formState;
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
 
-  const { clearDraft } = useSoknadDraft();
+  const { clearDraft, lastPersistedAt } = useSoknadDraft();
   const { goToSoknader, goToStep2, goToSummary, createLinkHandler } = useSkjemaNavigation();
 
   useAttemptedSubmitRedirect(form, { fields: STEP1_FIELDS, onValidationFailed: bumpFocusKey });
@@ -88,7 +89,11 @@ export default function SkjemaSteg1Page() {
             </div>
             <input type="hidden" {...register("virksomhet.navn")} />
 
-            <Fieldset legend="Kontaktperson i virksomheten" style={FORM_COLUMN_STYLE}>
+            <Fieldset
+              legend="Kontaktperson i virksomheten"
+              description="Den som følger opp den ansatte under ekspertbistanden, vanligvis nærmeste leder."
+              style={FORM_COLUMN_STYLE}
+            >
               <TextField
                 id="virksomhet.kontaktperson.navn"
                 label="Navn"
@@ -155,6 +160,15 @@ export default function SkjemaSteg1Page() {
             </VStack>
           </Fieldset>
 
+          <Fieldset legend="Nav" style={FORM_COLUMN_STYLE} hideLegend>
+            <TextField
+              id="nav.kontaktperson"
+              label="Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?"
+              error={errors.nav?.kontaktperson?.message}
+              {...register("nav.kontaktperson")}
+            />
+          </Fieldset>
+
           <FormErrorSummary
             errors={errors}
             fields={STEP1_FIELDS}
@@ -163,6 +177,7 @@ export default function SkjemaSteg1Page() {
           />
 
           <VStack gap="4">
+            <SistLagretInfo timestamp={lastPersistedAt} />
             <HGrid
               gap={{ xs: "4", sm: "8 4" }}
               columns={{ xs: 1, sm: 2 }}

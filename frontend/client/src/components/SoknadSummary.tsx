@@ -34,6 +34,29 @@ const formatCurrency = (value: SoknadInputs["behovForBistand"]["estimertKostnad"
   return formatValue(value);
 };
 
+const formatTimer = (value: SoknadInputs["behovForBistand"]["timer"]): string => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const rounded = Math.trunc(value);
+    const unit = rounded === 1 ? "time" : "timer";
+    return `${rounded} ${unit}`;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      return "—";
+    }
+    const numeric = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(numeric)) {
+      const unit = numeric === 1 ? "time" : "timer";
+      return `${numeric} ${unit}`;
+    }
+    return trimmed;
+  }
+
+  return "—";
+};
+
 const formatDate = (value: SoknadInputs["behovForBistand"]["startdato"]): string => {
   const parsed = parseIsoDate(value);
   return parsed ? parsed.toLocaleDateString("nb-NO") : "—";
@@ -151,9 +174,7 @@ export function SoknadSummary({
             <FormSummary.Value>{formatValue(behovForBistand.begrunnelse)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
-            <FormSummary.Label>
-              Hva vil dere har hjelp til fra eksperten, og hvor mange timer tror dere at det vil ta?
-            </FormSummary.Label>
+            <FormSummary.Label>Hva vil dere ha hjelp til fra eksperten?</FormSummary.Label>
             <FormSummary.Value>{formatValue(behovForBistand.behov)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
@@ -161,6 +182,10 @@ export function SoknadSummary({
               Hvilke tiltak for tilrettelegging har dere allerede gjort, vurdert eller forsøkt?
             </FormSummary.Label>
             <FormSummary.Value>{formatValue(behovForBistand.tilrettelegging)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>Hvor mange timer skal eksperten hjelpe dere?</FormSummary.Label>
+            <FormSummary.Value>{formatTimer(behovForBistand.timer)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Estimert kostnad for ekspertbistand</FormSummary.Label>

@@ -1,9 +1,12 @@
-import { parseErrorMessage } from "./http";
+import { HttpError, parseErrorMessage } from "./http";
 
 async function handleResponse<T>(response: Response): Promise<T | null> {
   if (!response.ok) {
     const message = await parseErrorMessage(response);
-    throw new Error(message ?? `Kunne ikke hente data (${response.status}).`);
+    throw new HttpError(message ?? `Kunne ikke hente data (${response.status}).`, {
+      status: response.status,
+      statusText: response.statusText,
+    });
   }
 
   if (response.status === 204) {

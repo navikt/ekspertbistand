@@ -187,6 +187,21 @@ const toEstimertKostnadNumber = (
   return Math.min(MAX_ESTIMERT_KOSTNAD, Math.max(MIN_ESTIMERT_KOSTNAD, rounded));
 };
 
+const toTimerNumber = (value: SoknadInputs["behovForBistand"]["timer"]): number => {
+  const numeric =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseInt(value.trim(), 10)
+        : Number.NaN;
+
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(numeric));
+};
+
 const toStartdatoString = (value: SoknadInputs["behovForBistand"]["startdato"]): string =>
   ensureIsoDateString(typeof value === "string" ? value : null);
 
@@ -200,6 +215,7 @@ const toUtkastDto = (entry: MockSkjema) => {
     ekspert: deepCopy(data.ekspert),
     behovForBistand: {
       ...deepCopy(data.behovForBistand),
+      timer: toTimerNumber(data.behovForBistand.timer),
       estimertKostnad: toEstimertKostnadNumber(data.behovForBistand.estimertKostnad),
       startdato: toStartdatoString(data.behovForBistand.startdato),
     },
@@ -219,6 +235,7 @@ const toSkjemaDto = (entry: MockSkjema) => {
     ekspert: deepCopy(data.ekspert),
     behovForBistand: {
       ...deepCopy(data.behovForBistand),
+      timer: toTimerNumber(data.behovForBistand.timer),
       estimertKostnad: toEstimertKostnadNumber(data.behovForBistand.estimertKostnad),
       startdato: toStartdatoString(data.behovForBistand.startdato),
     },

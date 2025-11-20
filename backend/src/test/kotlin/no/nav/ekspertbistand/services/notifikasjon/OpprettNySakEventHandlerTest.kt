@@ -130,6 +130,7 @@ private val skjema1 = DTO.Skjema(
         behov = "Tilrettelegging",
         begrunnelse = "Tilrettelegging på arbeidsplassen",
         estimertKostnad = 4200,
+        timer = 16,
         tilrettelegging = "Spesialtilpasset kontor",
         startdato = LocalDate.parse("2024-11-15")
     ),

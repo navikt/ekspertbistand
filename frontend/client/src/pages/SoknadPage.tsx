@@ -21,10 +21,11 @@ import {
 import DecoratedPage from "../components/DecoratedPage";
 import { FormErrorSummary } from "../components/FormErrorSummary";
 import { ApplicationPictogram } from "../components/ApplicationPictogram";
-import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
+import { EKSPERTBISTAND_API_PATH, LOGIN_URL } from "../utils/constants";
 import { useErrorFocus } from "../hooks/useErrorFocus";
 import useSWRMutation from "swr/mutation";
 import { fetchJson } from "../utils/api";
+import { resolveApiError, type ApiErrorInfo } from "../utils/http";
 
 const introSchema = z.object({
   bekreftRiktige: z
@@ -43,7 +44,7 @@ const INTRO_FIELD_PATHS = ["bekreftRiktige", "bekreftSamraad"] as const satisfie
 
 export default function SoknadPage() {
   const navigate = useNavigate();
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<ApiErrorInfo | null>(null);
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
   const { trigger: createDraft, isMutating: creating } = useSWRMutation<
     { id?: string } | null,
@@ -73,8 +74,7 @@ export default function SoknadPage() {
       }
       navigate(`/skjema/${id}/steg-1`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Kunne ikke starte søknaden.";
-      setApiError(message);
+      setApiError(resolveApiError(error, "Kunne ikke starte søknaden."));
       bumpFocusKey();
     }
   };
@@ -199,13 +199,26 @@ export default function SoknadPage() {
                 focusKey={errorFocusKey}
                 extraItems={
                   apiError
-                    ? [{ id: "start-soknad-feil", message: apiError, href: "#start-soknad-feil" }]
+                    ? [
+                        {
+                          id: "start-soknad-feil",
+                          message: apiError.message,
+                          href: "#start-soknad-feil",
+                        },
+                      ]
                     : undefined
                 }
               />
               {apiError ? (
                 <Alert variant="error" inline>
-                  {apiError}
+                  <VStack gap="3">
+                    <BodyLong>{apiError.message}</BodyLong>
+                    {apiError.requiresLogin ? (
+                      <Button as="a" href={LOGIN_URL} size="small" variant="primary">
+                        Logg inn
+                      </Button>
+                    ) : null}
+                  </VStack>
                 </Alert>
               ) : null}
               <Button

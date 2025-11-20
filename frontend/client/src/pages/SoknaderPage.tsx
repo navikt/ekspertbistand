@@ -1,15 +1,15 @@
 import { type JSX } from "react";
 import { Link as RouterLink } from "react-router-dom";
-import { Alert, BodyShort, Box, Heading, Loader, Tag, VStack } from "@navikt/ds-react";
+import { Alert, BodyShort, Box, Button, Heading, Loader, Tag, VStack } from "@navikt/ds-react";
 import { LinkCard } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { ApplicationPictogram } from "../components/ApplicationPictogram";
-import { MIN_SIDE_URL } from "../utils/constants";
+import { LOGIN_URL, MIN_SIDE_URL } from "../utils/constants";
 import { BackLink } from "../components/BackLink";
 import { useSoknader } from "../hooks/useSoknader.ts";
 
 export default function SoknaderPage() {
-  const { soknader, error, loading } = useSoknader();
+  const { soknader, error, loading, requiresLogin } = useSoknader();
 
   let content: JSX.Element | null;
   if (loading) {
@@ -21,7 +21,14 @@ export default function SoknaderPage() {
   } else if (error) {
     content = (
       <Alert variant="error" className="home-page__alert">
-        {error}
+        <VStack gap="4">
+          <BodyShort>{error}</BodyShort>
+          {requiresLogin ? (
+            <Button as="a" href={LOGIN_URL} variant="primary">
+              Logg inn
+            </Button>
+          ) : null}
+        </VStack>
       </Alert>
     );
   } else if (soknader.length === 0) {
