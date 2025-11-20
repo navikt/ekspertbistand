@@ -23,7 +23,6 @@ import no.nav.ekspertbistand.services.pdl.graphql.generated.hentperson.Person
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
 class PdlApiKlientTest {
@@ -111,15 +110,9 @@ class PdlApiKlientTest {
 
 
 private fun ApplicationTestBuilder.setupTestApplication() {
-    val client = createClient {
-        install(ClientContentNegotiation) {
-            json()
-        }
-    }
-    val db = TestDatabase().cleanMigrate()
     application {
         dependencies {
-            provide<TokenIntrospector> {
+            provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
                 MockTokenIntrospector {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }

@@ -1,7 +1,5 @@
 package no.nav.ekspertbistand.services
 
-import io.ktor.server.application.Application
-import io.ktor.server.plugins.di.dependencies
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import org.jetbrains.exposed.v1.core.and
@@ -48,11 +46,4 @@ object IdempotencyGuardRecords : CompositeIdTable("idempotency_guard_records") {
 enum class IdempotencyStatus {
     COMPLETED,
     NOT_COMPLETED;
-}
-
-
-suspend fun Application.configureIdempotencyGuard() {
-    val database = dependencies.resolve<Database>()
-    val idempotencyGuard = IdempotencyGuard(database)
-    dependencies.provide<IdempotencyGuard> { idempotencyGuard }
 }

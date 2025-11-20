@@ -1,18 +1,9 @@
 package no.nav.ekspertbistand.services.notifikasjon
 
-import io.ktor.client.*
-import io.ktor.client.plugins.*
-import io.ktor.server.application.*
-import io.ktor.server.plugins.di.*
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
-import no.nav.ekspertbistand.infrastruktur.AuthClient
-import no.nav.ekspertbistand.infrastruktur.IdentityProvider
-import no.nav.ekspertbistand.infrastruktur.TexasAuthConfig
-import no.nav.ekspertbistand.infrastruktur.TokenProvider
-import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.skjema.DTO
 
@@ -77,25 +68,4 @@ class OpprettNySakEventHandler(
 private fun String.tilFødselsdato(): String {
     if (length != 11) throw IllegalArgumentException("Fødselsnummer må være eksakt 11 tegn langt")
     return "${substring(0, 2)}.${substring(2, 4)}.${substring(4, 6)}"
-}
-
-suspend fun Application.configureOpprettNySakEventHandler(
-    httpClient: HttpClient = defaultHttpClient(customizeMetrics = {
-        clientName = "notifikasjon.produsent.api.klient"
-    }) {
-        install(HttpTimeout) {
-            requestTimeoutMillis = 5_000
-        }
-    },
-) {
-    val idempotencyGuard = dependencies.resolve<IdempotencyGuard>()
-    val tokenProvider = dependencies.resolve<TokenProvider>()
-    val produsentApiKlient = ProdusentApiKlient(tokenProvider, httpClient)
-
-    dependencies.provide<OpprettNySakEventHandler> {
-        OpprettNySakEventHandler(
-            produsentApiKlient = produsentApiKlient,
-            idempotencyGuard = idempotencyGuard
-        )
-    }
 }

@@ -29,7 +29,8 @@ import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybe
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedVellykket
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.*
 import no.nav.ekspertbistand.skjema.DTO
-import java.util.UUID
+import org.jetbrains.exposed.v1.jdbc.Database
+import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
@@ -149,13 +150,12 @@ private fun ApplicationTestBuilder.setupTestApplication() {
     val db = TestDatabase().cleanMigrate()
     application {
         dependencies {
-            provide { db.config }
-            provide<TokenIntrospector> {
+            provide { db.config.jdbcDatabase }
+            provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
                 MockTokenIntrospector {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
             }
-            provide<IdempotencyGuard>(IdempotencyGuard::class)
             provide<TokenProvider> {
                 object : TokenProvider {
                     override suspend fun token(target: String): TokenResponse {
@@ -166,10 +166,16 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                     }
                 }
             }
+            provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<TokenProvider>(), client) }
+            provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
+            provide<OpprettNySakEventHandler> {
+                OpprettNySakEventHandler(
+                    resolve<ProdusentApiKlient>(),
+                    resolve<IdempotencyGuard>()
+                )
+            }
         }
-        configureDatabase()
         configureTokenXAuth()
-        configureOpprettNySakEventHandler(client)
     }
 }
 

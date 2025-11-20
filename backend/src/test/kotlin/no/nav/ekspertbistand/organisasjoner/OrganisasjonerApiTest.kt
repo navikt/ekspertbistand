@@ -10,12 +10,14 @@ import io.ktor.server.testing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient.Companion.altinn3Ressursid
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
-import no.nav.ekspertbistand.configureBaseSetup
 import no.nav.ekspertbistand.configureOrganisasjonerApiV1
+import no.nav.ekspertbistand.configureServer
+import no.nav.ekspertbistand.infrastruktur.IdentityProvider
 import no.nav.ekspertbistand.infrastruktur.MockTokenIntrospector
 import no.nav.ekspertbistand.infrastruktur.TokenExchanger
 import no.nav.ekspertbistand.infrastruktur.TokenIntrospector
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
+import no.nav.ekspertbistand.infrastruktur.configureTokenXAuth
 import no.nav.ekspertbistand.infrastruktur.mockIntrospectionResponse
 import no.nav.ekspertbistand.infrastruktur.withPid
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
@@ -79,7 +81,7 @@ class OrganisasjonerApiTest {
 
         application {
             dependencies {
-                provide<TokenIntrospector> {
+                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
@@ -88,7 +90,8 @@ class OrganisasjonerApiTest {
                     altinnTilgangerClient
                 }
             }
-            configureBaseSetup()
+            configureServer()
+            configureTokenXAuth()
             configureOrganisasjonerApiV1()
         }
 

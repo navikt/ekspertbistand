@@ -160,7 +160,7 @@ data class TokenXPrincipal(
 const val TOKENX_PROVIDER = "TOKEN_X"
 
 suspend fun Application.configureTokenXAuth() {
-    val introspector = dependencies.resolve<TokenIntrospector>()
+    val introspector = dependencies.resolve<TokenIntrospector>(IdentityProvider.TOKEN_X.alias)
 
     install(Authentication) {
         bearer(TOKENX_PROVIDER) {
