@@ -6,6 +6,8 @@ import { buildDraftPayload, draftDtoToInputs, type DraftDto } from "../features/
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { fetchJson } from "../utils/api";
 import { SoknadDraftContext, type SoknadDraftContextValue } from "../context/SoknadDraftContext";
+import UgyldigSkjemaPage from "../pages/UgyldigSkjemaPage";
+import { HttpError } from "../utils/http";
 
 const mergeSnapshotIntoDraftDto = (
   snapshot: SoknadInputs,
@@ -31,7 +33,7 @@ export function SoknadDraftProvider({
   children: ReactNode;
 }) {
   const draftUrl = `${EKSPERTBISTAND_API_PATH}/${draftId}`;
-  const { data: draftDto, isLoading } = useSWR<DraftDto | null>(draftUrl);
+  const { data: draftDto, error, isLoading } = useSWR<DraftDto | null, Error>(draftUrl);
 
   const { trigger: persistDraft } = useSWRMutation<DraftDto | null, Error, string, SoknadInputs>(
     draftUrl,
@@ -100,6 +102,10 @@ export function SoknadDraftProvider({
     }),
     [clearDraft, draft, draftId, hydrated, lastPersistedAt, saveDraft, status]
   );
+
+  if (error instanceof HttpError && (error.status === 400 || error.status === 404)) {
+    return <UgyldigSkjemaPage message={error.message} />;
+  }
 
   return <SoknadDraftContext.Provider value={value}>{children}</SoknadDraftContext.Provider>;
 }
