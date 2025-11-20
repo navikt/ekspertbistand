@@ -1,3 +1,9 @@
+CHANGED_FRONTEND_FILES="$(git diff --cached --name-only --diff-filter=ACM | grep '^frontend/' || true)"
+
+if [ -z "$CHANGED_FRONTEND_FILES" ]; then
+  exit 0
+fi
+
 echo "🔍 Running typecheck..."
 pnpm typecheck
 
