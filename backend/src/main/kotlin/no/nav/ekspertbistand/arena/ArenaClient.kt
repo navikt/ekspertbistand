@@ -12,9 +12,18 @@ import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 
 
-const val EKSPERTBISTAND_TILTAKSKODE = "EKSPERTBIST"
+const val EKSPERTBISTAND_TILTAKSKODE = "EKSPEBIST"
 
 /**
+ * løsningsbeskrivelse:
+ * https://confluence.adeo.no/spaces/TEAMARENA/pages/760709364/ARENA-11087+-+03+-+L%C3%B8sningsbeskrivelse
+ *
+ * openapi:
+ * https://arena-api-q2.dev-fss-pub.nais.io/v3/api-docs
+ *
+ * swagger:
+ * https://arena-api-q2.dev-fss-pub.nais.io/swagger-ui/index.html#/Tiltaksgjennomf%C3%B8ringer/opprettTiltaksgjennomfoering
+ *
  * use arena pub fss ingress: https://<app>.<dev|prod>-fss-pub.nais.io
  * https://doc.nais.io/workloads/explanations/migrating-to-gcp/#how-do-i-reach-an-application-found-on-premises-from-my-application-in-gcp
  */
@@ -31,7 +40,7 @@ class ArenaClient(
     companion object {
         val targetAudience = basedOnEnv(
             prod = "api://prod-fss.teamarenanais.arena-api/.default",
-            dev = "api://dev-fss.teamarenanais.arena-api-q2/.default", //TODO: hvilket q miljø skal vi bruke?
+            dev = "api://dev-fss.teamarenanais.arena-api-q2/.default",
             other = "api://mock.arena-api/.default",
         )
 
@@ -50,7 +59,12 @@ class ArenaClient(
     /**
      * Oppretter en tiltaksgjennomføring i Arena for Ekspertbistand
      * @return sakId for den opprettede tiltaksgjennomføringen
+     *
      * TODO: håndtere feil fra Arena API
+     * HttpStatusCode.InternalServerError -> retryable
+     * HttpStatusCode.BadRequest -> ikke retryable
+     * HttpStatusCode.Unauthorized -> ikke retryable
+     * HttpStatusCode.Forbidden -> ikke retryable
      */
     suspend fun opprettTiltaksgjennomfoering(data: OpprettEkspertbistand) =
         httpClient.post {
@@ -84,9 +98,11 @@ data class OpprettEkspertbistand(
     val arenaRequest
         get() = OpprettTiltaksgjennomfoeringRequest(
             bedriftsnummer = virksomhetsnummer,
-            behandlendeEnhetId = behandlendeEnhetId,
-            gjennomfoeringsperiode = Gjennomforingsperiode(periodeFom),
-            personIdent = ansattFnr,
+            tiltaksgjennomfoering = Tiltaksgjennomfoering(
+                behandlendeEnhetId = behandlendeEnhetId,
+                gjennomfoeringsperiode = Gjennomforingsperiode(fom = periodeFom),
+                person = Person(ident = ansattFnr),
+            ),
             dokumentreferanse = Dokumentreferanse(
                 journalpostId = journalpostId,
                 dokumentId = dokumentId,
@@ -97,21 +113,29 @@ data class OpprettEkspertbistand(
 @Serializable
 data class OpprettTiltaksgjennomfoeringRequest(
     val bedriftsnummer: String,
-    val tiltakskode : String = EKSPERTBISTAND_TILTAKSKODE,
-    val behandlendeEnhetId : String,
-    val gjennomfoeringsperiode : Gjennomforingsperiode,
-    val personIdent : String,
+    val tiltaksgjennomfoering: Tiltaksgjennomfoering,
     val dokumentreferanse : Dokumentreferanse
 )
 @Serializable
-data class Dokumentreferanse(
-    val journalpostId: Int,
-    val dokumentId: Int,
+data class Tiltaksgjennomfoering(
+    val tiltaksvariant: String = EKSPERTBISTAND_TILTAKSKODE,
+    val behandlendeEnhetId : String,
+    val gjennomfoeringsperiode : Gjennomforingsperiode,
+    val person: Person,
 )
 @Serializable
 data class Gjennomforingsperiode(
     val fom: LocalDate,
     val tom: LocalDate? = null,
+)
+@Serializable
+data class Person(
+    val ident: String,
+)
+@Serializable
+data class Dokumentreferanse(
+    val journalpostId: Int,
+    val dokumentId: Int,
 )
 
 @Serializable

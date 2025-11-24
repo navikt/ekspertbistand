@@ -101,7 +101,7 @@ data class TilsagnsbrevKafkaMelding(
     val tilsagnData: TilsagnData,
 ) {
     val erEkspertbistand: Boolean
-        get() = tilsagnData.tiltakKode == "EKSPERTBIST"
+        get() = tilsagnData.tiltakKode == EKSPERTBISTAND_TILTAKSKODE
 }
 
 @Serializable

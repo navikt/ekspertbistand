@@ -10,6 +10,8 @@ import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
 import no.nav.ekspertbistand.mocks.mockTiltaksgjennomfoering
 import org.junit.jupiter.api.Test
+import org.skyscreamer.jsonassert.JSONAssert
+import org.skyscreamer.jsonassert.JSONCompareMode
 import kotlin.test.assertEquals
 
 class ArenaClientTest {
@@ -26,18 +28,41 @@ class ArenaClientTest {
             dokumentId = 11,
         )
 
+        val requestAssertions = mutableListOf<() -> Unit>()
         mockTiltaksgjennomfoering(responseProvider = {
-            with(it) {
-                assertEquals(opprettEkspertbistand.behandlendeEnhetId, behandlendeEnhetId)
-                assertEquals(opprettEkspertbistand.virksomhetsnummer, bedriftsnummer)
-                assertEquals(opprettEkspertbistand.ansattFnr, personIdent)
-                assertEquals(EKSPERTBISTAND_TILTAKSKODE, tiltakskode)
-                assertEquals(opprettEkspertbistand.periodeFom, gjennomfoeringsperiode.fom)
-                assertEquals(null, gjennomfoeringsperiode.tom)
-                assertEquals(opprettEkspertbistand.journalpostId, dokumentreferanse.journalpostId)
-                assertEquals(opprettEkspertbistand.dokumentId, dokumentreferanse.dokumentId)
+            requestAssertions.add {
+                JSONAssert.assertEquals(
+                    """
+                    {
+                      "bedriftsnummer": "${opprettEkspertbistand.virksomhetsnummer}",
+                      "tiltaksgjennomfoering": {
+                        "tiltaksvariant": "EKSPEBIST",
+                        "behandlendeEnhetId": "${opprettEkspertbistand.behandlendeEnhetId}",
+                        "gjennomfoeringsperiode": {
+                          "fom": "${opprettEkspertbistand.periodeFom}",
+                          "tom": null
+                        },
+                        "person": {
+                          "ident": "${opprettEkspertbistand.ansattFnr}"
+                        }
+                      },
+                      "dokumentreferanse": {
+                        "journalpostId": ${opprettEkspertbistand.journalpostId},
+                        "dokumentId": ${opprettEkspertbistand.dokumentId}
+                      }
+                    }
+                    """,
+                    it,
+                    JSONCompareMode.STRICT
+                )
             }
-            OpprettTiltaksgjennomfoeringResponse(saksnummer)
+
+            // language=JSON
+            """
+            {
+                "saksnummer": "$saksnummer"
+            }    
+            """
         })
         client = createClient {
             install(ContentNegotiation) {
@@ -49,6 +74,7 @@ class ArenaClientTest {
             httpClient = client
         )
         arenaClient.opprettTiltaksgjennomfoering(opprettEkspertbistand).let {
+            requestAssertions.forEach { aserrtion -> aserrtion() } // run assertions on the request payload
             assertEquals(saksnummer, it.saksnummer)
             assertEquals(2025, it.aar)
             assertEquals(42, it.loepenrSak)

@@ -59,4 +59,7 @@ spec:
           namespace: fager
         - application: arbeidsgiver-altinn-tilganger
           namespace: fager
+        - application: arena-api-q2
+          namespace: teamarenanais
+          cluster: dev-fss
 

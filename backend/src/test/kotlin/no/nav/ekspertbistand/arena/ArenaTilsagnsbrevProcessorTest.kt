@@ -49,7 +49,7 @@ class ArenaTilsagnsbrevProcessorTest {
     }
 
     @Test
-    fun `eksempelmelding for tiltak som er EKSPERTBIST og opprettet av oss skal behandles`() = runTest {
+    fun `eksempelmelding for tiltak som er EKSPEBIST og opprettet av oss skal behandles`() = runTest {
         val saksnummmer = "2019319383" // fra eksempelmelding
         val skalOpprettes = mutableListOf<TilsagnsbrevKafkaMelding>()
 
