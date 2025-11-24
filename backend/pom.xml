@@ -210,6 +210,17 @@
         </dependency>
 
         <dependency>
+            <groupId>com.expediagroup</groupId>
+            <artifactId>graphql-kotlin-ktor-client</artifactId>
+            <version>${graphql-kotlin.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.expediagroup</groupId>
+            <artifactId>graphql-kotlin-client-serialization</artifactId>
+            <version>${graphql-kotlin.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>io.ktor</groupId>
             <artifactId>ktor-server-test-host-jvm</artifactId>
             <version>${ktor.version}</version>
@@ -232,17 +243,6 @@
             <artifactId>kotlinx-coroutines-debug</artifactId>
             <version>${kotlinx.coroutines.version}</version>
             <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.expediagroup</groupId>
-            <artifactId>graphql-kotlin-ktor-client</artifactId>
-            <version>${graphql-kotlin.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.expediagroup</groupId>
-            <artifactId>graphql-kotlin-client-serialization</artifactId>
-            <version>${graphql-kotlin.version}</version>
         </dependency>
         <dependency>
             <groupId>org.skyscreamer</groupId>
