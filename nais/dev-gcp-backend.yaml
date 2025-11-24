@@ -52,7 +52,6 @@ spec:
     outbound:
       external:
         - host: pdl-api.dev-fss-pub.nais.io
-        - host: norg2.dev-fss-pub.nais.io
       rules:
         - application: logging
           namespace: nais-system
@@ -60,6 +59,8 @@ spec:
           namespace: fager
         - application: arbeidsgiver-altinn-tilganger
           namespace: fager
+        - application: norg2
+          namespace: org
         - application: arena-api-q2
           namespace: teamarenanais
           cluster: dev-fss

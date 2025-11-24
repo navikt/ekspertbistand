@@ -28,10 +28,7 @@ class NorgKlient(
 
 
     companion object {
-        val baseUrl = basedOnEnv(
-            prod = { "https://norg2.prod-fss-pub.nais.io" },
-            other = { "https://norg2.dev-fss-pub.nais.io" },
-        )
+        const val baseUrl = "http://norg2.org"
 
         // TODO: Skal denne brukes dersom vi får tom liste fra Norg?
         private const val OSLO_ARBEIDSLIVSENTER_KODE = "0391"
