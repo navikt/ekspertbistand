@@ -53,7 +53,7 @@ class ArenaClient(
         /**
          * TODO: get correct path when API is defined by team arena
          */
-        const val API_PATH = "/api/v1/tiltaksgjennomfoering/opprett"
+        const val API_PATH = "/api/v1/tiltaksgjennomfoering"
     }
 
     /**
