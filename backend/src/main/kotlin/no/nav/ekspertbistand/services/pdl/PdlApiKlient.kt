@@ -5,7 +5,6 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.server.application.Application
 import no.nav.ekspertbistand.infrastruktur.TokenExchanger
-import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.services.pdl.graphql.generated.HentGeografiskTilknytning
 import no.nav.ekspertbistand.services.pdl.graphql.generated.HentPerson
