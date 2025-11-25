@@ -53,8 +53,8 @@ class NorgKlient(
     companion object {
         const val baseUrl = "http://norg2.org"
 
-        private const val DISKRESJONSKODE_ANY = "ANY"
-        private const val DISKRESJONSKODE_ADRESSEBESKYTTET = "SPSF"
+        const val DISKRESJONSKODE_ANY = "ANY"
+        const val DISKRESJONSKODE_ADRESSEBESKYTTET = "SPSF"
     }
 }
 
@@ -67,7 +67,7 @@ data class Norg2Enhet(
 )
 
 @Serializable
-private data class Norg2Request(
+data class Norg2Request(
     val geografiskOmraade: String,
     val diskresjonskode: String,
 ) {

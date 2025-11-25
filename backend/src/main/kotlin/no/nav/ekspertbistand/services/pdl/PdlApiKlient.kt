@@ -3,7 +3,6 @@ package no.nav.ekspertbistand.services.pdl
 import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
 import io.ktor.client.*
 import io.ktor.client.request.*
-import io.ktor.server.application.Application
 import no.nav.ekspertbistand.infrastruktur.TokenExchanger
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.services.pdl.graphql.generated.HentGeografiskTilknytning
@@ -89,8 +88,3 @@ class PdlApiKlient(
 }
 
 class PdlClientException(message: String) : Exception(message)
-
-
-fun Application.configurePdlKlient() {
-
-}
