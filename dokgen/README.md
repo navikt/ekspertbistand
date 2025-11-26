@@ -10,5 +10,5 @@ Oppsettet for tjenesten er hentet fra [navikt/dokgen](https://github.com/navikt/
 ### Kjør lokalt
 
 ```
-docker build -t permittering-dokgen . && docker run --rm -it -p 8080:8080 -e SPRING_PROFILES_ACTIVE=dev permittering-dokgen
+docker build -t ekspertbistand-dokgen . && docker run --rm -it -p 9000:8080 -e SPRING_PROFILES_ACTIVE=dev ekspertbistand-dokgen
 ```
