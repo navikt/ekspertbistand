@@ -10,6 +10,8 @@ import io.ktor.server.plugins.di.*
 import io.ktor.server.plugins.di.resolve
 import io.ktor.utils.io.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.ereg.EregClient
+import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
@@ -38,6 +40,17 @@ fun main() {
             json()
         }
     }
+    val mockEregServer = HttpClient(MockEngine {
+        respond(
+            content = ByteReadChannel(eregResponse),
+            status = HttpStatusCode.OK,
+            headers = headersOf(HttpHeaders.ContentType, "application/json")
+        )
+    }) {
+        install(ContentNegotiation) {
+            json()
+        }
+    }
     val mockAltinnTilgangerClient = AltinnTilgangerClient(
         httpClient = mockAltinnTilgangerServer,
         authClient = object : TokenExchanger {
@@ -47,6 +60,7 @@ fun main() {
             ): TokenResponse = TokenResponse.Success("dummy", 3600)
         }
     )
+    val mockEregClient = EregClient(httpClient = mockEregServer)
 
     testDb.cleanMigrate()
     transaction(testDb.config.jdbcDatabase) {
@@ -66,8 +80,8 @@ fun main() {
             it[ekspertKompetanse] = "Ergoterapeut, autorisasjon HPR 1337"
             it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
             it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
-            it[behovForBistandEstimertKostnad] = 9999
-            it[behovForBistandTimer] = 16
+            it[behovForBistandEstimertKostnad] = "9999"
+            it[behovForBistandTimer] = "16"
             it[behovForBistandTilrettelegging] = "Høydejustert bord testet, noe bedring"
             it[behovForBistandStartdato] = CurrentDate
 
@@ -89,8 +103,8 @@ fun main() {
             it[ekspertKompetanse] = "Ergoterapeut, autorisasjon HPR 1337"
             it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
             it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
-            it[behovForBistandEstimertKostnad] = 9999
-            it[behovForBistandTimer] = 16
+            it[behovForBistandEstimertKostnad] = "9999"
+            it[behovForBistandTimer] = "16"
             it[behovForBistandTilrettelegging] = "Høydejustert bord testet, noe bedring"
             it[behovForBistandStartdato] = CurrentDate
 
@@ -121,6 +135,9 @@ fun main() {
             provide {
                 mockAltinnTilgangerClient
             }
+            provide {
+                mockEregClient
+            }
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
                 ProdusentApiKlient(
@@ -141,6 +158,7 @@ fun main() {
         // application modules
         configureSkjemaApiV1()
         configureOrganisasjonerApiV1()
+        configureEregApiV1()
 
         // event manager and event handlers
         configureEventHandlers()
@@ -150,6 +168,21 @@ fun main() {
         registerShutdownListener()
     }
 }
+
+// language=JSON
+const val eregResponse = """{
+  "organisasjonsnummer": "123456780",
+  "navn": { "sammensattnavn": "Eksempel Bedrift AS Avd. Oslo" },
+  "organisasjonDetaljer": {
+    "forretningsadresser": [
+      {
+        "adresselinje1": "Testveien 1",
+        "postnummer": "0557",
+        "poststed": "Oslo"
+      }
+    ]
+  }
+}"""
 
 // language=JSON
 const val altinnTilgangerResponse = """{

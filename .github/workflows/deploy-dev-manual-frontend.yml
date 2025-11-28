@@ -75,7 +75,7 @@ jobs:
         uses: nais/docker-build-push@v0
         with:
           team: fager
-          image_suffix: -frontend
+          image_suffix: frontend
           tag: ${{ github.sha }}
           docker_context: .
           dockerfile: Dockerfile

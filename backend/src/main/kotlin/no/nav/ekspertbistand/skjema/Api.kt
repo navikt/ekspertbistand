@@ -277,6 +277,7 @@ class SkjemaApi(
             log.info("Slettet $it gamle utkast eldre enn $ttl")
         }
     }
+
 }
 
 sealed interface DTO {
@@ -339,8 +340,8 @@ sealed interface DTO {
     data class BehovForBistand(
         val begrunnelse: String,
         val behov: String,
-        val estimertKostnad: Int,
-        val timer: Int,
+        val estimertKostnad: String,
+        val timer: String,
         val tilrettelegging: String,
         val startdato: LocalDate,
     )

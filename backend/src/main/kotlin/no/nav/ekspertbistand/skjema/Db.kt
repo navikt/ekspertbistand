@@ -37,8 +37,8 @@ object SkjemaTable : Table("skjema") {
     // Behov for bistand
     val behovForBistandBegrunnelse = text("behov_for_bistand_begrunnelse")
     val behovForBistand = text("behov_for_bistand")
-    val behovForBistandEstimertKostnad = integer("behov_for_bistand_estimert_kostnad")
-    val behovForBistandTimer = integer("behov_for_bistand_timer")
+    val behovForBistandEstimertKostnad = text("behov_for_bistand_estimert_kostnad")
+    val behovForBistandTimer = text("behov_for_bistand_timer")
     val behovForBistandTilrettelegging = text("behov_for_bistand_tilrettelegging")
     val behovForBistandStartdato = date("behov_for_bistand_startdato")
 
@@ -75,8 +75,8 @@ object UtkastTable : UUIDTable("utkast") {
     // Behov for bistand
     val behovForBistandBegrunnelse = text("behov_for_bistand_begrunnelse").nullable()
     val behovForBistand = text("behov_for_bistand").nullable()
-    val behovForBistandEstimertKostnad = integer("behov_for_bistand_estimert_kostnad").nullable()
-    val behovForBistandTimer = integer("behov_for_bistand_timer").nullable()
+    val behovForBistandEstimertKostnad = text("behov_for_bistand_estimert_kostnad").nullable()
+    val behovForBistandTimer = text("behov_for_bistand_timer").nullable()
     val behovForBistandTilrettelegging = text("behov_for_bistand_tilrettelegging").nullable()
     val behovForBistandStartdato = date("behov_for_bistand_startdato").nullable()
 
@@ -164,8 +164,8 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
     behovForBistand = DTO.BehovForBistand(
         begrunnelse = this[UtkastTable.behovForBistandBegrunnelse] ?: "",
         behov = this[UtkastTable.behovForBistand] ?: "",
-        estimertKostnad = this[UtkastTable.behovForBistandEstimertKostnad] ?: 0,
-        timer = this[UtkastTable.behovForBistandTimer] ?: 0,
+        estimertKostnad = this[UtkastTable.behovForBistandEstimertKostnad] ?: "0",
+        timer = this[UtkastTable.behovForBistandTimer] ?: "0",
         tilrettelegging = this[UtkastTable.behovForBistandTilrettelegging] ?: "",
         startdato = this[UtkastTable.behovForBistandStartdato] ?: LocalDate.today(),
 

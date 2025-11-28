@@ -1,12 +1,21 @@
 import { useCallback, useState } from "react";
+import type React from "react";
 import { ArrowLeftIcon, PaperplaneIcon } from "@navikt/aksel-icons";
-import { Alert, BodyLong, Box, Button, Heading, HGrid, VStack } from "@navikt/ds-react";
+import {
+  Alert,
+  BodyLong,
+  Box,
+  Button,
+  FormSummary,
+  Heading,
+  HGrid,
+  VStack,
+} from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { soknadSchema } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { buildSkjemaPayload } from "../features/soknad/payload";
-import { SoknadSummary } from "../components/SoknadSummary";
 import { EKSPERTBISTAND_API_PATH, LOGIN_URL } from "../utils/constants";
 import { BackLink } from "../components/BackLink";
 import useSWRMutation from "swr/mutation";
@@ -16,6 +25,159 @@ import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useNavigate } from "react-router-dom";
 import { resolveApiError, type ApiErrorInfo } from "../utils/http";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
+import {
+  formatCurrency,
+  formatDate,
+  formatTimer,
+  formatValue,
+} from "../components/summaryFormatters";
+import type { SoknadInputs } from "../features/soknad/schema";
+import { FormSummaryAnswer } from "@navikt/ds-react/FormSummary";
+
+type SoknadSummaryProps = {
+  data: SoknadInputs;
+  editable?: boolean;
+  onEditStep1?: React.MouseEventHandler<HTMLAnchorElement>;
+  onEditStep2?: React.MouseEventHandler<HTMLAnchorElement>;
+};
+
+function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: SoknadSummaryProps) {
+  const { virksomhet, ansatt, ekspert, behovForBistand, nav } = data;
+
+  return (
+    <>
+      <FormSummary>
+        <FormSummary.Header>
+          <FormSummary.Heading level="2">Deltakere</FormSummary.Heading>
+        </FormSummary.Header>
+        <FormSummary.Answers>
+          <FormSummary.Answer>
+            <FormSummary.Label>Navn på virksomhet</FormSummary.Label>
+            <FormSummary.Value>{formatValue(virksomhet.navn)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>Organisasjonsnummer</FormSummary.Label>
+            <FormSummary.Value>{formatValue(virksomhet.virksomhetsnummer)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummaryAnswer>
+            <FormSummary.Label>Kontaktperson i virksomheten</FormSummary.Label>
+            <FormSummary.Value>
+              <FormSummary.Answers>
+                <FormSummary.Answer>
+                  <FormSummary.Label>Navn</FormSummary.Label>
+                  <FormSummary.Value>
+                    {formatValue(virksomhet.kontaktperson.navn)}
+                  </FormSummary.Value>
+                </FormSummary.Answer>
+                <FormSummary.Answer>
+                  <FormSummary.Label>E-post</FormSummary.Label>
+                  <FormSummary.Value>
+                    {formatValue(virksomhet.kontaktperson.epost)}
+                  </FormSummary.Value>
+                </FormSummary.Answer>
+                <FormSummary.Answer>
+                  <FormSummary.Label>Telefonnummer</FormSummary.Label>
+                  <FormSummary.Value>
+                    {formatValue(virksomhet.kontaktperson.telefonnummer)}
+                  </FormSummary.Value>
+                </FormSummary.Answer>
+              </FormSummary.Answers>
+            </FormSummary.Value>
+          </FormSummaryAnswer>
+
+          <FormSummaryAnswer>
+            <FormSummary.Label>Ansatt</FormSummary.Label>
+            <FormSummary.Value>
+              <FormSummary.Answers>
+                <FormSummary.Answer>
+                  <FormSummary.Label>Navn</FormSummary.Label>
+                  <FormSummary.Value>{formatValue(ansatt.navn)}</FormSummary.Value>
+                </FormSummary.Answer>
+                <FormSummary.Answer>
+                  <FormSummary.Label>Fødselsnummer</FormSummary.Label>
+                  <FormSummary.Value>{formatValue(ansatt.fnr)}</FormSummary.Value>
+                </FormSummary.Answer>
+              </FormSummary.Answers>
+            </FormSummary.Value>
+          </FormSummaryAnswer>
+
+          <FormSummaryAnswer>
+            <FormSummary.Label>Ekspert</FormSummary.Label>
+            <FormSummary.Value>
+              <FormSummary.Answers>
+                <FormSummary.Answer>
+                  <FormSummary.Label>Navn</FormSummary.Label>
+                  <FormSummary.Value>{formatValue(ekspert.navn)}</FormSummary.Value>
+                </FormSummary.Answer>
+                <FormSummary.Answer>
+                  <FormSummary.Label>Tilknyttet virksomhet</FormSummary.Label>
+                  <FormSummary.Value>{formatValue(ekspert.virksomhet)}</FormSummary.Value>
+                </FormSummary.Answer>
+                <FormSummary.Answer>
+                  <FormSummary.Label>Kompetanse / autorisasjon</FormSummary.Label>
+                  <FormSummary.Value>{formatValue(ekspert.kompetanse)}</FormSummary.Value>
+                </FormSummary.Answer>
+              </FormSummary.Answers>
+            </FormSummary.Value>
+          </FormSummaryAnswer>
+        </FormSummary.Answers>
+        {editable && onEditStep1 && (
+          <FormSummary.Footer>
+            <FormSummary.EditLink href="#" onClick={onEditStep1} />
+          </FormSummary.Footer>
+        )}
+      </FormSummary>
+
+      <FormSummary>
+        <FormSummary.Header>
+          <FormSummary.Heading level="2">Behov for bistand</FormSummary.Heading>
+        </FormSummary.Header>
+        <FormSummary.Answers>
+          <FormSummary.Answer>
+            <FormSummary.Label>
+              Beskriv den ansattes arbeidssituasjon, sykefravær og hvorfor dere ser behov for
+              ekspertbistand
+            </FormSummary.Label>
+            <FormSummary.Value>{formatValue(behovForBistand.begrunnelse)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>Hva vil dere ha hjelp til fra eksperten?</FormSummary.Label>
+            <FormSummary.Value>{formatValue(behovForBistand.behov)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>
+              Hvilke tiltak for tilrettelegging har dere allerede gjort, vurdert eller forsøkt?
+            </FormSummary.Label>
+            <FormSummary.Value>{formatValue(behovForBistand.tilrettelegging)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>Hvor mange timer skal eksperten hjelpe dere?</FormSummary.Label>
+            <FormSummary.Value>{formatTimer(behovForBistand.timer)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>Estimert kostnad for ekspertbistand</FormSummary.Label>
+            <FormSummary.Value>{formatCurrency(behovForBistand.estimertKostnad)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>Startdato</FormSummary.Label>
+            <FormSummary.Value>{formatDate(behovForBistand.startdato)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>
+              Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?
+            </FormSummary.Label>
+            <FormSummary.Value>{formatValue(nav.kontaktperson)}</FormSummary.Value>
+          </FormSummary.Answer>
+        </FormSummary.Answers>
+        {editable && onEditStep2 && (
+          <FormSummary.Footer>
+            <FormSummary.EditLink href="#" onClick={onEditStep2} />
+          </FormSummary.Footer>
+        )}
+      </FormSummary>
+    </>
+  );
+}
 
 export default function OppsummeringPage() {
   const navigate = useNavigate();

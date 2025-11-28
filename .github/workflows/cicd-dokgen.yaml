@@ -1,0 +1,36 @@
+name: CICD Dokgen
+on:
+  push:
+    paths:
+      - dokgen/**
+      - nais/dev-gcp-dokgen.yaml
+      - nais/prod-gcp-dokgen.yaml
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1' # bygg nytt image hver mandag morgen
+
+jobs:
+  compile-test-and-build:
+    name: Compile, build and deploy image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image: ${{ steps.docker-build-push.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: nais/docker-build-push@v0
+        id: docker-build-push
+        with:
+          team: fager
+          image_suffix: dokgen
+          tag: ${{ github.sha }}
+          dockerfile: dokgen/Dockerfile
+          docker_context: dokgen 
+          salsa: false

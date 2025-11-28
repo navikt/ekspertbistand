@@ -33,6 +33,8 @@ import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.services.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.ereg.EregClient
+import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import no.nav.ekspertbistand.skjema.subjectToken
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -59,6 +61,7 @@ fun main() {
             provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) { tokenxClient }
             provide<TokenProvider>(IdentityProvider.AZURE_AD.alias) { azureClient }
             provide { AltinnTilgangerClient(tokenxClient) }
+            provide { EregClient() }
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
                 ProdusentApiKlient(
@@ -83,6 +86,7 @@ fun main() {
         // configure application modules and endpoints
         configureSkjemaApiV1()
         configureOrganisasjonerApiV1()
+        configureEregApiV1()
 
         // event manager and event handlers
         configureEventHandlers()
@@ -202,5 +206,3 @@ fun Application.configureServer() {
         json()
     }
 }
-
-

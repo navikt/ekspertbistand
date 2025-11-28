@@ -241,8 +241,8 @@ class SkjemaTest {
                     it[behovForBistand] = ""
                     it[behovForBistandBegrunnelse] = ""
                     it[behovForBistandTilrettelegging] = ""
-                    it[behovForBistandEstimertKostnad] = 0
-                    it[behovForBistandTimer] = 0
+                    it[behovForBistandEstimertKostnad] = "0"
+                    it[behovForBistandTimer] = "0"
                     it[behovForBistandStartdato] = CurrentDate
                     it[navKontaktPerson] = ""
                 }
@@ -334,8 +334,8 @@ class SkjemaTest {
                         behovForBistand = DTO.BehovForBistand(
                             behov = "Tilrettelegging",
                             begrunnelse = "Tilrettelegging på arbeidsplassen",
-                            estimertKostnad = 4200,
-                            timer = 16,
+                            estimertKostnad = "4200",
+                            timer = "16",
                             tilrettelegging = "Spesialtilpasset kontor",
                             startdato = LocalDate.parse("2024-11-15")
                         ),
@@ -427,8 +427,8 @@ class SkjemaTest {
                 it[behovForBistand] = "skjema for org jeg har tilgang til"
                 it[behovForBistandTilrettelegging] = ""
                 it[behovForBistandBegrunnelse] = ""
-                it[behovForBistandEstimertKostnad] = 42
-                it[behovForBistandTimer] = 9
+                it[behovForBistandEstimertKostnad] = "42"
+                it[behovForBistandTimer] = "9"
                 it[behovForBistandStartdato] = CurrentDate
 
                 it[kontaktpersonNavn] = ""
@@ -450,8 +450,8 @@ class SkjemaTest {
                 it[behovForBistand] = "skjema for org jeg ikke har tilgang til"
                 it[behovForBistandTilrettelegging] = ""
                 it[behovForBistandBegrunnelse] = ""
-                it[behovForBistandEstimertKostnad] = 42
-                it[behovForBistandTimer] = 9
+                it[behovForBistandEstimertKostnad] = "42"
+                it[behovForBistandTimer] = "9"
                 it[behovForBistandStartdato] = CurrentDate
 
                 it[kontaktpersonNavn] = ""

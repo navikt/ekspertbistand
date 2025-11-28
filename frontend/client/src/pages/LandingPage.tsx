@@ -21,7 +21,7 @@ export default function LandingPage() {
           </VStack>
         </VStack>
 
-        <Button as="a" href={LOGIN_URL}>
+        <Button as="a" href={LOGIN_URL} className="button-align-start">
           Logg inn
         </Button>
 
