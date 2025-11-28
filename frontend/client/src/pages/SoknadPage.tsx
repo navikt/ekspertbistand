@@ -228,6 +228,7 @@ export default function SoknadPage() {
                 icon={<ArrowRightIcon aria-hidden />}
                 iconPosition="right"
                 loading={creating}
+                className="button-align-start"
               >
                 Start søknad
               </Button>
