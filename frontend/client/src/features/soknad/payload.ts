@@ -1,38 +1,17 @@
 import { z } from "zod";
-import {
-  MAX_ESTIMERT_KOSTNAD,
-  MIN_ESTIMERT_KOSTNAD,
-  createEmptyInputs,
-  type SoknadInputs,
-} from "./schema";
+import { createEmptyInputs, type SoknadInputs } from "./schema";
 import { draftDtoServerSchema, draftPayloadServerSchema } from "./server-schemas";
 import { ensureIsoDateString } from "../../utils/date";
-
-const normalizeEstimertKostnad = (
-  value: SoknadInputs["behovForBistand"]["estimertKostnad"]
-): number => {
-  const numeric = typeof value === "number" ? value : Number.parseInt(value.trim(), 10);
-
-  if (!Number.isFinite(numeric)) {
-    return MIN_ESTIMERT_KOSTNAD;
-  }
-
-  const rounded = Math.round(numeric);
-  return Math.min(MAX_ESTIMERT_KOSTNAD, Math.max(MIN_ESTIMERT_KOSTNAD, rounded));
-};
 
 const normalizeStartdato = (value: SoknadInputs["behovForBistand"]["startdato"]): string =>
   ensureIsoDateString(typeof value === "string" ? value : null);
 
-const normalizeTimer = (value: SoknadInputs["behovForBistand"]["timer"]): number => {
-  const numeric = typeof value === "number" ? value : Number.parseInt(value.trim(), 10);
+const normalizeTimer = (value: SoknadInputs["behovForBistand"]["timer"]): string =>
+  typeof value === "string" ? value.trim() : "";
 
-  if (!Number.isFinite(numeric)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.trunc(numeric));
-};
+const normalizeEstimertKostnad = (
+  value: SoknadInputs["behovForBistand"]["estimertKostnad"]
+): string => (typeof value === "string" ? value.trim() : "");
 
 const mapInputsToPayload = (inputs: SoknadInputs) => ({
   virksomhet: {
@@ -109,11 +88,8 @@ const draftDtoToInputsSchema = draftDtoServerSchema.transform((dto) => {
   if (dto.behovForBistand) {
     inputs.behovForBistand.begrunnelse = dto.behovForBistand.begrunnelse ?? "";
     inputs.behovForBistand.behov = dto.behovForBistand.behov ?? "";
-    const timer = dto.behovForBistand.timer;
-    inputs.behovForBistand.timer = typeof timer === "number" && Number.isFinite(timer) ? timer : "";
-    const kostnad = dto.behovForBistand.estimertKostnad;
-    inputs.behovForBistand.estimertKostnad =
-      typeof kostnad === "number" && Number.isFinite(kostnad) ? kostnad : "";
+    inputs.behovForBistand.timer = dto.behovForBistand.timer ?? "";
+    inputs.behovForBistand.estimertKostnad = dto.behovForBistand.estimertKostnad ?? "";
     inputs.behovForBistand.tilrettelegging = dto.behovForBistand.tilrettelegging ?? "";
     const startdato = dto.behovForBistand.startdato ?? "";
     inputs.behovForBistand.startdato = startdato.length > 0 ? startdato : null;

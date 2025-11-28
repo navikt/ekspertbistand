@@ -42,8 +42,8 @@
       "properties": {
         "begrunnelse": { "type": "string" },
         "behov": { "type": "string" },
-        "timer": { "type": "number" },
-        "estimertKostnad": { "type": "number" },
+        "timer": { "type": "string" },
+        "estimertKostnad": { "type": "string" },
         "tilrettelegging": { "type": "string" },
         "startdato": { "type": "string", "format": "date" }
       },
@@ -87,8 +87,8 @@
     "behovForBistand": {
       "begrunnelse": "Langvarig skulderplage med 50% sykefravær",
       "behov": "Arbeidsplassvurdering og ergonomisk veiledning",
-      "timer": 16,
-      "estimertKostnad": 9000,
+      "timer": "16",
+      "estimertKostnad": "9000",
       "tilrettelegging": "Høydejustert bord testet, noe bedring",
       "startdato": "2025-11-15"
     },

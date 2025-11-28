@@ -1,10 +1,5 @@
 import { http, HttpResponse } from "msw";
-import {
-  MAX_ESTIMERT_KOSTNAD,
-  MIN_ESTIMERT_KOSTNAD,
-  createEmptyInputs,
-  type SoknadInputs,
-} from "../features/soknad/schema";
+import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema";
 import { ensureIsoDateString } from "../utils/date";
 import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
@@ -38,6 +33,13 @@ const organisasjoner: Organisasjon[] = [
     underenheter: [],
   },
 ];
+
+const eregAdresser: Record<string, string> = {
+  "123456789": "Testveien 1, 0557 Oslo",
+  "987654321": "Eksempelveien 2, 7010 Trondheim",
+  "111222333": "Demogata 3, 5003 Bergen",
+  "444555666": "Mockveien 4, 2317 Hamar",
+};
 
 const DRAFT_CACHE_NAME = "mock-soknad-draft";
 const DRAFT_CACHE_URL = "/mock/soknad/draft";
@@ -169,37 +171,10 @@ const ensureSkjemaStoreLoaded = async () => {
   skjemaStoreLoaded = true;
 };
 
-const toEstimertKostnadNumber = (
-  value: SoknadInputs["behovForBistand"]["estimertKostnad"]
-): number => {
-  const numeric =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number.parseInt(value.trim(), 10)
-        : Number.NaN;
-
-  if (!Number.isFinite(numeric)) {
-    return MIN_ESTIMERT_KOSTNAD;
-  }
-
-  const rounded = Math.round(numeric);
-  return Math.min(MAX_ESTIMERT_KOSTNAD, Math.max(MIN_ESTIMERT_KOSTNAD, rounded));
-};
-
-const toTimerNumber = (value: SoknadInputs["behovForBistand"]["timer"]): number => {
-  const numeric =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number.parseInt(value.trim(), 10)
-        : Number.NaN;
-
-  if (!Number.isFinite(numeric)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.round(numeric));
+const toNumericString = (value: SoknadInputs["behovForBistand"]["timer"]): string => {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
 };
 
 const toStartdatoString = (value: SoknadInputs["behovForBistand"]["startdato"]): string =>
@@ -215,8 +190,8 @@ const toUtkastDto = (entry: MockSkjema) => {
     ekspert: deepCopy(data.ekspert),
     behovForBistand: {
       ...deepCopy(data.behovForBistand),
-      timer: toTimerNumber(data.behovForBistand.timer),
-      estimertKostnad: toEstimertKostnadNumber(data.behovForBistand.estimertKostnad),
+      timer: toNumericString(data.behovForBistand.timer),
+      estimertKostnad: toNumericString(data.behovForBistand.estimertKostnad),
       startdato: toStartdatoString(data.behovForBistand.startdato),
     },
     nav: deepCopy(data.nav),
@@ -235,8 +210,8 @@ const toSkjemaDto = (entry: MockSkjema) => {
     ekspert: deepCopy(data.ekspert),
     behovForBistand: {
       ...deepCopy(data.behovForBistand),
-      timer: toTimerNumber(data.behovForBistand.timer),
-      estimertKostnad: toEstimertKostnadNumber(data.behovForBistand.estimertKostnad),
+      timer: toNumericString(data.behovForBistand.timer),
+      estimertKostnad: toNumericString(data.behovForBistand.estimertKostnad),
       startdato: toStartdatoString(data.behovForBistand.startdato),
     },
     nav: deepCopy(data.nav),
@@ -274,6 +249,17 @@ export const handlers = [
   http.get("/ekspertbistand-backend/api/organisasjoner/v1", () =>
     HttpResponse.json({ hierarki: organisasjoner })
   ),
+  http.get("/api/ereg/:orgnr/adresse", ({ params }) => {
+    const orgnr = getParamValue(params.orgnr);
+    if (!orgnr || !/^\d{9}$/.test(orgnr)) {
+      return HttpResponse.json({ message: "ugyldig orgnr" }, { status: 400 });
+    }
+    const adresse = eregAdresser[orgnr];
+    if (!adresse) {
+      return HttpResponse.json({ message: "adresse ikke funnet" }, { status: 404 });
+    }
+    return HttpResponse.json({ adresse });
+  }),
   http.get("/api/soknad/draft", async () => {
     const currentDraft = await loadDraft();
     return HttpResponse.json(currentDraft);

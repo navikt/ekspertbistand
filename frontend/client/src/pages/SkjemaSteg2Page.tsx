@@ -89,13 +89,8 @@ export default function SkjemaSteg2Page() {
     setSelected(parsedStartdato);
   }, [parsedStartdato, selectedDay, setSelected]);
 
-  const timerReg = register("behovForBistand.timer", {
-    setValueAs: (value) => (value === "" || value === null ? "" : Number(value)),
-  });
-
-  const kostnadReg = register("behovForBistand.estimertKostnad", {
-    setValueAs: (value) => (value === "" || value === null ? "" : Number(value)),
-  });
+  const timerReg = register("behovForBistand.timer");
+  const kostnadReg = register("behovForBistand.estimertKostnad");
 
   const handleSubmitStep2 = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

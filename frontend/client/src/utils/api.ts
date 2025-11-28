@@ -1,8 +1,26 @@
+import { LOGIN_URL } from "./constants";
 import { HttpError, parseErrorMessage } from "./http";
 
+let loginRedirectTriggered = false;
+
+const redirectToLogin = () => {
+  if (typeof window === "undefined" || loginRedirectTriggered) return;
+  loginRedirectTriggered = true;
+  window.location.replace(LOGIN_URL);
+};
+
 async function handleResponse<T>(response: Response): Promise<T | null> {
+  const isUnauthorized = response.status === 401;
+
   if (!response.ok) {
-    const message = await parseErrorMessage(response);
+    if (isUnauthorized) {
+      redirectToLogin();
+    }
+
+    const message = isUnauthorized
+      ? "Du er logget ut. Vennligst logg inn igjen."
+      : await parseErrorMessage(response);
+
     throw new HttpError(message ?? `Kunne ikke hente data (${response.status}).`, {
       status: response.status,
       statusText: response.statusText,

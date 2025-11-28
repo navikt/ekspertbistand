@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Alert, BodyLong, Box, FormSummary, Heading, Loader, VStack } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
@@ -14,10 +14,6 @@ import {
   formatTimer,
   formatValue,
 } from "../components/summaryFormatters";
-
-type LocationState = {
-  submissionSuccess?: boolean;
-};
 
 type KvitteringMetadata = {
   status?: string | null;
@@ -161,8 +157,6 @@ function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummar
 
 export default function KvitteringPage() {
   const { id } = useParams<{ id: string }>();
-  const location = useLocation();
-  const locationState = (location.state as LocationState | null) ?? null;
   const {
     data: draft,
     error,
@@ -184,8 +178,6 @@ export default function KvitteringPage() {
       : "Kunne ikke hente søknaden akkurat nå."
     : null;
 
-  const showSuccessAlert = locationState?.submissionSuccess || metadata.status === "innsendt";
-
   const innsendtTekst = useMemo(() => {
     return formatDateTimePretty(metadata.innsendtTidspunkt);
   }, [metadata.innsendtTidspunkt]);
@@ -195,11 +187,9 @@ export default function KvitteringPage() {
       <VStack gap="8" data-aksel-template="receipt">
         <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
 
-        {showSuccessAlert && (
-          <Alert variant="success" role="status">
-            Du har sendt søknaden
-          </Alert>
-        )}
+        <Alert variant="success" role="status">
+          Du har sendt søknaden
+        </Alert>
 
         <VStack gap="2" align="center" style={{ textAlign: "center" }}>
           <Box.New background="neutral-moderate" padding="4">
@@ -207,9 +197,9 @@ export default function KvitteringPage() {
               Søknaden er sendt
             </Heading>
             <BodyLong>
-              Saksbehandlingen er i gang. Du kan følge søknaden din i oversikten. Vent med å ta
-              kontakt til du har mottatt svar. Se hva du har sendt inn under. Du får beskjed når
-              saken er ferdig behandlet.
+              Saksbehandlingstiden er vanligvis et par virkedager, og du kan følge saken her. Du får
+              beskjed på e-post når søknaden er behandlet. Vent med å ta tiltaket i bruk til du har
+              mottatt svar.
             </BodyLong>
           </Box.New>
         </VStack>
