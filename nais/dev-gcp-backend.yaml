@@ -61,9 +61,10 @@ spec:
           namespace: fager
         - application: arbeidsgiver-altinn-tilganger
           namespace: fager
+        - application: ekspertbistand-dokgen
+          namespace: fager
         - application: norg2
           namespace: org
         - application: arena-api-q2
           namespace: teamarenanais
           cluster: dev-fss
-

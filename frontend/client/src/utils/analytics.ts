@@ -2,7 +2,7 @@ import { getAnalyticsInstance } from "@navikt/nav-dekoratoren-moduler";
 import type { CustomEvents } from "../types/AnalyticCustomEvents";
 import { envSwitch } from "./env";
 
-const createProductionLogger = () => getAnalyticsInstance<CustomEvents>("permittering");
+const createProductionLogger = () => getAnalyticsInstance<CustomEvents>("ekspertbistand");
 type AnalyticsLogger = ReturnType<typeof createProductionLogger>;
 
 const mockGetAnalyticsInstance = (origin: string): AnalyticsLogger => {
@@ -15,5 +15,5 @@ const mockGetAnalyticsInstance = (origin: string): AnalyticsLogger => {
 export const logger = envSwitch({
   prod: createProductionLogger,
   dev: createProductionLogger,
-  other: () => mockGetAnalyticsInstance("permittering"),
+  other: () => mockGetAnalyticsInstance("ekspertbistand"),
 });

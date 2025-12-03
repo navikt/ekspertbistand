@@ -1,0 +1,30 @@
+apiVersion: "nais.io/v1alpha1"
+kind: "Application"
+metadata:
+  labels:
+    team: fager
+  name: ekspertbistand-dokgen
+  namespace: fager
+spec:
+  image: {{ image }}
+  ingresses:
+    - https://ekspertbistand-dokgen.intern.dev.nav.no
+  liveness:
+    path: /actuator/info
+  readiness:
+    path: /actuator/health
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: java
+    logging:
+      destinations:
+        - id: loki
+  replicas:
+    min: 1
+  secureLogs:
+    enabled: true
+  accessPolicy:
+    inbound:
+      rules:
+        - application: ekspertbistand-api
