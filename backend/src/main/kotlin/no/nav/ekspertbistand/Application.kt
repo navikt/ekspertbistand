@@ -28,6 +28,7 @@ import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
@@ -61,6 +62,7 @@ fun main() {
             provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) { tokenxClient }
             provide<TokenProvider>(IdentityProvider.AZURE_AD.alias) { azureClient }
             provide { AltinnTilgangerClient(tokenxClient) }
+            provide { DokgenClient() }
             provide { EregClient() }
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {

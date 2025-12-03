@@ -20,8 +20,8 @@
   "behovForBistand": {
     "begrunnelse": "Langvarig skulderplage med 50% sykefravær",
     "behov": "Arbeidsplassvurdering og ergonomisk veiledning",
-    "timer": 16,
-    "estimertKostnad": 9000,
+    "timer": "16",
+    "estimertKostnad": "9000",
     "tilrettelegging": "Høydejustert bord testet, noe bedring",
     "startdato": "2025-11-15"
   },

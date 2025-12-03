@@ -9,3 +9,11 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - ./local-db-init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  dokgen:
+    build:
+      context: ../dokgen
+    ports:
+      - "9000:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev

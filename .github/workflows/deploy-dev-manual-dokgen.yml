@@ -1,0 +1,53 @@
+name: Manuell deploy dev dokgen
+
+on:
+  workflow_dispatch:
+
+jobs:
+  compile-and-build:
+    name: Build dokgen image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image: ${{ steps.docker-build-push.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build and push image
+        id: docker-build-push
+        uses: nais/docker-build-push@v0
+        with:
+          team: fager
+          image_suffix: dokgen
+          tag: ${{ github.sha }}
+          dockerfile: dokgen/Dockerfile
+          docker_context: dokgen
+          salsa: false
+
+  deploy-to-dev-gcp:
+    name: Deploy to dev-gcp
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    needs: compile-and-build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Login to NAIS (sets registry and OIDC)
+        uses: nais/login@v0
+        with:
+          team: fager
+
+      - name: Deploy dev-gcp
+        uses: nais/deploy/actions/deploy@v2
+        env:
+          VAR: image=${{ needs.compile-and-build.outputs.image }}
+          RESOURCE: nais/dev-gcp-dokgen.yaml
+          CLUSTER: dev-gcp

@@ -42,8 +42,8 @@
       "properties": {
         "begrunnelse": { "type": "string" },
         "behov": { "type": "string" },
-        "timer": { "type": "number" },
-        "estimertKostnad": { "type": "number" },
+        "timer": { "type": "string" },
+        "estimertKostnad": { "type": "string" },
         "tilrettelegging": { "type": "string" },
         "startdato": { "type": "string", "format": "date" }
       },
