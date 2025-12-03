@@ -26,7 +26,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * or https://confluence.adeo.no/spaces/BOA/pages/313346837/opprettJournalpost
  */
 class DokArkivClient(
-    val authClient: TokenProvider,
+    val tokenProvider: TokenProvider,
     val httpClient: HttpClient = defaultHttpClient({
         clientName = "dokarkiv.client"
     }) {
@@ -92,7 +92,7 @@ class DokArkivClient(
             accept(ContentType.Application.Json)
             expectSuccess = false
             bearerAuth(
-                authClient.token(targetAudience).fold(
+                tokenProvider.token(targetAudience).fold(
                     { it.accessToken },
                     { throw Exception("Failed to get token: ${it.error}") }
                 )

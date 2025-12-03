@@ -54,7 +54,7 @@ class DokArkivClientTest {
         }
 
         val dokArkivClient = DokArkivClient(
-            authClient = mockTokenProvider,
+            tokenProvider = mockTokenProvider,
             httpClient = client
         )
 

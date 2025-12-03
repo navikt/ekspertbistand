@@ -91,6 +91,7 @@ class EventManager internal constructor(
             is EventData.Foo -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
             is EventData.Bar -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
             is EventData.SkjemaInnsendt -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
+            is EventData.JournalpostOpprettet -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
         }
     }
 

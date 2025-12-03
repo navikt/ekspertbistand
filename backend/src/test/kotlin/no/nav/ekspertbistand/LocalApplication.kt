@@ -9,7 +9,12 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
 import io.ktor.server.plugins.di.resolve
 import io.ktor.utils.io.*
+import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
+import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
+import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.event.configureEventHandlers
@@ -138,6 +143,8 @@ fun main() {
             provide {
                 mockEregClient
             }
+            provide { DokgenClient() }
+            provide { mockDokArkivClient(resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias)) }
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
                 ProdusentApiKlient(
@@ -167,6 +174,27 @@ fun main() {
         configureInternal()
         registerShutdownListener()
     }
+}
+
+private fun mockDokArkivClient(tokenProvider: TokenProvider): DokArkivClient {
+    val response = OpprettJournalpostResponse(
+        dokumenter = listOf(OpprettJournalpostDokument(dokumentInfoId = "dok-123")),
+        journalpostId = "jp-123",
+        journalpostferdigstilt = true,
+    )
+    val engine = MockEngine { _ ->
+        respond(
+            content = Json.encodeToString(OpprettJournalpostResponse.serializer(), response),
+            status = HttpStatusCode.Created,
+            headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+        )
+    }
+    return DokArkivClient(
+        tokenProvider = tokenProvider,
+        httpClient = HttpClient(engine) {
+            install(ContentNegotiation) { json() }
+        }
+    )
 }
 
 // language=JSON
