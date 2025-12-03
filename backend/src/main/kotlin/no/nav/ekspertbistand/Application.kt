@@ -49,9 +49,6 @@ fun main() {
     val azureClient = authConfig.authClient(IdentityProvider.AZURE_AD)
 
     ktorServer {
-        // slette db, fjernes etter migrering
-        dependencies { provide { dbConfig } }
-        destroyExistingDatabase()
         dependencies {
             provide<Database> {
                 dbConfig.flywayAction {
