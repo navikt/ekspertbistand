@@ -20,10 +20,23 @@ import kotlinx.serialization.json.Json
 import java.io.EOFException
 import javax.net.ssl.SSLHandshakeException
 
+val defaultNormalizer: (String) -> String = { path ->
+    path
+        // match standard UUIDs (36 chars, including dashes)
+        .replace(Regex("[0-9a-fA-F-]{36}"), "{uuid}")
+        // match 11-digit FNR
+        .replace(Regex("\\b\\d{11}\\b"), "{fnr}")
+        // match 9-digit ORGNR
+        .replace(Regex("\\b\\d{9}\\b"), "{orgnr}")
+        // match other numeric IDs
+        .replace(Regex("\\b\\d+\\b"), "{numeric}")
+}
+
+
 fun defaultHttpClient(
     customizeMetrics: HttpClientMetricsFeature.Config.() -> Unit = {
         clientName = "ktor.http.client"
-        pathNormalizer = { path -> path.replace(Regex("[0-9a-fA-F-]{36}"), "{id}") }
+        pathNormalizer = defaultNormalizer
     },
     configure: HttpClientConfig<CIOEngineConfig>.() -> Unit = {},
 ) = HttpClient(CIO) {
