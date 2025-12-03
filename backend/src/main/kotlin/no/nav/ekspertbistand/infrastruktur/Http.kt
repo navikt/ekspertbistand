@@ -34,10 +34,7 @@ val defaultNormalizer: (String) -> String = { path ->
 
 
 fun defaultHttpClient(
-    customizeMetrics: HttpClientMetricsFeature.Config.() -> Unit = {
-        clientName = "ktor.http.client"
-        pathNormalizer = defaultNormalizer
-    },
+    customizeMetrics: HttpClientMetricsFeature.Config.() -> Unit = {},
     configure: HttpClientConfig<CIOEngineConfig>.() -> Unit = {},
 ) = HttpClient(CIO) {
 
@@ -101,7 +98,7 @@ class HttpClientMetricsFeature internal constructor(
         var clientName: String = "ktor.http.client"
         lateinit var registry: MeterRegistry
         var staticPath: String? = null
-        var pathNormalizer: ((String) -> String)? = null
+        var pathNormalizer: ((String) -> String)? = defaultNormalizer
 
         internal fun isRegistryInitialized() = this::registry.isInitialized
     }
