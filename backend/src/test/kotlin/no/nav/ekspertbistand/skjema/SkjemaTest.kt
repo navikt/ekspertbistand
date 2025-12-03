@@ -241,8 +241,8 @@ class SkjemaTest {
                     it[behovForBistand] = ""
                     it[behovForBistandBegrunnelse] = ""
                     it[behovForBistandTilrettelegging] = ""
-                    it[behovForBistandEstimertKostnad] = "0"
-                    it[behovForBistandTimer] = "0"
+                    it[behovForBistandEstimertKostnad] = ""
+                    it[behovForBistandTimer] = ""
                     it[behovForBistandStartdato] = CurrentDate
                     it[navKontaktPerson] = ""
                 }

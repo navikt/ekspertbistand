@@ -164,8 +164,8 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
     behovForBistand = DTO.BehovForBistand(
         begrunnelse = this[UtkastTable.behovForBistandBegrunnelse] ?: "",
         behov = this[UtkastTable.behovForBistand] ?: "",
-        estimertKostnad = this[UtkastTable.behovForBistandEstimertKostnad] ?: "0",
-        timer = this[UtkastTable.behovForBistandTimer] ?: "0",
+        estimertKostnad = this[UtkastTable.behovForBistandEstimertKostnad] ?: "",
+        timer = this[UtkastTable.behovForBistandTimer] ?: "",
         tilrettelegging = this[UtkastTable.behovForBistandTilrettelegging] ?: "",
         startdato = this[UtkastTable.behovForBistandStartdato] ?: LocalDate.today(),
 
