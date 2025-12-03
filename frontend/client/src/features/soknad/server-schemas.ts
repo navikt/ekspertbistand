@@ -34,8 +34,8 @@ export const ekspertServerSchema = z.object({
 export const behovForBistandServerSchema = z.object({
   begrunnelse: z.string(),
   behov: z.string(),
-  timer: z.number(),
-  estimertKostnad: z.number(),
+  timer: z.string(),
+  estimertKostnad: z.string(),
   tilrettelegging: z.string(),
   startdato: z.string(),
 });

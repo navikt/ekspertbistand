@@ -35,13 +35,14 @@ const fnrField = trimmedText("Du må fylle ut fødselsnummer.").refine(
   { message: "Fødselsnummer må være 11 siffer." }
 );
 
-const timerSchema = z.union([z.number(), z.string()]).superRefine((value, ctx) => {
-  if (value === "" || value === null) {
+const timerSchema = z.string().superRefine((value, ctx) => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
     ctx.addIssue({ code: "custom", message: "Du må anslå hvor mange timer dere trenger." });
     return;
   }
 
-  const numeric = typeof value === "number" ? value : Number(value);
+  const numeric = Number(trimmed);
   if (!Number.isFinite(numeric)) {
     ctx.addIssue({ code: "custom", message: "Antall timer må være et tall." });
     return;
@@ -57,13 +58,14 @@ const timerSchema = z.union([z.number(), z.string()]).superRefine((value, ctx) =
   }
 });
 
-const estimertKostnadSchema = z.union([z.number(), z.string()]).superRefine((value, ctx) => {
-  if (value === "" || value === null) {
+const estimertKostnadSchema = z.string().superRefine((value, ctx) => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
     ctx.addIssue({ code: "custom", message: "Du må anslå kostnad." });
     return;
   }
 
-  const numeric = typeof value === "number" ? value : Number(value);
+  const numeric = Number(trimmed);
   if (!Number.isFinite(numeric)) {
     ctx.addIssue({ code: "custom", message: "Kostnad må være et tall." });
     return;

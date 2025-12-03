@@ -1,0 +1,31 @@
+{
+  "virksomhet": {
+    "virksomhetsnummer": "211511052",
+    "virksomhetsnavn": "LOLPATROL",
+    "kontaktperson": {
+      "navn": "Ola Nordmann",
+      "epost": "ola.nordmann@firma.no",
+      "telefonnummer": "+47 99881337"
+    }
+  },
+  "ansatt": {
+    "fnr": "12058512345",
+    "navn": "Kari Nordmann"
+  },
+  "ekspert": {
+    "navn": "Ekspert NN",
+    "virksomhet": "ErgoConsult AS",
+    "kompetanse": "Ergoterapeut, autorisasjon HPR 1337"
+  },
+  "behovForBistand": {
+    "begrunnelse": "Langvarig skulderplage med 50% sykefravær",
+    "behov": "Arbeidsplassvurdering og ergonomisk veiledning",
+    "timer": 16,
+    "estimertKostnad": 9000,
+    "tilrettelegging": "Høydejustert bord testet, noe bedring",
+    "startdato": "2025-11-15"
+  },
+  "nav": {
+    "kontaktperson": "Sakbehandler NN"
+  }
+}
