@@ -147,6 +147,7 @@ data class OpprettTiltaksgjennomfoeringResponse(
     val saksnummer: String
 )
 
+@Serializable
 data class Saksnummer(
     val saksnummer: String,
     val aar: Int = saksnummer.take(4).toInt(),

@@ -19,6 +19,7 @@ import kotlinx.serialization.modules.subclass
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.handlers.OpprettNySakEventHandler
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.OpprettNyBeskjed
