@@ -12,8 +12,12 @@ import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
 import no.nav.ekspertbistand.mocks.mockTiltaksgjennomfoering
 import no.nav.ekspertbistand.skjema.DTO
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 
@@ -41,6 +45,35 @@ class OpprettArenaSakTest {
         )
 
         assertTrue(handler.handle(event) is EventHandledResult.Success)
+        val database = application.dependencies.resolve<Database>()
+        transaction(database) {
+            val lagredeSaker = ArenaSakTable.selectAll()
+            assertEquals(1, lagredeSaker.count())
+            assertEquals(saksnummer, lagredeSaker.first()[ArenaSakTable.saksnummer])
+
+        }
+    }
+
+    @Test
+    fun `Event prosesseres, men kall mot arena feiler`() = testApplication {
+        setupTestApplication()
+        mockTiltaksgjennomfoering({
+            throw RuntimeException("Feil ved oppretting av Arena")
+        })
+        startApplication()
+
+        val handler = OpprettArenaSak(application.dependencies.resolve(), application.dependencies.resolve())
+        val event = Event(
+            id = 1L, data = EventData.JournalpostOpprettet(
+                skjema1, 123, 456, "1337"
+            )
+        )
+
+        assertTrue(handler.handle(event) is EventHandledResult.TransientError)
+        val database = application.dependencies.resolve<Database>()
+        transaction(database) {
+            assertEquals(0, ArenaSakTable.selectAll().count())
+        }
     }
 }
 

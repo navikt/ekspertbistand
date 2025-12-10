@@ -1,9 +1,9 @@
 package no.nav.ekspertbistand.infrastruktur
 
-import io.ktor.server.testing.ApplicationTestBuilder
-import io.ktor.server.testing.testApplication
+import io.ktor.server.plugins.di.*
+import io.ktor.server.testing.*
 import org.flywaydb.core.Flyway
-import kotlin.coroutines.EmptyCoroutineContext
+import org.jetbrains.exposed.v1.jdbc.Database
 
 class TestDatabase(
     dbName: String = "ekspertbistand"
@@ -42,7 +42,13 @@ class TestDatabase(
 fun testApplicationWithDatabase(
     block: suspend ApplicationTestBuilder.(testDatabase: TestDatabase) -> Unit
 ) = testApplication {
-    TestDatabase().cleanMigrate().use { testDatabase ->
+    val database = TestDatabase().cleanMigrate()
+    database.use { testDatabase ->
         block(testDatabase)
+    }
+    application {
+        dependencies {
+            provide<Database> { database.config.jdbcDatabase }
+        }
     }
 }

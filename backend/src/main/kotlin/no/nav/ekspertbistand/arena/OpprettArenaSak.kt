@@ -4,15 +4,10 @@ import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.skjema.DTO
 import org.jetbrains.exposed.v1.core.Table
-import org.jetbrains.exposed.v1.core.dao.id.CompositeIdTable
-import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.awt.Composite
-import java.util.*
 
 class OpprettArenaSak(
     private val arenaClient: ArenaClient,
@@ -22,16 +17,21 @@ class OpprettArenaSak(
 
     override suspend fun handle(event: Event<EventData.JournalpostOpprettet>): EventHandledResult {
         val skjema = event.data.skjema
-        val saksnummer = arenaClient.opprettTiltaksgjennomfoering(
-            OpprettEkspertbistand(
-                behandlendeEnhetId = event.data.behandlendeEnhetId,
-                virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                ansattFnr = skjema.ansatt.fnr,
-                periodeFom = skjema.behovForBistand.startdato,
-                journalpostId = event.data.journaldpostId,
-                dokumentId = event.data.dokumentId
+        val saksnummer = try {
+            arenaClient.opprettTiltaksgjennomfoering(
+                OpprettEkspertbistand(
+                    behandlendeEnhetId = event.data.behandlendeEnhetId,
+                    virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
+                    ansattFnr = skjema.ansatt.fnr,
+                    periodeFom = skjema.behovForBistand.startdato,
+                    journalpostId = event.data.journaldpostId,
+                    dokumentId = event.data.dokumentId
+                )
             )
-        )
+        } catch (e: Exception) {
+            return EventHandledResult.TransientError("Feil ved oppretting av sak i Arena: ${e.message}")
+        }
+
         transaction(database) {
             insertSaksnummer(saksnummer, skjema)
             QueuedEvents.insert {
@@ -52,25 +52,6 @@ object ArenaSakTable : Table("arena_sak") {
     val aar = integer("år")
     val skjema = text("skjema")
 
-}
-
-data class ArenaSak(
-    val saksnummer: Saksnummer,
-    val skjema: DTO.Skjema,
-)
-
-fun JdbcTransaction.getBySaksnummer(saksnummer: Saksnummer) {
-    ArenaSakTable.selectAll().where {
-        ArenaSakTable.saksnummer eq saksnummer.saksnummer
-        ArenaSakTable.loepenummer eq saksnummer.loepenrSak
-        ArenaSakTable.aar eq saksnummer.aar
-    }.map {
-
-        val skjema = Json.decodeFromString<DTO.Skjema>(it[ArenaSakTable.skjema])
-        ArenaSak(
-            saksnummer = saksnummer, skjema = skjema
-        )
-    }
 }
 
 fun JdbcTransaction.insertSaksnummer(saksnummer: Saksnummer, skjema: DTO.Skjema) {
