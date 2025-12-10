@@ -6,7 +6,6 @@ import no.nav.ekspertbistand.arena.OpprettEkspertbistand
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.findSkjemaOrUtkastById
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -23,37 +22,30 @@ class OpprettArenaSak(
     override val id = "Opprett sak i Arena"
 
     override suspend fun handle(event: Event<EventData.JournalpostOpprettet>): EventHandledResult {
-        val skjema = transaction(database) {
-            findSkjemaOrUtkastById(event.skjemaId)
-        }
-        return when (skjema) {
-            null -> EventHandledResult.UnrecoverableError("Skjema med id ${event.skjemaId} finnes ikke")
-            is DTO.Utkast -> EventHandledResult.TransientError("Skjema med id ${event.skjemaId} er fortsatt et utkast")
-            is DTO.Skjema -> {
-                val saksnummer = arenaClient.opprettTiltaksgjennomfoering(
-                    OpprettEkspertbistand(
-                        behandlendeEnhetId = event.data.behandlendeEnhetId,
-                        virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                        ansattFnr = skjema.ansatt.fnr,
-                        periodeFom = skjema.behovForBistand.startdato,
-                        journalpostId = event.data.journaldpostId,
-                        dokumentId = event.data.dokumentId
-                    )
+        val skjema = event.data.skjema
+        val saksnummer = arenaClient.opprettTiltaksgjennomfoering(
+            OpprettEkspertbistand(
+                behandlendeEnhetId = event.data.behandlendeEnhetId,
+                virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
+                ansattFnr = skjema.ansatt.fnr,
+                periodeFom = skjema.behovForBistand.startdato,
+                journalpostId = event.data.journaldpostId,
+                dokumentId = event.data.dokumentId
+            )
+        )
+        transaction(database) {
+            insertSaksnummer(saksnummer, skjema)
+            QueuedEvents.insert {
+                it[eventData] = EventData.TiltaksgjennomføringOpprettet(
+                    skjema,
+                    saksnummer,
                 )
-                transaction(database) {
-                    insertSaksnummer(saksnummer, skjema)
-                    QueuedEvents.insert {
-                        it[eventData] = EventData.TiltaksgjennomføringOpprettet(
-                            skjema.id.toString(),
-                            saksnummer,
-                        )
-                    }
-                }
-                EventHandledResult.Success()
             }
         }
+        return EventHandledResult.Success()
     }
 }
+
 
 object ArenaSakTable : Table("arena_sak") {
     val id = uuid("id").entityId()
@@ -69,20 +61,18 @@ data class ArenaSak(
     val skjema: DTO.Skjema,
 )
 
-fun getBySaksnummer(saksnummer: Saksnummer) {
-    ArenaSakTable.selectAll()
-        .where {
-            ArenaSakTable.saksnummer eq saksnummer.saksnummer
-            ArenaSakTable.loepenummer eq saksnummer.loepenrSak
-            ArenaSakTable.aar eq saksnummer.aar
-        }.map {
+fun JdbcTransaction.getBySaksnummer(saksnummer: Saksnummer) {
+    ArenaSakTable.selectAll().where {
+        ArenaSakTable.saksnummer eq saksnummer.saksnummer
+        ArenaSakTable.loepenummer eq saksnummer.loepenrSak
+        ArenaSakTable.aar eq saksnummer.aar
+    }.map {
 
-            val skjema = Json.decodeFromString<DTO.Skjema>(it[ArenaSakTable.skjema])
-            ArenaSak(
-                saksnummer = saksnummer,
-                skjema = skjema
-            )
-        }
+        val skjema = Json.decodeFromString<DTO.Skjema>(it[ArenaSakTable.skjema])
+        ArenaSak(
+            saksnummer = saksnummer, skjema = skjema
+        )
+    }
 }
 
 fun JdbcTransaction.insertSaksnummer(saksnummer: Saksnummer, skjema: DTO.Skjema) {

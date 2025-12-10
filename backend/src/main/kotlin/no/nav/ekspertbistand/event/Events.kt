@@ -6,18 +6,16 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.arena.Saksnummer
-import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.event.handlers.OpprettNySakEventHandler
+import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.services.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
 import no.nav.ekspertbistand.skjema.DummyFooHandler
-import java.util.UUID
 import kotlin.time.ExperimentalTime
 
 
 data class Event<T : EventData>(
-    val skjemaId: UUID,
     val id: Long,
     val data: T
 )
@@ -46,16 +44,16 @@ sealed interface EventData {
     @Serializable
     @SerialName("journalpostOpprettet")
     data class JournalpostOpprettet(
-        val skjemaId: String,
+        val skjema: DTO.Skjema,
         val dokumentId: Int,
         val journaldpostId: Int,
         val behandlendeEnhetId: String,
     ) : EventData
 
     @Serializable
-    @SerialName("journalpostOpprettet")
+    @SerialName("tiltaksgjennomføringOpprettet")
     data class TiltaksgjennomføringOpprettet(
-        val skjemaId: String,
+        val skjema: DTO.Skjema,
         val saksnummer: Saksnummer
     ) : EventData
 }

@@ -7,8 +7,6 @@ import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.services.IdempotencyGuard
 import no.nav.ekspertbistand.services.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.findSkjemaOrUtkastById
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
@@ -23,30 +21,20 @@ class OpprettNySakEventHandler(
         "8642b600-2601-47e2-9798-5849bb362433" //TODO: Skulle denne være en readable id? Kan dette endres nå?
 
     override suspend fun handle(event: Event<EventData.TiltaksgjennomføringOpprettet>): EventHandledResult {
-        val skjema = transaction {
-            findSkjemaOrUtkastById(event.skjemaId)
+        if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
+            nySak(event.data.skjema).fold(
+                onSuccess = { idempotencyGuard.guard(event, nySakSubTask) },
+                onFailure = { return EventHandledResult.TransientError(it.message!!) }
+            )
+        }
+        if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
+            nyBeskjed(event.data.skjema).fold(
+                onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
+                onFailure = { return EventHandledResult.TransientError(it.message!!) }
+            )
         }
 
-        return when (skjema) {
-            null -> EventHandledResult.UnrecoverableError("Fant ikke skjema med id ${event.skjemaId}")
-            is DTO.Utkast -> EventHandledResult.TransientError("Skjema med id ${skjema.id} er i tilstand Utkast")
-            is DTO.Skjema -> {
-                if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
-                    nySak(skjema).fold(
-                        onSuccess = { idempotencyGuard.guard(event, nySakSubTask) },
-                        onFailure = { return EventHandledResult.TransientError(it.message!!) }
-                    )
-                }
-                if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
-                    nyBeskjed(skjema).fold(
-                        onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
-                        onFailure = { return EventHandledResult.TransientError(it.message!!) }
-                    )
-                }
-
-                EventHandledResult.Success()
-            }
-        }
+        return EventHandledResult.Success()
     }
 
     private suspend fun nySak(skjema: DTO.Skjema): Result<String> {

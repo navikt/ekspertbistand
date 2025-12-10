@@ -16,6 +16,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
+import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -59,8 +60,9 @@ class OpprettNySakEventHandlerTest {
 
         val event = Event(
             id = 1L,
-            data = EventData.SkjemaInnsendt(
-                skjema = skjema1
+            data = EventData.TiltaksgjennomføringOpprettet(
+                skjema = skjema1,
+                saksnummer = Saksnummer("202112341234"),
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.Success)
@@ -78,8 +80,9 @@ class OpprettNySakEventHandlerTest {
 
         val event = Event(
             id = 1L,
-            data = EventData.SkjemaInnsendt(
-                skjema = skjema1
+            data = EventData.TiltaksgjennomføringOpprettet(
+                skjema = skjema1,
+                saksnummer = Saksnummer("202112341234"),
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.TransientError)
@@ -98,8 +101,9 @@ class OpprettNySakEventHandlerTest {
 
             val event = Event(
                 id = 1L,
-                data = EventData.SkjemaInnsendt(
-                    skjema = skjema1
+                data = EventData.TiltaksgjennomføringOpprettet(
+                    skjema = skjema1,
+                    saksnummer = Saksnummer("202112341234"),
                 )
             )
             assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Sak velykket, beskjed feilet
