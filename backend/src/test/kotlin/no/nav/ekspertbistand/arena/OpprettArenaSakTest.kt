@@ -7,6 +7,7 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
@@ -45,11 +46,16 @@ class OpprettArenaSakTest {
         )
 
         assertTrue(handler.handle(event) is EventHandledResult.Success)
+
         val database = application.dependencies.resolve<Database>()
         transaction(database) {
             val lagredeSaker = ArenaSakTable.selectAll()
             assertEquals(1, lagredeSaker.count())
             assertEquals(saksnummer, lagredeSaker.first()[ArenaSakTable.saksnummer])
+
+            val queuedEvents = QueuedEvents.selectAll()
+            assertEquals(1, queuedEvents.count())
+            assertTrue(queuedEvents.first()[QueuedEvents.eventData] is EventData.TiltaksgjennomføringOpprettet)
 
         }
     }
