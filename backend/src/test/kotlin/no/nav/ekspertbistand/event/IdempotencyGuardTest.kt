@@ -1,8 +1,6 @@
-package no.nav.ekspertbistand.services
+package no.nav.ekspertbistand.event
 
 import kotlinx.coroutines.runBlocking
-import no.nav.ekspertbistand.event.Event
-import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import kotlin.test.Test
 import kotlin.test.assertFalse

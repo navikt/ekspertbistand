@@ -32,8 +32,8 @@ import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
-import no.nav.ekspertbistand.services.IdempotencyGuard
-import no.nav.ekspertbistand.services.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.event.IdempotencyGuard
+import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1

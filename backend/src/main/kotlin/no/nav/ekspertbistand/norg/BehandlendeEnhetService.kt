@@ -1,6 +1,6 @@
-package no.nav.ekspertbistand.services.norg
+package no.nav.ekspertbistand.norg
 
-import no.nav.ekspertbistand.services.pdl.graphql.generated.enums.AdressebeskyttelseGradering
+import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 
 class BehandlendeEnhetService(
     private val norgKlient: NorgKlient

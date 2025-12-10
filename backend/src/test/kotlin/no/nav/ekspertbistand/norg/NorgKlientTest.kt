@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.services.norg
+package no.nav.ekspertbistand.norg
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*

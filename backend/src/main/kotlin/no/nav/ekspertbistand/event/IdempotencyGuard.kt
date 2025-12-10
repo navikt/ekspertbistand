@@ -1,7 +1,5 @@
-package no.nav.ekspertbistand.services
+package no.nav.ekspertbistand.event
 
-import no.nav.ekspertbistand.event.Event
-import no.nav.ekspertbistand.event.EventData
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.CompositeIdTable
 import org.jetbrains.exposed.v1.core.eq

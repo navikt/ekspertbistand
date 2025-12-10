@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.services.norg
+package no.nav.ekspertbistand.norg
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -6,7 +6,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
-import no.nav.ekspertbistand.services.pdl.graphql.generated.enums.AdressebeskyttelseGradering
+import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation

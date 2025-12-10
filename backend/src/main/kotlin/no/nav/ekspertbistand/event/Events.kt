@@ -6,9 +6,8 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.arena.Saksnummer
-import no.nav.ekspertbistand.event.handlers.OpprettNySakEventHandler
-import no.nav.ekspertbistand.services.IdempotencyGuard
-import no.nav.ekspertbistand.services.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.notifikasjon.OpprettNySakEventHandler
+import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
 import no.nav.ekspertbistand.skjema.DummyFooHandler

@@ -1,14 +1,14 @@
-package no.nav.ekspertbistand.services.pdl
+package no.nav.ekspertbistand.pdl
 
 import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
 import io.ktor.client.*
 import io.ktor.client.request.*
 import no.nav.ekspertbistand.infrastruktur.TokenExchanger
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
-import no.nav.ekspertbistand.services.pdl.graphql.generated.HentGeografiskTilknytning
-import no.nav.ekspertbistand.services.pdl.graphql.generated.HentPerson
-import no.nav.ekspertbistand.services.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
-import no.nav.ekspertbistand.services.pdl.graphql.generated.hentperson.Person
+import no.nav.ekspertbistand.pdl.graphql.generated.HentGeografiskTilknytning
+import no.nav.ekspertbistand.pdl.graphql.generated.HentPerson
+import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
+import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Person
 import java.net.URI
 
 // https://behandlingskatalog.intern.nav.no/process/purpose/SYFO/de1355ba-13b8-498d-8cdc-74463ba1a514
