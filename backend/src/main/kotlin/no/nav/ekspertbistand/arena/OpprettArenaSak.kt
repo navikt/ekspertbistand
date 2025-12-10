@@ -4,12 +4,14 @@ import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.skjema.DTO
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.dao.id.CompositeIdTable
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import java.awt.Composite
 import java.util.*
 
 class OpprettArenaSak(
@@ -45,7 +47,6 @@ class OpprettArenaSak(
 
 
 object ArenaSakTable : Table("arena_sak") {
-    val id = uuid("id").entityId()
     val saksnummer = text("saksnummer")
     val loepenummer = integer("løpenummer")
     val aar = integer("år")
@@ -74,7 +75,6 @@ fun JdbcTransaction.getBySaksnummer(saksnummer: Saksnummer) {
 
 fun JdbcTransaction.insertSaksnummer(saksnummer: Saksnummer, skjema: DTO.Skjema) {
     ArenaSakTable.insert {
-        it[ArenaSakTable.id] = UUID.randomUUID()
         it[ArenaSakTable.saksnummer] = saksnummer.saksnummer
         it[ArenaSakTable.loepenummer] = saksnummer.loepenrSak
         it[ArenaSakTable.aar] = saksnummer.aar

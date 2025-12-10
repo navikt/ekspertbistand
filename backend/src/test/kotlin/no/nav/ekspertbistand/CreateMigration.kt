@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand
 
+import no.nav.ekspertbistand.arena.ArenaSakTable
 import no.nav.ekspertbistand.event.EventHandlerStates
 import no.nav.ekspertbistand.event.EventLog
 import no.nav.ekspertbistand.event.QueuedEvents
@@ -23,6 +24,7 @@ fun main() {
             EventLog,
             EventHandlerStates,
             IdempotencyGuardRecords,
+            ArenaSakTable,
             scriptDirectory = "backend/src/main/resources/db/migration",
             scriptName = "V1__initial_setup",
         )
