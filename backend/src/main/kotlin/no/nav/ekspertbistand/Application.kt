@@ -53,7 +53,10 @@ fun main() {
     ktorServer {
         dependencies {
             provide<Database> {
+                dbConfig.flywayConfig.cleanDisabled(false)
+                dbConfig.flywayConfig.validateOnMigrate(false)
                 dbConfig.flywayAction {
+                    clean()
                     migrate()
                 }
                 // mixing r2dbc and jdbc does not work well together, so we use only jdbc for now
@@ -94,7 +97,6 @@ fun main() {
 
         // configure standard server stuff
         configureServer()
-        destroyExistingDatabase(dbConfig)
 
         // configure authentication of clients
         configureTokenXAuth()
