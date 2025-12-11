@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.services.norg
+package no.nav.ekspertbistand.norg
 
 import io.ktor.client.*
 import io.ktor.client.call.*

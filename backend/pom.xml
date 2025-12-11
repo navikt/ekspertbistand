@@ -381,7 +381,7 @@
                         <configuration>
                             <schemaFile>${project.basedir}/src/main/resources/graphql/pdl/pdl.graphql</schemaFile>
                             <queryFileDirectory>${project.basedir}/src/main/resources/graphql/pdl</queryFileDirectory>
-                            <packageName>no.nav.ekspertbistand.services.pdl.graphql.generated</packageName>
+                            <packageName>no.nav.ekspertbistand.pdl.graphql.generated</packageName>
                             <serializer>KOTLINX</serializer>
                         </configuration>
                     </execution>
@@ -394,7 +394,7 @@
                             <schemaFile>${project.basedir}/src/main/resources/graphql/notifikasjon/produsent.graphql
                             </schemaFile>
                             <queryFileDirectory>${project.basedir}/src/main/resources/graphql/notifikasjon</queryFileDirectory>
-                            <packageName>no.nav.ekspertbistand.services.notifikasjon.graphql.generated</packageName>
+                            <packageName>no.nav.ekspertbistand.notifikasjon.graphql.generated</packageName>
                             <serializer>KOTLINX</serializer>
                         </configuration>
                     </execution>

@@ -1,10 +1,11 @@
 package no.nav.ekspertbistand
 
+import no.nav.ekspertbistand.arena.ArenaSakTable
 import no.nav.ekspertbistand.event.EventHandlerStates
 import no.nav.ekspertbistand.event.EventLog
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.services.IdempotencyGuardRecords
+import no.nav.ekspertbistand.event.IdempotencyGuardRecords
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
 import org.jetbrains.exposed.v1.core.ExperimentalDatabaseMigrationApi
@@ -23,6 +24,7 @@ fun main() {
             EventLog,
             EventHandlerStates,
             IdempotencyGuardRecords,
+            ArenaSakTable,
             scriptDirectory = "backend/src/main/resources/db/migration",
             scriptName = "V1__initial_setup",
         )

@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.services.pdl
+package no.nav.ekspertbistand.pdl
 
 import com.expediagroup.graphql.client.serialization.types.KotlinxGraphQLResponse
 import io.ktor.serialization.kotlinx.json.*
@@ -12,14 +12,14 @@ import kotlinx.serialization.json.Json.Default.parseToJsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.infrastruktur.*
-import no.nav.ekspertbistand.services.pdl.graphql.generated.HentGeografiskTilknytning
-import no.nav.ekspertbistand.services.pdl.graphql.generated.HentPerson
-import no.nav.ekspertbistand.services.pdl.graphql.generated.enums.AdressebeskyttelseGradering
-import no.nav.ekspertbistand.services.pdl.graphql.generated.enums.GtType
-import no.nav.ekspertbistand.services.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
-import no.nav.ekspertbistand.services.pdl.graphql.generated.hentperson.Adressebeskyttelse
-import no.nav.ekspertbistand.services.pdl.graphql.generated.hentperson.Folkeregistermetadata
-import no.nav.ekspertbistand.services.pdl.graphql.generated.hentperson.Person
+import no.nav.ekspertbistand.pdl.graphql.generated.HentGeografiskTilknytning
+import no.nav.ekspertbistand.pdl.graphql.generated.HentPerson
+import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
+import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
+import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
+import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Adressebeskyttelse
+import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Folkeregistermetadata
+import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Person
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

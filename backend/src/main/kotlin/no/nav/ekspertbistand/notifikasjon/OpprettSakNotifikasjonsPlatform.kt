@@ -1,24 +1,25 @@
-package no.nav.ekspertbistand.services.notifikasjon
+package no.nav.ekspertbistand.notifikasjon
 
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
-import no.nav.ekspertbistand.services.IdempotencyGuard
+import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.skjema.DTO
 
 private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 
-class OpprettNySakEventHandler(
+class OpprettSakNotifikasjonsPlatform(
     private val produsentApiKlient: ProdusentApiKlient,
     private val idempotencyGuard: IdempotencyGuard
-) : EventHandler<EventData.SkjemaInnsendt> {
+) : EventHandler<EventData.TiltaksgjennomføringOpprettet> {
 
     // DO NOT CHANGE THIS!
-    override val id: String = "8642b600-2601-47e2-9798-5849bb362433"
+    override val id: String =
+        "OpprettSakNotifikasjonPlatform" //TODO: Skulle denne være en readable id? Kan dette endres nå?
 
-    override suspend fun handle(event: Event<EventData.SkjemaInnsendt>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.TiltaksgjennomføringOpprettet>): EventHandledResult {
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
             nySak(event.data.skjema).fold(
                 onSuccess = { idempotencyGuard.guard(event, nySakSubTask) },

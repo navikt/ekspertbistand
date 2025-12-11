@@ -10,13 +10,14 @@ import io.ktor.server.plugins.di.*
 import io.ktor.server.plugins.di.resolve
 import io.ktor.utils.io.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
-import no.nav.ekspertbistand.services.IdempotencyGuard
-import no.nav.ekspertbistand.services.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.event.IdempotencyGuard
+import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
@@ -147,6 +148,18 @@ fun main() {
                     }) {
                         install(HttpTimeout) {
                             requestTimeoutMillis = 5_000
+                        }
+                    }
+                )
+            }
+            provide<ArenaClient> {
+                ArenaClient(
+                    tokenProvider = resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias),
+                    httpClient = defaultHttpClient(customizeMetrics = {
+                        clientName = "arena-api.client"
+                    }) {
+                        install(HttpTimeout) {
+                            requestTimeoutMillis = 15_000
                         }
                     }
                 )

@@ -70,7 +70,7 @@ class ArenaClientTest {
             }
         }
         val arenaClient = ArenaClient(
-            authClient = mockTokenProvider,
+            tokenProvider = mockTokenProvider,
             httpClient = client
         )
         arenaClient.opprettTiltaksgjennomfoering(opprettEkspertbistand).let {

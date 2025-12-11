@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.services.notifikasjon
+package no.nav.ekspertbistand.notifikasjon
 
 import com.expediagroup.graphql.client.serialization.types.KotlinxGraphQLResponse
 import io.ktor.serialization.kotlinx.json.*
@@ -16,18 +16,19 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
+import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.infrastruktur.*
-import no.nav.ekspertbistand.services.IdempotencyGuard
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.OpprettNyBeskjed
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.OpprettNySak
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.DefaultNyBeskjedResultatImplementation
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.DuplikatEksternIdOgMerkelapp
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedResultat
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedVellykket
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.*
+import no.nav.ekspertbistand.event.IdempotencyGuard
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNyBeskjed
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNySak
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DefaultNyBeskjedResultatImplementation
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DuplikatEksternIdOgMerkelapp
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedResultat
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedVellykket
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.*
 import no.nav.ekspertbistand.skjema.DTO
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
@@ -35,13 +36,13 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnybeskjed.UkjentProdusent as NyBeskjedUkjentProdusent
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UgyldigMerkelapp as NySakUgyldigMerkelapp
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UgyldigMottaker as NySakUgyldigMottaker
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
-import no.nav.ekspertbistand.services.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UkjentProdusent as NyBeskjedUkjentProdusent
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UgyldigMerkelapp as NySakUgyldigMerkelapp
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UgyldigMottaker as NySakUgyldigMottaker
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
 
 class OpprettNySakEventHandlerTest {
 
@@ -54,12 +55,13 @@ class OpprettNySakEventHandlerTest {
         )
         startApplication()
 
-        val handler = application.dependencies.resolve<OpprettNySakEventHandler>()
+        val handler = application.dependencies.resolve<OpprettSakNotifikasjonsPlatform>()
 
         val event = Event(
             id = 1L,
-            data = EventData.SkjemaInnsendt(
-                skjema = skjema1
+            data = EventData.TiltaksgjennomføringOpprettet(
+                skjema = skjema1,
+                saksnummer = Saksnummer("202112341234"),
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.Success)
@@ -73,12 +75,13 @@ class OpprettNySakEventHandlerTest {
             mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") })
         )
         startApplication()
-        val handler = application.dependencies.resolve<OpprettNySakEventHandler>()
+        val handler = application.dependencies.resolve<OpprettSakNotifikasjonsPlatform>()
 
         val event = Event(
             id = 1L,
-            data = EventData.SkjemaInnsendt(
-                skjema = skjema1
+            data = EventData.TiltaksgjennomføringOpprettet(
+                skjema = skjema1,
+                saksnummer = Saksnummer("202112341234"),
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.TransientError)
@@ -93,12 +96,13 @@ class OpprettNySakEventHandlerTest {
                 mutableListOf({ throw Exception("Test feil") }, { NyBeskjedVellykket(id = "beskjed-456") })
             )
             startApplication()
-            val handler = application.dependencies.resolve<OpprettNySakEventHandler>()
+            val handler = application.dependencies.resolve<OpprettSakNotifikasjonsPlatform>()
 
             val event = Event(
                 id = 1L,
-                data = EventData.SkjemaInnsendt(
-                    skjema = skjema1
+                data = EventData.TiltaksgjennomføringOpprettet(
+                    skjema = skjema1,
+                    saksnummer = Saksnummer("202112341234"),
                 )
             )
             assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Sak velykket, beskjed feilet
@@ -168,8 +172,8 @@ private fun ApplicationTestBuilder.setupTestApplication() {
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<TokenProvider>(), client) }
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
-            provide<OpprettNySakEventHandler> {
-                OpprettNySakEventHandler(
+            provide<OpprettSakNotifikasjonsPlatform> {
+                OpprettSakNotifikasjonsPlatform(
                     resolve<ProdusentApiKlient>(),
                     resolve<IdempotencyGuard>()
                 )
