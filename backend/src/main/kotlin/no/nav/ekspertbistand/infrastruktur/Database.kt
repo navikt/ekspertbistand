@@ -169,7 +169,7 @@ fun Application.destroyExistingDatabase() = runBlocking {
         other = Unit,
     )
 
-    with(dependencies.resolve<DbConfig>()) {
+    with(DbConfig.nais()) {
         flywayConfig.cleanDisabled(false)
         flywayConfig.validateOnMigrate(false)
         flywayAction {
