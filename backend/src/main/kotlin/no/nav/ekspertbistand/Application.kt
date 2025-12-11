@@ -94,6 +94,7 @@ fun main() {
 
         // configure standard server stuff
         configureServer()
+        destroyExistingDatabase()
 
         // configure authentication of clients
         configureTokenXAuth()
