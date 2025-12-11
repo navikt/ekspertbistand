@@ -5,9 +5,9 @@ import io.ktor.server.plugins.di.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.arena.OpprettSakArena
 import no.nav.ekspertbistand.arena.Saksnummer
-import no.nav.ekspertbistand.notifikasjon.OpprettNySakEventHandler
-import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.notifikasjon.OpprettSakNotifikasjonsPlatform
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
 import no.nav.ekspertbistand.skjema.DummyFooHandler
@@ -64,9 +64,15 @@ suspend fun Application.configureEventHandlers() {
         register(DummyFooHandler())
         register(DummyBarHandler())
         register(
-            OpprettNySakEventHandler(
-                dependencies.resolve<ProdusentApiKlient>(),
-                dependencies.resolve<IdempotencyGuard>()
+            OpprettSakNotifikasjonsPlatform(
+                dependencies.resolve(),
+                dependencies.resolve()
+            )
+        )
+        register(
+            OpprettSakArena(
+                dependencies.resolve(),
+                dependencies.resolve(),
             )
         )
 

@@ -10,14 +10,14 @@ import no.nav.ekspertbistand.skjema.DTO
 private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 
-class OpprettNySakEventHandler(
+class OpprettSakNotifikasjonsPlatform(
     private val produsentApiKlient: ProdusentApiKlient,
     private val idempotencyGuard: IdempotencyGuard
 ) : EventHandler<EventData.TiltaksgjennomføringOpprettet> {
 
     // DO NOT CHANGE THIS!
     override val id: String =
-        "8642b600-2601-47e2-9798-5849bb362433" //TODO: Skulle denne være en readable id? Kan dette endres nå?
+        "OpprettSakNotifikasjonPlatform" //TODO: Skulle denne være en readable id? Kan dette endres nå?
 
     override suspend fun handle(event: Event<EventData.TiltaksgjennomføringOpprettet>): EventHandledResult {
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {

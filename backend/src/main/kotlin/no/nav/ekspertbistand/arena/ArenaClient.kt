@@ -28,14 +28,8 @@ const val EKSPERTBISTAND_TILTAKSKODE = "EKSPEBIST"
  * https://doc.nais.io/workloads/explanations/migrating-to-gcp/#how-do-i-reach-an-application-found-on-premises-from-my-application-in-gcp
  */
 class ArenaClient(
-    val authClient: TokenProvider,
-    val httpClient: HttpClient = defaultHttpClient({
-        clientName = "arena-api.client"
-    }) {
-        install(HttpTimeout) {
-            requestTimeoutMillis = 15_000
-        }
-    }
+    val tokenProvider: TokenProvider,
+    val httpClient: HttpClient
 ) {
     companion object {
         val targetAudience = basedOnEnv(
@@ -75,7 +69,7 @@ class ArenaClient(
             contentType(ContentType.Application.Json)
             accept(ContentType.Application.Json)
             bearerAuth(
-                authClient.token(targetAudience).fold(
+                tokenProvider.token(targetAudience).fold(
                     { it.accessToken },
                     { throw Exception("Failed to get token: ${it.error}") }
                 )

@@ -46,9 +46,4 @@ fun testApplicationWithDatabase(
     database.use { testDatabase ->
         block(testDatabase)
     }
-    application {
-        dependencies {
-            provide<Database> { database.config.jdbcDatabase }
-        }
-    }
 }

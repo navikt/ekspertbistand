@@ -38,7 +38,7 @@ class OpprettArenaSakTest {
         })
         startApplication()
 
-        val handler = OpprettArenaSak(application.dependencies.resolve(), application.dependencies.resolve())
+        val handler = OpprettSakArena(application.dependencies.resolve(), application.dependencies.resolve())
         val event = Event(
             id = 1L, data = EventData.JournalpostOpprettet(
                 skjema1, 123, 456, "1337"
@@ -56,7 +56,6 @@ class OpprettArenaSakTest {
             val queuedEvents = QueuedEvents.selectAll()
             assertEquals(1, queuedEvents.count())
             assertTrue(queuedEvents.first()[QueuedEvents.eventData] is EventData.TiltaksgjennomføringOpprettet)
-
         }
     }
 
@@ -68,7 +67,7 @@ class OpprettArenaSakTest {
         })
         startApplication()
 
-        val handler = OpprettArenaSak(application.dependencies.resolve(), application.dependencies.resolve())
+        val handler = OpprettSakArena(application.dependencies.resolve(), application.dependencies.resolve())
         val event = Event(
             id = 1L, data = EventData.JournalpostOpprettet(
                 skjema1, 123, 456, "1337"

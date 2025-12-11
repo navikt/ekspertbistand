@@ -28,6 +28,7 @@ import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
@@ -73,6 +74,18 @@ fun main() {
                     }) {
                         install(HttpTimeout) {
                             requestTimeoutMillis = 5_000
+                        }
+                    }
+                )
+            }
+            provide<ArenaClient> {
+                ArenaClient(
+                    tokenProvider = resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias),
+                    httpClient = defaultHttpClient({
+                        clientName = "arena-api.client"
+                    }) {
+                        install(HttpTimeout) {
+                            requestTimeoutMillis = 15_000
                         }
                     }
                 )

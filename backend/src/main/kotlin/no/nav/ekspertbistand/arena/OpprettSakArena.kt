@@ -9,11 +9,11 @@ import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
-class OpprettArenaSak(
+class OpprettSakArena(
     private val arenaClient: ArenaClient,
     private val database: Database,
 ) : EventHandler<EventData.JournalpostOpprettet> {
-    override val id = "Opprett sak i Arena"
+    override val id = "OpprettSakArena"
 
     override suspend fun handle(event: Event<EventData.JournalpostOpprettet>): EventHandledResult {
         val skjema = event.data.skjema
