@@ -3,10 +3,14 @@ package no.nav.ekspertbistand.arena
 import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.skjema.DTO
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 class OpprettSakArena(
@@ -63,3 +67,18 @@ fun JdbcTransaction.insertSaksnummer(saksnummer: Saksnummer, skjema: DTO.Skjema)
         it[ArenaSakTable.skjema] = Json.encodeToString(skjema)
     }
 }
+
+fun <T> JdbcTransaction.hentArenaSak(loepenr: Int, aar: Int, mapper: ResultRow.() -> T) =
+    ArenaSakTable.selectAll()
+        .where {
+            (ArenaSakTable.loepenummer eq loepenr) and
+                    (ArenaSakTable.aar eq aar)
+        }
+        .map { mapper(it) }
+        .let {
+            if (it.isEmpty()) {
+                throw IllegalArgumentException("Finner ikke arena saksnummer med løpenummer $loepenr og år $aar")
+            } else it.first()
+        }
+
+

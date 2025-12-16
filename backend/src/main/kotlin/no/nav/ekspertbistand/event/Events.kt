@@ -7,6 +7,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.arena.OpprettSakArena
 import no.nav.ekspertbistand.arena.Saksnummer
+import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.dokarkiv.SkjemaInnsendtHandler
 import no.nav.ekspertbistand.notifikasjon.OpprettSakNotifikasjonsPlatform
 import no.nav.ekspertbistand.skjema.DTO
@@ -55,6 +56,12 @@ sealed interface EventData {
     data class TiltaksgjennomføringOpprettet(
         val skjema: DTO.Skjema,
         val saksnummer: Saksnummer
+    ) : EventData
+
+    data class TilskuddsbrevMottatt(
+        val skjema: DTO.Skjema,
+        val tilskuddsbrevId: Int,
+        val tilskuddsnummer: TilsagnData.TilsagnNummer
     ) : EventData
 }
 
