@@ -11,6 +11,8 @@ import io.ktor.server.plugins.di.resolve
 import io.ktor.utils.io.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
+import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.event.configureEventHandlers
@@ -52,6 +54,40 @@ fun main() {
             json()
         }
     }
+    val mockDokgenClient = DokgenClient(
+        httpClient = HttpClient(MockEngine {
+            respond(
+                content = ByteReadChannel("%PDF-mock"),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Pdf.toString())
+            )
+        }) {
+            install(ContentNegotiation) { json() }
+        }
+    )
+    val mockDokArkivClient = DokArkivClient(
+        authClient = object : TokenProvider {
+            override suspend fun token(target: String): TokenResponse =
+                TokenResponse.Success("dummytoken", 3600)
+        },
+        httpClient = HttpClient(MockEngine {
+            respond(
+                content = ByteReadChannel(
+                    """
+                    {
+                      "dokumenter": [{ "dokumentInfoId": "42" }],
+                      "journalpostId": "123456",
+                      "journalpostferdigstilt": true
+                    }
+                    """.trimIndent()
+                ),
+                status = HttpStatusCode.Created,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }) {
+            install(ContentNegotiation) { json() }
+        }
+    )
     val mockAltinnTilgangerClient = AltinnTilgangerClient(
         httpClient = mockAltinnTilgangerServer,
         authClient = object : TokenExchanger {
@@ -138,6 +174,12 @@ fun main() {
             }
             provide {
                 mockEregClient
+            }
+            provide {
+                mockDokgenClient
+            }
+            provide {
+                mockDokArkivClient
             }
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
