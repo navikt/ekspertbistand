@@ -248,6 +248,47 @@ class EventManagerTest {
 
         pollJob.cancel()
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `event manager routes events correctly`() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val config = EventManagerConfig(
+            pollDelayMs = 1,
+            dispatcher = dispatcher,
+        )
+        val manager = EventManager(config) {
+            register<EventData.Foo>("FooDoesNotGetBar") {
+                assertIs<EventData.Foo>(it.data)
+                EventHandledResult.Success()
+            }
+            register<EventData.Bar>("BarHandlerDoesNotGetFoo") {
+                // assert routing does not give us any foo
+                assertIs<EventData.Bar>(it.data)
+                EventHandledResult.Success()
+            }
+        }
+        val queuedEvent1 = EventQueue.publish(EventData.Foo("test1"))
+        val queuedEvent2 = EventQueue.publish(EventData.Bar("test2"))
+
+        val pollJob = launch { manager.runProcessLoop() }
+
+        delay(config.pollDelayMs) // give pollJob some time for processing
+
+        manager.handledEvents(queuedEvent1.id).let { handled ->
+            assertEquals(setOf("FooDoesNotGetBar"), handled.keys)
+            assertIs<EventHandledResult.Success>(handled["FooDoesNotGetBar"]?.result)
+        }
+
+        delay(config.pollDelayMs) // give pollJob some time for processing
+
+        manager.handledEvents(queuedEvent2.id).let { handled ->
+            assertEquals(setOf("BarHandlerDoesNotGetFoo"), handled.keys)
+            assertIs<EventHandledResult.Success>(handled["BarHandlerDoesNotGetFoo"]?.result)
+        }
+
+        pollJob.cancel()
+    }
 }
 
 
@@ -258,6 +299,7 @@ object DummyFooHandler {
 class FooRetryThenSucceedsHandler : EventHandler<EventData.Foo> {
     private var attempt = 0
     override val id: String = "FooRetryThenSucceedsHandler"
+    override val eventType = EventData.Foo::class
     override suspend fun handle(event: Event<EventData.Foo>): EventHandledResult {
         logger().info("Handling Foo event with retry, attempt $attempt")
         return if (attempt < 1) {

@@ -6,6 +6,7 @@ import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.skjema.DTO
+import kotlin.reflect.KClass
 
 private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
@@ -16,8 +17,8 @@ class OpprettSakNotifikasjonsPlatform(
 ) : EventHandler<EventData.TiltaksgjennomføringOpprettet> {
 
     // DO NOT CHANGE THIS!
-    override val id: String =
-        "OpprettSakNotifikasjonPlatform" //TODO: Skulle denne være en readable id? Kan dette endres nå?
+    override val id: String = "OpprettSakNotifikasjonPlatform"
+    override val eventType = EventData.TiltaksgjennomføringOpprettet::class
 
     override suspend fun handle(event: Event<EventData.TiltaksgjennomføringOpprettet>): EventHandledResult {
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
