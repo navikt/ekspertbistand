@@ -14,6 +14,7 @@ class OpprettSakArena(
     private val database: Database,
 ) : EventHandler<EventData.JournalpostOpprettet> {
     override val id = "OpprettSakArena"
+    override val eventType = EventData.JournalpostOpprettet::class
 
     override suspend fun handle(event: Event<EventData.JournalpostOpprettet>): EventHandledResult {
         val skjema = event.data.skjema
