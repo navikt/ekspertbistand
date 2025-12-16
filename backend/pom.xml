@@ -375,6 +375,7 @@
                 <executions>
                     <execution>
                         <id>generate pdl api client</id>
+                        <phase>generate-sources</phase>
                         <goals>
                             <goal>generate-client</goal>
                         </goals>
@@ -387,6 +388,7 @@
                     </execution>
                     <execution>
                         <id>generate produsent api client</id>
+                        <phase>generate-sources</phase>
                         <goals>
                             <goal>generate-client</goal>
                         </goals>
