@@ -10,6 +10,7 @@ import no.nav.ekspertbistand.event.QueuedEvents
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import kotlin.reflect.KClass
 
 class SkjemaInnsendtHandler(
     private val dokgenClient: DokgenClient,
@@ -17,6 +18,7 @@ class SkjemaInnsendtHandler(
     private val database: Database,
 ) : EventHandler<EventData.SkjemaInnsendt> {
     override val id: String = "SkjemaInnsendtHandler"
+    override val eventType = EventData.SkjemaInnsendt::class
 
     override suspend fun handle(event: Event<EventData.SkjemaInnsendt>): EventHandledResult {
         val skjema = event.data.skjema

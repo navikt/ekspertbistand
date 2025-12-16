@@ -16,6 +16,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.upsert
 import org.jetbrains.exposed.v1.json.json
+import kotlin.reflect.KClass
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -58,7 +59,11 @@ class EventManager internal constructor(
 
             log.info("Processing event ${queuedEvent.id} of type ${queuedEvent.eventData::class.simpleName}")
 
-            val results = routeToHandlers(queuedEvent)
+            val results = routeToHandlers(
+                queuedEvent.id,
+                queuedEvent.event,
+                handledEvents(queuedEvent.id)
+            )
             val succeeded = results.filterIsInstance<EventHandledResult.Success>()
             val unrecoverableErrors = results.filterIsInstance<EventHandledResult.UnrecoverableError>()
             val transientError = results.filterIsInstance<EventHandledResult.TransientError>()
@@ -80,36 +85,31 @@ class EventManager internal constructor(
         }
     }
 
-    /**
-     * Routes the given queued event to all applicable event handlers and returns their results.
-     * We use an explicit when statement here to ensure exhaustiveness as new event types are added.
-     * The routing code is duplicated but ensures type safety without unchecked casts.
-     */
-    private suspend fun routeToHandlers(queued: QueuedEvent): List<EventHandledResult> {
-        val previousStatePerHandler = handledEvents(queued.id)
-        return when (queued.event.data) {
-            is EventData.Foo -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
-            is EventData.Bar -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
-            is EventData.SkjemaInnsendt -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
-            is EventData.JournalpostOpprettet -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
-            is EventData.TiltaksgjennomføringOpprettet -> handleStatefully(queued.event, previousStatePerHandler, queued.id)
-        }
-    }
-
 
     /**
      * Handles the given event with all applicable handlers, using the provided previous handler states to determine
      * whether to process or skip each handler.
      * Persists the result of each handler after processing.
      */
-    private suspend inline fun <reified T : EventData> handleStatefully(
+    private suspend inline fun <T : EventData> routeToHandlers(
+        queuedEventId: Long,
         event: Event<T>,
-        statePerHandler: Map<String, EventHandlerState>,
-        eventId: Long
+        statePerHandler: Map<String, EventHandlerState>
     ): List<EventHandledResult> {
-        val handlers = eventHandlers.filterIsInstance<EventHandler<T>>()
+
+        val eventType = event.data::class
+
+        /**
+         * we can not use filterIsInstance here due to type erasure
+         * therefore we must check the eventType explicitly at runtime, and cast afterward
+         */
+        @Suppress("UNCHECKED_CAST")
+        val handlers = eventHandlers.filter {
+            it.eventType == eventType
+        } as List<EventHandler<T>>
+
         return if (handlers.isEmpty()) {
-            listOf(EventHandledResult.TransientError("No handlers registered for event type ${T::class.simpleName}"))
+            listOf(EventHandledResult.TransientError("No handlers registered for event type ${eventType.simpleName}"))
         } else {
             handlers
                 .map { handler ->
@@ -124,7 +124,7 @@ class EventManager internal constructor(
                         null, // process now if previously unhandled,
                         is EventHandledResult.TransientError, // process now if previously handled resulting in TransientError
                             -> handler.handle(event).also { result ->
-                            upsertHandlerResult(eventId, result, handler.id)
+                            upsertHandlerResult(queuedEventId, result, handler.id)
                         }
                     }
                 }
@@ -200,6 +200,7 @@ data class EventManagerConfig(
 
 interface EventHandler<T : EventData> {
     val id: String
+    val eventType : KClass<T>
     suspend fun handle(event: Event<T>): EventHandledResult
 }
 
@@ -257,6 +258,7 @@ inline fun <reified T : EventData> createBlockHandler(
     noinline block: (Event<T>) -> EventHandledResult
 ): EventHandler<T> = object : EventHandler<T> {
     override val id: String = id
+    override val eventType: KClass<T> = T::class
     override suspend fun handle(event: Event<T>) = block(event)
 }
 

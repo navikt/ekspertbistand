@@ -1,10 +1,5 @@
 package no.nav.ekspertbistand.infrastruktur
 
-import io.ktor.server.application.Application
-import io.ktor.server.application.install
-import io.ktor.server.auth.Authentication
-import io.ktor.server.auth.bearer
-
 
 class MockTokenIntrospector(
     val mocks: (String) -> TokenIntrospectionResponse?,
