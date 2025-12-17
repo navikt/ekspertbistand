@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.dokarkiv
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.accept
 import io.ktor.client.request.bearerAuth
@@ -14,10 +15,14 @@ import io.ktor.http.contentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.encodedPath
 import io.ktor.http.takeFrom
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
-import no.nav.ekspertbistand.infrastruktur.TokenProvider
+import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
+import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
+import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
+import no.nav.ekspertbistand.infrastruktur.defaultJson
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -26,15 +31,21 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * or https://confluence.adeo.no/spaces/BOA/pages/313346837/opprettJournalpost
  */
 class DokArkivClient(
-    val authClient: TokenProvider,
-    val httpClient: HttpClient = defaultHttpClient({
-        clientName = "dokarkiv.client"
-    }) {
+    val azureAdTokenProvider: AzureAdTokenProvider,
+    defaultHttpClient: HttpClient,
+) {
+    private val httpClient = defaultHttpClient.config {
+        install(ContentNegotiation) {
+            json(defaultJson)
+        }
+        install(HttpClientMetricsFeature) {
+            registry = Metrics.meterRegistry
+            clientName = "dokarkiv.client"
+        }
         install(HttpTimeout) {
             requestTimeoutMillis = 15_000
         }
     }
-) {
     companion object {
         val targetAudience = basedOnEnv(
             prod = "api://prod-fss.teamdokumenthandtering.dokarkiv/.default",
@@ -93,7 +104,7 @@ class DokArkivClient(
             accept(ContentType.Application.Json)
             expectSuccess = false
             bearerAuth(
-                authClient.token(targetAudience).fold(
+                azureAdTokenProvider.token(targetAudience).fold(
                     { it.accessToken },
                     { throw Exception("Failed to get token: ${it.error}") }
                 )

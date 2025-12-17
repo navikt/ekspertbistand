@@ -1,8 +1,10 @@
 package no.nav.ekspertbistand.infrastruktur
 
+import kotlin.plus
+
 class MockTokenIntrospector(
     val mocks: (String) -> TokenIntrospectionResponse?,
-) : TokenIntrospector {
+) : TokenXTokenIntrospector {
     override suspend fun introspect(accessToken: String) =
         mocks(accessToken) ?: TokenIntrospectionResponse(
             active = false,
@@ -24,3 +26,15 @@ fun TokenIntrospectionResponse.withClientId(clientId: String) =
     this.copy(other = this.other + ("client_id" to clientId))
 
 fun TokenIntrospectionResponse.withAcr(acr: String) = this.copy(other = this.other + ("acr" to acr))
+
+val successAzureAdTokenProvider = object : AzureAdTokenProvider {
+    override suspend fun token(
+        target: String, additionalParameters: Map<String, String>
+    ) = TokenResponse.Success("access_token", 3600)
+}
+
+val successTokenXTokenExchanger = object : TokenXTokenExchanger {
+    override suspend fun exchange(
+        target: String, userToken: String
+    ) = TokenResponse.Success("access_token", 3600)
+}

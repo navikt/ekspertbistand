@@ -3,8 +3,10 @@ package no.nav.ekspertbistand.infrastruktur
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.plugins.di.*
@@ -88,46 +90,66 @@ object TokenIntrospectionResponseSerializer : KSerializer<TokenIntrospectionResp
     }
 }
 
-class TexasAuthConfig(
+class AuthConfig(
     val tokenEndpoint: String,
     val tokenExchangeEndpoint: String,
     val tokenIntrospectionEndpoint: String,
 ) {
     companion object {
-        fun nais() = TexasAuthConfig(
-            tokenEndpoint = System.getenv("NAIS_TOKEN_ENDPOINT"),
-            tokenExchangeEndpoint = System.getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT"),
-            tokenIntrospectionEndpoint = System.getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT"),
-        )
+        val nais: AuthConfig by lazy {
+            AuthConfig(
+                tokenEndpoint = System.getenv("NAIS_TOKEN_ENDPOINT"),
+                tokenExchangeEndpoint = System.getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT"),
+                tokenIntrospectionEndpoint = System.getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT"),
+            )
+        }
     }
-
-    fun authClient(provider: IdentityProvider) = AuthClient(this, provider)
 }
 
-interface TokenExchanger {
+sealed interface TokenExchanger {
     suspend fun exchange(target: String, userToken: String): TokenResponse
 }
 
-interface TokenProvider {
-    suspend fun token(target: String): TokenResponse
+interface TokenXTokenExchanger : TokenExchanger
+
+sealed interface TokenProvider {
+    suspend fun token(target: String, additionalParameters: Map<String, String> = mapOf()): TokenResponse
 }
 
-interface TokenIntrospector {
+interface AzureAdTokenProvider : TokenProvider
+
+sealed interface TokenIntrospector {
     suspend fun introspect(accessToken: String): TokenIntrospectionResponse
 }
 
-class AuthClient(
-    private val config: TexasAuthConfig,
-    private val provider: IdentityProvider,
-    private val httpClient: HttpClient = defaultHttpClient(customizeMetrics = {
-        clientName = "texas.client"
-    }),
-): TokenProvider, TokenExchanger, TokenIntrospector {
+interface TokenXTokenIntrospector : TokenIntrospector
 
-    override suspend fun token(target: String) = try {
+class TokenXAuthClient(
+    config: AuthConfig,
+    httpClient: HttpClient,
+) : AuthClient(config, IdentityProvider.TOKEN_X, httpClient), TokenXTokenExchanger, TokenXTokenIntrospector
+
+class AzureAdAuthClient(
+    config: AuthConfig,
+    httpClient: HttpClient,
+) : AuthClient(config, IdentityProvider.AZURE_AD, httpClient), AzureAdTokenProvider
+
+abstract class AuthClient(
+    private val config: AuthConfig,
+    private val provider: IdentityProvider,
+    defaultHttpClient: HttpClient,
+): TokenProvider, TokenExchanger, TokenIntrospector {
+    protected val httpClient = defaultHttpClient.config {
+        install(ContentNegotiation) {
+            json(defaultJson)
+        }
+    }
+
+    override suspend fun token(target: String, additionalParameters: Map<String, String>) = try {
         httpClient.submitForm(config.tokenEndpoint, parameters {
             set("target", target)
             set("identity_provider", provider.alias)
+            additionalParameters.forEach { (key, value) -> set(key, value) }
         }).body<TokenResponse.Success>()
     } catch (e: ResponseException) {
         TokenResponse.Error(e.response.body<TokenErrorResponse>(), e.response.status)

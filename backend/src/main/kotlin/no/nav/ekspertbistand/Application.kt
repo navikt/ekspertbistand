@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand
 
+import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -47,9 +48,6 @@ import java.util.*
 
 fun main() {
     val dbConfig = DbConfig.nais()
-    val authConfig = TexasAuthConfig.nais()
-    val tokenxClient = authConfig.authClient(IdentityProvider.TOKEN_X)
-    val azureClient = authConfig.authClient(IdentityProvider.AZURE_AD)
 
     ktorServer {
         dependencies {
@@ -61,37 +59,20 @@ fun main() {
                 //    dbConfig.r2dbcDatabase
                 dbConfig.jdbcDatabase
             }
-            provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) { tokenxClient }
-            provide<TokenProvider>(IdentityProvider.AZURE_AD.alias) { azureClient }
-            provide { AltinnTilgangerClient(tokenxClient) }
-            provide { DokgenClient() }
-            provide { DokArkivClient(resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias)) }
-            provide { EregClient() }
+            provide<AuthConfig> { AuthConfig.nais }
+            provide<HttpClient> { defaultHttpClient() }
+
+            provide<TokenXTokenIntrospector>(TokenXAuthClient::class)
+            provide<TokenXTokenExchanger>(TokenXAuthClient::class)
+            provide<AzureAdTokenProvider>(AzureAdAuthClient::class)
+
+            provide(AltinnTilgangerClient::class)
+            provide(DokgenClient::class)
+            provide(DokArkivClient::class)
+            provide(EregClient::class)
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
-            provide<ProdusentApiKlient> {
-                ProdusentApiKlient(
-                    tokenProvider = resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias),
-                    httpClient = defaultHttpClient(customizeMetrics = {
-                        clientName = "notifikasjon.produsent.api.klient"
-                    }) {
-                        install(HttpTimeout) {
-                            requestTimeoutMillis = 5_000
-                        }
-                    }
-                )
-            }
-            provide<ArenaClient> {
-                ArenaClient(
-                    tokenProvider = resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias),
-                    httpClient = defaultHttpClient({
-                        clientName = "arena-api.client"
-                    }) {
-                        install(HttpTimeout) {
-                            requestTimeoutMillis = 15_000
-                        }
-                    }
-                )
-            }
+            provide(ProdusentApiKlient::class)
+            provide(ArenaClient::class)
         }
 
         // configure standard server stuff

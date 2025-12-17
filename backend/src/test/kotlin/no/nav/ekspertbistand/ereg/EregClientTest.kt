@@ -56,7 +56,7 @@ class EregClientTest {
             }
         }
 
-        val eregClient = EregClient(httpClient = client)
+        val eregClient = EregClient(defaultHttpClient = client)
 
         val postadresser = eregClient.hentPostAdresse(orgnr)
         assertEquals(1, postadresser.size)

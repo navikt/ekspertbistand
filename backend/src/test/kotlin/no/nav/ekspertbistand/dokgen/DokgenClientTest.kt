@@ -1,12 +1,9 @@
 package no.nav.ekspertbistand.dokgen
 
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.respond
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.*
+import io.ktor.client.engine.mock.*
 import io.ktor.http.*
-import io.ktor.http.content.TextContent
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.http.content.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
@@ -59,10 +56,7 @@ class DokgenClientTest {
         }
 
         return DokgenClient(
-            httpClient = HttpClient(engine) {
-                install(ContentNegotiation) { json() }
-            },
-            baseUrl = "http://dokgen"
+            defaultHttpClient = HttpClient(engine) {},
         )
     }
 

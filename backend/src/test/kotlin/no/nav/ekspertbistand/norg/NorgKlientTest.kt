@@ -18,14 +18,9 @@ class NorgKlientTest {
         setNorgApiRespons(
             resolver = { listOf() },
         )
-        client = createClient {
-            install(ClientContentNegotiation) {
-                json()
-            }
-        }
 
         val norgKlient = NorgKlient(
-            httpClient = client
+            defaultHttpClient = client
         )
 
         val enhet = norgKlient.hentBehandlendeEnhet("42")
@@ -43,14 +38,9 @@ class NorgKlientTest {
                 )
             },
         )
-        client = createClient {
-            install(ClientContentNegotiation) {
-                json()
-            }
-        }
 
         val norgKlient = NorgKlient(
-            httpClient = client
+            defaultHttpClient = client
         )
 
         val enhet = norgKlient.hentBehandlendeEnhet("42")
@@ -68,14 +58,9 @@ class NorgKlientTest {
                 )
             },
         )
-        client = createClient {
-            install(ClientContentNegotiation) {
-                json()
-            }
-        }
 
         val norgKlient = NorgKlient(
-            httpClient = client
+            defaultHttpClient = client
         )
 
         val enhet = norgKlient.hentBehandlendeEnhet("42")
@@ -89,14 +74,9 @@ class NorgKlientTest {
                 throw Exception("Norg api server kræsjer")
             },
         )
-        client = createClient {
-            install(ClientContentNegotiation) {
-                json()
-            }
-        }
 
         val norgKlient = NorgKlient(
-            httpClient = client
+            defaultHttpClient = client
         )
 
         assertThrows<RuntimeException>({ norgKlient.hentBehandlendeEnhet("42") })

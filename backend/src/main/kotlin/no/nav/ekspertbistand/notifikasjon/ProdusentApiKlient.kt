@@ -2,10 +2,11 @@ package no.nav.ekspertbistand.notifikasjon
 
 import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
 import io.ktor.client.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
-import no.nav.ekspertbistand.infrastruktur.NaisEnvironment
-import no.nav.ekspertbistand.infrastruktur.TokenProvider
-import no.nav.ekspertbistand.infrastruktur.logger
+import io.ktor.serialization.kotlinx.json.*
+import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.ISO8601DateTime
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNyBeskjed
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNySak
@@ -31,10 +32,23 @@ private const val merkelapp = "Ekspertbistand"
 private const val notifikasjonBaseUrl = "http://notifikasjon-produsent-api.fager/api/graphql"
 
 class ProdusentApiKlient(
-    private val tokenProvider: TokenProvider,
-    private val httpClient: HttpClient
+    private val tokenProvider: AzureAdTokenProvider,
+    defaultHttpClient: HttpClient
 ) {
     private val log = logger()
+    private val httpClient = defaultHttpClient.config {
+        install(ContentNegotiation) {
+            json(defaultJson)
+        }
+        install(HttpClientMetricsFeature) {
+            registry = Metrics.meterRegistry
+            clientName = "notifikasjon.produsent.api.klient"
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 5_000
+        }
+    }
+
     private val client = GraphQLKtorClient(
         url = URI(notifikasjonBaseUrl).toURL(),
         httpClient = httpClient

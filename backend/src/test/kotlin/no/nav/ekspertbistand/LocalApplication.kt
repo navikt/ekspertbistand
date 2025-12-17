@@ -2,23 +2,19 @@ package no.nav.ekspertbistand
 
 import io.ktor.client.*
 import io.ktor.client.engine.mock.*
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
-import io.ktor.server.plugins.di.resolve
 import io.ktor.utils.io.*
-import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
+import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
+import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
-import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
@@ -38,59 +34,37 @@ fun main() {
             status = HttpStatusCode.OK,
             headers = headersOf(HttpHeaders.ContentType, "application/json")
         )
-    }) {
-        install(ContentNegotiation) {
-            json()
-        }
-    }
+    })
     val mockEregServer = HttpClient(MockEngine {
         respond(
             content = ByteReadChannel(eregResponse),
             status = HttpStatusCode.OK,
             headers = headersOf(HttpHeaders.ContentType, "application/json")
         )
-    }) {
-        install(ContentNegotiation) {
-            json()
-        }
-    }
+    })
     val mockAltinnTilgangerClient = AltinnTilgangerClient(
-        httpClient = mockAltinnTilgangerServer,
-        authClient = object : TokenExchanger {
-            override suspend fun exchange(
-                target: String,
-                userToken: String
-            ): TokenResponse = TokenResponse.Success("dummy", 3600)
-        }
+        defaultHttpClient = mockAltinnTilgangerServer,
+        tokenExchanger = successTokenXTokenExchanger
     )
-    val mockEregClient = EregClient(httpClient = mockEregServer)
+    val mockEregClient = EregClient(defaultHttpClient = mockEregServer)
     val mockDokgenClient = DokgenClient(
-        httpClient = HttpClient(MockEngine {
+        defaultHttpClient = HttpClient(MockEngine {
             respond(
                 content = "%PDF-mock".toByteArray(),
                 status = HttpStatusCode.OK,
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Pdf.toString())
             )
-        }) {
-            install(ContentNegotiation) {
-                json()
-            }
-        },
-        baseUrl = "http://dokgen"
+        }),
     )
     val mockDokArkivClient = DokArkivClient(
-        authClient = object : TokenProvider {
-            override suspend fun token(target: String): TokenResponse = TokenResponse.Success("token", 3600)
-        },
-        httpClient = HttpClient(MockEngine {
+        azureAdTokenProvider = successAzureAdTokenProvider,
+        defaultHttpClient = HttpClient(MockEngine {
             respond(
                 content = ByteReadChannel(journalpostResponse),
                 status = HttpStatusCode.Created,
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             )
-        }) {
-            install(ContentNegotiation) { json() }
-        }
+        })
     )
 
     testDb.cleanMigrate()
@@ -148,20 +122,13 @@ fun main() {
             provide<Database> {
                 testDb.config.jdbcDatabase
             }
-            provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
+            provide<TokenXTokenIntrospector> {
                 MockTokenIntrospector {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
             }
-            provide<TokenProvider>(IdentityProvider.AZURE_AD.alias) {
-                object : TokenProvider {
-                    override suspend fun token(target: String): TokenResponse {
-                        return TokenResponse.Success(
-                            accessToken = "faketoken",
-                            expiresInSeconds = 3600
-                        )
-                    }
-                }
+            provide<AzureAdTokenProvider> {
+                successAzureAdTokenProvider
             }
             provide {
                 mockAltinnTilgangerClient
@@ -174,26 +141,14 @@ fun main() {
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
                 ProdusentApiKlient(
-                    tokenProvider = resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias),
-                    httpClient = defaultHttpClient(customizeMetrics = {
-                        clientName = "notifikasjon.produsent.api.klient"
-                    }) {
-                        install(HttpTimeout) {
-                            requestTimeoutMillis = 5_000
-                        }
-                    }
+                    tokenProvider = resolve<AzureAdTokenProvider>(),
+                    defaultHttpClient = defaultHttpClient()
                 )
             }
             provide<ArenaClient> {
                 ArenaClient(
-                    tokenProvider = resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias),
-                    httpClient = defaultHttpClient(customizeMetrics = {
-                        clientName = "arena-api.client"
-                    }) {
-                        install(HttpTimeout) {
-                            requestTimeoutMillis = 15_000
-                        }
-                    }
+                    tokenProvider = resolve<AzureAdTokenProvider>(),
+                    defaultHttpClient = defaultHttpClient()
                 )
             }
         }

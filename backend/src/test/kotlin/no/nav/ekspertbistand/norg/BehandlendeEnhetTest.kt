@@ -33,7 +33,7 @@ class BehandlendeEnhetTest {
 
         val service = BehandlendeEnhetService(
             NorgKlient(
-                httpClient = client
+                defaultHttpClient = client
             )
         )
 
@@ -52,7 +52,7 @@ class BehandlendeEnhetTest {
 
         val service = BehandlendeEnhetService(
             NorgKlient(
-                httpClient = client
+                defaultHttpClient = client
             )
         )
 
@@ -80,7 +80,7 @@ class BehandlendeEnhetTest {
 
         val service = BehandlendeEnhetService(
             NorgKlient(
-                httpClient = client
+                defaultHttpClient = client
             )
         )
 
@@ -108,7 +108,7 @@ class BehandlendeEnhetTest {
 
         val service = BehandlendeEnhetService(
             NorgKlient(
-                httpClient = client
+                defaultHttpClient = client
             )
         )
 

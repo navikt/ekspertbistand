@@ -2,15 +2,30 @@ package no.nav.ekspertbistand.norg
 
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonIgnoreUnknownKeys
+import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
+import no.nav.ekspertbistand.infrastruktur.Metrics
+import no.nav.ekspertbistand.infrastruktur.defaultJson
 
 class NorgKlient(
-    private val httpClient: HttpClient
+    defaultHttpClient: HttpClient
 ) {
+    private val httpClient = defaultHttpClient.config {
+        install(ContentNegotiation) {
+            json(defaultJson)
+        }
+        install(HttpClientMetricsFeature) {
+            registry = Metrics.meterRegistry
+            clientName = "norg.client"
+        }
+    }
     suspend fun hentBehandlendeEnhet(geografiskTilknytning: String): Norg2Enhet? {
         val norg2ResponseListe = try {
             httpClient.post("$baseUrl/norg2/api/v1/arbeidsfordeling/enheter/bestmatch")

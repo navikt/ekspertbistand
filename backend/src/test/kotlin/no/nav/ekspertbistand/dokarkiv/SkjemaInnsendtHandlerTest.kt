@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.dokarkiv
 
+import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.serialization.kotlinx.json.json
@@ -16,10 +17,12 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.IdentityProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
+import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.mocks.mockDokArkiv
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.skjema.DTO
@@ -131,36 +134,15 @@ private val sampleSkjema = DTO.Skjema(
 )
 
 private fun ApplicationTestBuilder.setupApplication(database: Database) {
-    val client = createClient {
-        install(ClientContentNegotiation) {
-            json()
-        }
-    }
     application {
         dependencies {
             provide { database }
-            provide<TokenProvider>(IdentityProvider.AZURE_AD.alias) {
-                object : TokenProvider {
-                    override suspend fun token(target: String): TokenResponse {
-                        return TokenResponse.Success(
-                            accessToken = "token",
-                            expiresInSeconds = 3600
-                        )
-                    }
-                }
+            provide<HttpClient> { this@setupApplication.createClient {} }
+            provide<AzureAdTokenProvider> {
+                successAzureAdTokenProvider
             }
-            provide<TokenProvider> {
-                object : TokenProvider {
-                    override suspend fun token(target: String): TokenResponse {
-                        return TokenResponse.Success(
-                            accessToken = "token",
-                            expiresInSeconds = 3600
-                        )
-                    }
-                }
-            }
-            provide { DokgenClient(client, baseUrl = "http://localhost:9000") }
-            provide { DokArkivClient(resolve(), client) }
+            provide(DokgenClient::class)
+            provide(DokArkivClient::class)
             provide<IdempotencyGuard> { IdempotencyGuard(resolve()) }
             provide {
                 SkjemaInnsendtHandler(
