@@ -20,8 +20,8 @@ import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.Geo
 import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Adressebeskyttelse
 import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Folkeregistermetadata
 import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Person
-import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.Test
 import kotlin.test.assertTrue
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
@@ -37,8 +37,7 @@ class PdlApiKlientTest {
         startApplication()
 
         val pdlKlient = PdlApiKlient(
-            "fakeToken",
-            tokenExchanger = application.dependencies.resolve(),
+            azureAdTokenProvider = application.dependencies.resolve(),
             defaultHttpClient = client
         )
 
@@ -68,8 +67,7 @@ class PdlApiKlientTest {
         startApplication()
 
         val pdlKlient = PdlApiKlient(
-            "fakeToken",
-            tokenExchanger = application.dependencies.resolve(),
+            azureAdTokenProvider = application.dependencies.resolve(),
             defaultHttpClient = client
         )
 
@@ -95,8 +93,7 @@ class PdlApiKlientTest {
         startApplication()
 
         val pdlKlient = PdlApiKlient(
-            "fakeToken",
-            tokenExchanger = application.dependencies.resolve(),
+            azureAdTokenProvider = application.dependencies.resolve(),
             defaultHttpClient = client
         )
 
@@ -112,16 +109,10 @@ class PdlApiKlientTest {
 private fun ApplicationTestBuilder.setupTestApplication() {
     application {
         dependencies {
-            provide<TokenXTokenIntrospector> {
-                MockTokenIntrospector {
-                    if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
-                }
-            }
-            provide<TokenXTokenExchanger> {
-                successTokenXTokenExchanger
+            provide<AzureAdTokenProvider> {
+                mockAzureAdTokenProvider
             }
         }
-        configureTokenXAuth()
     }
 }
 
@@ -164,5 +155,12 @@ private fun ApplicationTestBuilder.setPdlApiRespons(
                 }
             }
         }
+    }
+}
+
+private val mockAzureAdTokenProvider = object : AzureAdTokenProvider {
+    override suspend fun token(target: String, additionalParameters: Map<String, String>): TokenResponse {
+        assertEquals(PdlApiKlient.targetAudience, target)
+        return TokenResponse.Success("access_token", 3600)
     }
 }
