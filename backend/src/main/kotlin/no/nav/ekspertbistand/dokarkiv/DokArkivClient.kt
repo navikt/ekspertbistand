@@ -48,7 +48,7 @@ class DokArkivClient(
             other = "http://dokarkiv.mock.svc.cluster.local",
         )
 
-        const val API_PATH = "/rest/journalpostapi/v1/journalpost?forsoekFerdigstill=true"
+        const val API_PATH = "/rest/journalpostapi/v1/journalpost"
     }
 
     suspend fun opprettOgFerdigstillJournalpost(
@@ -87,6 +87,7 @@ class DokArkivClient(
             url {
                 takeFrom(ingress)
                 path(API_PATH)
+                parameters.append("forsoekFerdigstill", "true")
             }
             contentType(ContentType.Application.Json)
             accept(ContentType.Application.Json)
