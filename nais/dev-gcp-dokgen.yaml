@@ -27,4 +27,4 @@ spec:
   accessPolicy:
     inbound:
       rules:
-        - application: ekspertbistand-api
+        - application: ekspertbistand-backend
