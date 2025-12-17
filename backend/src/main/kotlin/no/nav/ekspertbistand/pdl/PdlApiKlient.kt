@@ -3,8 +3,7 @@ package no.nav.ekspertbistand.pdl
 import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
 import io.ktor.client.*
 import io.ktor.client.request.*
-import no.nav.ekspertbistand.infrastruktur.TokenExchanger
-import no.nav.ekspertbistand.infrastruktur.TokenXTokenExchanger
+import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.pdl.graphql.generated.HentGeografiskTilknytning
 import no.nav.ekspertbistand.pdl.graphql.generated.HentPerson
@@ -16,8 +15,7 @@ import java.net.URI
 private const val behandlingsNummer = "B591"
 
 class PdlApiKlient(
-    private val subjectToken: String,
-    private val tokenExchanger: TokenXTokenExchanger,
+    private val azureAdTokenProvider: AzureAdTokenProvider,
     defaultHttpClient: HttpClient
 ) {
     private val client = GraphQLKtorClient(
@@ -28,10 +26,8 @@ class PdlApiKlient(
     )
 
     private suspend fun token(): String {
-        val target = "${targetCluster}.pdl.pdl-api"
-        return tokenExchanger.exchange(
-            target = target,
-            userToken = subjectToken
+        return azureAdTokenProvider.token(
+            target = targetAudience,
         ).fold(
             onSuccess = { it.accessToken },
             onError = { throw Exception("Feil ved henting av token for pdl api: ${it.error.errorDescription}") }
@@ -87,6 +83,8 @@ class PdlApiKlient(
             prod = { "prod-fss" },
             other = { "dev-fss" }
         )
+
+        val targetAudience = "api://${targetCluster}.pdl.pdl-api/.default"
     }
 }
 
