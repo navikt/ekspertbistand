@@ -9,8 +9,10 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
 import io.ktor.server.plugins.di.resolve
 import io.ktor.utils.io.*
+import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
+import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.event.configureEventHandlers
@@ -62,6 +64,34 @@ fun main() {
         }
     )
     val mockEregClient = EregClient(httpClient = mockEregServer)
+    val mockDokgenClient = DokgenClient(
+        httpClient = HttpClient(MockEngine {
+            respond(
+                content = "%PDF-mock".toByteArray(),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Pdf.toString())
+            )
+        }) {
+            install(ContentNegotiation) {
+                json()
+            }
+        },
+        baseUrl = "http://dokgen"
+    )
+    val mockDokArkivClient = DokArkivClient(
+        authClient = object : TokenProvider {
+            override suspend fun token(target: String): TokenResponse = TokenResponse.Success("token", 3600)
+        },
+        httpClient = HttpClient(MockEngine {
+            respond(
+                content = ByteReadChannel(journalpostResponse),
+                status = HttpStatusCode.Created,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }) {
+            install(ContentNegotiation) { json() }
+        }
+    )
 
     testDb.cleanMigrate()
     transaction(testDb.config.jdbcDatabase) {
@@ -139,6 +169,8 @@ fun main() {
             provide {
                 mockEregClient
             }
+            provide { mockDokgenClient }
+            provide { mockDokArkivClient }
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
                 ProdusentApiKlient(
@@ -195,6 +227,17 @@ const val eregResponse = """{
       }
     ]
   }
+}"""
+
+// language=JSON
+const val journalpostResponse = """{
+  "dokumenter": [
+    {
+      "dokumentInfoId": "1111"
+    }
+  ],
+  "journalpostId": "2222",
+  "journalpostferdigstilt": true
 }"""
 
 // language=JSON
