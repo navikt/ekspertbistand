@@ -54,7 +54,7 @@ class SkjemaTest {
                 provide {
                     testDb.config.jdbcDatabase
                 }
-                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
+                provide<TokenXTokenIntrospector> {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
@@ -199,7 +199,7 @@ class SkjemaTest {
                 provide {
                     testDb.config.jdbcDatabase
                 }
-                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
+                provide<TokenXTokenIntrospector> {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
@@ -388,7 +388,7 @@ class SkjemaTest {
                 provide {
                     testDb.config.jdbcDatabase
                 }
-                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
+                provide<TokenXTokenIntrospector> {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
@@ -512,7 +512,7 @@ class SkjemaTest {
                 provide {
                     testDb.config.jdbcDatabase
                 }
-                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
+                provide<TokenXTokenIntrospector> {
                     MockTokenIntrospector {
                         null
                     }

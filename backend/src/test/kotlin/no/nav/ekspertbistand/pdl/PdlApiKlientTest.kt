@@ -112,7 +112,7 @@ class PdlApiKlientTest {
 private fun ApplicationTestBuilder.setupTestApplication() {
     application {
         dependencies {
-            provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
+            provide<TokenXTokenIntrospector> {
                 MockTokenIntrospector {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }

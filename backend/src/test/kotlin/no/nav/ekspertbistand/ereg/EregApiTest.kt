@@ -65,7 +65,7 @@ class EregApiTest {
                 provide {
                     EregClient(defaultHttpClient = client)
                 }
-                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
+                provide<TokenXTokenIntrospector> {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
@@ -118,7 +118,7 @@ class EregApiTest {
                 provide {
                     EregClient(defaultHttpClient = client)
                 }
-                provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
+                provide<TokenXTokenIntrospector> {
                     MockTokenIntrospector {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
