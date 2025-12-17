@@ -12,7 +12,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.path
+import io.ktor.http.encodedPath
 import io.ktor.http.takeFrom
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.TokenProvider
@@ -38,7 +38,7 @@ class DokArkivClient(
     companion object {
         val targetAudience = basedOnEnv(
             prod = "api://prod-fss.teamdokumenthandtering.dokarkiv/.default",
-            dev = "api://dev-fss.teamdokumenthandtering.dokarkiv/.default",
+            dev = "api://dev-fss.teamdokumenthandtering.dokarkiv-q1/.default",
             other = "api://mock.dokarkiv/.default",
         )
 
@@ -48,7 +48,7 @@ class DokArkivClient(
             other = "http://dokarkiv.mock.svc.cluster.local",
         )
 
-        const val API_PATH = "/rest/journalpostapi/v1/journalpost?forsoekFerdigstill=true"
+        const val API_PATH = "/rest/journalpostapi/v1/journalpost"
     }
 
     suspend fun opprettOgFerdigstillJournalpost(
@@ -86,7 +86,8 @@ class DokArkivClient(
         val response = httpClient.post {
             url {
                 takeFrom(ingress)
-                path(API_PATH)
+                encodedPath = API_PATH
+                parameters.append("forsoekFerdigstill", "true")
             }
             contentType(ContentType.Application.Json)
             accept(ContentType.Application.Json)

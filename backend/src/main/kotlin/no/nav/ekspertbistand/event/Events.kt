@@ -7,6 +7,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.arena.OpprettSakArena
 import no.nav.ekspertbistand.arena.Saksnummer
+import no.nav.ekspertbistand.dokarkiv.SkjemaInnsendtHandler
 import no.nav.ekspertbistand.notifikasjon.OpprettSakNotifikasjonsPlatform
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
@@ -71,6 +72,14 @@ suspend fun Application.configureEventHandlers() {
         )
         register(
             OpprettSakArena(
+                dependencies.resolve(),
+                dependencies.resolve(),
+            )
+        )
+        register(
+            SkjemaInnsendtHandler(
+                dependencies.resolve(),
+                dependencies.resolve(),
                 dependencies.resolve(),
                 dependencies.resolve(),
             )

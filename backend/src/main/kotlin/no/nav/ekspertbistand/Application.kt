@@ -29,14 +29,15 @@ import io.micrometer.core.instrument.binder.system.ProcessorMetrics
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
+import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
-import no.nav.ekspertbistand.event.configureEventHandlers
-import no.nav.ekspertbistand.infrastruktur.*
-import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.event.IdempotencyGuard
-import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
+import no.nav.ekspertbistand.infrastruktur.*
+import no.nav.ekspertbistand.internal.configureInternal
+import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import no.nav.ekspertbistand.skjema.subjectToken
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -64,6 +65,7 @@ fun main() {
             provide<TokenProvider>(IdentityProvider.AZURE_AD.alias) { azureClient }
             provide { AltinnTilgangerClient(tokenxClient) }
             provide { DokgenClient() }
+            provide { DokArkivClient(resolve<TokenProvider>(IdentityProvider.AZURE_AD.alias)) }
             provide { EregClient() }
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
