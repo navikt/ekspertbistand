@@ -12,7 +12,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.path
+import io.ktor.http.encodedPath
 import io.ktor.http.takeFrom
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.TokenProvider
@@ -86,7 +86,7 @@ class DokArkivClient(
         val response = httpClient.post {
             url {
                 takeFrom(ingress)
-                path(API_PATH)
+                encodedPath = API_PATH
                 parameters.append("forsoekFerdigstill", "true")
             }
             contentType(ContentType.Application.Json)
