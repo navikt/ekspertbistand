@@ -3,24 +3,23 @@ package no.nav.ekspertbistand.ereg
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.accept
 import io.ktor.client.request.get
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.path
 import io.ktor.http.takeFrom
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
+import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
+import no.nav.ekspertbistand.infrastruktur.defaultJson
 
 class EregClient(
-    val httpClient: HttpClient = defaultHttpClient({
-        clientName = "ereg.client"
-    }) {
-        install(HttpTimeout) {
-            requestTimeoutMillis = 15_000
-        }
-    }
+    val defaultHttpClient: HttpClient
 ) {
     companion object {
         val ingress = basedOnEnv(
@@ -29,6 +28,19 @@ class EregClient(
             other = "http://ereg-services.mock.svc.cluster.local",
         )
         const val API_PATH = "/v2/organisasjon/"
+    }
+
+    private val httpClient = defaultHttpClient.config {
+        install(ContentNegotiation) {
+            json(defaultJson)
+        }
+        install(HttpClientMetricsFeature) {
+            registry = Metrics.meterRegistry
+            clientName = "ereg.client"
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 15_000
+        }
     }
 
     suspend fun hentOrganisasjon(orgnr: String): OrganisasjonResponse {

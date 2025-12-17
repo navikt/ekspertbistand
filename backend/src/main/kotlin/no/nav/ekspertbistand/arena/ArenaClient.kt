@@ -2,14 +2,18 @@ package no.nav.ekspertbistand.arena
 
 import io.ktor.client.*
 import io.ktor.client.call.*
-import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
-import no.nav.ekspertbistand.infrastruktur.TokenProvider
+import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
+import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
+import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
-import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
+import no.nav.ekspertbistand.infrastruktur.defaultJson
 
 
 const val EKSPERTBISTAND_TILTAKSKODE = "EKSPEBIST"
@@ -28,8 +32,8 @@ const val EKSPERTBISTAND_TILTAKSKODE = "EKSPEBIST"
  * https://doc.nais.io/workloads/explanations/migrating-to-gcp/#how-do-i-reach-an-application-found-on-premises-from-my-application-in-gcp
  */
 class ArenaClient(
-    val tokenProvider: TokenProvider,
-    val httpClient: HttpClient
+    val tokenProvider: AzureAdTokenProvider,
+    defaultHttpClient: HttpClient
 ) {
     companion object {
         val targetAudience = basedOnEnv(
@@ -44,10 +48,20 @@ class ArenaClient(
             other = "http://arena-api.mock.svc.cluster.local",
         )
 
-        /**
-         * TODO: get correct path when API is defined by team arena
-         */
         const val API_PATH = "/api/v1/tiltaksgjennomfoering"
+    }
+
+    val httpClient = defaultHttpClient.config {
+        install(ContentNegotiation) {
+            json(defaultJson)
+        }
+        install(HttpClientMetricsFeature) {
+            registry = Metrics.meterRegistry
+            clientName = "arena-api.client"
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 15_000
+        }
     }
 
     /**
@@ -108,24 +122,28 @@ data class OpprettEkspertbistand(
 data class OpprettTiltaksgjennomfoeringRequest(
     val bedriftsnummer: String,
     val tiltaksgjennomfoering: Tiltaksgjennomfoering,
-    val dokumentreferanse : Dokumentreferanse
+    val dokumentreferanse: Dokumentreferanse
 )
+
 @Serializable
 data class Tiltaksgjennomfoering(
     val tiltaksvariant: String = EKSPERTBISTAND_TILTAKSKODE,
-    val behandlendeEnhetId : String,
-    val gjennomfoeringsperiode : Gjennomforingsperiode,
+    val behandlendeEnhetId: String,
+    val gjennomfoeringsperiode: Gjennomforingsperiode,
     val person: Person,
 )
+
 @Serializable
 data class Gjennomforingsperiode(
     val fom: LocalDate,
     val tom: LocalDate? = null,
 )
+
 @Serializable
 data class Person(
     val ident: String,
 )
+
 @Serializable
 data class Dokumentreferanse(
     val journalpostId: Int,

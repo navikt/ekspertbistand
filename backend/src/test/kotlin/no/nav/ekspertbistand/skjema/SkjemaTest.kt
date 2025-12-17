@@ -46,13 +46,8 @@ class SkjemaTest {
             }
         }
         val altinnTilgangerClient = AltinnTilgangerClient(
-            httpClient = client,
-            authClient = object : TokenExchanger {
-                override suspend fun exchange(
-                    target: String,
-                    userToken: String
-                ): TokenResponse = TokenResponse.Success("dummy", 3600)
-            }
+            defaultHttpClient = client,
+            tokenExchanger = successTokenXTokenExchanger
         )
         application {
             dependencies {
@@ -195,13 +190,8 @@ class SkjemaTest {
             }
         }
         val altinnTilgangerClient = AltinnTilgangerClient(
-            httpClient = client,
-            authClient = object : TokenExchanger {
-                override suspend fun exchange(
-                    target: String,
-                    userToken: String
-                ): TokenResponse = TokenResponse.Success("dummy", 3600)
-            }
+            defaultHttpClient = client,
+            tokenExchanger = successTokenXTokenExchanger
         )
 
         application {
@@ -389,13 +379,8 @@ class SkjemaTest {
             }
         }
         val altinnTilgangerClient = AltinnTilgangerClient(
-            httpClient = client,
-            authClient = object : TokenExchanger {
-                override suspend fun exchange(
-                    target: String,
-                    userToken: String
-                ): TokenResponse = TokenResponse.Success("dummy", 3600)
-            }
+            defaultHttpClient = client,
+            tokenExchanger = successTokenXTokenExchanger
         )
 
         application {
@@ -513,12 +498,15 @@ class SkjemaTest {
 
     @Test
     fun `get skjema gir 401 ved ugyldig token`() = testApplicationWithDatabase { testDb ->
-        val altinnTilgangerClient = AltinnTilgangerClient(object : TokenExchanger {
-            override suspend fun exchange(
-                target: String,
-                userToken: String
-            ) = fail("call to altinn tilganger not expected for unauthorized user")
-        })
+        val altinnTilgangerClient = AltinnTilgangerClient(
+            object : TokenXTokenExchanger {
+                override suspend fun exchange(
+                    target: String,
+                    userToken: String
+                ) = fail("call to altinn tilganger not expected for unauthorized user")
+            },
+            defaultHttpClient = createClient {  }
+        )
         application {
             dependencies {
                 provide {

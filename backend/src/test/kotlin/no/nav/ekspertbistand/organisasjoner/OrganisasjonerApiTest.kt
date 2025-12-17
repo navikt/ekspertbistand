@@ -1,10 +1,10 @@
 package no.nav.ekspertbistand.organisasjoner
 
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
 import io.ktor.server.testing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
@@ -12,14 +12,7 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient.Companion.altinn3Ressu
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.configureOrganisasjonerApiV1
 import no.nav.ekspertbistand.configureServer
-import no.nav.ekspertbistand.infrastruktur.IdentityProvider
-import no.nav.ekspertbistand.infrastruktur.MockTokenIntrospector
-import no.nav.ekspertbistand.infrastruktur.TokenExchanger
-import no.nav.ekspertbistand.infrastruktur.TokenIntrospector
-import no.nav.ekspertbistand.infrastruktur.TokenResponse
-import no.nav.ekspertbistand.infrastruktur.configureTokenXAuth
-import no.nav.ekspertbistand.infrastruktur.mockIntrospectionResponse
-import no.nav.ekspertbistand.infrastruktur.withPid
+import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
 import org.skyscreamer.jsonassert.JSONAssert.assertEquals
 import org.skyscreamer.jsonassert.JSONCompareMode
@@ -70,13 +63,8 @@ class OrganisasjonerApiTest {
         }
 
         val altinnTilgangerClient = AltinnTilgangerClient(
-            httpClient = client,
-            authClient = object : TokenExchanger {
-                override suspend fun exchange(
-                    target: String,
-                    userToken: String
-                ): TokenResponse = TokenResponse.Success("dummy", 3600)
-            }
+            defaultHttpClient = client,
+            tokenExchanger = successTokenXTokenExchanger
         )
 
         application {

@@ -1,12 +1,10 @@
 package no.nav.ekspertbistand.arena
 
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
+import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenErrorResponse
-import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
 import no.nav.ekspertbistand.mocks.mockTiltaksgjennomfoering
 import org.junit.jupiter.api.Test
@@ -64,14 +62,9 @@ class ArenaClientTest {
             }    
             """
         })
-        client = createClient {
-            install(ContentNegotiation) {
-                json()
-            }
-        }
         val arenaClient = ArenaClient(
             tokenProvider = mockTokenProvider,
-            httpClient = client
+            defaultHttpClient = client
         )
         arenaClient.opprettTiltaksgjennomfoering(opprettEkspertbistand).let {
             requestAssertions.forEach { aserrtion -> aserrtion() } // run assertions on the request payload
@@ -83,8 +76,8 @@ class ArenaClientTest {
 }
 
 
-private val mockTokenProvider = object : TokenProvider {
-    override suspend fun token(target: String): TokenResponse {
+private val mockTokenProvider = object : AzureAdTokenProvider {
+    override suspend fun token(target: String, additionalParameters: Map<String, String>): TokenResponse {
         return if (target == ArenaClient.targetAudience) TokenResponse.Success(
             "dummytolkien", 3600
         ) else TokenResponse.Error(

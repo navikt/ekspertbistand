@@ -20,8 +20,8 @@ import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
-import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.event.IdempotencyGuard
+import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNyBeskjed
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNySak
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DefaultNyBeskjedResultatImplementation
@@ -34,7 +34,6 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertTrue
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
@@ -146,11 +145,7 @@ private val skjema1 = DTO.Skjema(
 
 
 private fun ApplicationTestBuilder.setupTestApplication() {
-    val client = createClient {
-        install(ClientContentNegotiation) {
-            json()
-        }
-    }
+    val client = createClient { }
     val db = TestDatabase().cleanMigrate()
     application {
         dependencies {
@@ -160,17 +155,10 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
             }
-            provide<TokenProvider> {
-                object : TokenProvider {
-                    override suspend fun token(target: String): TokenResponse {
-                        return TokenResponse.Success(
-                            accessToken = "faketoken",
-                            expiresInSeconds = 3600
-                        )
-                    }
-                }
+            provide<AzureAdTokenProvider> {
+                successAzureAdTokenProvider
             }
-            provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<TokenProvider>(), client) }
+            provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<OpprettSakNotifikasjonsPlatform> {
                 OpprettSakNotifikasjonsPlatform(
@@ -222,8 +210,7 @@ private fun ApplicationTestBuilder.setProdusentApiResultat(
             routing {
                 post("/api/graphql") {
                     val json = parseToJsonElement(call.receiveText()) as JsonObject
-                    val operation = json["operationName"]!!.jsonPrimitive.content
-                    when (operation) {
+                    when (val operation = json["operationName"]!!.jsonPrimitive.content) {
                         "OpprettNySak" -> {
                             call.respond(
                                 KotlinxGraphQLResponse(

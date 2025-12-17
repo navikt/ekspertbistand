@@ -1,34 +1,41 @@
 package no.nav.ekspertbistand.dokgen
 
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.request.accept
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.http.path
-import io.ktor.http.takeFrom
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
+import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
-import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
+import no.nav.ekspertbistand.infrastruktur.defaultJson
 import no.nav.ekspertbistand.skjema.DTO
 
 class DokgenClient(
-    private val httpClient: HttpClient = defaultHttpClient({
-        clientName = "dokgen.client"
-    }) {
+    defaultHttpClient: HttpClient,
+) {
+    companion object {
+        val baseUrl: String = basedOnEnv(
+            prod = "http://ekspertbistand-dokgen",
+            dev = "http://ekspertbistand-dokgen",
+            other = "http://localhost:9000",
+        )
+    }
+    private val httpClient = defaultHttpClient.config {
+        install(ContentNegotiation) {
+            json(defaultJson)
+        }
+        install(HttpClientMetricsFeature) {
+            registry = Metrics.meterRegistry
+            clientName = "dokgen.client"
+        }
         install(HttpTimeout) {
             requestTimeoutMillis = 10_000
         }
-    },
-    private val baseUrl: String = basedOnEnv(
-        prod = "http://ekspertbistand-dokgen",
-        dev = "http://ekspertbistand-dokgen",
-        other = "http://localhost:9000",
-    )
-) {
+    }
     suspend fun genererSoknadPdf(skjema: DTO.Skjema): ByteArray {
         val payload = SoknadRequest.from(skjema)
 

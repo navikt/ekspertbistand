@@ -1,28 +1,17 @@
 package no.nav.ekspertbistand.ereg
 
-import io.ktor.client.call.body
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.plugins.di.dependencies
-import io.ktor.server.testing.testApplication
+import io.ktor.client.call.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.plugins.di.*
+import io.ktor.server.testing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient.Companion.altinn3Ressursid
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.configureServer
-import no.nav.ekspertbistand.infrastruktur.IdentityProvider
-import no.nav.ekspertbistand.infrastruktur.MockTokenIntrospector
-import no.nav.ekspertbistand.infrastruktur.TokenExchanger
-import no.nav.ekspertbistand.infrastruktur.TokenIntrospector
-import no.nav.ekspertbistand.infrastruktur.TokenResponse
-import no.nav.ekspertbistand.infrastruktur.configureTokenXAuth
-import no.nav.ekspertbistand.infrastruktur.mockIntrospectionResponse
-import no.nav.ekspertbistand.infrastruktur.withPid
+import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
 import no.nav.ekspertbistand.mocks.mockEreg
 import org.junit.jupiter.api.Test
@@ -64,11 +53,8 @@ class EregApiTest {
         }
 
         val altinnTilgangerClient = AltinnTilgangerClient(
-            httpClient = client,
-            authClient = object : TokenExchanger {
-                override suspend fun exchange(target: String, userToken: String): TokenResponse =
-                    TokenResponse.Success("dummy", 3600)
-            }
+            defaultHttpClient = client,
+            tokenExchanger = successTokenXTokenExchanger
         )
 
         application {
@@ -77,7 +63,7 @@ class EregApiTest {
                     altinnTilgangerClient
                 }
                 provide {
-                    EregClient(httpClient = client)
+                    EregClient(defaultHttpClient = client)
                 }
                 provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
                     MockTokenIntrospector {
@@ -120,11 +106,8 @@ class EregApiTest {
         }
 
         val altinnTilgangerClient = AltinnTilgangerClient(
-            httpClient = client,
-            authClient = object : TokenExchanger {
-                override suspend fun exchange(target: String, userToken: String): TokenResponse =
-                    TokenResponse.Success("dummy", 3600)
-            }
+            defaultHttpClient = client,
+            tokenExchanger = successTokenXTokenExchanger
         )
 
         application {
@@ -133,7 +116,7 @@ class EregApiTest {
                     altinnTilgangerClient
                 }
                 provide {
-                    EregClient(httpClient = client)
+                    EregClient(defaultHttpClient = client)
                 }
                 provide<TokenIntrospector>(IdentityProvider.TOKEN_X.alias) {
                     MockTokenIntrospector {

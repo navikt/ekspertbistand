@@ -1,11 +1,11 @@
 package no.nav.ekspertbistand.dokarkiv
 
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.testing.testApplication
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.testing.*
+import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenErrorResponse
-import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
 import no.nav.ekspertbistand.mocks.OpprettJournalpostRequest
 import no.nav.ekspertbistand.mocks.mockDokArkiv
@@ -54,8 +54,8 @@ class DokArkivClientTest {
         }
 
         val dokArkivClient = DokArkivClient(
-            authClient = mockTokenProvider,
-            httpClient = client
+            azureAdTokenProvider = mockTokenProvider,
+            defaultHttpClient = client
         )
 
         dokArkivClient.opprettOgFerdigstillJournalpost(
@@ -69,8 +69,8 @@ class DokArkivClientTest {
     }
 }
 
-private val mockTokenProvider = object : TokenProvider {
-    override suspend fun token(target: String): TokenResponse {
+private val mockTokenProvider = object : AzureAdTokenProvider {
+    override suspend fun token(target: String, additionalParameters: Map<String, String>): TokenResponse {
         return if (target == DokArkivClient.targetAudience) TokenResponse.Success(
             "dummytoken", 3600
         ) else TokenResponse.Error(

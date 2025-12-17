@@ -3,8 +3,10 @@ package no.nav.ekspertbistand.altinn
 import io.ktor.client.HttpClient
 import io.ktor.client.call.*
 import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.*
 
@@ -13,24 +15,31 @@ import no.nav.ekspertbistand.infrastruktur.*
  * ex: AltinnTilgangerClient(AuthClient(TexasAuthConfig.nais(), IdentityProvider.TOKEN_X))
  */
 class AltinnTilgangerClient(
-    private val authClient: TokenExchanger,
-    private val httpClient: HttpClient = defaultHttpClient(customizeMetrics = {
-        clientName = "altinn.tilganger.client"
-    }) {
-        install(HttpTimeout) {
-            requestTimeoutMillis = 15_000
-        }
-    }
+    private val tokenExchanger: TokenXTokenExchanger,
+    defaultHttpClient: HttpClient
 ) {
     companion object {
         const val altinn3Ressursid = "nav_tiltak_ekspertbistand"
         const val ingress = "http://arbeidsgiver-altinn-tilganger.fager"
     }
 
+    private val httpClient = defaultHttpClient.config {
+        install(ContentNegotiation) {
+            json(defaultJson)
+        }
+        install(HttpClientMetricsFeature) {
+            registry = Metrics.meterRegistry
+            clientName = "altinn.tilganger.client"
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 15_000
+        }
+    }
+
     private val targetAudience = "${NaisEnvironment.clusterName}:fager:arbeidsgiver-altinn-tilganger"
 
     suspend fun hentTilganger(subjectToken: String): AltinnTilgangerClientResponse {
-        val token = authClient.exchange(
+        val token = tokenExchanger.exchange(
             target = targetAudience,
             userToken = subjectToken,
         )

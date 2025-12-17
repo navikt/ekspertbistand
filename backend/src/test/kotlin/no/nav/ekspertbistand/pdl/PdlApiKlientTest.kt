@@ -38,8 +38,8 @@ class PdlApiKlientTest {
 
         val pdlKlient = PdlApiKlient(
             "fakeToken",
-            tokenExchanger = application.dependencies.resolve<TokenExchanger>(),
-            httpClient = client
+            tokenExchanger = application.dependencies.resolve(),
+            defaultHttpClient = client
         )
 
         val person = pdlKlient.hentAdressebeskyttelse("42")
@@ -69,12 +69,12 @@ class PdlApiKlientTest {
 
         val pdlKlient = PdlApiKlient(
             "fakeToken",
-            tokenExchanger = application.dependencies.resolve<TokenExchanger>(),
-            httpClient = client
+            tokenExchanger = application.dependencies.resolve(),
+            defaultHttpClient = client
         )
 
         val person = pdlKlient.hentAdressebeskyttelse("42")
-        assertTrue(person.adressebeskyttelse.size == 1)
+        assertEquals(person.adressebeskyttelse.size, 1)
         assertEquals(AdressebeskyttelseGradering.FORTROLIG, person.adressebeskyttelse.first().gradering)
     }
 
@@ -96,8 +96,8 @@ class PdlApiKlientTest {
 
         val pdlKlient = PdlApiKlient(
             "fakeToken",
-            tokenExchanger = application.dependencies.resolve<TokenExchanger>(),
-            httpClient = client
+            tokenExchanger = application.dependencies.resolve(),
+            defaultHttpClient = client
         )
 
         val tilknytning = pdlKlient.hentGeografiskTilknytning("42")
@@ -117,18 +117,8 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
             }
-            provide<TokenExchanger> {
-                object : TokenExchanger {
-                    override suspend fun exchange(
-                        target: String,
-                        userToken: String
-                    ): TokenResponse {
-                        return TokenResponse.Success(
-                            accessToken = "faketoken",
-                            expiresInSeconds = 3600
-                        )
-                    }
-                }
+            provide<TokenXTokenExchanger> {
+                successTokenXTokenExchanger
             }
         }
         configureTokenXAuth()
@@ -148,8 +138,7 @@ private fun ApplicationTestBuilder.setPdlApiRespons(
             routing {
                 post("/graphql") {
                     val json = parseToJsonElement(call.receiveText()) as JsonObject
-                    val operation = json["operationName"]!!.jsonPrimitive.content
-                    when (operation) {
+                    when (val operation = json["operationName"]!!.jsonPrimitive.content) {
                         "HentPerson" -> {
                             call.respond(
                                 KotlinxGraphQLResponse(

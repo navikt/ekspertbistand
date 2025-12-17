@@ -8,9 +8,10 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.infrastruktur.TokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
+import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.mocks.mockTiltaksgjennomfoering
 import no.nav.ekspertbistand.skjema.DTO
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -28,14 +29,14 @@ class OpprettArenaSakTest {
     @Test
     fun `Event prosesseres og sak blir opprettet i Arena`() = testApplication {
         setupTestApplication()
-        mockTiltaksgjennomfoering({
+        mockTiltaksgjennomfoering {
             // language=JSON
             """
             {
                 "saksnummer": "$saksnummer"
             }    
             """
-        })
+        }
         startApplication()
 
         val handler = OpprettSakArena(application.dependencies.resolve(), application.dependencies.resolve())
@@ -62,9 +63,9 @@ class OpprettArenaSakTest {
     @Test
     fun `Event prosesseres, men kall mot arena feiler`() = testApplication {
         setupTestApplication()
-        mockTiltaksgjennomfoering({
+        mockTiltaksgjennomfoering {
             throw RuntimeException("Feil ved oppretting av Arena")
-        })
+        }
         startApplication()
 
         val handler = OpprettSakArena(application.dependencies.resolve(), application.dependencies.resolve())
@@ -121,14 +122,8 @@ private fun ApplicationTestBuilder.setupTestApplication() {
     application {
         dependencies {
             provide { db.config.jdbcDatabase }
-            provide<TokenProvider> {
-                object : TokenProvider {
-                    override suspend fun token(target: String): TokenResponse {
-                        return TokenResponse.Success(
-                            accessToken = "faketoken", expiresInSeconds = 3600
-                        )
-                    }
-                }
+            provide<AzureAdTokenProvider> {
+                successAzureAdTokenProvider
             }
             provide<ArenaClient> { ArenaClient(resolve(), client) }
         }

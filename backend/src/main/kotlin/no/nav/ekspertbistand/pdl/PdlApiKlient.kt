@@ -4,6 +4,7 @@ import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
 import io.ktor.client.*
 import io.ktor.client.request.*
 import no.nav.ekspertbistand.infrastruktur.TokenExchanger
+import no.nav.ekspertbistand.infrastruktur.TokenXTokenExchanger
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.pdl.graphql.generated.HentGeografiskTilknytning
 import no.nav.ekspertbistand.pdl.graphql.generated.HentPerson
@@ -16,12 +17,14 @@ private const val behandlingsNummer = "B591"
 
 class PdlApiKlient(
     private val subjectToken: String,
-    private val tokenExchanger: TokenExchanger, // bruk tokenX OBO
-    private val httpClient: HttpClient
+    private val tokenExchanger: TokenXTokenExchanger,
+    defaultHttpClient: HttpClient
 ) {
     private val client = GraphQLKtorClient(
         url = URI("$baseUrl/graphql").toURL(),
-        httpClient = httpClient
+        httpClient = defaultHttpClient.config {
+
+        }
     )
 
     private suspend fun token(): String {

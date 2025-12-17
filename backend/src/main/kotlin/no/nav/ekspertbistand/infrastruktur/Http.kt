@@ -32,6 +32,9 @@ val defaultNormalizer: (String) -> String = { path ->
         .replace(Regex("\\b\\d+\\b"), "{numeric}")
 }
 
+val defaultJson = Json(DefaultJson) {
+    ignoreUnknownKeys = true
+}
 
 fun defaultHttpClient(
     customizeMetrics: HttpClientMetricsFeature.Config.() -> Unit = {},
@@ -61,10 +64,6 @@ fun defaultHttpClient(
     install(HttpClientMetricsFeature) {
         registry = Metrics.meterRegistry
         customizeMetrics()
-    }
-
-    install(ContentNegotiation) {
-        json(Json { ignoreUnknownKeys = true })
     }
 
     install(Logging) {
