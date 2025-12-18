@@ -89,6 +89,9 @@ suspend fun Application.configureEventHandlers() {
                 dependencies.resolve(),
                 dependencies.resolve(),
                 dependencies.resolve(),
+                dependencies.resolve(),
+                dependencies.resolve(),
+                dependencies.resolve(),
             )
         )
         register(
@@ -105,9 +108,6 @@ suspend fun Application.configureEventHandlers() {
         )
         register(
             JournalfoerTilskuddsbrev(
-                dependencies.resolve(),
-                dependencies.resolve(),
-                dependencies.resolve(),
                 dependencies.resolve(),
                 dependencies.resolve(),
                 dependencies.resolve(),
