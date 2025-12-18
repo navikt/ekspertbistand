@@ -1,10 +1,41 @@
-{{> tiltak-tilsagnsbrev-top-tekst }}
+<p style="text-align:center;font-size:11px;">Unntatt offentlighet, jf. offl. 13 </p>
+<br/>
+<br/>
 
-{{> tiltak-tilsagnsbrev-til-dato-ref }}
+<table>
+    <tr >
+        <td>Til {{tiltakArrangor.arbgiverNavn}}</td>
+        <td class="td01">{{tilsagnDato}}</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td class="td01">Ref. {{tilsagnNummer.aar}}/{{tilsagnNummer.loepenrSak}}-{{tilsagnNummer.loepenrTilsagn}}</td>
+    </tr>
+</table>
+<br/>
 
 # Dere har fått innvilget tilskudd til ekspertbistand
 
-{{> tiltak-tilsagnsbrev-detaljer-deltaker }}
+NAV og dere har blitt enige om dette:
+
+<table>
+    <tr >
+        <td class="td02">Tiltaket:</td>
+        <td>{{tiltakNavn}} </td>
+    </tr>
+    <tr>
+        <td class="td02">Deltakeren:</td>
+        <td>{{deltaker.fornavn}} {{deltaker.etternavn}} ({{deltaker.fodselsnr}}) </td>
+    </tr>
+    <tr>
+        <td class="td02">Utbetalingsperioden:</td>
+        <td>{{periode.fraDato}} - {{periode.tilDato}} </td>
+    </tr>
+    <tr>
+        <td class="td02">Støtten fra NAV:</td>
+        <td>Opptil {{totaltTilskuddbelop}} kroner. </td>
+    </tr>
+</table>
 
 <br/>
 
@@ -22,6 +53,30 @@ Refusjonskrav og kopi av ekspertens rapport skal sendes per post. Les mer her: [
 
 Vi kan kontrollere om pengene som blir utbetalt blir brukt riktig.
 
-{{> tiltak-tilsagnsbrev-orgno-konto }}
+<br/>
+<p>Følgende informasjon er registrert hos NAV:</p>
 
-{{> tiltak-tilsagnsbrev-signert-av }}
+<table>
+    <tr >
+        <td class="td02">Bedriftsnummer:</td>
+        <td>{{tiltakArrangor.orgNummer}}</td>
+    </tr>
+    <tr>
+        <td class="td02">Kontonummer:</td>
+        <td>{{tiltakArrangor.kontoNummer}}</td>
+    </tr>
+</table>
+
+Hvis dette er feil må dere oppdatere med riktig informasjon på refusjonskravet.
+<br/>
+
+<br/>
+<p>Hilsen</p>
+<p>{{navEnhet.navKontorNavn}}</p>
+
+<table style="table-layout: fixed;">
+    <tr >
+        <td>{{beslutter.fornavn}} {{beslutter.etternavn}} </td>
+        <td>{{saksbehandler.fornavn}} {{saksbehandler.etternavn}} </td>
+    </tr>
+</table>

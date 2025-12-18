@@ -8,15 +8,15 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.reflect.KClass
 
 private const val publiserJournalpostEventSubtask = "journalpost_opprettet_event"
-private const val tittel = "Søknad om ekspertbistand godkjent" //TODO: Hva skal denne være?
+private const val tittel = "Tilskuddsbrev ekspertbistand"
 
-class TiltaksgjennomføringMottattHandler(
+class JournalfoerTilskuddsbrev(
     private val dokgenClient: DokgenClient,
     private val dokArkivClient: DokArkivClient,
     private val database: Database,
     private val idempotencyGuard: IdempotencyGuard,
 ) : EventHandler<EventData.TilskuddsbrevMottatt> {
-    override val id: String = "TiltaksgjennomføringMottattHandler"
+    override val id: String = "JournalfoerTilskuddsbrev"
     override val eventType: KClass<EventData.TilskuddsbrevMottatt> =
         EventData.TilskuddsbrevMottatt::class
 
@@ -24,8 +24,8 @@ class TiltaksgjennomføringMottattHandler(
         val skjema = event.data.skjema
         val skjemaId = skjema.id ?: return EventHandledResult.UnrecoverableError("Skjema mangler id")
 
-        val soknadPdf = try {
-            dokgenClient.genererSoknadPdf(skjema) //TODO: dette skal vel være tilsagn?
+        val tilsagnPdf = try {
+            dokgenClient.genererTilskuddsbrevPdf(event.data.tilsagnData)
         } catch (e: Exception) {
             return EventHandledResult.TransientError("Klarte ikke generere søknad-PDF: ${e.message}")
         }
@@ -35,7 +35,7 @@ class TiltaksgjennomføringMottattHandler(
                 tittel = tittel,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 eksternReferanseId = skjemaId,
-                dokumentPdfAsBytes = soknadPdf,
+                dokumentPdfAsBytes = tilsagnPdf,
             )
         } catch (e: Exception) {
             return EventHandledResult.TransientError("Feil ved opprettelse av journalpost: ${e.message}")
