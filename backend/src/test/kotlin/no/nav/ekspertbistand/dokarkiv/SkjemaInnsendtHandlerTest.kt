@@ -38,18 +38,19 @@ import kotlin.test.assertTrue
 class SkjemaInnsendtHandlerTest {
     @Test
     fun `handler journalforer og produserer JournalpostOpprettet-event`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
-        mockDokgen("%PDF-mock".toByteArray())
-        mockDokArkiv {
-            OpprettJournalpostResponse(
-                dokumenter = listOf(OpprettJournalpostDokument("9876")),
-                journalpostId = "1234",
-                journalpostferdigstilt = true,
-            )
-        }
-        mockPdl(adressebeskyttelse = AdressebeskyttelseGradering.UGRADERT)
-        mockEreg { _ ->
-            """
+        TestDatabase().cleanMigrate().use {
+            val database = it.config.jdbcDatabase
+            mockDokgen("%PDF-mock".toByteArray())
+            mockDokArkiv {
+                OpprettJournalpostResponse(
+                    dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                    journalpostId = "1234",
+                    journalpostferdigstilt = true,
+                )
+            }
+            mockPdl(adressebeskyttelse = AdressebeskyttelseGradering.UGRADERT)
+            mockEreg { _ ->
+                """
             {
               "organisasjonsnummer": "987654321",
               "organisasjonDetaljer": {
@@ -59,93 +60,97 @@ class SkjemaInnsendtHandlerTest {
               }
             }
             """.trimIndent()
-        }
-        var capturedNorgRequest: Norg2Request? = null
-        mockNorg(behandlendeEnhet = "4242") {
-            capturedNorgRequest = it
-        }
-        setupApplication(database)
-        startApplication()
+            }
+            var capturedNorgRequest: Norg2Request? = null
+            mockNorg(behandlendeEnhet = "4242") {
+                capturedNorgRequest = it
+            }
+            setupApplication(database)
+            startApplication()
 
-        val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
-        val event = Event(
-            id = 1L,
-            data = EventData.SkjemaInnsendt(sampleSkjema)
-        )
+            val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
+            val event = Event(
+                id = 1L,
+                data = EventData.SkjemaInnsendt(sampleSkjema)
+            )
 
-        val result = handler.handle(event)
-        assertTrue(result is EventHandledResult.Success)
+            val result = handler.handle(event)
+            assertTrue(result is EventHandledResult.Success)
 
-        transaction(database) {
-            val queued = QueuedEvents.selectAll().toList()
-            assertEquals(1, queued.size)
-            val queuedEvent = queued.first()[QueuedEvents.eventData]
-            assertTrue(queuedEvent is EventData.JournalpostOpprettet)
-            assertEquals(9876, queuedEvent.dokumentId)
-            assertEquals(1234, queuedEvent.journaldpostId)
-            assertEquals("4242", queuedEvent.behandlendeEnhetId)
-            assertEquals("0301", capturedNorgRequest?.geografiskOmraade)
-            assertEquals(NorgKlient.DISKRESJONSKODE_ANY, capturedNorgRequest?.diskresjonskode)
+            transaction(database) {
+                val queued = QueuedEvents.selectAll().toList()
+                assertEquals(1, queued.size)
+                val queuedEvent = queued.first()[QueuedEvents.eventData]
+                assertTrue(queuedEvent is EventData.JournalpostOpprettet)
+                assertEquals(9876, queuedEvent.dokumentId)
+                assertEquals(1234, queuedEvent.journaldpostId)
+                assertEquals("4242", queuedEvent.behandlendeEnhetId)
+                assertEquals("0301", capturedNorgRequest?.geografiskOmraade)
+                assertEquals(NorgKlient.DISKRESJONSKODE_ANY, capturedNorgRequest?.diskresjonskode)
+            }
         }
     }
 
     @Test
     fun `adressebeskyttet arbeidstaker bruker pdl geotilknytning`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
-        mockDokgen("%PDF-mock".toByteArray())
-        mockDokArkiv {
-            OpprettJournalpostResponse(
-                dokumenter = listOf(OpprettJournalpostDokument("9876")),
-                journalpostId = "1234",
-                journalpostferdigstilt = true,
+        TestDatabase().cleanMigrate().use {
+            val database = it.config.jdbcDatabase
+            mockDokgen("%PDF-mock".toByteArray())
+            mockDokArkiv {
+                OpprettJournalpostResponse(
+                    dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                    journalpostId = "1234",
+                    journalpostferdigstilt = true,
+                )
+            }
+            mockPdl(
+                adressebeskyttelse = AdressebeskyttelseGradering.STRENGT_FORTROLIG,
+                geografiskTilknytning = "1101",
+                gtType = GtType.KOMMUNE,
             )
-        }
-        mockPdl(
-            adressebeskyttelse = AdressebeskyttelseGradering.STRENGT_FORTROLIG,
-            geografiskTilknytning = "1101",
-            gtType = GtType.KOMMUNE,
-        )
-        var capturedNorgRequest: Norg2Request? = null
-        mockNorg(behandlendeEnhet = "9999") {
-            capturedNorgRequest = it
-        }
-        setupApplication(database)
-        startApplication()
+            var capturedNorgRequest: Norg2Request? = null
+            mockNorg(behandlendeEnhet = "9999") {
+                capturedNorgRequest = it
+            }
+            setupApplication(database)
+            startApplication()
 
-        val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
-        val event = Event(
-            id = 3L,
-            data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
-        )
+            val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
+            val event = Event(
+                id = 3L,
+                data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
+            )
 
-        val result = handler.handle(event)
-        assertTrue(result is EventHandledResult.Success)
+            val result = handler.handle(event)
+            assertTrue(result is EventHandledResult.Success)
 
-        transaction(database) {
-            val queued = QueuedEvents.selectAll().toList()
-            assertEquals(1, queued.size)
-            val queuedEvent = queued.first()[QueuedEvents.eventData]
-            assertTrue(queuedEvent is EventData.JournalpostOpprettet)
-            assertEquals("9999", queuedEvent.behandlendeEnhetId)
-            assertEquals("1101", capturedNorgRequest?.geografiskOmraade)
-            assertEquals(NorgKlient.DISKRESJONSKODE_ADRESSEBESKYTTET, capturedNorgRequest?.diskresjonskode)
+            transaction(database) {
+                val queued = QueuedEvents.selectAll().toList()
+                assertEquals(1, queued.size)
+                val queuedEvent = queued.first()[QueuedEvents.eventData]
+                assertTrue(queuedEvent is EventData.JournalpostOpprettet)
+                assertEquals("9999", queuedEvent.behandlendeEnhetId)
+                assertEquals("1101", capturedNorgRequest?.geografiskOmraade)
+                assertEquals(NorgKlient.DISKRESJONSKODE_ADRESSEBESKYTTET, capturedNorgRequest?.diskresjonskode)
+            }
         }
     }
 
     @Test
     fun `idempotency guard hindrer duplikat ved retry`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
-        mockDokgen("%PDF-mock".toByteArray())
-        mockDokArkiv {
-            OpprettJournalpostResponse(
-                dokumenter = listOf(OpprettJournalpostDokument("9876")),
-                journalpostId = "1234",
-                journalpostferdigstilt = true,
-            )
-        }
-        mockPdl(adressebeskyttelse = AdressebeskyttelseGradering.UGRADERT)
-        mockEreg { _ ->
-            """
+        TestDatabase().cleanMigrate().use {
+            val database = it.config.jdbcDatabase
+            mockDokgen("%PDF-mock".toByteArray())
+            mockDokArkiv {
+                OpprettJournalpostResponse(
+                    dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                    journalpostId = "1234",
+                    journalpostferdigstilt = true,
+                )
+            }
+            mockPdl(adressebeskyttelse = AdressebeskyttelseGradering.UGRADERT)
+            mockEreg { _ ->
+                """
             {
               "organisasjonsnummer": "987654321",
               "organisasjonDetaljer": {
@@ -155,41 +160,43 @@ class SkjemaInnsendtHandlerTest {
               }
             }
             """.trimIndent()
-        }
-        mockNorg(behandlendeEnhet = "4242")
-        setupApplication(database)
-        startApplication()
+            }
+            mockNorg(behandlendeEnhet = "4242")
+            setupApplication(database)
+            startApplication()
 
-        val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
-        val event = Event(
-            id = 2L,
-            data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
-        )
+            val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
+            val event = Event(
+                id = 2L,
+                data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
+            )
 
-        repeat(2) {
-            handler.handle(event)
-        }
+            repeat(2) {
+                handler.handle(event)
+            }
 
-        transaction(database) {
-            val queued = QueuedEvents.selectAll().toList()
-            assertEquals(1, queued.size)
+            transaction(database) {
+                val queued = QueuedEvents.selectAll().toList()
+                assertEquals(1, queued.size)
+            }
         }
     }
 
     @Test
     fun `fallback behandlende enhet blir lagret i event`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
-        mockDokgen("%PDF-mock".toByteArray())
-        mockDokArkiv {
-            OpprettJournalpostResponse(
-                dokumenter = listOf(OpprettJournalpostDokument("9876")),
-                journalpostId = "1234",
-                journalpostferdigstilt = true,
-            )
-        }
-        mockPdl(adressebeskyttelse = AdressebeskyttelseGradering.UGRADERT)
-        mockEreg { _ ->
-            """
+        TestDatabase().cleanMigrate().use {
+            val database = it.config.jdbcDatabase
+            mockDokgen("%PDF-mock".toByteArray())
+            mockDokArkiv {
+                OpprettJournalpostResponse(
+                    dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                    journalpostId = "1234",
+                    journalpostferdigstilt = true,
+                )
+            }
+            mockPdl(adressebeskyttelse = AdressebeskyttelseGradering.UGRADERT)
+            mockEreg { _ ->
+                """
             {
               "organisasjonsnummer": "987654321",
               "organisasjonDetaljer": {
@@ -199,26 +206,27 @@ class SkjemaInnsendtHandlerTest {
               }
             }
             """.trimIndent()
-        }
-        mockNorg(behandlendeEnhet = null)
-        setupApplication(database)
-        startApplication()
+            }
+            mockNorg(behandlendeEnhet = null)
+            setupApplication(database)
+            startApplication()
 
-        val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
-        val event = Event(
-            id = 4L,
-            data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
-        )
+            val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
+            val event = Event(
+                id = 4L,
+                data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
+            )
 
-        val result = handler.handle(event)
-        assertTrue(result is EventHandledResult.Success)
+            val result = handler.handle(event)
+            assertTrue(result is EventHandledResult.Success)
 
-        transaction(database) {
-            val queued = QueuedEvents.selectAll().toList()
-            assertEquals(1, queued.size)
-            val queuedEvent = queued.first()[QueuedEvents.eventData]
-            assertTrue(queuedEvent is EventData.JournalpostOpprettet)
-            assertEquals(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_OSLO, queuedEvent.behandlendeEnhetId)
+            transaction(database) {
+                val queued = QueuedEvents.selectAll().toList()
+                assertEquals(1, queued.size)
+                val queuedEvent = queued.first()[QueuedEvents.eventData]
+                assertTrue(queuedEvent is EventData.JournalpostOpprettet)
+                assertEquals(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_OSLO, queuedEvent.behandlendeEnhetId)
+            }
         }
     }
 }

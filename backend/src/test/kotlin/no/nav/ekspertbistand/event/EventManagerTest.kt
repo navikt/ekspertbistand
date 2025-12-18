@@ -32,7 +32,7 @@ class EventManagerTest {
     }
 
     @AfterTest
-    fun tearDown() {
+    fun teardown() {
         testDb.close()
     }
 

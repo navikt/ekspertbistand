@@ -1,0 +1,82 @@
+<p style="text-align:center;font-size:11px;">Unntatt offentlighet, jf. offl. 13 </p>
+<br/>
+<br/>
+
+<table>
+    <tr >
+        <td>Til {{tiltakArrangor.arbgiverNavn}}</td>
+        <td class="td01">{{tilsagnDato}}</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td class="td01">Ref. {{tilsagnNummer.aar}}/{{tilsagnNummer.loepenrSak}}-{{tilsagnNummer.loepenrTilsagn}}</td>
+    </tr>
+</table>
+<br/>
+
+# Dere har fått innvilget tilskudd til ekspertbistand
+
+NAV og dere har blitt enige om dette:
+
+<table>
+    <tr >
+        <td class="td02">Tiltaket:</td>
+        <td>{{tiltakNavn}} </td>
+    </tr>
+    <tr>
+        <td class="td02">Deltakeren:</td>
+        <td>{{deltaker.fornavn}} {{deltaker.etternavn}} ({{deltaker.fodselsnr}}) </td>
+    </tr>
+    <tr>
+        <td class="td02">Utbetalingsperioden:</td>
+        <td>{{periode.fraDato}} - {{periode.tilDato}} </td>
+    </tr>
+    <tr>
+        <td class="td02">Støtten fra NAV:</td>
+        <td>Opptil {{totaltTilskuddbelop}} kroner. </td>
+    </tr>
+</table>
+
+<br/>
+
+Dere må følge betingelsene som gjelder for {{tiltakNavn}}. Det vises her til [forskrift om ekspertbistand](https://lovdata.no/dokument/SF/forskrift/2019-08-29-1105?q=ekspertbis "Forskrift ekspertbistand").
+
+### Hvordan kan dere få utbetalt pengene?
+Dere må rapportere de faktiske utgiftene innen {{refusjonfristDato}}. Dette gjør dere ved å fylle ut [skjema for refusjonskrav](https://www.nav.no/arbeidsgiver/soknader#tilskudd-til-ekspertbistand "Refusjonskrav for ekspertbistand"), og sende til NAV.
+Innvilget tilskudd trekkes tilbake dersom refusjonskravet ikke blir sendt til NAV i rett tid.
+
+Vi vil regne ut støtten dere har krav på ut fra dokumentasjon som dere sender inn til oss med refusjonskravet. Faktura med spesifisering av de faktiske utgiftene skal legges ved refusjonskravet. Hvis dere har mindre utgifter enn avtalt, blir også støtten redusert. Tilskuddet utbetales etterskuddsvis, så fort vi har behandlet kravet.
+
+Dere skal sende rapporten til eksperten til Nav med forside [Send dokumenter til Nav om oppfølging](https://www.nav.no/fyllut-ettersending/nb/lospost/paper?tema=OPP).
+
+Refusjonskrav og kopi av ekspertens rapport skal sendes per post. Les mer her: [Tilskudd til ekspertbistand - nav.no](https://www.nav.no/arbeidsgiver/ekspertbistand#refusjon).
+
+Vi kan kontrollere om pengene som blir utbetalt blir brukt riktig.
+
+<br/>
+<p>Følgende informasjon er registrert hos NAV:</p>
+
+<table>
+    <tr >
+        <td class="td02">Bedriftsnummer:</td>
+        <td>{{tiltakArrangor.orgNummer}}</td>
+    </tr>
+    <tr>
+        <td class="td02">Kontonummer:</td>
+        <td>{{tiltakArrangor.kontoNummer}}</td>
+    </tr>
+</table>
+
+Hvis dette er feil må dere oppdatere med riktig informasjon på refusjonskravet.
+<br/>
+
+<br/>
+<p>Hilsen</p>
+<p>{{navEnhet.navKontorNavn}}</p>
+
+<table style="table-layout: fixed;">
+    <tr >
+        <td>{{beslutter.fornavn}} {{beslutter.etternavn}} </td>
+        <td>{{saksbehandler.fornavn}} {{saksbehandler.etternavn}} </td>
+    </tr>
+</table>

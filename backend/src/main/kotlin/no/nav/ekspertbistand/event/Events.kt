@@ -7,7 +7,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.arena.OpprettSakArena
 import no.nav.ekspertbistand.arena.Saksnummer
+import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.dokarkiv.JournalfoerTilskuddsbrev
 import no.nav.ekspertbistand.dokarkiv.SkjemaInnsendtHandler
+import no.nav.ekspertbistand.notifikasjon.OppdaterSakNotifikasjonsPlatform
 import no.nav.ekspertbistand.notifikasjon.OpprettSakNotifikasjonsPlatform
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
@@ -56,6 +59,22 @@ sealed interface EventData {
         val skjema: DTO.Skjema,
         val saksnummer: Saksnummer
     ) : EventData
+
+    @Serializable
+    @SerialName("tilskuddsbrevMottatt")
+    data class TilskuddsbrevMottatt(
+        val skjema: DTO.Skjema,
+        val tilsagnbrevId: Int,
+        val tilsagnData: TilsagnData
+    ) : EventData
+
+    @Serializable
+    @SerialName("tilskuddsbrevJournalfoert")
+    data class TilskuddsbrevJournalfoert(
+        val skjema: DTO.Skjema,
+        val dokumentId: Int,
+        val journaldpostId: Int,
+    ) : EventData
 }
 
 @OptIn(ExperimentalTime::class)
@@ -64,18 +83,6 @@ suspend fun Application.configureEventHandlers() {
         // Registrer all event handlers here
         register(DummyFooHandler())
         register(DummyBarHandler())
-        register(
-            OpprettSakNotifikasjonsPlatform(
-                dependencies.resolve(),
-                dependencies.resolve()
-            )
-        )
-        register(
-            OpprettSakArena(
-                dependencies.resolve(),
-                dependencies.resolve(),
-            )
-        )
         register(
             SkjemaInnsendtHandler(
                 dependencies.resolve(),
@@ -87,15 +94,39 @@ suspend fun Application.configureEventHandlers() {
                 dependencies.resolve(),
             )
         )
+        register(
+            OpprettSakArena(
+                dependencies.resolve(),
+                dependencies.resolve(),
+            )
+        )
+        register(
+            OpprettSakNotifikasjonsPlatform(
+                dependencies.resolve(),
+                dependencies.resolve()
+            )
+        )
+        register(
+            JournalfoerTilskuddsbrev(
+                dependencies.resolve(),
+                dependencies.resolve(),
+                dependencies.resolve(),
+                dependencies.resolve(),
+            )
+        )
+        register(
+            OppdaterSakNotifikasjonsPlatform(
+                dependencies.resolve(),
+                dependencies.resolve(),
+            )
+        )
 
         register<EventData>("InlineAlEventsHandler") { event ->
             // Inline handler example
             log.debug("event handled: {}", event)
             EventHandledResult.Success()
         }
-
     }
-
 
     // Start event processing loop
     launch {

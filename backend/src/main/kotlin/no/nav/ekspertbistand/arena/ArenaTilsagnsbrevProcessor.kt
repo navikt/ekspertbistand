@@ -5,8 +5,13 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.EventQueue
 import no.nav.ekspertbistand.infrastruktur.*
+import no.nav.ekspertbistand.skjema.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 
 /**
@@ -14,24 +19,13 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
  * https://confluence.adeo.no/spaces/ARENA/pages/340837316/Arena+-+Funksjonalitet+-+Tilsagnsbrev+-+TAG
  */
 class ArenaTilsagnsbrevProcessor(
-    /**
-     * funksjon som sjekker om tilsagnet skal behandles videre.
-     * f.eks sjekk om vi er kilde for tilsagnet ved å se på saknummer (aar+loepenrSak) i tilsagnData
-     */
-    val skalBehandles: (TilsagnData) -> Boolean,
-
-    /**
-     * callback for kafka records som vi skal opprette SøknadGodkjent hendelse for
-     * usage:
-     * opprettSøknadGodkjentHendelse = { EventQueue.publish(SøknadGodkjent(...))  }
-     */
-    val opprettSøknadGodkjentHendelse: suspend (TilsagnsbrevKafkaMelding) -> Unit = { _ -> },
+    val database: Database,
 ) : ConsumerRecordProcessor {
     val log = logger()
     val teamLog = teamLogger()
     val json: Json = Json { ignoreUnknownKeys = true }
     override suspend fun processRecord(record: ConsumerRecord<String?, String?>) {
-        val tilsagnsbrevKafkaMelding = json.decodeFromString<JsonObject>(record.value() ?: "{}").let { wrapper ->
+        val tilskuddsbrevMelding = json.decodeFromString<JsonObject>(record.value() ?: "{}").let { wrapper ->
             wrapper["after"]?.let { after ->
                 if (after is JsonObject) {
                     val tilsagnBrevId = after["TILSAGNSBREV_ID"]!!.jsonPrimitive.int
@@ -48,25 +42,36 @@ class ArenaTilsagnsbrevProcessor(
             }
         }
 
-        if (tilsagnsbrevKafkaMelding == null) {
+        if (tilskuddsbrevMelding == null) {
             log.error("Kunne ikke parse TilsagnsbrevKafkaMelding. key: {}", record.key())
             teamLog.error("Kunne ikke parse TilsagnsbrevKafkaMelding. record: {}", record)
             return
         }
 
-        if (!tilsagnsbrevKafkaMelding.erEkspertbistand) {
+        if (!tilskuddsbrevMelding.erEkspertbistand) {
             // ikke relevant
             return
         }
 
-        // sjekk at vi er kilde til tilsagn,  tilsagnData.aar og tilsagnData.loepenrSak finnes i vårt system
+        // sjekk at vi er kilde til tilsagn, tilsagnData.aar og tilsagnData.loepenrSak finnes i vårt system
         // hvis ikke hopp over
-        if (!skalBehandles(tilsagnsbrevKafkaMelding.tilsagnData)) {
-            return
+        val skjema = transaction(database) {
+            val loepenr = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.loepenrSak
+            val aar = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.aar
+            hentSaksnummerForTiltaksgjennomføring(loepenr = loepenr, aar = aar) {
+                Json.decodeFromString<DTO.Skjema>(this[ArenaSakTable.skjema])
+            }
         }
-
-        // opprett SøknadGodkjent hendelse med relevante data
-        opprettSøknadGodkjentHendelse(tilsagnsbrevKafkaMelding)
+        if (skjema != null) {
+            // Det er vi som har opprettet tiltaket
+            EventQueue.publish(
+                EventData.TilskuddsbrevMottatt(
+                    skjema = skjema,
+                    tilsagnbrevId = tilskuddsbrevMelding.tilsagnBrevId,
+                    tilsagnData = tilskuddsbrevMelding.tilsagnData
+                )
+            )
+        }
     }
 
     companion object {

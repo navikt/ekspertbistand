@@ -8,6 +8,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
@@ -24,6 +25,7 @@ class DokgenClient(
             other = "http://localhost:9000",
         )
     }
+
     private val httpClient = defaultHttpClient.config {
         install(ContentNegotiation) {
             json(defaultJson)
@@ -36,6 +38,7 @@ class DokgenClient(
             requestTimeoutMillis = 10_000
         }
     }
+
     suspend fun genererSoknadPdf(skjema: DTO.Skjema): ByteArray {
         val payload = SoknadRequest.from(skjema)
 
@@ -51,6 +54,24 @@ class DokgenClient(
 
         check(bytes.hasPdfHeader()) {
             "Dokgen returnerte ikke en gyldig PDF for soknad/create-pdf"
+        }
+
+        return bytes
+    }
+
+    suspend fun genererTilskuddsbrevPdf(tilsagnData: TilsagnData): ByteArray {
+        val bytes: ByteArray = httpClient.post {
+            url {
+                takeFrom(baseUrl)
+                path("template", "tilskuddsbrev", "create-pdf")
+            }
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Application.Pdf)
+            setBody(tilsagnData)
+        }.body()
+
+        check(bytes.hasPdfHeader()) {
+            "Dokgen returnerte ikke en gyldig PDF for tilskuddbrev/create-pdf"
         }
 
         return bytes
