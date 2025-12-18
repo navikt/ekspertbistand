@@ -28,7 +28,17 @@ addEventListener("message", async function (event) {
 
   const client = await self.clients.get(clientId);
 
-  if (!client) {
+  if (!client || !client.url) {
+    return;
+  }
+
+  // CodeQL: Check the origin of the client to only allow messages from trusted origins
+  try {
+    const clientOrigin = new URL(client.url).origin;
+    if (clientOrigin !== self.location.origin) {
+      return;
+    }
+  } catch (_e) {
     return;
   }
 
