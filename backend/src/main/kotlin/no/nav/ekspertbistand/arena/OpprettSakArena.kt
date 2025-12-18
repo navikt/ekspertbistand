@@ -68,7 +68,7 @@ fun JdbcTransaction.insertSaksnummer(saksnummer: Saksnummer, skjema: DTO.Skjema)
     }
 }
 
-fun <T> JdbcTransaction.hentSkjemaForTiltaksgjennomføring(loepenr: Int, aar: Int, mapper: ResultRow.() -> T?) =
+fun <T> JdbcTransaction.hentSaksnummerForTiltaksgjennomføring(loepenr: Int, aar: Int, mapper: ResultRow.() -> T?) =
     ArenaSakTable.selectAll()
         .where {
             (ArenaSakTable.loepenummer eq loepenr) and

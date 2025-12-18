@@ -58,11 +58,11 @@ class ArenaTilsagnsbrevProcessor(
         val skjema = transaction(database) {
             val loepenr = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.loepenrSak
             val aar = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.aar
-            hentSkjemaForTiltaksgjennomføring(loepenr, aar) {
+            hentSaksnummerForTiltaksgjennomføring(loepenr = loepenr, aar = aar) {
                 Json.decodeFromString<DTO.Skjema>(this[ArenaSakTable.skjema])
             }
         }
-        if (skjema != null){
+        if (skjema != null) {
             // Det er vi som har opprettet tiltaket
             EventQueue.publish(
                 EventData.TilskuddsbrevMottatt(

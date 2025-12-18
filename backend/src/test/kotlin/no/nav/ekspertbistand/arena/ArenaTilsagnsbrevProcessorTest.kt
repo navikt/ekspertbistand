@@ -1,22 +1,34 @@
 package no.nav.ekspertbistand.arena
 
 import io.ktor.http.*
-import kotlinx.coroutines.test.runTest
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
+import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
+import no.nav.ekspertbistand.skjema.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
-import kotlin.test.DefaultAsserter.fail
+import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 class ArenaTilsagnsbrevProcessorTest {
 
     @Test
-    fun `eksempelmelding for tiltak som ikke er EKSPERTBIST skal ikke behandles`() = runTest {
+    fun `eksempelmelding for tiltak som ikke er EKSPERTBIST skal ikke behandles`() = testApplicationWithDatabase { db ->
+        val saksnummer = Saksnummer("2019319383")
+        transaction {
+            insertSaksnummer(saksnummer, skjema)
+        }
+
         ArenaTilsagnsbrevProcessor(
-            skalBehandles = { true },
-            opprettSøknadGodkjentHendelse = { fail("uforventet callback") }
+            db.config.jdbcDatabase
         ).processRecord(
             ConsumerRecord(
                 ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
@@ -24,54 +36,70 @@ class ArenaTilsagnsbrevProcessorTest {
                 kafkaMelding(
                     1,
                     42,
-                    eksempelMelding("IKKE_EKSPERTBIST")
+                    eksempelMelding("IKKE_EKSPERTBIST", 2019, 319383)
                 )
             )
         )
+        transaction(db.config.jdbcDatabase) {
+            assertEquals(0, QueuedEvents.selectAll().count())
+        }
     }
 
     @Test
-    fun `eksempelmelding for tiltak som er EKSPERTBIST men ikke opprettet av oss skal ikke behandles`() = runTest {
-        ArenaTilsagnsbrevProcessor(
-            skalBehandles = { false },
-            opprettSøknadGodkjentHendelse = { fail("uforventet callback") }
-        ).processRecord(
-            ConsumerRecord(
-                ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
-                "key",
-                kafkaMelding(
-                    1,
-                    42,
-                    eksempelMelding(EKSPERTBISTAND_TILTAKSKODE)
+    fun `eksempelmelding for tiltak som er EKSPERTBIST men ikke opprettet av oss skal ikke behandles`() =
+        testApplicationWithDatabase { db ->
+            val saksnummer = Saksnummer("201942")
+            transaction {
+                insertSaksnummer(saksnummer, skjema)
+            }
+            ArenaTilsagnsbrevProcessor(
+                db.config.jdbcDatabase
+            ).processRecord(
+                ConsumerRecord(
+                    ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
+                    "key",
+                    kafkaMelding(
+                        1,
+                        42,
+                        eksempelMelding(EKSPERTBISTAND_TILTAKSKODE, 2019, 319383)
+                    )
                 )
             )
-        )
-    }
+            transaction(db.config.jdbcDatabase) {
+                assertEquals(0, QueuedEvents.selectAll().count())
+            }
+        }
 
     @Test
-    fun `eksempelmelding for tiltak som er EKSPEBIST og opprettet av oss skal behandles`() = runTest {
-        val saksnummmer = "2019319383" // fra eksempelmelding
-        val skalOpprettes = mutableListOf<TilsagnsbrevKafkaMelding>()
-
-        ArenaTilsagnsbrevProcessor(
-            skalBehandles = { "${it.tilsagnNummer.aar}${it.tilsagnNummer.loepenrSak}" == saksnummmer },
-            opprettSøknadGodkjentHendelse = { skalOpprettes.add(it) }
-        ).processRecord(
-            ConsumerRecord(
-                ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
-                "key",
-                kafkaMelding(
-                    1,
-                    42,
-                    eksempelMelding(EKSPERTBISTAND_TILTAKSKODE)
+    fun `eksempelmelding for tiltak som er EKSPEBIST og opprettet av oss skal behandles`() =
+        testApplicationWithDatabase { db ->
+            val saksnummer = Saksnummer("2019319383")
+            transaction {
+                insertSaksnummer(saksnummer, skjema)
+            }
+            ArenaTilsagnsbrevProcessor(
+                db.config.jdbcDatabase
+            ).processRecord(
+                ConsumerRecord(
+                    ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
+                    "key",
+                    kafkaMelding(
+                        1,
+                        42,
+                        eksempelMelding(EKSPERTBISTAND_TILTAKSKODE, 2019, 319383)
+                    )
                 )
             )
-        )
+            transaction(db.config.jdbcDatabase) {
+                val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
+                assertEquals(1, queuedEvents.count())
+                val eventData = queuedEvents.first().eventData as EventData.TilskuddsbrevMottatt
+                assertNotNull(eventData)
+                assertEquals(2019, eventData.tilsagnData.tilsagnNummer.aar)
+                assertEquals(319383, eventData.tilsagnData.tilsagnNummer.loepenrSak)
 
-        assertEquals(skalOpprettes.size, 1, "forventet 1 opprettet hendelse, fikk ${skalOpprettes.size}")
-        assertEquals(skalOpprettes.first().tilsagnData.tilsagnNummer.aar, 2019)
-        assertEquals(skalOpprettes.first().tilsagnData.tilsagnNummer.loepenrSak, 319383)
-    }
+            }
+        }
 }
 
 /**
@@ -83,7 +111,7 @@ private fun kafkaMelding(
     tilsagnsbrevId: Int,
     tilsagnId: Int,
     tilsagnData: String,
-) : String = """
+): String = """
 {
 	"table": "ARENA_TAG.TAG_TILSAGNSBREV",
 	"op_type": "I",
@@ -93,7 +121,10 @@ private fun kafkaMelding(
 	"after": {
 		"TILSAGNSBREV_ID": $tilsagnsbrevId,
 		"TILSAGN_ID": $tilsagnId,
-		"TILSAGN_DATA": ${Json.parseToJsonElement(tilsagnData).let { Json.encodeToString(JsonObject.serializer(), it.jsonObject) }.escapeIfNeeded()},
+		"TILSAGN_DATA": ${
+    Json.parseToJsonElement(tilsagnData).let { Json.encodeToString(JsonObject.serializer(), it.jsonObject) }
+        .escapeIfNeeded()
+},
 		"REG_DATO": "2019-10-08 11:16:30",
 		"REG_USER": "SIAMO",
 		"MOD_DATO": "2019-10-08 11:16:30",
@@ -106,11 +137,11 @@ private fun kafkaMelding(
  * se eksempel: https://confluence.adeo.no/spaces/ARENA/pages/366966551/Arena+-+Tjeneste+Kafka+-+Tilsagnsbrev
  */
 // language=JSON
-fun eksempelMelding(tiltakKode: String) = """
+fun eksempelMelding(tiltakKode: String, aar: Int, loepenrSak: Int) = """
     {
         "tilsagnNummer": {
-            "aar": 2019,
-            "loepenrSak": 319383,
+            "aar": $aar,
+            "loepenrSak": $loepenrSak,
             "loepenrTilsagn": 1
         },
         "tilsagnDato": "2019-09-25",
@@ -186,3 +217,37 @@ fun eksempelMelding(tiltakKode: String) = """
         "kommentar": null
     }
 """.trimIndent()
+
+private val skjema = DTO.Skjema(
+    id = UUID.randomUUID().toString(),
+    virksomhet = DTO.Virksomhet(
+        virksomhetsnummer = "1337",
+        virksomhetsnavn = "foo bar AS",
+        kontaktperson = DTO.Kontaktperson(
+            navn = "Donald Duck",
+            epost = "Donald@duck.co",
+            telefonnummer = "12345678"
+        )
+    ),
+    ansatt = DTO.Ansatt(
+        fnr = "12345678910",
+        navn = "Ole Olsen"
+    ),
+    ekspert = DTO.Ekspert(
+        navn = "Egon Olsen",
+        virksomhet = "Olsenbanden AS",
+        kompetanse = "Bankran",
+    ),
+    behovForBistand = DTO.BehovForBistand(
+        behov = "Tilrettelegging",
+        begrunnelse = "Tilrettelegging på arbeidsplassen",
+        estimertKostnad = "4200",
+        timer = "16",
+        tilrettelegging = "Spesialtilpasset kontor",
+        startdato = LocalDate.parse("2024-11-15")
+    ),
+    nav = DTO.Nav(
+        kontaktperson = "Navn Navnesen"
+    ),
+    opprettetAv = "Noen Noensen"
+)

@@ -58,12 +58,16 @@ sealed interface EventData {
         val saksnummer: Saksnummer
     ) : EventData
 
+    @Serializable
+    @SerialName("tilskuddsbrevMottatt")
     data class TilskuddsbrevMottatt(
         val skjema: DTO.Skjema,
         val tilsagnbrevId: Int,
         val tilsagnData: TilsagnData
     ) : EventData
 
+    @Serializable
+    @SerialName("tilskuddsbrevJournalfoert")
     data class TilskuddsbrevJournalfoert(
         val skjema: DTO.Skjema,
         val dokumentId: Int,
