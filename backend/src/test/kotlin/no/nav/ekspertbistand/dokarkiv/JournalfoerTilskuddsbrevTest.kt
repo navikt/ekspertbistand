@@ -26,73 +26,77 @@ import kotlin.test.assertTrue
 class JournalfoerTilskuddsbrevTest {
     @Test
     fun `handler journalforer og produserer TilskuddsbrevJournalfoert-event`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
-        mockDokgen("%PDF-mock".toByteArray())
-        mockDokArkiv {
-            OpprettJournalpostResponse(
-                dokumenter = listOf(OpprettJournalpostDokument("9876")),
-                journalpostId = "1234",
-                journalpostferdigstilt = true,
+        TestDatabase().cleanMigrate().use {
+            val database = it.config.jdbcDatabase
+            mockDokgen("%PDF-mock".toByteArray())
+            mockDokArkiv {
+                OpprettJournalpostResponse(
+                    dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                    journalpostId = "1234",
+                    journalpostferdigstilt = true,
+                )
+            }
+            setupApplication(database)
+            startApplication()
+
+            val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
+            val event = Event(
+                id = 1L,
+                data = EventData.TilskuddsbrevMottatt(
+                    skjema = sampleSkjema,
+                    tilsagnbrevId = 1,
+                    tilsagnData = sampleTilsagnData
+                )
             )
-        }
-        setupApplication(database)
-        startApplication()
 
-        val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
-        val event = Event(
-            id = 1L,
-            data = EventData.TilskuddsbrevMottatt(
-                skjema = sampleSkjema,
-                tilsagnbrevId = 1,
-                tilsagnData = sampleTilsagnData
-            )
-        )
+            val result = handler.handle(event)
+            assertTrue(result is EventHandledResult.Success)
 
-        val result = handler.handle(event)
-        assertTrue(result is EventHandledResult.Success)
-
-        transaction(database) {
-            val queued = QueuedEvents.selectAll().toList()
-            assertEquals(1, queued.size)
-            val queuedEvent = queued.first()[QueuedEvents.eventData]
-            assertTrue(queuedEvent is EventData.TilskuddsbrevJournalfoert)
-            assertEquals(9876, queuedEvent.dokumentId)
-            assertEquals(1234, queuedEvent.journaldpostId)
-            assertEquals(sampleSkjema.id, queuedEvent.skjema.id)
+            transaction(database) {
+                val queued = QueuedEvents.selectAll().toList()
+                assertEquals(1, queued.size)
+                val queuedEvent = queued.first()[QueuedEvents.eventData]
+                assertTrue(queuedEvent is EventData.TilskuddsbrevJournalfoert)
+                assertEquals(9876, queuedEvent.dokumentId)
+                assertEquals(1234, queuedEvent.journaldpostId)
+                assertEquals(sampleSkjema.id, queuedEvent.skjema.id)
+            }
         }
     }
 
     @Test
     fun `idempotency guard hindrer duplikat ved retry`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
-        mockDokgen("%PDF-mock".toByteArray())
-        mockDokArkiv {
-            OpprettJournalpostResponse(
-                dokumenter = listOf(OpprettJournalpostDokument("9876")),
-                journalpostId = "1234",
-                journalpostferdigstilt = true,
+        TestDatabase().cleanMigrate().use {
+            val database = it.config.jdbcDatabase
+            mockDokgen("%PDF-mock".toByteArray())
+            mockDokArkiv {
+                OpprettJournalpostResponse(
+                    dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                    journalpostId = "1234",
+                    journalpostferdigstilt = true,
+                )
+            }
+            setupApplication(database)
+            startApplication()
+
+            val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
+            val event = Event(
+                id = 2L,
+                data = EventData.TilskuddsbrevMottatt(
+                    skjema = sampleSkjema,
+                    tilsagnbrevId = 1,
+                    tilsagnData = sampleTilsagnData
+                )
             )
-        }
-        setupApplication(database)
-        startApplication()
 
-        val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
-        val event = Event(
-            id = 2L,
-            data = EventData.TilskuddsbrevMottatt(
-                skjema = sampleSkjema,
-                tilsagnbrevId = 1,
-                tilsagnData = sampleTilsagnData
-            )
-        )
+            repeat(2) {
+                handler.handle(event)
+            }
 
-        repeat(2) {
-            handler.handle(event)
-        }
-
-        transaction(database) {
-            val queued = QueuedEvents.selectAll().toList()
-            assertEquals(1, queued.size)
+            transaction(database) {
+                val queued = QueuedEvents.selectAll().toList()
+                assertEquals(1, queued.size)
+            }
         }
     }
 }

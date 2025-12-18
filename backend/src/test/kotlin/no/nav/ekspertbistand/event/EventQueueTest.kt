@@ -23,6 +23,11 @@ class EventQueueTest {
         queue = EventQueue
     }
 
+    @AfterTest
+    fun teardown() {
+        testDb.close()
+    }
+
     @Test
     fun `publish and poll returns event`() {
         val event = EventData.Foo(fooName = "bar")
@@ -54,7 +59,7 @@ class EventQueueTest {
         coroutineScope {
             repeat(5) {
                 launch(Dispatchers.IO) {
-                    queue.poll()?.let  {
+                    queue.poll()?.let {
                         results.add(it)
                     }
                 }
