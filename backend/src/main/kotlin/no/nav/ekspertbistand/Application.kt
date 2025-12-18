@@ -1,7 +1,6 @@
 package no.nav.ekspertbistand
 
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpTimeout
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -38,7 +37,10 @@ import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
+import no.nav.ekspertbistand.norg.BehandlendeEnhetService
+import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import no.nav.ekspertbistand.skjema.subjectToken
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -70,6 +72,9 @@ fun main() {
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
             provide(EregClient::class)
+            provide(NorgKlient::class)
+            provide(BehandlendeEnhetService::class)
+            provide(PdlApiKlient::class)
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
