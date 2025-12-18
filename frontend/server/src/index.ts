@@ -9,7 +9,8 @@ import { tokenXMiddleware } from "./tokenx.js";
 import { logger } from "@navikt/pino-logger";
 import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import type { Socket } from "net";
-// import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator, type RateLimitInfo } from "express-rate-limit";
+import { createHash } from "crypto";
 
 const {
   PORT = "4000",
@@ -37,17 +38,36 @@ const app = express();
 const api = express.Router();
 const localSessionEnabled = NODE_ENV !== "production";
 
-// const limiterConfig = {
-//   windowMs: 15 * 60 * 1000,
-//   limit: 100,
-//   standardHeaders: true,
-//   legacyHeaders: false,
-// } as const;
+const hashToken = (token: string) => createHash("sha256").update(token).digest("base64");
 
-// const apiLimiter = rateLimit(limiterConfig);
-// const staticLimiter = rateLimit(limiterConfig);
+const createRateLimiter = () =>
+  rateLimit({
+    windowMs: 1000,
+    limit: 100,
+    message: "You have exceeded the 100 requests in 1s limit!",
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+      const authHeader = req.headers?.authorization ?? "";
+      if (!authHeader.startsWith("Bearer ")) {
+        return ipKeyGenerator(req);
+      }
+      const token = authHeader.substring(7);
+      return hashToken(token);
+    },
+    handler: (req, res, _next, options) => {
+      const rateLimitInfo = (req as Request & { rateLimit?: RateLimitInfo }).rateLimit;
+      if (rateLimitInfo?.remaining === 0) {
+        logger.error(`Rate limit reached for client ${req.ip}`);
+      }
+      res.status(options.statusCode).send(options.message);
+    },
+  });
 
-// api.use(apiLimiter);
+const apiRateLimit = createRateLimiter();
+const staticRateLimit = createRateLimiter();
+
+api.use(apiRateLimit);
 
 api.get("/internal/isAlive", (_req: Request, res: Response) => {
   const health: ApiHealth = { status: "ok" };
@@ -111,7 +131,7 @@ const staticDir = resolveStaticDir();
 
 const spa = express.Router();
 const staticIndexPath = path.join(staticDir, "index.html");
-// spa.use(staticLimiter);
+spa.use(staticRateLimit);
 spa.use(
   express.static(staticDir, {
     index: false,
