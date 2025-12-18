@@ -9,7 +9,6 @@ import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import no.nav.ekspertbistand.arena.Person
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.skjema.DTO
 import kotlin.test.Test
