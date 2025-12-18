@@ -8,7 +8,9 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.arena.OpprettSakArena
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.dokarkiv.JournalfoerTilskuddsbrev
 import no.nav.ekspertbistand.dokarkiv.SkjemaInnsendtHandler
+import no.nav.ekspertbistand.notifikasjon.OppdaterSakNotifikasjonsPlatform
 import no.nav.ekspertbistand.notifikasjon.OpprettSakNotifikasjonsPlatform
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
@@ -82,9 +84,11 @@ suspend fun Application.configureEventHandlers() {
         register(DummyFooHandler())
         register(DummyBarHandler())
         register(
-            OpprettSakNotifikasjonsPlatform(
+            SkjemaInnsendtHandler(
                 dependencies.resolve(),
-                dependencies.resolve()
+                dependencies.resolve(),
+                dependencies.resolve(),
+                dependencies.resolve(),
             )
         )
         register(
@@ -94,12 +98,24 @@ suspend fun Application.configureEventHandlers() {
             )
         )
         register(
-            SkjemaInnsendtHandler(
+            OpprettSakNotifikasjonsPlatform(
+                dependencies.resolve(),
+                dependencies.resolve()
+            )
+        )
+        register(
+            JournalfoerTilskuddsbrev(
                 dependencies.resolve(),
                 dependencies.resolve(),
                 dependencies.resolve(),
                 dependencies.resolve(),
                 dependencies.resolve(),
+                dependencies.resolve(),
+                dependencies.resolve(),
+            )
+        )
+        register(
+            OppdaterSakNotifikasjonsPlatform(
                 dependencies.resolve(),
                 dependencies.resolve(),
             )
