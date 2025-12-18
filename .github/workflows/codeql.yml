@@ -44,7 +44,7 @@ jobs:
 
     - name: Run manual build steps
       if: matrix.build-mode == 'manual'
-      run: mvn -B package
+      run: mvn compile
       working-directory: backend
 
     - name: Perform CodeQL Analysis
