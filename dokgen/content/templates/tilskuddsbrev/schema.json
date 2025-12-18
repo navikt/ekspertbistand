@@ -1,0 +1,117 @@
+{
+  "definitions": {},
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://example.com/root.json",
+  "type": "object",
+  "title": "The Root Schema",
+  "required": [
+    "saksbehandler",
+    "tiltakArrangor",
+    "navEnhet",
+    "tiltakNavn",
+    "periode",
+    "totaltTilskuddbelop",
+    "tilsagnDato"
+  ],
+  "saksbehandler": {
+    "$id": "#/properties/saksbehandler",
+    "type": "object",
+    "title": "The Saksbehandler Schema",
+    "default": "",
+    "examples": [
+      "Vibeke Veileder"
+    ],
+    "pattern": "^(.*)$"
+  },
+  "tiltakArrangor": {
+    "orgNummer": {
+      "$id": "#/properties/orgNummer",
+      "type": "string",
+      "title": "The Orgnummer Schema",
+      "default": "",
+      "examples": [
+        "920130283"
+      ],
+      "pattern": "^(.*)$"
+    }
+  },
+  "navEnhet.navKontorNavn": {
+    "$id": "#/properties/navKontorNavn",
+    "type": "string",
+    "title": "The Navkontornavn Schema",
+    "default": "",
+    "examples": [
+      "NAV Skedsmo"
+    ],
+    "pattern": "^(.*)$"
+  },
+  "tiltakNavn": {
+    "$id": "#/properties/tiltakNavn",
+    "type": "string",
+    "title": "The Tiltaknavn Schema",
+    "default": "",
+    "examples": [
+      "Midlertidig lønnstilskudd"
+    ],
+    "pattern": "^(.*)$"
+  },
+  "tiltakArrangor.kontoNummer": {
+    "$id": "#/properties/kontoNummer",
+    "type": "string",
+    "title": "The Kontonummer Schema",
+    "default": "",
+    "examples": [
+      "32600596984"
+    ],
+    "pattern": "^(.*)$"
+  },
+  "periode.fraDato": {
+    "$id": "#/properties/fraDato",
+    "type": "string",
+    "title": "The Fradato Schema",
+    "default": "",
+    "examples": [
+      "2019-09-14"
+    ],
+    "pattern": "^(.*)$"
+  },
+  "periode.tilDato": {
+    "$id": "#/properties/tilDato",
+    "type": "string",
+    "title": "The Tildato Schema",
+    "default": "",
+    "examples": [
+      "2019-12-31"
+    ],
+    "pattern": "^(.*)$"
+  },
+  "totaltTilskuddbelop": {
+    "$id": "#/properties/totaltTilskuddbelop",
+    "type": "string",
+    "title": "The Totalttilskuddbelop Schema",
+    "default": 0,
+    "examples": [
+      59300
+    ]
+  },
+  "tiltakArrangor.arbgiverNavn": {
+    "$id": "#/properties/arbgiverNavn",
+    "type": "string",
+    "title": "The Arbgivernavn Schema",
+    "default": "",
+    "examples": [
+      "TREIDER KOMPETANSE AS"
+    ],
+    "pattern": "^(.*)$"
+  },
+  "tilsagnDato": {
+    "$id": "#/properties/tilsagnDato",
+    "type": "string",
+    "title": "The Tilsagndato Schema",
+    "default": "",
+    "examples": [
+      "2019-09-25"
+    ],
+    "pattern": "^(.*)$"
+  }
+}
