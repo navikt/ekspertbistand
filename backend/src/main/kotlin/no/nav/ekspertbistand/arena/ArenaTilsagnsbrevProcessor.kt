@@ -20,11 +20,6 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  */
 class ArenaTilsagnsbrevProcessor(
     val database: Database,
-    /**
-     * funksjon som sjekker om tilsagnet skal behandles videre.
-     * f.eks sjekk om vi er kilde for tilsagnet ved å se på saknummer (aar+loepenrSak) i tilsagnData
-     */
-    val skalBehandles: (TilsagnData) -> Boolean,
 ) : ConsumerRecordProcessor {
     val log = logger()
     val teamLog = teamLogger()
@@ -58,20 +53,17 @@ class ArenaTilsagnsbrevProcessor(
             return
         }
 
-        // sjekk at vi er kilde til tilsagn,  tilsagnData.aar og tilsagnData.loepenrSak finnes i vårt system
+        // sjekk at vi er kilde til tilsagn, tilsagnData.aar og tilsagnData.loepenrSak finnes i vårt system
         // hvis ikke hopp over
-        if (!skalBehandles(tilskuddsbrevMelding.tilsagnData)) {
-            return
-        }
-
-        // opprett SøknadGodkjent hendelse med relevante data
-        transaction(database) {
+        val skjema = transaction(database) {
             val loepenr = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.loepenrSak
             val aar = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.aar
-            val (saksnummer, skjema) = hentArenaSak(loepenr, aar) {
-                Saksnummer(this[ArenaSakTable.saksnummer]) to Json.decodeFromString<DTO.Skjema>(this[ArenaSakTable.skjema])
+            hentSkjemaForTiltaksgjennomføring(loepenr, aar) {
+                Json.decodeFromString<DTO.Skjema>(this[ArenaSakTable.skjema])
             }
-
+        }
+        if (skjema != null){
+            // Det er vi som har opprettet tiltaket
             EventQueue.publish(
                 EventData.TilskuddsbrevMottatt(
                     skjema = skjema,

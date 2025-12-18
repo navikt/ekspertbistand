@@ -68,17 +68,14 @@ fun JdbcTransaction.insertSaksnummer(saksnummer: Saksnummer, skjema: DTO.Skjema)
     }
 }
 
-fun <T> JdbcTransaction.hentArenaSak(loepenr: Int, aar: Int, mapper: ResultRow.() -> T) =
+fun <T> JdbcTransaction.hentSkjemaForTiltaksgjennomføring(loepenr: Int, aar: Int, mapper: ResultRow.() -> T?) =
     ArenaSakTable.selectAll()
         .where {
             (ArenaSakTable.loepenummer eq loepenr) and
                     (ArenaSakTable.aar eq aar)
         }
         .map { mapper(it) }
-        .let {
-            if (it.isEmpty()) {
-                throw IllegalArgumentException("Finner ikke arena saksnummer med løpenummer $loepenr og år $aar")
-            } else it.first()
-        }
+        .firstOrNull()
+
 
 
