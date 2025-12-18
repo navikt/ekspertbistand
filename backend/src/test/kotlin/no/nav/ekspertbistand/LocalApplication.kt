@@ -15,7 +15,10 @@ import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
+import no.nav.ekspertbistand.norg.BehandlendeEnhetService
+import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
@@ -138,6 +141,9 @@ fun main() {
             }
             provide { mockDokgenClient }
             provide { mockDokArkivClient }
+            provide(NorgKlient::class)
+            provide(BehandlendeEnhetService::class)
+            provide(PdlApiKlient::class)
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
                 ProdusentApiKlient(

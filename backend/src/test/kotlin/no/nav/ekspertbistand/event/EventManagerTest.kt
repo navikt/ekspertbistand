@@ -11,6 +11,7 @@ import no.nav.ekspertbistand.infrastruktur.logger
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -28,6 +29,11 @@ class EventManagerTest {
     @BeforeTest
     fun setup() {
         testDb = TestDatabase().cleanMigrate()
+    }
+
+    @AfterTest
+    fun tearDown() {
+        testDb.close()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

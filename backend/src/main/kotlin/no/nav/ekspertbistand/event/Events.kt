@@ -82,6 +82,9 @@ suspend fun Application.configureEventHandlers() {
                 dependencies.resolve(),
                 dependencies.resolve(),
                 dependencies.resolve(),
+                dependencies.resolve(),
+                dependencies.resolve(),
+                dependencies.resolve(),
             )
         )
 
