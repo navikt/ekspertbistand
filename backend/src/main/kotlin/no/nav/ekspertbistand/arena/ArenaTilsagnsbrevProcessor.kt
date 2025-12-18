@@ -67,8 +67,8 @@ class ArenaTilsagnsbrevProcessor(
             EventQueue.publish(
                 EventData.TilskuddsbrevMottatt(
                     skjema = skjema,
-                    tilskuddsbrevId = tilskuddsbrevMelding.tilsagnBrevId,
-                    tilskuddsnummer = tilskuddsbrevMelding.tilsagnData.tilsagnNummer
+                    tilsagnbrevId = tilskuddsbrevMelding.tilsagnBrevId,
+                    tilsagnData = tilskuddsbrevMelding.tilsagnData
                 )
             )
         }

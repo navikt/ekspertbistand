@@ -60,8 +60,14 @@ sealed interface EventData {
 
     data class TilskuddsbrevMottatt(
         val skjema: DTO.Skjema,
-        val tilskuddsbrevId: Int,
-        val tilskuddsnummer: TilsagnData.TilsagnNummer
+        val tilsagnbrevId: Int,
+        val tilsagnData: TilsagnData
+    ) : EventData
+
+    data class TilskuddsbrevJournalfoert(
+        val skjema: DTO.Skjema,
+        val dokumentId: Int,
+        val journaldpostId: Int,
     ) : EventData
 }
 
@@ -100,9 +106,7 @@ suspend fun Application.configureEventHandlers() {
             log.debug("event handled: {}", event)
             EventHandledResult.Success()
         }
-
     }
-
 
     // Start event processing loop
     launch {
