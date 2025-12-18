@@ -21,6 +21,10 @@ class JournalfoerTilskuddsbrev(
         EventData.TilskuddsbrevMottatt::class
 
     override suspend fun handle(event: Event<EventData.TilskuddsbrevMottatt>): EventHandledResult {
+        if (idempotencyGuard.isGuarded(event.id, publiserJournalpostEventSubtask)) {
+            return EventHandledResult.Success()
+        }
+
         val skjema = event.data.skjema
         val skjemaId = skjema.id ?: return EventHandledResult.UnrecoverableError("Skjema mangler id")
 
