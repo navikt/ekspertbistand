@@ -83,43 +83,11 @@ suspend fun Application.configureEventHandlers() {
         // Registrer all event handlers here
         register(DummyFooHandler())
         register(DummyBarHandler())
-        register(
-            SkjemaInnsendtHandler(
-                dependencies.resolve(),
-                dependencies.resolve(),
-                dependencies.resolve(),
-                dependencies.resolve(),
-                dependencies.resolve(),
-                dependencies.resolve(),
-                dependencies.resolve(),
-            )
-        )
-        register(
-            OpprettSakArena(
-                dependencies.resolve(),
-                dependencies.resolve(),
-            )
-        )
-        register(
-            OpprettSakNotifikasjonsPlatform(
-                dependencies.resolve(),
-                dependencies.resolve()
-            )
-        )
-        register(
-            JournalfoerTilskuddsbrev(
-                dependencies.resolve(),
-                dependencies.resolve(),
-                dependencies.resolve(),
-                dependencies.resolve(),
-            )
-        )
-        register(
-            OppdaterSakNotifikasjonsPlatform(
-                dependencies.resolve(),
-                dependencies.resolve(),
-            )
-        )
+        register(dependencies.create(SkjemaInnsendtHandler::class))
+        register(dependencies.create(OpprettSakArena::class))
+        register(dependencies.create(OpprettSakNotifikasjonsPlatform::class))
+        register(dependencies.create(JournalfoerTilskuddsbrev::class))
+        register(dependencies.create(OppdaterSakNotifikasjonsPlatform::class))
 
         register<EventData>("InlineAlEventsHandler") { event ->
             // Inline handler example

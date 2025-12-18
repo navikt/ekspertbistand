@@ -130,6 +130,7 @@ fun main() {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
             }
+            provide<HttpClient> { defaultHttpClient() }
             provide<AzureAdTokenProvider> {
                 successAzureAdTokenProvider
             }
