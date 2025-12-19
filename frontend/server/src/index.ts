@@ -50,7 +50,8 @@ const createRateLimiter = () =>
     keyGenerator: (req) => {
       const authHeader = req.headers?.authorization ?? "";
       if (!authHeader.startsWith("Bearer ")) {
-        return ipKeyGenerator(req);
+        const clientIp = req.ip ?? req.socket.remoteAddress ?? "";
+        return ipKeyGenerator(clientIp);
       }
       const token = authHeader.substring(7);
       return hashToken(token);
