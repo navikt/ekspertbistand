@@ -36,6 +36,8 @@ const organisasjoner: Organisasjon[] = [
 
 const eregAdresser: Record<string, string> = {
   "123456789": "Testveien 1, 0557 Oslo",
+  "123456780": "Storgata 12, 0155 Oslo",
+  "123456781": "Bryggen 5, 5003 Bergen",
   "987654321": "Eksempelveien 2, 7010 Trondheim",
   "111222333": "Demogata 3, 5003 Bergen",
   "444555666": "Mockveien 4, 2317 Hamar",

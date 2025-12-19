@@ -33,6 +33,7 @@ import {
 } from "../components/summaryFormatters";
 import type { SoknadInputs } from "../features/soknad/schema";
 import { FormSummaryAnswer } from "@navikt/ds-react/FormSummary";
+import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
 
 type SoknadSummaryProps = {
   data: SoknadInputs;
@@ -43,6 +44,11 @@ type SoknadSummaryProps = {
 
 function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: SoknadSummaryProps) {
   const { virksomhet, ansatt, ekspert, behovForBistand, nav } = data;
+  const {
+    adresse,
+    isLoading: adresseLoading,
+    error: adresseError,
+  } = useVirksomhetAdresse(virksomhet.virksomhetsnummer);
 
   return (
     <>
@@ -58,6 +64,16 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
           <FormSummary.Answer>
             <FormSummary.Label>Organisasjonsnummer</FormSummary.Label>
             <FormSummary.Value>{formatValue(virksomhet.virksomhetsnummer)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>Beliggenhetsadresse</FormSummary.Label>
+            <FormSummary.Value>
+              {adresseError
+                ? "Kunne ikke hente beliggenhetsadresse."
+                : adresseLoading
+                  ? "Laster ..."
+                  : formatValue(adresse)}
+            </FormSummary.Value>
           </FormSummary.Answer>
           <FormSummaryAnswer>
             <FormSummary.Label>Kontaktperson i virksomheten</FormSummary.Label>
