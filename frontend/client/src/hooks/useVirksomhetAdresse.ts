@@ -1,6 +1,7 @@
 import useSWR from "swr";
 import { fetchJson } from "../utils/api";
 import { HttpError } from "../utils/http";
+import { EKSPERTBISTAND_EREG_ADRESSE_PATH } from "../utils/constants";
 
 type AdresseResponse = {
   adresse: string;
@@ -21,7 +22,7 @@ const fetchAdresse = async (url: string): Promise<string | null> => {
 export const useVirksomhetAdresse = (orgnr: string | null | undefined) => {
   const shouldFetch = Boolean(orgnr);
   const { data, error, isLoading } = useSWR<string | null>(
-    shouldFetch ? `/api/ereg/${orgnr}/adresse` : null,
+    shouldFetch ? `${EKSPERTBISTAND_EREG_ADRESSE_PATH}/${orgnr}/adresse` : null,
     fetchAdresse
   );
 
