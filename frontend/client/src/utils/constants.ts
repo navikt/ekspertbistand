@@ -28,6 +28,7 @@ export const EKSPERTBISTAND_API_PATH = withBasePath("/ekspertbistand-backend/api
 export const EKSPERTBISTAND_ORGANISASJONER_PATH = withBasePath(
   "/ekspertbistand-backend/api/organisasjoner/v1"
 );
+export const EKSPERTBISTAND_EREG_ADRESSE_PATH = withBasePath("/ekspertbistand-backend/api/ereg");
 
 export const SOKNADER_PATH = "/soknader";
 

@@ -2,7 +2,7 @@ import { http, HttpResponse } from "msw";
 import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema";
 import { ensureIsoDateString } from "../utils/date";
 import type { Organisasjon } from "@navikt/virksomhetsvelger";
-import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
+import { EKSPERTBISTAND_API_PATH, EKSPERTBISTAND_EREG_ADRESSE_PATH } from "../utils/constants";
 
 const organisasjoner: Organisasjon[] = [
   {
@@ -36,6 +36,8 @@ const organisasjoner: Organisasjon[] = [
 
 const eregAdresser: Record<string, string> = {
   "123456789": "Testveien 1, 0557 Oslo",
+  "123456780": "Storgata 12, 0155 Oslo",
+  "123456781": "Bryggen 5, 5003 Bergen",
   "987654321": "Eksempelveien 2, 7010 Trondheim",
   "111222333": "Demogata 3, 5003 Bergen",
   "444555666": "Mockveien 4, 2317 Hamar",
@@ -249,7 +251,7 @@ export const handlers = [
   http.get("/ekspertbistand-backend/api/organisasjoner/v1", () =>
     HttpResponse.json({ hierarki: organisasjoner })
   ),
-  http.get("/api/ereg/:orgnr/adresse", ({ params }) => {
+  http.get(`${EKSPERTBISTAND_EREG_ADRESSE_PATH}/:orgnr/adresse`, ({ params }) => {
     const orgnr = getParamValue(params.orgnr);
     if (!orgnr || !/^\d{9}$/.test(orgnr)) {
       return HttpResponse.json({ message: "ugyldig orgnr" }, { status: 400 });

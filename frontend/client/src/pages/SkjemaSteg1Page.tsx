@@ -1,7 +1,18 @@
 import { type FormEvent } from "react";
-import { Controller, useFormContext } from "react-hook-form";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
-import { Button, HGrid, Heading, TextField, VStack, Fieldset } from "@navikt/ds-react";
+import {
+  BodyShort,
+  Button,
+  ErrorMessage,
+  Fieldset,
+  HGrid,
+  Heading,
+  Label,
+  Loader,
+  TextField,
+  VStack,
+} from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { FORM_COLUMN_STYLE } from "../styles/forms";
 import type { SoknadInputs } from "../features/soknad/schema";
@@ -17,6 +28,7 @@ import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { SOKNADER_PATH } from "../utils/constants";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
+import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
 
 export default function SkjemaSteg1Page() {
   const form = useFormContext<SoknadInputs>();
@@ -26,6 +38,13 @@ export default function SkjemaSteg1Page() {
 
   const { clearDraft, lastPersistedAt } = useSoknadDraft();
   const { goToSoknader, goToStep2, goToSummary, createLinkHandler } = useSkjemaNavigation();
+  const virksomhetsnummer = useWatch({ control, name: "virksomhet.virksomhetsnummer" });
+  const {
+    adresse,
+    isLoading: adresseLoading,
+    error: adresseError,
+  } = useVirksomhetAdresse(virksomhetsnummer);
+  const hasVirksomhet = Boolean(virksomhetsnummer?.trim());
 
   useAttemptedSubmitRedirect(form, { fields: STEP1_FIELDS, onValidationFailed: bumpFocusKey });
 
@@ -86,6 +105,25 @@ export default function SkjemaSteg1Page() {
                   />
                 )}
               />
+              {hasVirksomhet ? (
+                <VStack gap="1" style={{ marginTop: "1rem" }}>
+                  <Label>Beliggenhetsadresse (hentet fra brreg.no)</Label>
+                  {adresseLoading ? (
+                    <BodyShort size="small">
+                      <Loader size="small" title="Laster beliggenhetsadresse" aria-live="polite" />{" "}
+                      Laster beliggenhetsadresse ...
+                    </BodyShort>
+                  ) : null}
+                  {!adresseLoading && !adresseError ? (
+                    <BodyShort size="small">
+                      {adresse ?? "Fant ikke beliggenhetsadresse."}
+                    </BodyShort>
+                  ) : null}
+                  {adresseError ? (
+                    <ErrorMessage>Kunne ikke hente beliggenhetsadresse.</ErrorMessage>
+                  ) : null}
+                </VStack>
+              ) : null}
             </div>
             <input type="hidden" {...register("virksomhet.navn")} />
 
