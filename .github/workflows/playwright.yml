@@ -37,7 +37,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.READER_TOKEN }}
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps
+        run: pnpm --filter ./frontend/client exec playwright install --with-deps
 
       - name: Run Playwright tests
-        run: pnpm e2e
+        run: pnpm --filter ./frontend/client e2e
