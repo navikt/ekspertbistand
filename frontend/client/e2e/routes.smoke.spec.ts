@@ -1,0 +1,90 @@
+import { test, expect } from "@playwright/test";
+
+const ensureMockServiceWorkerReady = async (page: {
+  evaluate: (fn: () => Promise<void>) => Promise<void>;
+}) => {
+  await page.evaluate(async () => {
+    if ("serviceWorker" in navigator) {
+      await navigator.serviceWorker.ready;
+    }
+  });
+};
+
+const createDraftId = async (page: {
+  evaluate: (fn: () => Promise<string | null>) => Promise<string | null>;
+}) => {
+  const id = await page.evaluate(async () => {
+    const response = await fetch("/ekspertbistand-backend/api/skjema/v1", { method: "POST" });
+    if (!response.ok) {
+      throw new Error(`Failed to create draft: ${response.status}`);
+    }
+    const data = (await response.json()) as { id?: string | null };
+    return data?.id ?? null;
+  });
+
+  if (!id) {
+    throw new Error("Missing draft id from mock API.");
+  }
+
+  return id;
+};
+
+test("smoke: landing route", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Tilskudd til ekspertbistand" })).toBeVisible();
+});
+
+test("smoke: soknader route", async ({ page }) => {
+  await page.goto("/soknader");
+  await expect(page.getByRole("heading", { name: "Søknader" })).toBeVisible();
+});
+
+test("smoke: skjema start route", async ({ page }) => {
+  await page.goto("/skjema/start");
+  await expect(
+    page.getByRole("heading", { name: "Søknad om tilskudd til ekspertbistand" })
+  ).toBeVisible();
+});
+
+test("smoke: skjema steg-1 route", async ({ page }) => {
+  await page.goto("/");
+  await ensureMockServiceWorkerReady(page);
+  const draftId = await createDraftId(page);
+
+  await page.goto(`/skjema/${draftId}/steg-1`);
+  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+});
+
+test("smoke: skjema steg-2 route", async ({ page }) => {
+  await page.goto("/");
+  await ensureMockServiceWorkerReady(page);
+  const draftId = await createDraftId(page);
+
+  await page.goto(`/skjema/${draftId}/steg-2`);
+  await expect(page.getByRole("heading", { name: "Behov for bistand" })).toBeVisible();
+});
+
+test("smoke: skjema oppsummering route", async ({ page }) => {
+  await page.goto("/");
+  await ensureMockServiceWorkerReady(page);
+  const draftId = await createDraftId(page);
+
+  await page.goto(`/skjema/${draftId}/oppsummering`);
+  await expect(
+    page.getByRole("heading", { name: "Oppsummering av søknad om ekspertbistand" })
+  ).toBeVisible();
+});
+
+test("smoke: skjema kvittering route", async ({ page }) => {
+  await page.goto("/");
+  await ensureMockServiceWorkerReady(page);
+  const draftId = await createDraftId(page);
+
+  await page.goto(`/skjema/${draftId}/kvittering`);
+  await expect(page.getByRole("heading", { name: "Søknaden er sendt" })).toBeVisible();
+});
+
+test("smoke: health route", async ({ page }) => {
+  await page.goto("/health");
+  await expect(page.getByText(/Health: ok/i)).toBeVisible();
+});
