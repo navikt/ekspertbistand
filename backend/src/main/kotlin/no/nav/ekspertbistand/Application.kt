@@ -29,7 +29,6 @@ import io.micrometer.core.instrument.binder.system.ProcessorMetrics
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
-import no.nav.ekspertbistand.arena.ArenaTilsagnsbrevProcessor
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.IdempotencyGuard
@@ -79,7 +78,6 @@ fun main() {
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
-            provide(ArenaTilsagnsbrevProcessor::class)
         }
 
         // configure standard server stuff
@@ -95,8 +93,6 @@ fun main() {
 
         // event manager and event handlers
         configureEventHandlers()
-
-        startKafkaConsumers(coroutineContext)
 
         // internal endpoints and lifecycle hooks
         configureInternal()
