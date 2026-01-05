@@ -1,8 +1,7 @@
 package no.nav.ekspertbistand.infrastruktur
 
-import com.fasterxml.jackson.databind.deser.std.StringDeserializer
-import io.ktor.server.application.Application
-import io.ktor.server.plugins.di.dependencies
+import io.ktor.server.application.*
+import io.ktor.server.plugins.di.*
 import kotlinx.coroutines.*
 import no.nav.ekspertbistand.arena.ArenaTilsagnsbrevProcessor
 import org.apache.kafka.clients.CommonClientConfigs
@@ -11,8 +10,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecords
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.config.SslConfigs
+import org.apache.kafka.common.serialization.StringDeserializer
 import java.lang.System.getenv
-import java.util.Properties
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -26,7 +25,7 @@ class CoroutineKafkaConsumer(
 ) {
     private val log = logger()
 
-    private val properties = Properties().apply {
+    private val properties = buildMap {
         put(ConsumerConfig.GROUP_ID_CONFIG, config.groupId)
         put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, (getenv("KAFKA_BROKERS") ?: "localhost:9092"))
         put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, "60000")
@@ -45,8 +44,10 @@ class CoroutineKafkaConsumer(
         }
     }
 
+    private val kafkaConsumer = KafkaConsumer<String?, String?>(properties)
+
     suspend fun consume(processor: ConsumerRecordProcessor) = withContext(Dispatchers.IO) {
-        KafkaConsumer<String?, String?>(properties).use { consumer ->
+        kafkaConsumer.use { consumer ->
             consumer.subscribe(config.topics)
 
             while (isActive) {
@@ -69,7 +70,7 @@ class CoroutineKafkaConsumer(
     }
 
     suspend fun batchConsume(processor: ConsumerRecordProcessor) = withContext(Dispatchers.IO) {
-        KafkaConsumer<String?, String?>(properties).use { consumer ->
+        kafkaConsumer.use { consumer ->
             consumer.subscribe(config.topics)
 
             while (isActive) {
