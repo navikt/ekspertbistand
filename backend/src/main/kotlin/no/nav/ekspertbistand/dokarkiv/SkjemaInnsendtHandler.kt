@@ -1,14 +1,10 @@
 package no.nav.ekspertbistand.dokarkiv
 
 import no.nav.ekspertbistand.dokgen.DokgenClient
-import no.nav.ekspertbistand.event.Event
-import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.EventHandledResult
-import no.nav.ekspertbistand.event.EventHandler
-import no.nav.ekspertbistand.event.IdempotencyGuard
-import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.ereg.EregClient
+import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
+import no.nav.ekspertbistand.pdl.NotFound
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
@@ -94,51 +90,76 @@ class SkjemaInnsendtHandler(
         return EventHandledResult.Success()
     }
 
-    private suspend fun hentBehandlendeEnhet(skjema: DTO.Skjema): String {
-        val adressebeskyttelser = pdlApiKlient.hentAdressebeskyttelse(skjema.ansatt.fnr).adressebeskyttelse
-        val gradering = adressebeskyttelser.map { it.gradering }.hoyesteGradering()
+    private suspend fun hentBehandlendeEnhet(skjema: DTO.Skjema): String =
+        pdlApiKlient.hentAdressebeskyttelse(skjema.ansatt.fnr).fold(
+            onSuccess = { person ->
+                val gradering = person.adressebeskyttelse.map { it.gradering }.hoyesteGradering()
+                val geografiskTilknytning = when (gradering) {
+                    AdressebeskyttelseGradering.STRENGT_FORTROLIG,
+                    AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND -> {
+                        pdlApiKlient.hentGeografiskTilknytning(skjema.ansatt.fnr)
+                            .fold(
+                                onSuccess = {
+                                    it.geografiskTilknytning() ?: BehandlendeEnhetService.NAV_VIKAFOSSEN
+                                },
+                                onFailure = { throw it }
 
-        val geografiskTilknytning = when (gradering) {
-            AdressebeskyttelseGradering.STRENGT_FORTROLIG,
-            AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND -> {
-                val tilknytning = pdlApiKlient.hentGeografiskTilknytning(skjema.ansatt.fnr)
-                tilknytning.geografiskTilknytning() ?: BehandlendeEnhetService.NAV_VIKAFOSSEN
+                            )
+                    }
+
+                    AdressebeskyttelseGradering.FORTROLIG,
+                    AdressebeskyttelseGradering.UGRADERT,
+                    AdressebeskyttelseGradering.__UNKNOWN_VALUE -> {
+                        val organisasjon = eregClient.hentOrganisasjon(skjema.virksomhet.virksomhetsnummer)
+                        organisasjon.organisasjonDetaljer
+                            ?.forretningsadresser
+                            ?.firstNotNullOfOrNull { it.kommunenummer }
+                            ?: throw MissingDataException("Fant ikke kommunenummer for virksomhet ${skjema.virksomhet.virksomhetsnummer}")
+                    }
+                }
+
+                behandlendeEnhetService.hentBehandlendeEnhet(gradering, geografiskTilknytning)
+            },
+
+            onFailure = { error ->
+                when (error) {
+                    is NotFound -> {
+                        val organisasjon = eregClient.hentOrganisasjon(skjema.virksomhet.virksomhetsnummer)
+                        val geografiskTilknytning = organisasjon.organisasjonDetaljer
+                            ?.forretningsadresser
+                            ?.firstNotNullOfOrNull { it.kommunenummer }
+                            ?: throw MissingDataException("Fant ikke kommunenummer for virksomhet ${skjema.virksomhet.virksomhetsnummer}")
+                        behandlendeEnhetService.hentBehandlendeEnhet(
+                            AdressebeskyttelseGradering.__UNKNOWN_VALUE,
+                            geografiskTilknytning
+                        )
+                    }
+
+                    else -> throw error
+                }
             }
+        )
 
-            AdressebeskyttelseGradering.FORTROLIG,
-            AdressebeskyttelseGradering.UGRADERT,
-            AdressebeskyttelseGradering.__UNKNOWN_VALUE -> {
-                val organisasjon = eregClient.hentOrganisasjon(skjema.virksomhet.virksomhetsnummer)
-                organisasjon.organisasjonDetaljer
-                    ?.forretningsadresser
-                    ?.firstNotNullOfOrNull { it.kommunenummer }
-                    ?: throw MissingDataException("Fant ikke kommunenummer for virksomhet ${skjema.virksomhet.virksomhetsnummer}")
+    private fun List<AdressebeskyttelseGradering>.hoyesteGradering(): AdressebeskyttelseGradering {
+        return this.maxByOrNull { gradering ->
+            when (gradering) {
+                AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND -> 3
+                AdressebeskyttelseGradering.STRENGT_FORTROLIG -> 2
+                AdressebeskyttelseGradering.FORTROLIG -> 1
+                AdressebeskyttelseGradering.UGRADERT -> 0
+                AdressebeskyttelseGradering.__UNKNOWN_VALUE -> -1
             }
-        }
-
-        return behandlendeEnhetService.hentBehandlendeEnhet(gradering, geografiskTilknytning)
+        } ?: AdressebeskyttelseGradering.UGRADERT
     }
-}
 
-private fun List<AdressebeskyttelseGradering>.hoyesteGradering(): AdressebeskyttelseGradering {
-    return this.maxByOrNull { gradering ->
-        when (gradering) {
-            AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND -> 3
-            AdressebeskyttelseGradering.STRENGT_FORTROLIG -> 2
-            AdressebeskyttelseGradering.FORTROLIG -> 1
-            AdressebeskyttelseGradering.UGRADERT -> 0
-            AdressebeskyttelseGradering.__UNKNOWN_VALUE -> -1
+    private fun GeografiskTilknytning.geografiskTilknytning(): String? {
+        return when (gtType) {
+            GtType.KOMMUNE -> gtKommune
+            GtType.BYDEL -> gtBydel ?: gtKommune
+            GtType.UTLAND -> gtLand
+            GtType.UDEFINERT, GtType.__UNKNOWN_VALUE -> null
         }
-    } ?: AdressebeskyttelseGradering.UGRADERT
-}
-
-private fun GeografiskTilknytning.geografiskTilknytning(): String? {
-    return when (gtType) {
-        GtType.KOMMUNE -> gtKommune
-        GtType.BYDEL -> gtBydel ?: gtKommune
-        GtType.UTLAND -> gtLand
-        GtType.UDEFINERT, GtType.__UNKNOWN_VALUE -> null
     }
-}
 
-private class MissingDataException(message: String) : Exception(message)
+    private class MissingDataException(message: String) : Exception(message)
+}
