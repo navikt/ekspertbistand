@@ -1,7 +1,10 @@
 package no.nav.ekspertbistand.infrastruktur
 
 import com.fasterxml.jackson.databind.deser.std.StringDeserializer
+import io.ktor.server.application.Application
+import io.ktor.server.plugins.di.dependencies
 import kotlinx.coroutines.*
+import no.nav.ekspertbistand.arena.ArenaTilsagnsbrevProcessor
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -10,6 +13,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.config.SslConfigs
 import java.lang.System.getenv
 import java.util.Properties
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 
 data class KafkaConsumerConfig(
@@ -93,4 +97,14 @@ interface ConsumerRecordProcessor {
             processRecord(record)
         }
     }
+}
+
+fun Application.startKafkaConsumers(parentContext: CoroutineContext) {
+
+    // Arena Tilsagnsbrev Processor
+    CoroutineScope(parentContext + Dispatchers.IO.limitedParallelism(1)).launch {
+        dependencies.resolve<ArenaTilsagnsbrevProcessor>().startProcessing()
+    }
+
+    // ..
 }
