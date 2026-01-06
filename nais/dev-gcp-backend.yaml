@@ -36,6 +36,8 @@ spec:
   azure:
     application:
       enabled: true
+  kafka:
+    pool: nav-dev
   gcp:
     sqlInstances:
       - name: ekspertbistand-backend
