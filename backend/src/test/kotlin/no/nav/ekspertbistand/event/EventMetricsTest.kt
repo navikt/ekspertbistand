@@ -126,22 +126,22 @@ class EventMetricsTest {
                 QueuedEvents.insert {
                     it[QueuedEvents.eventData] = EventData.Foo("dummy")
                     it[QueuedEvents.status] = PROCESSING
-                    it[QueuedEvents.updatedAt] = now.minus(30.seconds) // <1m
+                    it[QueuedEvents.createdAt] = now.minus(30.seconds) // <1m
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.eventData] = EventData.Foo("dummy")
                     it[QueuedEvents.status] = PROCESSING
-                    it[QueuedEvents.updatedAt] = now.minus(4.minutes) // <5m
+                    it[QueuedEvents.createdAt] = now.minus(4.minutes) // <5m
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.eventData] = EventData.Foo("dummy")
                     it[QueuedEvents.status] = PROCESSING
-                    it[QueuedEvents.updatedAt] = now.minus(10.minutes) // <15m
+                    it[QueuedEvents.createdAt] = now.minus(10.minutes) // <15m
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.eventData] = EventData.Foo("dummy")
                     it[QueuedEvents.status] = PROCESSING
-                    it[QueuedEvents.updatedAt] = now.minus(35.minutes) // >30m
+                    it[QueuedEvents.createdAt] = now.minus(35.minutes) // >30m
                 }
             }
 

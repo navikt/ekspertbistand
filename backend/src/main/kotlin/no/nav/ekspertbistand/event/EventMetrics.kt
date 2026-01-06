@@ -74,8 +74,8 @@ class EventMetrics(
             .selectAll()
             .where { QueuedEvents.status eq ProcessingStatus.PROCESSING }
             .forEach { row ->
-                val updatedAt = row[QueuedEvents.updatedAt]
-                val age = (now - updatedAt).inWholeMinutes
+                val createdAt = row[QueuedEvents.createdAt]
+                val age = (now - createdAt).inWholeMinutes
                 when {
                     age < 1 -> result["<1m"] = result["<1m"]!! + 1
                     age < 5 -> result["<5m"] = result["<5m"]!! + 1
