@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.arena
 
+import io.ktor.server.config.configLoaders
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -24,6 +25,7 @@ class ArenaTilsagnsbrevProcessor(
     val log = logger()
     val teamLog = teamLogger()
     val json: Json = Json { ignoreUnknownKeys = true }
+
     override suspend fun processRecord(record: ConsumerRecord<String?, String?>) {
         val tilskuddsbrevMelding = json.decodeFromString<JsonObject>(record.value() ?: "{}").let { wrapper ->
             wrapper["after"]?.let { after ->
@@ -74,6 +76,10 @@ class ArenaTilsagnsbrevProcessor(
         }
     }
 
+    suspend fun startProcessing() {
+        consumer.consume(this)
+    }
+
     companion object {
         const val TOPIC = "teamarenanais.aapen-arena-tilsagnsbrevgodkjent-v1"
 
@@ -82,19 +88,9 @@ class ArenaTilsagnsbrevProcessor(
             topics = setOf(TOPIC),
         )
 
-        /**
-         * usage:
-         * CoroutineScope(coroutineContext + Dispatchers.IO.limitedParallelism(1)).launch {
-         *     ArenaTilsagnsbrevProcessor.startProcessing(
-         *         ArenaTilsagnsbrevProcessor(...args)
-         *     )
-         * }
-         */
-        suspend fun startProcessing(processor: ArenaTilsagnsbrevProcessor) {
+        val consumer by lazy {
             CoroutineKafkaConsumer(
                 kafkaConfig
-            ).consume(
-                processor
             )
         }
     }
