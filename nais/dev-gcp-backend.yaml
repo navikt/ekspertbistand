@@ -51,6 +51,9 @@ spec:
     inbound:
       rules:
         - application: ekspertbistand-frontend
+        - application: azure-token-generator
+          namespace: nais
+          cluster: dev-gcp
     outbound:
       external:
         - host: pdl-api.dev-fss-pub.nais.io
