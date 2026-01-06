@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.pdl
 
+import com.expediagroup.graphql.client.serialization.types.KotlinxGraphQLError
 import com.expediagroup.graphql.client.serialization.types.KotlinxGraphQLResponse
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -22,6 +23,7 @@ import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Folkeregistermetad
 import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Person
 import kotlin.test.assertEquals
 import kotlin.test.Test
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 
@@ -41,7 +43,7 @@ class PdlApiKlientTest {
             defaultHttpClient = client
         )
 
-        val person = pdlKlient.hentAdressebeskyttelse("42")
+        val person = pdlKlient.hentAdressebeskyttelse("42").getOrThrow()
         assertTrue { person.adressebeskyttelse.isEmpty() }
     }
 
@@ -71,7 +73,7 @@ class PdlApiKlientTest {
             defaultHttpClient = client
         )
 
-        val person = pdlKlient.hentAdressebeskyttelse("42")
+        val person = pdlKlient.hentAdressebeskyttelse("42").getOrThrow()
         assertEquals(person.adressebeskyttelse.size, 1)
         assertEquals(AdressebeskyttelseGradering.FORTROLIG, person.adressebeskyttelse.first().gradering)
     }
@@ -97,11 +99,149 @@ class PdlApiKlientTest {
             defaultHttpClient = client
         )
 
-        val tilknytning = pdlKlient.hentGeografiskTilknytning("42")
+        val tilknytning = pdlKlient.hentGeografiskTilknytning("42").getOrThrow()
         assertTrue { tilknytning.gtLand == "Norge" }
         assertTrue { tilknytning.gtKommune == "Oslo" }
         assertTrue { tilknytning.gtBydel == "Sagene" }
         assertTrue { tilknytning.gtType == GtType.KOMMUNE }
+    }
+
+    @Test
+    fun `Kall mot PDL returnerer not_found`() = testApplication {
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = { null },
+            hentGeografiskTilknytning = { null },
+            errorCode = { "not_found" }
+        )
+        startApplication()
+
+        val pdlKlient = PdlApiKlient(
+            azureAdTokenProvider = application.dependencies.resolve(),
+            defaultHttpClient = client
+        )
+
+        val result = pdlKlient.hentGeografiskTilknytning("42")
+        assertTrue(result.isFailure)
+
+        result.getOrElse {
+            assertIs<NotFound>(it)
+        }
+    }
+
+    @Test
+    fun `Kall mot PDL returnerer unauthenticated`() = testApplication {
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = { null },
+            hentGeografiskTilknytning = { null },
+            errorCode = { "unauthenticated" }
+        )
+        startApplication()
+
+        val pdlKlient = PdlApiKlient(
+            azureAdTokenProvider = application.dependencies.resolve(),
+            defaultHttpClient = client
+        )
+
+        val result = pdlKlient.hentGeografiskTilknytning("42")
+        assertTrue(result.isFailure)
+
+        result.getOrElse {
+            assertIs<Unauthenticated>(it)
+        }
+    }
+
+    @Test
+    fun `Kall mot PDL returnerer unauthorized`() = testApplication {
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = { null },
+            hentGeografiskTilknytning = { null },
+            errorCode = { "unauthorized" }
+        )
+        startApplication()
+
+        val pdlKlient = PdlApiKlient(
+            azureAdTokenProvider = application.dependencies.resolve(),
+            defaultHttpClient = client
+        )
+
+        val result = pdlKlient.hentGeografiskTilknytning("42")
+        assertTrue(result.isFailure)
+
+        result.getOrElse {
+            assertIs<Unauthorized>(it)
+        }
+    }
+
+    @Test
+    fun `Kall mot PDL returnerer bad_request`() = testApplication {
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = { null },
+            hentGeografiskTilknytning = { null },
+            errorCode = { "bad_request" }
+        )
+        startApplication()
+
+        val pdlKlient = PdlApiKlient(
+            azureAdTokenProvider = application.dependencies.resolve(),
+            defaultHttpClient = client
+        )
+
+        val result = pdlKlient.hentGeografiskTilknytning("42")
+        assertTrue(result.isFailure)
+
+        result.getOrElse {
+            assertIs<BadRequest>(it)
+        }
+    }
+
+    @Test
+    fun `Kall mot PDL returnerer server_error`() = testApplication {
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = { null },
+            hentGeografiskTilknytning = { null },
+            errorCode = { "server_error" }
+        )
+        startApplication()
+
+        val pdlKlient = PdlApiKlient(
+            azureAdTokenProvider = application.dependencies.resolve(),
+            defaultHttpClient = client
+        )
+
+        val result = pdlKlient.hentGeografiskTilknytning("42")
+        assertTrue(result.isFailure)
+
+        result.getOrElse {
+            assertIs<ServerError>(it)
+        }
+    }
+
+    @Test
+    fun `Kall mot PDL returnerer noe vi ikke klarer å håndtere`() = testApplication {
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = { null },
+            hentGeografiskTilknytning = { null },
+            errorCode = { "feilkode som ikke finnes" }
+        )
+        startApplication()
+
+        val pdlKlient = PdlApiKlient(
+            azureAdTokenProvider = application.dependencies.resolve(),
+            defaultHttpClient = client
+        )
+
+        val result = pdlKlient.hentGeografiskTilknytning("42")
+        assertTrue(result.isFailure)
+
+        result.getOrElse {
+            assertIs<UnknownError>(it)
+        }
     }
 }
 
@@ -118,8 +258,9 @@ private fun ApplicationTestBuilder.setupTestApplication() {
 
 
 private fun ApplicationTestBuilder.setPdlApiRespons(
-    hentPerson: () -> Person,
-    hentGeografiskTilknytning: () -> GeografiskTilknytning,
+    hentPerson: () -> Person?,
+    hentGeografiskTilknytning: () -> GeografiskTilknytning?,
+    errorCode: () -> String? = { null }
 ) {
     externalServices {
         hosts(PdlApiKlient.baseUrl) {
@@ -135,6 +276,12 @@ private fun ApplicationTestBuilder.setPdlApiRespons(
                                 KotlinxGraphQLResponse(
                                     HentPerson.Result(
                                         hentPerson.invoke()
+                                    ),
+                                    errors = listOf(
+                                        KotlinxGraphQLError(
+                                            message = "",
+                                            extensions = mapOf("code" to errorCode())
+                                        )
                                     )
                                 )
                             )
@@ -145,6 +292,12 @@ private fun ApplicationTestBuilder.setPdlApiRespons(
                                 KotlinxGraphQLResponse(
                                     HentGeografiskTilknytning.Result(
                                         hentGeografiskTilknytning.invoke()
+                                    ),
+                                    errors = listOf(
+                                        KotlinxGraphQLError(
+                                            message = "",
+                                            extensions = mapOf("code" to errorCode())
+                                        )
                                     )
                                 )
                             )
