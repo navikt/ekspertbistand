@@ -81,7 +81,10 @@ class ArenaTilsagnsbrevProcessor(
     }
 
     companion object {
-        const val TOPIC = "teamarenanais.aapen-arena-tilsagnsbrevgodkjent-v1"
+        val TOPIC = basedOnEnv(
+            dev = "teamarenanais.aapen-arena-tilsagnsbrevgodkjent-v1-q2",
+            other = "teamarenanais.aapen-arena-tilsagnsbrevgodkjent-v1",
+        )
 
         val kafkaConfig = KafkaConsumerConfig(
             groupId = "fager.ekspertbistand",
