@@ -272,7 +272,7 @@ class SkjemaApi(
         clock: Clock = Clock.System,
     ) = transaction {
         UtkastTable.deleteWhere {
-            UtkastTable.opprettetTidspunkt lessEq (clock.now() - ttl) // 24 timer
+            UtkastTable.opprettetTidspunkt lessEq (clock.now() - ttl)
         }.let {
             log.info("Slettet $it gamle utkast eldre enn $ttl")
         }
