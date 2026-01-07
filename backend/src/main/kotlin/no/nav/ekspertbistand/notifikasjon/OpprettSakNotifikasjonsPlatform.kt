@@ -6,7 +6,6 @@ import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.skjema.DTO
-import kotlin.reflect.KClass
 
 private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
@@ -40,7 +39,7 @@ class OpprettSakNotifikasjonsPlatform(
     private suspend fun nySak(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNySak(
-                grupperingsid = skjema.id!!,
+                skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tittel = "Ekspertbistand ${skjema.ansatt.navn} f. ${skjema.ansatt.fnr.tilFødselsdato()}",
                 lenke = ""
@@ -55,7 +54,7 @@ class OpprettSakNotifikasjonsPlatform(
     private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
-                grupperingsid = skjema.id!!,
+                skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tekst = "Nav har mottatt deres søknad om ekspertbistand.",
                 lenke = "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand/skjema/:id" //TODO: håndter// produksjonslink når prod er klart

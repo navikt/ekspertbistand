@@ -1,0 +1,17 @@
+mutation HardDeleteSak($id: ID!) {
+    hardDeleteSak(id: $id) {
+        __typename
+        ... on HardDeleteSakVellykket {
+            id
+        }
+        ... on UgyldigMerkelapp {
+            feilmelding
+        }
+        ... on SakFinnesIkke {
+            feilmelding
+        }
+        ... on UkjentProdusent {
+            feilmelding
+        }
+    }
+}

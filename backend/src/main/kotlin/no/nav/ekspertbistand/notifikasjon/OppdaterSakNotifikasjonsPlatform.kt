@@ -39,7 +39,7 @@ class OppdaterSakNotifikasjonsPlatform(
     private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
-                grupperingsid = skjema.id!!,
+                skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tekst = "Nav har godkjent deres søknad om ekspertbistand.", // TODO: hva skal tittel her være?
                 lenke = "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand/skjema/:id" //TODO: håndter// produksjonslink når prod er klart
