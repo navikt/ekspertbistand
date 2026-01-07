@@ -6,6 +6,27 @@ const waitForAppReady = async (page: Page) => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 };
 
+const ensureMockServiceWorkerReady = async (page: Page) => {
+  await page.evaluate(async () => {
+    if ("serviceWorker" in navigator) {
+      await navigator.serviceWorker.ready;
+    }
+  });
+
+  const hasController = await page.evaluate(
+    () => !!navigator.serviceWorker && !!navigator.serviceWorker.controller
+  );
+
+  if (!hasController) {
+    await page.reload();
+    await page.evaluate(async () => {
+      if ("serviceWorker" in navigator) {
+        await navigator.serviceWorker.ready;
+      }
+    });
+  }
+};
+
 const runAxe = async (page: Page) => {
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
@@ -44,6 +65,7 @@ for (const route of routes) {
 
     await page.goto("/");
     await waitForAppReady(page);
+    await ensureMockServiceWorkerReady(page);
     const id = await createDraftId(page);
 
     await page.goto(route.path(id));
