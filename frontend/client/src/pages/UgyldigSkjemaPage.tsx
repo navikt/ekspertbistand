@@ -13,7 +13,7 @@ export default function UgyldigSkjemaPage({ message }: UgyldigSkjemaPageProps) {
 
   return (
     <DecoratedPage>
-      <VStack as="main" gap="6">
+      <VStack gap="6">
         <BackLink to={SOKNADER_PATH}>Gå til oversikt</BackLink>
         <VStack gap="4">
           <Heading level="1" size="xlarge">

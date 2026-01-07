@@ -2,12 +2,14 @@ import js from "@eslint/js";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 const reactHooksRecommended = reactHooks.configs["recommended-latest"];
 const reactRefreshVite = reactRefresh.configs.vite;
+const jsxA11yRecommended = jsxA11y.configs.recommended;
 
 export default defineConfig([
   globalIgnores(["**/dist/**", "**/build/**", "node_modules", "backend/**", "**/*.d.ts"]),
@@ -29,10 +31,12 @@ export default defineConfig([
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      "jsx-a11y": jsxA11y,
     },
     rules: {
       ...(reactHooksRecommended?.rules ?? {}),
       ...(reactRefreshVite?.rules ?? {}),
+      ...(jsxA11yRecommended?.rules ?? {}),
     },
     languageOptions: {
       ecmaVersion: 2020,

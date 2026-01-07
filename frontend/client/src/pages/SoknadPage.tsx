@@ -82,7 +82,7 @@ export default function SoknadPage() {
   return (
     <DecoratedPage>
       <form onSubmit={handleSubmit(onValid, () => bumpFocusKey())}>
-        <VStack as="main" gap="8" data-aksel-template="form-intropage-v3">
+        <VStack gap="8" data-aksel-template="form-intropage-v3">
           <VStack gap="3">
             <Bleed asChild marginInline={{ lg: "32" }}>
               <Box
