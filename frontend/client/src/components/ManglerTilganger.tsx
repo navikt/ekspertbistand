@@ -4,7 +4,7 @@ import { TILGANGSSTYRING_URL } from "../utils/constants.ts";
 
 export default function ManglerTilganger() {
   return (
-    <VStack as="main" gap="8" data-aksel-template="form-intropage-v3">
+    <VStack gap="8" data-aksel-template="form-intropage-v3">
       <VStack gap="3">
         <Bleed asChild marginInline={{ lg: "32" }}>
           <Box

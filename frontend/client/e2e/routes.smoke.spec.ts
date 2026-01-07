@@ -1,13 +1,24 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
-const ensureMockServiceWorkerReady = async (page: {
-  evaluate: (fn: () => Promise<void>) => Promise<void>;
-}) => {
+const ensureMockServiceWorkerReady = async (page: Page) => {
   await page.evaluate(async () => {
     if ("serviceWorker" in navigator) {
       await navigator.serviceWorker.ready;
     }
   });
+
+  const hasController = await page.evaluate(
+    () => !!navigator.serviceWorker && !!navigator.serviceWorker.controller
+  );
+
+  if (!hasController) {
+    await page.reload();
+    await page.evaluate(async () => {
+      if ("serviceWorker" in navigator) {
+        await navigator.serviceWorker.ready;
+      }
+    });
+  }
 };
 
 const createDraftId = async (page: {

@@ -24,7 +24,9 @@ export function DecoratedPage({ children, blockProps }: DecoratedPageProps) {
   return (
     <Page footer={<Footer />}>
       <Header />
-      <Page.Block {...mergedBlockProps}>{children}</Page.Block>
+      <Page.Block as="main" {...mergedBlockProps}>
+        {children}
+      </Page.Block>
     </Page>
   );
 }

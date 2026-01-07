@@ -59,7 +59,7 @@ export default function SoknaderPage() {
 
   return (
     <DecoratedPage>
-      <main className="home-page">
+      <div className="home-page">
         <BackLink href={MIN_SIDE_URL}>Tilbake til Min side - arbeidsgiver</BackLink>
 
         <LinkCard className="home-page__create-card" size="medium" arrowPosition="center">
@@ -80,7 +80,7 @@ export default function SoknaderPage() {
         </Heading>
 
         {content}
-      </main>
+      </div>
     </DecoratedPage>
   );
 }
