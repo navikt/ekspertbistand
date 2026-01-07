@@ -31,7 +31,6 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.Duplika
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsidEtterDelete
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.NySakVellykket
 import java.net.URI
-import java.util.UUID
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UkjentProdusent as NyBeskjedUkjentProdusent
@@ -44,7 +43,7 @@ private const val merkelapp = "Ekspertbistand"
 private const val notifikasjonBaseUrl = "http://notifikasjon-produsent-api.fager/api/graphql"
 
 class ProdusentApiKlient(
-    private val tokenProvider: AzureAdTokenProvider,
+    private val azureAdTokenProvider: AzureAdTokenProvider,
     defaultHttpClient: HttpClient
 ) {
     private val log = logger()
@@ -73,7 +72,7 @@ class ProdusentApiKlient(
 
     private suspend fun hentEntraIdToken(): String {
         val scope = "api://${NaisEnvironment.clusterName}.fager.notifikasjon-produsent-api/.default"
-        return tokenProvider.token(scope).fold(
+        return azureAdTokenProvider.token(scope).fold(
             onSuccess = { it.accessToken },
             onError = {
                 throw Exception("Feil ved henting av token for Notifikasjon Produsent API: ${it.error.errorDescription}")
@@ -195,35 +194,35 @@ class ProdusentApiKlient(
             is UkjentProdusent -> throw NyStatusSakException(nyStatusSak.feilmelding)
             is DefaultNyStatusSakResultatImplementation -> throw NyStatusSakException("Uventet feil: $resultat")
         }
+    }
 
-        suspend fun hardDeleteSak(skjemaId: String) {
-            val token = hentEntraIdToken()
-            val resultat = client.execute(
-                HardDeleteSak(
-                    variables = HardDeleteSak.Variables(
-                        id = skjemaId,
-                    )
+    suspend fun hardDeleteSak(skjemaId: String) {
+        val token = hentEntraIdToken()
+        val resultat = client.execute(
+            HardDeleteSak(
+                variables = HardDeleteSak.Variables(
+                    id = skjemaId,
                 )
-            ) {
-                bearerAuth(token)
-            }
-            when (val hardDeleteSak = resultat.data?.hardDeleteSak) {
-                is HardDeleteSakVellykket -> log.info("Harddeleted sak med id $skjemaId")
-                is DefaultHardDeleteSakResultatImplementation -> throw HardDeleteSakException("Uventet feil: $resultat")
-                is no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.SakFinnesIkke -> throw (HardDeleteSakException(
-                    hardDeleteSak.feilmelding
-                ))
+            )
+        ) {
+            bearerAuth(token)
+        }
+        when (val hardDeleteSak = resultat.data?.hardDeleteSak) {
+            is HardDeleteSakVellykket -> log.info("Harddeleted sak med id $skjemaId")
+            is DefaultHardDeleteSakResultatImplementation -> throw HardDeleteSakException("Uventet feil: $resultat")
+            is no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.SakFinnesIkke -> throw (HardDeleteSakException(
+                hardDeleteSak.feilmelding
+            ))
 
-                is no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.UgyldigMerkelapp -> throw (HardDeleteSakException(
-                    hardDeleteSak.feilmelding
-                ))
+            is no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.UgyldigMerkelapp -> throw (HardDeleteSakException(
+                hardDeleteSak.feilmelding
+            ))
 
-                is no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.UkjentProdusent -> throw (HardDeleteSakException(
-                    hardDeleteSak.feilmelding
-                ))
+            is no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.UkjentProdusent -> throw (HardDeleteSakException(
+                hardDeleteSak.feilmelding
+            ))
 
-                null -> throw HardDeleteSakException("Uventet feil: HardDeleteSak er null, $resultat")
-            }
+            null -> throw HardDeleteSakException("Uventet feil: HardDeleteSak er null, $resultat")
         }
     }
 }

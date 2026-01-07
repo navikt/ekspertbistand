@@ -148,7 +148,7 @@ fun main() {
             provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
                 ProdusentApiKlient(
-                    tokenProvider = resolve<AzureAdTokenProvider>(),
+                    azureAdTokenProvider = resolve<AzureAdTokenProvider>(),
                     defaultHttpClient = defaultHttpClient()
                 )
             }
