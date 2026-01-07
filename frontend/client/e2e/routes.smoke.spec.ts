@@ -21,22 +21,26 @@ const ensureMockServiceWorkerReady = async (page: Page) => {
   }
 };
 
-const createDraftId = async (page: {
-  evaluate: (fn: () => Promise<string | null>) => Promise<string | null>;
-}) => {
-  const id = await page.evaluate(async () => {
+const tryCreateDraftId = async (page: Page): Promise<string | null> =>
+  page.evaluate(async () => {
     const response = await fetch("/ekspertbistand-backend/api/skjema/v1", { method: "POST" });
     if (!response.ok) {
-      throw new Error(`Failed to create draft: ${response.status}`);
+      return null;
     }
     const data = (await response.json()) as { id?: string | null };
     return data?.id ?? null;
   });
 
+const createDraftId = async (page: Page) => {
+  let id = await tryCreateDraftId(page);
+  if (!id) {
+    await page.reload();
+    await ensureMockServiceWorkerReady(page);
+    id = await tryCreateDraftId(page);
+  }
   if (!id) {
     throw new Error("Missing draft id from mock API.");
   }
-
   return id;
 };
 

@@ -65,6 +65,9 @@ importers:
       '@navikt/ds-react':
         specifier: 7.36.0
         version: 7.36.0(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@navikt/fnrvalidator':
+        specifier: 2.2.1
+        version: 2.2.1
       '@navikt/nav-dekoratoren-moduler':
         specifier: 3.6.1
         version: 3.6.1(csp-header@6.1.0)(html-react-parser@5.2.6(@types/react@19.2.7)(react@19.2.3))(jsdom@27.0.0)(react@19.2.3)
@@ -638,6 +641,9 @@ packages:
 
   '@navikt/ds-tokens@7.36.0':
     resolution: {integrity: sha512-qGLDJfnqQJoSHz03lsxqXkbl4MqN/d9W532TKyGcXswsYSeTEj425weFUvPwTh2w29dM4ncGmomijZAUjFYH/w==, tarball: https://npm.pkg.github.com/download/@navikt/ds-tokens/7.36.0/ad3ab2a9f2179c5a4703738de33233af54336dc2}
+
+  '@navikt/fnrvalidator@2.2.1':
+    resolution: {integrity: sha512-R6x3MBFC0E/B7oTs+P2jAP+ym7+d6cwSpDsLeMja9IwPpJq3HV/OClFBVWm9fJZPmXfumKRMGy6gqsQPj90ftg==, tarball: https://npm.pkg.github.com/download/@navikt/fnrvalidator/2.2.1/37ed0feb23a7525139ad5512684ff6b0977112c6}
 
   '@navikt/nav-dekoratoren-moduler@3.6.1':
     resolution: {integrity: sha512-vfq24tA2eKEsZ9/qRzobRlrKV5NUbSuI9FA60AUhH+BX+61WE/ZsvHhNbFiO9NlXg/yYLmVZCg1uJB5V4QnU7A==, tarball: https://npm.pkg.github.com/download/@navikt/nav-dekoratoren-moduler/3.6.1/b0dfb47266ce90ffacd1905cd4feb53d8194dbcb}
@@ -3627,6 +3633,8 @@ snapshots:
       '@types/react': 19.2.7
 
   '@navikt/ds-tokens@7.36.0': {}
+
+  '@navikt/fnrvalidator@2.2.1': {}
 
   '@navikt/nav-dekoratoren-moduler@3.6.1(csp-header@6.1.0)(html-react-parser@5.2.6(@types/react@19.2.7)(react@19.2.3))(jsdom@27.0.0)(react@19.2.3)':
     dependencies:

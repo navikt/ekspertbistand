@@ -1,6 +1,8 @@
+import { fnr, tnr } from "@navikt/fnrvalidator";
 import { z } from "zod";
 import type { Path } from "react-hook-form";
 import { startOfToday } from "../../utils/date";
+import { envSwitch } from "../../utils/env";
 z.config(z.locales.no());
 
 const virksomhetsnummerPattern = /^\d{9}$/;
@@ -30,10 +32,20 @@ const orgnrField = trimmedText("Du må velge virksomhet.").refine(
   { message: "Virksomhetsnummer må være 9 siffer." }
 );
 
-const fnrField = trimmedText("Du må fylle ut fødselsnummer.").refine(
-  (value) => fnrPattern.test(value),
-  { message: "Fødselsnummer må være 11 siffer." }
-);
+const isValidFnr = (value: string) => fnr(value).status === "valid";
+const isValidTnr = (value: string) => tnr(value).status === "valid";
+const isValidFnrOrTnr = (value: string) =>
+  envSwitch({
+    prod: () => isValidFnr(value),
+    dev: () => isValidFnr(value) || isValidTnr(value),
+    local: () => isValidFnr(value) || isValidTnr(value),
+  });
+
+const fnrField = trimmedText("Du må fylle ut fødselsnummer.")
+  .refine((value) => fnrPattern.test(value), { message: "Fødselsnummer må være 11 siffer." })
+  .refine((value) => isValidFnrOrTnr(value), {
+    message: "Fødselsnummer er ikke gyldig.",
+  });
 
 const timerSchema = z.string().superRefine((value, ctx) => {
   const trimmed = value.trim();
