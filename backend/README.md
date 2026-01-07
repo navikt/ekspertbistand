@@ -21,7 +21,7 @@ Ny løsning for mottak vil da oppsummert gjøre følgende:
   * Her kan vi også ta i bruk fremtidig status, påminnelser og andre muligheter som ligger i produsent-api
   * "Vi har mottatt din søknad, typisk svartid er ca 1 uke"
 
-### Godkjent søknad (tildligere kalt tilsagnsbrev)
+### Godkjent søknad (tildligere kalt tilsagnsbrev) 
 
 Når en søker får godkjent sin søknad om ekspertbistand, kalles det i dag et tilsagn, og det sendes et tilsagnsbrev til søker.
 Dette trigges i dag ved at saksbehandler i arena oppretter et tilsagn, og det sendes en melding til altinn 2 innboks. I dag er dette tilgangsstyrt på 

@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.pdl
 
 import com.expediagroup.graphql.client.ktor.GraphQLKtorClient
+import com.expediagroup.graphql.client.types.GraphQLClientResponse
 import io.ktor.client.*
 import io.ktor.client.request.*
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
@@ -35,7 +36,7 @@ class PdlApiKlient(
     }
 
 
-    suspend fun hentAdressebeskyttelse(fnr: String): Person {
+    suspend fun hentAdressebeskyttelse(fnr: String): Result<Person> {
         val token = token()
         val response = client.execute(
             HentPerson(
@@ -48,13 +49,14 @@ class PdlApiKlient(
             header("Behandlingsnummer", behandlingsNummer)
         }
 
-        return when (val person = response.data?.hentPerson) {
-            null -> throw PdlClientException("Uventet feil ved henting av person: person er null. errors: ${response.errors?.map { "${it.message}\n" }}")
-            else -> person
+        if (response.data !== null && response.data!!.hentPerson != null) {
+            return Result.success(response.data!!.hentPerson!!)
         }
+
+        return Result.failure(response.getErrors())
     }
 
-    suspend fun hentGeografiskTilknytning(fnr: String): GeografiskTilknytning {
+    suspend fun hentGeografiskTilknytning(fnr: String): Result<GeografiskTilknytning> {
         val token = token()
         val response = client.execute(
             HentGeografiskTilknytning(
@@ -67,10 +69,31 @@ class PdlApiKlient(
             header("Behandlingsnummer", behandlingsNummer)
         }
 
-        return when (val tilknytning = response.data?.hentGeografiskTilknytning) {
-            null -> throw PdlClientException("Uventet feil ved henting av geografisk tilknytning: tilknytning er null. errors: ${response.errors?.map { "${it.message}\n" }}")
-            else -> tilknytning
+        if (response.data != null && response.data!!.hentGeografiskTilknytning != null) {
+            return Result.success(response.data!!.hentGeografiskTilknytning!!)
         }
+
+        return Result.failure(response.getErrors())
+    }
+
+    private fun <T> GraphQLClientResponse<T>.getErrors(): Exception {
+        val error = errors?.let { errors ->
+            val codes = errors.map {
+                it.extensions?.get("code") as String? ?: it.message
+            }
+            if (codes.size != 1) {
+                UnknownError(this)
+            }
+            when (codes.first()) {
+                "not_found" -> NotFound()
+                "bad_request" -> BadRequest()
+                "unauthorized" -> Unauthorized()
+                "unauthenticated" -> Unauthenticated()
+                "server_error" -> ServerError()
+                else -> UnknownError(this)
+            }
+        }
+        return error ?: UnknownError(this)
     }
 
     companion object {
@@ -88,4 +111,16 @@ class PdlApiKlient(
     }
 }
 
-class PdlClientException(message: String) : Exception(message)
+class Unauthenticated : Exception()
+
+class Unauthorized : Exception()
+
+class NotFound : Exception()
+
+class BadRequest : Exception()
+
+class ServerError : Exception()
+
+data class UnknownError(
+    val response: GraphQLClientResponse<*>
+) : Exception()
