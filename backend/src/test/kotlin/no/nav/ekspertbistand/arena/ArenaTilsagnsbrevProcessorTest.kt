@@ -14,6 +14,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertDoesNotThrow
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -100,6 +101,15 @@ class ArenaTilsagnsbrevProcessorTest {
 
             }
         }
+
+    @Test
+    fun `kafka consumer feiler ikke`() {
+        // TODO: test consumer vha dummy kafka broker
+        
+        assertDoesNotThrow {
+            ArenaTilsagnsbrevProcessor.consumer
+        }
+    }
 }
 
 /**
