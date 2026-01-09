@@ -1,0 +1,41 @@
+mutation NyStatusSak(
+    $idempotencyKey: String,
+    $id: ID!,
+    $nyStatus: SaksStatus!,
+    $tidspunkt: ISO8601DateTime,
+    $overstyrStatustekstMed: String,
+    $hardDelete: HardDeleteUpdateInput,
+    $nyLenkeTilSak: String
+) {
+    nyStatusSak(
+        idempotencyKey: $idempotencyKey,
+        id: $id,
+        nyStatus: $nyStatus,
+        tidspunkt: $tidspunkt,
+        overstyrStatustekstMed: $overstyrStatustekstMed,
+        hardDelete: $hardDelete,
+        nyLenkeTilSak: $nyLenkeTilSak
+    ) {
+        __typename
+        ... on NyStatusSakVellykket {
+            id
+            statuser {
+                status
+                tidspunkt
+                overstyrStatusTekstMed
+            }
+        }
+        ... on SakFinnesIkke {
+            feilmelding
+        }
+        ... on Konflikt {
+            feilmelding
+        }
+        ... on UgyldigMerkelapp {
+            feilmelding
+        }
+        ... on UkjentProdusent {
+            feilmelding
+        }
+    }
+}
