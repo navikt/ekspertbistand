@@ -54,8 +54,13 @@ class OppdaterSakNotifikasjonsPlatform(
             produsentApiKlient.opprettNyBeskjed(
                 skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                tekst = "Nav har godkjent deres søknad om ekspertbistand.", // TODO: hva skal tittel her være?
-                lenke = "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand/skjema/:id" //TODO: håndter// produksjonslink når prod er klart
+                tekst = "Søknaden er godkjent og ekspertbistand kan nå tas i bruk.",
+                lenke = "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand/skjema/:id", //TODO: håndter// produksjonslink når prod er klart
+                eksternVarsel = EksterntVarsel(
+                    epostTittel = "Nav – angående søknad om ekspertbistand",
+                    epostHtmlBody = "${skjema.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
+                    smsTekst = "${skjema.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
+                )
             )
             Result.success("Opprettet beskjed for skjema ${skjema.id}")
         } catch (ex: Exception) {

@@ -13,10 +13,13 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.NyStatusSak
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNyBeskjed
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNySak
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.Sendevindu
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.DefaultHardDeleteSakResultatImplementation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.HardDeleteSakVellykket
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.AltinnRessursMottakerInput
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.EksterntVarselAltinnressursInput
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.MottakerInput
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.SendetidspunktInput
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.DefaultNyStatusSakResultatImplementation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.Konflikt
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.NyStatusSakVellykket
@@ -121,12 +124,14 @@ class ProdusentApiKlient(
         }
     }
 
+
     suspend fun opprettNyBeskjed(
         skjemaId: String,
         virksomhetsnummer: String,
         tekst: String,
         lenke: String,
-        tidspunkt: ISO8601DateTime? = null
+        tidspunkt: ISO8601DateTime? = null,
+        eksternVarsel: EksterntVarsel? = null
     ) {
         val token = hentEntraIdToken()
         val resultat = client.execute(
@@ -138,7 +143,8 @@ class ProdusentApiKlient(
                     tekst,
                     lenke,
                     tidspunkt,
-                    mottaker
+                    mottaker,
+                    eksternVarsel?.tilVarsel()
                 )
             )
         ) {
@@ -225,7 +231,22 @@ class ProdusentApiKlient(
             null -> throw HardDeleteSakException("Uventet feil: HardDeleteSak er null, $resultat")
         }
     }
+
+    private fun EksterntVarsel.tilVarsel() =
+        EksterntVarselAltinnressursInput(
+            mottaker.altinnRessurs!!,
+            epostTittel,
+            epostHtmlBody,
+            smsTekst,
+            SendetidspunktInput(sendevindu = Sendevindu.NKS_AAPNINGSTID)
+        )
 }
+
+data class EksterntVarsel(
+    val epostTittel: String,
+    val epostHtmlBody: String,
+    val smsTekst: String,
+)
 
 class SakOpprettetException(message: String) : Exception(message)
 class BeskjedOpprettetException(message: String) : Exception(message)
