@@ -146,7 +146,6 @@ class DokgenClientTest {
             etternavn = "Nøff",
         ),
         kommentar = "Dette var unødvendig mye testdata å skrive"
-
     )
 
     private fun sampleSkjema() = DTO.Skjema(

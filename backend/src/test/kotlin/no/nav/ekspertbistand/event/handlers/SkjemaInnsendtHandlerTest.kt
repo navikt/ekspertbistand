@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.dokarkiv
+package no.nav.ekspertbistand.event.handlers
 
 import io.ktor.client.*
 import io.ktor.http.*
@@ -11,10 +11,12 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
+import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
+import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.ereg.EregClient
-import no.nav.ekspertbistand.event.handlers.SkjemaInnsendtHandler
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider

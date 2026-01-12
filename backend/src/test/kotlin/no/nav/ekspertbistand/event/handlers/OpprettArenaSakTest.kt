@@ -1,15 +1,14 @@
-package no.nav.ekspertbistand.arena
+package no.nav.ekspertbistand.event.handlers
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
 import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
+import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
-import no.nav.ekspertbistand.event.handlers.ArenaSakTable
-import no.nav.ekspertbistand.event.handlers.OpprettSakArena
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider

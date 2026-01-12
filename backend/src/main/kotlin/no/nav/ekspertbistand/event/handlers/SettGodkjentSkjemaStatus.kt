@@ -34,14 +34,11 @@ class SettGodkjentSkjemaStatus(
                     where = { SkjemaTable.id eq UUID.fromString(event.data.skjema.id) }) {
                     it[status] = SkjemaStatus.godkjent.toString()
                 }
-                if (updates == 1) {
-                    logger.info("Skjema med id ${event.data.skjema.id} satt til godkjent.")
-                    EventHandledResult.Success()
-                } else if (updates == 0) {
+                if (updates == 0) {
                     EventHandledResult.UnrecoverableError("Forsøkte å oppdatere status for skjema med id ${event.data.skjema.id}, men finner ikke skjema i databasen.")
                 } else {
-                    rollback()
-                    EventHandledResult.TransientError("Feil ved oppdatering av skjemastatus: Finner mer enn ett skjema med id ${event.data.skjema.id}")
+                    logger.info("Skjema med id ${event.data.skjema.id} satt til godkjent.")
+                    EventHandledResult.Success()
                 }
 
             } catch (e: Exception) {
