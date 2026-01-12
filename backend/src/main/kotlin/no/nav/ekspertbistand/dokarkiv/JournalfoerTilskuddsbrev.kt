@@ -38,7 +38,7 @@ class JournalfoerTilskuddsbrev(
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = tittel,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                eksternReferanseId = skjemaId,
+                eksternReferanseId = "${event.data.tilsagnData.tilsagnNummer}-${skjemaId}", //TODO: midlertidig for å ikke få conflict
                 dokumentPdfAsBytes = tilsagnPdf,
             )
         } catch (e: Exception) {
