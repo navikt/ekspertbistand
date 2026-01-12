@@ -6,7 +6,7 @@ mutation OpprettNyBeskjed(
     $lenke: String!
     $tidspunkt: ISO8601DateTime
     $mottaker: MottakerInput!
-    $eksternVarsel: EksterntVarselAltinnressursInput
+    $eksterneVarsler: [EksterntVarselInput!]! = []
 ) {
     nyBeskjed(
         nyBeskjed: {
@@ -24,11 +24,7 @@ mutation OpprettNyBeskjed(
             mottakere: [
                 $mottaker
             ]
-            eksterneVarsler: [
-                {
-                    altinnressurs: $eksternVarsel
-                }
-            ]
+            eksterneVarsler: $eksterneVarsler
         }
     )
     {

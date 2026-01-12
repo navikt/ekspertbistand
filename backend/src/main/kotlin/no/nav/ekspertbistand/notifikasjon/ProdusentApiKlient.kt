@@ -18,6 +18,7 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.Defaul
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.HardDeleteSakVellykket
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.AltinnRessursMottakerInput
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.EksterntVarselAltinnressursInput
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.EksterntVarselInput
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.MottakerInput
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.SendetidspunktInput
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.DefaultNyStatusSakResultatImplementation
@@ -144,7 +145,7 @@ class ProdusentApiKlient(
                     lenke,
                     tidspunkt,
                     mottaker,
-                    eksternVarsel?.tilVarsel()
+                    listOfNotNull(eksternVarsel?.tilVarsel())
                 )
             )
         ) {
@@ -233,12 +234,15 @@ class ProdusentApiKlient(
     }
 
     private fun EksterntVarsel.tilVarsel() =
-        EksterntVarselAltinnressursInput(
-            mottaker.altinnRessurs!!,
-            epostTittel,
-            epostHtmlBody,
-            smsTekst,
-            SendetidspunktInput(sendevindu = Sendevindu.NKS_AAPNINGSTID)
+        EksterntVarselInput(
+            altinnressurs =
+                EksterntVarselAltinnressursInput(
+                    mottaker.altinnRessurs!!,
+                    epostTittel,
+                    epostHtmlBody,
+                    smsTekst,
+                    SendetidspunktInput(sendevindu = Sendevindu.NKS_AAPNINGSTID)
+                )
         )
 }
 
