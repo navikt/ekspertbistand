@@ -10,6 +10,7 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.*
+import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrev
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider

@@ -1,7 +1,7 @@
 package no.nav.ekspertbistand.skjema
 
 import io.ktor.http.*
-import io.ktor.http.content.NullBody
+import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -75,6 +75,10 @@ class SkjemaApi(
                         .map { it.tilSkjemaDTO() }
                 }
                 call.respond(results)
+            }
+
+            else -> {
+                throw IllegalArgumentException("Mottok ugyldig status param for henting av skjema: $statusParam")
             }
         }
     }
@@ -253,6 +257,7 @@ class SkjemaApi(
 
                 it[navKontaktPerson] = skjema.nav.kontaktperson
                 it[opprettetAv] = innloggetBruker
+                it[status] = SkjemaStatus.innsendt.toString()
             }.single().tilSkjemaDTO().also {
                 UtkastTable.deleteWhere { UtkastTable.id eq idParam }
             }
@@ -291,9 +296,8 @@ sealed interface DTO {
         val nav: Nav,
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
-    ) : DTO {
-        val status = SkjemaStatus.innsendt
-    }
+        val status: SkjemaStatus = SkjemaStatus.innsendt
+    ) : DTO
 
     @Serializable
     data class Utkast(
@@ -356,4 +360,7 @@ sealed interface DTO {
 enum class SkjemaStatus {
     utkast,
     innsendt,
+    godkjent,
+    avlyst,
+    avslått
 }

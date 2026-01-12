@@ -8,6 +8,7 @@ import kotlinx.serialization.json.jsonObject
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.handlers.insertSaksnummer
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.skjema.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord

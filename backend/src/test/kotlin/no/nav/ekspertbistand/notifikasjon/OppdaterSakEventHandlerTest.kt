@@ -20,6 +20,7 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.IdempotencyGuard
+import no.nav.ekspertbistand.event.handlers.OppdaterSakNotifikasjonsPlatform
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.NyStatusSak
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNyBeskjed

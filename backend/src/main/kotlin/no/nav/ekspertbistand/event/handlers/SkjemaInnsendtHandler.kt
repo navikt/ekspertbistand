@@ -1,5 +1,6 @@
-package no.nav.ekspertbistand.dokarkiv
+package no.nav.ekspertbistand.event.handlers
 
+import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.event.*

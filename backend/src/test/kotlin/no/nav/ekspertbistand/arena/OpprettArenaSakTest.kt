@@ -8,9 +8,10 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.handlers.ArenaSakTable
+import no.nav.ekspertbistand.event.handlers.OpprettSakArena
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.infrastruktur.TokenResponse
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.mocks.mockTiltaksgjennomfoering
 import no.nav.ekspertbistand.skjema.DTO

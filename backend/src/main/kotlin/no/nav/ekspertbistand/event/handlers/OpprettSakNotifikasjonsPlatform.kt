@@ -1,10 +1,11 @@
-package no.nav.ekspertbistand.notifikasjon
+package no.nav.ekspertbistand.event.handlers
 
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard
+import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.DTO
 
 private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
