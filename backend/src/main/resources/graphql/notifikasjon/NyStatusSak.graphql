@@ -1,15 +1,17 @@
 mutation NyStatusSak(
     $idempotencyKey: String,
-    $id: ID!,
+    $grupperingsid: String!,
+    $merkelapp: String!,
     $nyStatus: SaksStatus!,
     $tidspunkt: ISO8601DateTime,
     $overstyrStatustekstMed: String,
     $hardDelete: HardDeleteUpdateInput,
     $nyLenkeTilSak: String
 ) {
-    nyStatusSak(
+    nyStatusSakByGrupperingsid(
         idempotencyKey: $idempotencyKey,
-        id: $id,
+        grupperingsid: $grupperingsid,
+        merkelapp: $merkelapp
         nyStatus: $nyStatus,
         tidspunkt: $tidspunkt,
         overstyrStatustekstMed: $overstyrStatustekstMed,

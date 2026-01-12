@@ -1,5 +1,8 @@
-mutation HardDeleteSak($id: ID!) {
-    hardDeleteSak(id: $id) {
+mutation HardDeleteSak(
+    $grupperingsid: String!,
+    $merkelapp: String!
+) {
+    hardDeleteSakByGrupperingsid(merkelapp: $merkelapp, grupperingsid: $grupperingsid) {
         __typename
         ... on HardDeleteSakVellykket {
             id

@@ -181,7 +181,8 @@ class ProdusentApiKlient(
             NyStatusSak(
                 variables = NyStatusSak.Variables(
                     idempotencyKey = "$skjemaId-$statusTekst",
-                    id = skjemaId,
+                    grupperingsid = skjemaId,
+                    merkelapp =  merkelapp,
                     nyStatus = status,
                     tidspunkt = tidspunkt,
                     overstyrStatustekstMed = statusTekst
@@ -190,7 +191,7 @@ class ProdusentApiKlient(
         ) {
             bearerAuth(token)
         }
-        when (val nyStatusSak = resultat.data?.nyStatusSak) {
+        when (val nyStatusSak = resultat.data?.nyStatusSakByGrupperingsid) {
             null -> throw NyStatusSakException("Uventet feil: NyStatusSak er null, resultat: $resultat")
 
             is NyStatusSakVellykket -> log.info("Oppdaterte status på sak med id ${nyStatusSak.id}}")
@@ -208,13 +209,14 @@ class ProdusentApiKlient(
         val resultat = client.execute(
             HardDeleteSak(
                 variables = HardDeleteSak.Variables(
-                    id = skjemaId,
+                    grupperingsid = skjemaId,
+                    merkelapp = merkelapp,
                 )
             )
         ) {
             bearerAuth(token)
         }
-        when (val hardDeleteSak = resultat.data?.hardDeleteSak) {
+        when (val hardDeleteSak = resultat.data?.hardDeleteSakByGrupperingsid) {
             is HardDeleteSakVellykket -> log.info("Harddeleted sak med id $skjemaId")
             is DefaultHardDeleteSakResultatImplementation -> throw HardDeleteSakException("Uventet feil: $resultat")
             is no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.SakFinnesIkke -> throw (HardDeleteSakException(

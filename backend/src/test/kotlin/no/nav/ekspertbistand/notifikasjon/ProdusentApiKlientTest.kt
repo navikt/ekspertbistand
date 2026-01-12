@@ -12,7 +12,6 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.ISO8601DateTime
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DefaultNyBeskjedResultatImplementation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DuplikatEksternIdOgMerkelapp
@@ -105,7 +104,7 @@ class ProdusentApiKlientTest {
             //language=json
             """{
                 "data": {
-                  "nyStatusSak": {
+                  "nyStatusSakByGrupperingsid": {
                     "__typename": "NyStatusSakVellykket",
                     "id": "$skjemaId",
                     "statuser": [{
@@ -152,7 +151,7 @@ class ProdusentApiKlientTest {
             //language=json
             """{
                 "data": {
-                  "hardDeleteSak": {
+                  "hardDeleteSakByGrupperingsid": {
                     "__typename": "HardDeleteSakVellykket",
                     "id": "$skjemaId"
                     }
