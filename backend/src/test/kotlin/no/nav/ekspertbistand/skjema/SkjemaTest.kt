@@ -235,6 +235,7 @@ class SkjemaTest {
                     it[behovForBistandTimer] = ""
                     it[behovForBistandStartdato] = CurrentDate
                     it[navKontaktPerson] = ""
+                    it[status] = SkjemaStatus.innsendt.toString()
                 }
             }
         }
@@ -407,9 +408,9 @@ class SkjemaTest {
             SkjemaTable.insert {
                 it[id] = UUID.randomUUID()
                 it[virksomhetsnummer] = "1337"
-                it[virksomhetsnavn] =" foo bar AS"
+                it[virksomhetsnavn] = " foo bar AS"
                 it[opprettetAv] = "42"
-                it[behovForBistand] = "skjema for org jeg har tilgang til"
+                it[behovForBistand] = "innsendt skjema for org jeg har tilgang til"
                 it[behovForBistandTilrettelegging] = ""
                 it[behovForBistandBegrunnelse] = ""
                 it[behovForBistandEstimertKostnad] = "42"
@@ -425,6 +426,31 @@ class SkjemaTest {
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
+                it[status] = SkjemaStatus.innsendt.toString()
+            }
+
+            SkjemaTable.insert {
+                it[id] = UUID.randomUUID()
+                it[virksomhetsnummer] = "1337"
+                it[virksomhetsnavn] = " foo bar AS"
+                it[opprettetAv] = "42"
+                it[behovForBistand] = "godkjent skjema for org jeg har tilgang til"
+                it[behovForBistandTilrettelegging] = ""
+                it[behovForBistandBegrunnelse] = ""
+                it[behovForBistandEstimertKostnad] = "42"
+                it[behovForBistandTimer] = "9"
+                it[behovForBistandStartdato] = CurrentDate
+
+                it[kontaktpersonNavn] = ""
+                it[kontaktpersonEpost] = ""
+                it[kontaktpersonTelefon] = ""
+                it[ansattFnr] = ""
+                it[ansattNavn] = ""
+                it[ekspertNavn] = ""
+                it[ekspertVirksomhet] = ""
+                it[ekspertKompetanse] = ""
+                it[navKontaktPerson] = ""
+                it[status] = SkjemaStatus.godkjent.toString()
             }
 
             SkjemaTable.insert {
@@ -448,6 +474,7 @@ class SkjemaTest {
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
+                it[status] = SkjemaStatus.innsendt.toString()
             }
         }
 
@@ -459,12 +486,18 @@ class SkjemaTest {
         ) {
             assertEquals(HttpStatusCode.OK, status)
             body<List<DTO.Skjema>>().also { skjemas ->
-                assertEquals(1, skjemas.size)
-                assertEquals("skjema for org jeg har tilgang til", skjemas[0].behovForBistand.behov)
-                assertEquals("1337", skjemas[0].virksomhet.virksomhetsnummer)
-                assertEquals("42", skjemas[0].opprettetAv)
+                assertEquals(2, skjemas.size)
+                val innsendtSkjema = skjemas.first { it.status == SkjemaStatus.innsendt }
+                assertEquals("innsendt skjema for org jeg har tilgang til", innsendtSkjema.behovForBistand.behov)
+                assertEquals("1337", innsendtSkjema.virksomhet.virksomhetsnummer)
+                assertEquals("42", innsendtSkjema.opprettetAv)
 
-                skjemaId = skjemas[0].id
+                val godkjentSkjema = skjemas.first { it.status == SkjemaStatus.godkjent }
+                assertEquals("godkjent skjema for org jeg har tilgang til", godkjentSkjema.behovForBistand.behov)
+                assertEquals("1337", godkjentSkjema.virksomhet.virksomhetsnummer)
+                assertEquals("42", godkjentSkjema.opprettetAv)
+
+                skjemaId = innsendtSkjema.id
             }
         }
 
@@ -505,7 +538,7 @@ class SkjemaTest {
                     userToken: String
                 ) = fail("call to altinn tilganger not expected for unauthorized user")
             },
-            defaultHttpClient = createClient {  }
+            defaultHttpClient = createClient { }
         )
         application {
             dependencies {
