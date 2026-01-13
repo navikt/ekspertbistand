@@ -34,3 +34,18 @@ jobs:
           dockerfile: dokgen/Dockerfile
           docker_context: dokgen 
           salsa: false
+
+  deploy-dev:
+    if: github.ref == 'refs/heads/main'
+    needs: [ compile-test-and-build ]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Deploy dev-gcp
+        uses: nais/deploy/actions/deploy@v2
+        env:
+          VAR: image=${{ needs.compile-test-and-build.outputs.image }}
+          RESOURCE: nais/dev-gcp-dokgen.yaml
+          CLUSTER: dev-gcp

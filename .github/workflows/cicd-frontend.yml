@@ -1,0 +1,124 @@
+name: CICD Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - frontend/**
+      - Dockerfile
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - tsconfig.base.json
+      - .npmrc
+      - nais/dev-gcp-frontend.yaml
+      - nais/prod-gcp-frontend.yaml
+
+jobs:
+  compile-test-and-build:
+    name: Compile, test and build image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    env:
+      CDN_DESTINATION: /ekspertbistand/${{ github.sha }}
+      CDN_PUBLIC_BASE: https://cdn.nav.no/fager/ekspertbistand/${{ github.sha }}
+      BASE_PATH: /ekspertbistand
+    outputs:
+      image: ${{ steps.docker-build-push.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          registry-url: https://npm.pkg.github.com/
+          cache: pnpm
+
+      - name: Install server production dependencies
+        run: pnpm --filter ./frontend/server install --frozen-lockfile --prod
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.READER_TOKEN }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.READER_TOKEN }}
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build workspace
+        run: pnpm run build
+        env:
+          VITE_BASE_PATH: ${{ env.CDN_PUBLIC_BASE }}
+
+      - name: Upload static assets to NAIS CDN
+        uses: nais/deploy/actions/cdn-upload/v2@master
+        with:
+          team: fager
+          source: ./frontend/client/dist
+          destination: ${{ env.CDN_DESTINATION }}
+          source_keep_parent_name: false
+
+      - name: Login to NAIS (sets registry and OIDC)
+        id: login
+        uses: nais/login@v0
+        with:
+          team: fager
+          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
+          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Build and push image
+        id: docker-build-push
+        uses: nais/docker-build-push@v0
+        with:
+          team: fager
+          image_suffix: frontend
+          tag: ${{ github.sha }}
+          docker_context: .
+          dockerfile: Dockerfile
+          build_args: |
+            NODE_AUTH_TOKEN=${{ secrets.READER_TOKEN }}
+            BASE_PATH=${{ env.BASE_PATH }}
+            VITE_BASE_PATH=${{ env.CDN_PUBLIC_BASE }}
+          salsa: true
+
+  deploy-dev-gcp:
+    name: Deploy to dev-gcp
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    needs: compile-test-and-build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Login to NAIS (sets registry and OIDC)
+        uses: nais/login@v0
+        with:
+          team: fager
+
+      - name: Deploy dev-gcp
+        uses: nais/deploy/actions/deploy@v2
+        env:
+          CLUSTER: dev-gcp
+          RESOURCE: nais/dev-gcp-frontend.yaml
+          PRINT_PAYLOAD: "true"
+          VAR: image=${{ needs.compile-test-and-build.outputs.image }}
+          REF: ${{ github.sha }}
