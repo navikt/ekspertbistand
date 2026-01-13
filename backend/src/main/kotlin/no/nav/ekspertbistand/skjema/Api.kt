@@ -282,6 +282,10 @@ class SkjemaApi(
 }
 
 sealed interface DTO {
+    /**
+     * Default-verdier på Skjema brukes da de blir satt etter persistering.
+     */
+
     @Serializable
     data class Skjema(
         val id: String? = null,
@@ -292,8 +296,9 @@ sealed interface DTO {
         val nav: Nav,
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
-        val status: SkjemaStatus = SkjemaStatus.innsendt, //TODO: hvordan håndteres dette i frontend? er det nødvendigmed default verdi?
+        val status: SkjemaStatus = SkjemaStatus.innsendt,
     ) : DTO
+
 
     @Serializable
     data class Utkast(
