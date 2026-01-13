@@ -30,6 +30,7 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.NyStatus
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.StatusOppdatering
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.*
 import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.skjema.SkjemaStatus
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 import kotlin.test.Test
@@ -154,6 +155,7 @@ private val skjema1 = DTO.Skjema(
     nav = DTO.Nav(
         kontaktperson = "Navn Navnesen"
     ),
+    status = SkjemaStatus.godkjent,
 )
 
 

@@ -333,6 +333,7 @@ class SkjemaTest {
                         nav = DTO.Nav(
                             kontaktperson = "Navn Navnesen"
                         ),
+                        status = SkjemaStatus.innsendt,
                     )
                 )
             }

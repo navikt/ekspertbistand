@@ -11,6 +11,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.skjema.SkjemaStatus
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -178,7 +179,8 @@ class DokgenClientTest {
         ),
         nav = DTO.Nav(
             kontaktperson = "Veileder Navn"
-        )
+        ),
+        status = SkjemaStatus.innsendt,
     )
 
     private data class CapturedRequest(

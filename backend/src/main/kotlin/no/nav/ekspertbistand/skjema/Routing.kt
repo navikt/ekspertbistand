@@ -74,12 +74,12 @@ suspend fun Application.configureSkjemaApiV1() {
                     get {
                         val statusParam = call.request.queryParameters.getRequired(
                             name = "status",
-                            default = SkjemaStatus.innsendt.name,
-                            transform = SkjemaStatus::valueOf,
+                            default = SkjemaStatusQueryParam.innsendt.name,
+                            transform = SkjemaStatusQueryParam::valueOf,
                         ) {
                             call.respond(
                                 status = HttpStatusCode.BadRequest,
-                                message = "ugyldig parameter status='$it', gyldige verdier er: ${SkjemaStatus.entries.toTypedArray()}"
+                                message = "ugyldig parameter status='$it', gyldige verdier er: ${SkjemaStatusQueryParam.entries.toTypedArray()}"
                             )
                             return@get
                         }
