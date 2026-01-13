@@ -47,13 +47,16 @@ object SkjemaTable : Table("skjema") {
 
     // Metadata
     val opprettetAv = text("opprettet_av")
+
     @OptIn(ExperimentalTime::class)
     val opprettetTidspunkt = text("opprettet_tidspunkt").clientDefault {
         Clock.System.now().toString()
     }
+    val status = text("status")
 
     override val primaryKey = PrimaryKey(id)
 }
+
 
 object UtkastTable : UUIDTable("utkast") {
     // Virksomhet
@@ -85,6 +88,7 @@ object UtkastTable : UUIDTable("utkast") {
 
     // Metadata
     val opprettetAv = text("opprettet_av").index()
+
     @OptIn(ExperimentalTime::class)
     val opprettetTidspunkt = timestamp("opprettet_tidspunkt").defaultExpression(CurrentTimestamp)
 }
@@ -126,12 +130,13 @@ fun ResultRow.tilSkjemaDTO() = DTO.Skjema(
         tilrettelegging = this[SkjemaTable.behovForBistandTilrettelegging],
         startdato = this[SkjemaTable.behovForBistandStartdato],
 
-    ),
+        ),
     nav = DTO.Nav(
         kontaktperson = this[SkjemaTable.navKontaktPerson]
     ),
     opprettetAv = this[SkjemaTable.opprettetAv],
-    opprettetTidspunkt = this[SkjemaTable.opprettetTidspunkt]
+    opprettetTidspunkt = this[SkjemaTable.opprettetTidspunkt],
+    status = SkjemaStatus.valueOf(this[SkjemaTable.status])
 )
 
 @OptIn(ExperimentalTime::class)
@@ -169,7 +174,7 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
         tilrettelegging = this[UtkastTable.behovForBistandTilrettelegging] ?: "",
         startdato = this[UtkastTable.behovForBistandStartdato] ?: LocalDate.today(),
 
-    ),
+        ),
     nav = this[UtkastTable.navKontaktPerson]?.let { kontaktperson ->
         DTO.Nav(kontaktperson = kontaktperson)
     },

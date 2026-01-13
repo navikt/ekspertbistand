@@ -1,6 +1,9 @@
-package no.nav.ekspertbistand.arena
+package no.nav.ekspertbistand.event.handlers
 
 import kotlinx.serialization.json.Json
+import no.nav.ekspertbistand.arena.ArenaClient
+import no.nav.ekspertbistand.arena.OpprettEkspertbistand
+import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.skjema.DTO
 import org.jetbrains.exposed.v1.core.ResultRow

@@ -1,6 +1,6 @@
 package no.nav.ekspertbistand
 
-import no.nav.ekspertbistand.arena.ArenaSakTable
+import no.nav.ekspertbistand.event.handlers.ArenaSakTable
 import no.nav.ekspertbistand.event.EventHandlerStates
 import no.nav.ekspertbistand.event.EventLog
 import no.nav.ekspertbistand.event.QueuedEvents

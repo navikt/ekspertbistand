@@ -1,6 +1,5 @@
 package no.nav.ekspertbistand.arena
 
-import io.ktor.server.config.configLoaders
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -8,6 +7,8 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
+import no.nav.ekspertbistand.event.handlers.ArenaSakTable
+import no.nav.ekspertbistand.event.handlers.hentSaksnummerForTiltaksgjennomføring
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.skjema.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord

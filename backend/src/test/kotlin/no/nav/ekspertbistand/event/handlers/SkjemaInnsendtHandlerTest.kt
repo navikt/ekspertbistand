@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.dokarkiv
+package no.nav.ekspertbistand.event.handlers
 
 import io.ktor.client.*
 import io.ktor.http.*
@@ -11,6 +11,9 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
+import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
+import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.ereg.EregClient
@@ -27,6 +30,7 @@ import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
 import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.skjema.SkjemaStatus
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -261,7 +265,8 @@ private val sampleSkjema = DTO.Skjema(
     ),
     nav = DTO.Nav(
         kontaktperson = "Veileder Navn"
-    )
+    ),
+    status = SkjemaStatus.innsendt,
 )
 
 private fun ApplicationTestBuilder.setupApplication(database: Database) {
