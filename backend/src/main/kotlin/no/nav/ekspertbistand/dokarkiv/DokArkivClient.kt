@@ -49,7 +49,7 @@ class DokArkivClient(
     companion object {
         val targetAudience = basedOnEnv(
             prod = "api://prod-fss.teamdokumenthandtering.dokarkiv/.default",
-            dev = "api://dev-fss.teamdokumenthandtering.dokarkiv-q1/.default",
+            dev = "api://dev-fss.teamdokumenthandtering.dokarkiv-q2/.default",
             other = "api://mock.dokarkiv/.default",
         )
 
