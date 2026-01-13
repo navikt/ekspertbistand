@@ -292,7 +292,7 @@ sealed interface DTO {
         val nav: Nav,
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
-        val status: SkjemaStatus = SkjemaStatus.innsendt,
+        val status: SkjemaStatus = SkjemaStatus.innsendt, //TODO: hvordan håndteres dette i frontend? er det nødvendigmed default verdi?
     ) : DTO
 
     @Serializable
