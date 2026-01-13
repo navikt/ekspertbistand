@@ -55,7 +55,7 @@ class DokArkivClient(
 
         val ingress = basedOnEnv(
             prod = "https://dokarkiv.prod-fss-pub.nais.io",
-            dev = "https://dokarkiv.dev-fss-pub.nais.io",
+            dev = "https://dokarkiv-q2.dev-fss-pub.nais.io",
             other = "http://dokarkiv.mock.svc.cluster.local",
         )
 
