@@ -9,9 +9,11 @@ import no.nav.ekspertbistand.event.handlers.OpprettSakArena
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrev
+import no.nav.ekspertbistand.event.handlers.LagreTilsagnsData
 import no.nav.ekspertbistand.event.handlers.SkjemaInnsendtHandler
 import no.nav.ekspertbistand.event.handlers.OppdaterSakNotifikasjonsPlatform
 import no.nav.ekspertbistand.event.handlers.OpprettSakNotifikasjonsPlatform
+import no.nav.ekspertbistand.event.handlers.SettGodkjentSkjemaStatus
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
 import no.nav.ekspertbistand.skjema.DummyFooHandler
@@ -89,6 +91,8 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(OpprettSakNotifikasjonsPlatform::class))
         register(dependencies.create(JournalfoerTilskuddsbrev::class))
         register(dependencies.create(OppdaterSakNotifikasjonsPlatform::class))
+        register(dependencies.create(SettGodkjentSkjemaStatus::class))
+        register(dependencies.create(LagreTilsagnsData::class))
 
         register<EventData>("InlineAlEventsHandler") { event ->
             // Inline handler example
