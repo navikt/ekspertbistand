@@ -61,6 +61,7 @@ class JournalfoerTilskuddsbrev(
                     skjema = skjema,
                     dokumentId = dokumentInfoId,
                     journaldpostId = journalpostId,
+                    tilsagnData = event.data.tilsagnData,
                 )
             }
         }

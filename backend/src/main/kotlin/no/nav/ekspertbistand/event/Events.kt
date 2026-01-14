@@ -74,6 +74,7 @@ sealed interface EventData {
         val skjema: DTO.Skjema,
         val dokumentId: Int,
         val journaldpostId: Int,
+        val tilsagnData: TilsagnData
     ) : EventData
 }
 
