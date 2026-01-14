@@ -16,14 +16,14 @@ import kotlin.reflect.KClass
 
 class SettGodkjentSkjemaStatus(
     private val database: Database
-) : EventHandler<EventData.TilskuddsbrevMottatt> {
+) : EventHandler<EventData.TilskuddsbrevJournalfoert> {
 
     override val id = "Sett skjemastatus godkjent"
-    override val eventType: KClass<EventData.TilskuddsbrevMottatt> = EventData.TilskuddsbrevMottatt::class
+    override val eventType: KClass<EventData.TilskuddsbrevJournalfoert> = EventData.TilskuddsbrevJournalfoert::class
 
     private val logger = logger()
 
-    override suspend fun handle(event: Event<EventData.TilskuddsbrevMottatt>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.TilskuddsbrevJournalfoert>): EventHandledResult {
         if (event.data.skjema.id == null) {
             throw RuntimeException("skjemaId er null")
         }

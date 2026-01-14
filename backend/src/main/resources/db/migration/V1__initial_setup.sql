@@ -9,4 +9,5 @@ CREATE TABLE IF NOT EXISTS event_log (id BIGINT PRIMARY KEY, event_json JSON NOT
 CREATE TABLE IF NOT EXISTS event_handler_states (id BIGINT, handler_id TEXT, "result" JSON NOT NULL, error_message TEXT NULL, CONSTRAINT pk_event_handler_states PRIMARY KEY (id, handler_id));
 CREATE TABLE IF NOT EXISTS idempotency_guard_records (event_id BIGINT NOT NULL, sub_task VARCHAR(50) NOT NULL, event_name VARCHAR(50) NOT NULL, status VARCHAR(13) NOT NULL);
 CREATE TABLE IF NOT EXISTS arena_sak (saksnummer TEXT NOT NULL, "løpenummer" INT NOT NULL, "år" INT NOT NULL, skjema TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS tilsagndata (id uuid NOT NULL, tilsagnnummer TEXT NOT NULL, skjema_id uuid NOT NULL, "tilsagnData" JSON NOT NULL);
 CREATE SEQUENCE IF NOT EXISTS event_queue_id_seq START WITH 1 MINVALUE 1 MAXVALUE 9223372036854775807;

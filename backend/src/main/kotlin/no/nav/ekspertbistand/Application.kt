@@ -44,6 +44,7 @@ import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import no.nav.ekspertbistand.skjema.subjectToken
+import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
 import java.util.*
@@ -55,7 +56,7 @@ fun main() {
     ktorServer {
         dependencies {
             provide<Database> {
-                //dbConfig.destroyExistingDatabase()
+                dbConfig.destroyExistingDatabase()
                 dbConfig.flywayAction {
                     migrate()
                 }
@@ -90,6 +91,7 @@ fun main() {
         // configure application modules and endpoints
         configureSkjemaApiV1()
         configureOrganisasjonerApiV1()
+        configureTilsagnDataApiV1()
         configureEregApiV1()
 
         // event manager and event handlers

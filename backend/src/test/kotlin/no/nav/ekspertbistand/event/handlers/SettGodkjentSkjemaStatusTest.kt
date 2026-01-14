@@ -53,10 +53,11 @@ class SettGodkjentSkjemaStatusTest {
         }
 
         val event = Event(
-            id = 1L, data = EventData.TilskuddsbrevMottatt(
+            id = 1L, data = EventData.TilskuddsbrevJournalfoert(
                 skjema = skjema,
-                tilsagnData = sampleTilskuddsbrev(),
-                tilsagnbrevId = 1
+                journaldpostId = 1,
+                dokumentId = 2,
+                tilsagnData = sampleTilskuddsbrev()
             )
         )
         assertIs<EventHandledResult.Success>(handler.handle(event))
@@ -101,10 +102,11 @@ class SettGodkjentSkjemaStatusTest {
         }.copy(id = UUID.randomUUID().toString())
 
         val event = Event(
-            id = 1L, data = EventData.TilskuddsbrevMottatt(
+            id = 1L, data = EventData.TilskuddsbrevJournalfoert(
                 skjema = skjema,
-                tilsagnData = sampleTilskuddsbrev(),
-                tilsagnbrevId = 1
+                journaldpostId = 1,
+                dokumentId = 2,
+                tilsagnData = sampleTilskuddsbrev()
             )
         )
         assertIs<EventHandledResult.UnrecoverableError>(handler.handle(event))
