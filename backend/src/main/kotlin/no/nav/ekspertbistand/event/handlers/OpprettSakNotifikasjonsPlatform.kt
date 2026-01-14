@@ -4,17 +4,20 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
-import no.nav.ekspertbistand.event.IdempotencyGuard
+import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.DTO
+import org.jetbrains.exposed.v1.jdbc.Database
 
 private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 
 class OpprettSakNotifikasjonsPlatform(
     private val produsentApiKlient: ProdusentApiKlient,
-    private val idempotencyGuard: IdempotencyGuard
+    database: Database
 ) : EventHandler<EventData.TiltaksgjennomføringOpprettet> {
+
+    private val idempotencyGuard = idempotencyGuard(database)
 
     // DO NOT CHANGE THIS!
     override val id: String = "OpprettSakNotifikasjonPlatform"

@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.event
 
 import kotlinx.coroutines.runBlocking
+import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -11,7 +12,7 @@ class IdempotencyGuardTest {
     @Test
     fun `Event med en subtask som ikke er guarded`() {
         TestDatabase().cleanMigrate().use {
-            val idempotencyGuard = IdempotencyGuard(it.config.jdbcDatabase)
+            val idempotencyGuard = idempotencyGuard(it.config.jdbcDatabase)
 
             val event = Event(1L, EventData.Foo("fooEvent"))
             val subTask = "subtask"
@@ -24,7 +25,7 @@ class IdempotencyGuardTest {
     fun `Event med to subtasks der den første er guarded`() {
         runBlocking {
             TestDatabase().cleanMigrate().use {
-                val idempotencyGuard = IdempotencyGuard(it.config.jdbcDatabase)
+                val idempotencyGuard = idempotencyGuard(it.config.jdbcDatabase)
 
                 val event1 = Event(1L, EventData.Foo("fooEvent"))
                 val subTask1 = "subtask1"

@@ -283,7 +283,6 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide(PdlApiKlient::class)
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
-            provide<IdempotencyGuard> { IdempotencyGuard(resolve()) }
             provide {
                 SkjemaInnsendtHandler(
                     resolve(),
@@ -292,7 +291,6 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
                     resolve(),
                     resolve(),
                     resolve<Database>(),
-                    resolve(),
                 )
             }
         }

@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.event.handlers
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.*
+import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -15,11 +16,12 @@ class JournalfoerTilskuddsbrev(
     private val dokgenClient: DokgenClient,
     private val dokArkivClient: DokArkivClient,
     private val database: Database,
-    private val idempotencyGuard: IdempotencyGuard,
 ) : EventHandler<EventData.TilskuddsbrevMottatt> {
     override val id: String = "JournalfoerTilskuddsbrev"
     override val eventType: KClass<EventData.TilskuddsbrevMottatt> =
         EventData.TilskuddsbrevMottatt::class
+
+    private val idempotencyGuard = idempotencyGuard(database)
 
     override suspend fun handle(event: Event<EventData.TilskuddsbrevMottatt>): EventHandledResult {
         if (idempotencyGuard.isGuarded(event.id, publiserJournalpostEventSubtask)) {

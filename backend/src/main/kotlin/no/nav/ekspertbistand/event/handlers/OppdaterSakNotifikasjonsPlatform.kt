@@ -4,21 +4,24 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
-import no.nav.ekspertbistand.event.IdempotencyGuard
+import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
 import no.nav.ekspertbistand.skjema.DTO
+import org.jetbrains.exposed.v1.jdbc.Database
 
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 private const val nystatusSakSubTast = "notifikasjonsplatform_ny_status_sak"
 
 class OppdaterSakNotifikasjonsPlatform(
-    private val idempotencyGuard: IdempotencyGuard,
-    private val produsentApiKlient: ProdusentApiKlient
+    private val produsentApiKlient: ProdusentApiKlient,
+    database: Database
 ) : EventHandler<EventData.TilskuddsbrevJournalfoert> {
     override val id: String = "OppdaterSakNotifikasjonsPlatform"
     override val eventType = EventData.TilskuddsbrevJournalfoert::class
+
+    private val idempotencyGuard = idempotencyGuard(database)
 
     override suspend fun handle(event: Event<EventData.TilskuddsbrevJournalfoert>): EventHandledResult {
         val skjema = event.data.skjema

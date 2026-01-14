@@ -20,7 +20,6 @@ import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
-import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNyBeskjed
@@ -32,7 +31,6 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyB
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.*
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.SkjemaStatus
-import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -162,11 +160,10 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                 successAzureAdTokenProvider
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
-            provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<OpprettSakNotifikasjonsPlatform> {
                 OpprettSakNotifikasjonsPlatform(
-                    resolve<ProdusentApiKlient>(),
-                    resolve<IdempotencyGuard>()
+                    resolve(),
+                    resolve()
                 )
             }
         }
