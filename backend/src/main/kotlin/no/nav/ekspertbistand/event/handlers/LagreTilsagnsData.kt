@@ -23,13 +23,13 @@ class LagreTilsagnsData(
             val skjemaId = event.data.skjema.id
             if (skjemaId == null) {
                 EventHandledResult.UnrecoverableError("skjemaId er null")
+            } else {
+                val tilsagnData = event.data.tilsagnData
+                insertTilsagndata(UUID.fromString(skjemaId), tilsagnData)
+                logger.info("Lagret tilsagndata for skjema med id $skjemaId")
+
+                EventHandledResult.Success()
             }
-
-            val tilsagnData = event.data.tilsagnData
-            insertTilsagndata(UUID.fromString(skjemaId), tilsagnData)
-            logger.info("Lagret tilsagndata for skjema med id $skjemaId")
-
-            EventHandledResult.Success()
         }
     }
 }
