@@ -56,7 +56,7 @@ fun main() {
     ktorServer {
         dependencies {
             provide<Database> {
-                //dbConfig.destroyExistingDatabase()
+                dbConfig.destroyExistingDatabase()
                 dbConfig.flywayAction {
                     migrate()
                 }
