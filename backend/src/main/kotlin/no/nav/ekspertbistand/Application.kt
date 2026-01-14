@@ -57,9 +57,16 @@ fun main() {
         dependencies {
             provide<Database> {
 //                dbConfig.destroyExistingDatabase()
+
+                dbConfig.flywayConfig.cleanDisabled(false)
+                dbConfig.flywayConfig.validateOnMigrate(false)
                 dbConfig.flywayAction {
+                    clean()
                     migrate()
                 }
+//                dbConfig.flywayAction {
+//                    migrate()
+//                }
                 dbConfig.jdbcDatabase
             }
             provide<AuthConfig> { AuthConfig.nais }
