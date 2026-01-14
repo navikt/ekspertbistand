@@ -102,9 +102,9 @@ suspend fun Application.configureEventHandlers() {
     }
 
     // Start event processing loop
-//    launch {
-//        eventManager.runProcessLoop()
-//    }
+    launch {
+        eventManager.runProcessLoop()
+    }
 
     val metrics = EventMetrics(
         dispatcher = eventManager.config.dispatcher
