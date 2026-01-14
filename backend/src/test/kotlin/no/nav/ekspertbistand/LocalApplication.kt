@@ -22,6 +22,7 @@ import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
+import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -165,6 +166,7 @@ fun main() {
         // application modules
         configureSkjemaApiV1()
         configureOrganisasjonerApiV1()
+        configureTilsagnDataApiV1()
         configureEregApiV1()
 
         // event manager and event handlers
