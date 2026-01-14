@@ -56,17 +56,10 @@ fun main() {
     ktorServer {
         dependencies {
             provide<Database> {
-//                dbConfig.destroyExistingDatabase()
-
-                dbConfig.flywayConfig.cleanDisabled(false)
-                dbConfig.flywayConfig.validateOnMigrate(false)
+                dbConfig.destroyExistingDatabase()
                 dbConfig.flywayAction {
-                    clean()
                     migrate()
                 }
-//                dbConfig.flywayAction {
-//                    migrate()
-//                }
                 dbConfig.jdbcDatabase
             }
             provide<AuthConfig> { AuthConfig.nais }
