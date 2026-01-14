@@ -7,6 +7,8 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
@@ -14,6 +16,8 @@ import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.defaultJson
 import no.nav.ekspertbistand.skjema.DTO
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class DokgenClient(
     defaultHttpClient: HttpClient,
@@ -90,6 +94,7 @@ private data class SoknadRequest(
     val ekspert: Ekspert,
     val behovForBistand: BehovForBistand,
     val nav: Nav,
+    val opprettetTidspunkt: String,
 ) {
     @Serializable
     data class Virksomhet(
@@ -134,6 +139,7 @@ private data class SoknadRequest(
     )
 
     companion object {
+        @OptIn(ExperimentalTime::class)
         fun from(dto: DTO.Skjema) = SoknadRequest(
             virksomhet = Virksomhet(
                 virksomhetsnummer = dto.virksomhet.virksomhetsnummer,
@@ -164,6 +170,8 @@ private data class SoknadRequest(
             nav = Nav(
                 kontaktperson = dto.nav.kontaktperson,
             ),
+            opprettetTidspunkt = dto.opprettetTidspunkt ?: Clock.System.now()
+                .toLocalDateTime(TimeZone.of("Europe/Oslo")).date.toString(),
         )
     }
 }

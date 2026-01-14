@@ -20,12 +20,12 @@
         <td>{{virksomhet.kontaktperson.navn}}</td>
     </tr>
     <tr>
-        <td class="td02">Telefon:</td>
-        <td>{{virksomhet.kontaktperson.telefonnummer}}</td>
-    </tr>
-    <tr>
         <td class="td02">E-post:</td>
         <td>{{virksomhet.kontaktperson.epost}}</td>
+    </tr>
+    <tr>
+        <td class="td02">Telefon:</td>
+        <td>{{virksomhet.kontaktperson.telefonnummer}}</td>
     </tr>
 </table>
 
@@ -74,16 +74,16 @@
         <td>{{behovForBistand.behov}}</td>
     </tr>
     <tr>
+        <td class="td03">Tilrettelegging:</td>
+        <td>{{behovForBistand.tilrettelegging}}</td>
+    </tr>
+    <tr>
         <td class="td03">Antall timer:</td>
         <td>{{behovForBistand.timer}}</td>
     </tr>
     <tr>
         <td class="td03">Estimert kostnad:</td>
         <td>{{behovForBistand.estimertKostnad}}</td>
-    </tr>
-    <tr>
-        <td class="td03">Tilrettelegging:</td>
-        <td>{{behovForBistand.tilrettelegging}}</td>
     </tr>
     <tr>
         <td class="td03">Planlagt startdato:</td>
@@ -98,5 +98,12 @@
     <tr>
         <td class="td02">Kontaktperson:</td>
         <td>{{nav.kontaktperson}}</td>
+    </tr>
+</table>
+
+<table>
+    <tr>
+        <td class="td02">Send inn til Nav:</td>
+        <td>{{opprettetDato}}</td>
     </tr>
 </table>
