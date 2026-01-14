@@ -216,10 +216,8 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             }
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
-            provide<IdempotencyGuard> { IdempotencyGuard(resolve()) }
             provide {
                 JournalfoerTilskuddsbrev(
-                    resolve(),
                     resolve(),
                     resolve(),
                     resolve(),

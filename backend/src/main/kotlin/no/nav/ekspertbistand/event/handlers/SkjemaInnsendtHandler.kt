@@ -4,6 +4,7 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.event.*
+import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.pdl.NotFound
 import no.nav.ekspertbistand.pdl.PdlApiKlient
@@ -26,10 +27,11 @@ class SkjemaInnsendtHandler(
     private val behandlendeEnhetService: BehandlendeEnhetService,
     private val eregClient: EregClient,
     private val database: Database,
-    private val idempotencyGuard: IdempotencyGuard,
 ) : EventHandler<EventData.SkjemaInnsendt> {
     override val id: String = "SkjemaInnsendtHandler"
     override val eventType: KClass<EventData.SkjemaInnsendt> = EventData.SkjemaInnsendt::class
+
+    private val idempotencyGuard = idempotencyGuard(database)
 
     override suspend fun handle(event: Event<EventData.SkjemaInnsendt>): EventHandledResult {
         if (idempotencyGuard.isGuarded(event.id, publiserJournalpostEventSubtask)) {

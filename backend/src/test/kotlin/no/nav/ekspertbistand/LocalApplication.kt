@@ -11,7 +11,6 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
-import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
@@ -146,7 +145,6 @@ fun main() {
             provide(NorgKlient::class)
             provide(BehandlendeEnhetService::class)
             provide(PdlApiKlient::class)
-            provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
                 ProdusentApiKlient(
                     azureAdTokenProvider = resolve<AzureAdTokenProvider>(),

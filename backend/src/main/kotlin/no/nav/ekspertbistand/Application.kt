@@ -32,7 +32,6 @@ import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.arena.ArenaTilsagnsbrevProcessor
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
-import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
@@ -56,7 +55,7 @@ fun main() {
     ktorServer {
         dependencies {
             provide<Database> {
-//                dbConfig.destroyExistingDatabase()
+                dbConfig.destroyExistingDatabase()
                 dbConfig.flywayAction {
                     migrate()
                 }
@@ -76,7 +75,6 @@ fun main() {
             provide(NorgKlient::class)
             provide(BehandlendeEnhetService::class)
             provide(PdlApiKlient::class)
-            provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
             provide(ArenaTilsagnsbrevProcessor::class)
