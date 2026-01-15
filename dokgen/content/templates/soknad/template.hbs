@@ -1,7 +1,6 @@
-# Søknad om ekspertbistand
+<h1>Søknad om ekspertbistand</h1>
 
-
-## Virksomhet
+<h3>Virksomhet</h3>
 
 <table>
     <tr>
@@ -30,7 +29,7 @@
 </table>
 
 
-## Ansatt som saken gjelder
+<h3>Ansatt som saken gjelder</h3>
 
 <table>
     <tr>
@@ -44,7 +43,7 @@
 </table>
 
 
-## Ekspert
+<h3>Ekspert</h3>
 
 <table>
     <tr>
@@ -62,48 +61,28 @@
 </table>
 
 
-## Behov for bistand
+<h3>Behov for bistand</h3>
 
-<table>
-    <tr>
-        <td class="td03">Begrunnelse:</td>
-        <td>{{behovForBistand.begrunnelse}}</td>
-    </tr>
-    <tr>
-        <td class="td03">Behov:</td>
-        <td>{{behovForBistand.behov}}</td>
-    </tr>
-    <tr>
-        <td class="td03">Tilrettelegging:</td>
-        <td>{{behovForBistand.tilrettelegging}}</td>
-    </tr>
-    <tr>
-        <td class="td03">Antall timer:</td>
-        <td>{{behovForBistand.timer}}</td>
-    </tr>
-    <tr>
-        <td class="td03">Estimert kostnad:</td>
-        <td>{{behovForBistand.estimertKostnad}}</td>
-    </tr>
-    <tr>
-        <td class="td03">Planlagt startdato:</td>
-        <td>{{behovForBistand.startdato}}</td>
-    </tr>
-</table>
+<h4>Hvem i Nav har du drøftet behovet om eskpertbistand i denne saken med?</h4>
+<p>{{nav.kontaktperson}}</p>
+
+<h4>Beskriv den ansattes arbeidssituasjon</h4>
+<p>{{behovForBistand.begrunnelse}}</p>
+
+<h4>Hva vil dere ha hjelp til fra eksperten?</h4>
+<p>{{behovForBistand.behov}}</p>
+
+<h4>Hvilke tiltak for tilrettelegging har dere vurdert eller forsøkt?</h4>
+<p>{{behovForBistand.tilrettelegging}}</p>
+
+<h4>Hvor mange timer skal eksperten hjelpe dere?</h4>
+<p>{{behovForBistand.timer}}</p>
+
+<h4>Estimert kostnad for ekspertbistand</h4>
+<p>{{behovForBistand.estimertKostnad}}</p>
+
+<h4>Planlagt startdato</h4>
+<p>{{behovForBistand.startdato}}</p>
 
 
-## Nav
-
-<table>
-    <tr>
-        <td class="td02">Kontaktperson:</td>
-        <td>{{nav.kontaktperson}}</td>
-    </tr>
-</table>
-
-<table>
-    <tr>
-        <td class="td02">Send inn til Nav:</td>
-        <td>{{opprettetDato}}</td>
-    </tr>
-</table>
+<p style="margin-top: 32px;">Sendt inn til Nav {{opprettetDato}}</p>
