@@ -54,7 +54,13 @@ export const draftPayloadServerSchema = z.object({
 
 export const draftDtoServerSchema = z.object({
   id: z.string().optional(),
-  status: z.enum(["utkast", "innsendt"]).optional(),
+  status: z.enum(["utkast", "innsendt", "godkjent", "avlyst"]).optional(),
+  beslutning: z
+    .object({
+      status: z.string().trim().optional(),
+      tidspunkt: z.string().optional(),
+    })
+    .optional(),
   virksomhet: virksomhetDraftServerSchema.nullable().optional(),
   ansatt: ansattServerSchema.nullable().optional(),
   ekspert: ekspertServerSchema.nullable().optional(),

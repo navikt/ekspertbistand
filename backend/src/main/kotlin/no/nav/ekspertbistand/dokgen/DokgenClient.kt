@@ -80,6 +80,18 @@ class DokgenClient(
 
         return bytes
     }
+
+    suspend fun genererTilskuddsbrevHtml(tilsagnData: TilsagnData): String {
+        return httpClient.post {
+            url {
+                takeFrom(baseUrl)
+                path("template", "tilskuddsbrev", "create-html")
+            }
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Text.Html)
+            setBody(tilsagnData)
+        }.body()
+    }
 }
 
 private val pdfMagicNumber = "%PDF".toByteArray()

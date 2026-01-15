@@ -1,8 +1,19 @@
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { Alert, BodyLong, Box, FormSummary, Heading, Loader, VStack } from "@navikt/ds-react";
+import {
+  Alert,
+  BodyLong,
+  Box,
+  ExpansionCard,
+  FormSummary,
+  Heading,
+  HStack,
+  Loader,
+  VStack,
+} from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
+import { fetchTilskuddsbrevHtml } from "../features/tilsagn/tilsagn";
 import { SOKNADER_PATH, EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { BackLink } from "../components/BackLink";
 import useSWR from "swr";
@@ -10,7 +21,7 @@ import { type SoknadInputs } from "../features/soknad/schema";
 import {
   formatCurrency,
   formatDate,
-  formatSubmittedDate,
+  formatSubmittedDateOrNull,
   formatTimer,
   formatValue,
 } from "../components/summaryFormatters";
@@ -18,12 +29,6 @@ import {
 type KvitteringMetadata = {
   status?: string | null;
   innsendtTidspunkt?: string | null;
-};
-
-const formatDateTimePretty = (value?: string | null): string | null => {
-  if (!value) return null;
-  const formatted = formatSubmittedDate(value);
-  return formatted === "—" ? null : formatted;
 };
 
 type KvitteringSummaryProps = {
@@ -162,6 +167,16 @@ export default function KvitteringPage() {
     error,
     isLoading,
   } = useSWR<DraftDto | null>(id ? `${EKSPERTBISTAND_API_PATH}/${id}` : null);
+  const statusKey = (draft?.beslutning?.status ?? draft?.status ?? "").toLowerCase();
+  const shouldLoadTilsagn = statusKey === "godkjent";
+  const {
+    data: tilskuddsbrevHtml,
+    error: tilskuddsbrevError,
+    isLoading: tilskuddsbrevLoading,
+  } = useSWR(
+    shouldLoadTilsagn && id ? ["tilskuddsbrev-html", id] : null,
+    ([, skjemaId]) => fetchTilskuddsbrevHtml(skjemaId)
+  );
 
   const formData = useMemo(() => (draft ? draftDtoToInputs(draft) : null), [draft]);
   const metadata = useMemo<KvitteringMetadata>(() => {
@@ -171,15 +186,22 @@ export default function KvitteringPage() {
       innsendtTidspunkt: draft?.innsendtTidspunkt ?? draft?.opprettetTidspunkt ?? null,
     };
   }, [draft]);
+  const isApproved = statusKey === "godkjent";
+  const isRejected = statusKey === "avlyst";
 
   const errorMessage = error
     ? error instanceof Error
       ? error.message
       : "Kunne ikke hente søknaden akkurat nå."
     : null;
+  const tilsagnErrorMessage = tilskuddsbrevError
+    ? "Kunne ikke hente tilskuddsbrev akkurat nå."
+    : null;
+
+  const tilsagnCount = tilskuddsbrevHtml?.length ?? 0;
 
   const innsendtTekst = useMemo(() => {
-    return formatDateTimePretty(metadata.innsendtTidspunkt);
+    return formatSubmittedDateOrNull(metadata.innsendtTidspunkt);
   }, [metadata.innsendtTidspunkt]);
 
   return (
@@ -187,22 +209,80 @@ export default function KvitteringPage() {
       <VStack gap="8" data-aksel-template="receipt">
         <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
 
-        <Alert variant="success" role="status">
-          Du har sendt søknaden
-        </Alert>
+        {!isApproved && !isRejected && (
+          <Alert variant="success" role="status">
+            Du har sendt søknaden
+          </Alert>
+        )}
 
-        <VStack gap="2" align="center" style={{ textAlign: "center" }}>
-          <Box.New background="neutral-moderate" padding="4">
-            <Heading level="1" size="medium">
-              Søknaden er sendt
-            </Heading>
-            <BodyLong>
-              Saksbehandlingstiden er vanligvis et par virkedager, og du kan følge saken her. Du får
-              beskjed på e-post når søknaden er behandlet. Vent med å ta tiltaket i bruk til du har
-              mottatt svar.
-            </BodyLong>
-          </Box.New>
-        </VStack>
+        {!tilskuddsbrevLoading && !tilsagnErrorMessage && shouldLoadTilsagn && tilsagnCount > 0 && (
+          <VStack gap="space-4">
+            {tilskuddsbrevHtml?.map((tilskuddsbrev) => {
+              return (
+                <ExpansionCard
+                  key={tilskuddsbrev.tilsagnNummer}
+                  size="small"
+                  aria-label="Tilsagnsdetaljer"
+                >
+                  <ExpansionCard.Header>
+                    <ExpansionCard.Title as="h3">
+                      <HStack align="center" wrap={false} justify="space-between">
+                        Dere har fått innvilget tilskudd til ekspertbistand:{" "}
+                        {tilskuddsbrev.tilsagnNummer}
+                      </HStack>
+                    </ExpansionCard.Title>
+                  </ExpansionCard.Header>
+                  <ExpansionCard.Content>
+                    <Box dangerouslySetInnerHTML={{ __html: tilskuddsbrev.html }} />
+                  </ExpansionCard.Content>
+                </ExpansionCard>
+              );
+            })}
+          </VStack>
+        )}
+
+        {tilsagnErrorMessage && shouldLoadTilsagn && (
+          <Alert variant="warning" role="alert">
+            {tilsagnErrorMessage}
+          </Alert>
+        )}
+
+        {!isApproved && !isRejected && (
+          <VStack gap="2" style={{ textAlign: "center" }}>
+            <Box.New background="neutral-moderate" padding="4">
+              <Heading level="1" size="medium">
+                Søknaden er sendt
+              </Heading>
+              <BodyLong>
+                Saksbehandlingstiden er vanligvis et par virkedager, og du kan følge saken her. Du
+                får beskjed på e-post når søknaden er behandlet. Vent med å ta tiltaket i bruk til
+                du har mottatt svar.
+              </BodyLong>
+            </Box.New>
+          </VStack>
+        )}
+        {isApproved && (
+          <VStack gap="2" style={{ textAlign: "center" }}>
+            <Box.New background="success-moderate" padding="4">
+              <Heading level="1" size="medium">
+                Søknaden godkjent
+              </Heading>
+            </Box.New>
+          </VStack>
+        )}
+        {isRejected && (
+          <VStack gap="2" style={{ textAlign: "center" }}>
+            <Box.New background="danger-moderate" padding="4">
+              <Heading level="1" size="medium">
+                Søknad trukket eller avslått
+              </Heading>
+              <BodyLong>
+                Har du trukket søknaden, trenger du ikke gjøre noe.
+                Hvis Nav har avslått søknaden, får du vedtaket i posten med informasjon om hvordan du kan klage på det.
+              </BodyLong>
+            </Box.New>
+          </VStack>
+        )}
 
         {isLoading && (
           <Box aria-live="polite">

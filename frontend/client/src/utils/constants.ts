@@ -25,6 +25,9 @@ export const EKSPERTBISTAND_URL = envSwitch({
 });
 
 export const EKSPERTBISTAND_API_PATH = withBasePath("/ekspertbistand-backend/api/skjema/v1");
+export const EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH = withBasePath(
+  "/ekspertbistand-backend/api/tilsagndata/v1"
+);
 export const EKSPERTBISTAND_ORGANISASJONER_PATH = withBasePath(
   "/ekspertbistand-backend/api/organisasjoner/v1"
 );
