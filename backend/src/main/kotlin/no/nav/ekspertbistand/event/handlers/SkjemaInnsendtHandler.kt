@@ -4,6 +4,9 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.event.*
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.pdl.NotFound
@@ -35,26 +38,26 @@ class SkjemaInnsendtHandler(
 
     override suspend fun handle(event: Event<EventData.SkjemaInnsendt>): EventHandledResult {
         if (idempotencyGuard.isGuarded(event.id, publiserJournalpostEventSubtask)) {
-            return EventHandledResult.Success()
+            return success()
         }
 
         val skjema = event.data.skjema
-        val skjemaId = skjema.id ?: return EventHandledResult.UnrecoverableError("Skjema mangler id")
+        val skjemaId = skjema.id ?: return unrecoverableError("Skjema mangler id")
 
         val behandlendeEnhet = runCatching { hentBehandlendeEnhet(skjema) }
             .getOrElse { e ->
                 return when (e) {
-                    is MissingDataException -> EventHandledResult.UnrecoverableError(
-                        e.message ?: "Mangler data for å hente behandlende enhet"
+                    is MissingDataException -> transientError(
+                        e.message ?: "Mangler data for å hente behandlende enhet", e
                     )
 
-                    else -> EventHandledResult.TransientError("Feil ved henting av behandlende enhet: ${e.message}")
+                    else -> transientError("Feil ved henting av behandlende enhet: ${e.message}", e)
                 }
             }
 
         val soknadPdf = runCatching { dokgenClient.genererSoknadPdf(skjema) }
             .getOrElse { e ->
-                return EventHandledResult.TransientError("Klarte ikke generere søknad-PDF: ${e.message}")
+                return transientError("Klarte ikke generere søknad-PDF: ${e.message}", e)
             }
 
         val journalpostResponse = runCatching {
@@ -65,17 +68,17 @@ class SkjemaInnsendtHandler(
                 dokumentPdfAsBytes = soknadPdf,
             )
         }.getOrElse { e ->
-            return EventHandledResult.TransientError("Feil ved opprettelse av journalpost: ${e.message}")
+            return transientError("Feil ved opprettelse av journalpost: ${e.message}", e)
         }
 
         if (!journalpostResponse.journalpostferdigstilt) {
-            return EventHandledResult.TransientError("Journalpost ikke ferdigstilt")
+            return transientError("Journalpost ikke ferdigstilt")
         }
 
         val dokumentInfoId = journalpostResponse.dokumenter.firstOrNull()?.dokumentInfoId?.toIntOrNull()
-            ?: return EventHandledResult.UnrecoverableError("DokArkiv mangler dokumentInfoId")
+            ?: return unrecoverableError("DokArkiv mangler dokumentInfoId")
         val journalpostId = journalpostResponse.journalpostId.toIntOrNull()
-            ?: return EventHandledResult.UnrecoverableError("DokArkiv mangler gyldig journalpostId")
+            ?: return unrecoverableError("DokArkiv mangler gyldig journalpostId")
 
         transaction(database) {
             QueuedEvents.insert {
@@ -90,7 +93,7 @@ class SkjemaInnsendtHandler(
 
         idempotencyGuard.guard(event, publiserJournalpostEventSubtask)
 
-        return EventHandledResult.Success()
+        return success()
     }
 
     private suspend fun hentBehandlendeEnhet(skjema: DTO.Skjema): String =
