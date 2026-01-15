@@ -8,7 +8,9 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.arena.OpprettSakArena
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.dokarkiv.JournalfoerTilskuddsbrev
+import no.nav.ekspertbistand.dokarkiv.JournalfoerTilskuddsbrevKildeAltinn
 import no.nav.ekspertbistand.dokarkiv.SkjemaInnsendtHandler
 import no.nav.ekspertbistand.notifikasjon.OppdaterSakNotifikasjonsPlatform
 import no.nav.ekspertbistand.notifikasjon.OpprettSakNotifikasjonsPlatform
@@ -57,7 +59,8 @@ sealed interface EventData {
     @SerialName("tiltaksgjennomføringOpprettet")
     data class TiltaksgjennomføringOpprettet(
         val skjema: DTO.Skjema,
-        val saksnummer: Saksnummer
+        val saksnummer: Saksnummer,
+        val tiltakgjennomforingId: Int
     ) : EventData
 
     @Serializable
@@ -69,11 +72,32 @@ sealed interface EventData {
     ) : EventData
 
     @Serializable
+    @SerialName("tilskuddsbrevMottattKildeAltinn")
+    data class TilskuddsbrevMottattKildeAltinn(
+        val tilsagnbrevId: Int,
+        val tilsagnData: TilsagnData
+    ) : EventData
+
+    @Serializable
     @SerialName("tilskuddsbrevJournalfoert")
     data class TilskuddsbrevJournalfoert(
         val skjema: DTO.Skjema,
         val dokumentId: Int,
         val journaldpostId: Int,
+    ) : EventData
+
+    @Serializable
+    @SerialName("tilskuddsbrevJournalfoertKildeAltinn")
+    data class TilskuddsbrevJournalfoertKildeAltinn(
+        val dokumentId: Int,
+        val journaldpostId: Int,
+    ) : EventData
+
+    @Serializable
+    @SerialName("soknadAvlystIArena")
+    data class SøknadAvlystIArena(
+        val skjema: DTO.Skjema,
+        val tiltaksgjennomforingEndret: TiltaksgjennomforingEndret
     ) : EventData
 }
 
@@ -87,6 +111,7 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(OpprettSakArena::class))
         register(dependencies.create(OpprettSakNotifikasjonsPlatform::class))
         register(dependencies.create(JournalfoerTilskuddsbrev::class))
+        register(dependencies.create(JournalfoerTilskuddsbrevKildeAltinn::class))
         register(dependencies.create(OppdaterSakNotifikasjonsPlatform::class))
 
         register<EventData>("InlineAlEventsHandler") { event ->

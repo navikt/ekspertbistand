@@ -9,6 +9,7 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
@@ -67,32 +68,24 @@ class ArenaClient(
     /**
      * Oppretter en tiltaksgjennomføring i Arena for Ekspertbistand
      * @return sakId for den opprettede tiltaksgjennomføringen
-     *
-     * TODO: håndtere feil fra Arena API
-     * HttpStatusCode.InternalServerError -> retryable
-     * HttpStatusCode.BadRequest -> ikke retryable
-     * HttpStatusCode.Unauthorized -> ikke retryable
-     * HttpStatusCode.Forbidden -> ikke retryable
      */
     suspend fun opprettTiltaksgjennomfoering(data: OpprettEkspertbistand) =
         httpClient.post {
-            url {
-                takeFrom(ingress)
-                path(API_PATH)
-            }
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Json)
-            bearerAuth(
-                tokenProvider.token(targetAudience).fold(
-                    { it.accessToken },
-                    { throw Exception("Failed to get token: ${it.error}") }
-                )
-            )
-
-            setBody(data.arenaRequest)
-        }.body<OpprettTiltaksgjennomfoeringResponse>().let {
-            Saksnummer(it.saksnummer)
+        url {
+            takeFrom(ingress)
+            path(API_PATH)
         }
+        contentType(ContentType.Application.Json)
+        accept(ContentType.Application.Json)
+        bearerAuth(
+            tokenProvider.token(targetAudience).fold(
+                { it.accessToken },
+                { throw Exception("Failed to get token: ${it.error}") }
+            )
+        )
+
+        setBody(data.arenaRequest)
+    }.body<OpprettTiltaksgjennomfoeringResponse>()
 }
 
 data class OpprettEkspertbistand(
@@ -156,12 +149,20 @@ data class OpprettTiltaksgjennomfoeringResponse(
      * saksnummer = aar + loepenrSak på formatet 'YYYY#', mao ingen padding
      * eks: 202542,20251012345 etc
      */
-    val saksnummer: String
+    val saksnummer: Saksnummer,
+
+    /**
+     * unik identifikator for tiltaksgjennomføringen i Arena
+     */
+    val tiltakgjennomforingId: Int,
 )
 
-@Serializable
-data class Saksnummer(
-    val saksnummer: String,
-    val aar: Int = saksnummer.take(4).toInt(),
-    val loepenrSak: Int = saksnummer.removeRange(0..3).toInt(),
-)
+typealias Saksnummer = String
+
+val Saksnummer.aar: Int
+    get() = take(4).toInt()
+
+val Saksnummer.loepenrSak: Int
+    get() = removeRange(0..3).toInt()
+
+fun asSaksnummer(aar: Int, loepenrSak: Int) : Saksnummer = "$aar$loepenrSak"

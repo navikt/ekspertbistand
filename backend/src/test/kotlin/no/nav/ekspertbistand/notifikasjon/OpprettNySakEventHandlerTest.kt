@@ -16,7 +16,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
-import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -60,7 +59,8 @@ class OpprettNySakEventHandlerTest {
             id = 1L,
             data = EventData.TiltaksgjennomføringOpprettet(
                 skjema = skjema1,
-                saksnummer = Saksnummer("202112341234"),
+                saksnummer = "202112341234",
+                tiltakgjennomforingId = 123,
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.Success)
@@ -80,7 +80,8 @@ class OpprettNySakEventHandlerTest {
             id = 1L,
             data = EventData.TiltaksgjennomføringOpprettet(
                 skjema = skjema1,
-                saksnummer = Saksnummer("202112341234"),
+                saksnummer = "202112341234",
+                tiltakgjennomforingId = 123,
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.TransientError)
@@ -101,7 +102,8 @@ class OpprettNySakEventHandlerTest {
                 id = 1L,
                 data = EventData.TiltaksgjennomføringOpprettet(
                     skjema = skjema1,
-                    saksnummer = Saksnummer("202112341234"),
+                    saksnummer = "202112341234",
+                    tiltakgjennomforingId = 123,
                 )
             )
             assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Sak velykket, beskjed feilet
@@ -150,7 +152,7 @@ private fun ApplicationTestBuilder.setupTestApplication() {
     application {
         dependencies {
             provide { db.config.jdbcDatabase }
-            provide<TokenXTokenIntrospector>() {
+            provide<TokenXTokenIntrospector> {
                 MockTokenIntrospector {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }

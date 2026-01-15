@@ -33,7 +33,8 @@ class OpprettArenaSakTest {
             // language=JSON
             """
             {
-                "saksnummer": "$saksnummer"
+                "saksnummer": "$saksnummer",
+                "tiltakgjennomforingId": 1337
             }    
             """
         }
