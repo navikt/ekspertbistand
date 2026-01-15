@@ -46,7 +46,7 @@ class SettGodkjentSkjemaStatus(
 
             } catch (e: Exception) {
                 rollback()
-                transientError("Feil ved oppdatering av skjemastatus etter mottatt tilsagnsbrev: ${e.message}", e)
+                transientError("Feil ved oppdatering av skjemastatus etter mottatt tilsagnsbrev", e)
             }
         }
     }

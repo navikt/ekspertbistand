@@ -48,16 +48,16 @@ class SkjemaInnsendtHandler(
             .getOrElse { e ->
                 return when (e) {
                     is MissingDataException -> transientError(
-                        e.message ?: "Mangler data for å hente behandlende enhet", e
+                        "Mangler data for å hente behandlende enhet", e
                     )
 
-                    else -> transientError("Feil ved henting av behandlende enhet: ${e.message}", e)
+                    else -> transientError("Feil ved henting av behandlende enhet", e)
                 }
             }
 
         val soknadPdf = runCatching { dokgenClient.genererSoknadPdf(skjema) }
             .getOrElse { e ->
-                return transientError("Klarte ikke generere søknad-PDF: ${e.message}", e)
+                return transientError("Klarte ikke generere søknad-PDF", e)
             }
 
         val journalpostResponse = runCatching {
@@ -68,7 +68,7 @@ class SkjemaInnsendtHandler(
                 dokumentPdfAsBytes = soknadPdf,
             )
         }.getOrElse { e ->
-            return transientError("Feil ved opprettelse av journalpost: ${e.message}", e)
+            return transientError("Feil ved opprettelse av journalpost", e)
         }
 
         if (!journalpostResponse.journalpostferdigstilt) {

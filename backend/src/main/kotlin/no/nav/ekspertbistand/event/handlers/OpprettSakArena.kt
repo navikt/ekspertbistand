@@ -38,7 +38,7 @@ class OpprettSakArena(
                 )
             )
         } catch (e: Exception) {
-            return transientError("Feil ved oppretting av sak i Arena: ${e.message}", e)
+            return transientError("Feil ved oppretting av sak i Arena", e)
         }
 
         transaction(database) {

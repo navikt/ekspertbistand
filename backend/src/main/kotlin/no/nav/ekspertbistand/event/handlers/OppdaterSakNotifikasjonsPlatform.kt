@@ -37,7 +37,7 @@ class OppdaterSakNotifikasjonsPlatform(
                 onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
                 onFailure = {
                     return transientError(
-                        it.message ?: "Klarte ikke opprette ny beskjed i notifikasjonsplatform", it
+                        "Klarte ikke opprette ny beskjed i notifikasjonsplatform", it
                     )
                 }
             )
@@ -48,7 +48,7 @@ class OppdaterSakNotifikasjonsPlatform(
                 onSuccess = { idempotencyGuard.guard(event, nystatusSakSubTast) },
                 onFailure = {
                     return transientError(
-                        it.message ?: "Klarte ikke oppdatere saksstatus i notifikasjonsplatform", it
+                        "Klarte ikke oppdatere saksstatus i notifikasjonsplatform", it
                     )
                 }
             )

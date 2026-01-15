@@ -37,7 +37,7 @@ class JournalfoerTilskuddsbrev(
         val tilsagnPdf = try {
             dokgenClient.genererTilskuddsbrevPdf(event.data.tilsagnData)
         } catch (e: Exception) {
-            return transientError("Klarte ikke generere søknad-PDF: ${e.message}", e)
+            return transientError("Klarte ikke generere søknad-PDF", e)
         }
 
         val journalpostResponse = try {
@@ -49,7 +49,7 @@ class JournalfoerTilskuddsbrev(
             )
         } catch (e: Exception) {
             return transientError(
-                "Feil ved opprettelse av journalpost: ${e.message}",
+                "Feil ved opprettelse av journalpost",
                 e
             )
         }

@@ -29,13 +29,13 @@ class OpprettSakNotifikasjonsPlatform(
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
             nySak(event.data.skjema).fold(
                 onSuccess = { idempotencyGuard.guard(event, nySakSubTask) },
-                onFailure = { return transientError(it.message!!, it) }
+                onFailure = { return transientError("Feil ved opprettelse av sak i notifikasjonsplatform", it) }
             )
         }
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
             nyBeskjed(event.data.skjema).fold(
                 onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
-                onFailure = { return transientError(it.message!!, it) }
+                onFailure = { return transientError("Feil ved opprettelse av beskjed i notifikasjonsplatform", it) }
             )
         }
 
