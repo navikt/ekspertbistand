@@ -5,6 +5,7 @@ import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.arena.OpprettEkspertbistand
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.event.*
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.skjema.DTO
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
@@ -37,7 +38,7 @@ class OpprettSakArena(
                 )
             )
         } catch (e: Exception) {
-            return EventHandledResult.TransientError("Feil ved oppretting av sak i Arena: ${e.message}")
+            return transientError("Feil ved oppretting av sak i Arena", e)
         }
 
         transaction(database) {

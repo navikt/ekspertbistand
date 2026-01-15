@@ -44,11 +44,11 @@ class EventMetricsTest {
                 }
             }
 
-        val meterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
-        with(EventMetrics(dispatcher, meterRegistry)) {
-            val updateGaugeJob = launch { updateGaugesProcessingLoop(Clock.System) }
-            delay(60.seconds)
-            updateGaugeJob.cancel()
+            val meterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+            with(EventMetrics(dispatcher, meterRegistry)) {
+                val updateGaugeJob = launch { updateGaugesProcessingLoop(Clock.System) }
+                delay(60.seconds)
+                updateGaugeJob.cancel()
 
                 meterRegistry
                     .get("eventqueue.size")
@@ -205,7 +205,7 @@ class EventMetricsTest {
                 EventHandlerStates.insert {
                     it[eventId] = 2L
                     it[handlerId] = "handlerA"
-                    it[result] = EventHandledResult.TransientError("fail")
+                    it[result] = EventHandledResult.TransientError("Unknown", "fail")
                     it[errorMessage] = "fail"
                 }
                 EventHandlerStates.insert {

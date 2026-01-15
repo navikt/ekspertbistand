@@ -3,6 +3,8 @@ package no.nav.ekspertbistand.event.handlers
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
@@ -22,13 +24,13 @@ class LagreTilsagnsData(
         return transaction(database) {
             val skjemaId = event.data.skjema.id
             if (skjemaId == null) {
-                EventHandledResult.UnrecoverableError("skjemaId er null")
+                unrecoverableError("skjemaId er null")
             } else {
                 val tilsagnData = event.data.tilsagnData
                 insertTilsagndata(UUID.fromString(skjemaId), tilsagnData)
                 logger.info("Lagret tilsagndata for skjema med id $skjemaId")
 
-                EventHandledResult.Success()
+                success()
             }
         }
     }

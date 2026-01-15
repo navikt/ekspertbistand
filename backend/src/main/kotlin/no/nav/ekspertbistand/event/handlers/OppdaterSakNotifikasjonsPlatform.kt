@@ -3,6 +3,9 @@ package no.nav.ekspertbistand.event.handlers
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
@@ -26,15 +29,15 @@ class OppdaterSakNotifikasjonsPlatform(
     override suspend fun handle(event: Event<EventData.TilskuddsbrevJournalfoert>): EventHandledResult {
         val skjema = event.data.skjema
         if (skjema.id == null) {
-            return EventHandledResult.UnrecoverableError("Skjema mangler id")
+            return unrecoverableError("Skjema mangler id")
         }
 
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
             nyBeskjed(skjema).fold(
                 onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
                 onFailure = {
-                    return EventHandledResult.TransientError(
-                        it.message ?: "Klarte ikke opprette ny beskjed i notifikasjonsplatform"
+                    return transientError(
+                        "Klarte ikke opprette ny beskjed i notifikasjonsplatform", it
                     )
                 }
             )
@@ -44,14 +47,14 @@ class OppdaterSakNotifikasjonsPlatform(
             nyStatusSak(skjema).fold(
                 onSuccess = { idempotencyGuard.guard(event, nystatusSakSubTast) },
                 onFailure = {
-                    return EventHandledResult.TransientError(
-                        it.message ?: "Klarte ikke oppdatere saksstatus i notifikasjonsplatform"
+                    return transientError(
+                        "Klarte ikke oppdatere saksstatus i notifikasjonsplatform", it
                     )
                 }
             )
         }
 
-        return EventHandledResult.Success()
+        return success()
     }
 
     private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
