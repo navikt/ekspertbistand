@@ -5,15 +5,17 @@ import io.ktor.server.plugins.di.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import no.nav.ekspertbistand.arena.OpprettSakArena
+import no.nav.ekspertbistand.event.handlers.OpprettSakArena
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
-import no.nav.ekspertbistand.dokarkiv.JournalfoerTilskuddsbrev
-import no.nav.ekspertbistand.dokarkiv.JournalfoerTilskuddsbrevKildeAltinn
-import no.nav.ekspertbistand.dokarkiv.SkjemaInnsendtHandler
-import no.nav.ekspertbistand.notifikasjon.OppdaterSakNotifikasjonsPlatform
-import no.nav.ekspertbistand.notifikasjon.OpprettSakNotifikasjonsPlatform
+import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrev
+import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrevKildeAltinn
+import no.nav.ekspertbistand.event.handlers.LagreTilsagnsData
+import no.nav.ekspertbistand.event.handlers.SkjemaInnsendtHandler
+import no.nav.ekspertbistand.event.handlers.OppdaterSakNotifikasjonsPlatform
+import no.nav.ekspertbistand.event.handlers.OpprettSakNotifikasjonsPlatform
+import no.nav.ekspertbistand.event.handlers.SettGodkjentSkjemaStatus
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
 import no.nav.ekspertbistand.skjema.DummyFooHandler
@@ -84,6 +86,7 @@ sealed interface EventData {
         val skjema: DTO.Skjema,
         val dokumentId: Int,
         val journaldpostId: Int,
+        val tilsagnData: TilsagnData
     ) : EventData
 
     @Serializable
@@ -113,6 +116,8 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(JournalfoerTilskuddsbrev::class))
         register(dependencies.create(JournalfoerTilskuddsbrevKildeAltinn::class))
         register(dependencies.create(OppdaterSakNotifikasjonsPlatform::class))
+        register(dependencies.create(SettGodkjentSkjemaStatus::class))
+        register(dependencies.create(LagreTilsagnsData::class))
 
         register<EventData>("InlineAlEventsHandler") { event ->
             // Inline handler example

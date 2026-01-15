@@ -11,7 +11,6 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
-import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
@@ -22,6 +21,7 @@ import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
+import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -145,10 +145,9 @@ fun main() {
             provide(NorgKlient::class)
             provide(BehandlendeEnhetService::class)
             provide(PdlApiKlient::class)
-            provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide<ProdusentApiKlient> {
                 ProdusentApiKlient(
-                    tokenProvider = resolve<AzureAdTokenProvider>(),
+                    azureAdTokenProvider = resolve<AzureAdTokenProvider>(),
                     defaultHttpClient = defaultHttpClient()
                 )
             }
@@ -165,6 +164,7 @@ fun main() {
         // application modules
         configureSkjemaApiV1()
         configureOrganisasjonerApiV1()
+        configureTilsagnDataApiV1()
         configureEregApiV1()
 
         // event manager and event handlers

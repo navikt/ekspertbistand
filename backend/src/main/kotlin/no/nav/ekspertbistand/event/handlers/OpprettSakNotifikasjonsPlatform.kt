@@ -1,20 +1,23 @@
-package no.nav.ekspertbistand.notifikasjon
+package no.nav.ekspertbistand.event.handlers
 
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandler
-import no.nav.ekspertbistand.event.IdempotencyGuard
+import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.DTO
-import kotlin.reflect.KClass
+import org.jetbrains.exposed.v1.jdbc.Database
 
 private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 
 class OpprettSakNotifikasjonsPlatform(
     private val produsentApiKlient: ProdusentApiKlient,
-    private val idempotencyGuard: IdempotencyGuard
+    database: Database
 ) : EventHandler<EventData.TiltaksgjennomføringOpprettet> {
+
+    private val idempotencyGuard = idempotencyGuard(database)
 
     // DO NOT CHANGE THIS!
     override val id: String = "OpprettSakNotifikasjonPlatform"
@@ -40,7 +43,7 @@ class OpprettSakNotifikasjonsPlatform(
     private suspend fun nySak(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNySak(
-                grupperingsid = skjema.id!!,
+                skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tittel = "Ekspertbistand ${skjema.ansatt.navn} f. ${skjema.ansatt.fnr.tilFødselsdato()}",
                 lenke = ""
@@ -55,7 +58,7 @@ class OpprettSakNotifikasjonsPlatform(
     private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
-                grupperingsid = skjema.id!!,
+                skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tekst = "Nav har mottatt deres søknad om ekspertbistand.",
                 lenke = "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand/skjema/:id" //TODO: håndter// produksjonslink når prod er klart

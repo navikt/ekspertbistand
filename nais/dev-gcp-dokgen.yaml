@@ -28,3 +28,7 @@ spec:
     inbound:
       rules:
         - application: ekspertbistand-backend
+    outbound:
+      rules:
+        - application: logging
+          namespace: nais-system

@@ -1,5 +1,8 @@
-package no.nav.ekspertbistand.arena
+package no.nav.ekspertbistand.event.handlers
 
+import no.nav.ekspertbistand.arena.ArenaClient
+import no.nav.ekspertbistand.arena.OpprettEkspertbistand
+import no.nav.ekspertbistand.arena.insertArenaSak
 import no.nav.ekspertbistand.event.*
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert

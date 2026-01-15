@@ -10,6 +10,7 @@ import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.skjema.SkjemaStatus
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -263,5 +264,6 @@ private val skjema = DTO.Skjema(
     nav = DTO.Nav(
         kontaktperson = "Navn Navnesen"
     ),
-    opprettetAv = "Noen Noensen"
+    opprettetAv = "Noen Noensen",
+    status = SkjemaStatus.innsendt,
 )

@@ -1,0 +1,20 @@
+mutation HardDeleteSak(
+    $grupperingsid: String!,
+    $merkelapp: String!
+) {
+    hardDeleteSakByGrupperingsid(merkelapp: $merkelapp, grupperingsid: $grupperingsid) {
+        __typename
+        ... on HardDeleteSakVellykket {
+            id
+        }
+        ... on UgyldigMerkelapp {
+            feilmelding
+        }
+        ... on SakFinnesIkke {
+            feilmelding
+        }
+        ... on UkjentProdusent {
+            feilmelding
+        }
+    }
+}

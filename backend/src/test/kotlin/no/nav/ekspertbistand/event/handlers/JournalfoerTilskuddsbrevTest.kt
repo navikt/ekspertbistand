@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.dokarkiv
+package no.nav.ekspertbistand.event.handlers
 
 import io.ktor.client.*
 import io.ktor.http.*
@@ -6,24 +6,31 @@ import io.ktor.server.plugins.di.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
+import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
+import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.mocks.mockDokArkiv
+import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.skjema.SkjemaStatus
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
-class JournalfoerTilskuddsbrevKildeAltinnTest {
+class JournalfoerTilskuddsbrevTest {
     @Test
-    fun `handler journalforer og produserer TilskuddsbrevJournalfoertKildeAltinn-event`() = testApplication {
+    fun `handler journalforer og produserer TilskuddsbrevJournalfoert-event`() = testApplication {
         TestDatabase().cleanMigrate().use {
             val database = it.config.jdbcDatabase
             mockDokgen("%PDF-mock".toByteArray())
@@ -37,10 +44,11 @@ class JournalfoerTilskuddsbrevKildeAltinnTest {
             setupApplication(database)
             startApplication()
 
-            val handler = application.dependencies.resolve<JournalfoerTilskuddsbrevKildeAltinn>()
+            val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
             val event = Event(
                 id = 1L,
-                data = EventData.TilskuddsbrevMottattKildeAltinn(
+                data = EventData.TilskuddsbrevMottatt(
+                    skjema = sampleSkjema,
                     tilsagnbrevId = 1,
                     tilsagnData = sampleTilsagnData
                 )
@@ -53,9 +61,10 @@ class JournalfoerTilskuddsbrevKildeAltinnTest {
                 val queued = QueuedEvents.selectAll().toList()
                 assertEquals(1, queued.size)
                 val queuedEvent = queued.first()[QueuedEvents.eventData]
-                assertIs<EventData.TilskuddsbrevJournalfoertKildeAltinn>(queuedEvent)
+                assertIs<EventData.TilskuddsbrevJournalfoert>(queuedEvent)
                 assertEquals(9876, queuedEvent.dokumentId)
                 assertEquals(1234, queuedEvent.journaldpostId)
+                assertEquals(sampleSkjema.id, queuedEvent.skjema.id)
             }
         }
     }
@@ -75,10 +84,11 @@ class JournalfoerTilskuddsbrevKildeAltinnTest {
             setupApplication(database)
             startApplication()
 
-            val handler = application.dependencies.resolve<JournalfoerTilskuddsbrevKildeAltinn>()
+            val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
             val event = Event(
                 id = 2L,
-                data = EventData.TilskuddsbrevMottattKildeAltinn(
+                data = EventData.TilskuddsbrevMottatt(
+                    skjema = sampleSkjema,
                     tilsagnbrevId = 1,
                     tilsagnData = sampleTilsagnData
                 )
@@ -163,6 +173,40 @@ private val sampleTilsagnData = TilsagnData(
     kommentar = "Dette var unødvendig mye testdata å skrive"
 )
 
+private val sampleSkjema = DTO.Skjema(
+    id = UUID.randomUUID().toString(),
+    virksomhet = DTO.Virksomhet(
+        virksomhetsnummer = "987654321",
+        virksomhetsnavn = "Testbedrift AS",
+        kontaktperson = DTO.Kontaktperson(
+            navn = "Kontakt Person",
+            epost = "kontakt@testbedrift.no",
+            telefonnummer = "12345678",
+        )
+    ),
+    ansatt = DTO.Ansatt(
+        fnr = "01010112345",
+        navn = "Ansatt Navn",
+    ),
+    ekspert = DTO.Ekspert(
+        navn = "Ekspert Navn",
+        virksomhet = "Ekspertselskap",
+        kompetanse = "Ekspertise",
+    ),
+    behovForBistand = DTO.BehovForBistand(
+        begrunnelse = "Behov begrunnelse",
+        behov = "Behov",
+        estimertKostnad = "9000",
+        timer = "12",
+        tilrettelegging = "Tilrettelegging tekst",
+        startdato = LocalDate(2024, 12, 1),
+    ),
+    nav = DTO.Nav(
+        kontaktperson = "Veileder Navn"
+    ),
+    status = SkjemaStatus.godkjent,
+)
+
 private fun ApplicationTestBuilder.setupApplication(database: Database) {
     application {
         dependencies {
@@ -173,10 +217,8 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             }
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
-            provide<IdempotencyGuard> { IdempotencyGuard(resolve()) }
             provide {
-                JournalfoerTilskuddsbrevKildeAltinn(
-                    resolve(),
+                JournalfoerTilskuddsbrev(
                     resolve(),
                     resolve(),
                     resolve(),

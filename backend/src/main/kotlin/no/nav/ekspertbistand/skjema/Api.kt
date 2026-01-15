@@ -1,7 +1,7 @@
 package no.nav.ekspertbistand.skjema
 
 import io.ktor.http.*
-import io.ktor.http.content.NullBody
+import io.ktor.http.content.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -44,7 +44,7 @@ class SkjemaApi(
         )
     }
 
-    suspend fun RoutingContext.hentAlleSkjema(statusParam: SkjemaStatus) {
+    suspend fun RoutingContext.hentAlleSkjema(statusParam: SkjemaStatusQueryParam) {
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
         val organisasjoner = tilganger.organisasjoner
 
@@ -54,7 +54,7 @@ class SkjemaApi(
         }
 
         when (statusParam) {
-            SkjemaStatus.utkast -> {
+            SkjemaStatusQueryParam.utkast -> {
                 val results = transaction(database) {
                     UtkastTable.selectAll()
                         .where { UtkastTable.opprettetAv eq innloggetBruker }
@@ -66,7 +66,7 @@ class SkjemaApi(
                 call.respond(results)
             }
 
-            SkjemaStatus.innsendt -> {
+            SkjemaStatusQueryParam.innsendt -> {
                 val results = transaction(database) {
                     SkjemaTable.selectAll()
                         .where { SkjemaTable.virksomhetsnummer inList organisasjoner }
@@ -249,10 +249,11 @@ class SkjemaApi(
                 it[behovForBistandEstimertKostnad] = skjema.behovForBistand.estimertKostnad
                 it[behovForBistandTimer] = skjema.behovForBistand.timer
                 it[behovForBistandTilrettelegging] = skjema.behovForBistand.tilrettelegging
-                it[behovForBistandStartdato] = skjema.behovForBistand.startdato!!
+                it[behovForBistandStartdato] = skjema.behovForBistand.startdato
 
                 it[navKontaktPerson] = skjema.nav.kontaktperson
                 it[opprettetAv] = innloggetBruker
+                it[status] = SkjemaStatus.innsendt.toString()
             }.single().tilSkjemaDTO().also {
                 UtkastTable.deleteWhere { UtkastTable.id eq idParam }
             }
@@ -281,6 +282,10 @@ class SkjemaApi(
 }
 
 sealed interface DTO {
+    /**
+     * Default-verdier på Skjema brukes da de blir satt etter persistering.
+     */
+
     @Serializable
     data class Skjema(
         val id: String? = null,
@@ -291,9 +296,9 @@ sealed interface DTO {
         val nav: Nav,
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
-    ) : DTO {
-        val status = SkjemaStatus.innsendt
-    }
+        val status: SkjemaStatus = SkjemaStatus.innsendt,
+    ) : DTO
+
 
     @Serializable
     data class Utkast(
@@ -356,4 +361,13 @@ sealed interface DTO {
 enum class SkjemaStatus {
     utkast,
     innsendt,
+    godkjent,
+    avlyst,
+    avslått
+}
+
+@Suppress("EnumEntryName")
+enum class SkjemaStatusQueryParam {
+    utkast,
+    innsendt
 }

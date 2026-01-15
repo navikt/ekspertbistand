@@ -1,19 +1,21 @@
-package no.nav.ekspertbistand.arena
+package no.nav.ekspertbistand.event.handlers
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
 import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
+import no.nav.ekspertbistand.arena.ArenaClient
+import no.nav.ekspertbistand.arena.ArenaSakTable
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.infrastruktur.TokenResponse
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.mocks.mockTiltaksgjennomfoering
 import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.skjema.SkjemaStatus
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -110,6 +112,7 @@ private val skjema1 = DTO.Skjema(
     nav = DTO.Nav(
         kontaktperson = "Navn Navnesen"
     ),
+    status = SkjemaStatus.innsendt,
 )
 
 

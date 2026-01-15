@@ -34,7 +34,6 @@ import no.nav.ekspertbistand.arena.ArenaTiltaksgjennomforingEndretProcessor
 import no.nav.ekspertbistand.arena.startKafkaConsumers
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
-import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
@@ -46,6 +45,7 @@ import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import no.nav.ekspertbistand.skjema.subjectToken
+import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
 import java.util.*
@@ -57,11 +57,10 @@ fun main() {
     ktorServer {
         dependencies {
             provide<Database> {
+//                dbConfig.destroyExistingDatabase()
                 dbConfig.flywayAction {
                     migrate()
                 }
-                // mixing r2dbc and jdbc does not work well together, so we use only jdbc for now
-                //    dbConfig.r2dbcDatabase
                 dbConfig.jdbcDatabase
             }
             provide<AuthConfig> { AuthConfig.nais }
@@ -78,7 +77,6 @@ fun main() {
             provide(NorgKlient::class)
             provide(BehandlendeEnhetService::class)
             provide(PdlApiKlient::class)
-            provide<IdempotencyGuard> { IdempotencyGuard(resolve<Database>()) }
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
             provide(ArenaTilsagnsbrevProcessor::class)
@@ -94,6 +92,7 @@ fun main() {
         // configure application modules and endpoints
         configureSkjemaApiV1()
         configureOrganisasjonerApiV1()
+        configureTilsagnDataApiV1()
         configureEregApiV1()
 
         // event manager and event handlers
