@@ -12,11 +12,16 @@ import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
 import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.skjema.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
 
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 private const val nystatusSakSubTast = "notifikasjonsplatform_ny_status_sak"
 
+/**
+ * Når en søknad er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
+ * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
+ */
 class OppdaterSakNotifikasjonsPlatform(
     private val produsentApiKlient: ProdusentApiKlient,
     database: Database
@@ -63,7 +68,7 @@ class OppdaterSakNotifikasjonsPlatform(
                 skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tekst = "Søknaden er godkjent og ekspertbistand kan nå tas i bruk.",
-                lenke = "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand/skjema/:id", //TODO: håndter// produksjonslink når prod er klart
+                lenke = skjema.kvitteringsLenke,
                 eksternVarsel = EksterntVarsel(
                     epostTittel = "Nav – angående søknad om ekspertbistand",
                     epostHtmlBody = "${skjema.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",

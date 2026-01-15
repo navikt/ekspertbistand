@@ -15,6 +15,16 @@ import kotlin.reflect.KClass
 private const val publiserJournalpostEventSubtask = "journalpost_opprettet_event"
 private const val tittel = "Tilskuddsbrev ekspertbistand"
 
+/**
+ * Når en søknad om ekspertbistand godkjennes i Arena blir det opprettet et tilsagn.
+ * Dette tilsagnet blir lagt på kafka og plukkes opp i [no.nav.ekspertbistand.arena.ArenaTilsagnsbrevProcessor]
+ * som produserer en [no.nav.ekspertbistand.event.EventData.TilskuddsbrevMottatt]-event.
+ *
+ * Denne handleren tar imot eventen, genererer et tilskuddsbrev i PDF-format og
+ * journalfører dette i DokArkiv.
+ * Etter journalføring publiseres en ny event [no.nav.ekspertbistand.event.EventData.TilskuddsbrevJournalfoert]
+ * som inneholder informasjon om journalpostId og dokumentId.
+ */
 class JournalfoerTilskuddsbrev(
     private val dokgenClient: DokgenClient,
     private val dokArkivClient: DokArkivClient,

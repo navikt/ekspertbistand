@@ -23,7 +23,17 @@ import kotlin.reflect.KClass
 private const val publiserJournalpostEventSubtask = "journalpost_opprettet_event"
 private const val tittel = "Søknad om ekspertbistand"
 
-class SkjemaInnsendtHandler(
+/**
+ * Når et skjema om ekspertbistand er innsendt, genereres en søknad i PDF-format og så
+ * journalføres dette i DokArkiv.
+ *
+ * Før journalføring hentes behandlende enhet basert på søker sin adressebeskyttelse og geografisk tilknytning.
+ * Logikken for ruting til behandlende enhet er definert i [JournalfoerInnsendtSkjema.hentBehandlendeEnhet].
+ *
+ * Etter journalføring publiseres en ny event [no.nav.ekspertbistand.event.EventData.InnsendtSkjemaJournalfoert]
+ * som inneholder informasjon om journalpostId og dokumentId samt behandlendeEnhetId.
+ */
+class JournalfoerInnsendtSkjema(
     private val dokgenClient: DokgenClient,
     private val dokArkivClient: DokArkivClient,
     private val pdlApiKlient: PdlApiKlient,
@@ -82,7 +92,7 @@ class SkjemaInnsendtHandler(
 
         transaction(database) {
             QueuedEvents.insert {
-                it[eventData] = EventData.JournalpostOpprettet(
+                it[eventData] = EventData.InnsendtSkjemaJournalfoert(
                     skjema = skjema,
                     dokumentId = dokumentInfoId,
                     journaldpostId = journalpostId,

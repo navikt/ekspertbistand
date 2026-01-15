@@ -7,21 +7,28 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.skjema.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
 
 private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
 private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 
-class OpprettSakNotifikasjonsPlatform(
+/**
+ * Når vi mottar en søknad så oppretter vi en tiltaksgjennomføring i Arena.
+ * Dette resulterer i eventen [no.nav.ekspertbistand.event.EventData.TiltaksgjennomføringOpprettet]
+ *
+ * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen om at søknad er mottatt og under behandling.
+ */
+class VarsleArbeidsgiverOmMottattSoknad(
     private val produsentApiKlient: ProdusentApiKlient,
     database: Database
 ) : EventHandler<EventData.TiltaksgjennomføringOpprettet> {
 
     private val idempotencyGuard = idempotencyGuard(database)
 
-    // DO NOT CHANGE THIS!
     override val id: String = "OpprettSakNotifikasjonPlatform"
     override val eventType = EventData.TiltaksgjennomføringOpprettet::class
 
@@ -48,7 +55,7 @@ class OpprettSakNotifikasjonsPlatform(
                 skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tittel = "Ekspertbistand ${skjema.ansatt.navn} f. ${skjema.ansatt.fnr.tilFødselsdato()}",
-                lenke = ""
+                lenke = skjema.kvitteringsLenke,
             )
             Result.success("Opprettet sak for skjema ${skjema.id}")
         } catch (ex: Exception) {
@@ -56,14 +63,13 @@ class OpprettSakNotifikasjonsPlatform(
         }
     }
 
-
     private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tekst = "Nav har mottatt deres søknad om ekspertbistand.",
-                lenke = "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand/skjema/:id" //TODO: håndter// produksjonslink når prod er klart
+                lenke = skjema.kvitteringsLenke,
             )
             Result.success("Opprettet beskjed for skjema ${skjema.id}")
         } catch (ex: Exception) {

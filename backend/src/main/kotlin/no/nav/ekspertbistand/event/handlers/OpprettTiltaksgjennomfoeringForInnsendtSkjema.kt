@@ -9,14 +9,14 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
-class OpprettSakArena(
+class OpprettTiltaksgjennomfoeringForInnsendtSkjema(
     private val arenaClient: ArenaClient,
     private val database: Database,
-) : EventHandler<EventData.JournalpostOpprettet> {
+) : EventHandler<EventData.InnsendtSkjemaJournalfoert> {
     override val id = "OpprettSakArena"
-    override val eventType = EventData.JournalpostOpprettet::class
+    override val eventType = EventData.InnsendtSkjemaJournalfoert::class
 
-    override suspend fun handle(event: Event<EventData.JournalpostOpprettet>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.InnsendtSkjemaJournalfoert>): EventHandledResult {
         val skjema = event.data.skjema
         val opprettetResponse = try {
             arenaClient.opprettTiltaksgjennomfoering(

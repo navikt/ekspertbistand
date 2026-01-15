@@ -42,9 +42,9 @@ class OpprettArenaSakTest {
         }
         startApplication()
 
-        val handler = OpprettSakArena(application.dependencies.resolve(), application.dependencies.resolve())
+        val handler = OpprettTiltaksgjennomfoeringForInnsendtSkjema(application.dependencies.resolve(), application.dependencies.resolve())
         val event = Event(
-            id = 1L, data = EventData.JournalpostOpprettet(
+            id = 1L, data = EventData.InnsendtSkjemaJournalfoert(
                 skjema1, 123, 456, "1337"
             )
         )
@@ -71,9 +71,9 @@ class OpprettArenaSakTest {
         }
         startApplication()
 
-        val handler = OpprettSakArena(application.dependencies.resolve(), application.dependencies.resolve())
+        val handler = OpprettTiltaksgjennomfoeringForInnsendtSkjema(application.dependencies.resolve(), application.dependencies.resolve())
         val event = Event(
-            id = 1L, data = EventData.JournalpostOpprettet(
+            id = 1L, data = EventData.InnsendtSkjemaJournalfoert(
                 skjema1, 123, 456, "1337"
             )
         )

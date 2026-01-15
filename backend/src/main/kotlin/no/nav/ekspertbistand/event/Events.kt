@@ -5,16 +5,16 @@ import io.ktor.server.plugins.di.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import no.nav.ekspertbistand.event.handlers.OpprettSakArena
+import no.nav.ekspertbistand.event.handlers.OpprettTiltaksgjennomfoeringForInnsendtSkjema
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrev
 import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrevKildeAltinn
 import no.nav.ekspertbistand.event.handlers.LagreTilsagnsData
-import no.nav.ekspertbistand.event.handlers.SkjemaInnsendtHandler
+import no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSkjema
 import no.nav.ekspertbistand.event.handlers.OppdaterSakNotifikasjonsPlatform
-import no.nav.ekspertbistand.event.handlers.OpprettSakNotifikasjonsPlatform
+import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverOmMottattSoknad
 import no.nav.ekspertbistand.event.handlers.SettGodkjentSkjemaStatus
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
@@ -50,7 +50,7 @@ sealed interface EventData {
 
     @Serializable
     @SerialName("journalpostOpprettet")
-    data class JournalpostOpprettet(
+    data class InnsendtSkjemaJournalfoert(
         val skjema: DTO.Skjema,
         val dokumentId: Int,
         val journaldpostId: Int,
@@ -110,9 +110,9 @@ suspend fun Application.configureEventHandlers() {
         // Registrer all event handlers here
         register(DummyFooHandler())
         register(DummyBarHandler())
-        register(dependencies.create(SkjemaInnsendtHandler::class))
-        register(dependencies.create(OpprettSakArena::class))
-        register(dependencies.create(OpprettSakNotifikasjonsPlatform::class))
+        register(dependencies.create(JournalfoerInnsendtSkjema::class))
+        register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSkjema::class))
+        register(dependencies.create(VarsleArbeidsgiverOmMottattSoknad::class))
         register(dependencies.create(JournalfoerTilskuddsbrev::class))
         register(dependencies.create(JournalfoerTilskuddsbrevKildeAltinn::class))
         register(dependencies.create(OppdaterSakNotifikasjonsPlatform::class))

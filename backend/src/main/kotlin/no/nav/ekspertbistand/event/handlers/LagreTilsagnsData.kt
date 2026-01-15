@@ -12,6 +12,10 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
 
+/**
+ * Etter at tilskuddsbrev er journalført, lagres tilsagnsdata i databasen.
+ * Dette gjør at vi kan vise tilskuddsbrev til arbeidsgiver.
+ */
 class LagreTilsagnsData(
     private val database: Database,
 ) : EventHandler<EventData.TilskuddsbrevJournalfoert> {

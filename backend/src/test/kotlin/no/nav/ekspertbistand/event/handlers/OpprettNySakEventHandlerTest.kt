@@ -53,7 +53,7 @@ class OpprettNySakEventHandlerTest {
         )
         startApplication()
 
-        val handler = application.dependencies.resolve<OpprettSakNotifikasjonsPlatform>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverOmMottattSoknad>()
 
         val event = Event(
             id = 1L,
@@ -74,7 +74,7 @@ class OpprettNySakEventHandlerTest {
             mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") })
         )
         startApplication()
-        val handler = application.dependencies.resolve<OpprettSakNotifikasjonsPlatform>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverOmMottattSoknad>()
 
         val event = Event(
             id = 1L,
@@ -96,7 +96,7 @@ class OpprettNySakEventHandlerTest {
                 mutableListOf({ throw Exception("Test feil") }, { NyBeskjedVellykket(id = "beskjed-456") })
             )
             startApplication()
-            val handler = application.dependencies.resolve<OpprettSakNotifikasjonsPlatform>()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverOmMottattSoknad>()
 
             val event = Event(
                 id = 1L,
@@ -162,8 +162,8 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                 successAzureAdTokenProvider
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
-            provide<OpprettSakNotifikasjonsPlatform> {
-                OpprettSakNotifikasjonsPlatform(
+            provide<VarsleArbeidsgiverOmMottattSoknad> {
+                VarsleArbeidsgiverOmMottattSoknad(
                     resolve(),
                     resolve()
                 )
