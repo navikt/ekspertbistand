@@ -13,12 +13,12 @@ import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrev
 import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrevKildeAltinn
 import no.nav.ekspertbistand.event.handlers.LagreTilsagnsData
 import no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSkjema
+import no.nav.ekspertbistand.event.handlers.SettAvlystSkjemaStatus
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjent
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottatt
 import no.nav.ekspertbistand.event.handlers.SettGodkjentSkjemaStatus
+import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst
 import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.DummyBarHandler
-import no.nav.ekspertbistand.skjema.DummyFooHandler
 import kotlin.time.ExperimentalTime
 
 
@@ -98,7 +98,7 @@ sealed interface EventData {
 
     @Serializable
     @SerialName("soknadAvlystIArena")
-    data class SøknadAvlystIArena(
+    data class SoknadAvlystIArena(
         val skjema: DTO.Skjema,
         val tiltaksgjennomforingEndret: TiltaksgjennomforingEndret
     ) : EventData
@@ -108,15 +108,15 @@ sealed interface EventData {
 suspend fun Application.configureEventHandlers() {
     val eventManager = EventManager {
         // Registrer all event handlers here
-        register(DummyFooHandler())
-        register(DummyBarHandler())
         register(dependencies.create(JournalfoerInnsendtSkjema::class))
         register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSkjema::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadMottatt::class))
         register(dependencies.create(JournalfoerTilskuddsbrev::class))
         register(dependencies.create(JournalfoerTilskuddsbrevKildeAltinn::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadGodkjent::class))
+        register(dependencies.create(VarsleArbeidsgiverSoknadAvlyst::class))
         register(dependencies.create(SettGodkjentSkjemaStatus::class))
+        register(dependencies.create(SettAvlystSkjemaStatus::class))
         register(dependencies.create(LagreTilsagnsData::class))
 
         register<EventData>("InlineAlEventsHandler") { event ->

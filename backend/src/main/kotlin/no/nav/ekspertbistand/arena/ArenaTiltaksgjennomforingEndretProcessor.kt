@@ -46,7 +46,7 @@ class ArenaTiltaksgjennomforingEndretProcessor(
         if (skjema != null) {
             // Det er vi som har opprettet tiltaket
             EventQueue.publish(
-                EventData.SøknadAvlystIArena(
+                EventData.SoknadAvlystIArena(
                     skjema = skjema,
                     tiltaksgjennomforingEndret = endring,
                 )

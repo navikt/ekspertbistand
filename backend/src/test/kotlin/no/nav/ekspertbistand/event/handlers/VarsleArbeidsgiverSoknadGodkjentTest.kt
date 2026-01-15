@@ -176,12 +176,7 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                 successAzureAdTokenProvider
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
-            provide<VarsleArbeidsgiverSoknadGodkjent> {
-                VarsleArbeidsgiverSoknadGodkjent(
-                    resolve(),
-                    resolve()
-                )
-            }
+            provide(VarsleArbeidsgiverSoknadGodkjent::class)
         }
         configureTokenXAuth()
     }

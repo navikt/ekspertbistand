@@ -41,7 +41,7 @@ class JournalfoerInnsendtSkjema(
     private val eregClient: EregClient,
     private val database: Database,
 ) : EventHandler<EventData.SkjemaInnsendt> {
-    override val id: String = "SkjemaInnsendtHandler"
+    override val id: String = "Journalfoer Innsendt Skjema"
     override val eventType: KClass<EventData.SkjemaInnsendt> = EventData.SkjemaInnsendt::class
 
     private val idempotencyGuard = idempotencyGuard(database)

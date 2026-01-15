@@ -20,19 +20,19 @@ import org.jetbrains.exposed.v1.jdbc.Database
  * Når en søknad er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
  */
-class VarsleArbeidsgiverSoknadGodkjent(
+class VarsleArbeidsgiverSoknadAvlyst(
     private val produsentApiKlient: ProdusentApiKlient,
     database: Database
-) : EventHandler<EventData.TilskuddsbrevJournalfoert> {
-    override val id: String = "VarsleArbeidsgiverSoknadGodkjent"
-    override val eventType = EventData.TilskuddsbrevJournalfoert::class
+) : EventHandler<EventData.SoknadAvlystIArena> {
+    override val id: String = "Varsle Arbeidsgiver Soknad Avlyst"
+    override val eventType = EventData.SoknadAvlystIArena::class
 
     private val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
     private val nystatusSakSubTast = "notifikasjonsplatform_ny_status_sak"
 
     private val idempotencyGuard = idempotencyGuard(database)
 
-    override suspend fun handle(event: Event<EventData.TilskuddsbrevJournalfoert>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.SoknadAvlystIArena>): EventHandledResult {
         val skjema = event.data.skjema
         if (skjema.id == null) {
             return unrecoverableError("Skjema mangler id")
@@ -68,7 +68,7 @@ class VarsleArbeidsgiverSoknadGodkjent(
             produsentApiKlient.opprettNyBeskjed(
                 skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                tekst = "Søknaden er godkjent og ekspertbistand kan nå tas i bruk.",
+                tekst = "Søknaden om ekspertbistand trukket eller avslått.",
                 // TODO: lenke til tilskuddsbrev eller legg på qp slik at lenken blir forskjellig fra saken (hvis de er like rendres ingen egen lenke i beskjeden)
                 lenke = skjema.kvitteringsLenke,
                 eksternVarsel = EksterntVarsel(
@@ -88,7 +88,7 @@ class VarsleArbeidsgiverSoknadGodkjent(
             produsentApiKlient.nyStatusSak(
                 skjemaId = skjema.id!!,
                 status = SaksStatus.FERDIG,
-                statusTekst = "Søknad godkjent"
+                statusTekst = "Søknad trukket eller avslått"
             )
             Result.success("Oppdaterte sakstatus for skjema ${skjema.id}")
         } catch (ex: Exception) {

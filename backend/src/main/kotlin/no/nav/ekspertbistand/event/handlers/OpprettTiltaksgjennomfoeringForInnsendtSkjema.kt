@@ -13,7 +13,7 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjema(
     private val arenaClient: ArenaClient,
     private val database: Database,
 ) : EventHandler<EventData.InnsendtSkjemaJournalfoert> {
-    override val id = "OpprettSakArena"
+    override val id = "Opprett Tiltaksgjennomfoering For Innsendt Skjema"
     override val eventType = EventData.InnsendtSkjemaJournalfoert::class
 
     override suspend fun handle(event: Event<EventData.InnsendtSkjemaJournalfoert>): EventHandledResult {

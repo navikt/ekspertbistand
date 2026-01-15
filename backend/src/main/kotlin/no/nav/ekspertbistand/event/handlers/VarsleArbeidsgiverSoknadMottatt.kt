@@ -12,8 +12,6 @@ import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
 
-private const val nySakSubTask = "notifikasjonsplatform_ny_sak"
-private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 
 /**
  * Når vi mottar en søknad så oppretter vi en tiltaksgjennomføring i Arena.
@@ -26,10 +24,13 @@ class VarsleArbeidsgiverSoknadMottatt(
     database: Database
 ) : EventHandler<EventData.TiltaksgjennomføringOpprettet> {
 
-    private val idempotencyGuard = idempotencyGuard(database)
-
-    override val id: String = "OpprettSakNotifikasjonPlatform"
+    override val id: String = "VarsleArbeidsgiverSoknadMottatt"
     override val eventType = EventData.TiltaksgjennomføringOpprettet::class
+
+    private val nySakSubTask = "notifikasjonsplatform_ny_sak"
+    private val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
+
+    private val idempotencyGuard = idempotencyGuard(database)
 
     override suspend fun handle(event: Event<EventData.TiltaksgjennomføringOpprettet>): EventHandledResult {
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {

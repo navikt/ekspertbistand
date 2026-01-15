@@ -217,13 +217,7 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             }
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
-            provide {
-                JournalfoerTilskuddsbrev(
-                    resolve(),
-                    resolve(),
-                    resolve(),
-                )
-            }
+            provide(JournalfoerTilskuddsbrev::class)
         }
     }
 }

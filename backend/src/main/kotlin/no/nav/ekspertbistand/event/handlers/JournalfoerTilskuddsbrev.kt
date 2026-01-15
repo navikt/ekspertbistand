@@ -30,7 +30,7 @@ class JournalfoerTilskuddsbrev(
     private val dokArkivClient: DokArkivClient,
     private val database: Database,
 ) : EventHandler<EventData.TilskuddsbrevMottatt> {
-    override val id: String = "JournalfoerTilskuddsbrev"
+    override val id: String = "Journalfoer Tilskuddsbrev"
     override val eventType: KClass<EventData.TilskuddsbrevMottatt> =
         EventData.TilskuddsbrevMottatt::class
 

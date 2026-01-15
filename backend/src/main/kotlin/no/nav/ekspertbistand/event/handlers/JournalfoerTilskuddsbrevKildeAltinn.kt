@@ -32,7 +32,7 @@ class JournalfoerTilskuddsbrevKildeAltinn(
 ) : EventHandler<EventData.TilskuddsbrevMottattKildeAltinn> {
     private val publiserJournalpostEventSubtask = "journalpost_opprettet_event"
     private val tittel = "Tilskuddsbrev ekspertbistand"
-    override val id = "JournalfoerTilskuddsbrev"
+    override val id = "Journalfoer Tilskuddsbrev Søknad via Altinn"
     override val eventType = EventData.TilskuddsbrevMottattKildeAltinn::class
     private val idempotencyGuard = idempotencyGuard(database)
 

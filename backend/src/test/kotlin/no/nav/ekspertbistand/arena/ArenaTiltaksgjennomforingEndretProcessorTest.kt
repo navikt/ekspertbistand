@@ -92,7 +92,7 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
             transaction(db.config.jdbcDatabase) {
                 val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
                 assertEquals(1, queuedEvents.count())
-                val eventData = queuedEvents.first().eventData as EventData.SøknadAvlystIArena
+                val eventData = queuedEvents.first().eventData as EventData.SoknadAvlystIArena
                 assertNotNull(eventData)
                 assertEquals(tiltaksgjennomfoeringId, eventData.tiltaksgjennomforingEndret.tiltaksgjennomfoeringId)
 
