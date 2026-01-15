@@ -3,6 +3,8 @@ package no.nav.ekspertbistand.event.handlers
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
@@ -27,17 +29,17 @@ class OpprettSakNotifikasjonsPlatform(
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
             nySak(event.data.skjema).fold(
                 onSuccess = { idempotencyGuard.guard(event, nySakSubTask) },
-                onFailure = { return EventHandledResult.TransientError(it.message!!) }
+                onFailure = { return transientError("Feil ved opprettelse av sak i notifikasjonsplatform", it) }
             )
         }
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
             nyBeskjed(event.data.skjema).fold(
                 onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
-                onFailure = { return EventHandledResult.TransientError(it.message!!) }
+                onFailure = { return transientError("Feil ved opprettelse av beskjed i notifikasjonsplatform", it) }
             )
         }
 
-        return EventHandledResult.Success()
+        return success()
     }
 
     private suspend fun nySak(skjema: DTO.Skjema): Result<String> {

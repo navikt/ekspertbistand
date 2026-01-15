@@ -3,6 +3,9 @@ package no.nav.ekspertbistand.event.handlers
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.*
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -25,16 +28,16 @@ class JournalfoerTilskuddsbrev(
 
     override suspend fun handle(event: Event<EventData.TilskuddsbrevMottatt>): EventHandledResult {
         if (idempotencyGuard.isGuarded(event.id, publiserJournalpostEventSubtask)) {
-            return EventHandledResult.Success()
+            return success()
         }
 
         val skjema = event.data.skjema
-        val skjemaId = skjema.id ?: return EventHandledResult.UnrecoverableError("Skjema mangler id")
+        val skjemaId = skjema.id ?: return unrecoverableError("Skjema mangler id")
 
         val tilsagnPdf = try {
             dokgenClient.genererTilskuddsbrevPdf(event.data.tilsagnData)
         } catch (e: Exception) {
-            return EventHandledResult.TransientError("Klarte ikke generere søknad-PDF: ${e.message}")
+            return transientError("Klarte ikke generere søknad-PDF", e)
         }
 
         val journalpostResponse = try {
@@ -45,17 +48,20 @@ class JournalfoerTilskuddsbrev(
                 dokumentPdfAsBytes = tilsagnPdf,
             )
         } catch (e: Exception) {
-            return EventHandledResult.TransientError("Feil ved opprettelse av journalpost: ${e.message}")
+            return transientError(
+                "Feil ved opprettelse av journalpost",
+                e
+            )
         }
 
         if (!journalpostResponse.journalpostferdigstilt) {
-            return EventHandledResult.TransientError("Journalpost ikke ferdigstilt")
+            return transientError("Journalpost ikke ferdigstilt")
         }
 
         val dokumentInfoId = journalpostResponse.dokumenter.firstOrNull()?.dokumentInfoId?.toIntOrNull()
-            ?: return EventHandledResult.UnrecoverableError("DokArkiv mangler dokumentInfoId")
+            ?: return unrecoverableError("DokArkiv mangler dokumentInfoId")
         val journalpostId = journalpostResponse.journalpostId.toIntOrNull()
-            ?: return EventHandledResult.UnrecoverableError("DokArkiv mangler gyldig journalpostId")
+            ?: return unrecoverableError("DokArkiv mangler gyldig journalpostId")
 
         transaction(database) {
             QueuedEvents.insert {
@@ -68,6 +74,6 @@ class JournalfoerTilskuddsbrev(
             }
         }
         idempotencyGuard.guard(event, publiserJournalpostEventSubtask)
-        return EventHandledResult.Success()
+        return success()
     }
 }

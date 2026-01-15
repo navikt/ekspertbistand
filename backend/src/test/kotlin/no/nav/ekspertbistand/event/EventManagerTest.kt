@@ -11,11 +11,7 @@ import no.nav.ekspertbistand.infrastruktur.logger
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertIs
+import kotlin.test.*
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
@@ -146,12 +142,12 @@ class EventManagerTest {
             },
         )
         val answers = mutableListOf(
-            EventHandledResult.TransientError("temporary failure"),
+            EventHandledResult.TransientError("Unknown", "temporary failure"),
             EventHandledResult.Success()
         )
         val manager = EventManager(config) {
             register<EventData.Bar>("FailsFatally") {
-                EventHandledResult.UnrecoverableError("fatal failure")
+                EventHandledResult.UnrecoverableError("Unknown", "fatal failure")
             }
             register<EventData.Bar>("ShouldNotBeRetried") {
                 // because of fatal error in other handler, this should not be retried
@@ -310,7 +306,7 @@ class FooRetryThenSucceedsHandler : EventHandler<EventData.Foo> {
         logger().info("Handling Foo event with retry, attempt $attempt")
         return if (attempt < 1) {
             attempt++
-            EventHandledResult.TransientError("Temporary failure, attempt $attempt")
+            EventHandledResult.TransientError("Unknown", "Temporary failure, attempt $attempt")
         } else {
             EventHandledResult.Success()
         }

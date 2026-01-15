@@ -2,7 +2,11 @@ import { http, HttpResponse } from "msw";
 import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema";
 import { ensureIsoDateString } from "../utils/date";
 import type { Organisasjon } from "@navikt/virksomhetsvelger";
-import { EKSPERTBISTAND_API_PATH, EKSPERTBISTAND_EREG_ADRESSE_PATH } from "../utils/constants";
+import {
+  EKSPERTBISTAND_API_PATH,
+  EKSPERTBISTAND_EREG_ADRESSE_PATH,
+  EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH,
+} from "../utils/constants";
 
 const organisasjoner: Organisasjon[] = [
   {
@@ -92,6 +96,10 @@ type MockSkjema = {
   opprettetAv: string;
   opprettetTidspunkt: string;
   innsendtTidspunkt?: string;
+  beslutning?: {
+    status: string;
+    tidspunkt?: string;
+  };
 };
 
 const MOCK_BRUKER = "01020312345";
@@ -170,6 +178,75 @@ let skjemaStoreLoaded = false;
 const ensureSkjemaStoreLoaded = async () => {
   if (skjemaStoreLoaded) return;
   await loadSkjemaStore();
+  if (skjemaStore.size === 0) {
+    const inputs = createEmptyInputs();
+    inputs.virksomhet.virksomhetsnummer = "123456789";
+    inputs.virksomhet.navn = "Eksempel Bedrift AS";
+    inputs.virksomhet.kontaktperson.navn = "Lise Kontakt";
+    inputs.virksomhet.kontaktperson.epost = "lise.kontakt@eksempel.no";
+    inputs.virksomhet.kontaktperson.telefonnummer = "99112233";
+    inputs.ansatt.fnr = MOCK_BRUKER;
+    inputs.ansatt.navn = "Ola Nordmann";
+    inputs.ekspert.navn = "Dr. Ekspert";
+    inputs.ekspert.virksomhet = "Ekspert & Co";
+    inputs.ekspert.kompetanse = "Arbeidsrettet oppfolging";
+    inputs.behovForBistand.begrunnelse = "Behov for tilrettelegging etter skade.";
+    inputs.behovForBistand.behov = "Ressurs til tilrettelegging og oppfolging.";
+    inputs.behovForBistand.timer = "80";
+    inputs.behovForBistand.estimertKostnad = "150000";
+    inputs.behovForBistand.tilrettelegging = "Tilrettelegging av arbeidsoppgaver.";
+    inputs.behovForBistand.startdato = "2024-09-01";
+    inputs.nav.kontaktperson = "Nav Kontakt";
+
+    const now = nowIso();
+    const entry: MockSkjema = {
+      id: randomId(),
+      status: "innsendt",
+      data: inputs,
+      opprettetAv: MOCK_BRUKER,
+      opprettetTidspunkt: now,
+      innsendtTidspunkt: now,
+      beslutning: {
+        status: "godkjent",
+        tidspunkt: now,
+      },
+    };
+    skjemaStore.set(entry.id, entry);
+
+    const rejectedInputs = createEmptyInputs();
+    rejectedInputs.virksomhet.virksomhetsnummer = "987654321";
+    rejectedInputs.virksomhet.navn = "Testfirma Norge AS";
+    rejectedInputs.virksomhet.kontaktperson.navn = "Morten Kontakt";
+    rejectedInputs.virksomhet.kontaktperson.epost = "morten.kontakt@testfirma.no";
+    rejectedInputs.virksomhet.kontaktperson.telefonnummer = "99887766";
+    rejectedInputs.ansatt.fnr = "02030454321";
+    rejectedInputs.ansatt.navn = "Eva Hansen";
+    rejectedInputs.ekspert.navn = "Anne Ekspert";
+    rejectedInputs.ekspert.virksomhet = "Ekspert Partner";
+    rejectedInputs.ekspert.kompetanse = "Tilrettelegging og arbeidsplassvurdering";
+    rejectedInputs.behovForBistand.begrunnelse = "Uklart behov for bistand.";
+    rejectedInputs.behovForBistand.behov = "Avklaring av mulige tiltak.";
+    rejectedInputs.behovForBistand.timer = "40";
+    rejectedInputs.behovForBistand.estimertKostnad = "60000";
+    rejectedInputs.behovForBistand.tilrettelegging = "Vurdering av alternative oppgaver.";
+    rejectedInputs.behovForBistand.startdato = "2024-10-15";
+    rejectedInputs.nav.kontaktperson = "Nav Veileder";
+
+    const rejectedEntry: MockSkjema = {
+      id: randomId(),
+      status: "innsendt",
+      data: rejectedInputs,
+      opprettetAv: MOCK_BRUKER,
+      opprettetTidspunkt: now,
+      innsendtTidspunkt: now,
+      beslutning: {
+        status: "avlyst",
+        tidspunkt: now,
+      },
+    };
+    skjemaStore.set(rejectedEntry.id, rejectedEntry);
+    await persistSkjemaStore();
+  }
   skjemaStoreLoaded = true;
 };
 
@@ -220,6 +297,7 @@ const toSkjemaDto = (entry: MockSkjema) => {
     opprettetAv: entry.opprettetAv,
     opprettetTidspunkt: entry.opprettetTidspunkt,
     innsendtTidspunkt: entry.innsendtTidspunkt,
+    beslutning: entry.beslutning,
   };
 };
 
@@ -245,6 +323,33 @@ const loginSessionJson = {
     expire_in_seconds: 3600,
   },
 };
+
+const createMockTilskuddsbrevHtml = () => [
+  {
+    tilsagnNummer: "2024-123-1",
+    html: `
+      <div>
+        <p>NAV og dere har blitt enige om dette:</p>
+        <p>Tiltaket: Ekspertbistand</p>
+        <p>Deltakeren: Ola Nordmann</p>
+        <p>Utbetalingsperioden: 2024-09-01 - 2024-12-31</p>
+        <p>Støtten fra NAV: 150000 kroner</p>
+      </div>
+    `,
+  },
+  {
+    tilsagnNummer: "2024-123-2",
+    html: `
+      <div>
+        <p>NAV og dere har blitt enige om dette:</p>
+        <p>Tiltaket: Ekspertbistand</p>
+        <p>Deltakeren: Eva Hansen</p>
+        <p>Utbetalingsperioden: 2025-01-01 - 2025-03-31</p>
+        <p>Støtten fra NAV: 90000 kroner</p>
+      </div>
+    `,
+  },
+];
 
 export const handlers = [
   http.get("/internal/isAlive", () => HttpResponse.json({ status: "ok" })),
@@ -379,6 +484,16 @@ export const handlers = [
     await persistSkjemaStore();
     return HttpResponse.json(toSkjemaDto(entry));
   }),
+  http.get(
+    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/:skjemaId/tilskuddsbrev-html`,
+    ({ params }) => {
+      const skjemaId = getParamValue(params.skjemaId);
+      if (!skjemaId) {
+        return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+      }
+      return HttpResponse.json(createMockTilskuddsbrevHtml());
+    }
+  ),
   http.get("https://login.ekstern.dev.nav.no/oauth2/session", () =>
     HttpResponse.json(loginSessionJson)
   ),

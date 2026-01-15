@@ -5,6 +5,8 @@ import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
@@ -32,7 +34,7 @@ class JournalfoerTilskuddsbrevKildeAltinn(
         val tilsagnPdf = try {
             dokgenClient.genererTilskuddsbrevPdf(event.data.tilsagnData)
         } catch (e: Exception) {
-            return EventHandledResult.TransientError("Klarte ikke generere søknad-PDF: ${e.message}")
+            return transientError("Klarte ikke generere søknad-PDF: ${e.message}", e)
         }
 
         val journalpostResponse = try {
@@ -43,17 +45,17 @@ class JournalfoerTilskuddsbrevKildeAltinn(
                 dokumentPdfAsBytes = tilsagnPdf,
             )
         } catch (e: Exception) {
-            return EventHandledResult.TransientError("Feil ved opprettelse av journalpost: ${e.message}")
+            return transientError("Feil ved opprettelse av journalpost: ${e.message}", e)
         }
 
         if (!journalpostResponse.journalpostferdigstilt) {
-            return EventHandledResult.TransientError("Journalpost ikke ferdigstilt")
+            return transientError("Journalpost ikke ferdigstilt")
         }
 
         val dokumentInfoId = journalpostResponse.dokumenter.firstOrNull()?.dokumentInfoId?.toIntOrNull()
-            ?: return EventHandledResult.UnrecoverableError("DokArkiv mangler dokumentInfoId")
+            ?: return unrecoverableError("DokArkiv mangler dokumentInfoId")
         val journalpostId = journalpostResponse.journalpostId.toIntOrNull()
-            ?: return EventHandledResult.UnrecoverableError("DokArkiv mangler gyldig journalpostId")
+            ?: return unrecoverableError("DokArkiv mangler gyldig journalpostId")
 
         transaction(database) {
             QueuedEvents.insert {

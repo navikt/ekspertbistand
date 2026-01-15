@@ -362,8 +362,7 @@ enum class SkjemaStatus {
     utkast,
     innsendt,
     godkjent,
-    avlyst,
-    avslått
+    avlyst
 }
 
 @Suppress("EnumEntryName")

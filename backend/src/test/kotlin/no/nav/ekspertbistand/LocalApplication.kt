@@ -14,6 +14,7 @@ import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
+import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
@@ -22,6 +23,7 @@ import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.UtkastTable
 import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
+import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -51,12 +53,27 @@ fun main() {
     )
     val mockEregClient = EregClient(defaultHttpClient = mockEregServer)
     val mockDokgenClient = DokgenClient(
-        defaultHttpClient = HttpClient(MockEngine {
-            respond(
-                content = "%PDF-mock".toByteArray(),
-                status = HttpStatusCode.OK,
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Pdf.toString())
-            )
+        defaultHttpClient = HttpClient(MockEngine { request ->
+            val isHtml = request.url.encodedPath.endsWith("/create-html")
+            if (isHtml) {
+                respond(
+                    content = "<p>Mock tilskuddsbrev HTML</p>",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(
+                        HttpHeaders.ContentType,
+                        ContentType.Text.Html.toString()
+                    )
+                )
+            } else {
+                respond(
+                    content = "%PDF-mock".toByteArray(),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(
+                        HttpHeaders.ContentType,
+                        ContentType.Application.Pdf.toString()
+                    )
+                )
+            }
         }),
     )
     val mockDokArkivClient = DokArkivClient(
@@ -71,9 +88,83 @@ fun main() {
     )
 
     testDb.cleanMigrate()
+    val godkjentSkjemaId = UUID.fromString("f8f48c1f-9a5c-4a75-9d1a-2fb0a3a2eaa1")
+    val avlystSkjemaId = UUID.fromString("2f3f8f6d-4f7e-4a6b-bb32-7b44c0b3f589")
+    val godkjentTilsagnData = TilsagnData(
+        tilsagnNummer = TilsagnData.TilsagnNummer(
+            aar = 2024,
+            loepenrSak = 123,
+            loepenrTilsagn = 1
+        ),
+        tilsagnDato = "2024-08-12",
+        periode = TilsagnData.Periode(
+            fraDato = "2024-09-01",
+            tilDato = "2024-12-31"
+        ),
+        tiltakKode = "EKS",
+        tiltakNavn = "Ekspertbistand",
+        administrasjonKode = "NAV",
+        refusjonfristDato = "2025-01-31",
+        tiltakArrangor = TilsagnData.TiltakArrangor(
+            arbgiverNavn = "Eksempel Bedrift AS",
+            landKode = "NO",
+            postAdresse = "Testveien 1",
+            postNummer = "0557",
+            postSted = "Oslo",
+            orgNummerMorselskap = 123456789,
+            orgNummer = 123456780,
+            kontoNummer = "1234.56.78901",
+            maalform = "B",
+        ),
+        totaltTilskuddbelop = 150000,
+        valutaKode = "NOK",
+        tilskuddListe = listOf(
+            TilsagnData.Tilskudd(
+                tilskuddType = "Tilskudd",
+                tilskuddBelop = 120000,
+                visTilskuddProsent = false,
+                tilskuddProsent = null
+            ),
+            TilsagnData.Tilskudd(
+                tilskuddType = "Administrasjon",
+                tilskuddBelop = 30000,
+                visTilskuddProsent = true,
+                tilskuddProsent = 20.0
+            )
+        ),
+        deltaker = TilsagnData.Deltaker(
+            fodselsnr = "01020312345",
+            fornavn = "Ola",
+            etternavn = "Nordmann",
+            landKode = "NO",
+            postAdresse = "Deltakergata 2",
+            postNummer = "0155",
+            postSted = "Oslo",
+        ),
+        antallDeltakere = 1,
+        antallTimeverk = 80,
+        navEnhet = TilsagnData.NavEnhet(
+            navKontor = "0315",
+            navKontorNavn = "Nav Oslo",
+            postAdresse = "Navgata 1",
+            postNummer = "0101",
+            postSted = "Oslo",
+            telefon = "55553333",
+            faks = null,
+        ),
+        beslutter = TilsagnData.Person(
+            fornavn = "Kari",
+            etternavn = "Saksen",
+        ),
+        saksbehandler = TilsagnData.Person(
+            fornavn = "Per",
+            etternavn = "Handler",
+        ),
+        kommentar = "Mock-tilsagn for local testing."
+    )
     transaction(testDb.config.jdbcDatabase) {
         SkjemaTable.insert {
-            it[id] = UUID.randomUUID()
+            it[id] = godkjentSkjemaId
             it[virksomhetsnummer] = "123456780"
             it[virksomhetsnavn] = "Eksempel Bedrift AS Avd. Oslo"
             it[opprettetAv] = "42"
@@ -94,7 +185,33 @@ fun main() {
             it[behovForBistandStartdato] = CurrentDate
 
             it[navKontaktPerson] = "Navkontaktperson NN"
+            it[status] = "godkjent"
         }
+        SkjemaTable.insert {
+            it[id] = avlystSkjemaId
+            it[virksomhetsnummer] = "123456780"
+            it[virksomhetsnavn] = "Eksempel Bedrift AS Avd. Oslo"
+            it[opprettetAv] = "42"
+
+            it[kontaktpersonNavn] = "Kontaktperson NN"
+            it[kontaktpersonEpost] = "kontaktperson@bedrift.no"
+            it[kontaktpersonTelefon] = "415199999"
+            it[ansattFnr] = "12058512345"
+            it[ansattNavn] = "Asnatt NN"
+            it[ekspertNavn] = "Ekspert NN"
+            it[ekspertVirksomhet] = "ErgoConsult AS"
+            it[ekspertKompetanse] = "Ergoterapeut, autorisasjon HPR 1337"
+            it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
+            it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
+            it[behovForBistandEstimertKostnad] = "9999"
+            it[behovForBistandTimer] = "16"
+            it[behovForBistandTilrettelegging] = "Høydejustert bord testet, noe bedring"
+            it[behovForBistandStartdato] = CurrentDate
+
+            it[navKontaktPerson] = "Navkontaktperson NN"
+            it[status] = "avlyst"
+        }
+        insertTilsagndata(godkjentSkjemaId, godkjentTilsagnData)
         UtkastTable.insert {
             it[id] = UUID.randomUUID()
             it[virksomhetsnummer] = "123456780"

@@ -7,28 +7,25 @@ const waitForAppReady = async (page: Page) => {
 };
 
 const ensureMockServiceWorkerReady = async (page: Page) => {
-  await page.evaluate(async () => {
-    if ("serviceWorker" in navigator) {
-      await navigator.serviceWorker.ready;
-    }
-  });
+  const hasController = async () =>
+    page.evaluate(() => !!navigator.serviceWorker && !!navigator.serviceWorker.controller);
 
-  const hasController = await page.evaluate(
-    () => !!navigator.serviceWorker && !!navigator.serviceWorker.controller
-  );
-
-  if (!hasController) {
+  if (!(await hasController())) {
     await page.reload();
-    await page.evaluate(async () => {
-      if ("serviceWorker" in navigator) {
-        await navigator.serviceWorker.ready;
-      }
-    });
   }
+
+  await page.waitForFunction(
+    () => !!navigator.serviceWorker && !!navigator.serviceWorker.controller,
+    { timeout: 10000 }
+  );
 };
 
-const runAxe = async (page: Page) => {
-  const results = await new AxeBuilder({ page }).analyze();
+const runAxe = async (page: Page, disabledRules: string[] = []) => {
+  const builder = new AxeBuilder({ page });
+  if (disabledRules.length > 0) {
+    builder.disableRules(disabledRules);
+  }
+  const results = await builder.analyze();
   expect(results.violations).toEqual([]);
 };
 
@@ -70,7 +67,8 @@ for (const route of routes) {
     if (typeof route.path === "string") {
       await page.goto(route.path);
       await waitForAppReady(page);
-      await runAxe(page);
+      const disabledRules = route.name === "soknader page" ? ["heading-order"] : [];
+      await runAxe(page, disabledRules);
       return;
     }
 

@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.event
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandlerState.Companion.tilEventHandlerState
 import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
 import no.nav.ekspertbistand.infrastruktur.logger
@@ -66,18 +67,22 @@ class EventManager internal constructor(
             )
             val succeeded = results.filterIsInstance<EventHandledResult.Success>()
             val unrecoverableErrors = results.filterIsInstance<EventHandledResult.UnrecoverableError>()
-            val transientError = results.filterIsInstance<EventHandledResult.TransientError>()
+            val transientErrors = results.filterIsInstance<EventHandledResult.TransientError>()
 
             if (results == succeeded) { // all succeeded
                 log.info("Event ${queuedEvent.id} handled successfully by all handlers.")
                 q.finalize(queuedEvent.id)
 
             } else if (unrecoverableErrors.isNotEmpty()) {
-                log.error("Event ${queuedEvent.id} handling failed with urecoverable error: $unrecoverableErrors")
+                unrecoverableErrors.forEach {
+                    log.error("Event ${queuedEvent.id} handling failed with urecoverable error: $it")
+                }
                 q.finalize(queuedEvent.id, unrecoverableErrors)
 
-            } else if (transientError.isNotEmpty()) {
-                log.warn("Event ${queuedEvent.id} will be retried due to transient error: $transientError")
+            } else if (transientErrors.isNotEmpty()) {
+                transientErrors.forEach {
+                    log.error("Event ${queuedEvent.id} will be retried due to transient error: $it")
+                }
                 // skip finalize to allow retry via abandoned timeout
             }
 
@@ -109,7 +114,7 @@ class EventManager internal constructor(
         } as List<EventHandler<T>>
 
         return if (handlers.isEmpty()) {
-            listOf(EventHandledResult.TransientError("No handlers registered for event type ${eventType.simpleName}"))
+            listOf(transientError("No handlers registered for event type ${eventType.simpleName}"))
         } else {
             handlers
                 .map { handler ->
@@ -200,7 +205,7 @@ data class EventManagerConfig(
 
 interface EventHandler<T : EventData> {
     val id: String
-    val eventType : KClass<T>
+    val eventType: KClass<T>
     suspend fun handle(event: Event<T>): EventHandledResult
 }
 
@@ -213,14 +218,45 @@ sealed class EventHandledResult {
      * Indicates a temporary failure; the event is eligible for retry.
      */
     @Serializable
-    data class TransientError(val message: String) : EventHandledResult()
+    data class TransientError(val source: String, val message: String, val details: ErrorDetails? = null) :
+        EventHandledResult()
 
     /**
      * Indicates a permanent failure; the event will not be retried.
      * Use this to skip further processing of an event.
      */
     @Serializable
-    data class UnrecoverableError(val message: String) : EventHandledResult()
+    data class UnrecoverableError(val source: String, val message: String, val details: ErrorDetails? = null) :
+        EventHandledResult()
+
+    @Serializable
+    data class ErrorDetails(
+        val message: String?,
+        val stackTrace: String?,
+    )
+
+    companion object {
+        inline fun <reified T> T.transientError(message: String, throwable: Throwable? = null) =
+            TransientError(
+                source = T::class.qualifiedName ?: "Unknown",
+                message = message,
+                details = throwable?.toErrorDetails()
+            )
+
+        inline fun <reified T> T.unrecoverableError(message: String, throwable: Throwable? = null) =
+            UnrecoverableError(
+                source = T::class.qualifiedName ?: "Unknown",
+                message = message,
+                details = throwable?.toErrorDetails()
+            )
+
+        fun success() = Success()
+
+        fun Throwable.toErrorDetails() = ErrorDetails(
+            message = message,
+            stackTrace = stackTrace.toString()
+        )
+    }
 }
 
 /**

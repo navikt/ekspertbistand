@@ -3,6 +3,9 @@ package no.nav.ekspertbistand.event.handlers
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.skjema.SkjemaStatus
@@ -35,15 +38,15 @@ class SettGodkjentSkjemaStatus(
                     it[status] = SkjemaStatus.godkjent.toString()
                 }
                 if (updates == 0) {
-                    EventHandledResult.UnrecoverableError("Forsøkte å oppdatere status for skjema med id ${event.data.skjema.id}, men finner ikke skjema i databasen.")
+                    unrecoverableError("Forsøkte å oppdatere status for skjema med id ${event.data.skjema.id}, men finner ikke skjema i databasen.")
                 } else {
                     logger.info("Skjema med id ${event.data.skjema.id} satt til godkjent.")
-                    EventHandledResult.Success()
+                    success()
                 }
 
             } catch (e: Exception) {
                 rollback()
-                EventHandledResult.TransientError("Feil ved oppdatering av skjemastatus etter mottatt tilsagnsbrev: ${e.message}")
+                transientError("Feil ved oppdatering av skjemastatus etter mottatt tilsagnsbrev", e)
             }
         }
     }

@@ -15,13 +15,14 @@ import java.util.*
 suspend fun Application.configureTilsagnDataApiV1() {
     val database = dependencies.resolve<Database>()
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
-    val tilsagnDataApi = TilsagnDataApi(database, altinnTilgangerClient)
+    val dokgenClient = dependencies.resolve<no.nav.ekspertbistand.dokgen.DokgenClient>()
+    val tilsagnDataApi = TilsagnDataApi(database, altinnTilgangerClient, dokgenClient)
 
     routing {
         authenticate(TOKENX_PROVIDER) {
             route("/api/tilsagndata/v1") {
                 with(tilsagnDataApi) {
-                    get("/{id}") {
+                    get("/{id}/tilskuddsbrev-html") {
                         val skjemaId: UUID = call.pathParameters.getRequired(
                             name = "id",
                             transform = UUID::fromString,
@@ -30,7 +31,7 @@ suspend fun Application.configureTilsagnDataApiV1() {
                             return@get
                         }
 
-                        hentTilsagnData(skjemaId)
+                        hentTilskuddsbrevHtml(skjemaId)
                     }
                 }
             }
