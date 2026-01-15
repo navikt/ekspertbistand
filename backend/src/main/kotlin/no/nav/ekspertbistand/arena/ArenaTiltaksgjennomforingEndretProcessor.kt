@@ -39,7 +39,7 @@ class ArenaTiltaksgjennomforingEndretProcessor(
 
         // sjekk at vi er kilde til søknaden, tiltaksgjennomforingId finnes i vårt system
         val skjema = transaction(database) {
-            hentArenaSakByTiltakgjennomforingId(endring.tiltakgjennomforingId) {
+            hentArenaSakBytiltaksgjennomfoeringId(endring.tiltaksgjennomfoeringId) {
                 Json.decodeFromString<DTO.Skjema>(this[ArenaSakTable.skjema])
             }
         }
@@ -52,7 +52,7 @@ class ArenaTiltaksgjennomforingEndretProcessor(
                 )
             )
         } else {
-            log.info("søknad sendt inn via altinn er avlyst i arena, tiltakgjennomforingId=${endring.tiltakgjennomforingId}")
+            log.info("søknad sendt inn via altinn er avlyst i arena, tiltaksgjennomfoeringId=${endring.tiltaksgjennomfoeringId}")
             teamLog.info("søknad sendt inn via altinn er avlyst i arena, endring=${endring}")
             // søknad avslått på skjema sendt inn i altinn 2, håndtering av dette er ikke med i scope for nå
             // dette kan skje i en overgangsperiode
@@ -93,7 +93,7 @@ data class TiltaksgjennomforingEndretKafkaMelding(
 @Serializable
 data class TiltaksgjennomforingEndret(
     @SerialName("TILTAKGJENNOMFORING_ID")
-    val tiltakgjennomforingId: Int,
+    val tiltaksgjennomfoeringId: Int,
     @SerialName("TILTAKSKODE")
     val tiltakKode: String,
     @SerialName("TILTAKSTATUSKODE")

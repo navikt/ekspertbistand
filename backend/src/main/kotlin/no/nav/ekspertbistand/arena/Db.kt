@@ -12,18 +12,18 @@ object ArenaSakTable : Table("arena_sak") {
     val saksnummer = text("saksnummer")
     val loepenummer = integer("løpenummer")
     val aar = integer("år")
-    val tiltakgjennomforingId = integer("tiltakgjennomforing_id")
+    val tiltaksgjennomfoeringId = integer("tiltakgjennomforing_id")
     val skjema = text("skjema")
 
 }
 
 fun insertArenaSak(
     saksnummer: Saksnummer,
-    tiltakgjennomforingId: Int,
+    tiltaksgjennomfoeringId: Int,
     skjema: DTO.Skjema
 ) {
     ArenaSakTable.insert {
-        it[ArenaSakTable.tiltakgjennomforingId] = tiltakgjennomforingId
+        it[ArenaSakTable.tiltaksgjennomfoeringId] = tiltaksgjennomfoeringId
         it[ArenaSakTable.saksnummer] = saksnummer
         it[ArenaSakTable.loepenummer] = saksnummer.loepenrSak
         it[ArenaSakTable.aar] = saksnummer.aar
@@ -39,10 +39,10 @@ fun <T> hentArenaSakBySaksnummer(saksnummer: Saksnummer, mapper: ResultRow.() ->
         .map { mapper(it) }
         .firstOrNull()
 
-fun <T> hentArenaSakByTiltakgjennomforingId(tiltakgjennomforingId: Int, mapper: ResultRow.() -> T?) =
+fun <T> hentArenaSakBytiltaksgjennomfoeringId(tiltaksgjennomfoeringId: Int, mapper: ResultRow.() -> T?) =
     ArenaSakTable.selectAll()
         .where {
-            ArenaSakTable.tiltakgjennomforingId eq tiltakgjennomforingId
+            ArenaSakTable.tiltaksgjennomfoeringId eq tiltaksgjennomfoeringId
         }
         .map { mapper(it) }
         .firstOrNull()

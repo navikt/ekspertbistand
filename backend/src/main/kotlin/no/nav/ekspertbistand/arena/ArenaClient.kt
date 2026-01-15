@@ -9,7 +9,6 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
@@ -154,7 +153,7 @@ data class OpprettTiltaksgjennomfoeringResponse(
     /**
      * unik identifikator for tiltaksgjennomføringen i Arena
      */
-    val tiltakgjennomforingId: Int,
+    val tiltaksgjennomfoeringId: Int = 0, // TODO: finnes ikke i arena enda, fjern default når den er implementert
 )
 
 typealias Saksnummer = String

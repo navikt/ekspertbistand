@@ -55,9 +55,9 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
     @Test
     fun `eksempelmelding for tiltak som er EKSPEBIST, status != AVLYST og opprettet av oss skal ikke behandles`() =
         testApplicationWithDatabase { db ->
-            val tiltakgjennomforingId = 123
+            val tiltaksgjennomfoeringId = 123
             transaction {
-                insertArenaSak("2019319383", tiltakgjennomforingId, skjema)
+                insertArenaSak("2019319383", tiltaksgjennomfoeringId, skjema)
             }
             ArenaTiltaksgjennomforingEndretProcessor(
                 db.config.jdbcDatabase
@@ -65,7 +65,7 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
                 ConsumerRecord(
                     ArenaTiltaksgjennomforingEndretProcessor.TOPIC, 0, 0,
                     "key",
-                    kafkaMelding(tiltakgjennomforingId, "EKSPEBIST", GJENNOMFOR)
+                    kafkaMelding(tiltaksgjennomfoeringId, "EKSPEBIST", GJENNOMFOR)
                 )
             )
             transaction(db.config.jdbcDatabase) {
@@ -76,9 +76,9 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
     @Test
     fun `eksempelmelding for tiltak som er EKSPEBIST, status == AVLYST og opprettet av oss skal behandles`() =
         testApplicationWithDatabase { db ->
-            val tiltakgjennomforingId = 1337
+            val tiltaksgjennomfoeringId = 1337
             transaction {
-                insertArenaSak("2019319383", tiltakgjennomforingId, skjema)
+                insertArenaSak("2019319383", tiltaksgjennomfoeringId, skjema)
             }
             ArenaTiltaksgjennomforingEndretProcessor(
                 db.config.jdbcDatabase
@@ -86,7 +86,7 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
                 ConsumerRecord(
                     ArenaTiltaksgjennomforingEndretProcessor.TOPIC, 0, 0,
                     "key",
-                    kafkaMelding(tiltakgjennomforingId, "EKSPEBIST", AVLYST)
+                    kafkaMelding(tiltaksgjennomfoeringId, "EKSPEBIST", AVLYST)
                 )
             )
             transaction(db.config.jdbcDatabase) {
@@ -94,7 +94,7 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
                 assertEquals(1, queuedEvents.count())
                 val eventData = queuedEvents.first().eventData as EventData.SøknadAvlystIArena
                 assertNotNull(eventData)
-                assertEquals(tiltakgjennomforingId, eventData.tiltaksgjennomforingEndret.tiltakgjennomforingId)
+                assertEquals(tiltaksgjennomfoeringId, eventData.tiltaksgjennomforingEndret.tiltaksgjennomfoeringId)
 
             }
         }
@@ -113,7 +113,7 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
  * basert på eksempelmelding fra Arena-teamet på slack
  */
 private fun kafkaMelding(
-    tiltakgjennomforingId: Int,
+    tiltaksgjennomfoeringId: Int,
     tiltakskode: String,
     tiltakstatuskode: TiltaksgjennomforingEndret.TiltakStatusKode,
 ): String =
@@ -126,7 +126,7 @@ private fun kafkaMelding(
   "current_ts": "2026-01-01 00:00:10.692004",
   "pos": "00000000790177154127",
   "before": {
-    "TILTAKGJENNOMFORING_ID": $tiltakgjennomforingId,
+    "TILTAKGJENNOMFORING_ID": $tiltaksgjennomfoeringId,
     "SAK_ID": 13706920,
     "TILTAKSKODE": "$tiltakskode",
     "ANTALL_DELTAKERE": 1,
@@ -168,7 +168,7 @@ private fun kafkaMelding(
     "EKSTERN_ID": null
   },
   "after": {
-    "TILTAKGJENNOMFORING_ID": $tiltakgjennomforingId,
+    "TILTAKGJENNOMFORING_ID": $tiltaksgjennomfoeringId,
     "SAK_ID": 13706920,
     "TILTAKSKODE": "$tiltakskode",
     "ANTALL_DELTAKERE": 1,

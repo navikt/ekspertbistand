@@ -17,7 +17,7 @@ class ArenaClientTest {
     @Test
     fun opprettTiltaksgjennomforing() = testApplication {
         val saksnummer = "202542"
-        val tiltakgjennomforingId = 1337
+        val tiltaksgjennomfoeringId = 1337
         val opprettEkspertbistand = OpprettEkspertbistand(
             behandlendeEnhetId = "1",
             virksomhetsnummer = "2",
@@ -60,7 +60,7 @@ class ArenaClientTest {
             """
             {
                 "saksnummer": "$saksnummer",
-                "tiltakgjennomforingId": $tiltakgjennomforingId
+                "tiltaksgjennomfoeringId": $tiltaksgjennomfoeringId
             }    
             """
         })
@@ -73,7 +73,7 @@ class ArenaClientTest {
             assertEquals(saksnummer, it.saksnummer)
             assertEquals(2025, it.saksnummer.aar)
             assertEquals(42, it.saksnummer.loepenrSak)
-            assertEquals(1337, it.tiltakgjennomforingId)
+            assertEquals(1337, it.tiltaksgjennomfoeringId)
         }
     }
 }

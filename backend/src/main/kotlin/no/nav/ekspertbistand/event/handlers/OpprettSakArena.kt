@@ -33,18 +33,18 @@ class OpprettSakArena(
         }
 
         transaction(database) {
-            val tiltakgjennomforingId = opprettetResponse.tiltakgjennomforingId
+            val tiltaksgjennomfoeringId = opprettetResponse.tiltaksgjennomfoeringId
             val saksnummer = opprettetResponse.saksnummer
             insertArenaSak(
                 saksnummer,
-                tiltakgjennomforingId,
+                tiltaksgjennomfoeringId,
                 skjema
             )
             QueuedEvents.insert {
                 it[eventData] = EventData.TiltaksgjennomføringOpprettet(
                     skjema,
                     saksnummer,
-                    tiltakgjennomforingId,
+                    tiltaksgjennomfoeringId,
                 )
             }
         }

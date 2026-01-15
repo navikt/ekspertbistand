@@ -36,7 +36,7 @@ class OpprettArenaSakTest {
             """
             {
                 "saksnummer": "$saksnummer",
-                "tiltakgjennomforingId": 1337
+                "tiltaksgjennomfoeringId": 1337
             }    
             """
         }

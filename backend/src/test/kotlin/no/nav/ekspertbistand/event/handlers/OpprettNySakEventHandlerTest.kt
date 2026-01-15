@@ -60,7 +60,7 @@ class OpprettNySakEventHandlerTest {
             data = EventData.TiltaksgjennomføringOpprettet(
                 skjema = skjema1,
                 saksnummer = "202112341234",
-                tiltakgjennomforingId = 123,
+                tiltaksgjennomfoeringId = 123,
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.Success)
@@ -81,7 +81,7 @@ class OpprettNySakEventHandlerTest {
             data = EventData.TiltaksgjennomføringOpprettet(
                 skjema = skjema1,
                 saksnummer = "202112341234",
-                tiltakgjennomforingId = 123,
+                tiltaksgjennomfoeringId = 123,
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.TransientError)
@@ -103,7 +103,7 @@ class OpprettNySakEventHandlerTest {
                 data = EventData.TiltaksgjennomføringOpprettet(
                     skjema = skjema1,
                     saksnummer = "202112341234",
-                    tiltakgjennomforingId = 123,
+                    tiltaksgjennomfoeringId = 123,
                 )
             )
             assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Sak velykket, beskjed feilet

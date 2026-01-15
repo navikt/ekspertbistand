@@ -62,7 +62,7 @@ sealed interface EventData {
     data class TiltaksgjennomføringOpprettet(
         val skjema: DTO.Skjema,
         val saksnummer: Saksnummer,
-        val tiltakgjennomforingId: Int
+        val tiltaksgjennomfoeringId: Int
     ) : EventData
 
     @Serializable
