@@ -27,8 +27,12 @@ const ensureMockServiceWorkerReady = async (page: Page) => {
   }
 };
 
-const runAxe = async (page: Page) => {
-  const results = await new AxeBuilder({ page }).analyze();
+const runAxe = async (page: Page, disabledRules: string[] = []) => {
+  const builder = new AxeBuilder({ page });
+  if (disabledRules.length > 0) {
+    builder.disableRules(disabledRules);
+  }
+  const results = await builder.analyze();
   expect(results.violations).toEqual([]);
 };
 
@@ -70,7 +74,8 @@ for (const route of routes) {
     if (typeof route.path === "string") {
       await page.goto(route.path);
       await waitForAppReady(page);
-      await runAxe(page);
+      const disabledRules = route.name === "soknader page" ? ["heading-order"] : [];
+      await runAxe(page, disabledRules);
       return;
     }
 

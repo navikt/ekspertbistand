@@ -109,12 +109,10 @@ function resolveStatusTag(statusKey: string): { label: string; variant: TagProps
       return { label: "Godkjent", variant: "success" };
     case "innsendt":
       return { label: "Innsendt", variant: "success" };
-    case "avslag":
+    case "avlyst":
       return { label: "Avslag", variant: "error" };
     case "utkast":
       return { label: "Utkast", variant: "neutral" };
-    case "underbehandling":
-      return { label: "Under behandling", variant: "info" };
     default:
       return { label: statusKey, variant: "info" };
   }

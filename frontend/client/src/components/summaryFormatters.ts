@@ -20,7 +20,7 @@ export const formatValue = (value: unknown): string => {
 };
 
 export const formatCurrency = (
-  value: SoknadInputs["behovForBistand"]["estimertKostnad"]
+  value: SoknadInputs["behovForBistand"]["estimertKostnad"] | number | null | undefined
 ): string => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return `${numberFormatter.format(value)} kr`;
@@ -77,4 +77,10 @@ export const formatSubmittedDate = (value: string | null | undefined): string =>
     return "—";
   }
   return shortDateFormatter.format(date);
+};
+
+export const formatSubmittedDateOrNull = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  const formatted = formatSubmittedDate(value);
+  return formatted === "—" ? null : formatted;
 };

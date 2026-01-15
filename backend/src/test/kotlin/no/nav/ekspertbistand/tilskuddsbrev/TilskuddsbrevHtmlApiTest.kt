@@ -1,26 +1,33 @@
-package no.nav.ekspertbistand.tilsagndata
+package no.nav.ekspertbistand.tilskuddsbrev
 
+import io.ktor.client.HttpClient
 import io.ktor.client.call.*
+import io.ktor.client.engine.mock.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
+import io.ktor.utils.io.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient.Companion.altinn3Ressursid
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.configureServer
+import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
+import no.nav.ekspertbistand.tilsagndata.TilskuddsbrevHtml
+import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
+import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class TilsagnDataTest {
+class TilskuddsbrevHtmlApiTest {
     @Test
-    fun `Hent tilsagnsdata`() = testApplicationWithDatabase { testDb ->
+    fun `Hent tilskuddsbrev html`() = testApplicationWithDatabase { testDb ->
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
@@ -42,6 +49,15 @@ class TilsagnDataTest {
             defaultHttpClient = client,
             tokenExchanger = successTokenXTokenExchanger
         )
+        val dokgenClient = DokgenClient(
+            defaultHttpClient = HttpClient(MockEngine {
+                respond(
+                    content = ByteReadChannel("<html>Mock tilskuddsbrev</html>"),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Text.Html.toString())
+                )
+            }),
+        )
         application {
             dependencies {
                 provide {
@@ -54,6 +70,9 @@ class TilsagnDataTest {
                 }
                 provide {
                     altinnTilgangerClient
+                }
+                provide {
+                    dokgenClient
                 }
             }
 
@@ -68,24 +87,14 @@ class TilsagnDataTest {
             insertTilsagndata(skjemaId, sampleTilsagnData)
         }
 
-        // tilsagnData for skjema finnes
-        with(client.get("/api/tilsagndata/v1/$skjemaId") {
+        with(client.get("/api/tilsagndata/v1/$skjemaId/tilskuddsbrev-html") {
             bearerAuth("faketoken")
         }) {
             assertEquals(HttpStatusCode.OK, status)
-            body<List<TilsagnData>>().also { tilsagnsdata ->
-                assertEquals(1, tilsagnsdata.size)
-                assertEquals(sampleTilsagnData.tilsagnNummer, tilsagnsdata.first().tilsagnNummer)
-            }
-        }
-
-        // tilsagnData for skjema finnes ikke
-        with(client.get("/api/tilsagndata/v1/${UUID.randomUUID()}") {
-            bearerAuth("faketoken")
-        }) {
-            assertEquals(HttpStatusCode.OK, status)
-            body<List<TilsagnData>>().also { tilsagnsdata ->
-                assertEquals(0, tilsagnsdata.size)
+            body<List<TilskuddsbrevHtml>>().also { htmlList ->
+                assertEquals(1, htmlList.size)
+                assertEquals("1337-42-43", htmlList.first().tilsagnNummer)
+                assertEquals("<html>Mock tilskuddsbrev</html>", htmlList.first().html)
             }
         }
     }
