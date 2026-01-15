@@ -7,7 +7,6 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
-import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.kvitteringsLenke
@@ -22,7 +21,7 @@ private const val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
  *
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen om at søknad er mottatt og under behandling.
  */
-class VarsleArbeidsgiverOmMottattSoknad(
+class VarsleArbeidsgiverSoknadMottatt(
     private val produsentApiKlient: ProdusentApiKlient,
     database: Database
 ) : EventHandler<EventData.TiltaksgjennomføringOpprettet> {

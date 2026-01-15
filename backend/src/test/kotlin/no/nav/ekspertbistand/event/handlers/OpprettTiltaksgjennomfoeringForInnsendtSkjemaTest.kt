@@ -25,7 +25,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 
-class OpprettArenaSakTest {
+class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
     private val saksnummer = "202542"
 
     @Test

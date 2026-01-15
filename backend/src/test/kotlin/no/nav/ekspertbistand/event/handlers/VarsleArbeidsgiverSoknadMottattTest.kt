@@ -16,79 +16,72 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
-import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.NyStatusSak
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNyBeskjed
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.DefaultNyStatusSakResultatImplementation
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.NyStatusSakResultat
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.NyStatusSakVellykket
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.StatusOppdatering
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.*
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNySak
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DefaultNyBeskjedResultatImplementation
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DuplikatEksternIdOgMerkelapp
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedResultat
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedVellykket
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.*
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.SkjemaStatus
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.UgyldigMerkelapp as NySakStatusUgyldigMerkelapp
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.UkjentProdusent as NySakStatusUkjentProdusent
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UkjentProdusent as NyBeskjedUkjentProdusent
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UgyldigMerkelapp as NySakUgyldigMerkelapp
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UgyldigMottaker as NySakUgyldigMottaker
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
 
-class OppdaterSakEventHandlerTest {
-    private val tidspunkt = "2026-01-01T10:15:30+01:00"
+class VarsleArbeidsgiverSoknadMottattTest {
 
     @Test
     fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplication {
         setupTestApplication()
         setProdusentApiResultat(
-            mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),
-            mutableListOf({
-                NyStatusSakVellykket(
-                    id = "sak-123", statuser = listOf(
-                        StatusOppdatering(tidspunkt = tidspunkt)
-                    )
-                )
-            }),
+            mutableListOf({ NySakVellykket(id = "sak-123") }),
+            mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") })
         )
         startApplication()
 
-        val handler = application.dependencies.resolve<OppdaterSakNotifikasjonsPlatform>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
 
         val event = Event(
             id = 1L,
-            data = EventData.TilskuddsbrevJournalfoert(
+            data = EventData.TiltaksgjennomføringOpprettet(
                 skjema = skjema1,
-                dokumentId = 1,
-                journaldpostId = 1,
-                tilsagnData = sampleTilskuddsbrev()
+                saksnummer = "202112341234",
+                tiltaksgjennomfoeringId = 123,
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.Success)
     }
 
     @Test
-    fun `Event prosesseres, men beskjed gir ugyldig merkelapp`() = testApplication {
+    fun `Event prosesseres, men sak gir ugyldig merkelapp`() = testApplication {
         setupTestApplication()
         setProdusentApiResultat(
-            mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") }),
-            mutableListOf(),
+            mutableListOf({ NySakUgyldigMerkelapp("ugyldig merkelapp") }),
+            mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") })
         )
         startApplication()
-        val handler = application.dependencies.resolve<OppdaterSakNotifikasjonsPlatform>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
 
         val event = Event(
             id = 1L,
-            data = EventData.TilskuddsbrevJournalfoert(
+            data = EventData.TiltaksgjennomføringOpprettet(
                 skjema = skjema1,
-                dokumentId = 1,
-                journaldpostId = 1,
-                tilsagnData = sampleTilskuddsbrev()
+                saksnummer = "202112341234",
+                tiltaksgjennomfoeringId = 123,
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.TransientError)
@@ -99,29 +92,22 @@ class OppdaterSakEventHandlerTest {
         testApplication {
             setupTestApplication()
             setProdusentApiResultat(
-                mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),
-                mutableListOf({ throw Exception("Test feil") }, {
-                    NyStatusSakVellykket(
-                        id = "sak-123", statuser = listOf(
-                            StatusOppdatering(tidspunkt = tidspunkt)
-                        )
-                    )
-                }),
+                mutableListOf({ NySakVellykket(id = "sak-123") }),
+                mutableListOf({ throw Exception("Test feil") }, { NyBeskjedVellykket(id = "beskjed-456") })
             )
             startApplication()
-            val handler = application.dependencies.resolve<OppdaterSakNotifikasjonsPlatform>()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
 
             val event = Event(
                 id = 1L,
-                data = EventData.TilskuddsbrevJournalfoert(
+                data = EventData.TiltaksgjennomføringOpprettet(
                     skjema = skjema1,
-                    dokumentId = 1,
-                    journaldpostId = 1,
-                    tilsagnData = sampleTilskuddsbrev()
+                    saksnummer = "202112341234",
+                    tiltaksgjennomfoeringId = 123,
                 )
             )
-            assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Beskjed vellykket, Sakstatus feilet
-            assertTrue(handler.handle(event) is EventHandledResult.Success) // beskjed guardet, sakstatus velykket
+            assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Sak velykket, beskjed feilet
+            assertTrue(handler.handle(event) is EventHandledResult.Success) // Sak guardet, beskjed velykket
         }
 }
 
@@ -157,7 +143,7 @@ private val skjema1 = DTO.Skjema(
     nav = DTO.Nav(
         kontaktperson = "Navn Navnesen"
     ),
-    status = SkjemaStatus.godkjent,
+    status = SkjemaStatus.innsendt,
 )
 
 
@@ -167,7 +153,7 @@ private fun ApplicationTestBuilder.setupTestApplication() {
     application {
         dependencies {
             provide { db.config.jdbcDatabase }
-            provide<TokenXTokenIntrospector>() {
+            provide<TokenXTokenIntrospector> {
                 MockTokenIntrospector {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
@@ -176,8 +162,8 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                 successAzureAdTokenProvider
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
-            provide<OppdaterSakNotifikasjonsPlatform> {
-                OppdaterSakNotifikasjonsPlatform(
+            provide<VarsleArbeidsgiverSoknadMottatt> {
+                VarsleArbeidsgiverSoknadMottatt(
                     resolve(),
                     resolve()
                 )
@@ -188,8 +174,8 @@ private fun ApplicationTestBuilder.setupTestApplication() {
 }
 
 private fun ApplicationTestBuilder.setProdusentApiResultat(
+    nySakResultat: MutableList<() -> NySakResultat>,
     nyBeskjedResultat: MutableList<() -> NyBeskjedResultat>,
-    nyStatusSakResultat: MutableList<() -> NyStatusSakResultat>,
 ) {
     externalServices {
         hosts("http://notifikasjon-produsent-api.fager") {
@@ -198,11 +184,15 @@ private fun ApplicationTestBuilder.setProdusentApiResultat(
                     Json {
                         serializersModule = SerializersModule {
                             classDiscriminator = "__typename"
-                            polymorphic(NyStatusSakResultat::class) {
-                                subclass(DefaultNyStatusSakResultatImplementation::class)
-                                subclass(NyStatusSakVellykket::class)
-                                subclass(NySakStatusUgyldigMerkelapp::class)
-                                subclass(NySakStatusUkjentProdusent::class)
+                            polymorphic(NySakResultat::class) {
+                                subclass(DefaultNySakResultatImplementation::class)
+                                subclass(DuplikatGrupperingsid::class)
+                                subclass(DuplikatGrupperingsidEtterDelete::class)
+                                subclass(NySakVellykket::class)
+                                subclass(NySakUgyldigMerkelapp::class)
+                                subclass(NySakUgyldigMottaker::class)
+                                subclass(NySakUkjentProdusent::class)
+                                subclass(NySakUkjentRolle::class)
                             }
                             polymorphic(NyBeskjedResultat::class) {
                                 subclass(DefaultNyBeskjedResultatImplementation::class)
@@ -210,7 +200,7 @@ private fun ApplicationTestBuilder.setProdusentApiResultat(
                                 subclass(DuplikatEksternIdOgMerkelapp::class)
                                 subclass(NyBeskjedVellykket::class)
                                 subclass(NyBeskjedUgyldigMerkelapp::class)
-                                subclass(UgyldigMottaker::class)
+                                subclass(NyBeskjedUgyldigMottaker::class)
                                 subclass(NyBeskjedUkjentProdusent::class)
                             }
                         }
@@ -223,11 +213,11 @@ private fun ApplicationTestBuilder.setProdusentApiResultat(
                 post("/api/graphql") {
                     val json = parseToJsonElement(call.receiveText()) as JsonObject
                     when (val operation = json["operationName"]!!.jsonPrimitive.content) {
-                        "NyStatusSak" -> {
+                        "OpprettNySak" -> {
                             call.respond(
                                 KotlinxGraphQLResponse(
-                                    NyStatusSak.Result(
-                                        nyStatusSakResultat.removeFirst().invoke()
+                                    OpprettNySak.Result(
+                                        nySakResultat.removeFirst().invoke()
                                     )
                                 )
                             )
@@ -250,70 +240,3 @@ private fun ApplicationTestBuilder.setProdusentApiResultat(
         }
     }
 }
-
-private fun sampleTilskuddsbrev() = TilsagnData(
-    tilsagnNummer = TilsagnData.TilsagnNummer(
-        1337,
-        42,
-        43,
-    ),
-    tilsagnDato = "01.01.2021",
-    periode = TilsagnData.Periode(
-        fraDato = "01.01.2021",
-        tilDato = "01.02.2021"
-    ),
-    tiltakKode = "42",
-    tiltakNavn = "Ekspertbistand",
-    administrasjonKode = "etellerannet",
-    refusjonfristDato = "10.01.2021",
-    tiltakArrangor = TilsagnData.TiltakArrangor(
-        arbgiverNavn = "Arrangøren",
-        landKode = "1337",
-        postAdresse = "et sted",
-        postNummer = "1337",
-        postSted = "hos naboen",
-        orgNummerMorselskap = 43,
-        orgNummer = 42,
-        kontoNummer = "1234.12.12345",
-        maalform = "norsk"
-    ),
-    totaltTilskuddbelop = 24000,
-    valutaKode = "NOK",
-    tilskuddListe = listOf(
-        TilsagnData.Tilskudd(
-            tilskuddType = "ekspertbistand",
-            tilskuddBelop = 24000,
-            visTilskuddProsent = false,
-            tilskuddProsent = null
-        )
-    ),
-    deltaker = TilsagnData.Deltaker(
-        fodselsnr = "42",
-        fornavn = "navn",
-        etternavn = "navnesen",
-        landKode = "NO",
-        postAdresse = "et sted",
-        postNummer = "1234",
-        postSted = "hos den andre naboen",
-    ),
-    antallDeltakere = 1,
-    antallTimeverk = 100,
-    navEnhet = TilsagnData.NavEnhet(
-        navKontorNavn = "kontor1",
-        navKontor = "Kontor1",
-        postAdresse = "hos den tredje",
-        postNummer = "1234",
-        postSted = "hos den tredje",
-        telefon = "12341234",
-        faks = null
-    ),
-    beslutter = TilsagnData.Person(
-        fornavn = "Ole",
-        etternavn = "Brum",
-    ),
-    saksbehandler = TilsagnData.Person(
-        fornavn = "Nasse",
-        etternavn = "Nøff",
-    ),
-    kommentar = "Dette var unødvendig mye testdata å skrive"
-)

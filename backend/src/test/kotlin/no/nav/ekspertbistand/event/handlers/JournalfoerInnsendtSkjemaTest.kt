@@ -39,7 +39,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class SkjemaInnsendtHandlerTest {
+class JournalfoerInnsendtSkjemaTest {
     @Test
     fun `handler journalforer og produserer JournalpostOpprettet-event`() = testApplication {
         TestDatabase().cleanMigrate().use {

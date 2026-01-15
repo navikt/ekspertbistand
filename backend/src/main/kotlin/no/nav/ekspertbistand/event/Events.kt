@@ -13,8 +13,8 @@ import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrev
 import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrevKildeAltinn
 import no.nav.ekspertbistand.event.handlers.LagreTilsagnsData
 import no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSkjema
-import no.nav.ekspertbistand.event.handlers.OppdaterSakNotifikasjonsPlatform
-import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverOmMottattSoknad
+import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjent
+import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottatt
 import no.nav.ekspertbistand.event.handlers.SettGodkjentSkjemaStatus
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.DummyBarHandler
@@ -112,10 +112,10 @@ suspend fun Application.configureEventHandlers() {
         register(DummyBarHandler())
         register(dependencies.create(JournalfoerInnsendtSkjema::class))
         register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSkjema::class))
-        register(dependencies.create(VarsleArbeidsgiverOmMottattSoknad::class))
+        register(dependencies.create(VarsleArbeidsgiverSoknadMottatt::class))
         register(dependencies.create(JournalfoerTilskuddsbrev::class))
         register(dependencies.create(JournalfoerTilskuddsbrevKildeAltinn::class))
-        register(dependencies.create(OppdaterSakNotifikasjonsPlatform::class))
+        register(dependencies.create(VarsleArbeidsgiverSoknadGodkjent::class))
         register(dependencies.create(SettGodkjentSkjemaStatus::class))
         register(dependencies.create(LagreTilsagnsData::class))
 

@@ -22,7 +22,7 @@ private const val nystatusSakSubTast = "notifikasjonsplatform_ny_status_sak"
  * Når en søknad er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
  */
-class OppdaterSakNotifikasjonsPlatform(
+class VarsleArbeidsgiverSoknadGodkjent(
     private val produsentApiKlient: ProdusentApiKlient,
     database: Database
 ) : EventHandler<EventData.TilskuddsbrevJournalfoert> {
