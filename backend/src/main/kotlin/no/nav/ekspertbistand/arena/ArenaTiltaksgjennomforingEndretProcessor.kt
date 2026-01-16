@@ -20,9 +20,6 @@ class ArenaTiltaksgjennomforingEndretProcessor(
     val json: Json = Json { ignoreUnknownKeys = true }
 
     override suspend fun processRecord(record: ConsumerRecord<String?, String?>) {
-        if (true) {
-            throw Exception("midlertidig simulert feil")
-        }
         val value = record.value()
         if (value == null) {
             log.debug("skipping tombstone record")
