@@ -20,10 +20,16 @@ class ArenaTiltaksgjennomforingEndretProcessor(
     val json: Json = Json { ignoreUnknownKeys = true }
 
     override suspend fun processRecord(record: ConsumerRecord<String?, String?>) {
+        val value = record.value()
+        if (value == null) {
+            log.debug("skipping tombstone record")
+            return
+        }
+
         val kafkaMelding = try {
-            json.decodeFromString<TiltaksgjennomforingEndretKafkaMelding>(record.value() ?: "{}")
+            json.decodeFromString<TiltaksgjennomforingEndretKafkaMelding>(value)
         } catch (e: Exception) {
-            teamLog.error("Kunne ikke parse TiltaksgjennomforingEndretKafkaMelding. record: {}", record)
+            teamLog.error("Kunne ikke parse TiltaksgjennomforingEndretKafkaMelding. record: {}", record.toString())
             throw Exception("Kunne ikke parse TiltaksgjennomforingEndretKafkaMelding. key: ${record.key()}", e)
         }
         val endring = kafkaMelding.after

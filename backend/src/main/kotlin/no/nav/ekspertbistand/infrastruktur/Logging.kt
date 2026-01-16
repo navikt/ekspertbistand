@@ -141,6 +141,7 @@ fun markerProxy(delegate: Logger, marker: Marker): Logger {
         Logger::class.java.classLoader,
         arrayOf(Logger::class.java)
     ) { _, method, args ->
+        // TODO: fiks feil som følge av objekt arguments i varargs-logger metoder
         when {
             // prevent direct use of Marker in marked logger
             args?.firstOrNull() is Marker ->
