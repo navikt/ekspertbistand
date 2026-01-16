@@ -22,7 +22,7 @@ import org.slf4j.Logger.ROOT_LOGGER_NAME
 import org.slf4j.LoggerFactory
 import org.slf4j.Marker
 import org.slf4j.MarkerFactory
-import java.lang.reflect.Proxy
+import org.slf4j.spi.LoggingEventBuilder
 
 const val TEAM_LOGS = "TEAM_LOGS"
 val teamLogsMarker = MarkerFactory.getMarker(TEAM_LOGS)
@@ -128,45 +128,101 @@ class MaskingAppender : AppenderBase<ILoggingEvent>() {
 }
 
 inline fun <reified T> T.logger(): Logger = LoggerFactory.getLogger(T::class.qualifiedName)
-inline fun <reified T> T.teamLogger(): Logger =
-    markerProxy(LoggerFactory.getLogger(T::class.qualifiedName), teamLogsMarker)
+inline fun <reified T> T.teamLogger(): Logger = MarkerLogger(logger(), teamLogsMarker)
 
-@Suppress("UNCHECKED_CAST")
-fun markerProxy(delegate: Logger, marker: Marker): Logger {
-    // optimization: precompute methods that take Marker as first parameter
-    val markerMethods = delegate.javaClass.methods
-        .filter { it.parameterTypes.firstOrNull() == Marker::class.java }
+/**
+ * Logger wrapper that enforces usage of a specific Marker for all logging methods.
+ * Prevents direct use of Marker arguments in logging methods.
+ *
+ * Useful to ensure TeamLog marker is guaranteed when using teamLogger().
+ */
+class MarkerLogger(
+    val logger: Logger,
+    val marker: Marker
+) : Logger by logger {
 
-    return Proxy.newProxyInstance(
-        Logger::class.java.classLoader,
-        arrayOf(Logger::class.java)
-    ) { _, method, args ->
-        // TODO: fiks feil som følge av objekt arguments i varargs-logger metoder
-        when {
-            // prevent direct use of Marker in marked logger
-            args?.firstOrNull() is Marker ->
-                error("Direct use of Marker in marked logger is not allowed: ${method.name}")
 
-            // handle equals/hashCode/toString properly (Proxy quirk)
-            method.name == "equals" && args?.size == 1 ->
-                delegate == Proxy.getInvocationHandler(args[0])
+    /**
+     * proxy logging methods with marker
+     */
 
-            method.name == "hashCode" && (args == null || args.isEmpty()) ->
-                delegate.hashCode()
+    override fun trace(msg: String?) = logger.trace(marker, msg)
+    override fun trace(format: String?, arg: Any?) = logger.trace(marker, format, arg)
+    override fun trace(format: String?, arg1: Any?, arg2: Any?) = logger.trace(marker, format, arg1, arg2)
+    override fun trace(format: String?, vararg arguments: Any?) = logger.trace(marker, format, *arguments)
+    override fun trace(msg: String?, t: Throwable?) = logger.trace(marker, msg, t)
+    override fun debug(msg: String?) = logger.debug(marker, msg)
+    override fun debug(format: String?, arg: Any?) = logger.debug(marker, format, arg)
+    override fun debug(format: String?, arg1: Any?, arg2: Any?) = logger.debug(marker, format, arg1, arg2)
+    override fun debug(format: String?, vararg arguments: Any?) = logger.debug(marker, format, *arguments)
+    override fun debug(msg: String?, t: Throwable?) = logger.debug(marker, msg, t)
+    override fun info(msg: String?) = logger.info(marker, msg)
+    override fun info(format: String?, arg: Any?) = logger.info(marker, format, arg)
+    override fun info(format: String?, arg1: Any?, arg2: Any?) = logger.info(marker, format, arg1, arg2)
+    override fun info(format: String?, vararg arguments: Any?) = logger.info(marker, format, *arguments)
+    override fun info(msg: String?, t: Throwable?) = logger.info(marker, msg, t)
+    override fun warn(msg: String?) = logger.warn(marker, msg)
+    override fun warn(format: String?, arg: Any?) = logger.warn(marker, format, arg)
+    override fun warn(format: String?, vararg arguments: Any?) = logger.warn(marker, format, *arguments)
+    override fun warn(format: String?, arg1: Any?, arg2: Any?) = logger.warn(marker, format, arg1, arg2)
+    override fun warn(msg: String?, t: Throwable?) = logger.warn(marker, msg, t)
+    override fun error(msg: String?) = logger.error(marker, msg)
+    override fun error(format: String?, arg: Any?) = logger.error(marker, format, arg)
+    override fun error(format: String?, arg1: Any?, arg2: Any?) = logger.error(marker, format, arg1, arg2)
+    override fun error(format: String?, vararg arguments: Any?) = logger.error(marker, format, *arguments)
+    override fun error(msg: String?, t: Throwable?) = logger.error(marker, msg, t)
 
-            method.name == "toString" && (args == null || args.isEmpty()) ->
-                "MarkedLogger(delegate=${delegate.name}, marker=$marker)"
 
-            // inject marker into method call
-            else -> {
-                val argCount = args?.size ?: 0
-                val markerMethod = markerMethods.find {
-                    it.name == method.name && it.parameterTypes.size == argCount + 1
-                } ?: error("No marker overload found for method '${method.name}' with ${argCount + 1} params on ${delegate.javaClass.name}")
+    /**
+     * prevent direct marker usage
+     */
 
-                val withMarkerArgs = if (args == null) arrayOf(marker) else arrayOf(marker, *args)
-                markerMethod.invoke(delegate, *withMarkerArgs)
-            }
-        }
-    } as Logger
+    override fun isTraceEnabled(marker: Marker?): Boolean = directMarkerUsageNotAllowed()
+    override fun trace(marker: Marker?, msg: String?) = directMarkerUsageNotAllowed()
+    override fun trace(marker: Marker?, format: String?, arg: Any?) = directMarkerUsageNotAllowed()
+    override fun trace(marker: Marker?, format: String?, arg1: Any?, arg2: Any?) = directMarkerUsageNotAllowed()
+    override fun trace(marker: Marker?, format: String?, vararg argArray: Any?) = directMarkerUsageNotAllowed()
+    override fun trace(marker: Marker?, msg: String?, t: Throwable?) = directMarkerUsageNotAllowed()
+    override fun isDebugEnabled(marker: Marker?): Boolean = directMarkerUsageNotAllowed()
+    override fun debug(marker: Marker?, msg: String?) = directMarkerUsageNotAllowed()
+    override fun debug(marker: Marker?, format: String?, arg: Any?) = directMarkerUsageNotAllowed()
+    override fun debug(marker: Marker?, format: String?, arg1: Any?, arg2: Any?) = directMarkerUsageNotAllowed()
+    override fun debug(marker: Marker?, format: String?, vararg arguments: Any?) = directMarkerUsageNotAllowed()
+    override fun debug(marker: Marker?, msg: String?, t: Throwable?) = directMarkerUsageNotAllowed()
+    override fun isInfoEnabled(marker: Marker?) = directMarkerUsageNotAllowed()
+    override fun info(marker: Marker?, msg: String?) = directMarkerUsageNotAllowed()
+    override fun info(marker: Marker?, format: String?, arg: Any?) = directMarkerUsageNotAllowed()
+    override fun info(marker: Marker?, format: String?, arg1: Any?, arg2: Any?) = directMarkerUsageNotAllowed()
+    override fun info(marker: Marker?, format: String?, vararg arguments: Any?) = directMarkerUsageNotAllowed()
+    override fun info(marker: Marker?, msg: String?, t: Throwable?) = directMarkerUsageNotAllowed()
+    override fun isWarnEnabled(marker: Marker?): Boolean = directMarkerUsageNotAllowed()
+    override fun warn(marker: Marker?, msg: String?) = directMarkerUsageNotAllowed()
+    override fun warn(marker: Marker?, format: String?, arg: Any?) = directMarkerUsageNotAllowed()
+    override fun warn(marker: Marker?, format: String?, arg1: Any?, arg2: Any?) = directMarkerUsageNotAllowed()
+    override fun warn(marker: Marker?, format: String?, vararg arguments: Any?) = directMarkerUsageNotAllowed()
+    override fun warn(marker: Marker?, msg: String?, t: Throwable?) = directMarkerUsageNotAllowed()
+    override fun isErrorEnabled(marker: Marker?): Boolean = directMarkerUsageNotAllowed()
+    override fun error(marker: Marker?, msg: String?) = directMarkerUsageNotAllowed()
+    override fun error(marker: Marker?, format: String?, arg: Any?) = directMarkerUsageNotAllowed()
+    override fun error(marker: Marker?, format: String?, arg1: Any?, arg2: Any?) = directMarkerUsageNotAllowed()
+    override fun error(marker: Marker?, format: String?, vararg arguments: Any?) = directMarkerUsageNotAllowed()
+    override fun error(marker: Marker?, msg: String?, t: Throwable?) = directMarkerUsageNotAllowed()
+    private fun directMarkerUsageNotAllowed(): Nothing =
+        throw UnsupportedOperationException("Direct use of Marker arg in MarkerLogger is not allowed")
+
+
+    /**
+     * override default methods, not overriden by delegation "by logger"
+     */
+
+    override fun makeLoggingEventBuilder(level: org.slf4j.event.Level?): LoggingEventBuilder? =
+        logger.makeLoggingEventBuilder(level)
+
+    override fun atLevel(level: org.slf4j.event.Level?): LoggingEventBuilder? = logger.atLevel(level)
+    override fun atTrace(): LoggingEventBuilder? = logger.atTrace()
+    override fun isEnabledForLevel(level: org.slf4j.event.Level?): Boolean = logger.isEnabledForLevel(level)
+    override fun atDebug(): LoggingEventBuilder? = logger.atDebug()
+    override fun atInfo(): LoggingEventBuilder? = logger.atInfo()
+    override fun atWarn(): LoggingEventBuilder? = logger.atWarn()
+    override fun atError(): LoggingEventBuilder? = logger.atError()
 }

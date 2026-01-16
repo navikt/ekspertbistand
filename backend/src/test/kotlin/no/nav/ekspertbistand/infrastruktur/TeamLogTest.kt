@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.infrastruktur
 
+import org.junit.jupiter.api.assertDoesNotThrow
 import org.slf4j.MDC
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
@@ -44,6 +45,15 @@ class TeamLogTest {
         for (arg in mdcCtx) {
             assertTrue(stdout.contains(arg.key))
             assertTrue(stdout.contains(arg.value))
+        }
+    }
+
+    @Test
+    fun `logging av object som arg fungerer`() {
+        val teamLog = teamLogger()
+
+        assertDoesNotThrow {
+            teamLog.error("tester logging av object {}", mapOf("key" to "value"))
         }
     }
 
