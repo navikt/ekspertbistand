@@ -26,6 +26,10 @@ class ArenaTilsagnsbrevProcessor(
     val json: Json = Json { ignoreUnknownKeys = true }
 
     override suspend fun processRecord(record: ConsumerRecord<String?, String?>) {
+        if (true) {
+            throw Exception("midlertidig simulert feil")
+        }
+
         val value = record.value()
         if (value == null) {
             log.debug("skipping tombstone record")
@@ -107,7 +111,7 @@ class ArenaTilsagnsbrevProcessor(
         )
 
         val kafkaConfig = KafkaConsumerConfig(
-            groupId = "fager.ekspertbistand",
+            groupId = "fager.ekspertbistand.tilsagnsbrev",
             topics = setOf(TOPIC),
         )
 

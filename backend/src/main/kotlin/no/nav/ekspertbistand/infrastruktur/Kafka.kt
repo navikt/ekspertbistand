@@ -45,14 +45,18 @@ class CoroutineKafkaConsumer(
     suspend fun consume(processor: ConsumerRecordProcessor) = withContext(Dispatchers.IO) {
         kafkaConsumer.use { consumer ->
             consumer.subscribe(config.topics)
+            log.info("Successfully subscribed to $config")
 
             while (isActive) {
                 try {
                     val records = consumer.poll(java.time.Duration.ofMillis(1000))
+                    log.info("polled ${records.count()} records $config")
+
                     if (records.any()) {
                         for (record in records) {
                             processor.processRecord(record)
                         }
+                        log.info("committing offsets for ${records.count()} records $config")
                         consumer.commitSync()
                     }
                 } catch (e: CancellationException) {
