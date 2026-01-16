@@ -69,7 +69,6 @@ class VarsleArbeidsgiverSoknadAvlyst(
                 skjemaId = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tekst = "Søknaden om ekspertbistand trukket eller avslått.",
-                // TODO: lenke til tilskuddsbrev eller legg på qp slik at lenken blir forskjellig fra saken (hvis de er like rendres ingen egen lenke i beskjeden)
                 lenke = skjema.kvitteringsLenke,
                 eksternVarsel = EksterntVarsel(
                     epostTittel = "Nav – angående søknad om ekspertbistand",
