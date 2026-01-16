@@ -39,7 +39,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class SkjemaInnsendtHandlerTest {
+class JournalfoerInnsendtSkjemaTest {
     @Test
     fun `handler journalforer og produserer JournalpostOpprettet-event`() = testApplication {
         TestDatabase().cleanMigrate().use {
@@ -72,7 +72,7 @@ class SkjemaInnsendtHandlerTest {
             setupApplication(database)
             startApplication()
 
-            val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
+            val handler = application.dependencies.resolve<JournalfoerInnsendtSkjema>()
             val event = Event(
                 id = 1L,
                 data = EventData.SkjemaInnsendt(sampleSkjema)
@@ -85,7 +85,7 @@ class SkjemaInnsendtHandlerTest {
                 val queued = QueuedEvents.selectAll().toList()
                 assertEquals(1, queued.size)
                 val queuedEvent = queued.first()[QueuedEvents.eventData]
-                assertTrue(queuedEvent is EventData.JournalpostOpprettet)
+                assertTrue(queuedEvent is EventData.InnsendtSkjemaJournalfoert)
                 assertEquals(9876, queuedEvent.dokumentId)
                 assertEquals(1234, queuedEvent.journaldpostId)
                 assertEquals("4242", queuedEvent.behandlendeEnhetId)
@@ -119,7 +119,7 @@ class SkjemaInnsendtHandlerTest {
             setupApplication(database)
             startApplication()
 
-            val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
+            val handler = application.dependencies.resolve<JournalfoerInnsendtSkjema>()
             val event = Event(
                 id = 3L,
                 data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
@@ -132,7 +132,7 @@ class SkjemaInnsendtHandlerTest {
                 val queued = QueuedEvents.selectAll().toList()
                 assertEquals(1, queued.size)
                 val queuedEvent = queued.first()[QueuedEvents.eventData]
-                assertTrue(queuedEvent is EventData.JournalpostOpprettet)
+                assertTrue(queuedEvent is EventData.InnsendtSkjemaJournalfoert)
                 assertEquals("9999", queuedEvent.behandlendeEnhetId)
                 assertEquals("1101", capturedNorgRequest?.geografiskOmraade)
                 assertEquals(NorgKlient.DISKRESJONSKODE_ADRESSEBESKYTTET, capturedNorgRequest?.diskresjonskode)
@@ -169,7 +169,7 @@ class SkjemaInnsendtHandlerTest {
             setupApplication(database)
             startApplication()
 
-            val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
+            val handler = application.dependencies.resolve<JournalfoerInnsendtSkjema>()
             val event = Event(
                 id = 2L,
                 data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
@@ -215,7 +215,7 @@ class SkjemaInnsendtHandlerTest {
             setupApplication(database)
             startApplication()
 
-            val handler = application.dependencies.resolve<SkjemaInnsendtHandler>()
+            val handler = application.dependencies.resolve<JournalfoerInnsendtSkjema>()
             val event = Event(
                 id = 4L,
                 data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
@@ -228,7 +228,7 @@ class SkjemaInnsendtHandlerTest {
                 val queued = QueuedEvents.selectAll().toList()
                 assertEquals(1, queued.size)
                 val queuedEvent = queued.first()[QueuedEvents.eventData]
-                assertTrue(queuedEvent is EventData.JournalpostOpprettet)
+                assertTrue(queuedEvent is EventData.InnsendtSkjemaJournalfoert)
                 assertEquals(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_OSLO, queuedEvent.behandlendeEnhetId)
             }
         }
@@ -283,16 +283,7 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide(PdlApiKlient::class)
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
-            provide {
-                SkjemaInnsendtHandler(
-                    resolve(),
-                    resolve(),
-                    resolve(),
-                    resolve(),
-                    resolve(),
-                    resolve<Database>(),
-                )
-            }
+            provide(JournalfoerInnsendtSkjema::class)
         }
     }
 }

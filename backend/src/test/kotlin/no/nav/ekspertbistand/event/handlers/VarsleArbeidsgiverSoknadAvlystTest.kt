@@ -16,7 +16,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
+import no.nav.ekspertbistand.arena.EKSPERTBISTAND_TILTAKSKODE
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -40,7 +42,7 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.UkjentPr
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UkjentProdusent as NyBeskjedUkjentProdusent
 
-class OppdaterSakEventHandlerTest {
+class VarsleArbeidsgiverSoknadAvlystTest {
     private val tidspunkt = "2026-01-01T10:15:30+01:00"
 
     @Test
@@ -58,40 +60,20 @@ class OppdaterSakEventHandlerTest {
         )
         startApplication()
 
-        val handler = application.dependencies.resolve<OppdaterSakNotifikasjonsPlatform>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadAvlyst>()
 
         val event = Event(
             id = 1L,
-            data = EventData.TilskuddsbrevJournalfoert(
+            data = EventData.SoknadAvlystIArena(
                 skjema = skjema1,
-                dokumentId = 1,
-                journaldpostId = 1,
-                tilsagnData = sampleTilskuddsbrev()
+                tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
+                    tiltaksgjennomfoeringId = 1,
+                    tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
+                    tiltakStatusKode = TiltaksgjennomforingEndret.TiltakStatusKode.AVLYST,
+                )
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.Success)
-    }
-
-    @Test
-    fun `Event prosesseres, men beskjed gir ugyldig merkelapp`() = testApplication {
-        setupTestApplication()
-        setProdusentApiResultat(
-            mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") }),
-            mutableListOf(),
-        )
-        startApplication()
-        val handler = application.dependencies.resolve<OppdaterSakNotifikasjonsPlatform>()
-
-        val event = Event(
-            id = 1L,
-            data = EventData.TilskuddsbrevJournalfoert(
-                skjema = skjema1,
-                dokumentId = 1,
-                journaldpostId = 1,
-                tilsagnData = sampleTilskuddsbrev()
-            )
-        )
-        assertTrue(handler.handle(event) is EventHandledResult.TransientError)
     }
 
     @Test
@@ -109,15 +91,17 @@ class OppdaterSakEventHandlerTest {
                 }),
             )
             startApplication()
-            val handler = application.dependencies.resolve<OppdaterSakNotifikasjonsPlatform>()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadAvlyst>()
 
             val event = Event(
                 id = 1L,
-                data = EventData.TilskuddsbrevJournalfoert(
+                data = EventData.SoknadAvlystIArena(
                     skjema = skjema1,
-                    dokumentId = 1,
-                    journaldpostId = 1,
-                    tilsagnData = sampleTilskuddsbrev()
+                    tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
+                        tiltaksgjennomfoeringId = 1,
+                        tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
+                        tiltakStatusKode = TiltaksgjennomforingEndret.TiltakStatusKode.AVLYST,
+                    )
                 )
             )
             assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Beskjed vellykket, Sakstatus feilet
@@ -176,12 +160,7 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                 successAzureAdTokenProvider
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
-            provide<OppdaterSakNotifikasjonsPlatform> {
-                OppdaterSakNotifikasjonsPlatform(
-                    resolve(),
-                    resolve()
-                )
-            }
+            provide(VarsleArbeidsgiverSoknadAvlyst::class)
         }
         configureTokenXAuth()
     }

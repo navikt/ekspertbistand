@@ -8,7 +8,6 @@ import kotlinx.serialization.json.jsonObject
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
-import no.nav.ekspertbistand.event.handlers.insertSaksnummer
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.SkjemaStatus
@@ -24,10 +23,10 @@ import kotlin.test.assertNotNull
 class ArenaTilsagnsbrevProcessorTest {
 
     @Test
-    fun `eksempelmelding for tiltak som ikke er EKSPERTBIST skal ikke behandles`() = testApplicationWithDatabase { db ->
-        val saksnummer = Saksnummer("2019319383")
+    fun `eksempelmelding for tiltak som ikke er EKSPEBIST skal ikke behandles`() = testApplicationWithDatabase { db ->
+        val saksnummer = "2019319383"
         transaction {
-            insertSaksnummer(saksnummer, skjema)
+            insertArenaSak(saksnummer, 123, skjema)
         }
 
         ArenaTilsagnsbrevProcessor(
@@ -49,11 +48,11 @@ class ArenaTilsagnsbrevProcessorTest {
     }
 
     @Test
-    fun `eksempelmelding for tiltak som er EKSPERTBIST men ikke opprettet av oss skal ikke behandles`() =
+    fun `eksempelmelding for tiltak som er EKSPEBIST men ikke opprettet av oss skal behandles`() =
         testApplicationWithDatabase { db ->
-            val saksnummer = Saksnummer("201942")
+            val saksnummer = "201942"
             transaction {
-                insertSaksnummer(saksnummer, skjema)
+                insertArenaSak(saksnummer, 123, skjema)
             }
             ArenaTilsagnsbrevProcessor(
                 db.config.jdbcDatabase
@@ -62,23 +61,29 @@ class ArenaTilsagnsbrevProcessorTest {
                     ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
                     "key",
                     kafkaMelding(
-                        1,
-                        42,
+                        2,
+                        43,
                         eksempelMelding(EKSPERTBISTAND_TILTAKSKODE, 2019, 319383)
                     )
                 )
             )
             transaction(db.config.jdbcDatabase) {
-                assertEquals(0, QueuedEvents.selectAll().count())
+                val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
+                assertEquals(1, queuedEvents.count())
+                val eventData = queuedEvents.first().eventData as EventData.TilskuddsbrevMottattKildeAltinn
+                assertNotNull(eventData)
+                assertEquals(2019, eventData.tilsagnData.tilsagnNummer.aar)
+                assertEquals(319383, eventData.tilsagnData.tilsagnNummer.loepenrSak)
+
             }
         }
 
     @Test
     fun `eksempelmelding for tiltak som er EKSPEBIST og opprettet av oss skal behandles`() =
         testApplicationWithDatabase { db ->
-            val saksnummer = Saksnummer("2019319383")
+            val saksnummer = "2019319383"
             transaction {
-                insertSaksnummer(saksnummer, skjema)
+                insertArenaSak(saksnummer, 123, skjema)
             }
             ArenaTilsagnsbrevProcessor(
                 db.config.jdbcDatabase
@@ -106,8 +111,6 @@ class ArenaTilsagnsbrevProcessorTest {
 
     @Test
     fun `kafka consumer feiler ikke`() {
-        // TODO: test consumer vha dummy kafka broker
-        
         assertDoesNotThrow {
             ArenaTilsagnsbrevProcessor.consumer
         }

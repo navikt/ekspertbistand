@@ -17,6 +17,7 @@ class ArenaClientTest {
     @Test
     fun opprettTiltaksgjennomforing() = testApplication {
         val saksnummer = "202542"
+        val tiltaksgjennomfoeringId = 1337
         val opprettEkspertbistand = OpprettEkspertbistand(
             behandlendeEnhetId = "1",
             virksomhetsnummer = "2",
@@ -58,7 +59,8 @@ class ArenaClientTest {
             // language=JSON
             """
             {
-                "saksnummer": "$saksnummer"
+                "saksnummer": "$saksnummer",
+                "tiltaksgjennomfoeringId": $tiltaksgjennomfoeringId
             }    
             """
         })
@@ -67,10 +69,11 @@ class ArenaClientTest {
             defaultHttpClient = client
         )
         arenaClient.opprettTiltaksgjennomfoering(opprettEkspertbistand).let {
-            requestAssertions.forEach { aserrtion -> aserrtion() } // run assertions on the request payload
+            requestAssertions.forEach { assertion -> assertion() } // run assertions on the request payload
             assertEquals(saksnummer, it.saksnummer)
-            assertEquals(2025, it.aar)
-            assertEquals(42, it.loepenrSak)
+            assertEquals(2025, it.saksnummer.aar)
+            assertEquals(42, it.saksnummer.loepenrSak)
+            assertEquals(1337, it.tiltaksgjennomfoeringId)
         }
     }
 }

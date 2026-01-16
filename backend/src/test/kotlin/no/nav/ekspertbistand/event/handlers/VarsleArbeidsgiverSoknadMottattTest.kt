@@ -16,7 +16,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
-import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -43,7 +42,7 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.Ugyldig
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
 
-class OpprettNySakEventHandlerTest {
+class VarsleArbeidsgiverSoknadMottattTest {
 
     @Test
     fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplication {
@@ -54,13 +53,14 @@ class OpprettNySakEventHandlerTest {
         )
         startApplication()
 
-        val handler = application.dependencies.resolve<OpprettSakNotifikasjonsPlatform>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
 
         val event = Event(
             id = 1L,
             data = EventData.TiltaksgjennomføringOpprettet(
                 skjema = skjema1,
-                saksnummer = Saksnummer("202112341234"),
+                saksnummer = "202112341234",
+                tiltaksgjennomfoeringId = 123,
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.Success)
@@ -74,13 +74,14 @@ class OpprettNySakEventHandlerTest {
             mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") })
         )
         startApplication()
-        val handler = application.dependencies.resolve<OpprettSakNotifikasjonsPlatform>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
 
         val event = Event(
             id = 1L,
             data = EventData.TiltaksgjennomføringOpprettet(
                 skjema = skjema1,
-                saksnummer = Saksnummer("202112341234"),
+                saksnummer = "202112341234",
+                tiltaksgjennomfoeringId = 123,
             )
         )
         assertTrue(handler.handle(event) is EventHandledResult.TransientError)
@@ -95,13 +96,14 @@ class OpprettNySakEventHandlerTest {
                 mutableListOf({ throw Exception("Test feil") }, { NyBeskjedVellykket(id = "beskjed-456") })
             )
             startApplication()
-            val handler = application.dependencies.resolve<OpprettSakNotifikasjonsPlatform>()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
 
             val event = Event(
                 id = 1L,
                 data = EventData.TiltaksgjennomføringOpprettet(
                     skjema = skjema1,
-                    saksnummer = Saksnummer("202112341234"),
+                    saksnummer = "202112341234",
+                    tiltaksgjennomfoeringId = 123,
                 )
             )
             assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Sak velykket, beskjed feilet
@@ -151,7 +153,7 @@ private fun ApplicationTestBuilder.setupTestApplication() {
     application {
         dependencies {
             provide { db.config.jdbcDatabase }
-            provide<TokenXTokenIntrospector>() {
+            provide<TokenXTokenIntrospector> {
                 MockTokenIntrospector {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }
@@ -160,12 +162,7 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                 successAzureAdTokenProvider
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
-            provide<OpprettSakNotifikasjonsPlatform> {
-                OpprettSakNotifikasjonsPlatform(
-                    resolve(),
-                    resolve()
-                )
-            }
+            provide(VarsleArbeidsgiverSoknadMottatt::class)
         }
         configureTokenXAuth()
     }

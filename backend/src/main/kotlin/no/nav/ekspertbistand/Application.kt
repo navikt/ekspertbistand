@@ -30,6 +30,8 @@ import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.arena.ArenaTilsagnsbrevProcessor
+import no.nav.ekspertbistand.arena.ArenaTiltaksgjennomforingEndretProcessor
+import no.nav.ekspertbistand.arena.startKafkaConsumers
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.configureEventHandlers
@@ -78,6 +80,7 @@ fun main() {
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
             provide(ArenaTilsagnsbrevProcessor::class)
+            provide(ArenaTiltaksgjennomforingEndretProcessor::class)
         }
 
         // configure standard server stuff

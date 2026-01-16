@@ -7,8 +7,6 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
-import no.nav.ekspertbistand.event.handlers.ArenaSakTable
-import no.nav.ekspertbistand.event.handlers.hentSaksnummerForTiltaksgjennomføring
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.skjema.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -28,7 +26,8 @@ class ArenaTilsagnsbrevProcessor(
     val json: Json = Json { ignoreUnknownKeys = true }
 
     override suspend fun processRecord(record: ConsumerRecord<String?, String?>) {
-        val tilskuddsbrevMelding = json.decodeFromString<JsonObject>(record.value() ?: "{}").let { wrapper ->
+        val kafkaMelding = json.decodeFromString<JsonObject>(record.value() ?: "{}")
+        val tilskuddsbrevMelding = kafkaMelding.let { wrapper ->
             wrapper["after"]?.let { after ->
                 if (after is JsonObject) {
                     val tilsagnBrevId = after["TILSAGNSBREV_ID"]!!.jsonPrimitive.int
@@ -46,9 +45,8 @@ class ArenaTilsagnsbrevProcessor(
         }
 
         if (tilskuddsbrevMelding == null) {
-            log.error("Kunne ikke parse TilsagnsbrevKafkaMelding. key: {}", record.key())
             teamLog.error("Kunne ikke parse TilsagnsbrevKafkaMelding. record: {}", record)
-            return
+            throw Exception("Kunne ikke parse TilsagnsbrevKafkaMelding. key: ${record.key()}")
         }
 
         if (!tilskuddsbrevMelding.erEkspertbistand) {
@@ -57,11 +55,14 @@ class ArenaTilsagnsbrevProcessor(
         }
 
         // sjekk at vi er kilde til tilsagn, tilsagnData.aar og tilsagnData.loepenrSak finnes i vårt system
-        // hvis ikke hopp over
+
         val skjema = transaction(database) {
-            val loepenr = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.loepenrSak
-            val aar = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.aar
-            hentSaksnummerForTiltaksgjennomføring(loepenr = loepenr, aar = aar) {
+            hentArenaSakBySaksnummer(
+                asSaksnummer(
+                    aar = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.aar,
+                    loepenrSak = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.loepenrSak
+                )
+            ) {
                 Json.decodeFromString<DTO.Skjema>(this[ArenaSakTable.skjema])
             }
         }
@@ -74,6 +75,15 @@ class ArenaTilsagnsbrevProcessor(
                     tilsagnData = tilskuddsbrevMelding.tilsagnData
                 )
             )
+        } else {
+            // søknad godkjent men sendt inn i gammel altinn 2 løsning
+            // dette vil skje i overgangsperioden
+            EventQueue.publish(
+                EventData.TilskuddsbrevMottattKildeAltinn(
+                    tilsagnbrevId = tilskuddsbrevMelding.tilsagnBrevId,
+                    tilsagnData = tilskuddsbrevMelding.tilsagnData
+                )
+            )
         }
     }
 
@@ -82,6 +92,9 @@ class ArenaTilsagnsbrevProcessor(
     }
 
     companion object {
+        /**
+         * https://github.com/navikt/arena-iac/tree/62b001b6b119b1c569a6c8fa12767f02e9ad0ac3/kafka-aiven/aapen-arena-tilsagnsbrevgodkjent-v1
+         */
         val TOPIC = basedOnEnv(
             dev = "teamarenanais.aapen-arena-tilsagnsbrevgodkjent-v1-q2",
             other = "teamarenanais.aapen-arena-tilsagnsbrevgodkjent-v1",

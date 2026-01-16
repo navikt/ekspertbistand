@@ -4,7 +4,6 @@ import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.arena.TilsagnData
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.json.json
@@ -21,7 +20,7 @@ object TilsagndataTable : Table("tilsagndata") {
     )
 }
 
-fun JdbcTransaction.insertTilsagndata(skjemaId: UUID, tilsagnData: TilsagnData) {
+fun insertTilsagndata(skjemaId: UUID, tilsagnData: TilsagnData) {
     TilsagndataTable.insert {
         it[id] = UUID.randomUUID()
         it[tilsagnNummer] = tilsagnData.tilsagnNummer.concat()

@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.logger
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
@@ -370,3 +371,10 @@ enum class SkjemaStatusQueryParam {
     utkast,
     innsendt
 }
+
+val DTO.Skjema.kvitteringsLenke: String
+    get() = basedOnEnv(
+        prod = "https://arbeidsgiver.nav.no",
+        dev = "https://arbeidsgiver.intern.dev.nav.no",
+        other = "https://arbeidsgiver.intern.dev.nav.no",
+    ).let { domain -> "$domain/ekspertbistand/skjema/$id/kvittering" }

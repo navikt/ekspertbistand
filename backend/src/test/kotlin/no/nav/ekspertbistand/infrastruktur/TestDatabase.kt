@@ -1,9 +1,7 @@
 package no.nav.ekspertbistand.infrastruktur
 
-import io.ktor.server.plugins.di.*
 import io.ktor.server.testing.*
 import org.flywaydb.core.Flyway
-import org.jetbrains.exposed.v1.jdbc.Database
 
 class TestDatabase(
     dbName: String = "ekspertbistand"
