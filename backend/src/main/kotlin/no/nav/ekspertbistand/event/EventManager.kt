@@ -3,7 +3,6 @@ package no.nav.ekspertbistand.event
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandlerState.Companion.tilEventHandlerState
 import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
 import no.nav.ekspertbistand.infrastruktur.logger
@@ -114,7 +113,12 @@ class EventManager internal constructor(
         } as List<EventHandler<T>>
 
         return if (handlers.isEmpty()) {
-            listOf(transientError("No handlers registered for event type ${eventType.simpleName}"))
+            listOf(
+                EventHandledResult.TransientError(
+                    this::class.qualifiedName!!,
+                    "No handlers registered for event type ${eventType.simpleName}"
+                )
+            )
         } else {
             handlers
                 .map { handler ->
@@ -218,7 +222,12 @@ sealed class EventHandledResult {
      * Indicates a temporary failure; the event is eligible for retry.
      */
     @Serializable
-    data class TransientError(val source: String, val message: String, val details: ErrorDetails? = null) :
+    data class TransientError(
+        val source: String,
+        val message: String,
+        val handlerId: String? = null,
+        val details: ErrorDetails? = null
+    ) :
         EventHandledResult()
 
     /**
@@ -226,7 +235,12 @@ sealed class EventHandledResult {
      * Use this to skip further processing of an event.
      */
     @Serializable
-    data class UnrecoverableError(val source: String, val message: String, val details: ErrorDetails? = null) :
+    data class UnrecoverableError(
+        val source: String,
+        val message: String,
+        val handlerId: String? = null,
+        val details: ErrorDetails? = null
+    ) :
         EventHandledResult()
 
     @Serializable
@@ -236,21 +250,23 @@ sealed class EventHandledResult {
     )
 
     companion object {
-        inline fun <reified T> T.transientError(message: String, throwable: Throwable? = null) =
+        inline fun <reified T : EventHandler<*>> T.transientError(message: String, throwable: Throwable? = null) =
             TransientError(
+                handlerId = id,
                 source = T::class.qualifiedName ?: "Unknown",
                 message = message,
                 details = throwable?.toErrorDetails()
             )
 
-        inline fun <reified T> T.unrecoverableError(message: String, throwable: Throwable? = null) =
+        inline fun <reified T : EventHandler<*>> T.unrecoverableError(message: String, throwable: Throwable? = null) =
             UnrecoverableError(
+                handlerId = id,
                 source = T::class.qualifiedName ?: "Unknown",
                 message = message,
                 details = throwable?.toErrorDetails()
             )
 
-        fun success() = Success()
+        fun EventHandler<*>.success() = Success()
 
         fun Throwable.toErrorDetails() = ErrorDetails(
             message = message,
