@@ -115,6 +115,24 @@ class ArenaTilsagnsbrevProcessorTest {
             ArenaTilsagnsbrevProcessor.consumer
         }
     }
+
+
+    @Test
+    fun `tombstone skippes`() = testApplicationWithDatabase { db ->
+        assertDoesNotThrow {
+            ArenaTilsagnsbrevProcessor(
+                db.config.jdbcDatabase
+            ).processRecord(
+                ConsumerRecord(
+                    ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
+                    "key",
+                    null
+                )
+            )
+        }
+    }
+
+
 }
 
 /**

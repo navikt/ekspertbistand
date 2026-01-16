@@ -58,7 +58,7 @@ class CoroutineKafkaConsumer(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    log.error("Feil ved prosessering av kafka-melding", e)
+                    log.error("Feil ved prosessering av kafka-melding. $config", e)
                     delay(5000) // TODO: backoff
                 }
             }

@@ -26,7 +26,13 @@ class ArenaTilsagnsbrevProcessor(
     val json: Json = Json { ignoreUnknownKeys = true }
 
     override suspend fun processRecord(record: ConsumerRecord<String?, String?>) {
-        val kafkaMelding = json.decodeFromString<JsonObject>(record.value() ?: "{}")
+        val value = record.value()
+        if (value == null) {
+            log.debug("skipping tombstone record")
+            return
+        }
+
+        val kafkaMelding = json.decodeFromString<JsonObject>(value)
         val tilskuddsbrevMelding = kafkaMelding.let { wrapper ->
             wrapper["after"]?.let { after ->
                 if (after is JsonObject) {
