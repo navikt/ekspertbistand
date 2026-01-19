@@ -7,6 +7,7 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -42,7 +43,9 @@ class JournalfoerTilskuddsbrev(
         }
 
         val skjema = event.data.skjema
-        val skjemaId = skjema.id ?: return unrecoverableError("Skjema mangler id")
+        if (skjema.id == null) {
+            return unrecoverableError("Skjema mangler id")
+        }
 
         val tilsagnPdf = try {
             dokgenClient.genererTilskuddsbrevPdf(event.data.tilsagnData)
@@ -54,7 +57,7 @@ class JournalfoerTilskuddsbrev(
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = tittel,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                eksternReferanseId = "${event.data.tilsagnData.tilsagnNummer}-${skjemaId}", //TODO: midlertidig for å ikke få conflict
+                eksternReferanseId = event.data.tilsagnData.tilsagnNummer.concat(),
                 dokumentPdfAsBytes = tilsagnPdf,
             )
         } catch (e: Exception) {
