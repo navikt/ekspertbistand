@@ -39,7 +39,8 @@ const createDraftId = async (page: Page) => {
 
 test("smoke: landing route", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Tilskudd til ekspertbistand" })).toBeVisible();
+  await expect(page).toHaveURL(/\/soknader$/);
+  await expect(page.getByRole("heading", { name: "Søknader" })).toBeVisible();
 });
 
 test("smoke: soknader route", async ({ page }) => {
