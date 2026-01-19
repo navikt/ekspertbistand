@@ -80,8 +80,9 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route element={<LoginGate />}>
           <Route element={<OrganisasjonerGate />}>
-            <Route path={SOKNADER_PATH} element={<SoknaderPage />} />
-            <Route path="/skjema" element={<Navigate to="/skjema/start" replace />} />
+          <Route path={SOKNADER_PATH} element={<SoknaderPage />} />
+          <Route path="/ekspertbistand" element={<Navigate to={SOKNADER_PATH} replace />} />
+          <Route path="/skjema" element={<Navigate to="/skjema/start" replace />} />
             <Route path="/skjema/start" element={<SoknadPage />} />
             <Route path="/skjema/:id/kvittering" element={<KvitteringPage />} />
             <Route path="/skjema/:id" element={<SkjemaDraftRoute />}>
