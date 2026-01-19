@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.event.handlers
 
+import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -13,11 +14,13 @@ import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.kvitteringsLenke
+import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.jdbc.Database
 
 
 /**
- * Når en søknad er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
+ * Når en søknad, innsendt via ekspertbistand på arbeidsgiver.nav.no,
+ * er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
  */
 class VarsleArbeidsgiverSoknadGodkjent(
@@ -39,7 +42,7 @@ class VarsleArbeidsgiverSoknadGodkjent(
         }
 
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
-            nyBeskjed(skjema).fold(
+            nyBeskjed(skjema, event.data.tilsagnData).fold(
                 onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
                 onFailure = {
                     return transientError(
@@ -63,10 +66,11 @@ class VarsleArbeidsgiverSoknadGodkjent(
         return success()
     }
 
-    private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
+    private suspend fun nyBeskjed(skjema: DTO.Skjema, tilsagnData: TilsagnData): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
-                skjemaId = skjema.id!!,
+                grupperingsid = skjema.id!!,
+                eksternId = "${skjema.id}-godkjent-${tilsagnData.tilsagnNummer.concat()}",
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tekst = "Søknaden er godkjent og ekspertbistand kan nå tas i bruk.",
                 lenke = skjema.kvitteringsLenke,
@@ -85,7 +89,7 @@ class VarsleArbeidsgiverSoknadGodkjent(
     private suspend fun nyStatusSak(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.nyStatusSak(
-                skjemaId = skjema.id!!,
+                grupperingsid = skjema.id!!,
                 status = SaksStatus.FERDIG,
                 statusTekst = "Søknad godkjent"
             )

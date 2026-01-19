@@ -22,7 +22,7 @@ suspend fun Application.configureTilsagnDataApiV1() {
         authenticate(TOKENX_PROVIDER) {
             route("/api/tilsagndata/v1") {
                 with(tilsagnDataApi) {
-                    get("/{id}/tilskuddsbrev-html") {
+                    get("/skjema/{id}/tilskuddsbrev-html") {
                         val skjemaId: UUID = call.pathParameters.getRequired(
                             name = "id",
                             transform = UUID::fromString,
@@ -31,7 +31,19 @@ suspend fun Application.configureTilsagnDataApiV1() {
                             return@get
                         }
 
-                        hentTilskuddsbrevHtml(skjemaId)
+                        hentTilskuddsbrevHtmlForSkjema(skjemaId)
+                    }
+                    get("/tilskuddsbrev/{tilsagnNummer}/tilskuddsbrev-html") {
+                        val tilsagnNummer: String = call.pathParameters.getRequired(
+                            name = "tilsagnNummer",
+                            transform = { it },
+                        ) {
+                            call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig tilsagnNummer")
+                            return@get
+                        }
+
+                        hentTilskuddsbrevHtmlForTilsagnnummer(tilsagnNummer)
+
                     }
                 }
             }

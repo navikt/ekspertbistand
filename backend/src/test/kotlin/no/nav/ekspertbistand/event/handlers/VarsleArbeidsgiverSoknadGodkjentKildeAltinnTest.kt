@@ -8,7 +8,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
-import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.Json.Default.parseToJsonElement
 import kotlinx.serialization.json.JsonObject
@@ -16,8 +15,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
-import no.nav.ekspertbistand.arena.EKSPERTBISTAND_TILTAKSKODE
-import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -25,14 +23,14 @@ import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.NyStatusSak
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNyBeskjed
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNySak
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.DefaultNyStatusSakResultatImplementation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.NyStatusSakResultat
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.NyStatusSakVellykket
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.StatusOppdatering
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.*
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
-import java.util.*
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.NySakResultat
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.NySakVellykket
 import kotlin.test.Test
 import kotlin.test.assertIs
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
@@ -41,13 +39,14 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.UkjentPr
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UkjentProdusent as NyBeskjedUkjentProdusent
 
-class VarsleArbeidsgiverSoknadAvlystTest {
+class VarsleArbeidsgiverSoknadGodkjentKildeAltinnTest {
     private val tidspunkt = "2026-01-01T10:15:30+01:00"
 
     @Test
     fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplication {
         setupTestApplication()
         setProdusentApiResultat(
+            mutableListOf({ NySakVellykket(id = "sak-123") }),
             mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),
             mutableListOf({
                 NyStatusSakVellykket(
@@ -59,17 +58,14 @@ class VarsleArbeidsgiverSoknadAvlystTest {
         )
         startApplication()
 
-        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadAvlyst>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadGodkjentKildeAltinn>()
 
         val event = Event(
             id = 1L,
-            data = EventData.SoknadAvlystIArena(
-                skjema = skjema1,
-                tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
-                    tiltaksgjennomfoeringId = 1,
-                    tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
-                    tiltakStatusKode = TiltaksgjennomforingEndret.TiltakStatusKode.AVLYST,
-                )
+            data = EventData.TilskuddsbrevJournalfoertKildeAltinn(
+                dokumentId = 1,
+                journaldpostId = 1,
+                tilsagnData = sampleTilskuddsbrev()
             )
         )
         assertIs<EventHandledResult.Success>(handler.handle(event))
@@ -80,68 +76,34 @@ class VarsleArbeidsgiverSoknadAvlystTest {
         testApplication {
             setupTestApplication()
             setProdusentApiResultat(
+                mutableListOf({ NySakVellykket(id = "sak-456") }),
                 mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),
-                mutableListOf({ throw Exception("Test feil") }, {
-                    NyStatusSakVellykket(
-                        id = "sak-123", statuser = listOf(
-                            StatusOppdatering(tidspunkt = tidspunkt)
+                mutableListOf(
+                    { throw Exception("Test feil") },
+                    {
+                        NyStatusSakVellykket(
+                            id = "sak-123", statuser = listOf(
+                                StatusOppdatering(tidspunkt = tidspunkt)
+                            )
                         )
-                    )
-                }),
+                    }
+                ),
             )
             startApplication()
-            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadAvlyst>()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadGodkjentKildeAltinn>()
 
             val event = Event(
                 id = 1L,
-                data = EventData.SoknadAvlystIArena(
-                    skjema = skjema1,
-                    tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
-                        tiltaksgjennomfoeringId = 1,
-                        tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
-                        tiltakStatusKode = TiltaksgjennomforingEndret.TiltakStatusKode.AVLYST,
-                    )
+                data = EventData.TilskuddsbrevJournalfoertKildeAltinn(
+                    dokumentId = 1,
+                    journaldpostId = 1,
+                    tilsagnData = sampleTilskuddsbrev()
                 )
             )
             assertIs<EventHandledResult.TransientError>(handler.handle(event)) // Beskjed vellykket, Sakstatus feilet
             assertIs<EventHandledResult.Success>(handler.handle(event)) // beskjed guardet, sakstatus velykket
         }
 }
-
-
-private val skjema1 = DTO.Skjema(
-    id = UUID.randomUUID().toString(),
-    virksomhet = DTO.Virksomhet(
-        virksomhetsnummer = "1337",
-        virksomhetsnavn = "foo bar AS",
-        kontaktperson = DTO.Kontaktperson(
-            navn = "Donald Duck",
-            epost = "Donald@duck.co",
-            telefonnummer = "12345678"
-        )
-    ),
-    ansatt = DTO.Ansatt(
-        fnr = "12345678910",
-        navn = "Ole Olsen"
-    ),
-    ekspert = DTO.Ekspert(
-        navn = "Egon Olsen",
-        virksomhet = "Olsenbanden AS",
-        kompetanse = "Bankran",
-    ),
-    behovForBistand = DTO.BehovForBistand(
-        behov = "Tilrettelegging",
-        begrunnelse = "Tilrettelegging på arbeidsplassen",
-        estimertKostnad = "4200",
-        timer = "16",
-        tilrettelegging = "Spesialtilpasset kontor",
-        startdato = LocalDate.parse("2024-11-15")
-    ),
-    nav = DTO.Nav(
-        kontaktperson = "Navn Navnesen"
-    ),
-    status = SkjemaStatus.godkjent,
-)
 
 
 private fun ApplicationTestBuilder.setupTestApplication() {
@@ -159,13 +121,14 @@ private fun ApplicationTestBuilder.setupTestApplication() {
                 successAzureAdTokenProvider
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
-            provide(VarsleArbeidsgiverSoknadAvlyst::class)
+            provide(VarsleArbeidsgiverSoknadGodkjentKildeAltinn::class)
         }
         configureTokenXAuth()
     }
 }
 
 private fun ApplicationTestBuilder.setProdusentApiResultat(
+    nySakResultat: MutableList<() -> NySakResultat>,
     nyBeskjedResultat: MutableList<() -> NyBeskjedResultat>,
     nyStatusSakResultat: MutableList<() -> NyStatusSakResultat>,
 ) {
@@ -201,6 +164,16 @@ private fun ApplicationTestBuilder.setProdusentApiResultat(
                 post("/api/graphql") {
                     val json = parseToJsonElement(call.receiveText()) as JsonObject
                     when (val operation = json["operationName"]!!.jsonPrimitive.content) {
+                        "OpprettNySak" -> {
+                            call.respond(
+                                KotlinxGraphQLResponse(
+                                    OpprettNySak.Result(
+                                        nySakResultat.removeFirst().invoke()
+                                    )
+                                )
+                            )
+                        }
+
                         "NyStatusSak" -> {
                             call.respond(
                                 KotlinxGraphQLResponse(
@@ -228,3 +201,70 @@ private fun ApplicationTestBuilder.setProdusentApiResultat(
         }
     }
 }
+
+private fun sampleTilskuddsbrev() = TilsagnData(
+    tilsagnNummer = TilsagnData.TilsagnNummer(
+        1337,
+        42,
+        43,
+    ),
+    tilsagnDato = "01.01.2021",
+    periode = TilsagnData.Periode(
+        fraDato = "01.01.2021",
+        tilDato = "01.02.2021"
+    ),
+    tiltakKode = "42",
+    tiltakNavn = "Ekspertbistand",
+    administrasjonKode = "etellerannet",
+    refusjonfristDato = "10.01.2021",
+    tiltakArrangor = TilsagnData.TiltakArrangor(
+        arbgiverNavn = "Arrangøren",
+        landKode = "1337",
+        postAdresse = "et sted",
+        postNummer = "1337",
+        postSted = "hos naboen",
+        orgNummerMorselskap = 43,
+        orgNummer = 42,
+        kontoNummer = "1234.12.12345",
+        maalform = "norsk"
+    ),
+    totaltTilskuddbelop = 24000,
+    valutaKode = "NOK",
+    tilskuddListe = listOf(
+        TilsagnData.Tilskudd(
+            tilskuddType = "ekspertbistand",
+            tilskuddBelop = 24000,
+            visTilskuddProsent = false,
+            tilskuddProsent = null
+        )
+    ),
+    deltaker = TilsagnData.Deltaker(
+        fodselsnr = "01010101010",
+        fornavn = "navn",
+        etternavn = "navnesen",
+        landKode = "NO",
+        postAdresse = "et sted",
+        postNummer = "1234",
+        postSted = "hos den andre naboen",
+    ),
+    antallDeltakere = 1,
+    antallTimeverk = 100,
+    navEnhet = TilsagnData.NavEnhet(
+        navKontorNavn = "kontor1",
+        navKontor = "Kontor1",
+        postAdresse = "hos den tredje",
+        postNummer = "1234",
+        postSted = "hos den tredje",
+        telefon = "12341234",
+        faks = null
+    ),
+    beslutter = TilsagnData.Person(
+        fornavn = "Ole",
+        etternavn = "Brum",
+    ),
+    saksbehandler = TilsagnData.Person(
+        fornavn = "Nasse",
+        etternavn = "Nøff",
+    ),
+    kommentar = "Dette var unødvendig mye testdata å skrive"
+)

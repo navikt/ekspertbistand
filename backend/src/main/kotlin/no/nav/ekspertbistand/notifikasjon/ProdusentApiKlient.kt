@@ -85,7 +85,7 @@ class ProdusentApiKlient(
     }
 
     suspend fun opprettNySak(
-        skjemaId: String,
+        grupperingsid: String,
         virksomhetsnummer: String,
         tittel: String,
         lenke: String,
@@ -95,13 +95,13 @@ class ProdusentApiKlient(
         val resultat = client.execute(
             OpprettNySak(
                 variables = OpprettNySak.Variables(
-                    skjemaId,
-                    merkelapp,
-                    virksomhetsnummer,
-                    tittel,
-                    lenke,
-                    tidspunkt,
-                    mottaker
+                    grupperingsid = grupperingsid,
+                    merkelapp = merkelapp,
+                    virksomhetsnummer = virksomhetsnummer,
+                    tittel = tittel,
+                    lenke = lenke,
+                    tidspunkt = tidspunkt,
+                    mottaker = mottaker
                 )
             )
         ) {
@@ -127,7 +127,8 @@ class ProdusentApiKlient(
 
 
     suspend fun opprettNyBeskjed(
-        skjemaId: String,
+        grupperingsid: String,
+        eksternId: String,
         virksomhetsnummer: String,
         tekst: String,
         lenke: String,
@@ -138,14 +139,15 @@ class ProdusentApiKlient(
         val resultat = client.execute(
             OpprettNyBeskjed(
                 variables = OpprettNyBeskjed.Variables(
-                    skjemaId,
-                    merkelapp,
-                    virksomhetsnummer,
-                    tekst,
-                    lenke,
-                    tidspunkt,
-                    mottaker,
-                    listOfNotNull(eksternVarsel?.tilVarsel())
+                    grupperingsid = grupperingsid,
+                    eksternId = eksternId,
+                    merkelapp = merkelapp,
+                    virksomhetsnummer = virksomhetsnummer,
+                    tekst = tekst,
+                    lenke = lenke,
+                    tidspunkt = tidspunkt,
+                    mottaker = mottaker,
+                    eksterneVarsler = listOfNotNull(eksternVarsel?.tilVarsel())
                 )
             )
         ) {
@@ -171,7 +173,7 @@ class ProdusentApiKlient(
     }
 
     suspend fun nyStatusSak(
-        skjemaId: String,
+        grupperingsid: String,
         status: SaksStatus,
         statusTekst: String,
         tidspunkt: ISO8601DateTime? = null,
@@ -180,8 +182,8 @@ class ProdusentApiKlient(
         val resultat = client.execute(
             NyStatusSak(
                 variables = NyStatusSak.Variables(
-                    idempotencyKey = "$skjemaId-$statusTekst",
-                    grupperingsid = skjemaId,
+                    idempotencyKey = "$grupperingsid-$statusTekst",
+                    grupperingsid = grupperingsid,
                     merkelapp =  merkelapp,
                     nyStatus = status,
                     tidspunkt = tidspunkt,
@@ -204,12 +206,12 @@ class ProdusentApiKlient(
         }
     }
 
-    suspend fun hardDeleteSak(skjemaId: String) {
+    suspend fun hardDeleteSak(grupperingsid: String) {
         val token = hentEntraIdToken()
         val resultat = client.execute(
             HardDeleteSak(
                 variables = HardDeleteSak.Variables(
-                    grupperingsid = skjemaId,
+                    grupperingsid = grupperingsid,
                     merkelapp = merkelapp,
                 )
             )
@@ -217,7 +219,7 @@ class ProdusentApiKlient(
             bearerAuth(token)
         }
         when (val hardDeleteSak = resultat.data?.hardDeleteSakByGrupperingsid) {
-            is HardDeleteSakVellykket -> log.info("Harddeleted sak med id $skjemaId")
+            is HardDeleteSakVellykket -> log.info("Harddeleted sak med id $grupperingsid")
             is DefaultHardDeleteSakResultatImplementation -> throw HardDeleteSakException("Uventet feil: $resultat")
             is no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.SakFinnesIkke -> throw (HardDeleteSakException(
                 hardDeleteSak.feilmelding

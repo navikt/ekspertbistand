@@ -22,7 +22,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 
 class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
@@ -49,7 +49,7 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
             )
         )
 
-        assertTrue(handler.handle(event) is EventHandledResult.Success)
+        assertIs<EventHandledResult.Success>(handler.handle(event))
 
         val database = application.dependencies.resolve<Database>()
         transaction(database) {
@@ -59,7 +59,7 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
 
             val queuedEvents = QueuedEvents.selectAll()
             assertEquals(1, queuedEvents.count())
-            assertTrue(queuedEvents.first()[QueuedEvents.eventData] is EventData.TiltaksgjennomføringOpprettet)
+            assertIs<EventData.TiltaksgjennomføringOpprettet>(queuedEvents.first()[QueuedEvents.eventData])
         }
     }
 
@@ -78,7 +78,7 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
             )
         )
 
-        assertTrue(handler.handle(event) is EventHandledResult.TransientError)
+        assertIs<EventHandledResult.TransientError>(handler.handle(event))
         val database = application.dependencies.resolve<Database>()
         transaction(database) {
             assertEquals(0, ArenaSakTable.selectAll().count())

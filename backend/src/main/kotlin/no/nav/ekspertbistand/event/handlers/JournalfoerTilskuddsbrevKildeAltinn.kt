@@ -72,6 +72,7 @@ class JournalfoerTilskuddsbrevKildeAltinn(
                 it[eventData] = EventData.TilskuddsbrevJournalfoertKildeAltinn(
                     dokumentId = dokumentInfoId,
                     journaldpostId = journalpostId,
+                    tilsagnData = event.data.tilsagnData
                 )
             }
         }

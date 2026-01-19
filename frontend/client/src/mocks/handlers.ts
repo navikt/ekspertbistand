@@ -485,13 +485,23 @@ export const handlers = [
     return HttpResponse.json(toSkjemaDto(entry));
   }),
   http.get(
-    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/:skjemaId/tilskuddsbrev-html`,
+    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/skjema/:skjemaId/tilskuddsbrev-html`,
     ({ params }) => {
       const skjemaId = getParamValue(params.skjemaId);
       if (!skjemaId) {
         return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
       }
       return HttpResponse.json(createMockTilskuddsbrevHtml());
+    }
+  ),
+  http.get(
+    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/tilsagndata/:tilsagnNummer/tilskuddsbrev-html`,
+    ({ params }) => {
+      const tilsagnNummer = getParamValue(params.tilsagnNummer);
+      if (!tilsagnNummer) {
+        return HttpResponse.json({ message: "ugyldig tilsagnNummer" }, { status: 400 });
+      }
+      return HttpResponse.json(createMockTilskuddsbrevHtml()[0]);
     }
   ),
   http.get("https://login.ekstern.dev.nav.no/oauth2/session", () =>

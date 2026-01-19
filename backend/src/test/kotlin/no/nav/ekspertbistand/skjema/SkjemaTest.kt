@@ -356,7 +356,7 @@ class SkjemaTest {
             }
 
             assertEquals(1, events.count())
-            assertTrue(events.first().eventData is EventData.SkjemaInnsendt)
+            assertIs<EventData.SkjemaInnsendt>(events.first().eventData)
         }
     }
 

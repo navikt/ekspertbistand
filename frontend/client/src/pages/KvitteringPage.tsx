@@ -13,7 +13,7 @@ import {
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
-import { fetchTilskuddsbrevHtml } from "../features/tilsagn/tilsagn";
+import { fetchTilskuddsbrevHtmlForSkjema } from "../features/tilsagn/tilsagn";
 import { SOKNADER_PATH, EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { BackLink } from "../components/BackLink";
 import useSWR from "swr";
@@ -175,7 +175,7 @@ export default function KvitteringPage() {
     isLoading: tilskuddsbrevLoading,
   } = useSWR(
     shouldLoadTilsagn && id ? ["tilskuddsbrev-html", id] : null,
-    ([, skjemaId]) => fetchTilskuddsbrevHtml(skjemaId)
+    ([, skjemaId]) => fetchTilskuddsbrevHtmlForSkjema(skjemaId)
   );
 
   const formData = useMemo(() => (draft ? draftDtoToInputs(draft) : null), [draft]);
