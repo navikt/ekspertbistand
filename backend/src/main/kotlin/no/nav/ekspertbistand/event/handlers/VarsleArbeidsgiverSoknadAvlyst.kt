@@ -66,7 +66,8 @@ class VarsleArbeidsgiverSoknadAvlyst(
     private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
-                skjemaId = skjema.id!!,
+                grupperingsid = skjema.id!!,
+                eksternId = "${skjema.id}-soknad-avlyst",
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tekst = "Søknaden om ekspertbistand trukket eller avslått.",
                 lenke = skjema.kvitteringsLenke,
@@ -85,7 +86,7 @@ class VarsleArbeidsgiverSoknadAvlyst(
     private suspend fun nyStatusSak(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.nyStatusSak(
-                skjemaId = skjema.id!!,
+                grupperingsid = skjema.id!!,
                 status = SaksStatus.FERDIG,
                 statusTekst = "Søknad trukket eller avslått"
             )

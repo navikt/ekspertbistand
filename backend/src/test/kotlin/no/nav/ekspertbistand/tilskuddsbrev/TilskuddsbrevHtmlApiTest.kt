@@ -17,9 +17,14 @@ import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
+import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.tilsagndata.TilskuddsbrevHtml
+import no.nav.ekspertbistand.tilsagndata.concat
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
+import org.jetbrains.exposed.v1.datetime.CurrentDate
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
@@ -84,17 +89,29 @@ class TilskuddsbrevHtmlApiTest {
         val skjemaId = UUID.randomUUID()
 
         transaction(testDb.config.jdbcDatabase) {
+            insertDummySkjema(skjemaId, sampleTilsagnData.tiltakArrangor.orgNummer.toString())
             insertTilsagndata(skjemaId, sampleTilsagnData)
         }
 
-        with(client.get("/api/tilsagndata/v1/$skjemaId/tilskuddsbrev-html") {
+        with(client.get("/api/tilsagndata/v1/skjema/$skjemaId/tilskuddsbrev-html") {
             bearerAuth("faketoken")
         }) {
             assertEquals(HttpStatusCode.OK, status)
             body<List<TilskuddsbrevHtml>>().also { htmlList ->
                 assertEquals(1, htmlList.size)
-                assertEquals("1337-42-43", htmlList.first().tilsagnNummer)
+                assertEquals("1337:42:43", htmlList.first().tilsagnNummer)
                 assertEquals("<html>Mock tilskuddsbrev</html>", htmlList.first().html)
+            }
+        }
+
+        val tilsagnNummer = sampleTilsagnData.tilsagnNummer.concat()
+        with(client.get("/api/tilsagndata/v1/tilskuddsbrev/$tilsagnNummer/tilskuddsbrev-html") {
+            bearerAuth("faketoken")
+        }) {
+            assertEquals(HttpStatusCode.OK, status)
+            body<TilskuddsbrevHtml>().also { tilskuddsbrev ->
+                assertEquals("1337:42:43", tilskuddsbrev.tilsagnNummer)
+                assertEquals("<html>Mock tilskuddsbrev</html>", tilskuddsbrev.html)
             }
         }
     }
@@ -120,8 +137,8 @@ class TilskuddsbrevHtmlApiTest {
             postAdresse = "et sted",
             postNummer = "1337",
             postSted = "hos naboen",
-            orgNummerMorselskap = 43,
-            orgNummer = 42,
+            orgNummerMorselskap = 7331,
+            orgNummer = 1337,
             kontoNummer = "1234.12.12345",
             maalform = "norsk"
         ),
@@ -165,4 +182,30 @@ class TilskuddsbrevHtmlApiTest {
         ),
         kommentar = "Dette var unødvendig mye testdata å skrive"
     )
+}
+
+private fun insertDummySkjema(skjemaId: UUID, vnr: String) {
+    SkjemaTable.insert {
+        it[id] = skjemaId
+        it[virksomhetsnavn] = "foo"
+        it[virksomhetsnummer] = vnr
+        it[opprettetAv] = "42"
+
+        it[kontaktpersonNavn] = ""
+        it[kontaktpersonEpost] = ""
+        it[kontaktpersonTelefon] = ""
+        it[ansattFnr] = ""
+        it[ansattNavn] = ""
+        it[ekspertNavn] = ""
+        it[ekspertVirksomhet] = ""
+        it[ekspertKompetanse] = ""
+        it[behovForBistand] = ""
+        it[behovForBistandBegrunnelse] = ""
+        it[behovForBistandTilrettelegging] = ""
+        it[behovForBistandEstimertKostnad] = ""
+        it[behovForBistandTimer] = ""
+        it[behovForBistandStartdato] = CurrentDate
+        it[navKontaktPerson] = ""
+        it[status] = SkjemaStatus.innsendt.toString()
+    }
 }

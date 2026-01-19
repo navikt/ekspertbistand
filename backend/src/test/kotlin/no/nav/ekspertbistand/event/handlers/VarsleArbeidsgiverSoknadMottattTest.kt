@@ -32,7 +32,7 @@ import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.SkjemaStatus
 import java.util.*
 import kotlin.test.Test
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
@@ -63,7 +63,7 @@ class VarsleArbeidsgiverSoknadMottattTest {
                 tiltaksgjennomfoeringId = 123,
             )
         )
-        assertTrue(handler.handle(event) is EventHandledResult.Success)
+        assertIs<EventHandledResult.Success>(handler.handle(event))
     }
 
     @Test
@@ -84,7 +84,7 @@ class VarsleArbeidsgiverSoknadMottattTest {
                 tiltaksgjennomfoeringId = 123,
             )
         )
-        assertTrue(handler.handle(event) is EventHandledResult.TransientError)
+        assertIs<EventHandledResult.TransientError>(handler.handle(event))
     }
 
     @Test
@@ -106,8 +106,8 @@ class VarsleArbeidsgiverSoknadMottattTest {
                     tiltaksgjennomfoeringId = 123,
                 )
             )
-            assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Sak velykket, beskjed feilet
-            assertTrue(handler.handle(event) is EventHandledResult.Success) // Sak guardet, beskjed velykket
+            assertIs<EventHandledResult.TransientError>(handler.handle(event)) // Sak velykket, beskjed feilet
+            assertIs<EventHandledResult.Success>(handler.handle(event)) // Sak guardet, beskjed velykket
         }
 }
 

@@ -12,7 +12,10 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
 import no.nav.ekspertbistand.dokgen.DokgenClient
-import no.nav.ekspertbistand.event.*
+import no.nav.ekspertbistand.event.Event
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
@@ -26,7 +29,6 @@ import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
 class JournalfoerTilskuddsbrevTest {
     @Test
@@ -55,7 +57,7 @@ class JournalfoerTilskuddsbrevTest {
             )
 
             val result = handler.handle(event)
-            assertTrue(result is EventHandledResult.Success)
+            assertIs<EventHandledResult.Success>(result)
 
             transaction(database) {
                 val queued = QueuedEvents.selectAll().toList()

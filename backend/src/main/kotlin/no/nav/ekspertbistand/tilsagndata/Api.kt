@@ -4,8 +4,9 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.RoutingContext
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
-import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.skjema.findSkjemaById
+import no.nav.ekspertbistand.skjema.findSkjemaOrUtkastById
 import no.nav.ekspertbistand.skjema.subjectToken
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -16,25 +17,45 @@ class TilsagnDataApi(
     private val altinnTilgangerClient: AltinnTilgangerClient,
     private val dokgenClient: DokgenClient,
 ) {
-    suspend fun RoutingContext.hentTilskuddsbrevHtml(skjemaId: UUID) {
-        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
-        val organisasjoner = tilganger.organisasjoner
 
-        if (organisasjoner.isEmpty()) {
+    suspend fun RoutingContext.hentTilskuddsbrevHtmlForSkjema(skjemaId: UUID) {
+        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
+
+        val (skjema, tilsagnData) = transaction(database) {
+            findSkjemaById(skjemaId) to findTilsagnDataBySkjemaId(skjemaId)
+        }
+
+        if (skjema == null || skjema.virksomhet.virksomhetsnummer !in tilganger.organisasjoner) {
             call.respond(emptyList<TilskuddsbrevHtml>())
             return
         }
 
-        val tilsagnData = transaction(database) {
-            findTilsagnDataBySkjemaId(skjemaId)
-        }
-
         val html = tilsagnData.map { tilsagn ->
             TilskuddsbrevHtml(
-                tilsagnNummer = tilsagn.tilsagnNummerKey(),
+                tilsagnNummer = tilsagn.tilsagnNummer.concat(),
                 html = dokgenClient.genererTilskuddsbrevHtml(tilsagn),
             )
         }
+
+        call.respond(html)
+    }
+
+    suspend fun RoutingContext.hentTilskuddsbrevHtmlForTilsagnnummer(tilsagnNummer: String) {
+        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
+
+        val tilsagnData = transaction(database) {
+            findTilsagnDataByTilsagnNummer(tilsagnNummer)
+        }
+
+        if (tilsagnData == null || "${tilsagnData.tiltakArrangor.orgNummer}" !in tilganger.organisasjoner) {
+            call.respond(emptyList<TilskuddsbrevHtml>())
+            return
+        }
+
+        val html = TilskuddsbrevHtml(
+            tilsagnNummer = tilsagnData.tilsagnNummer.concat(),
+            html = dokgenClient.genererTilskuddsbrevHtml(tilsagnData),
+        )
 
         call.respond(html)
     }
@@ -46,6 +67,3 @@ data class TilskuddsbrevHtml(
     val html: String,
 )
 
-private fun TilsagnData.tilsagnNummerKey(): String {
-    return "${tilsagnNummer.aar}-${tilsagnNummer.loepenrSak}-${tilsagnNummer.loepenrTilsagn}"
-}

@@ -33,7 +33,7 @@ import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.SkjemaStatus
 import java.util.*
 import kotlin.test.Test
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.UgyldigMerkelapp as NySakStatusUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.UkjentProdusent as NySakStatusUkjentProdusent
@@ -69,7 +69,7 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
                 tilsagnData = sampleTilskuddsbrev()
             )
         )
-        assertTrue(handler.handle(event) is EventHandledResult.Success)
+        assertIs<EventHandledResult.Success>(handler.handle(event))
     }
 
     @Test
@@ -91,7 +91,7 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
                 tilsagnData = sampleTilskuddsbrev()
             )
         )
-        assertTrue(handler.handle(event) is EventHandledResult.TransientError)
+        assertIs<EventHandledResult.TransientError>(handler.handle(event))
     }
 
     @Test
@@ -120,8 +120,8 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
                     tilsagnData = sampleTilskuddsbrev()
                 )
             )
-            assertTrue(handler.handle(event) is EventHandledResult.TransientError) // Beskjed vellykket, Sakstatus feilet
-            assertTrue(handler.handle(event) is EventHandledResult.Success) // beskjed guardet, sakstatus velykket
+            assertIs<EventHandledResult.TransientError>(handler.handle(event)) // Beskjed vellykket, Sakstatus feilet
+            assertIs<EventHandledResult.Success>(handler.handle(event)) // beskjed guardet, sakstatus velykket
         }
 }
 
@@ -167,7 +167,7 @@ private fun ApplicationTestBuilder.setupTestApplication() {
     application {
         dependencies {
             provide { db.config.jdbcDatabase }
-            provide<TokenXTokenIntrospector>() {
+            provide<TokenXTokenIntrospector> {
                 MockTokenIntrospector {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                 }

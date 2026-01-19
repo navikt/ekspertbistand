@@ -4,8 +4,8 @@ import io.ktor.client.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import io.ktor.server.plugins.di.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.di.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -15,8 +15,11 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
 import no.nav.ekspertbistand.dokgen.DokgenClient
-import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.ereg.EregClient
+import no.nav.ekspertbistand.event.Event
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
@@ -37,7 +40,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
 
 class JournalfoerInnsendtSkjemaTest {
     @Test
@@ -79,13 +82,13 @@ class JournalfoerInnsendtSkjemaTest {
             )
 
             val result = handler.handle(event)
-            assertTrue(result is EventHandledResult.Success)
+            assertIs<EventHandledResult.Success>(result)
 
             transaction(database) {
                 val queued = QueuedEvents.selectAll().toList()
                 assertEquals(1, queued.size)
                 val queuedEvent = queued.first()[QueuedEvents.eventData]
-                assertTrue(queuedEvent is EventData.InnsendtSkjemaJournalfoert)
+                assertIs<EventData.InnsendtSkjemaJournalfoert>(queuedEvent)
                 assertEquals(9876, queuedEvent.dokumentId)
                 assertEquals(1234, queuedEvent.journaldpostId)
                 assertEquals("4242", queuedEvent.behandlendeEnhetId)
@@ -126,13 +129,13 @@ class JournalfoerInnsendtSkjemaTest {
             )
 
             val result = handler.handle(event)
-            assertTrue(result is EventHandledResult.Success)
+            assertIs<EventHandledResult.Success>(result)
 
             transaction(database) {
                 val queued = QueuedEvents.selectAll().toList()
                 assertEquals(1, queued.size)
                 val queuedEvent = queued.first()[QueuedEvents.eventData]
-                assertTrue(queuedEvent is EventData.InnsendtSkjemaJournalfoert)
+                assertIs<EventData.InnsendtSkjemaJournalfoert>(queuedEvent)
                 assertEquals("9999", queuedEvent.behandlendeEnhetId)
                 assertEquals("1101", capturedNorgRequest?.geografiskOmraade)
                 assertEquals(NorgKlient.DISKRESJONSKODE_ADRESSEBESKYTTET, capturedNorgRequest?.diskresjonskode)
@@ -222,13 +225,13 @@ class JournalfoerInnsendtSkjemaTest {
             )
 
             val result = handler.handle(event)
-            assertTrue(result is EventHandledResult.Success)
+            assertIs<EventHandledResult.Success>(result)
 
             transaction(database) {
                 val queued = QueuedEvents.selectAll().toList()
                 assertEquals(1, queued.size)
                 val queuedEvent = queued.first()[QueuedEvents.eventData]
-                assertTrue(queuedEvent is EventData.InnsendtSkjemaJournalfoert)
+                assertIs<EventData.InnsendtSkjemaJournalfoert>(queuedEvent)
                 assertEquals(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_OSLO, queuedEvent.behandlendeEnhetId)
             }
         }

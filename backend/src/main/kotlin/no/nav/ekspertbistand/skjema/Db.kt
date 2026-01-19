@@ -94,13 +94,15 @@ object UtkastTable : UUIDTable("utkast") {
 }
 
 fun findSkjemaOrUtkastById(id: UUID): DTO? =
-    SkjemaTable.selectAll()
-        .where { SkjemaTable.id eq id }
-        .singleOrNull()?.tilSkjemaDTO()
+    findSkjemaById(id)
         ?: // If not found, try UtkastTable
         UtkastTable.selectAll()
             .where { UtkastTable.id eq id }
             .singleOrNull()?.tilUtkastDTO()
+
+fun findSkjemaById(id: UUID): DTO.Skjema? = SkjemaTable.selectAll()
+    .where { SkjemaTable.id eq id }
+    .singleOrNull()?.tilSkjemaDTO()
 
 fun ResultRow.tilSkjemaDTO() = DTO.Skjema(
     id = this[SkjemaTable.id].toString(),

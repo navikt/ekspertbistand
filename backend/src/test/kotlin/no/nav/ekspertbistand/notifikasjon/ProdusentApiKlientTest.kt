@@ -58,7 +58,7 @@ class ProdusentApiKlientTest {
         )
 
         klient.opprettNySak( // kaster exception dersom det feiler
-            skjemaId = skjemaId,
+            grupperingsid = skjemaId,
             virksomhetsnummer = virksomhetsnummer,
             tittel = "ny sak",
             lenke = "http://foo.bar"
@@ -90,7 +90,8 @@ class ProdusentApiKlientTest {
 
         klient.opprettNyBeskjed(
             // kaster exception dersom det feiler
-            skjemaId = skjemaId,
+            grupperingsid = skjemaId,
+            eksternId = "$skjemaId-soknad-mottatt",
             virksomhetsnummer = virksomhetsnummer,
             lenke = "http://foo.bar",
             tekst = "ny beskjed",
@@ -127,7 +128,7 @@ class ProdusentApiKlientTest {
 
         klient.nyStatusSak(
             // kaster exception dersom det feiler
-            skjemaId = skjemaId,
+            grupperingsid = skjemaId,
             status = SaksStatus.MOTTATT,
             statusTekst = "ny status",
             tidspunkt = tidspunkt,
@@ -169,7 +170,7 @@ class ProdusentApiKlientTest {
 
         klient.hardDeleteSak(
             // kaster exception dersom det feiler
-            skjemaId = skjemaId,
+            grupperingsid = skjemaId,
         )
     }
 

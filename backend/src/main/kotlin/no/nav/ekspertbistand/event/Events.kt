@@ -13,11 +13,13 @@ import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrev
 import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrevKildeAltinn
 import no.nav.ekspertbistand.event.handlers.LagreTilsagnsData
 import no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSkjema
+import no.nav.ekspertbistand.event.handlers.LagreTilsagnsDataKildeAltinn
 import no.nav.ekspertbistand.event.handlers.SettAvlystSkjemaStatus
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjent
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottatt
 import no.nav.ekspertbistand.event.handlers.SettGodkjentSkjemaStatus
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst
+import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjentKildeAltinn
 import no.nav.ekspertbistand.skjema.DTO
 import kotlin.time.ExperimentalTime
 
@@ -94,6 +96,7 @@ sealed interface EventData {
     data class TilskuddsbrevJournalfoertKildeAltinn(
         val dokumentId: Int,
         val journaldpostId: Int,
+        val tilsagnData: TilsagnData,
     ) : EventData
 
     @Serializable
@@ -114,10 +117,12 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(JournalfoerTilskuddsbrev::class))
         register(dependencies.create(JournalfoerTilskuddsbrevKildeAltinn::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadGodkjent::class))
+        register(dependencies.create(VarsleArbeidsgiverSoknadGodkjentKildeAltinn::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadAvlyst::class))
         register(dependencies.create(SettGodkjentSkjemaStatus::class))
         register(dependencies.create(SettAvlystSkjemaStatus::class))
         register(dependencies.create(LagreTilsagnsData::class))
+        register(dependencies.create(LagreTilsagnsDataKildeAltinn::class))
 
         register<EventData>("InlineAlEventsHandler") { event ->
             // Inline handler example

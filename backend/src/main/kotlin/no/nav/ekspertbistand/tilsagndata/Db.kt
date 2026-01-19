@@ -12,7 +12,7 @@ import java.util.UUID
 object TilsagndataTable : Table("tilsagndata") {
     val id = uuid("id")
     val tilsagnNummer = text("tilsagnnummer")
-    val skjemaId = uuid("skjema_id")
+    val skjemaId = uuid("skjema_id").nullable()
     val tilsagnData = json<TilsagnData>(
         "tilsagnData",
         serialize = { Json.encodeToString(it) },
@@ -20,7 +20,7 @@ object TilsagndataTable : Table("tilsagndata") {
     )
 }
 
-fun insertTilsagndata(skjemaId: UUID, tilsagnData: TilsagnData) {
+fun insertTilsagndata(skjemaId: UUID?, tilsagnData: TilsagnData) {
     TilsagndataTable.insert {
         it[id] = UUID.randomUUID()
         it[tilsagnNummer] = tilsagnData.tilsagnNummer.concat()
@@ -29,11 +29,11 @@ fun insertTilsagndata(skjemaId: UUID, tilsagnData: TilsagnData) {
     }
 }
 
-fun findTilsagnDataByTilsagnNummer(tilsagnNummer: TilsagnData.TilsagnNummer) =
+fun findTilsagnDataByTilsagnNummer(tilsagnNummer: String) =
     TilsagndataTable.select(
         TilsagndataTable.tilsagnData
     ).where {
-        TilsagndataTable.tilsagnNummer eq tilsagnNummer.concat()
+        TilsagndataTable.tilsagnNummer eq tilsagnNummer
     }.map {
         it[TilsagndataTable.tilsagnData]
     }.firstOrNull()

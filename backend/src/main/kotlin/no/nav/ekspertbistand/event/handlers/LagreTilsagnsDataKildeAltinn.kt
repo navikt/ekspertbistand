@@ -17,26 +17,21 @@ import java.util.UUID
  * Etter at tilskuddsbrev er journalført, lagres tilsagnsdata i databasen.
  * Dette gjør at vi kan vise tilskuddsbrev til arbeidsgiver.
  */
-class LagreTilsagnsData(
+class LagreTilsagnsDataKildeAltinn(
     private val database: Database,
-) : EventHandler<EventData.TilskuddsbrevJournalfoert> {
+) : EventHandler<EventData.TilskuddsbrevJournalfoertKildeAltinn> {
     override val id = "LagreTilsagnsData"
-    override val eventType = EventData.TilskuddsbrevJournalfoert::class
+    override val eventType = EventData.TilskuddsbrevJournalfoertKildeAltinn::class
 
     private val logger = logger()
 
-    override suspend fun handle(event: Event<EventData.TilskuddsbrevJournalfoert>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.TilskuddsbrevJournalfoertKildeAltinn>): EventHandledResult {
         return transaction(database) {
-            val skjemaId = event.data.skjema.id
-            if (skjemaId == null) {
-                unrecoverableError("skjemaId er null")
-            } else {
-                val tilsagnData = event.data.tilsagnData
-                insertTilsagndata(UUID.fromString(skjemaId), tilsagnData)
-                logger.info("Lagret tilsagndata for skjema med id $skjemaId")
+            val tilsagnData = event.data.tilsagnData
+            insertTilsagndata(null, tilsagnData)
+            logger.info("Lagret tilsagndata for tilsagnnummer ${tilsagnData.tilsagnNummer.concat()} fra Altinn")
 
-                success()
-            }
+            success()
         }
     }
 }

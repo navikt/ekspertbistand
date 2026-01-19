@@ -1,5 +1,6 @@
 mutation OpprettNyBeskjed(
     $grupperingsid: String!
+    $eksternId: String!
     $merkelapp: String!
     $virksomhetsnummer: String!
     $tekst: String!
@@ -18,7 +19,7 @@ mutation OpprettNyBeskjed(
             metadata: {
                 opprettetTidspunkt: $tidspunkt
                 grupperingsid: $grupperingsid
-                eksternId: $grupperingsid
+                eksternId: $eksternId
                 virksomhetsnummer: $virksomhetsnummer
             }
             mottakere: [

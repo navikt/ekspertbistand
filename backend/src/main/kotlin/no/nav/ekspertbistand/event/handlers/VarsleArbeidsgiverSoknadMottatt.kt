@@ -52,7 +52,7 @@ class VarsleArbeidsgiverSoknadMottatt(
     private suspend fun nySak(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNySak(
-                skjemaId = skjema.id!!,
+                grupperingsid = skjema.id!!,
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tittel = "Ekspertbistand ${skjema.ansatt.navn} f. ${skjema.ansatt.fnr.tilFødselsdato()}",
                 lenke = skjema.kvitteringsLenke,
@@ -66,7 +66,8 @@ class VarsleArbeidsgiverSoknadMottatt(
     private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
-                skjemaId = skjema.id!!,
+                grupperingsid = skjema.id!!,
+                eksternId = "${skjema.id}-soknad-mottatt",
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 tekst = "Nav har mottatt deres søknad om ekspertbistand.",
                 lenke = skjema.kvitteringsLenke,
@@ -78,7 +79,7 @@ class VarsleArbeidsgiverSoknadMottatt(
     }
 }
 
-private fun String.tilFødselsdato(): String {
+fun String.tilFødselsdato(): String {
     if (length != 11) throw IllegalArgumentException("Fødselsnummer må være eksakt 11 tegn langt")
     return "${substring(0, 2)}.${substring(2, 4)}.${substring(4, 6)}"
 }
