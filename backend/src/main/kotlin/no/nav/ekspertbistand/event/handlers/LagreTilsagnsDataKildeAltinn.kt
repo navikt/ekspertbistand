@@ -20,7 +20,7 @@ import java.util.UUID
 class LagreTilsagnsDataKildeAltinn(
     private val database: Database,
 ) : EventHandler<EventData.TilskuddsbrevJournalfoertKildeAltinn> {
-    override val id = "LagreTilsagnsData"
+    override val id = "LagreTilsagnsDataKildeAltinn"
     override val eventType = EventData.TilskuddsbrevJournalfoertKildeAltinn::class
 
     private val logger = logger()
