@@ -566,4 +566,139 @@ class SkjemaTest {
         }
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
+
+    @Test
+    fun `utkast uten orgnr returneres kun til person som har opprettet utkastet`() =
+        testApplicationWithDatabase { testDb ->
+            mockAltinnTilganger(
+                AltinnTilgangerClientResponse(
+                    isError = false,
+                    hierarki = emptyList(),
+                    orgNrTilTilganger = mapOf(
+                        "1337" to setOf(altinn3Ressursid)
+                    ),
+                    tilgangTilOrgNr = mapOf(
+                        altinn3Ressursid to setOf("1337"),
+                    )
+                )
+            )
+
+            client = createClient {
+                install(ContentNegotiation) {
+                    json()
+                }
+            }
+            val altinnTilgangerClient = AltinnTilgangerClient(
+                defaultHttpClient = client,
+                tokenExchanger = successTokenXTokenExchanger
+            )
+
+            application {
+                dependencies {
+                    provide {
+                        testDb.config.jdbcDatabase
+                    }
+                    provide<TokenXTokenIntrospector> {
+                        MockTokenIntrospector {
+                            if (it == "faketoken") {
+                                mockIntrospectionResponse.withPid("42")
+                            } else if (it == "faketoken2") {
+                                mockIntrospectionResponse.withPid("43")
+                            } else {
+                                null
+                            }
+                        }
+                    }
+                    provide {
+                        altinnTilgangerClient
+                    }
+                }
+
+                configureTokenXAuth()
+                configureServer()
+                configureSkjemaApiV1()
+            }
+
+            transaction(testDb.config.jdbcDatabase)
+            {
+                UtkastTable.insert {
+                    it[id] = UUID.randomUUID()
+                    it[virksomhetsnummer] = null
+                    it[virksomhetsnavn] = null
+                    it[opprettetAv] = "42"
+                    it[behovForBistand] = "utkast som ikke har virksomhet"
+                    it[behovForBistandTilrettelegging] = ""
+                    it[behovForBistandBegrunnelse] = ""
+                    it[behovForBistandEstimertKostnad] = "42"
+                    it[behovForBistandTimer] = "9"
+                    it[behovForBistandStartdato] = CurrentDate
+
+                    it[kontaktpersonNavn] = null
+                    it[kontaktpersonEpost] = null
+                    it[kontaktpersonTelefon] = null
+                    it[ansattFnr] = ""
+                    it[ansattNavn] = ""
+                    it[ekspertNavn] = ""
+                    it[ekspertVirksomhet] = ""
+                    it[ekspertKompetanse] = ""
+                    it[navKontaktPerson] = ""
+                }
+
+                UtkastTable.insert {
+                    it[id] = UUID.randomUUID()
+                    it[virksomhetsnummer] = "1337"
+                    it[virksomhetsnavn] = "andeby AS"
+                    it[opprettetAv] = "44"
+                    it[behovForBistand] = "utkast som har virksomhet "
+                    it[behovForBistandTilrettelegging] = ""
+                    it[behovForBistandBegrunnelse] = ""
+                    it[behovForBistandEstimertKostnad] = ""
+                    it[behovForBistandTimer] = "9"
+                    it[behovForBistandStartdato] = CurrentDate
+
+                    it[kontaktpersonNavn] = ""
+                    it[kontaktpersonEpost] = ""
+                    it[kontaktpersonTelefon] = ""
+                    it[ansattFnr] = ""
+                    it[ansattNavn] = ""
+                    it[ekspertNavn] = ""
+                    it[ekspertVirksomhet] = ""
+                    it[ekspertKompetanse] = ""
+                    it[navKontaktPerson] = ""
+                }
+            }
+
+            with(
+                client.get("/api/skjema/v1?status=${SkjemaStatusQueryParam.utkast.name}")
+                {
+                    bearerAuth("faketoken")
+                }
+            )
+            {
+                assertEquals(HttpStatusCode.OK, status)
+                body<List<DTO.Utkast>>().also { skjemas ->
+                    assertEquals(2, skjemas.size)
+                    val skjemaUtenVirksomhet = skjemas.find { it.virksomhet == null }
+                    val skjemaMedVirksomhet = skjemas.find { it.virksomhet != null }
+                    assertEquals("42", skjemaUtenVirksomhet!!.opprettetAv)
+                    assertEquals("1337", skjemaMedVirksomhet!!.virksomhet!!.virksomhetsnummer)
+                }
+            }
+
+            with(
+                client.get("/api/skjema/v1?status=${SkjemaStatusQueryParam.utkast.name}")
+                {
+                    bearerAuth("faketoken2")
+                }
+            )
+            {
+                assertEquals(HttpStatusCode.OK, status)
+                body<List<DTO.Utkast>>().also { skjemas ->
+                    assertEquals(1, skjemas.size)
+                    val skjemaMedVirksomhet = skjemas.find { it.virksomhet != null }
+                    assertEquals("1337", skjemaMedVirksomhet!!.virksomhet!!.virksomhetsnummer)
+                }
+            }
+        }
+
 }

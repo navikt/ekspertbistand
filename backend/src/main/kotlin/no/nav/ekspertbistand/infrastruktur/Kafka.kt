@@ -50,13 +50,13 @@ class CoroutineKafkaConsumer(
             while (isActive) {
                 try {
                     val records = consumer.poll(java.time.Duration.ofMillis(1000))
-                    log.info("polled ${records.count()} records $config")
+                    log.debug("polled {} records {}", records.count(), config)
 
                     if (records.any()) {
                         for (record in records) {
                             processor.processRecord(record)
                         }
-                        log.info("committing offsets for ${records.count()} records $config")
+                        log.debug("committing offsets for {} records {}", records.count(), config)
                         consumer.commitSync()
                     }
                 } catch (e: CancellationException) {
