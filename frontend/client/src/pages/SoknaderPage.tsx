@@ -62,6 +62,10 @@ export default function SoknaderPage() {
       <div className="home-page">
         <BackLink href={MIN_SIDE_URL}>Tilbake til Min side - arbeidsgiver</BackLink>
 
+        <Heading level="1" size="xlarge" spacing>
+          Søknader
+        </Heading>
+
         <LinkCard className="home-page__create-card" size="medium" arrowPosition="center">
           <LinkCard.Icon aria-hidden>
             <ApplicationPictogram aria-hidden width={48} />
@@ -74,10 +78,6 @@ export default function SoknaderPage() {
             </LinkCard.Anchor>
           </LinkCard.Title>
         </LinkCard>
-
-        <Heading level="1" size="xlarge" spacing>
-          Søknader
-        </Heading>
 
         {content}
       </div>

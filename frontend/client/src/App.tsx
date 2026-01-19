@@ -78,10 +78,10 @@ export default function App() {
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/ekspertbistand" element={<LandingPage />} />
         <Route element={<LoginGate />}>
           <Route element={<OrganisasjonerGate />}>
           <Route path={SOKNADER_PATH} element={<SoknaderPage />} />
-          <Route path="/ekspertbistand" element={<Navigate to={SOKNADER_PATH} replace />} />
           <Route path="/skjema" element={<Navigate to="/skjema/start" replace />} />
             <Route path="/skjema/start" element={<SoknadPage />} />
             <Route path="/skjema/:id/kvittering" element={<KvitteringPage />} />

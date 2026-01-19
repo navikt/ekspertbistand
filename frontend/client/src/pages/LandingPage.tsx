@@ -1,8 +1,27 @@
-import { BodyLong, Button, Heading, LinkPanel, VStack } from "@navikt/ds-react";
+import { BodyLong, BodyShort, Button, Heading, LinkPanel, Loader, VStack } from "@navikt/ds-react";
+import { Navigate } from "react-router-dom";
 import DecoratedPage from "../components/DecoratedPage";
-import { TILGANGSSTYRING_URL, LOGIN_URL } from "../utils/constants";
+import { TILGANGSSTYRING_URL, LOGIN_URL, SOKNADER_PATH } from "../utils/constants";
+import { useSession } from "../hooks/useSession";
 
 export default function LandingPage() {
+  const { authenticated, isLoading } = useSession();
+
+  if (authenticated) {
+    return <Navigate to={SOKNADER_PATH} replace />;
+  }
+
+  if (isLoading) {
+    return (
+      <DecoratedPage>
+        <VStack align="center" gap="4" style={{ padding: "2rem" }}>
+          <Loader size="large" title="Sjekker innlogging" />
+          <BodyShort>Sjekker innlogging …</BodyShort>
+        </VStack>
+      </DecoratedPage>
+    );
+  }
+
   return (
     <DecoratedPage>
       <VStack gap="8">
