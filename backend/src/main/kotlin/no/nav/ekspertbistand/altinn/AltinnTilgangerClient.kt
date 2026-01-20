@@ -8,6 +8,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.infrastruktur.*
 
 
@@ -19,7 +20,6 @@ class AltinnTilgangerClient(
     defaultHttpClient: HttpClient
 ) {
     companion object {
-        const val altinn3Ressursid = "nav_tiltak_ekspertbistand"
         const val ingress = "http://arbeidsgiver-altinn-tilganger.fager"
     }
 
@@ -87,12 +87,12 @@ data class AltinnTilgangerClientResponse(
     )
 
     fun harTilgang(orgnr: String): Boolean = orgNrTilTilganger[orgnr]?.any {
-        it == AltinnTilgangerClient.altinn3Ressursid
+        it == altinn3Ressursid
     } == true
 
     val organisasjoner: Set<String>
         get() {
-            return tilgangTilOrgNr[AltinnTilgangerClient.altinn3Ressursid] ?: emptySet()
+            return tilgangTilOrgNr[altinn3Ressursid] ?: emptySet()
         }
 }
 

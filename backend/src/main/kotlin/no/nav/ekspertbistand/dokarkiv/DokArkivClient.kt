@@ -17,6 +17,7 @@ import io.ktor.http.encodedPath
 import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
@@ -77,8 +78,7 @@ class DokArkivClient(
             dokumenter = listOf(
                 Dokument(
                     tittel = tittel,
-                    // TODO: sjekke at dette er riktig brevkode
-                    brevkode = "5384",
+                    brevkode = altinn3Ressursid,
                     dokumentvarianter = listOf(
                         DokumentVariant(
                             fysiskDokument = encodeToBase64(dokumentPdfAsBytes),

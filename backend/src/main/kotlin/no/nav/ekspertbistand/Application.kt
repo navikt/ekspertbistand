@@ -51,6 +51,8 @@ import org.slf4j.event.Level
 import java.util.*
 
 
+const val altinn3Ressursid = "nav_tiltak_ekspertbistand"
+
 fun main() {
     val dbConfig = DbConfig.nais()
 
