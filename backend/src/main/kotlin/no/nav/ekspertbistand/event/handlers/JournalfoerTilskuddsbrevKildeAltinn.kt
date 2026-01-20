@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.event.handlers
 
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.JournalpostType
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
@@ -10,6 +11,7 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableErr
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -51,8 +53,9 @@ class JournalfoerTilskuddsbrevKildeAltinn(
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = tittel,
                 virksomhetsnummer = event.data.tilsagnData.tiltakArrangor.orgNummer.toString(),
-                eksternReferanseId = event.data.tilsagnData.tilsagnNummer.let { "${it.aar}${it.loepenrSak}-${it.loepenrTilsagn}" },
+                eksternReferanseId = event.data.tilsagnData.tilsagnNummer.concat(),
                 dokumentPdfAsBytes = tilsagnPdf,
+                journalposttype = JournalpostType.UTGAAENDE,
             )
         } catch (e: Exception) {
             return transientError("Feil ved opprettelse av journalpost: ${e.message}", e)

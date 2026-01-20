@@ -21,25 +21,6 @@ import java.util.*
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
-class DummyFooHandler : EventHandler<EventData.Foo> {
-    override val id = "dummy-foo-handler"
-    override val eventType = EventData.Foo::class
-
-    override suspend fun handle(event: Event<EventData.Foo>): EventHandledResult {
-        return EventHandledResult.Success()
-    }
-
-}
-
-class DummyBarHandler : EventHandler<EventData.Bar> {
-    override val id = "dummy-bar-handler"
-    override val eventType = EventData.Bar::class
-
-    override suspend fun handle(event: Event<EventData.Bar>): EventHandledResult {
-        return EventHandledResult.Success()
-    }
-}
-
 @OptIn(ExperimentalTime::class)
 suspend fun Application.configureSkjemaApiV1() {
     val database = dependencies.resolve<Database>()

@@ -21,7 +21,6 @@ import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
-import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 import no.nav.ekspertbistand.infrastruktur.defaultJson
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -67,11 +66,12 @@ class DokArkivClient(
         virksomhetsnummer: String,
         eksternReferanseId: String,
         dokumentPdfAsBytes: ByteArray,
+        journalposttype: JournalpostType,
     ): OpprettJournalpostResponse {
         val journalpost = Journalpost(
             bruker = Bruker(id = virksomhetsnummer, idType = "ORGNR"),
             avsenderMottaker = AvsenderMottaker(id = virksomhetsnummer, idType = "ORGNR"),
-            eksternReferanseId = "${eksternReferanseId}-innsendt-skjema",
+            eksternReferanseId = eksternReferanseId,
             journalfoerendeEnhet = "9999",
             tittel = tittel,
             dokumenter = listOf(
@@ -88,7 +88,7 @@ class DokArkivClient(
                     ),
                 )
             ),
-            journalposttype = "INNGAAENDE",
+            journalposttype = journalposttype.name,
             kanal = "NAV_NO",
             tema = "TIL",
             behandlingstema = "ab0423",
@@ -121,10 +121,38 @@ class DokArkivClient(
     }
 }
 
+enum class JournalpostType {
+    /**
+     * INNGAAENDE brukes for dokumentasjon som NAV har mottatt fra en ekstern part. Dette kan være søknader, ettersendelser av dokumentasjon til sak eller meldinger fra arbeidsgivere.
+     */
+    INNGAAENDE,
+
+    /**
+     * UTGAAENDE brukes for dokumentasjon som NAV har produsert og sendt ut til en ekstern part. Dette kan for eksempel være informasjons- eller vedtaksbrev til privatpersoner eller organisasjoner.
+     */
+    UTGAAENDE,
+
+    /**
+     * NOTAT brukes for dokumentasjon som NAV har produsert selv og uten mål om å distribuere dette ut av NAV. Eksempler på dette er forvaltningsnotater og referater fra telefonsamtaler med brukere.
+     */
+    //NOTAT, vi bruker ikke denne i Ekspertbistand
+}
+
 @Serializable
 private data class Journalpost(
     val bruker: Bruker,
+
+    /**
+     * Ved journalposttype INNGÅENDE skal avsender av dokumentene oppgis.
+     * Ved journalposttype UTGÅENDE skal mottaker av dokumentene oppgis.
+     * avsenderMottaker skal ikke settes for journalposttype NOTAT.
+     */
     val avsenderMottaker: AvsenderMottaker,
+
+    /**
+     * Unik id for forsendelsen som kan brukes til sporing gjennom verdikjeden. Eksempler på eksternReferanseId kan være en GUID, sykmeldingsId for sykmeldinger, Altinn ArchiveReference for Altinn-skjema eller SEDid for SED.
+     * NB: Det er duplikatkontroll på eksternReferanseId. Dersom man sender inn en eksternReferanseId som allerede finnes i arkivet, vil tjenesten kaste feil (409 Conflict).
+     */
     val eksternReferanseId: String,
     val journalfoerendeEnhet: String,
     val tittel: String,

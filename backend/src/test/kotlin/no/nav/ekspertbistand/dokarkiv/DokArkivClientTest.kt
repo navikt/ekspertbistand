@@ -62,7 +62,8 @@ class DokArkivClientTest {
             tittel = "Søknad om tilskudd til ekspertbistand",
             virksomhetsnummer = "123456789",
             eksternReferanseId = "ekstern-ref-123",
-            dokumentPdfAsBytes = dokumentPdfAsBytes
+            dokumentPdfAsBytes = dokumentPdfAsBytes,
+            journalposttype = JournalpostType.INNGAAENDE
         ).let {
             assertEquals("DOK123456", it.journalpostId)
         }

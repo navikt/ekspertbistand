@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.event.handlers
 
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.JournalpostType
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
@@ -59,6 +60,7 @@ class JournalfoerTilskuddsbrev(
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 eksternReferanseId = event.data.tilsagnData.tilsagnNummer.concat(),
                 dokumentPdfAsBytes = tilsagnPdf,
+                journalposttype = JournalpostType.UTGAAENDE,
             )
         } catch (e: Exception) {
             return transientError(
