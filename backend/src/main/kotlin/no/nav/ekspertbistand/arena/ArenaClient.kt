@@ -153,7 +153,7 @@ data class OpprettTiltaksgjennomfoeringResponse(
     /**
      * unik identifikator for tiltaksgjennomføringen i Arena
      */
-    val tiltaksgjennomfoeringId: Int = 0, // TODO: finnes ikke i arena enda, fjern default når den er implementert
+    val tiltaksgjennomfoeringId: Int,
 )
 
 typealias Saksnummer = String
