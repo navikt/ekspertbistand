@@ -110,7 +110,7 @@ function resolveStatusTag(statusKey: string): { label: string; variant: TagProps
     case "innsendt":
       return { label: "Innsendt", variant: "alt1" };
     case "avlyst":
-      return { label: "Avslag", variant: "error" };
+      return { label: "Trukket eller avslått", variant: "error" };
     case "utkast":
       return { label: "Utkast", variant: "neutral" };
     default:
