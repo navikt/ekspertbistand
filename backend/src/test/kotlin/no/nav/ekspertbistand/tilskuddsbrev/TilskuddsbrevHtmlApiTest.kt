@@ -10,8 +10,8 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
 import io.ktor.utils.io.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
-import no.nav.ekspertbistand.altinn.AltinnTilgangerClient.Companion.altinn3Ressursid
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
+import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.dokgen.DokgenClient

@@ -8,8 +8,8 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
-import no.nav.ekspertbistand.altinn.AltinnTilgangerClient.Companion.altinn3Ressursid
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
+import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
@@ -600,12 +600,16 @@ class SkjemaTest {
                     }
                     provide<TokenXTokenIntrospector> {
                         MockTokenIntrospector {
-                            if (it == "faketoken") {
-                                mockIntrospectionResponse.withPid("42")
-                            } else if (it == "faketoken2") {
-                                mockIntrospectionResponse.withPid("43")
-                            } else {
-                                null
+                            when (it) {
+                                "faketoken" -> {
+                                    mockIntrospectionResponse.withPid("42")
+                                }
+                                "faketoken2" -> {
+                                    mockIntrospectionResponse.withPid("43")
+                                }
+                                else -> {
+                                    null
+                                }
                             }
                         }
                     }

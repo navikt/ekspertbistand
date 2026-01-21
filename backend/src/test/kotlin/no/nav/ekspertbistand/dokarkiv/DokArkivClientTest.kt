@@ -4,6 +4,7 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
+import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TokenErrorResponse
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
@@ -23,7 +24,7 @@ class DokArkivClientTest {
             assertEquals("ORGNR", request.bruker.idType)
             assertEquals("123456789", request.avsenderMottaker.id)
             assertEquals("ORGNR", request.avsenderMottaker.idType)
-            assertEquals("ekstern-ref-123-innsendt-skjema", request.eksternReferanseId)
+            assertEquals("ekstern-ref-123", request.eksternReferanseId)
             assertEquals("9999", request.journalfoerendeEnhet)
             assertEquals("INNGAAENDE", request.journalposttype)
             assertEquals("NAV_NO", request.kanal)
@@ -34,7 +35,7 @@ class DokArkivClientTest {
 
             val dokument = request.dokumenter.single()
             assertEquals("Søknad om tilskudd til ekspertbistand", dokument.tittel)
-            assertEquals("5384", dokument.brevkode)
+            assertEquals(altinn3Ressursid, dokument.brevkode)
             val dokumentVariant = dokument.dokumentvarianter.single()
             assertEquals(encodeToBase64(dokumentPdfAsBytes), dokumentVariant.fysiskDokument)
             assertEquals("PDFA", dokumentVariant.filtype)
@@ -62,7 +63,8 @@ class DokArkivClientTest {
             tittel = "Søknad om tilskudd til ekspertbistand",
             virksomhetsnummer = "123456789",
             eksternReferanseId = "ekstern-ref-123",
-            dokumentPdfAsBytes = dokumentPdfAsBytes
+            dokumentPdfAsBytes = dokumentPdfAsBytes,
+            journalposttype = JournalpostType.INNGAAENDE
         ).let {
             assertEquals("DOK123456", it.journalpostId)
         }

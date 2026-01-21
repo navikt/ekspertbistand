@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.event.handlers
 
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.JournalpostType
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.event.*
@@ -76,6 +77,7 @@ class JournalfoerInnsendtSkjema(
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
                 eksternReferanseId = skjemaId,
                 dokumentPdfAsBytes = soknadPdf,
+                journalposttype = JournalpostType.INNGAAENDE,
             )
         }.getOrElse { e ->
             return transientError("Feil ved opprettelse av journalpost", e)
