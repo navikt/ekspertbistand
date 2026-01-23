@@ -9,15 +9,12 @@ import io.ktor.server.routing.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
-import no.nav.ekspertbistand.event.Event
-import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.EventHandledResult
-import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
@@ -31,6 +28,13 @@ suspend fun Application.configureSkjemaApiV1() {
         while (isActiveAndNotTerminating) {
             skjemaApi.slettGamleUtkast()
             delay(10.minutes)
+        }
+    }
+
+    launch {
+        while (isActiveAndNotTerminating) {
+            skjemaApi.slettGamleInnsendteSkjema()
+            delay(1.days)
         }
     }
 

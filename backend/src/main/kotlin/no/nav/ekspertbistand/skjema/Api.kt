@@ -280,6 +280,17 @@ class SkjemaApi(
         }
     }
 
+    fun slettGamleInnsendteSkjema(
+        ttl: Duration = 365.days,
+        clock: Clock = Clock.System,
+    ) = transaction {
+        SkjemaTable.deleteWhere {
+            SkjemaTable.opprettetTidspunkt lessEq (clock.now() - ttl) //TODO: hvorfor er opprettettidspunkt text og ikke instant her?
+        }.let {
+            log.info("Slettet $it gamle utkast eldre enn $ttl")
+        }
+    }
+
 }
 
 sealed interface DTO {
