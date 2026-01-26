@@ -13,14 +13,14 @@ export default function UgyldigSkjemaPage({ message }: UgyldigSkjemaPageProps) {
 
   return (
     <DecoratedPage>
-      <VStack gap="6">
+      <VStack gap="space-24">
         <BackLink to={SOKNADER_PATH}>Gå til oversikt</BackLink>
-        <VStack gap="4">
+        <VStack gap="space-24">
           <Heading level="1" size="xlarge">
             Søknaden finnes ikke
           </Heading>
           <Alert variant="warning" role="alert">
-            <VStack gap="3">
+            <VStack gap="space-16">
               <BodyLong>
                 Lenken du fulgte er ugyldig, eller peker på en søknad som ikke finnes lenger.
               </BodyLong>

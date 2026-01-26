@@ -60,7 +60,7 @@ function LoginGate() {
   const { authenticated, error, isLoading } = useSession();
   if (isLoading) {
     return (
-      <VStack align="center" gap="4" style={{ padding: "2rem" }}>
+      <VStack align="center" gap="space-4" style={{ padding: "2rem" }}>
         <Loader size="large" title="Sjekker innlogging" />
         <BodyShort>Sjekker innlogging …</BodyShort>
       </VStack>
