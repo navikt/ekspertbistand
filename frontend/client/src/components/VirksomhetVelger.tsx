@@ -18,7 +18,7 @@ export function VirksomhetVelger({ label, value, onChange, error }: VirksomhetPi
   const { organisasjoner, isLoading } = useOrganisasjoner();
 
   return (
-    <VStack gap="1">
+    <VStack gap="space-1">
       <Label>{label}</Label>
       {isLoading && (
         <BodyShort size="small">

@@ -2,7 +2,7 @@ import { BodyShort, Heading, Link, List, VStack } from "@navikt/ds-react";
 
 export default function TilgangFetchError() {
   return (
-    <VStack gap="4">
+    <VStack gap="space-4">
       <Heading level="1" size="large" spacing>
         Henting av tilganger feilet
       </Heading>

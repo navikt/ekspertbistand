@@ -82,9 +82,12 @@ export default function SoknadPage() {
   return (
     <DecoratedPage>
       <form onSubmit={handleSubmit(onValid, () => bumpFocusKey())}>
-        <VStack gap="8" data-aksel-template="form-intropage-v3">
-          <VStack gap="3">
-            <Bleed asChild marginInline={{ lg: "32" }}>
+        <VStack
+          gap="space-32"
+          data-aksel-template="form-intropage-v4"
+        >
+          <VStack gap="space-12">
+            <Bleed asChild marginInline={{ lg: "space-128" }}>
               <Box
                 width={{ xs: "64px", lg: "96px" }}
                 height={{ xs: "64px", lg: "96px" }}
@@ -94,7 +97,7 @@ export default function SoknadPage() {
                 <ApplicationPictogram />
               </Box>
             </Bleed>
-            <VStack gap="1">
+            <VStack gap="space-4" align="start">
               <Heading level="1" size="xlarge">
                 Søknad om tilskudd til ekspertbistand
               </Heading>
@@ -106,10 +109,13 @@ export default function SoknadPage() {
               Hei!
             </Heading>
             <BodyLong spacing>
-              Ekspertbistand dekker hjelp fra en nøytral ekspert som har kompetanse på sykefravær og
-              arbeidsmiljø. Eksperten prøver å avdekke mulige årsaker til sykefraværet, og foreslår
-              tiltak som gjør at den ansatte kanskje unngår å bli syk igjen. Eksperten skal ikke
-              selv behandle.
+              Tilskudd til ekspertbistand kan gis til arbeidsgivere for å forebygge lange eller hyppig gjentagende sykefravær i enkeltsaker.
+            </BodyLong>
+            <BodyLong spacing>
+              Arbeidsgiver og den ansatte skal ha vurdert og/eller forsøkt å fjerne årsakene til sykefraværet uten å lykkes, for eksempel ved oppfølging og tilrettelegging eller gjennom kontakt med bedriftshelsetjenesten.
+            </BodyLong>
+            <BodyLong spacing>
+              Arbeidsgiveren, Nav og den enkelte arbeidstakeren skal være enige om at det er hensiktsmessig med ekspertbistand.
             </BodyLong>
             <BodyLong>
               Les mer om tilskudd til{" "}
@@ -122,8 +128,7 @@ export default function SoknadPage() {
             </Heading>
             <List>
               <List.Item>
-                Du må ha snakket med Nav om denne konkrete saken knyttet til ekspertbistand. Husk å
-                notere hvem du har drøftet det med.
+                Du må ha snakket med Nav om denne konkrete saken knyttet til ekspertbistand. Husk å notere hvem du har drøftet det med.
               </List.Item>
               <List.Item>
                 Du, den ansatte og Nav er enige om at det er hensiktsmessig med ekspertbistand.
@@ -132,7 +137,7 @@ export default function SoknadPage() {
                 Du vet hvilken ekspert du ønsker å bruke og hvilken hjelp denne kan tilby.
               </List.Item>
               <List.Item>
-                Du har blitt tildelt Altinn-tilgangen “Ekspertbistand” på riktig virksomhet.
+                Du har blitt tildelt Altinn-tilgangen “Tilskudd til ekspertbistand” på riktig virksomhet.
               </List.Item>
             </List>
           </div>
@@ -141,10 +146,17 @@ export default function SoknadPage() {
               <Accordion.Item>
                 <Accordion.Header>Hvordan vi behandler personopplysninger</Accordion.Header>
                 <Accordion.Content>
-                  <BodyLong>
-                    Søknader og utkast om tilskudd til ekspertbistand er synlig for alle som har
-                    Altinn-tilgangen “Ekspertbistand” i virksomheten. Av hensyn til personvernet
-                    fjerner vi deres tilgang til søknaden 8 måneder etter at tiltaket er avsluttet.
+                  <BodyLong spacing>
+                    Søknader og utkast om tilskudd til ekspertbistand er synlig for alle som har Altinn-tilgangen “Tilskudd til ekspertbistand” i virksomheten. Av hensyn til personvernet fjerner vi deres tilgang til søknaden 12 måneder etter at tiltaket er avsluttet.
+                  </BodyLong>
+                  <BodyLong spacing>
+                    Søknad om tilskudd til ekspertbistand inneholder personopplysninger. Søknaden skal kun inneholde personopplysninger om den arbeidstakeren søknaden gjelder, og det skal ikke gis flere personopplysninger enn det som er nødvendig for å behandle søknaden.
+                  </BodyLong>
+                  <BodyLong spacing>
+                    Vær oppmerksom på at arbeidstakeren har innsynsrett i søknaden om tilskudd til ekspertbistand.
+                  </BodyLong>
+                  <BodyLong spacing>
+                    Virksomheten er ansvarlig for å sikre at personopplysninger blir behandlet i tråd med bestemmelsene i personopplysningsloven. Se nærmere informasjon om personvern på arbeidsplassen i Datatilsynets veileder.
                   </BodyLong>
                 </Accordion.Content>
               </Accordion.Item>
@@ -152,12 +164,10 @@ export default function SoknadPage() {
                 <Accordion.Header>Vi lagrer svar underveis</Accordion.Header>
                 <Accordion.Content>
                   <BodyLong spacing>
-                    Svarene dine lagres automatisk mens du fyller ut søknaden. Det betyr at du kan
-                    ta pauser og fortsette senere.
+                    Svarene dine lagres automatisk mens du fyller ut søknaden. Det betyr at du kan ta pauser og fortsette senere.
                   </BodyLong>
                   <BodyLong spacing>
-                    Utkastet er synlig for alle som har Altinn-tilgangen “Ekspertbistand” i
-                    virksomheten.
+                    Utkastet er synlig for alle som har Altinn-tilgangen “Tilskudd til ekspertbistand” i virksomheten.
                   </BodyLong>
                   <BodyLong>
                     Hvis du ikke fortsetter innen 48 timer, blir utkastet slettet.
@@ -174,7 +184,7 @@ export default function SoknadPage() {
                 Les mer om viktigheten av å gi riktige opplysninger.
               </Link>
             </BodyLong>
-            <Box paddingBlock="4 8">
+            <Box paddingBlock="space-16 space-32">
               <Checkbox
                 id="bekreftRiktige"
                 error={Boolean(errors.bekreftRiktige)}
@@ -191,7 +201,7 @@ export default function SoknadPage() {
                 er enige om at ekspertbistand er hensiktsmessig.
               </Checkbox>
             </Box>
-            <VStack gap="6">
+            <VStack gap="space-32">
               <FormErrorSummary
                 errors={errors}
                 fields={INTRO_FIELD_PATHS}
@@ -200,18 +210,18 @@ export default function SoknadPage() {
                 extraItems={
                   apiError
                     ? [
-                        {
-                          id: "start-soknad-feil",
-                          message: apiError.message,
-                          href: "#start-soknad-feil",
-                        },
-                      ]
+                      {
+                        id: "start-soknad-feil",
+                        message: apiError.message,
+                        href: "#start-soknad-feil",
+                      },
+                    ]
                     : undefined
                 }
               />
               {apiError ? (
                 <Alert variant="error" inline>
-                  <VStack gap="3">
+                  <VStack gap="space-32">
                     <BodyLong>{apiError.message}</BodyLong>
                     {apiError.requiresLogin ? (
                       <Button as="a" href={LOGIN_URL} size="small" variant="primary">

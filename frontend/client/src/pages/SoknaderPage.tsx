@@ -21,7 +21,7 @@ export default function SoknaderPage() {
   } else if (error) {
     content = (
       <Alert variant="error" className="home-page__alert">
-        <VStack gap="4">
+        <VStack gap="space-24">
           <BodyShort>{error}</BodyShort>
           {requiresLogin ? (
             <Button as="a" href={LOGIN_URL} variant="primary">
@@ -35,7 +35,7 @@ export default function SoknaderPage() {
     content = <BodyShort>Du har ingen søknader ennå.</BodyShort>;
   } else {
     content = (
-      <VStack as="ul" gap="3" className="home-page__application-list">
+      <VStack as="ul" gap="space-16" className="home-page__application-list">
         {soknader.map((application) => (
           <li key={application.id}>
             <LinkCard className="home-page__application-card">

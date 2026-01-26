@@ -5,7 +5,7 @@ import { LOGIN_URL } from "../utils/constants";
 export default function LoginRequiredPage() {
   return (
     <DecoratedPage>
-      <VStack gap="6">
+      <VStack gap="space-32">
         <Heading level="1" size="xlarge">
           Du må logge inn
         </Heading>
