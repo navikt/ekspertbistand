@@ -49,9 +49,8 @@ object SkjemaTable : Table("skjema") {
     val opprettetAv = text("opprettet_av")
 
     @OptIn(ExperimentalTime::class)
-    val opprettetTidspunkt = text("opprettet_tidspunkt").clientDefault {
-        Clock.System.now().toString()
-    }
+    val opprettetTidspunkt = timestamp("opprettet_tidspunkt").defaultExpression(CurrentTimestamp)
+
     val status = text("status")
 
     override val primaryKey = PrimaryKey(id)
@@ -104,6 +103,7 @@ fun findSkjemaById(id: UUID): DTO.Skjema? = SkjemaTable.selectAll()
     .where { SkjemaTable.id eq id }
     .singleOrNull()?.tilSkjemaDTO()
 
+@OptIn(ExperimentalTime::class)
 fun ResultRow.tilSkjemaDTO() = DTO.Skjema(
     id = this[SkjemaTable.id].toString(),
     virksomhet = DTO.Virksomhet(
@@ -137,7 +137,7 @@ fun ResultRow.tilSkjemaDTO() = DTO.Skjema(
         kontaktperson = this[SkjemaTable.navKontaktPerson]
     ),
     opprettetAv = this[SkjemaTable.opprettetAv],
-    opprettetTidspunkt = this[SkjemaTable.opprettetTidspunkt],
+    opprettetTidspunkt = this[SkjemaTable.opprettetTidspunkt].toString(),
     status = SkjemaStatus.valueOf(this[SkjemaTable.status])
 )
 

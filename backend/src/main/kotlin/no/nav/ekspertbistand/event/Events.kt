@@ -51,7 +51,7 @@ sealed interface EventData {
     ) : EventData
 
     @Serializable
-    @SerialName("journalpostOpprettet")
+    @SerialName("innsendtSkjemaJournalfoert")
     data class InnsendtSkjemaJournalfoert(
         val skjema: DTO.Skjema,
         val dokumentId: Int,

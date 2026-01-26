@@ -6,6 +6,7 @@ import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
+import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.HardDeleteSak
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.ISO8601DateTime
@@ -68,10 +69,9 @@ class ProdusentApiKlient(
         url = URI(notifikasjonBaseUrl).toURL(),
         httpClient = httpClient
     )
-    private val ressursId = "nav_tiltak_ekspertbistand"
 
     private val mottaker = MottakerInput(
-        altinnRessurs = AltinnRessursMottakerInput(ressursId = ressursId),
+        altinnRessurs = AltinnRessursMottakerInput(ressursId = altinn3Ressursid),
     )
 
     private suspend fun hentEntraIdToken(): String {

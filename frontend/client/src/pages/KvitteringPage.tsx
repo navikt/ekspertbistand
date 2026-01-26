@@ -25,6 +25,7 @@ import {
   formatTimer,
   formatValue,
 } from "../components/summaryFormatters";
+import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse.ts";
 
 type KvitteringMetadata = {
   status?: string | null;
@@ -38,6 +39,12 @@ type KvitteringSummaryProps = {
 };
 
 function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummaryProps) {
+  const {
+    adresse,
+    isLoading: adresseLoading,
+    error: adresseError,
+  } = useVirksomhetAdresse(data.virksomhet.virksomhetsnummer);
+
   return (
     <VStack gap="space-32">
       <FormSummary>
@@ -56,6 +63,16 @@ function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummar
           <FormSummary.Answer>
             <FormSummary.Label>Organisasjonsnummer</FormSummary.Label>
             <FormSummary.Value>{formatValue(data.virksomhet.virksomhetsnummer)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>Beliggenhetsadresse</FormSummary.Label>
+            <FormSummary.Value>
+              {adresseError
+                ? "Kunne ikke hente beliggenhetsadresse."
+                : adresseLoading
+                  ? "Laster ..."
+                  : formatValue(adresse)}
+            </FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Kontaktperson i virksomheten</FormSummary.Label>
