@@ -206,6 +206,7 @@ private fun insertDummySkjema(skjemaId: UUID, vnr: String) {
         it[behovForBistandTimer] = ""
         it[behovForBistandStartdato] = CurrentDate
         it[navKontaktPerson] = ""
+        it[beliggenhetsadresse] = ""
         it[status] = SkjemaStatus.innsendt.toString()
     }
 }
