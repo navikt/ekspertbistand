@@ -121,6 +121,7 @@ export const soknadSchema = z.object({
       epost: emailField,
       telefonnummer: phoneField,
     }),
+    beligenhetsadresse: z.string().nullable(),
   }),
   ansatt: z.object({
     fnr: fnrField,
@@ -152,6 +153,7 @@ export const STEP1_FIELDS = [
   "virksomhet.kontaktperson.navn",
   "virksomhet.kontaktperson.epost",
   "virksomhet.kontaktperson.telefonnummer",
+  "virksomhet.beligenhetsadresse",
   "ansatt.fnr",
   "ansatt.navn",
   "ekspert.navn",
@@ -178,6 +180,7 @@ export const createEmptyInputs = (): SoknadInputs => ({
       epost: "",
       telefonnummer: "",
     },
+    beligenhetsadresse: null,
   },
   ansatt: {
     fnr: "",

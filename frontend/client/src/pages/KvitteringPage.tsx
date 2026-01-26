@@ -25,7 +25,6 @@ import {
   formatTimer,
   formatValue,
 } from "../components/summaryFormatters";
-import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse.ts";
 
 type KvitteringMetadata = {
   status?: string | null;
@@ -39,12 +38,6 @@ type KvitteringSummaryProps = {
 };
 
 function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummaryProps) {
-  const {
-    adresse,
-    isLoading: adresseLoading,
-    error: adresseError,
-  } = useVirksomhetAdresse(data.virksomhet.virksomhetsnummer);
-
   return (
     <VStack gap="4">
       <FormSummary>
@@ -66,13 +59,7 @@ function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummar
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Beliggenhetsadresse</FormSummary.Label>
-            <FormSummary.Value>
-              {adresseError
-                ? "Kunne ikke hente beliggenhetsadresse."
-                : adresseLoading
-                  ? "Laster ..."
-                  : formatValue(adresse)}
-            </FormSummary.Value>
+            <FormSummary.Value>{formatValue(data.virksomhet.beligenhetsadresse)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Kontaktperson i virksomheten</FormSummary.Label>
@@ -190,9 +177,8 @@ export default function KvitteringPage() {
     data: tilskuddsbrevHtml,
     error: tilskuddsbrevError,
     isLoading: tilskuddsbrevLoading,
-  } = useSWR(
-    shouldLoadTilsagn && id ? ["tilskuddsbrev-html", id] : null,
-    ([, skjemaId]) => fetchTilskuddsbrevHtmlForSkjema(skjemaId)
+  } = useSWR(shouldLoadTilsagn && id ? ["tilskuddsbrev-html", id] : null, ([, skjemaId]) =>
+    fetchTilskuddsbrevHtmlForSkjema(skjemaId)
   );
 
   const formData = useMemo(() => (draft ? draftDtoToInputs(draft) : null), [draft]);
@@ -294,8 +280,8 @@ export default function KvitteringPage() {
                 Søknad trukket eller avslått
               </Heading>
               <BodyLong>
-                Har du trukket søknaden, trenger du ikke gjøre noe.
-                Hvis Nav har avslått søknaden, får du vedtaket i posten med informasjon om hvordan du kan klage på det.
+                Har du trukket søknaden, trenger du ikke gjøre noe. Hvis Nav har avslått søknaden,
+                får du vedtaket i posten med informasjon om hvordan du kan klage på det.
               </BodyLong>
             </Box.New>
           </VStack>
