@@ -24,6 +24,7 @@ object SkjemaTable : Table("skjema") {
     val kontaktpersonNavn = text("kontaktperson_navn")
     val kontaktpersonEpost = text("kontaktperson_epost")
     val kontaktpersonTelefon = text("kontaktperson_telefon")
+    val beliggenhetsadresse = text("beliggenhetsadresse")
 
     // Ansatt
     val ansattFnr = text("ansatt_fnr")
