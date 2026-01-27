@@ -235,12 +235,6 @@ class SkjemaApi(
         }
 
         val adresse = eregService.hentForretningsadresse(skjema.virksomhet.virksomhetsnummer)
-        if (adresse == null) {
-            call.respond(
-                status = HttpStatusCode.BadRequest,
-                message = "finner ikke beliggenhetsadresse til organisasjon"
-            )
-        }
 
         val innsendt = transaction(database) {
             val skjema = SkjemaTable.insertReturning {
@@ -250,7 +244,7 @@ class SkjemaApi(
                 it[kontaktpersonNavn] = skjema.virksomhet.kontaktperson.navn
                 it[kontaktpersonEpost] = skjema.virksomhet.kontaktperson.epost
                 it[kontaktpersonTelefon] = skjema.virksomhet.kontaktperson.telefonnummer
-                it[beliggenhetsadresse] = adresse!!
+                it[beliggenhetsadresse] = adresse
                 it[ansattFnr] = skjema.ansatt.fnr
                 it[ansattNavn] = skjema.ansatt.navn
                 it[ekspertNavn] = skjema.ekspert.navn
