@@ -51,7 +51,7 @@ function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummar
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Navn på virksomhet</FormSummary.Label>
-            <FormSummary.Value>{formatValue(data.virksomhet.navn)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(data.virksomhet.virksomhetsnavn)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Organisasjonsnummer</FormSummary.Label>
@@ -59,7 +59,9 @@ function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummar
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Beliggenhetsadresse</FormSummary.Label>
-            <FormSummary.Value>{formatValue(data.virksomhet.beligenhetsadresse)}</FormSummary.Value>
+            <FormSummary.Value>
+              {formatValue(data.virksomhet.beliggenhetsadresse)}
+            </FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Kontaktperson i virksomheten</FormSummary.Label>

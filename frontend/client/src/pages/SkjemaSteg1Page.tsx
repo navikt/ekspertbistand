@@ -94,9 +94,9 @@ export default function SkjemaSteg1Page() {
                       if (field.value === orgnr) return;
                       field.onChange(orgnr);
                       if (!virksomhet?.navn) return;
-                      const currentName = getValues("virksomhet.navn");
+                      const currentName = getValues("virksomhet.virksomhetsnavn");
                       if (currentName === virksomhet.navn) return;
-                      setValue("virksomhet.navn", virksomhet.navn, {
+                      setValue("virksomhet.virksomhetsnavn", virksomhet.navn, {
                         shouldDirty: true,
                         shouldTouch: true,
                       });
@@ -125,7 +125,7 @@ export default function SkjemaSteg1Page() {
                 </VStack>
               ) : null}
             </div>
-            <input type="hidden" {...register("virksomhet.navn")} />
+            <input type="hidden" {...register("virksomhet.virksomhetsnavn")} />
 
             <Fieldset
               legend="Kontaktperson i virksomheten"

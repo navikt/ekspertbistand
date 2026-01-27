@@ -114,14 +114,14 @@ const startdatoSchema = z.union([z.string().trim(), z.null()]).superRefine((valu
 
 export const soknadSchema = z.object({
   virksomhet: z.object({
-    navn: z.string(),
+    virksomhetsnavn: z.string(),
     virksomhetsnummer: orgnrField,
     kontaktperson: z.object({
       navn: trimmedText("Du må fylle ut navn."),
       epost: emailField,
       telefonnummer: phoneField,
     }),
-    beligenhetsadresse: z.string().nullable(),
+    beliggenhetsadresse: z.string().nullable(),
   }),
   ansatt: z.object({
     fnr: fnrField,
@@ -149,11 +149,11 @@ export type SoknadInputs = z.infer<typeof soknadSchema>;
 
 export const STEP1_FIELDS = [
   "virksomhet.virksomhetsnummer",
-  "virksomhet.navn",
+  "virksomhet.virksomhetsnavn",
   "virksomhet.kontaktperson.navn",
   "virksomhet.kontaktperson.epost",
   "virksomhet.kontaktperson.telefonnummer",
-  "virksomhet.beligenhetsadresse",
+  "virksomhet.beliggenhetsadresse",
   "ansatt.fnr",
   "ansatt.navn",
   "ekspert.navn",
@@ -173,14 +173,14 @@ export const STEP2_FIELDS = [
 
 export const createEmptyInputs = (): SoknadInputs => ({
   virksomhet: {
-    navn: "",
+    virksomhetsnavn: "",
     virksomhetsnummer: "",
     kontaktperson: {
       navn: "",
       epost: "",
       telefonnummer: "",
     },
-    beligenhetsadresse: null,
+    beliggenhetsadresse: null,
   },
   ansatt: {
     fnr: "",

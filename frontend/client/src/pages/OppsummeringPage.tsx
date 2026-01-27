@@ -59,7 +59,7 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
         <FormSummary.Answers>
           <FormSummary.Answer>
             <FormSummary.Label>Navn på virksomhet</FormSummary.Label>
-            <FormSummary.Value>{formatValue(virksomhet.navn)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(virksomhet.virksomhetsnavn)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Organisasjonsnummer</FormSummary.Label>

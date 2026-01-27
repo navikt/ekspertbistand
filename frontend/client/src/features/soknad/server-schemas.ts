@@ -17,6 +17,7 @@ export const virksomhetServerSchema = z.object({
 const virksomhetDraftServerSchema = z.object({
   virksomhetsnummer: z.string().optional(),
   virksomhetsnavn: z.string().optional(),
+  beliggenhetsadresse: z.string().nullable().optional(),
   kontaktperson: kontaktpersonDraftServerSchema.optional(),
 });
 

@@ -181,7 +181,8 @@ const ensureSkjemaStoreLoaded = async () => {
   if (skjemaStore.size === 0) {
     const inputs = createEmptyInputs();
     inputs.virksomhet.virksomhetsnummer = "123456789";
-    inputs.virksomhet.navn = "Eksempel Bedrift AS";
+    inputs.virksomhet.virksomhetsnavn = "Eksempel Bedrift AS";
+    inputs.virksomhet.beliggenhetsadresse = "Testveien 1, 0557 Oslo";
     inputs.virksomhet.kontaktperson.navn = "Lise Kontakt";
     inputs.virksomhet.kontaktperson.epost = "lise.kontakt@eksempel.no";
     inputs.virksomhet.kontaktperson.telefonnummer = "99112233";
@@ -215,7 +216,8 @@ const ensureSkjemaStoreLoaded = async () => {
 
     const rejectedInputs = createEmptyInputs();
     rejectedInputs.virksomhet.virksomhetsnummer = "987654321";
-    rejectedInputs.virksomhet.navn = "Testfirma Norge AS";
+    rejectedInputs.virksomhet.virksomhetsnavn = "Testfirma Norge AS";
+    rejectedInputs.virksomhet.beliggenhetsadresse = "Eksempelveien 2, 7010 Trondheim";
     rejectedInputs.virksomhet.kontaktperson.navn = "Morten Kontakt";
     rejectedInputs.virksomhet.kontaktperson.epost = "morten.kontakt@testfirma.no";
     rejectedInputs.virksomhet.kontaktperson.telefonnummer = "99887766";
