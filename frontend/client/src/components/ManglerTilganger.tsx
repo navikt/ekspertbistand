@@ -28,8 +28,8 @@ export default function ManglerTilganger() {
         </Heading>
         <List>
           <List.Item>
-            For å kunne sende in søknad må du ha blitt tildelt enkeltrettigheten “Ekspertbistand”
-            for den aktuelle virksomheten.
+            For å kunne sende in søknad må du ha blitt tildelt enkeltrettigheten “Tilskudd til
+            ekspertbistand” for den aktuelle virksomheten.
           </List.Item>
         </List>
       </div>
