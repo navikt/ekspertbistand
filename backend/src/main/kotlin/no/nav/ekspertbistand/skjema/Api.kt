@@ -8,6 +8,7 @@ import io.ktor.server.routing.*
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
@@ -28,6 +29,7 @@ import kotlin.time.ExperimentalTime
 class SkjemaApi(
     private val database: Database,
     private val altinnTilgangerClient: AltinnTilgangerClient,
+    private val eregService: EregService
 ) {
     val log = logger()
 
@@ -232,6 +234,8 @@ class SkjemaApi(
             return
         }
 
+        val adresse = eregService.hentForretningsadresse(skjema.virksomhet.virksomhetsnummer)
+
         val innsendt = transaction(database) {
             val skjema = SkjemaTable.insertReturning {
                 it[id] = idParam
@@ -240,6 +244,7 @@ class SkjemaApi(
                 it[kontaktpersonNavn] = skjema.virksomhet.kontaktperson.navn
                 it[kontaktpersonEpost] = skjema.virksomhet.kontaktperson.epost
                 it[kontaktpersonTelefon] = skjema.virksomhet.kontaktperson.telefonnummer
+                it[beliggenhetsadresse] = adresse
                 it[ansattFnr] = skjema.ansatt.fnr
                 it[ansattNavn] = skjema.ansatt.navn
                 it[ekspertNavn] = skjema.ekspert.navn
@@ -330,7 +335,8 @@ sealed interface DTO {
     data class Virksomhet(
         val virksomhetsnummer: String,
         val virksomhetsnavn: String,
-        val kontaktperson: Kontaktperson
+        val kontaktperson: Kontaktperson,
+        val beliggenhetsadresse: String? = null,
     )
 
     @Serializable

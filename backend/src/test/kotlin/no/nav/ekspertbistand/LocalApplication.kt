@@ -10,6 +10,7 @@ import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
+import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
@@ -167,6 +168,7 @@ fun main() {
             it[id] = godkjentSkjemaId
             it[virksomhetsnummer] = "123456780"
             it[virksomhetsnavn] = "Eksempel Bedrift AS Avd. Oslo"
+            it[beliggenhetsadresse] = "Testveien 1, 0557 Oslo"
             it[opprettetAv] = "42"
 
             it[kontaktpersonNavn] = "Kontaktperson NN"
@@ -192,6 +194,7 @@ fun main() {
             it[virksomhetsnummer] = "123456780"
             it[virksomhetsnavn] = "Eksempel Bedrift AS Avd. Oslo"
             it[opprettetAv] = "42"
+            it[beliggenhetsadresse] = "Testveien 1, 0557 Oslo"
 
             it[kontaktpersonNavn] = "Kontaktperson NN"
             it[kontaktpersonEpost] = "kontaktperson@bedrift.no"
@@ -257,6 +260,7 @@ fun main() {
             provide {
                 mockEregClient
             }
+            provide<EregService> { EregService(resolve()) }
             provide { mockDokgenClient }
             provide { mockDokArkivClient }
             provide(NorgKlient::class)

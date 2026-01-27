@@ -113,6 +113,7 @@ private data class SoknadRequest(
         val virksomhetsnummer: String,
         val virksomhetsnavn: String,
         val kontaktperson: Kontaktperson,
+        val beliggenhetsadresse: String?
     )
 
     @Serializable
@@ -161,6 +162,7 @@ private data class SoknadRequest(
                     epost = dto.virksomhet.kontaktperson.epost,
                     telefonnummer = dto.virksomhet.kontaktperson.telefonnummer,
                 ),
+                beliggenhetsadresse = dto.virksomhet.beliggenhetsadresse,
             ),
             ansatt = Ansatt(
                 fnr = dto.ansatt.fnr,

@@ -46,6 +46,7 @@ class SettGodkjentSkjemaStatusTest {
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
+                it[beliggenhetsadresse] = ""
                 it[status] = SkjemaStatus.innsendt.toString()
             }.single().tilSkjemaDTO().also {
                 assertEquals(SkjemaStatus.innsendt, it.status)
@@ -95,6 +96,7 @@ class SettGodkjentSkjemaStatusTest {
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
+                it[beliggenhetsadresse] = ""
                 it[status] = SkjemaStatus.innsendt.toString()
             }.single().tilSkjemaDTO().also {
                 assertEquals(SkjemaStatus.innsendt, it.status)

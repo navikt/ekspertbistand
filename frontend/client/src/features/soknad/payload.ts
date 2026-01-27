@@ -16,7 +16,7 @@ const normalizeEstimertKostnad = (
 const mapInputsToPayload = (inputs: SoknadInputs) => ({
   virksomhet: {
     virksomhetsnummer: inputs.virksomhet.virksomhetsnummer,
-    virksomhetsnavn: inputs.virksomhet.navn,
+    virksomhetsnavn: inputs.virksomhet.virksomhetsnavn,
     kontaktperson: {
       navn: inputs.virksomhet.kontaktperson.navn,
       epost: inputs.virksomhet.kontaktperson.epost,
@@ -65,7 +65,8 @@ const draftDtoToInputsSchema = draftDtoServerSchema.transform((dto) => {
 
   if (dto.virksomhet) {
     inputs.virksomhet.virksomhetsnummer = dto.virksomhet.virksomhetsnummer ?? "";
-    inputs.virksomhet.navn = dto.virksomhet.virksomhetsnavn ?? "";
+    inputs.virksomhet.virksomhetsnavn = dto.virksomhet.virksomhetsnavn ?? "";
+    inputs.virksomhet.beliggenhetsadresse = dto.virksomhet.beliggenhetsadresse ?? null;
     const kontaktperson = dto.virksomhet.kontaktperson;
     if (kontaktperson) {
       inputs.virksomhet.kontaktperson.navn = kontaktperson.navn ?? "";

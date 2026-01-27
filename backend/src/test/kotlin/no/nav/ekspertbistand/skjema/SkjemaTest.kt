@@ -11,11 +11,14 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.configureServer
+import no.nav.ekspertbistand.ereg.EregClient
+import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
+import no.nav.ekspertbistand.mocks.mockEreg
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
@@ -28,6 +31,21 @@ class SkjemaTest {
 
     @Test
     fun `CRUD utkast`() = testApplicationWithDatabase { testDb ->
+        mockEreg {
+            """
+            {
+              "organisasjonDetaljer": {
+                "forretningsadresser": [
+                  {
+                    "adresselinje1": "Testveien 1",
+                    "postnummer": "0557",
+                    "poststed": "Oslo"
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+        }
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
@@ -49,6 +67,7 @@ class SkjemaTest {
             defaultHttpClient = client,
             tokenExchanger = successTokenXTokenExchanger
         )
+        val eregClient = EregClient(defaultHttpClient = client)
         application {
             dependencies {
                 provide {
@@ -59,6 +78,7 @@ class SkjemaTest {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
                 }
+                provide<EregService> { EregService(eregClient) }
                 provide {
                     altinnTilgangerClient
                 }
@@ -172,6 +192,21 @@ class SkjemaTest {
     @Test
     fun `send inn skjema`() = testApplicationWithDatabase { testDb ->
         val eksisterendeSkjemaId = UUID.randomUUID()
+        mockEreg {
+            """
+            {
+              "organisasjonDetaljer": {
+                "forretningsadresser": [
+                  {
+                    "adresselinje1": "Testveien 1",
+                    "postnummer": "0557",
+                    "poststed": "Oslo"
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+        }
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
@@ -193,6 +228,7 @@ class SkjemaTest {
             defaultHttpClient = client,
             tokenExchanger = successTokenXTokenExchanger
         )
+        val eregClient = EregClient(defaultHttpClient = client)
 
         application {
             dependencies {
@@ -204,6 +240,7 @@ class SkjemaTest {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
                 }
+                provide<EregService> { EregService(eregClient) }
                 provide {
                     altinnTilgangerClient
                 }
@@ -235,6 +272,7 @@ class SkjemaTest {
                     it[behovForBistandTimer] = ""
                     it[behovForBistandStartdato] = CurrentDate
                     it[navKontaktPerson] = ""
+                    it[beliggenhetsadresse] = ""
                     it[status] = SkjemaStatus.innsendt.toString()
                 }
             }
@@ -343,6 +381,7 @@ class SkjemaTest {
                 assertEquals(eksisterendeUtkast.id, skjema.id)
                 assertEquals("42", skjema.opprettetAv)
                 assertEquals("1337", skjema.virksomhet.virksomhetsnummer)
+                assertEquals("Testveien 1, 0557 Oslo", skjema.virksomhet.beliggenhetsadresse)
 
                 // opprettetAv skal være den som sender inn skjema, ikke den som opprettet utkast
                 assertNotEquals(eksisterendeUtkast.opprettetAv, skjema.opprettetAv)
@@ -362,6 +401,21 @@ class SkjemaTest {
 
     @Test
     fun `GET skjema henter mine skjema`() = testApplicationWithDatabase { testDb ->
+        mockEreg {
+            """
+            {
+              "organisasjonDetaljer": {
+                "forretningsadresser": [
+                  {
+                    "adresselinje1": "Testveien 1",
+                    "postnummer": "0557",
+                    "poststed": "Oslo"
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+        }
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
@@ -384,6 +438,7 @@ class SkjemaTest {
             defaultHttpClient = client,
             tokenExchanger = successTokenXTokenExchanger
         )
+        val eregClient = EregClient(defaultHttpClient = client)
 
         application {
             dependencies {
@@ -395,6 +450,7 @@ class SkjemaTest {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
                 }
+                provide<EregService> { EregService(eregClient) }
                 provide {
                     altinnTilgangerClient
                 }
@@ -427,6 +483,7 @@ class SkjemaTest {
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
+                it[beliggenhetsadresse] = ""
                 it[status] = SkjemaStatus.innsendt.toString()
             }
 
@@ -451,6 +508,7 @@ class SkjemaTest {
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
+                it[beliggenhetsadresse] = ""
                 it[status] = SkjemaStatus.godkjent.toString()
             }
 
@@ -475,6 +533,7 @@ class SkjemaTest {
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
+                it[beliggenhetsadresse] = ""
                 it[status] = SkjemaStatus.innsendt.toString()
             }
         }
@@ -541,6 +600,7 @@ class SkjemaTest {
             },
             defaultHttpClient = createClient { }
         )
+        val eregClient = EregClient(defaultHttpClient = client)
         application {
             dependencies {
                 provide {
@@ -551,6 +611,7 @@ class SkjemaTest {
                         null
                     }
                 }
+                provide<EregService> { EregService(eregClient) }
                 provide {
                     altinnTilgangerClient
                 }
@@ -570,6 +631,21 @@ class SkjemaTest {
     @Test
     fun `utkast uten orgnr returneres kun til person som har opprettet utkastet`() =
         testApplicationWithDatabase { testDb ->
+            mockEreg {
+                """
+            {
+              "organisasjonDetaljer": {
+                "forretningsadresser": [
+                  {
+                    "adresselinje1": "Testveien 1",
+                    "postnummer": "0557",
+                    "poststed": "Oslo"
+                  }
+                ]
+              }
+            }
+            """.trimIndent()
+            }
             mockAltinnTilganger(
                 AltinnTilgangerClientResponse(
                     isError = false,
@@ -592,6 +668,7 @@ class SkjemaTest {
                 defaultHttpClient = client,
                 tokenExchanger = successTokenXTokenExchanger
             )
+            val eregClient = EregClient(defaultHttpClient = client)
 
             application {
                 dependencies {
@@ -604,9 +681,11 @@ class SkjemaTest {
                                 "faketoken" -> {
                                     mockIntrospectionResponse.withPid("42")
                                 }
+
                                 "faketoken2" -> {
                                     mockIntrospectionResponse.withPid("43")
                                 }
+
                                 else -> {
                                     null
                                 }
@@ -616,6 +695,7 @@ class SkjemaTest {
                     provide {
                         altinnTilgangerClient
                     }
+                    provide<EregService> { EregService(eregClient) }
                 }
 
                 configureTokenXAuth()

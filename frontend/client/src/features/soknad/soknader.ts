@@ -9,11 +9,7 @@ const DEFAULT_TITLE = "Søknad om tilskudd til ekspertbistand";
 
 export type SkjemaStatus = "innsendt" | "utkast";
 
-const virksomhetListSchema = virksomhetServerSchema
-  .extend({
-    navn: z.string().trim().optional(),
-  })
-  .partial();
+const virksomhetListSchema = virksomhetServerSchema.partial();
 
 const ansattListSchema = ansattServerSchema.partial();
 
@@ -78,7 +74,7 @@ export async function fetchSkjema(): Promise<SkjemaListItem[]> {
 
 function mapSkjemaToSoknad(raw: Skjema): SkjemaWithSort {
   const ansattNavn = raw.ansatt?.navn;
-  const virksomhetNavn = raw.virksomhet?.navn ?? raw.virksomhet?.virksomhetsnavn;
+  const virksomhetNavn = raw.virksomhet?.virksomhetsnavn;
   const orgnr = raw.virksomhet?.virksomhetsnummer;
 
   const baseTitle = ansattNavn ? `${DEFAULT_TITLE} – ${ansattNavn}` : DEFAULT_TITLE;

@@ -36,6 +36,7 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.ereg.EregClient
+import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
@@ -59,7 +60,7 @@ fun main() {
     ktorServer {
         dependencies {
             provide<Database> {
-//                dbConfig.destroyExistingDatabase()
+                dbConfig.destroyExistingDatabase()
                 dbConfig.flywayAction {
                     migrate()
                 }
@@ -76,6 +77,7 @@ fun main() {
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
             provide(EregClient::class)
+            provide(EregService::class)
             provide(NorgKlient::class)
             provide(BehandlendeEnhetService::class)
             provide(PdlApiKlient::class)

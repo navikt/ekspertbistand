@@ -9,6 +9,7 @@ import io.ktor.server.routing.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
+import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
@@ -22,7 +23,8 @@ import kotlin.time.ExperimentalTime
 suspend fun Application.configureSkjemaApiV1() {
     val database = dependencies.resolve<Database>()
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
-    val skjemaApi = SkjemaApi(database, altinnTilgangerClient)
+    val eregService = dependencies.resolve<EregService>()
+    val skjemaApi = SkjemaApi(database, altinnTilgangerClient, eregService)
 
     launch {
         while (isActiveAndNotTerminating) {

@@ -6,7 +6,8 @@
       "navn": "Ola Nordmann",
       "epost": "ola.nordmann@firma.no",
       "telefonnummer": "+47 99881337"
-    }
+    },
+    "beliggenhetsadresse": "Testveien 1, 1234 Test"
   },
   "ansatt": {
     "fnr": "12058512345",
