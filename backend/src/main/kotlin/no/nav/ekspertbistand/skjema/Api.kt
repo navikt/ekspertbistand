@@ -342,7 +342,7 @@ sealed interface DTO {
         val virksomhetsnummer: String,
         val virksomhetsnavn: String,
         val kontaktperson: Kontaktperson,
-        val beligenhetsadresse: String? = null,
+        val beliggenhetsadresse: String? = null,
     )
 
     @Serializable

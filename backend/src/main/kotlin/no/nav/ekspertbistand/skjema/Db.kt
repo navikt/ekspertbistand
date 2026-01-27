@@ -115,7 +115,7 @@ fun ResultRow.tilSkjemaDTO() = DTO.Skjema(
             epost = this[SkjemaTable.kontaktpersonEpost],
             telefonnummer = this[SkjemaTable.kontaktpersonTelefon],
         ),
-        beligenhetsadresse = this[SkjemaTable.beliggenhetsadresse]
+        beliggenhetsadresse = this[SkjemaTable.beliggenhetsadresse]
     ),
     ansatt = DTO.Ansatt(
         fnr = this[SkjemaTable.ansattFnr],

@@ -381,7 +381,7 @@ class SkjemaTest {
                 assertEquals(eksisterendeUtkast.id, skjema.id)
                 assertEquals("42", skjema.opprettetAv)
                 assertEquals("1337", skjema.virksomhet.virksomhetsnummer)
-                assertEquals("Testveien 1, 0557 Oslo", skjema.virksomhet.beligenhetsadresse)
+                assertEquals("Testveien 1, 0557 Oslo", skjema.virksomhet.beliggenhetsadresse)
 
                 // opprettetAv skal være den som sender inn skjema, ikke den som opprettet utkast
                 assertNotEquals(eksisterendeUtkast.opprettetAv, skjema.opprettetAv)
