@@ -497,7 +497,7 @@ export const handlers = [
     }
   ),
   http.get(
-    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/tilsagndata/:tilsagnNummer/tilskuddsbrev-html`,
+    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/tilskuddsbrev/:tilsagnNummer/tilskuddsbrev-html`,
     ({ params }) => {
       const tilsagnNummer = getParamValue(params.tilsagnNummer);
       if (!tilsagnNummer) {
