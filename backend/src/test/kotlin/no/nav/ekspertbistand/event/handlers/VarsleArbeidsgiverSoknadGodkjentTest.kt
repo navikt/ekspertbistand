@@ -62,10 +62,8 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
 
         val event = Event(
             id = 1L,
-            data = EventData.TilskuddsbrevJournalfoert(
+            data = EventData.TilsagnsdataLagret(
                 skjema = skjema1,
-                dokumentId = 1,
-                journaldpostId = 1,
                 tilsagnData = sampleTilskuddsbrev()
             )
         )
@@ -84,10 +82,8 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
 
         val event = Event(
             id = 1L,
-            data = EventData.TilskuddsbrevJournalfoert(
+            data = EventData.TilsagnsdataLagret(
                 skjema = skjema1,
-                dokumentId = 1,
-                journaldpostId = 1,
                 tilsagnData = sampleTilskuddsbrev()
             )
         )
@@ -113,10 +109,8 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
 
             val event = Event(
                 id = 1L,
-                data = EventData.TilskuddsbrevJournalfoert(
+                data = EventData.TilsagnsdataLagret(
                     skjema = skjema1,
-                    dokumentId = 1,
-                    journaldpostId = 1,
                     tilsagnData = sampleTilskuddsbrev()
                 )
             )

@@ -15,7 +15,10 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.kvitteringsLenke
 import no.nav.ekspertbistand.tilsagndata.concat
+import no.nav.ekspertbistand.tilsagndata.findTilsagnDataBySkjemaId
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import java.util.UUID
 
 
 /**
@@ -25,17 +28,17 @@ import org.jetbrains.exposed.v1.jdbc.Database
  */
 class VarsleArbeidsgiverSoknadGodkjent(
     private val produsentApiKlient: ProdusentApiKlient,
-    database: Database
-) : EventHandler<EventData.TilskuddsbrevJournalfoert> {
+    private val database: Database
+) : EventHandler<EventData.TilsagnsdataLagret> {
     override val id: String = "VarsleArbeidsgiverSoknadGodkjent"
-    override val eventType = EventData.TilskuddsbrevJournalfoert::class
+    override val eventType = EventData.TilsagnsdataLagret::class
 
     private val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
     private val nystatusSakSubTast = "notifikasjonsplatform_ny_status_sak"
 
     private val idempotencyGuard = idempotencyGuard(database)
 
-    override suspend fun handle(event: Event<EventData.TilskuddsbrevJournalfoert>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.TilsagnsdataLagret>): EventHandledResult {
         val skjema = event.data.skjema
         if (skjema.id == null) {
             return unrecoverableError("Skjema mangler id")
@@ -67,12 +70,20 @@ class VarsleArbeidsgiverSoknadGodkjent(
     }
 
     private suspend fun nyBeskjed(skjema: DTO.Skjema, tilsagnData: TilsagnData): Result<String> {
+        val tilsagnsbrev = transaction(database) {
+            findTilsagnDataBySkjemaId(UUID.fromString(skjema.id))
+        }
+
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = skjema.id!!,
                 eksternId = "${skjema.id}-godkjent-${tilsagnData.tilsagnNummer.concat()}",
                 virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                tekst = "Søknaden er godkjent og ekspertbistand kan nå tas i bruk.",
+                tekst = if (tilsagnsbrev.size > 1) {
+                    "Søknaden er godkjent på nytt, se oppdaterte opplysninger."
+                } else {
+                    "Søknaden er godkjent og ekspertbistand kan nå tas i bruk."
+                },
                 lenke = skjema.kvitteringsLenke,
                 eksternVarsel = EksterntVarsel(
                     epostTittel = "Nav – angående søknad om ekspertbistand",
