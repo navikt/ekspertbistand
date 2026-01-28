@@ -7,6 +7,7 @@ import SkjemaSteg1Page from "./pages/SkjemaSteg1Page";
 import SkjemaSteg2Page from "./pages/SkjemaSteg2Page";
 import OppsummeringPage from "./pages/OppsummeringPage";
 import KvitteringPage from "./pages/KvitteringPage";
+import TilskuddsbrevPage from "./pages/TilskuddsbrevPage";
 import { useSoknadDraft } from "./context/SoknadDraftContext";
 import { SoknadDraftProvider } from "./providers/SoknadDraftProvider";
 import { SkjemaFormProvider } from "./providers/SkjemaFormProvider.tsx";
@@ -81,10 +82,11 @@ export default function App() {
         <Route path="/ekspertbistand" element={<LandingPage />} />
         <Route element={<LoginGate />}>
           <Route element={<OrganisasjonerGate />}>
-          <Route path={SOKNADER_PATH} element={<SoknaderPage />} />
-          <Route path="/skjema" element={<Navigate to="/skjema/start" replace />} />
+            <Route path={SOKNADER_PATH} element={<SoknaderPage />} />
+            <Route path="/skjema" element={<Navigate to="/skjema/start" replace />} />
             <Route path="/skjema/start" element={<SoknadPage />} />
             <Route path="/skjema/:id/kvittering" element={<KvitteringPage />} />
+            <Route path="/tilskuddsbrev/:tilsagnNummer" element={<TilskuddsbrevPage />} />
             <Route path="/skjema/:id" element={<SkjemaDraftRoute />}>
               <Route path="steg-1" element={<SkjemaSteg1Page />} />
               <Route path="steg-2" element={<SkjemaSteg2Page />} />
