@@ -13,6 +13,7 @@ import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
+import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.mocks.mockTiltaksgjennomfoering
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.SkjemaStatus
@@ -29,7 +30,7 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
     private val saksnummer = "202542"
 
     @Test
-    fun `Event prosesseres og sak blir opprettet i Arena`() = testApplication {
+    fun `Event prosesseres og sak blir opprettet i Arena`() = testApplicationWithDatabase {
         setupTestApplication()
         mockTiltaksgjennomfoering {
             // language=JSON
@@ -64,7 +65,7 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
     }
 
     @Test
-    fun `Event prosesseres, men kall mot arena feiler`() = testApplication {
+    fun `Event prosesseres, men kall mot arena feiler`() = testApplicationWithDatabase {
         setupTestApplication()
         mockTiltaksgjennomfoering {
             throw RuntimeException("Feil ved oppretting av Arena")

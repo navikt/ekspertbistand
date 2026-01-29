@@ -1,13 +1,12 @@
 package no.nav.ekspertbistand.event.handlers
 
-import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
-import no.nav.ekspertbistand.infrastruktur.TestDatabase
+import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.SkjemaStatus
 import no.nav.ekspertbistand.tilsagndata.TilsagndataTable
@@ -23,8 +22,8 @@ import kotlin.test.assertIs
 class LagreTilsagnDataTest {
 
     @Test
-    fun `Lagrer tilsagndata og returnerer Success`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
+    fun `Lagrer tilsagndata og returnerer Success`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
         val handler = LagreTilsagnsData(database = database)
 
         val event = Event(
@@ -47,8 +46,8 @@ class LagreTilsagnDataTest {
     }
 
     @Test
-    fun `Lagrer ny tilsagndata og returnerer Success`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
+    fun `Lagrer ny tilsagndata og returnerer Success`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
         val handler = LagreTilsagnsData(database = database)
 
         val event = Event(
@@ -76,8 +75,8 @@ class LagreTilsagnDataTest {
     }
 
     @Test
-    fun `skjemaId er null returnerer unrecoverable error`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
+    fun `skjemaId er null returnerer unrecoverable error`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
         val handler = LagreTilsagnsData(database = database)
 
         val event = Event(

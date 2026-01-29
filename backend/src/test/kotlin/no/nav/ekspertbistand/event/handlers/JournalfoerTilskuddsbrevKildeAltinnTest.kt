@@ -16,8 +16,8 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
-import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
+import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.mocks.mockDokArkiv
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -28,8 +28,8 @@ import kotlin.test.assertIs
 
 class JournalfoerTilskuddsbrevKildeAltinnTest {
     @Test
-    fun `handler journalforer og produserer TilskuddsbrevJournalfoertKildeAltinn-event`() = testApplication {
-        TestDatabase().cleanMigrate().use {
+    fun `handler journalforer og produserer TilskuddsbrevJournalfoertKildeAltinn-event`() =
+        testApplicationWithDatabase {
             val database = it.config.jdbcDatabase
             mockDokgen("%PDF-mock".toByteArray())
             mockDokArkiv {
@@ -61,43 +61,42 @@ class JournalfoerTilskuddsbrevKildeAltinnTest {
                 assertIs<EventData.TilskuddsbrevJournalfoertKildeAltinn>(queuedEvent)
                 assertEquals(9876, queuedEvent.dokumentId)
                 assertEquals(1234, queuedEvent.journaldpostId)
+
             }
         }
-    }
 
     @Test
-    fun `idempotency guard hindrer duplikat ved retry`() = testApplication {
-        TestDatabase().cleanMigrate().use {
-            val database = it.config.jdbcDatabase
-            mockDokgen("%PDF-mock".toByteArray())
-            mockDokArkiv {
-                OpprettJournalpostResponse(
-                    dokumenter = listOf(OpprettJournalpostDokument("9876")),
-                    journalpostId = "1234",
-                    journalpostferdigstilt = true,
-                )
-            }
-            setupApplication(database)
-            startApplication()
-
-            val handler = application.dependencies.resolve<JournalfoerTilskuddsbrevKildeAltinn>()
-            val event = Event(
-                id = 2L,
-                data = EventData.TilskuddsbrevMottattKildeAltinn(
-                    tilsagnbrevId = 1,
-                    tilsagnData = sampleTilsagnData
-                )
+    fun `idempotency guard hindrer duplikat ved retry`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        mockDokgen("%PDF-mock".toByteArray())
+        mockDokArkiv {
+            OpprettJournalpostResponse(
+                dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                journalpostId = "1234",
+                journalpostferdigstilt = true,
             )
-
-            repeat(2) {
-                handler.handle(event)
-            }
-
-            transaction(database) {
-                val queued = QueuedEvents.selectAll().toList()
-                assertEquals(1, queued.size)
-            }
         }
+        setupApplication(database)
+        startApplication()
+
+        val handler = application.dependencies.resolve<JournalfoerTilskuddsbrevKildeAltinn>()
+        val event = Event(
+            id = 2L,
+            data = EventData.TilskuddsbrevMottattKildeAltinn(
+                tilsagnbrevId = 1,
+                tilsagnData = sampleTilsagnData
+            )
+        )
+
+        repeat(2) {
+            handler.handle(event)
+        }
+
+        transaction(database) {
+            val queued = QueuedEvents.selectAll().toList()
+            assertEquals(1, queued.size)
+        }
+
     }
 }
 

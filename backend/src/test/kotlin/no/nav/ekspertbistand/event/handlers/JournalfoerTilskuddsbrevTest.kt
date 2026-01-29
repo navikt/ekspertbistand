@@ -17,8 +17,8 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
-import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
+import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.mocks.mockDokArkiv
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.SkjemaStatus
@@ -32,78 +32,76 @@ import kotlin.test.assertIs
 
 class JournalfoerTilskuddsbrevTest {
     @Test
-    fun `handler journalforer og produserer TilskuddsbrevJournalfoert-event`() = testApplication {
-        TestDatabase().cleanMigrate().use {
-            val database = it.config.jdbcDatabase
-            mockDokgen("%PDF-mock".toByteArray())
-            mockDokArkiv {
-                OpprettJournalpostResponse(
-                    dokumenter = listOf(OpprettJournalpostDokument("9876")),
-                    journalpostId = "1234",
-                    journalpostferdigstilt = true,
-                )
-            }
-            setupApplication(database)
-            startApplication()
-
-            val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
-            val event = Event(
-                id = 1L,
-                data = EventData.TilskuddsbrevMottatt(
-                    skjema = sampleSkjema,
-                    tilsagnbrevId = 1,
-                    tilsagnData = sampleTilsagnData
-                )
+    fun `handler journalforer og produserer TilskuddsbrevJournalfoert-event`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        mockDokgen("%PDF-mock".toByteArray())
+        mockDokArkiv {
+            OpprettJournalpostResponse(
+                dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                journalpostId = "1234",
+                journalpostferdigstilt = true,
             )
+        }
+        setupApplication(database)
+        startApplication()
 
-            val result = handler.handle(event)
-            assertIs<EventHandledResult.Success>(result)
+        val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
+        val event = Event(
+            id = 1L,
+            data = EventData.TilskuddsbrevMottatt(
+                skjema = sampleSkjema,
+                tilsagnbrevId = 1,
+                tilsagnData = sampleTilsagnData
+            )
+        )
 
-            transaction(database) {
-                val queued = QueuedEvents.selectAll().toList()
-                assertEquals(1, queued.size)
-                val queuedEvent = queued.first()[QueuedEvents.eventData]
-                assertIs<EventData.TilskuddsbrevJournalfoert>(queuedEvent)
-                assertEquals(9876, queuedEvent.dokumentId)
-                assertEquals(1234, queuedEvent.journaldpostId)
-                assertEquals(sampleSkjema.id, queuedEvent.skjema.id)
-            }
+        val result = handler.handle(event)
+        assertIs<EventHandledResult.Success>(result)
+
+        transaction(database) {
+            val queued = QueuedEvents.selectAll().toList()
+            assertEquals(1, queued.size)
+            val queuedEvent = queued.first()[QueuedEvents.eventData]
+            assertIs<EventData.TilskuddsbrevJournalfoert>(queuedEvent)
+            assertEquals(9876, queuedEvent.dokumentId)
+            assertEquals(1234, queuedEvent.journaldpostId)
+            assertEquals(sampleSkjema.id, queuedEvent.skjema.id)
         }
     }
 
+
     @Test
-    fun `idempotency guard hindrer duplikat ved retry`() = testApplication {
-        TestDatabase().cleanMigrate().use {
-            val database = it.config.jdbcDatabase
-            mockDokgen("%PDF-mock".toByteArray())
-            mockDokArkiv {
-                OpprettJournalpostResponse(
-                    dokumenter = listOf(OpprettJournalpostDokument("9876")),
-                    journalpostId = "1234",
-                    journalpostferdigstilt = true,
-                )
-            }
-            setupApplication(database)
-            startApplication()
-
-            val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
-            val event = Event(
-                id = 2L,
-                data = EventData.TilskuddsbrevMottatt(
-                    skjema = sampleSkjema,
-                    tilsagnbrevId = 1,
-                    tilsagnData = sampleTilsagnData
-                )
+    fun `idempotency guard hindrer duplikat ved retry`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        mockDokgen("%PDF-mock".toByteArray())
+        mockDokArkiv {
+            OpprettJournalpostResponse(
+                dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                journalpostId = "1234",
+                journalpostferdigstilt = true,
             )
+        }
+        setupApplication(database)
+        startApplication()
 
-            repeat(2) {
-                handler.handle(event)
-            }
+        val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
+        val event = Event(
+            id = 2L,
+            data = EventData.TilskuddsbrevMottatt(
+                skjema = sampleSkjema,
+                tilsagnbrevId = 1,
+                tilsagnData = sampleTilsagnData
+            )
+        )
 
-            transaction(database) {
-                val queued = QueuedEvents.selectAll().toList()
-                assertEquals(1, queued.size)
-            }
+        repeat(2) {
+            handler.handle(event)
+        }
+
+        transaction(database) {
+            val queued = QueuedEvents.selectAll().toList()
+            assertEquals(1, queued.size)
+
         }
     }
 }
