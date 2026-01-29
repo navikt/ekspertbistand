@@ -105,6 +105,13 @@ sealed interface EventData {
         val skjema: DTO.Skjema,
         val tiltaksgjennomforingEndret: TiltaksgjennomforingEndret
     ) : EventData
+
+    @Serializable
+    @SerialName("TilsagnsdataLagret")
+    data class TilsagnsdataLagret(
+        val skjema: DTO.Skjema,
+        val tilsagnData: TilsagnData,
+    ) : EventData
 }
 
 @OptIn(ExperimentalTime::class)

@@ -45,7 +45,7 @@ class VarsleArbeidsgiverSoknadAvlystTest {
     private val tidspunkt = "2026-01-01T10:15:30+01:00"
 
     @Test
-    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplication {
+    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplicationWithDatabase {
         setupTestApplication()
         setProdusentApiResultat(
             mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),

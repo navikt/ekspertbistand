@@ -31,6 +31,7 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.StatusOp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.*
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.NySakResultat
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.NySakVellykket
+import org.jetbrains.exposed.v1.jdbc.Database
 import kotlin.test.Test
 import kotlin.test.assertIs
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
@@ -43,8 +44,8 @@ class VarsleArbeidsgiverSoknadGodkjentKildeAltinnTest {
     private val tidspunkt = "2026-01-01T10:15:30+01:00"
 
     @Test
-    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplication {
-        setupTestApplication()
+    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplicationWithDatabase {
+        setupTestApplication(it.config.jdbcDatabase)
         setProdusentApiResultat(
             mutableListOf({ NySakVellykket(id = "sak-123") }),
             mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),
@@ -72,9 +73,8 @@ class VarsleArbeidsgiverSoknadGodkjentKildeAltinnTest {
     }
 
     @Test
-    fun `Idempotens sjekk`() =
-        testApplication {
-            setupTestApplication()
+    fun `Idempotens sjekk`() = testApplicationWithDatabase {
+            setupTestApplication(it.config.jdbcDatabase)
             setProdusentApiResultat(
                 mutableListOf({ NySakVellykket(id = "sak-456") }),
                 mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),
@@ -106,12 +106,11 @@ class VarsleArbeidsgiverSoknadGodkjentKildeAltinnTest {
 }
 
 
-private fun ApplicationTestBuilder.setupTestApplication() {
+private fun ApplicationTestBuilder.setupTestApplication(database: Database) {
     val client = createClient { }
-    val db = TestDatabase().cleanMigrate()
     application {
         dependencies {
-            provide { db.config.jdbcDatabase }
+            provide { database }
             provide<TokenXTokenIntrospector> {
                 MockTokenIntrospector {
                     if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null

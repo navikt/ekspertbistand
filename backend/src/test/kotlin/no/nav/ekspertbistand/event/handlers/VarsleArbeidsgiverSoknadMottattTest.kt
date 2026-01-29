@@ -45,8 +45,8 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentR
 class VarsleArbeidsgiverSoknadMottattTest {
 
     @Test
-    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplication {
-        setupTestApplication()
+    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplicationWithDatabase {
+        setupTestApplication(it)
         setProdusentApiResultat(
             mutableListOf({ NySakVellykket(id = "sak-123") }),
             mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") })
@@ -67,8 +67,8 @@ class VarsleArbeidsgiverSoknadMottattTest {
     }
 
     @Test
-    fun `Event prosesseres, men sak gir ugyldig merkelapp`() = testApplication {
-        setupTestApplication()
+    fun `Event prosesseres, men sak gir ugyldig merkelapp`() = testApplicationWithDatabase {
+        setupTestApplication(it)
         setProdusentApiResultat(
             mutableListOf({ NySakUgyldigMerkelapp("ugyldig merkelapp") }),
             mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") })
@@ -89,8 +89,8 @@ class VarsleArbeidsgiverSoknadMottattTest {
 
     @Test
     fun `Idempotens sjekk`() =
-        testApplication {
-            setupTestApplication()
+        testApplicationWithDatabase {
+            setupTestApplication(it)
             setProdusentApiResultat(
                 mutableListOf({ NySakVellykket(id = "sak-123") }),
                 mutableListOf({ throw Exception("Test feil") }, { NyBeskjedVellykket(id = "beskjed-456") })
@@ -147,9 +147,8 @@ private val skjema1 = DTO.Skjema(
 )
 
 
-private fun ApplicationTestBuilder.setupTestApplication() {
+private fun ApplicationTestBuilder.setupTestApplication(db: TestDatabase) {
     val client = createClient { }
-    val db = TestDatabase().cleanMigrate()
     application {
         dependencies {
             provide { db.config.jdbcDatabase }

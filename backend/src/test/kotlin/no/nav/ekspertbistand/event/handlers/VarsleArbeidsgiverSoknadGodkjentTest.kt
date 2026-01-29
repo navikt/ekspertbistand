@@ -44,8 +44,8 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
     private val tidspunkt = "2026-01-01T10:15:30+01:00"
 
     @Test
-    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplication {
-        setupTestApplication()
+    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplicationWithDatabase {
+        setupTestApplication(it)
         setProdusentApiResultat(
             mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),
             mutableListOf({
@@ -62,10 +62,8 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
 
         val event = Event(
             id = 1L,
-            data = EventData.TilskuddsbrevJournalfoert(
+            data = EventData.TilsagnsdataLagret(
                 skjema = skjema1,
-                dokumentId = 1,
-                journaldpostId = 1,
                 tilsagnData = sampleTilskuddsbrev()
             )
         )
@@ -73,8 +71,8 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
     }
 
     @Test
-    fun `Event prosesseres, men beskjed gir ugyldig merkelapp`() = testApplication {
-        setupTestApplication()
+    fun `Event prosesseres, men beskjed gir ugyldig merkelapp`() = testApplicationWithDatabase {
+        setupTestApplication(it)
         setProdusentApiResultat(
             mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") }),
             mutableListOf(),
@@ -84,10 +82,8 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
 
         val event = Event(
             id = 1L,
-            data = EventData.TilskuddsbrevJournalfoert(
+            data = EventData.TilsagnsdataLagret(
                 skjema = skjema1,
-                dokumentId = 1,
-                journaldpostId = 1,
                 tilsagnData = sampleTilskuddsbrev()
             )
         )
@@ -96,8 +92,8 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
 
     @Test
     fun `Idempotens sjekk`() =
-        testApplication {
-            setupTestApplication()
+        testApplicationWithDatabase {
+            setupTestApplication(it)
             setProdusentApiResultat(
                 mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),
                 mutableListOf({ throw Exception("Test feil") }, {
@@ -113,10 +109,8 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
 
             val event = Event(
                 id = 1L,
-                data = EventData.TilskuddsbrevJournalfoert(
+                data = EventData.TilsagnsdataLagret(
                     skjema = skjema1,
-                    dokumentId = 1,
-                    journaldpostId = 1,
                     tilsagnData = sampleTilskuddsbrev()
                 )
             )
@@ -161,9 +155,8 @@ private val skjema1 = DTO.Skjema(
 )
 
 
-private fun ApplicationTestBuilder.setupTestApplication() {
+private fun ApplicationTestBuilder.setupTestApplication(db: TestDatabase) {
     val client = createClient { }
-    val db = TestDatabase().cleanMigrate()
     application {
         dependencies {
             provide { db.config.jdbcDatabase }
