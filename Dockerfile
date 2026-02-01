@@ -20,9 +20,11 @@ RUN NODE_AUTH_TOKEN=$NODE_AUTH_TOKEN pnpm install --frozen-lockfile
 
 ARG BASE_PATH=/
 ARG VITE_BASE_PATH=/
+ARG VITE_ENABLE_MOCKS
 ENV BASE_PATH=${BASE_PATH}
 ENV VITE_APP_BASE_PATH=${BASE_PATH}
 ENV VITE_BASE_PATH=${VITE_BASE_PATH}
+ENV VITE_ENABLE_MOCKS=${VITE_ENABLE_MOCKS}
 COPY frontend ./frontend
 RUN if [ ! -d frontend/client/dist ]; then \
       pnpm --filter ./frontend/client build; \

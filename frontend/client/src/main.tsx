@@ -15,11 +15,18 @@ import { fetchJson } from "./utils/api";
 
 const routerBasename = APP_BASE_PATH || "/";
 
+const shouldEnableMocks = () => {
+  if (import.meta.env.DEV) return true;
+  const flag = import.meta.env.VITE_ENABLE_MOCKS?.toLowerCase();
+  return flag === "true" || flag === "1";
+};
+
 async function startMockServiceWorker() {
-  if (import.meta.env.DEV) {
-    const { worker } = await import("./mocks/browser");
-    await worker.start({ onUnhandledRequest: "bypass" });
-  }
+  if (!shouldEnableMocks()) return;
+  const { worker } = await import("./mocks/browser");
+  const swUrl =
+    APP_BASE_PATH === "/" ? "/mockServiceWorker.js" : `${APP_BASE_PATH}/mockServiceWorker.js`;
+  await worker.start({ onUnhandledRequest: "bypass", serviceWorker: { url: swUrl } });
 }
 
 async function bootstrap() {
