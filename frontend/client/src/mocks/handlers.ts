@@ -5,6 +5,7 @@ import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import {
   EKSPERTBISTAND_API_PATH,
   EKSPERTBISTAND_EREG_ADRESSE_PATH,
+  EKSPERTBISTAND_ORGANISASJONER_PATH,
   EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH,
   SESSION_URL,
 } from "../utils/constants";
@@ -357,6 +358,9 @@ const createMockTilskuddsbrevHtml = () => [
 export const handlers = [
   http.get("/internal/isAlive", () => HttpResponse.json({ status: "ok" })),
   http.get("/ekspertbistand-backend/api/organisasjoner/v1", () =>
+    HttpResponse.json({ hierarki: organisasjoner })
+  ),
+  http.get(EKSPERTBISTAND_ORGANISASJONER_PATH, () =>
     HttpResponse.json({ hierarki: organisasjoner })
   ),
   http.get(`${EKSPERTBISTAND_EREG_ADRESSE_PATH}/:orgnr/adresse`, ({ params }) => {
