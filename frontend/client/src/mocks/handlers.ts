@@ -6,6 +6,7 @@ import {
   EKSPERTBISTAND_API_PATH,
   EKSPERTBISTAND_EREG_ADRESSE_PATH,
   EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH,
+  SESSION_URL,
 } from "../utils/constants";
 
 const organisasjoner: Organisasjon[] = [
@@ -510,4 +511,5 @@ export const handlers = [
     HttpResponse.json(loginSessionJson)
   ),
   http.get("/oauth2/session", () => HttpResponse.json(loginSessionJson)),
+  http.get(SESSION_URL, () => HttpResponse.json(loginSessionJson)),
 ];
