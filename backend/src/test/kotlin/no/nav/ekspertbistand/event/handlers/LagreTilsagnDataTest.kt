@@ -1,18 +1,20 @@
 package no.nav.ekspertbistand.event.handlers
 
-import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
-import no.nav.ekspertbistand.infrastruktur.TestDatabase
+import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.skjema.DTO
 import no.nav.ekspertbistand.skjema.SkjemaStatus
 import no.nav.ekspertbistand.tilsagndata.TilsagndataTable
+import no.nav.ekspertbistand.tilsagndata.findTilsagnDataBySkjemaId
+import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.util.UUID
+import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -20,8 +22,8 @@ import kotlin.test.assertIs
 class LagreTilsagnDataTest {
 
     @Test
-    fun `Lagrer tilsagndata og returnerer Success`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
+    fun `Lagrer tilsagndata og returnerer Success`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
         val handler = LagreTilsagnsData(database = database)
 
         val event = Event(
@@ -37,12 +39,44 @@ class LagreTilsagnDataTest {
 
         transaction(database) {
             assertEquals(1, TilsagndataTable.selectAll().count())
+            val queuedEvents = QueuedEvents.selectAll()
+            assertEquals(1, queuedEvents.count())
+            assertIs<EventData.TilsagnsdataLagret>(queuedEvents.first()[QueuedEvents.eventData])
         }
     }
 
     @Test
-    fun `skjemaId er null returnerer unrecoverable error`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
+    fun `Lagrer ny tilsagndata og returnerer Success`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val handler = LagreTilsagnsData(database = database)
+
+        val event = Event(
+            id = 1,
+            data = EventData.TilskuddsbrevJournalfoert(
+                journaldpostId = 1,
+                dokumentId = 1,
+                skjema = sampleSkjema(),
+                tilsagnData = sampleTilskuddsbrev()
+            )
+        )
+
+        transaction(database) {
+            insertTilsagndata(UUID.fromString(event.data.skjema.id), sampleTilskuddsbrev())
+        }
+
+        assertIs<EventHandledResult.Success>(handler.handle(event))
+
+        transaction(database) {
+            assertEquals(2, findTilsagnDataBySkjemaId(UUID.fromString(event.data.skjema.id)).count())
+            val queuedEvents = QueuedEvents.selectAll()
+            assertEquals(1, queuedEvents.count())
+            assertIs<EventData.TilsagnsdataLagret>(queuedEvents.first()[QueuedEvents.eventData])
+        }
+    }
+
+    @Test
+    fun `skjemaId er null returnerer unrecoverable error`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
         val handler = LagreTilsagnsData(database = database)
 
         val event = Event(
