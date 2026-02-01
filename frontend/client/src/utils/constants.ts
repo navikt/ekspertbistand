@@ -5,6 +5,11 @@ export const APP_BASE_PATH = import.meta.env.VITE_APP_BASE_PATH || "/";
 const withBasePath = (path: `/${string}`) =>
   APP_BASE_PATH === "/" ? path : `${APP_BASE_PATH}${path}`;
 
+const isMockEnabled = () => {
+  const flag = import.meta.env.VITE_ENABLE_MOCKS?.toLowerCase();
+  return flag === "true" || flag === "1";
+};
+
 export const TELEMETRY_COLLECTOR_URL = envSwitch({
   prod: () => "https://telemetry.nav.no/collect",
   dev: () => "https://telemetry.ekstern.dev.nav.no/collect",
@@ -36,8 +41,14 @@ export const EKSPERTBISTAND_EREG_ADRESSE_PATH = withBasePath("/ekspertbistand-ba
 export const SOKNADER_PATH = "/soknader";
 
 export const LOGIN_URL = envSwitch({
-  prod: () => `${withBasePath("/oauth2/login")}?redirect=${withBasePath(SOKNADER_PATH)}`,
-  dev: () => `${withBasePath("/oauth2/login")}?redirect=${withBasePath(SOKNADER_PATH)}`,
+  prod: () =>
+    isMockEnabled()
+      ? withBasePath(SOKNADER_PATH)
+      : `${withBasePath("/oauth2/login")}?redirect=${withBasePath(SOKNADER_PATH)}`,
+  dev: () =>
+    isMockEnabled()
+      ? withBasePath(SOKNADER_PATH)
+      : `${withBasePath("/oauth2/login")}?redirect=${withBasePath(SOKNADER_PATH)}`,
   local: () => withBasePath(SOKNADER_PATH),
 });
 
