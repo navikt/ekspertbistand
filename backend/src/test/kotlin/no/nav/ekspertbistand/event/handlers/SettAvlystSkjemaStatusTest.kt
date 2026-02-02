@@ -1,12 +1,11 @@
 package no.nav.ekspertbistand.event.handlers
 
-import io.ktor.server.testing.*
 import no.nav.ekspertbistand.arena.EKSPERTBISTAND_TILTAKSKODE
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
-import no.nav.ekspertbistand.infrastruktur.TestDatabase
+import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.skjema.SkjemaStatus
 import no.nav.ekspertbistand.skjema.SkjemaTable
 import no.nav.ekspertbistand.skjema.tilSkjemaDTO
@@ -22,8 +21,8 @@ import kotlin.test.assertIs
 class SettAvlystSkjemaStatusTest {
 
     @Test
-    fun `Søknad settes til avlyst`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
+    fun `Søknad settes til avlyst`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
         val handler = SettAvlystSkjemaStatus(database = database)
 
         val skjema = transaction(database) {
@@ -47,6 +46,7 @@ class SettAvlystSkjemaStatusTest {
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
+                it[beliggenhetsadresse] = ""
                 it[status] = SkjemaStatus.innsendt.toString()
             }.single().tilSkjemaDTO().also {
                 assertEquals(SkjemaStatus.innsendt, it.status)
@@ -73,8 +73,8 @@ class SettAvlystSkjemaStatusTest {
     }
 
     @Test
-    fun `Søknad finnes ikke i databasen returnerer unrecoverable`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
+    fun `Søknad finnes ikke i databasen returnerer unrecoverable`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
         val handler = SettAvlystSkjemaStatus(database = database)
 
         val skjema = transaction(database) {
@@ -98,6 +98,7 @@ class SettAvlystSkjemaStatusTest {
                 it[ekspertVirksomhet] = ""
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
+                it[beliggenhetsadresse] = ""
                 it[status] = SkjemaStatus.innsendt.toString()
             }.single().tilSkjemaDTO().also {
                 assertEquals(SkjemaStatus.innsendt, it.status)

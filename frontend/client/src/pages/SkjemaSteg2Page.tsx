@@ -105,12 +105,12 @@ export default function SkjemaSteg2Page() {
   return (
     <DecoratedPage>
       <form onSubmit={handleSubmitStep2}>
-        <VStack gap="8">
+        <VStack gap="space-32">
           <Heading level="1" size="xlarge">
             Søknadsskjema – ekspertbistand
           </Heading>
 
-          <VStack gap="3">
+          <VStack gap="space-12">
             <BackLink to={`/skjema/${draftId}/steg-1`} onClick={handleStepOneLink}>
               Forrige steg
             </BackLink>
@@ -125,7 +125,7 @@ export default function SkjemaSteg2Page() {
             Behov for bistand
           </Heading>
           <Fieldset legend="Behov for bistand" hideLegend style={FORM_COLUMN_STYLE}>
-            <VStack gap="6">
+            <VStack gap="space-24">
               <Textarea
                 id="behovForBistand.begrunnelse"
                 label="Beskriv den ansattes arbeidssituasjon"
@@ -173,7 +173,7 @@ export default function SkjemaSteg2Page() {
                 style={FORM_COLUMN_STYLE}
               />
               <div>
-                <Box paddingBlock="0" style={FORM_COLUMN_STYLE}>
+                <Box style={FORM_COLUMN_STYLE}>
                   <DatePicker {...datepickerProps}>
                     <DatePicker.Input
                       {...inputProps}
@@ -201,10 +201,10 @@ export default function SkjemaSteg2Page() {
             focusKey={errorFocusKey}
           />
 
-          <VStack gap="4">
+          <VStack gap="space-16">
             <SistLagretInfo timestamp={lastPersistedAt} />
             <HGrid
-              gap={{ xs: "4", sm: "8 4" }}
+              gap={{ xs: "space-32", sm: "space-16" }}
               columns={{ xs: 1, sm: 2 }}
               width={{ sm: "fit-content" }}
             >

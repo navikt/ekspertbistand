@@ -90,7 +90,7 @@ test("smoke: skjema kvittering route", async ({ page }) => {
   const draftId = await createDraftId(page);
 
   await page.goto(`/skjema/${draftId}/kvittering`);
-  await expect(page.getByRole("heading", { name: "Søknaden er sendt" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Nav har mottatt søknaden" })).toBeVisible();
 });
 
 test("smoke: health route", async ({ page }) => {

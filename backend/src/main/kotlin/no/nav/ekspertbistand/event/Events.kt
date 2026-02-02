@@ -108,6 +108,13 @@ sealed interface EventData {
     ) : EventData
 
     @Serializable
+    @SerialName("TilsagnsdataLagret")
+    data class TilsagnsdataLagret(
+        val skjema: DTO.Skjema,
+        val tilsagnData: TilsagnData,
+    ) : EventData
+
+    @Serializable
     @SerialName("tilskuddsbrevVist")
     data class TilskuddsbrevVist(
         val tilsagnNummer: String,

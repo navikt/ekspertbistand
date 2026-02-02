@@ -24,6 +24,7 @@ object SkjemaTable : Table("skjema") {
     val kontaktpersonNavn = text("kontaktperson_navn")
     val kontaktpersonEpost = text("kontaktperson_epost")
     val kontaktpersonTelefon = text("kontaktperson_telefon")
+    val beliggenhetsadresse = text("beliggenhetsadresse").nullable()
 
     // Ansatt
     val ansattFnr = text("ansatt_fnr")
@@ -112,8 +113,9 @@ fun ResultRow.tilSkjemaDTO() = DTO.Skjema(
         kontaktperson = DTO.Kontaktperson(
             navn = this[SkjemaTable.kontaktpersonNavn],
             epost = this[SkjemaTable.kontaktpersonEpost],
-            telefonnummer = this[SkjemaTable.kontaktpersonTelefon]
-        )
+            telefonnummer = this[SkjemaTable.kontaktpersonTelefon],
+        ),
+        beliggenhetsadresse = this[SkjemaTable.beliggenhetsadresse]
     ),
     ansatt = DTO.Ansatt(
         fnr = this[SkjemaTable.ansattFnr],

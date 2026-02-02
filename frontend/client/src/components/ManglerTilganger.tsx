@@ -4,9 +4,9 @@ import { TILGANGSSTYRING_URL } from "../utils/constants.ts";
 
 export default function ManglerTilganger() {
   return (
-    <VStack gap="8" data-aksel-template="form-intropage-v3">
-      <VStack gap="3">
-        <Bleed asChild marginInline={{ lg: "32" }}>
+    <VStack gap="space-8" data-aksel-template="form-intropage-v3">
+      <VStack gap="space-4">
+        <Bleed asChild marginInline={{ lg: "space-32" }}>
           <Box
             width={{ xs: "64px", lg: "96px" }}
             height={{ xs: "64px", lg: "96px" }}
@@ -16,7 +16,7 @@ export default function ManglerTilganger() {
             <ApplicationPictogram />
           </Box>
         </Bleed>
-        <VStack gap="1">
+        <VStack gap="space-1">
           <Heading level="1" size="xlarge">
             Søknad om tilskudd til ekspertbistand
           </Heading>
@@ -28,8 +28,8 @@ export default function ManglerTilganger() {
         </Heading>
         <List>
           <List.Item>
-            For å kunne sende in søknad må du ha blitt tildelt enkeltrettigheten “Ekspertbistand”
-            for den aktuelle virksomheten.
+            For å kunne sende in søknad må du ha blitt tildelt enkeltrettigheten “Tilskudd til
+            ekspertbistand” for den aktuelle virksomheten.
           </List.Item>
         </List>
       </div>

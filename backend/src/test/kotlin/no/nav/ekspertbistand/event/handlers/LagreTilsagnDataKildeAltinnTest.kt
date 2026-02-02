@@ -1,18 +1,13 @@
 package no.nav.ekspertbistand.event.handlers
 
-import io.ktor.server.testing.*
-import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
-import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.tilsagndata.TilsagndataTable
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -20,8 +15,8 @@ import kotlin.test.assertIs
 class LagreTilsagnDataKildeAltinnTest {
 
     @Test
-    fun `Lagrer tilsagndata og returnerer Success`() = testApplication {
-        val database = TestDatabase().cleanMigrate().config.jdbcDatabase
+    fun `Lagrer tilsagndata og returnerer Success`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
         val handler = LagreTilsagnsDataKildeAltinn(database = database)
 
         val event = Event(

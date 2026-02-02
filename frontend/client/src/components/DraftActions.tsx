@@ -25,8 +25,8 @@ export function DraftActions({ onContinueLater, onDeleteDraft }: DraftActionsPro
 
   return (
     <>
-      <HGrid gap={{ xs: "4", sm: "8 4" }} columns={{ xs: 1, sm: 2 }} width={{ sm: "fit-content" }}>
-        <Box asChild marginBlock={{ xs: "4 0", sm: "0" }}>
+      <HGrid gap={{ xs: "space-24", sm: "space-16" }} columns={{ xs: 1, sm: 2 }} width={{ sm: "fit-content" }}>
+        <Box asChild marginBlock={{ xs: "space-16", sm: "space-0" }}>
           <Button
             type="button"
             variant="tertiary"

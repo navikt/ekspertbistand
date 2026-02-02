@@ -70,6 +70,7 @@ class EregApiTest {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
                 }
+                provide<EregService> { EregService(resolve()) }
             }
 
             configureTokenXAuth()
@@ -123,6 +124,7 @@ class EregApiTest {
                         if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
                     }
                 }
+                provide<EregService> { EregService(resolve()) }
             }
 
             configureTokenXAuth()

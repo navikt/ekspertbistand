@@ -8,6 +8,7 @@
       "properties": {
         "virksomhetsnummer": { "type": "string" },
         "virksomhetsnavn": { "type": "string" },
+        "beliggenhetsadresse": { "type": ["string", "null"] },
         "kontaktperson": {
           "type": "object",
           "properties": {
@@ -69,6 +70,7 @@
     "virksomhet": {
       "virksomhetsnummer": "211511052",
       "virksomhetsnavn": "LOLPATROL",
+      "beliggenhetsadresse": "Testveien 1, 0557 Oslo",
       "kontaktperson": {
         "navn": "Ola Nordmann",
         "epost": "ola.nordmann@firma.no",

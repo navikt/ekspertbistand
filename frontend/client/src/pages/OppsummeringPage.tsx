@@ -59,7 +59,7 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
         <FormSummary.Answers>
           <FormSummary.Answer>
             <FormSummary.Label>Navn på virksomhet</FormSummary.Label>
-            <FormSummary.Value>{formatValue(virksomhet.navn)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(virksomhet.virksomhetsnavn)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Organisasjonsnummer</FormSummary.Label>
@@ -243,8 +243,8 @@ export default function OppsummeringPage() {
 
   return (
     <DecoratedPage>
-      <VStack gap="8" data-aksel-template="form-summarypage-v3">
-        <VStack gap="3">
+      <VStack gap="space-32" data-aksel-template="form-summarypage-v5">
+        <VStack>
           <Heading level="1" size="xlarge">
             Oppsummering av søknad om ekspertbistand
           </Heading>
@@ -254,7 +254,7 @@ export default function OppsummeringPage() {
           <BackLink to={`/skjema/${draftId}/steg-2`} onClick={handleStep2Link}>
             Forrige steg
           </BackLink>
-          <Box paddingBlock="6 5">
+          <Box paddingBlock="space-32 space-16">
             <Heading level="2" size="large">
               Oppsummering
             </Heading>
@@ -269,7 +269,7 @@ export default function OppsummeringPage() {
 
         {submitError && (
           <Alert variant="error" role="alert">
-            <VStack gap="3">
+            <VStack gap="space-16">
               <BodyLong>{submitError.message}</BodyLong>
               {submitError.requiresLogin ? (
                 <Button as="a" href={LOGIN_URL} size="small" variant="primary">
@@ -287,10 +287,10 @@ export default function OppsummeringPage() {
           onEditStep2={handleStep2Link}
         />
 
-        <VStack gap="4">
+        <VStack gap="space-16">
           <SistLagretInfo timestamp={lastPersistedAt} />
           <HGrid
-            gap={{ xs: "4", sm: "8 4" }}
+            gap={{ xs: "space-32", sm: "space-16" }}
             columns={{ xs: 1, sm: 2 }}
             width={{ sm: "fit-content" }}
           >

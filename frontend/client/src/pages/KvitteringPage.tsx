@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
   BodyLong,
@@ -25,7 +25,6 @@ import {
   formatTimer,
   formatValue,
 } from "../components/summaryFormatters";
-import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse.ts";
 
 type KvitteringMetadata = {
   status?: string | null;
@@ -39,14 +38,8 @@ type KvitteringSummaryProps = {
 };
 
 function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummaryProps) {
-  const {
-    adresse,
-    isLoading: adresseLoading,
-    error: adresseError,
-  } = useVirksomhetAdresse(data.virksomhet.virksomhetsnummer);
-
   return (
-    <VStack gap="4">
+    <VStack gap="space-32">
       <FormSummary>
         <FormSummary.Header>
           <FormSummary.Heading level="2">Søknad</FormSummary.Heading>
@@ -58,7 +51,7 @@ function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummar
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Navn på virksomhet</FormSummary.Label>
-            <FormSummary.Value>{formatValue(data.virksomhet.navn)}</FormSummary.Value>
+            <FormSummary.Value>{formatValue(data.virksomhet.virksomhetsnavn)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Organisasjonsnummer</FormSummary.Label>
@@ -67,11 +60,7 @@ function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummar
           <FormSummary.Answer>
             <FormSummary.Label>Beliggenhetsadresse</FormSummary.Label>
             <FormSummary.Value>
-              {adresseError
-                ? "Kunne ikke hente beliggenhetsadresse."
-                : adresseLoading
-                  ? "Laster ..."
-                  : formatValue(adresse)}
+              {formatValue(data.virksomhet.beliggenhetsadresse)}
             </FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
@@ -179,6 +168,8 @@ function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummar
 
 export default function KvitteringPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     data: draft,
     error,
@@ -190,9 +181,8 @@ export default function KvitteringPage() {
     data: tilskuddsbrevHtml,
     error: tilskuddsbrevError,
     isLoading: tilskuddsbrevLoading,
-  } = useSWR(
-    shouldLoadTilsagn && id ? ["tilskuddsbrev-html", id] : null,
-    ([, skjemaId]) => fetchTilskuddsbrevHtmlForSkjema(skjemaId)
+  } = useSWR(shouldLoadTilsagn && id ? ["tilskuddsbrev-html", id] : null, ([, skjemaId]) =>
+    fetchTilskuddsbrevHtmlForSkjema(skjemaId)
   );
 
   const formData = useMemo(() => (draft ? draftDtoToInputs(draft) : null), [draft]);
@@ -205,6 +195,23 @@ export default function KvitteringPage() {
   }, [draft]);
   const isApproved = statusKey === "godkjent";
   const isRejected = statusKey === "avlyst";
+  const isSubmitted = statusKey === "innsendt";
+  const submissionSuccess = Boolean(
+    (location.state as { submissionSuccess?: boolean } | null)?.submissionSuccess
+  );
+  const [showSubmittedAlert, setShowSubmittedAlert] = useState(false);
+
+  useEffect(() => {
+    if (!isSubmitted || !submissionSuccess) return;
+
+    setShowSubmittedAlert(true);
+
+    const timeoutId = window.setTimeout(() => {
+      setShowSubmittedAlert(false);
+      navigate(".", { replace: true, state: {} });
+    }, 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [isSubmitted, navigate, submissionSuccess]);
 
   const errorMessage = error
     ? error instanceof Error
@@ -223,10 +230,10 @@ export default function KvitteringPage() {
 
   return (
     <DecoratedPage>
-      <VStack gap="8" data-aksel-template="receipt">
+      <VStack gap="space-32">
         <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
 
-        {!isApproved && !isRejected && (
+        {showSubmittedAlert && !isApproved && !isRejected && (
           <Alert variant="success" role="status">
             Du har sendt søknaden
           </Alert>
@@ -265,39 +272,37 @@ export default function KvitteringPage() {
         )}
 
         {!isApproved && !isRejected && (
-          <VStack gap="2" style={{ textAlign: "center" }}>
-            <Box.New background="neutral-moderate" padding="4">
+          <VStack gap="space-12" style={{ textAlign: "center" }}>
+            <Box background="neutral-moderate" padding="space-16">
               <Heading level="1" size="medium">
-                Søknaden er sendt
+                Nav har mottatt søknaden
               </Heading>
               <BodyLong>
-                Saksbehandlingstiden er vanligvis et par virkedager, og du kan følge saken her. Du
-                får beskjed på e-post når søknaden er behandlet. Vent med å ta tiltaket i bruk til
-                du har mottatt svar.
+                Saksbehandlingstiden er vanligvis en uke, og du kan følge saken her. Du får beskjed på e-post når søknaden er behandlet. Vent med å ta tiltaket i bruk til du har mottatt svar.
               </BodyLong>
-            </Box.New>
+            </Box>
           </VStack>
         )}
         {isApproved && (
-          <VStack gap="2" style={{ textAlign: "center" }}>
-            <Box.New background="success-moderate" padding="4">
+          <VStack gap="space-2" style={{ textAlign: "center" }}>
+            <Box background="success-moderate" padding="space-12">
               <Heading level="1" size="medium">
                 Søknaden godkjent
               </Heading>
-            </Box.New>
+            </Box>
           </VStack>
         )}
         {isRejected && (
-          <VStack gap="2" style={{ textAlign: "center" }}>
-            <Box.New background="danger-moderate" padding="4">
+          <VStack gap="space-2" style={{ textAlign: "center" }}>
+            <Box background="danger-moderate" padding="space-12">
               <Heading level="1" size="medium">
                 Søknad trukket eller avslått
               </Heading>
               <BodyLong>
-                Har du trukket søknaden, trenger du ikke gjøre noe.
-                Hvis Nav har avslått søknaden, får du vedtaket i posten med informasjon om hvordan du kan klage på det.
+                Har du trukket søknaden, trenger du ikke gjøre noe. Hvis Nav har avslått søknaden,
+                får du vedtaket i posten med informasjon om hvordan du kan klage på det.
               </BodyLong>
-            </Box.New>
+            </Box>
           </VStack>
         )}
 

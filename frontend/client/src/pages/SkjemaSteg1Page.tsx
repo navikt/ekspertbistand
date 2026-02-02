@@ -65,12 +65,12 @@ export default function SkjemaSteg1Page() {
   return (
     <DecoratedPage>
       <form onSubmit={handleSubmitStep1}>
-        <VStack gap="8">
+        <VStack gap="space-32">
           <Heading level="1" size="xlarge">
             Søknadsskjema – ekspertbistand
           </Heading>
 
-          <VStack gap="3">
+          <VStack gap="space-12">
             <BackLink to={SOKNADER_PATH} onClick={handleBackLink}>
               Forrige steg
             </BackLink>
@@ -81,7 +81,7 @@ export default function SkjemaSteg1Page() {
             />
           </VStack>
 
-          <VStack gap="6">
+          <VStack gap="space-32">
             <div style={FORM_COLUMN_STYLE}>
               <Controller
                 name="virksomhet.virksomhetsnummer"
@@ -94,9 +94,9 @@ export default function SkjemaSteg1Page() {
                       if (field.value === orgnr) return;
                       field.onChange(orgnr);
                       if (!virksomhet?.navn) return;
-                      const currentName = getValues("virksomhet.navn");
+                      const currentName = getValues("virksomhet.virksomhetsnavn");
                       if (currentName === virksomhet.navn) return;
-                      setValue("virksomhet.navn", virksomhet.navn, {
+                      setValue("virksomhet.virksomhetsnavn", virksomhet.navn, {
                         shouldDirty: true,
                         shouldTouch: true,
                       });
@@ -106,7 +106,7 @@ export default function SkjemaSteg1Page() {
                 )}
               />
               {hasVirksomhet ? (
-                <VStack gap="1" style={{ marginTop: "1rem" }}>
+                <VStack gap="space-8" style={{ marginTop: "1rem" }}>
                   <Label>Beliggenhetsadresse (hentet fra brreg.no)</Label>
                   {adresseLoading ? (
                     <BodyShort size="small">
@@ -125,7 +125,7 @@ export default function SkjemaSteg1Page() {
                 </VStack>
               ) : null}
             </div>
-            <input type="hidden" {...register("virksomhet.navn")} />
+            <input type="hidden" {...register("virksomhet.virksomhetsnavn")} />
 
             <Fieldset
               legend="Kontaktperson i virksomheten"
@@ -157,7 +157,7 @@ export default function SkjemaSteg1Page() {
           </VStack>
 
           <Fieldset legend="Ansatt" style={FORM_COLUMN_STYLE}>
-            <VStack gap="6">
+            <VStack gap="space-32">
               <TextField
                 id="ansatt.fnr"
                 label="Fødselsnummer"
@@ -174,11 +174,16 @@ export default function SkjemaSteg1Page() {
             </VStack>
           </Fieldset>
 
-          <Fieldset legend="Ekspert" style={FORM_COLUMN_STYLE}>
-            <VStack gap="6">
+          <Fieldset
+            legend="Ekspert"
+            description="Må ha offentlig godkjent utdanning eller autorisasjon. Bedriftshelsetjenesten kan bare brukes som ekspert hvis hjelpen går utover det som vanligvis inngår i avtalen."
+            style={FORM_COLUMN_STYLE}
+          >
+            <VStack gap="space-32">
               <TextField
                 id="ekspert.navn"
                 label="Navn"
+                description="Personen som skal utføre oppdraget"
                 error={errors.ekspert?.navn?.message}
                 {...register("ekspert.navn")}
               />
@@ -191,7 +196,7 @@ export default function SkjemaSteg1Page() {
               <TextField
                 id="ekspert.kompetanse"
                 label="Kompetanse / autorisasjon"
-                description="f.eks. psykolog, ergoterapeut, fysioterapeut"
+                description="Psykolog, ergoterapeut, fysioterapeut, sykepleier etc."
                 error={errors.ekspert?.kompetanse?.message}
                 {...register("ekspert.kompetanse")}
               />
@@ -214,10 +219,10 @@ export default function SkjemaSteg1Page() {
             focusKey={errorFocusKey}
           />
 
-          <VStack gap="4">
+          <VStack gap="space-16">
             <SistLagretInfo timestamp={lastPersistedAt} />
             <HGrid
-              gap={{ xs: "4", sm: "8 4" }}
+              gap={{ xs: "space-32", sm: "space-16" }}
               columns={{ xs: 1, sm: 2 }}
               width={{ sm: "fit-content" }}
             >
