@@ -2,7 +2,6 @@ package no.nav.ekspertbistand.event.handlers
 
 import io.ktor.server.testing.*
 import no.nav.ekspertbistand.arena.EKSPERTBISTAND_TILTAKSKODE
-import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData

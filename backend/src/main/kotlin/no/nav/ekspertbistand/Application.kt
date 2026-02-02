@@ -37,6 +37,7 @@ import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.configureEregApiV1
+import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
@@ -100,6 +101,8 @@ fun main() {
         // event manager and event handlers
         configureEventHandlers()
 
+        configureProjectionBuilders()
+
         startKafkaConsumers(coroutineContext)
 
         // internal endpoints and lifecycle hooks
@@ -107,6 +110,8 @@ fun main() {
         registerShutdownListener()
     }
 }
+// ... existing code ...
+
 
 fun ktorServer(
     initialConfig: suspend Application.() -> Unit,

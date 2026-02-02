@@ -21,6 +21,7 @@ import no.nav.ekspertbistand.event.handlers.SettGodkjentSkjemaStatus
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjentKildeAltinn
 import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.tilsagndata.TilskuddsbrevHtml
 import kotlin.time.ExperimentalTime
 
 
@@ -104,6 +105,13 @@ sealed interface EventData {
     data class SoknadAvlystIArena(
         val skjema: DTO.Skjema,
         val tiltaksgjennomforingEndret: TiltaksgjennomforingEndret
+    ) : EventData
+
+    @Serializable
+    @SerialName("tilskuddsbrevVist")
+    data class TilskuddsbrevVist(
+        val tilsagnNummer: String,
+        val skjema: DTO.Skjema?
     ) : EventData
 }
 
