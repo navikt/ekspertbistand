@@ -103,7 +103,7 @@ fun main() {
         // event manager and event handlers
         configureEventHandlers()
 
-        configureProjectionBuilders()
+        //configureProjectionBuilders() TODO: reenable, temporarily disabled
 
         startKafkaConsumers(coroutineContext)
 
