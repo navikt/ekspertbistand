@@ -61,7 +61,7 @@ fun main() {
     ktorServer {
         dependencies {
             provide<Database> {
-                //dbConfig.destroyExistingDatabase()
+                dbConfig.destroyExistingDatabase()
                 dbConfig.flywayAction {
                     migrate()
                 }
@@ -103,7 +103,7 @@ fun main() {
         // event manager and event handlers
         configureEventHandlers()
 
-        //configureProjectionBuilders() TODO: reenable, temporarily disabled
+        configureProjectionBuilders()
 
         startKafkaConsumers(coroutineContext)
 
