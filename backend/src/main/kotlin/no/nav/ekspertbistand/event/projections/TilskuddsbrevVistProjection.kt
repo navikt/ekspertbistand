@@ -2,8 +2,8 @@ package no.nav.ekspertbistand.event.projections
 
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState.foerstVistTidspunkt
-import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState.opprettetTidspunkt
+import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState.tilskuddsbrevFoersVistAt
+import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState.tilskuddsbrevOpprettetAt
 import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState.tilsagnNummer
 import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -29,22 +29,22 @@ class TilskuddsbrevVistProjection(
             is EventData.TilskuddsbrevMottatt -> {
                 TilskuddsbrevVistState.insert {
                     it[tilsagnNummer] = event.data.tilsagnData.tilsagnNummer.concat()
-                    it[opprettetTidspunkt] = eventTimestamp
+                    it[this.tilskuddsbrevOpprettetAt] = eventTimestamp
                 }
             }
 
             is EventData.TilskuddsbrevMottattKildeAltinn -> {
                 TilskuddsbrevVistState.insert {
                     it[tilsagnNummer] = event.data.tilsagnData.tilsagnNummer.concat()
-                    it[opprettetTidspunkt] = eventTimestamp
+                    it[this.tilskuddsbrevOpprettetAt] = eventTimestamp
                 }
             }
 
             is EventData.TilskuddsbrevVist -> {
                 TilskuddsbrevVistState.update({
-                    (tilsagnNummer eq event.data.tilsagnNummer) and (foerstVistTidspunkt eq null)
+                    (tilsagnNummer eq event.data.tilsagnNummer) and (tilskuddsbrevFoersVistAt eq null)
                 }) {
-                    it[foerstVistTidspunkt] = eventTimestamp
+                    it[this.tilskuddsbrevFoersVistAt] = eventTimestamp
                 }
             }
 
@@ -56,8 +56,8 @@ class TilskuddsbrevVistProjection(
 @OptIn(ExperimentalTime::class)
 object TilskuddsbrevVistState : Table("tilskuddsbrev_vist_state") {
     val tilsagnNummer = text("tilsagn_nummer")
-    val opprettetTidspunkt = timestamp("opprettet")
-    val foerstVistTidspunkt = timestamp("foerst_vist").nullable()
+    val tilskuddsbrevOpprettetAt = timestamp("tilskuddsbrev_opprettet_at")
+    val tilskuddsbrevFoersVistAt = timestamp("tilskuddsbrev_foerstvist_at").nullable()
 
     override val primaryKey = PrimaryKey(tilsagnNummer)
 }
@@ -65,14 +65,14 @@ object TilskuddsbrevVistState : Table("tilskuddsbrev_vist_state") {
 @OptIn(ExperimentalTime::class)
 data class TilskuddsbrevVist(
     val tilsagnNummer: String,
-    val opprettetTidspunkt: Instant,
-    val foerstVistTidspunkt: Instant?,
+    val tilskuddsbrevOpprettetAt: Instant,
+    val tilskuddsbrevFoersVistAt: Instant?,
 ) {
     companion object {
         fun ResultRow.tilTilskuddsbrevVist() = TilskuddsbrevVist(
             tilsagnNummer = this[tilsagnNummer],
-            opprettetTidspunkt = this[opprettetTidspunkt],
-            foerstVistTidspunkt = this[foerstVistTidspunkt],
+            tilskuddsbrevOpprettetAt = this[tilskuddsbrevOpprettetAt],
+            tilskuddsbrevFoersVistAt = this[tilskuddsbrevFoersVistAt],
         )
     }
 }

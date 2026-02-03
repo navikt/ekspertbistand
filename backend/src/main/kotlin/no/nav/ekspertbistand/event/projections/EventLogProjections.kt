@@ -45,14 +45,14 @@ abstract class EventLogProjectionBuilder(
     fun poll() = transaction(database) {
         val currentPosition = ProjectionBuilderState
             .select(ProjectionBuilderState.position)
-            .where { ProjectionBuilderState.builderId eq id }
+            .where { ProjectionBuilderState.builderName eq id }
             .firstOrNull().let {
                 if (it == null) {
                     // not registered yet, TODO: consider moving this to a setup step
                     ProjectionBuilderState.insertReturning(
                         returning = listOf(ProjectionBuilderState.position)
                     ) { stmnt ->
-                        stmnt[builderId] = id
+                        stmnt[builderName] = id
                         stmnt[this.position] = 0
                     }.first()[ProjectionBuilderState.position]
                 } else {
@@ -71,12 +71,12 @@ abstract class EventLogProjectionBuilder(
 
         loggedEvents.forEach { loggedEvent ->
             try {
-                handle(loggedEvent.event, loggedEvent.updatedAt)
+                handle(loggedEvent.event, loggedEvent.createdAt)
 
                 ProjectionBuilderState.upsert(
-                    where = { ProjectionBuilderState.builderId eq id },
+                    where = { ProjectionBuilderState.builderName eq id },
                 ) { stmnt ->
-                    stmnt[builderId] = id
+                    stmnt[builderName] = id
                     stmnt[position] = loggedEvent.id
                 }
             } catch (e: Exception) {
@@ -91,10 +91,10 @@ abstract class EventLogProjectionBuilder(
 }
 
 object ProjectionBuilderState : Table("projection_builder_state") {
-    val builderId = text("builder_id")
+    val builderName = text("builder_name")
     val position = long("position").default(0)
 
-    override val primaryKey = PrimaryKey(builderId)
+    override val primaryKey = PrimaryKey(builderName)
 }
 
 suspend fun Application.configureProjectionBuilders() {

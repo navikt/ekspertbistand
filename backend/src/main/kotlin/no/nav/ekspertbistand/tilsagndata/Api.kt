@@ -45,8 +45,6 @@ class TilsagnDataApi(
             )
         }
 
-
-
         call.respond(html)
     }
 

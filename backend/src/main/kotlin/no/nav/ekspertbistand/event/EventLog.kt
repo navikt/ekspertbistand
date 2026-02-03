@@ -12,11 +12,11 @@ import kotlin.time.ExperimentalTime
 object EventLog : Table("event_log") {
     val id = long("id")
     val eventData = json<EventData>("event_json", Json.Default)
-    val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
+    val status = enumeration<ProcessingStatus>("status")
     val errors = json<List<EventHandledResult.UnrecoverableError>>("errors", Json.Default).default(emptyList())
     val attempts = integer("attempts").default(0)
-    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
-    val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
+    val createdAt = timestamp("created_at")
+    val updatedAt = timestamp("updated_at")
 
     override val primaryKey = PrimaryKey(id)
 }

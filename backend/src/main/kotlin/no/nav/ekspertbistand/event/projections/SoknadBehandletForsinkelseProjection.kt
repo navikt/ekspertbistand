@@ -6,9 +6,6 @@ import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelseState.a
 import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelseState.godkjentTidspunkt
 import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelseState.innsendtTidspunkt
 import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelseState.skjemaId
-import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState.foerstVistTidspunkt
-import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState.opprettetTidspunkt
-import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState.tilsagnNummer
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq

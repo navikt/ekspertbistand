@@ -51,8 +51,8 @@ class TilskuddsbrevVistProjectionTest {
         TilskuddsbrevVistState.selectAll().map { it.tilTilskuddsbrevVist() }.also {
             assertEquals(1, it.size)
             assertEquals(sampleTilsagnData.tilsagnNummer.concat(), it.first().tilsagnNummer)
-            assertNotNull(it.first().opprettetTidspunkt)
-            assertNull(it.first().foerstVistTidspunkt)
+            assertNotNull(it.first().tilskuddsbrevOpprettetAt)
+            assertNull(it.first().tilskuddsbrevFoersVistAt)
         }
 
         publishAndFinalize(
@@ -66,8 +66,8 @@ class TilskuddsbrevVistProjectionTest {
         TilskuddsbrevVistState.selectAll().map { it.tilTilskuddsbrevVist() }.also {
             assertEquals(1, it.size)
             assertEquals(sampleTilsagnData.tilsagnNummer.concat(), it.first().tilsagnNummer)
-            assertNotNull(it.first().opprettetTidspunkt)
-            assertNotNull(it.first().foerstVistTidspunkt)
+            assertNotNull(it.first().tilskuddsbrevOpprettetAt)
+            assertNotNull(it.first().tilskuddsbrevFoersVistAt)
         }
     }
 
