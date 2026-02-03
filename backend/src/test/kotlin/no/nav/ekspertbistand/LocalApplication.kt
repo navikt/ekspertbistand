@@ -16,6 +16,7 @@ import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
@@ -290,6 +291,8 @@ fun main() {
 
         // event manager and event handlers
         configureEventHandlers()
+
+        configureProjectionBuilders()
 
         // internal endpoints and lifecycle hooks
         configureInternal()
