@@ -5,8 +5,9 @@ import io.ktor.server.routing.RoutingContext
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.EventQueue
 import no.nav.ekspertbistand.skjema.findSkjemaById
-import no.nav.ekspertbistand.skjema.findSkjemaOrUtkastById
 import no.nav.ekspertbistand.skjema.subjectToken
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -31,6 +32,13 @@ class TilsagnDataApi(
         }
 
         val html = tilsagnData.map { tilsagn ->
+            EventQueue.publish(
+                EventData.TilskuddsbrevVist(
+                    tilsagnNummer = tilsagn.tilsagnNummer.concat(),
+                    skjema = skjema,
+                )
+            )
+
             TilskuddsbrevHtml(
                 tilsagnNummer = tilsagn.tilsagnNummer.concat(),
                 html = dokgenClient.genererTilskuddsbrevHtml(tilsagn),
@@ -55,6 +63,13 @@ class TilsagnDataApi(
         val html = TilskuddsbrevHtml(
             tilsagnNummer = tilsagnData.tilsagnNummer.concat(),
             html = dokgenClient.genererTilskuddsbrevHtml(tilsagnData),
+        )
+
+        EventQueue.publish(
+            EventData.TilskuddsbrevVist(
+                tilsagnNummer = tilsagnNummer,
+                skjema = null,
+            )
         )
 
         call.respond(html)

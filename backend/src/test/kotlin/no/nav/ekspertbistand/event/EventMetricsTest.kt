@@ -78,18 +78,21 @@ class EventMetricsTest {
                     it[EventLog.id] = 1L
                     it[EventLog.status] = COMPLETED_WITH_ERRORS
                     it[EventLog.eventData] = EventData.Foo("dummy1")
+                    it[EventLog.createdAt] = CurrentTimestamp
                     it[EventLog.updatedAt] = CurrentTimestamp
                 }
                 EventLog.insert {
                     it[EventLog.id] = 2L
                     it[EventLog.status] = COMPLETED
                     it[EventLog.eventData] = EventData.Foo("dummy2")
+                    it[EventLog.createdAt] = CurrentTimestamp
                     it[EventLog.updatedAt] = CurrentTimestamp
                 }
                 EventLog.insert {
                     it[EventLog.id] = 3L
                     it[EventLog.status] = COMPLETED
                     it[EventLog.eventData] = EventData.Foo("dummy3")
+                    it[EventLog.createdAt] = CurrentTimestamp
                     it[EventLog.updatedAt] = CurrentTimestamp
                 }
             }
