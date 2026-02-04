@@ -7,11 +7,9 @@ import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
 import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelse.Companion.tilSoknadBehandletForsinkelse
-import no.nav.ekspertbistand.event.projections.TilskuddsbrevVist.Companion.tilTilskuddsbrevVist
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
-import no.nav.ekspertbistand.tilsagndata.concat
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
@@ -43,24 +41,24 @@ class SoknadBehandletForsinkelseProjectionTest {
     @Test
     fun `can query forsinkelse og status`() = transaction<Unit>(testDb.config.jdbcDatabase) {
         publishAndFinalize(
-            EventData.SkjemaInnsendt(
-                skjema = sampleSkjema,
+            EventData.SoknadInnsendt(
+                soknad = sampleSoknad,
             )
         )
         projection.poll()
         SoknadBehandletForsinkelseState.selectAll().map { it.tilSoknadBehandletForsinkelse() }.also {
             assertEquals(1, it.size)
-            assertEquals(sampleSkjema.id, it.first().skjemaId)
+            assertEquals(sampleSoknad.id, it.first().soknadId)
             assertNotNull(it.first().innsendtTidspunkt)
             assertNull(it.first().godkjentTidspunkt)
             assertNull(it.first().avlystTidspunkt)
         }
 
-        // simuler flere tilskuddsbrev mottatt for samme skjema
+        // simuler flere tilskuddsbrev mottatt for samme soknad
         for (i in 1..5) {
             publishAndFinalize(
                 EventData.TilskuddsbrevMottatt(
-                    skjema = sampleSkjema,
+                    soknad = sampleSoknad,
                     // brevid og tilsagnnummer ikke relevant for testen, men justert her for ordens skyld
                     tilsagnbrevId = 42 + i,
                     tilsagnData = sampleTilsagnData.copy(
@@ -76,22 +74,22 @@ class SoknadBehandletForsinkelseProjectionTest {
 
         SoknadBehandletForsinkelseState.selectAll().map { it.tilSoknadBehandletForsinkelse() }.also {
             assertEquals(1, it.size)
-            assertEquals(sampleSkjema.id, it.first().skjemaId)
+            assertEquals(sampleSoknad.id, it.first().soknadId)
             assertNotNull(it.first().innsendtTidspunkt)
             assertNotNull(it.first().godkjentTidspunkt)
             assertNull(it.first().avlystTidspunkt)
         }
 
         // simuler at søknaden blir avlyst i Arena
-        val avlystSkjema = sampleSkjema.copy(id = UUID.randomUUID().toString())
+        val avlystSoknad = sampleSoknad.copy(id = UUID.randomUUID().toString())
         publishAndFinalize(
-            EventData.SkjemaInnsendt(
-                skjema = avlystSkjema,
+            EventData.SoknadInnsendt(
+                soknad = avlystSoknad,
             )
         )
         projection.poll()
         SoknadBehandletForsinkelseState.selectAll().map { it.tilSoknadBehandletForsinkelse() }.first {
-            it.skjemaId == avlystSkjema.id
+            it.soknadId == avlystSoknad.id
         }.also {
             assertNotNull(it.innsendtTidspunkt)
             assertNull(it.godkjentTidspunkt)
@@ -100,7 +98,7 @@ class SoknadBehandletForsinkelseProjectionTest {
 
         publishAndFinalize(
             EventData.SoknadAvlystIArena(
-                skjema = avlystSkjema,
+                soknad = avlystSoknad,
                 tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
                     tiltaksgjennomfoeringId = 1,
                     tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
@@ -110,7 +108,7 @@ class SoknadBehandletForsinkelseProjectionTest {
         )
         projection.poll()
         SoknadBehandletForsinkelseState.selectAll().map { it.tilSoknadBehandletForsinkelse() }.first {
-            it.skjemaId == avlystSkjema.id
+            it.soknadId == avlystSoknad.id
         }.also {
             assertNotNull(it.innsendtTidspunkt)
             assertNull(it.godkjentTidspunkt)
@@ -125,7 +123,7 @@ private fun publishAndFinalize(mottatt: EventData) =
         EventQueue.finalize(it.id)
     }
 
-private val sampleSkjema = DTO.Skjema(
+private val sampleSoknad = DTO.Soknad(
     id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "1337",
@@ -157,7 +155,7 @@ private val sampleSkjema = DTO.Skjema(
         kontaktperson = "Navn Navnesen"
     ),
     opprettetAv = "Noen Noensen",
-    status = SkjemaStatus.innsendt,
+    status = SoknadStatus.innsendt,
 )
 
 private val sampleTilsagnData = TilsagnData(

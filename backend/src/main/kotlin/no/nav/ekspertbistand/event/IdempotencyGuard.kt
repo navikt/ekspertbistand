@@ -17,10 +17,10 @@ class IdempotencyGuard(
     fun <T : EventData> guard(event: Event<T>, subTask: String) {
         transaction(database) {
             IdempotencyGuardRecords.insert {
-                it[this.eventId] = event.id
-                it[this.subTask] = taskName(subTask)
-                it[this.eventName] = event::class.simpleName!!
-                it[this.status] = IdempotencyStatus.COMPLETED
+                it[IdempotencyGuardRecords.eventId] = event.id
+                it[IdempotencyGuardRecords.subTask] = taskName(subTask)
+                it[IdempotencyGuardRecords.eventName] = event::class.simpleName!!
+                it[IdempotencyGuardRecords.status] = IdempotencyStatus.COMPLETED
             }
         }
     }

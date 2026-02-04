@@ -32,8 +32,8 @@ import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -42,7 +42,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
-class JournalfoerInnsendtSkjemaTest {
+class JournalfoerInnsendtSoknadTest {
     @Test
     fun `handler journalforer og produserer JournalpostOpprettet-event`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
@@ -74,10 +74,10 @@ class JournalfoerInnsendtSkjemaTest {
         setupApplication(database)
         startApplication()
 
-        val handler = application.dependencies.resolve<JournalfoerInnsendtSkjema>()
+        val handler = application.dependencies.resolve<JournalfoerInnsendtSoknad>()
         val event = Event(
             id = 1L,
-            data = EventData.SkjemaInnsendt(sampleSkjema)
+            data = EventData.SoknadInnsendt(sampleSoknad)
         )
 
         val result = handler.handle(event)
@@ -87,7 +87,7 @@ class JournalfoerInnsendtSkjemaTest {
             val queued = QueuedEvents.selectAll().toList()
             assertEquals(1, queued.size)
             val queuedEvent = queued.first()[QueuedEvents.eventData]
-            assertIs<EventData.InnsendtSkjemaJournalfoert>(queuedEvent)
+            assertIs<EventData.InnsendtSoknadJournalfoert>(queuedEvent)
             assertEquals(9876, queuedEvent.dokumentId)
             assertEquals(1234, queuedEvent.journaldpostId)
             assertEquals("4242", queuedEvent.behandlendeEnhetId)
@@ -120,10 +120,10 @@ class JournalfoerInnsendtSkjemaTest {
         setupApplication(database)
         startApplication()
 
-        val handler = application.dependencies.resolve<JournalfoerInnsendtSkjema>()
+        val handler = application.dependencies.resolve<JournalfoerInnsendtSoknad>()
         val event = Event(
             id = 3L,
-            data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
+            data = EventData.SoknadInnsendt(sampleSoknad.copy(id = UUID.randomUUID().toString()))
         )
 
         val result = handler.handle(event)
@@ -133,7 +133,7 @@ class JournalfoerInnsendtSkjemaTest {
             val queued = QueuedEvents.selectAll().toList()
             assertEquals(1, queued.size)
             val queuedEvent = queued.first()[QueuedEvents.eventData]
-            assertIs<EventData.InnsendtSkjemaJournalfoert>(queuedEvent)
+            assertIs<EventData.InnsendtSoknadJournalfoert>(queuedEvent)
             assertEquals("9999", queuedEvent.behandlendeEnhetId)
             assertEquals("1101", capturedNorgRequest?.geografiskOmraade)
             assertEquals(NorgKlient.DISKRESJONSKODE_ADRESSEBESKYTTET, capturedNorgRequest?.diskresjonskode)
@@ -169,10 +169,10 @@ class JournalfoerInnsendtSkjemaTest {
         setupApplication(database)
         startApplication()
 
-        val handler = application.dependencies.resolve<JournalfoerInnsendtSkjema>()
+        val handler = application.dependencies.resolve<JournalfoerInnsendtSoknad>()
         val event = Event(
             id = 2L,
-            data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
+            data = EventData.SoknadInnsendt(sampleSoknad.copy(id = UUID.randomUUID().toString()))
         )
 
         repeat(2) {
@@ -213,10 +213,10 @@ class JournalfoerInnsendtSkjemaTest {
         setupApplication(database)
         startApplication()
 
-        val handler = application.dependencies.resolve<JournalfoerInnsendtSkjema>()
+        val handler = application.dependencies.resolve<JournalfoerInnsendtSoknad>()
         val event = Event(
             id = 4L,
-            data = EventData.SkjemaInnsendt(sampleSkjema.copy(id = UUID.randomUUID().toString()))
+            data = EventData.SoknadInnsendt(sampleSoknad.copy(id = UUID.randomUUID().toString()))
         )
 
         val result = handler.handle(event)
@@ -226,14 +226,14 @@ class JournalfoerInnsendtSkjemaTest {
             val queued = QueuedEvents.selectAll().toList()
             assertEquals(1, queued.size)
             val queuedEvent = queued.first()[QueuedEvents.eventData]
-            assertIs<EventData.InnsendtSkjemaJournalfoert>(queuedEvent)
+            assertIs<EventData.InnsendtSoknadJournalfoert>(queuedEvent)
             assertEquals(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_OSLO, queuedEvent.behandlendeEnhetId)
 
         }
     }
 }
 
-private val sampleSkjema = DTO.Skjema(
+private val sampleSoknad = DTO.Soknad(
     id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "987654321",
@@ -264,7 +264,7 @@ private val sampleSkjema = DTO.Skjema(
     nav = DTO.Nav(
         kontaktperson = "Veileder Navn"
     ),
-    status = SkjemaStatus.innsendt,
+    status = SoknadStatus.innsendt,
 )
 
 private fun ApplicationTestBuilder.setupApplication(database: Database) {
@@ -281,7 +281,7 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide(PdlApiKlient::class)
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
-            provide(JournalfoerInnsendtSkjema::class)
+            provide(JournalfoerInnsendtSoknad::class)
         }
     }
 }

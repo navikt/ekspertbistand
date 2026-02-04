@@ -12,7 +12,7 @@ import java.util.UUID
 object TilsagndataTable : Table("tilsagndata") {
     val id = uuid("id")
     val tilsagnNummer = text("tilsagnnummer")
-    val skjemaId = uuid("skjema_id").nullable()
+    val soknadId = uuid("soknad_id").nullable()
     val tilsagnData = json<TilsagnData>(
         "tilsagnData",
         serialize = { Json.encodeToString(it) },
@@ -20,12 +20,12 @@ object TilsagndataTable : Table("tilsagndata") {
     )
 }
 
-fun insertTilsagndata(skjemaId: UUID?, tilsagnData: TilsagnData) {
+fun insertTilsagndata(soknadId: UUID?, tilsagnData: TilsagnData) {
     TilsagndataTable.insert {
-        it[id] = UUID.randomUUID()
-        it[tilsagnNummer] = tilsagnData.tilsagnNummer.concat()
-        it[this.skjemaId] = skjemaId
-        it[this.tilsagnData] = tilsagnData
+        it[TilsagndataTable.id] = UUID.randomUUID()
+        it[TilsagndataTable.tilsagnNummer] = tilsagnData.tilsagnNummer.concat()
+        it[TilsagndataTable.soknadId] = soknadId
+        it[TilsagndataTable.tilsagnData] = tilsagnData
     }
 }
 
@@ -39,11 +39,11 @@ fun findTilsagnDataByTilsagnNummer(tilsagnNummer: String) =
     }.firstOrNull()
 
 
-fun findTilsagnDataBySkjemaId(skjemaId: UUID) =
+fun findTilsagnDataBySoknadId(soknadId: UUID) =
     TilsagndataTable.select(
         TilsagndataTable.tilsagnData
     ).where {
-        TilsagndataTable.skjemaId eq skjemaId
+        TilsagndataTable.soknadId eq soknadId
     }.map {
         it[TilsagndataTable.tilsagnData]
     }

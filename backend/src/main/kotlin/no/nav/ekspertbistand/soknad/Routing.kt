@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.skjema
+package no.nav.ekspertbistand.soknad
 
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -20,22 +20,22 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
-suspend fun Application.configureSkjemaApiV1() {
+suspend fun Application.configureSoknadApiV1() {
     val database = dependencies.resolve<Database>()
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
     val eregService = dependencies.resolve<EregService>()
-    val skjemaApi = SkjemaApi(database, altinnTilgangerClient, eregService)
+    val soknadApi = SoknadApi(database, altinnTilgangerClient, eregService)
 
     launch {
         while (isActiveAndNotTerminating) {
-            skjemaApi.slettGamleUtkast()
+            soknadApi.slettGamleUtkast()
             delay(10.minutes)
         }
     }
 
     launch {
         while (isActiveAndNotTerminating) {
-            skjemaApi.slettGamleInnsendteSkjema()
+            soknadApi.slettGamleInnsendteSoknader()
             delay(1.days)
         }
     }
@@ -44,16 +44,16 @@ suspend fun Application.configureSkjemaApiV1() {
         authenticate(TOKENX_PROVIDER) {
 
             /**
-             * POST /api/skjema/v1 => oppretter utkast
-             * GET /api/skjema/v1/{id} => henter skjema på id (man må selv sjekke status på returnert data)
-             * PATCH /api/skjema/v1/{id} => oppdaterer utkast (http 409 hvis utkast er sendt inn)
+             * POST /api/soknad/v1 => oppretter utkast
+             * GET /api/soknad/v1/{id} => henter soknad på id (man må selv sjekke status på returnert data)
+             * PATCH /api/soknad/v1/{id} => oppdaterer utkast (http 409 hvis utkast er sendt inn)
              *
-             * GET /api/skjema/v1?status={status} => henter alle skjema med gitt status
-             * DELETE /api/skjema/v1/{id} => sletter utkast (http 409 hvis utkast er sendt inn)
-             * PUT /api/skjema/v1/{id} => sender inn skjema (payload valideres iht json schema)
+             * GET /api/soknad/v1?status={status} => henter alle soknad med gitt status
+             * DELETE /api/soknad/v1/{id} => sletter utkast (http 409 hvis utkast er sendt inn)
+             * PUT /api/soknad/v1/{id} => sender inn soknad (payload valideres iht json schema)
              */
-            route("/api/skjema/v1") {
-                with(skjemaApi) {
+            route("/api/soknad/v1") {
+                with(soknadApi) {
                     post {
                         opprettUtkast()
                     }
@@ -61,17 +61,17 @@ suspend fun Application.configureSkjemaApiV1() {
                     get {
                         val statusParam = call.request.queryParameters.getRequired(
                             name = "status",
-                            default = SkjemaStatusQueryParam.innsendt.name,
-                            transform = SkjemaStatusQueryParam::valueOf,
+                            default = SoknadStatusQueryParam.innsendt.name,
+                            transform = SoknadStatusQueryParam::valueOf,
                         ) {
                             call.respond(
                                 status = HttpStatusCode.BadRequest,
-                                message = "ugyldig parameter status='$it', gyldige verdier er: ${SkjemaStatusQueryParam.entries.toTypedArray()}"
+                                message = "ugyldig parameter status='$it', gyldige verdier er: ${SoknadStatusQueryParam.entries.toTypedArray()}"
                             )
                             return@get
                         }
 
-                        hentAlleSkjema(statusParam)
+                        hentAlleSoknader(statusParam)
                     }
 
                     get("/{id}") {
@@ -83,7 +83,7 @@ suspend fun Application.configureSkjemaApiV1() {
                             return@get
                         }
 
-                        hentSkjemaById(idParam)
+                        hentSoknadById(idParam)
                     }
 
                     patch("/{id}") {
@@ -119,7 +119,7 @@ suspend fun Application.configureSkjemaApiV1() {
                             return@put
                         }
 
-                        sendInnSkjema(idParam)
+                        sendInnSoknad(idParam)
                     }
                 }
             }

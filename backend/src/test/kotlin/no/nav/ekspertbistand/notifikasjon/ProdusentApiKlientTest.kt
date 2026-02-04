@@ -30,7 +30,7 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentR
 
 class ProdusentApiKlientTest {
 
-    private val skjemaId = "42"
+    private val soknadId = "42"
     private val virksomhetsnummer = "1337"
     private val tidspunkt = "2026-01-01T10:15:30+01:00"
 
@@ -43,7 +43,7 @@ class ProdusentApiKlientTest {
                 "data": {
                   "nySak": {
                     "__typename": "NySakVellykket",
-                    "id": "$skjemaId"
+                    "id": "$soknadId"
                     }
                 },
                 "errors": []
@@ -58,7 +58,7 @@ class ProdusentApiKlientTest {
         )
 
         klient.opprettNySak( // kaster exception dersom det feiler
-            grupperingsid = skjemaId,
+            grupperingsid = soknadId,
             virksomhetsnummer = virksomhetsnummer,
             tittel = "ny sak",
             lenke = "http://foo.bar"
@@ -74,7 +74,7 @@ class ProdusentApiKlientTest {
                 "data": {
                   "nyBeskjed": {
                     "__typename": "NyBeskjedVellykket",
-                    "id": "$skjemaId"
+                    "id": "$soknadId"
                     }
                 },
                 "errors": []
@@ -90,8 +90,8 @@ class ProdusentApiKlientTest {
 
         klient.opprettNyBeskjed(
             // kaster exception dersom det feiler
-            grupperingsid = skjemaId,
-            eksternId = "$skjemaId-soknad-mottatt",
+            grupperingsid = soknadId,
+            eksternId = "$soknadId-soknad-mottatt",
             virksomhetsnummer = virksomhetsnummer,
             lenke = "http://foo.bar",
             tekst = "ny beskjed",
@@ -107,7 +107,7 @@ class ProdusentApiKlientTest {
                 "data": {
                   "nyStatusSakByGrupperingsid": {
                     "__typename": "NyStatusSakVellykket",
-                    "id": "$skjemaId",
+                    "id": "$soknadId",
                     "statuser": [{
                       "status": "MOTTATT",
                       "tidspunkt": "$tidspunkt",
@@ -128,7 +128,7 @@ class ProdusentApiKlientTest {
 
         klient.nyStatusSak(
             // kaster exception dersom det feiler
-            grupperingsid = skjemaId,
+            grupperingsid = soknadId,
             status = SaksStatus.MOTTATT,
             statusTekst = "ny status",
             tidspunkt = tidspunkt,
@@ -154,7 +154,7 @@ class ProdusentApiKlientTest {
                 "data": {
                   "hardDeleteSakByGrupperingsid": {
                     "__typename": "HardDeleteSakVellykket",
-                    "id": "$skjemaId"
+                    "id": "$soknadId"
                     }
                 },
                 "errors": []
@@ -170,7 +170,7 @@ class ProdusentApiKlientTest {
 
         klient.hardDeleteSak(
             // kaster exception dersom det feiler
-            grupperingsid = skjemaId,
+            grupperingsid = soknadId,
         )
     }
 

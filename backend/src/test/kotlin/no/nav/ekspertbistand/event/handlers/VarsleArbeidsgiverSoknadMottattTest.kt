@@ -28,8 +28,8 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.Dup
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedResultat
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedVellykket
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.*
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertIs
@@ -57,8 +57,8 @@ class VarsleArbeidsgiverSoknadMottattTest {
 
         val event = Event(
             id = 1L,
-            data = EventData.TiltaksgjennomføringOpprettet(
-                skjema = skjema1,
+            data = EventData.TiltaksgjennomforingOpprettet(
+                soknad = soknad1,
                 saksnummer = "202112341234",
                 tiltaksgjennomfoeringId = 123,
             )
@@ -78,8 +78,8 @@ class VarsleArbeidsgiverSoknadMottattTest {
 
         val event = Event(
             id = 1L,
-            data = EventData.TiltaksgjennomføringOpprettet(
-                skjema = skjema1,
+            data = EventData.TiltaksgjennomforingOpprettet(
+                soknad = soknad1,
                 saksnummer = "202112341234",
                 tiltaksgjennomfoeringId = 123,
             )
@@ -100,8 +100,8 @@ class VarsleArbeidsgiverSoknadMottattTest {
 
             val event = Event(
                 id = 1L,
-                data = EventData.TiltaksgjennomføringOpprettet(
-                    skjema = skjema1,
+                data = EventData.TiltaksgjennomforingOpprettet(
+                    soknad = soknad1,
                     saksnummer = "202112341234",
                     tiltaksgjennomfoeringId = 123,
                 )
@@ -112,7 +112,7 @@ class VarsleArbeidsgiverSoknadMottattTest {
 }
 
 
-private val skjema1 = DTO.Skjema(
+private val soknad1 = DTO.Soknad(
     id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "1337",
@@ -143,7 +143,7 @@ private val skjema1 = DTO.Skjema(
     nav = DTO.Nav(
         kontaktperson = "Navn Navnesen"
     ),
-    status = SkjemaStatus.innsendt,
+    status = SoknadStatus.innsendt,
 )
 
 

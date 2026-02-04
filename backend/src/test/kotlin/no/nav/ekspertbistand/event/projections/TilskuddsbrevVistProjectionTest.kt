@@ -6,8 +6,8 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
 import no.nav.ekspertbistand.event.projections.TilskuddsbrevVist.Companion.tilTilskuddsbrevVist
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -41,7 +41,7 @@ class TilskuddsbrevVistProjectionTest {
     fun `can query vist vs ikke vist tilsagnsbrev`() = transaction<Unit>(testDb.config.jdbcDatabase) {
         publishAndFinalize(
             EventData.TilskuddsbrevMottatt(
-                skjema = sampleSkjema,
+                soknad = sampleSoknad,
                 tilsagnbrevId = 42,
                 tilsagnData = sampleTilsagnData,
             )
@@ -58,7 +58,7 @@ class TilskuddsbrevVistProjectionTest {
         publishAndFinalize(
             EventData.TilskuddsbrevVist(
                 tilsagnNummer = sampleTilsagnData.tilsagnNummer.concat(),
-                skjema = sampleSkjema,
+                soknad = sampleSoknad,
             )
         )
         projection.poll()
@@ -78,7 +78,7 @@ private fun publishAndFinalize(mottatt: EventData) =
         EventQueue.finalize(it.id)
     }
 
-private val sampleSkjema = DTO.Skjema(
+private val sampleSoknad = DTO.Soknad(
     id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "1337",
@@ -110,7 +110,7 @@ private val sampleSkjema = DTO.Skjema(
         kontaktperson = "Navn Navnesen"
     ),
     opprettetAv = "Noen Noensen",
-    status = SkjemaStatus.innsendt,
+    status = SoknadStatus.innsendt,
 )
 
 private val sampleTilsagnData = TilsagnData(

@@ -70,7 +70,7 @@ class VarsleArbeidsgiverSoknadGodkjentKildeAltinn(
                 tittel = "Ekspertbistand ${tilsagnData.ansattNavn} f. ${tilsagnData.ansattFoedselsdato}",
                 lenke = tilsagnData.kvitteringsLenke,
             )
-            Result.success("Opprettet sak for skjema ${tilsagnData.tilsagnNummer.concat()}")
+            Result.success("Opprettet sak for tilsagn ${tilsagnData.tilsagnNummer.concat()}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }
@@ -83,7 +83,7 @@ class VarsleArbeidsgiverSoknadGodkjentKildeAltinn(
                 status = SaksStatus.FERDIG,
                 statusTekst = "Søknad godkjent"
             )
-            Result.success("Oppdaterte sakstatus for skjema ${tilsagnData.tilsagnNummer.concat()}")
+            Result.success("Oppdaterte sakstatus for tilsagn ${tilsagnData.tilsagnNummer.concat()}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }
@@ -103,7 +103,7 @@ class VarsleArbeidsgiverSoknadGodkjentKildeAltinn(
                     smsTekst = "${tilsagnData.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
                 )
             )
-            Result.success("Opprettet beskjed for skjema ${tilsagnData.tilsagnNummer.concat()}")
+            Result.success("Opprettet beskjed for tilsagn ${tilsagnData.tilsagnNummer.concat()}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }

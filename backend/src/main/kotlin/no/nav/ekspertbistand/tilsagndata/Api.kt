@@ -7,8 +7,8 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
-import no.nav.ekspertbistand.skjema.findSkjemaById
-import no.nav.ekspertbistand.skjema.subjectToken
+import no.nav.ekspertbistand.soknad.findSoknadById
+import no.nav.ekspertbistand.soknad.subjectToken
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
@@ -19,14 +19,14 @@ class TilsagnDataApi(
     private val dokgenClient: DokgenClient,
 ) {
 
-    suspend fun RoutingContext.hentTilskuddsbrevHtmlForSkjema(skjemaId: UUID) {
+    suspend fun RoutingContext.hentTilskuddsbrevHtmlForSoknad(soknadId: UUID) {
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
 
-        val (skjema, tilsagnData) = transaction(database) {
-            findSkjemaById(skjemaId) to findTilsagnDataBySkjemaId(skjemaId)
+        val (soknad, tilsagnData) = transaction(database) {
+            findSoknadById(soknadId) to findTilsagnDataBySoknadId(soknadId)
         }
 
-        if (skjema == null || skjema.virksomhet.virksomhetsnummer !in tilganger.organisasjoner) {
+        if (soknad == null || soknad.virksomhet.virksomhetsnummer !in tilganger.organisasjoner) {
             call.respond(emptyList<TilskuddsbrevHtml>())
             return
         }
@@ -35,7 +35,7 @@ class TilsagnDataApi(
             EventQueue.publish(
                 EventData.TilskuddsbrevVist(
                     tilsagnNummer = tilsagn.tilsagnNummer.concat(),
-                    skjema = skjema,
+                    soknad = soknad,
                 )
             )
 
@@ -68,7 +68,7 @@ class TilsagnDataApi(
         EventQueue.publish(
             EventData.TilskuddsbrevVist(
                 tilsagnNummer = tilsagnNummer,
-                skjema = null,
+                soknad = null,
             )
         )
 

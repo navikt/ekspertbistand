@@ -8,39 +8,39 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.kvitteringsLenke
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
 
 
 /**
  * Når vi mottar en søknad så oppretter vi en tiltaksgjennomføring i Arena.
- * Dette resulterer i eventen [no.nav.ekspertbistand.event.EventData.TiltaksgjennomføringOpprettet]
+ * Dette resulterer i eventen [no.nav.ekspertbistand.event.EventData.TiltaksgjennomforingOpprettet]
  *
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen om at søknad er mottatt og under behandling.
  */
 class VarsleArbeidsgiverSoknadMottatt(
     private val produsentApiKlient: ProdusentApiKlient,
     database: Database
-) : EventHandler<EventData.TiltaksgjennomføringOpprettet> {
+) : EventHandler<EventData.TiltaksgjennomforingOpprettet> {
 
     override val id: String = "VarsleArbeidsgiverSoknadMottatt"
-    override val eventType = EventData.TiltaksgjennomføringOpprettet::class
+    override val eventType = EventData.TiltaksgjennomforingOpprettet::class
 
     private val nySakSubTask = "notifikasjonsplatform_ny_sak"
     private val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
 
     private val idempotencyGuard = idempotencyGuard(database)
 
-    override suspend fun handle(event: Event<EventData.TiltaksgjennomføringOpprettet>): EventHandledResult {
+    override suspend fun handle(event: Event<EventData.TiltaksgjennomforingOpprettet>): EventHandledResult {
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
-            nySak(event.data.skjema).fold(
+            nySak(event.data.soknad).fold(
                 onSuccess = { idempotencyGuard.guard(event, nySakSubTask) },
                 onFailure = { return transientError("Feil ved opprettelse av sak i notifikasjonsplatform", it) }
             )
         }
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
-            nyBeskjed(event.data.skjema).fold(
+            nyBeskjed(event.data.soknad).fold(
                 onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
                 onFailure = { return transientError("Feil ved opprettelse av beskjed i notifikasjonsplatform", it) }
             )
@@ -49,30 +49,30 @@ class VarsleArbeidsgiverSoknadMottatt(
         return success()
     }
 
-    private suspend fun nySak(skjema: DTO.Skjema): Result<String> {
+    private suspend fun nySak(soknad: DTO.Soknad): Result<String> {
         return try {
             produsentApiKlient.opprettNySak(
-                grupperingsid = skjema.id!!,
-                virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                tittel = "Ekspertbistand ${skjema.ansatt.navn} f. ${skjema.ansatt.fnr.tilFødselsdato()}",
-                lenke = skjema.kvitteringsLenke,
+                grupperingsid = soknad.id!!,
+                virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
+                tittel = "Ekspertbistand ${soknad.ansatt.navn} f. ${soknad.ansatt.fnr.tilFødselsdato()}",
+                lenke = soknad.kvitteringsLenke,
             )
-            Result.success("Opprettet sak for skjema ${skjema.id}")
+            Result.success("Opprettet sak for soknad ${soknad.id}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }
     }
 
-    private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
+    private suspend fun nyBeskjed(soknad: DTO.Soknad): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
-                grupperingsid = skjema.id!!,
-                eksternId = "${skjema.id}-soknad-mottatt",
-                virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
+                grupperingsid = soknad.id!!,
+                eksternId = "${soknad.id}-soknad-mottatt",
+                virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
                 tekst = "Nav har mottatt deres søknad om ekspertbistand.",
-                lenke = skjema.kvitteringsLenke,
+                lenke = soknad.kvitteringsLenke,
             )
-            Result.success("Opprettet beskjed for skjema ${skjema.id}")
+            Result.success("Opprettet beskjed for soknad ${soknad.id}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }

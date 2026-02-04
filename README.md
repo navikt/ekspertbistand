@@ -25,7 +25,7 @@ Applikasjonen mottar søknader via en REST API som autentiseres med TokenX.
 
 Når en søknad mottas starter følgende prosess i applikasjonen:
 
-1. Søknaden valideres og lagres i databasen og prosess trigges for videre behandling. (SkjemaInnsendt hendelse)
+1. Søknaden valideres og lagres i databasen og prosess trigges for videre behandling. (SoknadInnsendt hendelse)
 2. Avgjør behandlende enhet:  
 - Sjekk Adressebeskyttelse i pdl for arbeidstaker
    - Hvis kode 6 aka. SPSF (Sperret adresse, strengt fortrolig) (PDL: STRENGT_FORTROLIG, STRENGT_FORTROLIG_UTLAND)

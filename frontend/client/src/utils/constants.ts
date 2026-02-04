@@ -24,7 +24,7 @@ export const EKSPERTBISTAND_URL = envSwitch({
   local: () => "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand",
 });
 
-export const EKSPERTBISTAND_API_PATH = withBasePath("/ekspertbistand-backend/api/skjema/v1");
+export const EKSPERTBISTAND_API_PATH = withBasePath("/ekspertbistand-backend/api/soknad/v1");
 export const EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH = withBasePath(
   "/ekspertbistand-backend/api/tilsagndata/v1"
 );

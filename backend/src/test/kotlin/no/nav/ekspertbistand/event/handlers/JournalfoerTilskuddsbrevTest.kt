@@ -20,8 +20,8 @@ import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.mocks.mockDokArkiv
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -49,7 +49,7 @@ class JournalfoerTilskuddsbrevTest {
         val event = Event(
             id = 1L,
             data = EventData.TilskuddsbrevMottatt(
-                skjema = sampleSkjema,
+                soknad = sampleSoknad,
                 tilsagnbrevId = 1,
                 tilsagnData = sampleTilsagnData
             )
@@ -65,7 +65,7 @@ class JournalfoerTilskuddsbrevTest {
             assertIs<EventData.TilskuddsbrevJournalfoert>(queuedEvent)
             assertEquals(9876, queuedEvent.dokumentId)
             assertEquals(1234, queuedEvent.journaldpostId)
-            assertEquals(sampleSkjema.id, queuedEvent.skjema.id)
+            assertEquals(sampleSoknad.id, queuedEvent.soknad.id)
         }
     }
 
@@ -88,7 +88,7 @@ class JournalfoerTilskuddsbrevTest {
         val event = Event(
             id = 2L,
             data = EventData.TilskuddsbrevMottatt(
-                skjema = sampleSkjema,
+                soknad = sampleSoknad,
                 tilsagnbrevId = 1,
                 tilsagnData = sampleTilsagnData
             )
@@ -173,7 +173,7 @@ private val sampleTilsagnData = TilsagnData(
     kommentar = "Dette var unødvendig mye testdata å skrive"
 )
 
-private val sampleSkjema = DTO.Skjema(
+private val sampleSoknad = DTO.Soknad(
     id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "987654321",
@@ -204,7 +204,7 @@ private val sampleSkjema = DTO.Skjema(
     nav = DTO.Nav(
         kontaktperson = "Veileder Navn"
     ),
-    status = SkjemaStatus.godkjent,
+    status = SoknadStatus.godkjent,
 )
 
 private fun ApplicationTestBuilder.setupApplication(database: Database) {

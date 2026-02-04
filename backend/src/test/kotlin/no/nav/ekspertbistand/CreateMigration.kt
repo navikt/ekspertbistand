@@ -9,8 +9,8 @@ import no.nav.ekspertbistand.event.projections.ProjectionBuilderState
 import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelseState
 import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.skjema.SkjemaTable
-import no.nav.ekspertbistand.skjema.UtkastTable
+import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.UtkastTable
 import no.nav.ekspertbistand.tilsagndata.TilsagndataTable
 import org.jetbrains.exposed.v1.core.ExperimentalDatabaseMigrationApi
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -22,7 +22,7 @@ fun main() {
     testDatabase.flyway.clean()
     transaction(testDatabase.config.jdbcDatabase) {
         MigrationUtils.generateMigrationScript(
-            SkjemaTable,
+            SoknadTable,
             UtkastTable,
             QueuedEvents,
             EventLog,

@@ -6,7 +6,7 @@ import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
 import no.nav.ekspertbistand.infrastruktur.*
-import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.soknad.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -44,16 +44,16 @@ class ArenaTiltaksgjennomforingEndretProcessor(
         }
 
         // sjekk at vi er kilde til søknaden, tiltaksgjennomforingId finnes i vårt system
-        val skjema = transaction(database) {
+        val soknad = transaction(database) {
             hentArenaSakBytiltaksgjennomfoeringId(endring.tiltaksgjennomfoeringId) {
-                Json.decodeFromString<DTO.Skjema>(this[ArenaSakTable.skjema])
+                Json.decodeFromString<DTO.Soknad>(this[ArenaSakTable.soknad])
             }
         }
-        if (skjema != null) {
+        if (soknad != null) {
             // Det er vi som har opprettet tiltaket
             EventQueue.publish(
                 EventData.SoknadAvlystIArena(
-                    skjema = skjema,
+                    soknad = soknad,
                     tiltaksgjennomforingEndret = endring,
                 )
             )
