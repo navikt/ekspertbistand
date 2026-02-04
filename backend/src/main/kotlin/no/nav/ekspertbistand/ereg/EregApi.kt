@@ -9,7 +9,7 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
-import no.nav.ekspertbistand.skjema.subjectToken
+import no.nav.ekspertbistand.soknad.subjectToken
 
 @Serializable
 data class AdresseResponse(val adresse: String)

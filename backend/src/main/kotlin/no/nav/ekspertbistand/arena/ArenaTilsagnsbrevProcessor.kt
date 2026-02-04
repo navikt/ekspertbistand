@@ -8,7 +8,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
 import no.nav.ekspertbistand.infrastruktur.*
-import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.soknad.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -62,21 +62,21 @@ class ArenaTilsagnsbrevProcessor(
 
         // sjekk at vi er kilde til tilsagn, tilsagnData.aar og tilsagnData.loepenrSak finnes i vårt system
 
-        val skjema = transaction(database) {
+        val soknad = transaction(database) {
             hentArenaSakBySaksnummer(
                 asSaksnummer(
                     aar = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.aar,
                     loepenrSak = tilskuddsbrevMelding.tilsagnData.tilsagnNummer.loepenrSak
                 )
             ) {
-                Json.decodeFromString<DTO.Skjema>(this[ArenaSakTable.skjema])
+                Json.decodeFromString<DTO.Soknad>(this[ArenaSakTable.soknad])
             }
         }
-        if (skjema != null) {
+        if (soknad != null) {
             // Det er vi som har opprettet tiltaket
             EventQueue.publish(
                 EventData.TilskuddsbrevMottatt(
-                    skjema = skjema,
+                    soknad = soknad,
                     tilsagnbrevId = tilskuddsbrevMelding.tilsagnBrevId,
                     tilsagnData = tilskuddsbrevMelding.tilsagnData
                 )

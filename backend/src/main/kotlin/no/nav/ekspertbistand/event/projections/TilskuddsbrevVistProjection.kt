@@ -29,14 +29,14 @@ class TilskuddsbrevVistProjection(
             is EventData.TilskuddsbrevMottatt -> {
                 TilskuddsbrevVistState.insert {
                     it[tilsagnNummer] = event.data.tilsagnData.tilsagnNummer.concat()
-                    it[this.tilskuddsbrevOpprettetAt] = eventTimestamp
+                    it[tilskuddsbrevOpprettetAt] = eventTimestamp
                 }
             }
 
             is EventData.TilskuddsbrevMottattKildeAltinn -> {
                 TilskuddsbrevVistState.insert {
                     it[tilsagnNummer] = event.data.tilsagnData.tilsagnNummer.concat()
-                    it[this.tilskuddsbrevOpprettetAt] = eventTimestamp
+                    it[tilskuddsbrevOpprettetAt] = eventTimestamp
                 }
             }
 
@@ -44,7 +44,7 @@ class TilskuddsbrevVistProjection(
                 TilskuddsbrevVistState.update({
                     (tilsagnNummer eq event.data.tilsagnNummer) and (tilskuddsbrevFoersVistAt eq null)
                 }) {
-                    it[this.tilskuddsbrevFoersVistAt] = eventTimestamp
+                    it[tilskuddsbrevFoersVistAt] = eventTimestamp
                 }
             }
 

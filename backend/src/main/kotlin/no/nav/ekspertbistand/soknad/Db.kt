@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.skjema
+package no.nav.ekspertbistand.soknad
 
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone.Companion.currentSystemDefault
@@ -15,7 +15,8 @@ import java.util.*
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-object SkjemaTable : Table("skjema") {
+@OptIn(ExperimentalTime::class)
+object SoknadTable : Table("soknad") {
     val id = uuid("id")
 
     // Virksomhet
@@ -49,7 +50,6 @@ object SkjemaTable : Table("skjema") {
     // Metadata
     val opprettetAv = text("opprettet_av")
 
-    @OptIn(ExperimentalTime::class)
     val opprettetTidspunkt = timestamp("opprettet_tidspunkt").defaultExpression(CurrentTimestamp)
 
     val status = text("status")
@@ -93,54 +93,54 @@ object UtkastTable : UUIDTable("utkast") {
     val opprettetTidspunkt = timestamp("opprettet_tidspunkt").defaultExpression(CurrentTimestamp)
 }
 
-fun findSkjemaOrUtkastById(id: UUID): DTO? =
-    findSkjemaById(id)
-        ?: // If not found, try UtkastTable
-        UtkastTable.selectAll()
-            .where { UtkastTable.id eq id }
-            .singleOrNull()?.tilUtkastDTO()
+fun findSoknadOrUtkastById(id: UUID): DTO? =
+    findSoknadById(id) ?: findUtkastById(id)
 
-fun findSkjemaById(id: UUID): DTO.Skjema? = SkjemaTable.selectAll()
-    .where { SkjemaTable.id eq id }
-    .singleOrNull()?.tilSkjemaDTO()
+fun findUtkastById(id: UUID): DTO.Utkast? = UtkastTable.selectAll()
+    .where { UtkastTable.id eq id }
+    .singleOrNull()?.tilUtkastDTO()
+
+fun findSoknadById(id: UUID): DTO.Soknad? = SoknadTable.selectAll()
+    .where { SoknadTable.id eq id }
+    .singleOrNull()?.tilSoknadDTO()
 
 @OptIn(ExperimentalTime::class)
-fun ResultRow.tilSkjemaDTO() = DTO.Skjema(
-    id = this[SkjemaTable.id].toString(),
+fun ResultRow.tilSoknadDTO() = DTO.Soknad(
+    id = this[SoknadTable.id].toString(),
     virksomhet = DTO.Virksomhet(
-        virksomhetsnummer = this[SkjemaTable.virksomhetsnummer],
-        virksomhetsnavn = this[SkjemaTable.virksomhetsnavn],
+        virksomhetsnummer = this[SoknadTable.virksomhetsnummer],
+        virksomhetsnavn = this[SoknadTable.virksomhetsnavn],
         kontaktperson = DTO.Kontaktperson(
-            navn = this[SkjemaTable.kontaktpersonNavn],
-            epost = this[SkjemaTable.kontaktpersonEpost],
-            telefonnummer = this[SkjemaTable.kontaktpersonTelefon],
+            navn = this[SoknadTable.kontaktpersonNavn],
+            epost = this[SoknadTable.kontaktpersonEpost],
+            telefonnummer = this[SoknadTable.kontaktpersonTelefon],
         ),
-        beliggenhetsadresse = this[SkjemaTable.beliggenhetsadresse]
+        beliggenhetsadresse = this[SoknadTable.beliggenhetsadresse]
     ),
     ansatt = DTO.Ansatt(
-        fnr = this[SkjemaTable.ansattFnr],
-        navn = this[SkjemaTable.ansattNavn]
+        fnr = this[SoknadTable.ansattFnr],
+        navn = this[SoknadTable.ansattNavn]
     ),
     ekspert = DTO.Ekspert(
-        navn = this[SkjemaTable.ekspertNavn],
-        virksomhet = this[SkjemaTable.ekspertVirksomhet],
-        kompetanse = this[SkjemaTable.ekspertKompetanse],
+        navn = this[SoknadTable.ekspertNavn],
+        virksomhet = this[SoknadTable.ekspertVirksomhet],
+        kompetanse = this[SoknadTable.ekspertKompetanse],
     ),
     behovForBistand = DTO.BehovForBistand(
-        begrunnelse = this[SkjemaTable.behovForBistandBegrunnelse],
-        behov = this[SkjemaTable.behovForBistand],
-        estimertKostnad = this[SkjemaTable.behovForBistandEstimertKostnad],
-        timer = this[SkjemaTable.behovForBistandTimer],
-        tilrettelegging = this[SkjemaTable.behovForBistandTilrettelegging],
-        startdato = this[SkjemaTable.behovForBistandStartdato],
+        begrunnelse = this[SoknadTable.behovForBistandBegrunnelse],
+        behov = this[SoknadTable.behovForBistand],
+        estimertKostnad = this[SoknadTable.behovForBistandEstimertKostnad],
+        timer = this[SoknadTable.behovForBistandTimer],
+        tilrettelegging = this[SoknadTable.behovForBistandTilrettelegging],
+        startdato = this[SoknadTable.behovForBistandStartdato],
 
         ),
     nav = DTO.Nav(
-        kontaktperson = this[SkjemaTable.navKontaktPerson]
+        kontaktperson = this[SoknadTable.navKontaktPerson]
     ),
-    opprettetAv = this[SkjemaTable.opprettetAv],
-    opprettetTidspunkt = this[SkjemaTable.opprettetTidspunkt].toString(),
-    status = SkjemaStatus.valueOf(this[SkjemaTable.status])
+    opprettetAv = this[SoknadTable.opprettetAv],
+    opprettetTidspunkt = this[SoknadTable.opprettetTidspunkt].toString(),
+    status = SoknadStatus.valueOf(this[SoknadTable.status])
 )
 
 @OptIn(ExperimentalTime::class)

@@ -15,8 +15,8 @@ import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.mocks.mockTiltaksgjennomfoering
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -26,7 +26,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation as ClientContentNegotiation
 
-class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
+class OpprettTiltaksgjennomfoeringForInnsendtSoknadTest {
     private val saksnummer = "202542"
 
     @Test
@@ -43,10 +43,10 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
         }
         startApplication()
 
-        val handler = OpprettTiltaksgjennomfoeringForInnsendtSkjema(application.dependencies.resolve(), application.dependencies.resolve())
+        val handler = OpprettTiltaksgjennomfoeringForInnsendtSoknad(application.dependencies.resolve(), application.dependencies.resolve())
         val event = Event(
-            id = 1L, data = EventData.InnsendtSkjemaJournalfoert(
-                skjema1, 123, 456, "1337"
+            id = 1L, data = EventData.InnsendtSoknadJournalfoert(
+                soknad1, 123, 456, "1337"
             )
         )
 
@@ -60,7 +60,7 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
 
             val queuedEvents = QueuedEvents.selectAll()
             assertEquals(1, queuedEvents.count())
-            assertIs<EventData.TiltaksgjennomføringOpprettet>(queuedEvents.first()[QueuedEvents.eventData])
+            assertIs<EventData.TiltaksgjennomforingOpprettet>(queuedEvents.first()[QueuedEvents.eventData])
         }
     }
 
@@ -72,10 +72,10 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
         }
         startApplication()
 
-        val handler = OpprettTiltaksgjennomfoeringForInnsendtSkjema(application.dependencies.resolve(), application.dependencies.resolve())
+        val handler = OpprettTiltaksgjennomfoeringForInnsendtSoknad(application.dependencies.resolve(), application.dependencies.resolve())
         val event = Event(
-            id = 1L, data = EventData.InnsendtSkjemaJournalfoert(
-                skjema1, 123, 456, "1337"
+            id = 1L, data = EventData.InnsendtSoknadJournalfoert(
+                soknad1, 123, 456, "1337"
             )
         )
 
@@ -87,7 +87,7 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjemaTest {
     }
 }
 
-private val skjema1 = DTO.Skjema(
+private val soknad1 = DTO.Soknad(
     id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "1337", virksomhetsnavn = "foo bar AS", kontaktperson = DTO.Kontaktperson(
@@ -113,7 +113,7 @@ private val skjema1 = DTO.Skjema(
     nav = DTO.Nav(
         kontaktperson = "Navn Navnesen"
     ),
-    status = SkjemaStatus.innsendt,
+    status = SoknadStatus.innsendt,
 )
 
 

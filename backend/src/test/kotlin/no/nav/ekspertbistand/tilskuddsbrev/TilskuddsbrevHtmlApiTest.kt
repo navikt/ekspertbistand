@@ -17,8 +17,8 @@ import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
-import no.nav.ekspertbistand.skjema.SkjemaStatus
-import no.nav.ekspertbistand.skjema.SkjemaTable
+import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.tilsagndata.TilskuddsbrevHtml
 import no.nav.ekspertbistand.tilsagndata.concat
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
@@ -86,14 +86,14 @@ class TilskuddsbrevHtmlApiTest {
             configureTilsagnDataApiV1()
         }
 
-        val skjemaId = UUID.randomUUID()
+        val soknadId = UUID.randomUUID()
 
         transaction(testDb.config.jdbcDatabase) {
-            insertDummySkjema(skjemaId, sampleTilsagnData.tiltakArrangor.orgNummer.toString())
-            insertTilsagndata(skjemaId, sampleTilsagnData)
+            insertDummySoknad(soknadId, sampleTilsagnData.tiltakArrangor.orgNummer.toString())
+            insertTilsagndata(soknadId, sampleTilsagnData)
         }
 
-        with(client.get("/api/tilsagndata/v1/skjema/$skjemaId/tilskuddsbrev-html") {
+        with(client.get("/api/tilsagndata/v1/soknad/$soknadId/tilskuddsbrev-html") {
             bearerAuth("faketoken")
         }) {
             assertEquals(HttpStatusCode.OK, status)
@@ -184,9 +184,9 @@ class TilskuddsbrevHtmlApiTest {
     )
 }
 
-private fun insertDummySkjema(skjemaId: UUID, vnr: String) {
-    SkjemaTable.insert {
-        it[id] = skjemaId
+private fun insertDummySoknad(soknadId: UUID, vnr: String) {
+    SoknadTable.insert {
+        it[id] = soknadId
         it[virksomhetsnavn] = "foo"
         it[virksomhetsnummer] = vnr
         it[opprettetAv] = "42"
@@ -207,6 +207,6 @@ private fun insertDummySkjema(skjemaId: UUID, vnr: String) {
         it[behovForBistandStartdato] = CurrentDate
         it[navKontaktPerson] = ""
         it[beliggenhetsadresse] = ""
-        it[status] = SkjemaStatus.innsendt.toString()
+        it[status] = SoknadStatus.innsendt.toString()
     }
 }

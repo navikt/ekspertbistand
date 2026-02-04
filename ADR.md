@@ -1,4 +1,4 @@
-# Asynkron prosessering av skjemaer og kø i Ekstpertbistand
+# Asynkron prosessering av søknader og kø i Ekstpertbistand
 
 ## Bakgrunn
 Vi ønsker å kunne prosessere skjemainnsendinger asynkront, siden det er flere parter som skal viteta stilling til skjemaet før det godkjennes/avslås. For å få til dette ønsker vi å bruke en Kø, slik at innsendt data kan prosesseres asynkront.

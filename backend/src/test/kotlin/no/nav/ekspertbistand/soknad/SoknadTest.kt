@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.skjema
+package no.nav.ekspertbistand.soknad
 
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -27,7 +27,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.*
 
-class SkjemaTest {
+class SoknadTest {
 
     @Test
     fun `CRUD utkast`() = testApplicationWithDatabase { testDb ->
@@ -86,43 +86,43 @@ class SkjemaTest {
 
             configureTokenXAuth()
             configureServer()
-            configureSkjemaApiV1()
+            configureSoknadApiV1()
         }
 
         var utkastId: String? = null
 
         // opprett utkast
         with(
-            client.post("/api/skjema/v1") {
+            client.post("/api/soknad/v1") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
             }
         ) {
             assertEquals(HttpStatusCode.Created, status)
-            body<DTO.Utkast>().also { skjema ->
-                assert(skjema.id!!.isNotEmpty())
-                assertEquals("42", skjema.opprettetAv)
+            body<DTO.Utkast>().also { utkast ->
+                assert(utkast.id!!.isNotEmpty())
+                assertEquals("42", utkast.opprettetAv)
 
-                utkastId = skjema.id
+                utkastId = utkast.id
             }
         }
 
         // hent utkast
         with(
-            client.get("/api/skjema/v1/$utkastId") {
+            client.get("/api/soknad/v1/$utkastId") {
                 bearerAuth("faketoken")
             }
         ) {
             assertEquals(HttpStatusCode.OK, status)
-            body<DTO.Utkast>().also { skjema ->
-                assertEquals(utkastId, skjema.id)
-                assertEquals("42", skjema.opprettetAv)
+            body<DTO.Utkast>().also { utkast ->
+                assertEquals(utkastId, utkast.id)
+                assertEquals("42", utkast.opprettetAv)
             }
         }
 
         // oppdater utkast, orgnr uten tilgang
         with(
-            client.patch("/api/skjema/v1/$utkastId") {
+            client.patch("/api/soknad/v1/$utkastId") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
                 setBody(
@@ -145,7 +145,7 @@ class SkjemaTest {
 
         // oppdater utkast, orgnr med tilgang
         with(
-            client.patch("/api/skjema/v1/$utkastId") {
+            client.patch("/api/soknad/v1/$utkastId") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
                 setBody(
@@ -164,23 +164,23 @@ class SkjemaTest {
             }
         ) {
             assertEquals(HttpStatusCode.OK, status)
-            body<DTO.Utkast>().also { skjema ->
-                assertEquals(utkastId, skjema.id)
-                assertEquals("42", skjema.opprettetAv)
-                assertEquals("1337", skjema.virksomhet!!.virksomhetsnummer)
+            body<DTO.Utkast>().also { utkast ->
+                assertEquals(utkastId, utkast.id)
+                assertEquals("42", utkast.opprettetAv)
+                assertEquals("1337", utkast.virksomhet!!.virksomhetsnummer)
             }
         }
 
         // delete utkast
         with(
-            client.delete("/api/skjema/v1/$utkastId") {
+            client.delete("/api/soknad/v1/$utkastId") {
                 bearerAuth("faketoken")
             }
         ) {
             assertEquals(HttpStatusCode.NoContent, status)
         }
         with(
-            client.get("/api/skjema/v1/$utkastId") {
+            client.get("/api/soknad/v1/$utkastId") {
                 bearerAuth("faketoken")
             }
         ) {
@@ -190,8 +190,8 @@ class SkjemaTest {
     }
 
     @Test
-    fun `send inn skjema`() = testApplicationWithDatabase { testDb ->
-        val eksisterendeSkjemaId = UUID.randomUUID()
+    fun `send inn soknad`() = testApplicationWithDatabase { testDb ->
+        val eksisterendeSoknadId = UUID.randomUUID()
         mockEreg {
             """
             {
@@ -248,11 +248,11 @@ class SkjemaTest {
 
             configureTokenXAuth()
             configureServer()
-            configureSkjemaApiV1()
+            configureSoknadApiV1()
 
             transaction(testDb.config.jdbcDatabase) {
-                SkjemaTable.insert {
-                    it[id] = eksisterendeSkjemaId
+                SoknadTable.insert {
+                    it[id] = eksisterendeSoknadId
                     it[virksomhetsnavn] = "foo bar AS"
                     it[virksomhetsnummer] = "1337"
                     it[opprettetAv] = "42"
@@ -273,15 +273,15 @@ class SkjemaTest {
                     it[behovForBistandStartdato] = CurrentDate
                     it[navKontaktPerson] = ""
                     it[beliggenhetsadresse] = ""
-                    it[status] = SkjemaStatus.innsendt.toString()
+                    it[status] = SoknadStatus.innsendt.toString()
                 }
             }
         }
 
 
-        // put skjema på id som ikke er uuid gir 400
+        // put soknad på id som ikke er uuid gir 400
         with(
-            client.put("/api/skjema/v1/ikke-uuid") {
+            client.put("/api/soknad/v1/ikke-uuid") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
             }
@@ -289,9 +289,9 @@ class SkjemaTest {
             assertEquals(HttpStatusCode.BadRequest, status)
         }
 
-        // put skjema på id som ikke finnes gir 409
+        // put soknad på id som ikke finnes gir 409
         with(
-            client.put("/api/skjema/v1/${UUID.randomUUID()}") {
+            client.put("/api/soknad/v1/${UUID.randomUUID()}") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
             }
@@ -299,9 +299,9 @@ class SkjemaTest {
             assertEquals(HttpStatusCode.Conflict, status)
         }
 
-        // put skjema på id er allerede er sendt inn gir 409
+        // put soknad på id er allerede er sendt inn gir 409
         with(
-            client.put("/api/skjema/v1/$eksisterendeSkjemaId") {
+            client.put("/api/soknad/v1/$eksisterendeSoknadId") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
             }
@@ -319,7 +319,7 @@ class SkjemaTest {
 
         // put med ugyldig payload gir 400
         with(
-            client.put("/api/skjema/v1/${eksisterendeUtkast.id}") {
+            client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
                 setBody(
@@ -334,14 +334,14 @@ class SkjemaTest {
             assertEquals(HttpStatusCode.BadRequest, status)
         }
 
-        // put med gyldig payload gir 200 og skjema i retur
+        // put med gyldig payload gir 200 og soknad i retur
         with(
-            client.put("/api/skjema/v1/${eksisterendeUtkast.id}") {
+            client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
                 setBody(
                     // TODO: angi alle felter
-                    DTO.Skjema(
+                    DTO.Soknad(
                         virksomhet = DTO.Virksomhet(
                             virksomhetsnummer = "1337",
                             virksomhetsnavn = "foo bar AS",
@@ -371,36 +371,36 @@ class SkjemaTest {
                         nav = DTO.Nav(
                             kontaktperson = "Navn Navnesen"
                         ),
-                        status = SkjemaStatus.innsendt,
+                        status = SoknadStatus.innsendt,
                     )
                 )
             }
         ) {
             assertEquals(HttpStatusCode.OK, status)
-            body<DTO.Skjema>().also { skjema ->
-                assertEquals(eksisterendeUtkast.id, skjema.id)
-                assertEquals("42", skjema.opprettetAv)
-                assertEquals("1337", skjema.virksomhet.virksomhetsnummer)
-                assertEquals("Testveien 1, 0557 Oslo", skjema.virksomhet.beliggenhetsadresse)
+            body<DTO.Soknad>().also { soknad ->
+                assertEquals(eksisterendeUtkast.id, soknad.id)
+                assertEquals("42", soknad.opprettetAv)
+                assertEquals("1337", soknad.virksomhet.virksomhetsnummer)
+                assertEquals("Testveien 1, 0557 Oslo", soknad.virksomhet.beliggenhetsadresse)
 
-                // opprettetAv skal være den som sender inn skjema, ikke den som opprettet utkast
-                assertNotEquals(eksisterendeUtkast.opprettetAv, skjema.opprettetAv)
+                // opprettetAv skal være den som sender inn søknad, ikke den som opprettet utkast
+                assertNotEquals(eksisterendeUtkast.opprettetAv, soknad.opprettetAv)
                 // opprettetTidspunkt skal være nytt
-                assertNotEquals(eksisterendeUtkast.opprettetTidspunkt, skjema.opprettetTidspunkt)
+                assertNotEquals(eksisterendeUtkast.opprettetTidspunkt, soknad.opprettetTidspunkt)
             }
 
-            // SkjeamInnsendt event skal være lagt til i QueuedEvents
+            // SoknadInnsendt event skal være lagt til i QueuedEvents
             val events = transaction(testDb.config.jdbcDatabase) {
                 QueuedEvents.selectAll().map { it.tilQueuedEvent() }
             }
 
             assertEquals(1, events.count())
-            assertIs<EventData.SkjemaInnsendt>(events.first().eventData)
+            assertIs<EventData.SoknadInnsendt>(events.first().eventData)
         }
     }
 
     @Test
-    fun `GET skjema henter mine skjema`() = testApplicationWithDatabase { testDb ->
+    fun `GET soknad henter mine søknader`() = testApplicationWithDatabase { testDb ->
         mockEreg {
             """
             {
@@ -458,16 +458,16 @@ class SkjemaTest {
 
             configureTokenXAuth()
             configureServer()
-            configureSkjemaApiV1()
+            configureSoknadApiV1()
         }
 
         transaction(testDb.config.jdbcDatabase) {
-            SkjemaTable.insert {
+            SoknadTable.insert {
                 it[id] = UUID.randomUUID()
                 it[virksomhetsnummer] = "1337"
                 it[virksomhetsnavn] = " foo bar AS"
                 it[opprettetAv] = "42"
-                it[behovForBistand] = "innsendt skjema for org jeg har tilgang til"
+                it[behovForBistand] = "innsendt soknad for org jeg har tilgang til"
                 it[behovForBistandTilrettelegging] = ""
                 it[behovForBistandBegrunnelse] = ""
                 it[behovForBistandEstimertKostnad] = "42"
@@ -484,15 +484,15 @@ class SkjemaTest {
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
                 it[beliggenhetsadresse] = ""
-                it[status] = SkjemaStatus.innsendt.toString()
+                it[status] = SoknadStatus.innsendt.toString()
             }
 
-            SkjemaTable.insert {
+            SoknadTable.insert {
                 it[id] = UUID.randomUUID()
                 it[virksomhetsnummer] = "1337"
                 it[virksomhetsnavn] = " foo bar AS"
                 it[opprettetAv] = "42"
-                it[behovForBistand] = "godkjent skjema for org jeg har tilgang til"
+                it[behovForBistand] = "godkjent soknad for org jeg har tilgang til"
                 it[behovForBistandTilrettelegging] = ""
                 it[behovForBistandBegrunnelse] = ""
                 it[behovForBistandEstimertKostnad] = "42"
@@ -509,15 +509,15 @@ class SkjemaTest {
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
                 it[beliggenhetsadresse] = ""
-                it[status] = SkjemaStatus.godkjent.toString()
+                it[status] = SoknadStatus.godkjent.toString()
             }
 
-            SkjemaTable.insert {
+            SoknadTable.insert {
                 it[id] = UUID.randomUUID()
                 it[virksomhetsnummer] = "314"
                 it[virksomhetsnavn] = "andeby AS"
                 it[opprettetAv] = "43"
-                it[behovForBistand] = "skjema for org jeg ikke har tilgang til"
+                it[behovForBistand] = "soknad for org jeg ikke har tilgang til"
                 it[behovForBistandTilrettelegging] = ""
                 it[behovForBistandBegrunnelse] = ""
                 it[behovForBistandEstimertKostnad] = "42"
@@ -534,46 +534,46 @@ class SkjemaTest {
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
                 it[beliggenhetsadresse] = ""
-                it[status] = SkjemaStatus.innsendt.toString()
+                it[status] = SoknadStatus.innsendt.toString()
             }
         }
 
-        var skjemaId: String? = null
+        var soknadId: String? = null
         with(
-            client.get("/api/skjema/v1") {
+            client.get("/api/soknad/v1") {
                 bearerAuth("faketoken")
             }
         ) {
             assertEquals(HttpStatusCode.OK, status)
-            body<List<DTO.Skjema>>().also { skjemas ->
-                assertEquals(2, skjemas.size)
-                val innsendtSkjema = skjemas.first { it.status == SkjemaStatus.innsendt }
-                assertEquals("innsendt skjema for org jeg har tilgang til", innsendtSkjema.behovForBistand.behov)
-                assertEquals("1337", innsendtSkjema.virksomhet.virksomhetsnummer)
-                assertEquals("42", innsendtSkjema.opprettetAv)
+            body<List<DTO.Soknad>>().also { soknader ->
+                assertEquals(2, soknader.size)
+                val innsendtSoknad = soknader.first { it.status == SoknadStatus.innsendt }
+                assertEquals("innsendt soknad for org jeg har tilgang til", innsendtSoknad.behovForBistand.behov)
+                assertEquals("1337", innsendtSoknad.virksomhet.virksomhetsnummer)
+                assertEquals("42", innsendtSoknad.opprettetAv)
 
-                val godkjentSkjema = skjemas.first { it.status == SkjemaStatus.godkjent }
-                assertEquals("godkjent skjema for org jeg har tilgang til", godkjentSkjema.behovForBistand.behov)
-                assertEquals("1337", godkjentSkjema.virksomhet.virksomhetsnummer)
-                assertEquals("42", godkjentSkjema.opprettetAv)
+                val godkjentSoknad = soknader.first { it.status == SoknadStatus.godkjent }
+                assertEquals("godkjent soknad for org jeg har tilgang til", godkjentSoknad.behovForBistand.behov)
+                assertEquals("1337", godkjentSoknad.virksomhet.virksomhetsnummer)
+                assertEquals("42", godkjentSoknad.opprettetAv)
 
-                skjemaId = innsendtSkjema.id
+                soknadId = innsendtSoknad.id
             }
         }
 
         with(
-            client.get("/api/skjema/v1/$skjemaId") {
+            client.get("/api/soknad/v1/$soknadId") {
                 bearerAuth("faketoken")
             }
         ) {
             assertEquals(HttpStatusCode.OK, status)
-            body<DTO.Skjema>().also { skjema ->
-                assertEquals(skjemaId, skjema.id)
+            body<DTO.Soknad>().also { soknad ->
+                assertEquals(soknadId, soknad.id)
             }
         }
 
         with(
-            client.get("/api/skjema/v1/${UUID.randomUUID()}") {
+            client.get("/api/soknad/v1/${UUID.randomUUID()}") {
                 bearerAuth("faketoken")
             }
         ) {
@@ -581,7 +581,7 @@ class SkjemaTest {
         }
 
         with(
-            client.get("/api/skjema/v1/ikkeeksisterendeid") {
+            client.get("/api/soknad/v1/ikkeeksisterendeid") {
                 bearerAuth("faketoken")
             }
         ) {
@@ -590,7 +590,7 @@ class SkjemaTest {
     }
 
     @Test
-    fun `get skjema gir 401 ved ugyldig token`() = testApplicationWithDatabase { testDb ->
+    fun `get soknad gir 401 ved ugyldig token`() = testApplicationWithDatabase { testDb ->
         val altinnTilgangerClient = AltinnTilgangerClient(
             object : TokenXTokenExchanger {
                 override suspend fun exchange(
@@ -619,10 +619,10 @@ class SkjemaTest {
 
             configureTokenXAuth()
             configureServer()
-            configureSkjemaApiV1()
+            configureSoknadApiV1()
         }
 
-        val response = client.get("/api/skjema/v1") {
+        val response = client.get("/api/soknad/v1") {
             header(HttpHeaders.Authorization, "Bearer faketoken")
         }
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -700,7 +700,7 @@ class SkjemaTest {
 
                 configureTokenXAuth()
                 configureServer()
-                configureSkjemaApiV1()
+                configureSoknadApiV1()
             }
 
             transaction(testDb.config.jdbcDatabase)
@@ -753,34 +753,34 @@ class SkjemaTest {
             }
 
             with(
-                client.get("/api/skjema/v1?status=${SkjemaStatusQueryParam.utkast.name}")
+                client.get("/api/soknad/v1?status=${SoknadStatusQueryParam.utkast.name}")
                 {
                     bearerAuth("faketoken")
                 }
             )
             {
                 assertEquals(HttpStatusCode.OK, status)
-                body<List<DTO.Utkast>>().also { skjemas ->
-                    assertEquals(2, skjemas.size)
-                    val skjemaUtenVirksomhet = skjemas.find { it.virksomhet == null }
-                    val skjemaMedVirksomhet = skjemas.find { it.virksomhet != null }
-                    assertEquals("42", skjemaUtenVirksomhet!!.opprettetAv)
-                    assertEquals("1337", skjemaMedVirksomhet!!.virksomhet!!.virksomhetsnummer)
+                body<List<DTO.Utkast>>().also { soknader ->
+                    assertEquals(2, soknader.size)
+                    val soknadUtenVirksomhet = soknader.find { it.virksomhet == null }
+                    val soknadMedVirksomhet = soknader.find { it.virksomhet != null }
+                    assertEquals("42", soknadUtenVirksomhet!!.opprettetAv)
+                    assertEquals("1337", soknadMedVirksomhet!!.virksomhet!!.virksomhetsnummer)
                 }
             }
 
             with(
-                client.get("/api/skjema/v1?status=${SkjemaStatusQueryParam.utkast.name}")
+                client.get("/api/soknad/v1?status=${SoknadStatusQueryParam.utkast.name}")
                 {
                     bearerAuth("faketoken2")
                 }
             )
             {
                 assertEquals(HttpStatusCode.OK, status)
-                body<List<DTO.Utkast>>().also { skjemas ->
-                    assertEquals(1, skjemas.size)
-                    val skjemaMedVirksomhet = skjemas.find { it.virksomhet != null }
-                    assertEquals("1337", skjemaMedVirksomhet!!.virksomhet!!.virksomhetsnummer)
+                body<List<DTO.Utkast>>().also { soknader ->
+                    assertEquals(1, soknader.size)
+                    val soknadMedVirksomhet = soknader.find { it.virksomhet != null }
+                    assertEquals("1337", soknadMedVirksomhet!!.virksomhet!!.virksomhetsnummer)
                 }
             }
         }

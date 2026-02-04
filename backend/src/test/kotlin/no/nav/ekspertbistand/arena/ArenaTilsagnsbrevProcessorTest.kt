@@ -9,8 +9,8 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -26,7 +26,7 @@ class ArenaTilsagnsbrevProcessorTest {
     fun `eksempelmelding for tiltak som ikke er EKSPEBIST skal ikke behandles`() = testApplicationWithDatabase { db ->
         val saksnummer = "2019319383"
         transaction {
-            insertArenaSak(saksnummer, 123, skjema)
+            insertArenaSak(saksnummer, 123, soknad)
         }
 
         ArenaTilsagnsbrevProcessor(
@@ -52,7 +52,7 @@ class ArenaTilsagnsbrevProcessorTest {
         testApplicationWithDatabase { db ->
             val saksnummer = "201942"
             transaction {
-                insertArenaSak(saksnummer, 123, skjema)
+                insertArenaSak(saksnummer, 123, soknad)
             }
             ArenaTilsagnsbrevProcessor(
                 db.config.jdbcDatabase
@@ -83,7 +83,7 @@ class ArenaTilsagnsbrevProcessorTest {
         testApplicationWithDatabase { db ->
             val saksnummer = "2019319383"
             transaction {
-                insertArenaSak(saksnummer, 123, skjema)
+                insertArenaSak(saksnummer, 123, soknad)
             }
             ArenaTilsagnsbrevProcessor(
                 db.config.jdbcDatabase
@@ -251,7 +251,7 @@ fun eksempelMelding(tiltakKode: String, aar: Int, loepenrSak: Int) = """
     }
 """.trimIndent()
 
-private val skjema = DTO.Skjema(
+private val soknad = DTO.Soknad(
     id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "1337",
@@ -283,5 +283,5 @@ private val skjema = DTO.Skjema(
         kontaktperson = "Navn Navnesen"
     ),
     opprettetAv = "Noen Noensen",
-    status = SkjemaStatus.innsendt,
+    status = SoknadStatus.innsendt,
 )

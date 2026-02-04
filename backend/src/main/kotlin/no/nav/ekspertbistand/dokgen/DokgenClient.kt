@@ -15,7 +15,7 @@ import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.defaultJson
-import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.soknad.DTO
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -43,8 +43,8 @@ class DokgenClient(
         }
     }
 
-    suspend fun genererSoknadPdf(skjema: DTO.Skjema): ByteArray {
-        val payload = SoknadRequest.from(skjema)
+    suspend fun genererSoknadPdf(soknad: DTO.Soknad): ByteArray {
+        val payload = SoknadRequest.from(soknad)
 
         val bytes: ByteArray = httpClient.post {
             url {
@@ -153,7 +153,7 @@ private data class SoknadRequest(
 
     companion object {
         @OptIn(ExperimentalTime::class)
-        fun from(dto: DTO.Skjema) = SoknadRequest(
+        fun from(dto: DTO.Soknad) = SoknadRequest(
             virksomhet = Virksomhet(
                 virksomhetsnummer = dto.virksomhet.virksomhetsnummer,
                 virksomhetsnavn = dto.virksomhet.virksomhetsnavn,

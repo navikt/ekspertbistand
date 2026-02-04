@@ -8,7 +8,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
-import no.nav.ekspertbistand.skjema.getRequired
+import no.nav.ekspertbistand.soknad.getRequired
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 
@@ -22,8 +22,8 @@ suspend fun Application.configureTilsagnDataApiV1() {
         authenticate(TOKENX_PROVIDER) {
             route("/api/tilsagndata/v1") {
                 with(tilsagnDataApi) {
-                    get("/skjema/{id}/tilskuddsbrev-html") {
-                        val skjemaId: UUID = call.pathParameters.getRequired(
+                    get("/soknad/{id}/tilskuddsbrev-html") {
+                        val soknadId: UUID = call.pathParameters.getRequired(
                             name = "id",
                             transform = UUID::fromString,
                         ) {
@@ -31,7 +31,7 @@ suspend fun Application.configureTilsagnDataApiV1() {
                             return@get
                         }
 
-                        hentTilskuddsbrevHtmlForSkjema(skjemaId)
+                        hentTilskuddsbrevHtmlForSoknad(soknadId)
                     }
                     get("/tilskuddsbrev/{tilsagnNummer}/tilskuddsbrev-html") {
                         val tilsagnNummer: String = call.pathParameters.getRequired(

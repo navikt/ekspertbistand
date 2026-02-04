@@ -10,8 +10,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.arena.TilsagnData
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -25,7 +25,7 @@ class DokgenClientTest {
         var captured = CapturedRequest()
 
         val client = dokgenClient(pdf) { captured = it }
-        val payload = sampleSkjema()
+        val payload = sampleSoknad()
 
         val response = client.genererSoknadPdf(payload)
 
@@ -149,7 +149,7 @@ class DokgenClientTest {
         kommentar = "Dette var unødvendig mye testdata å skrive"
     )
 
-    private fun sampleSkjema() = DTO.Skjema(
+    private fun sampleSoknad() = DTO.Soknad(
         id = "42",
         virksomhet = DTO.Virksomhet(
             virksomhetsnummer = "987654321",
@@ -180,7 +180,7 @@ class DokgenClientTest {
         nav = DTO.Nav(
             kontaktperson = "Veileder Navn"
         ),
-        status = SkjemaStatus.innsendt,
+        status = SoknadStatus.innsendt,
     )
 
     private data class CapturedRequest(

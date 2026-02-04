@@ -116,7 +116,7 @@ object EventQueue {
 
         EventLog.insert {
             it[EventLog.id] = event[QueuedEvents.id]
-            it[this.eventData] = event[QueuedEvents.eventData]
+            it[eventData] = event[QueuedEvents.eventData]
             if (errorResults.isEmpty()) {
                 it[status] = ProcessingStatus.COMPLETED
             } else {

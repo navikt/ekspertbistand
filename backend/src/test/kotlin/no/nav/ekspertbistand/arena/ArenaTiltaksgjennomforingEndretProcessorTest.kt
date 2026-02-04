@@ -7,7 +7,7 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
-import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.soknad.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -57,7 +57,7 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
         testApplicationWithDatabase { db ->
             val tiltaksgjennomfoeringId = 123
             transaction {
-                insertArenaSak("2019319383", tiltaksgjennomfoeringId, skjema)
+                insertArenaSak("2019319383", tiltaksgjennomfoeringId, soknad)
             }
             ArenaTiltaksgjennomforingEndretProcessor(
                 db.config.jdbcDatabase
@@ -78,7 +78,7 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
         testApplicationWithDatabase { db ->
             val tiltaksgjennomfoeringId = 1337
             transaction {
-                insertArenaSak("2019319383", tiltaksgjennomfoeringId, skjema)
+                insertArenaSak("2019319383", tiltaksgjennomfoeringId, soknad)
             }
             ArenaTiltaksgjennomforingEndretProcessor(
                 db.config.jdbcDatabase
@@ -230,7 +230,7 @@ private fun kafkaMelding(
 }
 """
 
-private val skjema = DTO.Skjema(
+private val soknad = DTO.Soknad(
     id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "1337",
