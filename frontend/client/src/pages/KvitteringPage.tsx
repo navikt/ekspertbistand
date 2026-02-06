@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { ArrowRightIcon } from "@navikt/aksel-icons";
 import {
   Alert,
   BodyShort,
@@ -241,7 +242,43 @@ export default function KvitteringPage() {
   return (
     <DecoratedPage>
       <VStack gap="space-32">
-        <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
+        {isApproved ? (
+          <HStack
+            align="center"
+            justify="space-between"
+            wrap={false}
+            style={{ alignItems: "baseline" }}
+          >
+            <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
+            <VStack gap="space-4" align="end">
+              <BodyShort size="small">
+                <strong>Snarveier</strong>
+              </BodyShort>
+              <BodyLong>
+                <Link href={REFUSJON_URL} target="_blank" rel="noreferrer">
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                    Søk refusjon
+                    <ArrowRightIcon aria-hidden focusable="false" />
+                  </span>
+                </Link>
+              </BodyLong>
+              <BodyLong>
+                {HENT_FORSTESIDE_URL ? (
+                  <Link href={HENT_FORSTESIDE_URL} target="_blank" rel="noreferrer">
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                      Hent førsteside
+                      <ArrowRightIcon aria-hidden focusable="false" />
+                    </span>
+                  </Link>
+                ) : (
+                  "Hent førsteside"
+                )}
+              </BodyLong>
+            </VStack>
+          </HStack>
+        ) : (
+          <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
+        )}
 
         {showSubmittedAlert && !isApproved && !isRejected && (
           <Alert variant="success" role="status">
@@ -269,31 +306,6 @@ export default function KvitteringPage() {
         )}
         {isApproved && (
           <VStack gap="space-8">
-            <VStack gap="space-4">
-              <BodyShort size="small">
-                <strong>Snarveier</strong>
-              </BodyShort>
-              <BodyLong>
-                <Link href={REFUSJON_URL} target="_blank" rel="noreferrer">
-                  Søk refusjon
-                </Link>{" "}
-                – etter at utgiftene er betalt.
-              </BodyLong>
-              <BodyLong>
-                {HENT_FORSTESIDE_URL ? (
-                  <Link href={HENT_FORSTESIDE_URL} target="_blank" rel="noreferrer">
-                    Hent førsteside
-                  </Link>
-                ) : (
-                  "Hent førsteside"
-                )}{" "}
-                – når tiltaket er avsluttet skal sluttrapporten fra eksperten sendes til Nav med
-                denne førstesiden.
-              </BodyLong>
-              <BodyLong spacing>
-                Status på refusjon og sluttrapport vises foreløpig ikke i denne løsningen.
-              </BodyLong>
-            </VStack>
             <Box background="success-moderate" padding="space-12">
               <Heading level="2" size="medium" align="center">
                 Søknaden godkjent
