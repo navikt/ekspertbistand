@@ -6,7 +6,7 @@ metadata:
   labels:
     team: fager
 spec:
-  image: { { image } }
+  image: {{ image }}
   port: 4000
   ingresses:
     - https://arbeidsgiver.intern.nav.no/ekspertbistand
