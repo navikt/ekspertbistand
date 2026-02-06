@@ -6,11 +6,10 @@ metadata:
   labels:
     team: fager
 spec:
-  image: {{ image }}
+  image: { { image } }
   port: 4000
-  #  ingresses:
-  #    - https://arbeidsgiver.intern.nav.no/ekspertbistand
-  #    - https://arbeidsgiver.nav.no/ekspertbistand
+  ingresses:
+    - https://arbeidsgiver.intern.nav.no/ekspertbistand
   env:
     - name: BASE_PATH
       value: "/ekspertbistand"
