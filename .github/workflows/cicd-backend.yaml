@@ -102,3 +102,18 @@ jobs:
           VAR: image=${{ needs.build.outputs.image }}
           RESOURCE: nais/dev-gcp-backend.yaml
           CLUSTER: dev-gcp
+
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    needs: [ build ]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nais/deploy/actions/deploy@v2
+        name: Deploy prod-gcp
+        env:
+          VAR: image=${{ needs.build.outputs.image }}
+          RESOURCE: nais/prod-gcp-backend.yaml
+          CLUSTER: prod-gcp
