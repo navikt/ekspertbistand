@@ -10,16 +10,24 @@ import no.nav.ekspertbistand.soknad.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import java.time.Instant
 
 
 class ArenaTiltaksgjennomforingEndretProcessor(
     val database: Database,
+    val startProcessingAt: Instant,
 ) : ConsumerRecordProcessor {
     val log = logger()
     val teamLog = teamLogger()
     val json: Json = Json { ignoreUnknownKeys = true }
 
     override suspend fun processRecord(record: ConsumerRecord<String?, String?>) {
+        val recordTidspunkt = Instant.ofEpochMilli(record.timestamp())
+        if (recordTidspunkt.isBefore(startProcessingAt)) {
+            log.info("Mottok kakfa melding ${recordTidspunkt}, men vi starter å prosessere melding den $startProcessingAt")
+            return
+        }
+
         val value = record.value()
         if (value == null) {
             log.debug("skipping tombstone record")

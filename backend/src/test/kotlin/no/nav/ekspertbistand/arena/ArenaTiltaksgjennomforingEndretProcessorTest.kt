@@ -9,10 +9,13 @@ import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.soknad.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.header.internals.RecordHeaders
+import org.apache.kafka.common.record.TimestampType
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
+import java.time.Instant
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -22,11 +25,10 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
     @Test
     fun `eksempelmelding for tiltak som ikke er EKSPEBIST skal ikke behandles`() = testApplicationWithDatabase { db ->
         ArenaTiltaksgjennomforingEndretProcessor(
-            db.config.jdbcDatabase
+            db.config.jdbcDatabase,
+            Instant.EPOCH
         ).processRecord(
-            ConsumerRecord(
-                ArenaTiltaksgjennomforingEndretProcessor.TOPIC, 0, 0,
-                "key",
+            createConsumerRecord(
                 kafkaMelding(123, "IKKE_EKSPEBIST", AVLYST)
             )
         )
@@ -39,11 +41,10 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
     fun `eksempelmelding for tiltak som er EKSPEBIST men ikke opprettet av oss skal ikke behandles`() =
         testApplicationWithDatabase { db ->
             ArenaTiltaksgjennomforingEndretProcessor(
-                db.config.jdbcDatabase
+                db.config.jdbcDatabase,
+                Instant.EPOCH
             ).processRecord(
-                ConsumerRecord(
-                    ArenaTiltaksgjennomforingEndretProcessor.TOPIC, 0, 0,
-                    "key",
+                createConsumerRecord(
                     kafkaMelding(43, "EKSPEBIST", AVLYST)
                 )
             )
@@ -60,11 +61,10 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
                 insertArenaSak("2019319383", tiltaksgjennomfoeringId, soknad)
             }
             ArenaTiltaksgjennomforingEndretProcessor(
-                db.config.jdbcDatabase
+                db.config.jdbcDatabase,
+                Instant.EPOCH
             ).processRecord(
-                ConsumerRecord(
-                    ArenaTiltaksgjennomforingEndretProcessor.TOPIC, 0, 0,
-                    "key",
+                createConsumerRecord(
                     kafkaMelding(tiltaksgjennomfoeringId, "EKSPEBIST", GJENNOMFOR)
                 )
             )
@@ -81,11 +81,10 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
                 insertArenaSak("2019319383", tiltaksgjennomfoeringId, soknad)
             }
             ArenaTiltaksgjennomforingEndretProcessor(
-                db.config.jdbcDatabase
+                db.config.jdbcDatabase,
+                Instant.EPOCH
             ).processRecord(
-                ConsumerRecord(
-                    ArenaTiltaksgjennomforingEndretProcessor.TOPIC, 0, 0,
-                    "key",
+                createConsumerRecord(
                     kafkaMelding(tiltaksgjennomfoeringId, "EKSPEBIST", AVLYST)
                 )
             )
@@ -99,6 +98,29 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
             }
         }
 
+
+    @Test
+    fun `eksempelmelding for tiltak som er EKSPEBIST, status == AVLYST og opprettet av oss skal ikke behandles før startProcessingAt`() =
+        testApplicationWithDatabase { db ->
+            val tiltaksgjennomfoeringId = 1337
+            transaction {
+                insertArenaSak("2019319383", tiltaksgjennomfoeringId, soknad)
+            }
+            ArenaTiltaksgjennomforingEndretProcessor(
+                db.config.jdbcDatabase,
+                Instant.parse("2026-02-26T10:00:00.00Z")
+            ).processRecord(
+                createConsumerRecord(
+                    kafkaMelding(tiltaksgjennomfoeringId, "EKSPEBIST", AVLYST),
+                    Instant.parse("2026-02-25T10:00:00.00Z"),
+                )
+            )
+            transaction(db.config.jdbcDatabase) {
+                val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
+                assertEquals(0, queuedEvents.count())
+            }
+        }
+
     @Test
     fun `kafka consumer feiler ikke`() {
         assertDoesNotThrow {
@@ -107,13 +129,12 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
     }
 
 
-
-
     @Test
     fun `tombstone skippes`() = testApplicationWithDatabase { db ->
         assertDoesNotThrow {
             ArenaTiltaksgjennomforingEndretProcessor(
-                db.config.jdbcDatabase
+                db.config.jdbcDatabase,
+                Instant.EPOCH
             ).processRecord(
                 ConsumerRecord(
                     ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
@@ -124,6 +145,21 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
         }
     }
 }
+
+private fun createConsumerRecord(melding: String?, timestamp: Instant = Instant.parse("2026-01-01T00:00:00.00Z")) =
+    ConsumerRecord(
+        ArenaTilsagnsbrevProcessor.TOPIC,
+        0,
+        0,
+        timestamp.toEpochMilli(),
+        TimestampType.NO_TIMESTAMP_TYPE,
+        ConsumerRecord.NULL_SIZE,
+        ConsumerRecord.NULL_SIZE,
+        "key",
+        melding,
+        RecordHeaders(),
+        Optional.empty<Int?>()
+    )
 
 /**
  * hjelpefunksjon som lager kafkamelding med gitt statusendring
