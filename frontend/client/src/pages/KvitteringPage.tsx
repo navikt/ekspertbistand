@@ -2,19 +2,26 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
+  BodyShort,
   BodyLong,
   Box,
   ExpansionCard,
   FormSummary,
   Heading,
   HStack,
+  Link,
   Loader,
   VStack,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
 import { fetchTilskuddsbrevHtmlForSkjema } from "../features/tilsagn/tilsagn";
-import { SOKNADER_PATH, EKSPERTBISTAND_API_PATH } from "../utils/constants";
+import {
+  SOKNADER_PATH,
+  EKSPERTBISTAND_API_PATH,
+  REFUSJON_URL,
+  HENT_FORSTESIDE_URL,
+} from "../utils/constants";
 import { BackLink } from "../components/BackLink";
 import useSWR from "swr";
 import { type SoknadInputs } from "../features/soknad/schema";
@@ -203,14 +210,17 @@ export default function KvitteringPage() {
 
   useEffect(() => {
     if (!isSubmitted || !submissionSuccess) return;
-
-    setShowSubmittedAlert(true);
-
-    const timeoutId = window.setTimeout(() => {
+    navigate(".", { replace: true, state: {} });
+    const showTimeoutId = window.setTimeout(() => {
+      setShowSubmittedAlert(true);
+    }, 0);
+    const hideTimeoutId = window.setTimeout(() => {
       setShowSubmittedAlert(false);
-      navigate(".", { replace: true, state: {} });
     }, 5000);
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      window.clearTimeout(showTimeoutId);
+      window.clearTimeout(hideTimeoutId);
+    };
   }, [isSubmitted, navigate, submissionSuccess]);
 
   const errorMessage = error
@@ -239,8 +249,77 @@ export default function KvitteringPage() {
           </Alert>
         )}
 
+        <Heading level="1" size="large">
+          Søknad om tilskudd til ekspertbistand
+        </Heading>
+
+        {!isApproved && !isRejected && (
+          <VStack gap="space-12" align="center">
+            <Box background="neutral-moderate" padding="space-16">
+              <Heading level="2" size="medium" align="center">
+                Nav har mottatt søknaden
+              </Heading>
+              <BodyLong align="center">
+                Saksbehandlingstiden er vanligvis en uke, og du kan følge saken her. Du får beskjed
+                på e-post når søknaden er behandlet. Vent med å ta tiltaket i bruk til du har
+                mottatt svar.
+              </BodyLong>
+            </Box>
+          </VStack>
+        )}
+        {isApproved && (
+          <VStack gap="space-8">
+            <VStack gap="space-4">
+              <BodyShort size="small">
+                <strong>Snarveier</strong>
+              </BodyShort>
+              <BodyLong>
+                <Link href={REFUSJON_URL} target="_blank" rel="noreferrer">
+                  Søk refusjon
+                </Link>{" "}
+                – etter at utgiftene er betalt.
+              </BodyLong>
+              <BodyLong>
+                {HENT_FORSTESIDE_URL ? (
+                  <Link href={HENT_FORSTESIDE_URL} target="_blank" rel="noreferrer">
+                    Hent førsteside
+                  </Link>
+                ) : (
+                  "Hent førsteside"
+                )}{" "}
+                – når tiltaket er avsluttet skal sluttrapporten fra eksperten sendes til Nav med
+                denne førstesiden.
+              </BodyLong>
+              <BodyLong spacing>
+                Status på refusjon og sluttrapport vises foreløpig ikke i denne løsningen.
+              </BodyLong>
+            </VStack>
+            <Box background="success-moderate" padding="space-12">
+              <Heading level="2" size="medium" align="center">
+                Søknaden godkjent
+              </Heading>
+            </Box>
+          </VStack>
+        )}
+        {isRejected && (
+          <VStack gap="space-2" align="center">
+            <Box background="danger-moderate" padding="space-12">
+              <Heading level="2" size="medium" align="center">
+                Søknad trukket eller avslått
+              </Heading>
+              <BodyLong align="center">
+                Har du trukket søknaden, trenger du ikke gjøre noe.
+              </BodyLong>
+              <BodyLong align="center">
+                Hvis Nav har avslått søknaden, får du vedtaket i posten med informasjon om hvordan
+                du kan klage på det.
+              </BodyLong>
+            </Box>
+          </VStack>
+        )}
+
         {!tilskuddsbrevLoading && !tilsagnErrorMessage && shouldLoadTilsagn && tilsagnCount > 0 && (
-          <VStack gap="space-4">
+          <VStack gap="space-12">
             {tilskuddsbrevHtml?.map((tilskuddsbrev) => {
               return (
                 <ExpansionCard
@@ -269,41 +348,6 @@ export default function KvitteringPage() {
           <Alert variant="warning" role="alert">
             {tilsagnErrorMessage}
           </Alert>
-        )}
-
-        {!isApproved && !isRejected && (
-          <VStack gap="space-12" style={{ textAlign: "center" }}>
-            <Box background="neutral-moderate" padding="space-16">
-              <Heading level="1" size="medium">
-                Nav har mottatt søknaden
-              </Heading>
-              <BodyLong>
-                Saksbehandlingstiden er vanligvis en uke, og du kan følge saken her. Du får beskjed på e-post når søknaden er behandlet. Vent med å ta tiltaket i bruk til du har mottatt svar.
-              </BodyLong>
-            </Box>
-          </VStack>
-        )}
-        {isApproved && (
-          <VStack gap="space-2" style={{ textAlign: "center" }}>
-            <Box background="success-moderate" padding="space-12">
-              <Heading level="1" size="medium">
-                Søknaden godkjent
-              </Heading>
-            </Box>
-          </VStack>
-        )}
-        {isRejected && (
-          <VStack gap="space-2" style={{ textAlign: "center" }}>
-            <Box background="danger-moderate" padding="space-12">
-              <Heading level="1" size="medium">
-                Søknad trukket eller avslått
-              </Heading>
-              <BodyLong>
-                Har du trukket søknaden, trenger du ikke gjøre noe. Hvis Nav har avslått søknaden,
-                får du vedtaket i posten med informasjon om hvordan du kan klage på det.
-              </BodyLong>
-            </Box>
-          </VStack>
         )}
 
         {isLoading && (

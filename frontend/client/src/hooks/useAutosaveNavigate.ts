@@ -7,9 +7,20 @@ export const useAutosaveNavigate = () => {
   const { flushDraft } = useDraftAutosave();
 
   return useCallback(
-    (to: To, options?: NavigateOptions) => {
+    (to: To, options?: NavigateOptions, savedState?: Record<string, unknown>) => {
       flushDraft();
-      navigate(to, options);
+      if (!savedState) {
+        navigate(to, options);
+        return;
+      }
+      const baseState = options?.state && typeof options.state === "object" ? options.state : {};
+      navigate(to, {
+        ...options,
+        state: {
+          ...baseState,
+          ...savedState,
+        },
+      });
     },
     [flushDraft, navigate]
   );

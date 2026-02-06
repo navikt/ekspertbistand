@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { MouseEventHandler } from "react";
+import type { NavigateOptions } from "react-router-dom";
 import { SOKNADER_PATH } from "../utils/constants";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { useAutosaveNavigate } from "./useAutosaveNavigate";
@@ -10,9 +11,19 @@ export const useSkjemaNavigation = () => {
   const { draftId } = useSoknadDraft();
   const autosaveNavigate = useAutosaveNavigate();
 
-  const goToSoknader = useCallback(() => {
-    autosaveNavigate(SOKNADER_PATH);
-  }, [autosaveNavigate]);
+  const goToSoknader = useCallback(
+    (options?: NavigateOptions) => {
+      autosaveNavigate(SOKNADER_PATH, options);
+    },
+    [autosaveNavigate]
+  );
+
+  const goToSoknaderWithSaveNotice = useCallback(
+    (options?: NavigateOptions) => {
+      autosaveNavigate(SOKNADER_PATH, options, { savedDraft: true });
+    },
+    [autosaveNavigate]
+  );
 
   const navigateToSegment = useCallback(
     (segment: StepSegment) => {
@@ -36,6 +47,7 @@ export const useSkjemaNavigation = () => {
 
   return {
     goToSoknader,
+    goToSoknaderWithSaveNotice,
     goToStep1,
     goToStep2,
     goToSummary,

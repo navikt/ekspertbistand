@@ -37,7 +37,8 @@ export default function SkjemaSteg1Page() {
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
 
   const { clearDraft, lastPersistedAt } = useSoknadDraft();
-  const { goToSoknader, goToStep2, goToSummary, createLinkHandler } = useSkjemaNavigation();
+  const { goToSoknader, goToSoknaderWithSaveNotice, goToStep2, goToSummary, createLinkHandler } =
+    useSkjemaNavigation();
   const virksomhetsnummer = useWatch({ control, name: "virksomhet.virksomhetsnummer" });
   const {
     adresse,
@@ -48,7 +49,7 @@ export default function SkjemaSteg1Page() {
 
   useAttemptedSubmitRedirect(form, { fields: STEP1_FIELDS, onValidationFailed: bumpFocusKey });
 
-  const handleBackLink = createLinkHandler(goToSoknader);
+  const handleBackLink = createLinkHandler(goToSoknaderWithSaveNotice);
   const handleStepTwoLink = createLinkHandler(goToStep2);
   const handleSummaryLink = createLinkHandler(goToSummary);
 
@@ -72,7 +73,7 @@ export default function SkjemaSteg1Page() {
 
           <VStack gap="space-12">
             <BackLink to={SOKNADER_PATH} onClick={handleBackLink}>
-              Forrige steg
+              Tilbake til oversikt
             </BackLink>
             <SkjemaFormProgress
               activeStep={1}
@@ -106,7 +107,7 @@ export default function SkjemaSteg1Page() {
                 )}
               />
               {hasVirksomhet ? (
-                <VStack gap="space-8" style={{ marginTop: "1rem" }}>
+                <VStack gap="space-8" style={{ marginBlockStart: "var(--a-spacing-16)" }}>
                   <Label>Beliggenhetsadresse (hentet fra brreg.no)</Label>
                   {adresseLoading ? (
                     <BodyShort size="small">
@@ -231,9 +232,9 @@ export default function SkjemaSteg1Page() {
                 variant="secondary"
                 icon={<ArrowLeftIcon aria-hidden />}
                 iconPosition="left"
-                onClick={goToSoknader}
+                onClick={() => goToSoknaderWithSaveNotice()}
               >
-                Forrige steg
+                Tilbake til oversikt
               </Button>
               <Button
                 type="submit"
@@ -246,7 +247,7 @@ export default function SkjemaSteg1Page() {
             </HGrid>
             <DraftActions
               onContinueLater={() => {
-                goToSoknader();
+                goToSoknaderWithSaveNotice();
               }}
               onDeleteDraft={async () => {
                 await clearDraft();

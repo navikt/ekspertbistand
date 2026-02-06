@@ -8,7 +8,7 @@ export const useAutosaveDraft = (
   form: UseFormReturn<SoknadInputs>,
   enabled: boolean,
   saveDraft: (snapshot: SoknadInputs) => void
-): { flushDraft: () => void } => {
+): { flushDraft: () => boolean } => {
   const lastSnapshotRef = useRef<string>(JSON.stringify(form.getValues()));
   const timerRef = useRef<number | null>(null);
 
@@ -19,13 +19,14 @@ export const useAutosaveDraft = (
     }
   }, []);
 
-  const persistSnapshot = useCallback(() => {
-    if (!enabled) return;
+  const persistSnapshot = useCallback((): boolean => {
+    if (!enabled) return false;
     const values = form.getValues();
     const snapshot = JSON.stringify(values);
-    if (snapshot === lastSnapshotRef.current) return;
+    if (snapshot === lastSnapshotRef.current) return false;
     lastSnapshotRef.current = snapshot;
     saveDraft(values);
+    return true;
   }, [enabled, form, saveDraft]);
 
   const schedulePersist = useCallback(() => {
@@ -51,9 +52,9 @@ export const useAutosaveDraft = (
     };
   }, [clearTimer, enabled, form, schedulePersist]);
 
-  const flushDraft = useCallback(() => {
+  const flushDraft = useCallback((): boolean => {
     clearTimer();
-    persistSnapshot();
+    return persistSnapshot();
   }, [clearTimer, persistSnapshot]);
 
   return { flushDraft };

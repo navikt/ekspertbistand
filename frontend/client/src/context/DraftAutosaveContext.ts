@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-type DraftAutosaveContextValue = { flushDraft: () => void } | null;
+type DraftAutosaveContextValue = { flushDraft: () => boolean } | null;
 
 export const DraftAutosaveContext = createContext<DraftAutosaveContextValue>(null);
 
