@@ -37,14 +37,12 @@ spec:
     application:
       enabled: true
   kafka:
-    pool: nav-dev
+    pool: nav-prod
   gcp:
     sqlInstances:
       - name: ekspertbistand-backend
         type: POSTGRES_18
-        tier: db-f1-micro
-        diskAutoresize: true
-        highAvailability: false
+        tier: db-custom-1-3840
         databases:
           - name: ekspertbistand
             envVarPrefix: DB
@@ -55,12 +53,12 @@ spec:
         - application: ekspertbistand-frontend
         - application: azure-token-generator
           namespace: nais
-          cluster: dev-gcp
+          cluster: prod-gcp
     outbound:
       external:
-        - host: pdl-api.dev-fss-pub.nais.io
-        - host: dokarkiv-q2.dev-fss-pub.nais.io
-        - host: ereg-services.dev-fss-pub.nais.io
+        - host: pdl-api.prod-fss-pub.nais.io
+        - host: dokarkiv-q2.prod-fss-pub.nais.io
+        - host: ereg-services.prod-fss-pub.nais.io
       rules:
         - application: logging
           namespace: nais-system
@@ -74,4 +72,4 @@ spec:
           namespace: org
         - application: arena-api-q2
           namespace: teamarenanais
-          cluster: dev-fss
+          cluster: prod-fss

@@ -50,10 +50,16 @@ import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
+import java.time.Instant
 import java.util.*
 
 
 const val altinn3Ressursid = "nav_tiltak_ekspertbistand"
+val startKafkaProsesseringAt = basedOnEnv(
+    other = { Instant.EPOCH },
+    prod = { Instant.parse("2026-02-23T10:00:00.00Z") }
+)
+
 
 fun main() {
     val dbConfig = DbConfig.nais()
@@ -84,8 +90,8 @@ fun main() {
             provide(PdlApiKlient::class)
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
-            provide(ArenaTilsagnsbrevProcessor::class)
-            provide(ArenaTiltaksgjennomforingEndretProcessor::class)
+            provide { ArenaTilsagnsbrevProcessor(resolve(), startKafkaProsesseringAt) }
+            provide { ArenaTiltaksgjennomforingEndretProcessor(resolve(), startKafkaProsesseringAt) }
         }
 
         // configure standard server stuff
