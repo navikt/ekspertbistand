@@ -11,8 +11,8 @@ import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.kvitteringsLenke
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
 
 
@@ -33,13 +33,13 @@ class VarsleArbeidsgiverSoknadAvlyst(
     private val idempotencyGuard = idempotencyGuard(database)
 
     override suspend fun handle(event: Event<EventData.SoknadAvlystIArena>): EventHandledResult {
-        val skjema = event.data.skjema
-        if (skjema.id == null) {
-            return unrecoverableError("Skjema mangler id")
+        val soknad = event.data.soknad
+        if (soknad.id == null) {
+            return unrecoverableError("soknad.id kan ikke være null")
         }
 
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
-            nyBeskjed(skjema).fold(
+            nyBeskjed(soknad).fold(
                 onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
                 onFailure = {
                     return transientError(
@@ -50,7 +50,7 @@ class VarsleArbeidsgiverSoknadAvlyst(
         }
 
         if (!idempotencyGuard.isGuarded(event.id, nystatusSakSubTast)) {
-            nyStatusSak(skjema).fold(
+            nyStatusSak(soknad).fold(
                 onSuccess = { idempotencyGuard.guard(event, nystatusSakSubTast) },
                 onFailure = {
                     return transientError(
@@ -63,34 +63,34 @@ class VarsleArbeidsgiverSoknadAvlyst(
         return success()
     }
 
-    private suspend fun nyBeskjed(skjema: DTO.Skjema): Result<String> {
+    private suspend fun nyBeskjed(soknad: DTO.Soknad): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
-                grupperingsid = skjema.id!!,
-                eksternId = "${skjema.id}-soknad-avlyst",
-                virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
+                grupperingsid = soknad.id!!,
+                eksternId = "${soknad.id}-soknad-avlyst",
+                virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
                 tekst = "Søknaden om ekspertbistand trukket eller avslått.",
-                lenke = skjema.kvitteringsLenke,
+                lenke = soknad.kvitteringsLenke,
                 eksternVarsel = EksterntVarsel(
                     epostTittel = "Nav – angående søknad om ekspertbistand",
-                    epostHtmlBody = "${skjema.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
-                    smsTekst = "${skjema.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
+                    epostHtmlBody = "${soknad.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
+                    smsTekst = "${soknad.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
                 )
             )
-            Result.success("Opprettet beskjed for skjema ${skjema.id}")
+            Result.success("Opprettet beskjed for soknad ${soknad.id}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }
     }
 
-    private suspend fun nyStatusSak(skjema: DTO.Skjema): Result<String> {
+    private suspend fun nyStatusSak(soknad: DTO.Soknad): Result<String> {
         return try {
             produsentApiKlient.nyStatusSak(
-                grupperingsid = skjema.id!!,
+                grupperingsid = soknad.id!!,
                 status = SaksStatus.FERDIG,
                 statusTekst = "Søknad trukket eller avslått"
             )
-            Result.success("Oppdaterte sakstatus for skjema ${skjema.id}")
+            Result.success("Oppdaterte sakstatus for soknad ${soknad.id}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }

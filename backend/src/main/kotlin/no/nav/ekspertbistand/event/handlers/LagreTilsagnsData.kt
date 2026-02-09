@@ -28,17 +28,17 @@ class LagreTilsagnsData(
 
     override suspend fun handle(event: Event<EventData.TilskuddsbrevJournalfoert>): EventHandledResult {
         return transaction(database) {
-            val skjemaId = event.data.skjema.id
-            if (skjemaId == null) {
-                unrecoverableError("skjemaId er null")
+            val soknadId = event.data.soknad.id
+            if (soknadId == null) {
+                unrecoverableError("soknad.id er null")
             } else {
                 val tilsagnData = event.data.tilsagnData
-                insertTilsagndata(UUID.fromString(skjemaId), tilsagnData)
-                logger.info("Lagret tilsagndata for skjema med id $skjemaId")
+                insertTilsagndata(UUID.fromString(soknadId), tilsagnData)
+                logger.info("Lagret tilsagndata for soknad med id $soknadId")
 
                 QueuedEvents.insert {
                     it[eventData] = EventData.TilsagnsdataLagret(
-                        skjema = event.data.skjema,
+                        soknad = event.data.soknad,
                         tilsagnData = event.data.tilsagnData
                     )
                 }

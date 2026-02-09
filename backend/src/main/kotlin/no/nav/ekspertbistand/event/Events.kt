@@ -5,22 +5,22 @@ import io.ktor.server.plugins.di.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import no.nav.ekspertbistand.event.handlers.OpprettTiltaksgjennomfoeringForInnsendtSkjema
+import no.nav.ekspertbistand.event.handlers.OpprettTiltaksgjennomfoeringForInnsendtSoknad
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrev
 import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrevKildeAltinn
 import no.nav.ekspertbistand.event.handlers.LagreTilsagnsData
-import no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSkjema
+import no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSoknad
 import no.nav.ekspertbistand.event.handlers.LagreTilsagnsDataKildeAltinn
-import no.nav.ekspertbistand.event.handlers.SettAvlystSkjemaStatus
+import no.nav.ekspertbistand.event.handlers.SettAvlystSoknadStatus
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjent
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottatt
-import no.nav.ekspertbistand.event.handlers.SettGodkjentSkjemaStatus
+import no.nav.ekspertbistand.event.handlers.SettGodkjentSoknadStatus
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst
 import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjentKildeAltinn
-import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.soknad.DTO
 import kotlin.time.ExperimentalTime
 
 
@@ -45,24 +45,24 @@ sealed interface EventData {
     ) : EventData
 
     @Serializable
-    @SerialName("skjemaInnsendt")
-    data class SkjemaInnsendt(
-        val skjema: DTO.Skjema
+    @SerialName("soknadInnsendt")
+    data class SoknadInnsendt(
+        val soknad: DTO.Soknad
     ) : EventData
 
     @Serializable
-    @SerialName("innsendtSkjemaJournalfoert")
-    data class InnsendtSkjemaJournalfoert(
-        val skjema: DTO.Skjema,
+    @SerialName("innsendtSoknadJournalfoert")
+    data class InnsendtSoknadJournalfoert(
+        val soknad: DTO.Soknad,
         val dokumentId: Int,
         val journaldpostId: Int,
         val behandlendeEnhetId: String,
     ) : EventData
 
     @Serializable
-    @SerialName("tiltaksgjennomføringOpprettet")
-    data class TiltaksgjennomføringOpprettet(
-        val skjema: DTO.Skjema,
+    @SerialName("tiltaksgjennomforingOpprettet")
+    data class TiltaksgjennomforingOpprettet(
+        val soknad: DTO.Soknad,
         val saksnummer: Saksnummer,
         val tiltaksgjennomfoeringId: Int
     ) : EventData
@@ -70,7 +70,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("tilskuddsbrevMottatt")
     data class TilskuddsbrevMottatt(
-        val skjema: DTO.Skjema,
+        val soknad: DTO.Soknad,
         val tilsagnbrevId: Int,
         val tilsagnData: TilsagnData
     ) : EventData
@@ -85,7 +85,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("tilskuddsbrevJournalfoert")
     data class TilskuddsbrevJournalfoert(
-        val skjema: DTO.Skjema,
+        val soknad: DTO.Soknad,
         val dokumentId: Int,
         val journaldpostId: Int,
         val tilsagnData: TilsagnData
@@ -102,15 +102,22 @@ sealed interface EventData {
     @Serializable
     @SerialName("soknadAvlystIArena")
     data class SoknadAvlystIArena(
-        val skjema: DTO.Skjema,
+        val soknad: DTO.Soknad,
         val tiltaksgjennomforingEndret: TiltaksgjennomforingEndret
     ) : EventData
 
     @Serializable
     @SerialName("TilsagnsdataLagret")
     data class TilsagnsdataLagret(
-        val skjema: DTO.Skjema,
+        val soknad: DTO.Soknad,
         val tilsagnData: TilsagnData,
+    ) : EventData
+
+    @Serializable
+    @SerialName("tilskuddsbrevVist")
+    data class TilskuddsbrevVist(
+        val tilsagnNummer: String,
+        val soknad: DTO.Soknad?
     ) : EventData
 }
 
@@ -118,16 +125,16 @@ sealed interface EventData {
 suspend fun Application.configureEventHandlers() {
     val eventManager = EventManager {
         // Registrer all event handlers here
-        register(dependencies.create(JournalfoerInnsendtSkjema::class))
-        register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSkjema::class))
+        register(dependencies.create(JournalfoerInnsendtSoknad::class))
+        register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadMottatt::class))
         register(dependencies.create(JournalfoerTilskuddsbrev::class))
         register(dependencies.create(JournalfoerTilskuddsbrevKildeAltinn::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadGodkjent::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadGodkjentKildeAltinn::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadAvlyst::class))
-        register(dependencies.create(SettGodkjentSkjemaStatus::class))
-        register(dependencies.create(SettAvlystSkjemaStatus::class))
+        register(dependencies.create(SettGodkjentSoknadStatus::class))
+        register(dependencies.create(SettAvlystSoknadStatus::class))
         register(dependencies.create(LagreTilsagnsData::class))
         register(dependencies.create(LagreTilsagnsDataKildeAltinn::class))
 

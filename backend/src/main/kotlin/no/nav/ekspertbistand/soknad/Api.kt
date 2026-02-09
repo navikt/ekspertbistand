@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.skjema
+package no.nav.ekspertbistand.soknad
 
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -26,7 +26,7 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
-class SkjemaApi(
+class SoknadApi(
     private val database: Database,
     private val altinnTilgangerClient: AltinnTilgangerClient,
     private val eregService: EregService
@@ -47,17 +47,17 @@ class SkjemaApi(
         )
     }
 
-    suspend fun RoutingContext.hentAlleSkjema(statusParam: SkjemaStatusQueryParam) {
+    suspend fun RoutingContext.hentAlleSoknader(statusParam: SoknadStatusQueryParam) {
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
         val organisasjoner = tilganger.organisasjoner
 
         if (organisasjoner.isEmpty()) {
-            call.respond(emptyList<DTO.Skjema>())
+            call.respond(emptyList<DTO.Soknad>())
             return
         }
 
         when (statusParam) {
-            SkjemaStatusQueryParam.utkast -> {
+            SoknadStatusQueryParam.utkast -> {
                 val results = transaction(database) {
                     UtkastTable.selectAll()
                         .where { UtkastTable.opprettetAv eq innloggetBruker }
@@ -69,32 +69,32 @@ class SkjemaApi(
                 call.respond(results)
             }
 
-            SkjemaStatusQueryParam.innsendt -> {
+            SoknadStatusQueryParam.innsendt -> {
                 val results = transaction(database) {
-                    SkjemaTable.selectAll()
-                        .where { SkjemaTable.virksomhetsnummer inList organisasjoner }
-                        .orderBy(SkjemaTable.opprettetTidspunkt to SortOrder.DESC)
+                    SoknadTable.selectAll()
+                        .where { SoknadTable.virksomhetsnummer inList organisasjoner }
+                        .orderBy(SoknadTable.opprettetTidspunkt to SortOrder.DESC)
                         .toList()
-                        .map { it.tilSkjemaDTO() }
+                        .map { it.tilSoknadDTO() }
                 }
                 call.respond(results)
             }
         }
     }
 
-    suspend fun RoutingContext.hentSkjemaById(idParam: UUID) {
+    suspend fun RoutingContext.hentSoknadById(idParam: UUID) {
         val eksisterende = transaction(database) {
-            findSkjemaOrUtkastById(idParam)
+            findSoknadOrUtkastById(idParam)
         }
 
         if (eksisterende == null) {
-            call.respond(status = HttpStatusCode.NotFound, message = "skjema ikke funnet")
+            call.respond(status = HttpStatusCode.NotFound, message = "soknad ikke funnet")
             return
         }
 
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
         val harTilgang = when (eksisterende) {
-            is DTO.Skjema -> tilganger.harTilgang(eksisterende.virksomhet.virksomhetsnummer)
+            is DTO.Soknad -> tilganger.harTilgang(eksisterende.virksomhet.virksomhetsnummer)
 
             is DTO.Utkast -> if (eksisterende.virksomhet?.virksomhetsnummer == null) {
                 // utkast uten orgnummer kan kun leses av den som opprettet det
@@ -117,13 +117,13 @@ class SkjemaApi(
 
     suspend fun RoutingContext.oppdaterUtkast(idParam: UUID) {
         val eksisterende = transaction(database) {
-            findSkjemaOrUtkastById(idParam)
+            findSoknadOrUtkastById(idParam)
         }
 
         if (eksisterende == null || eksisterende !is DTO.Utkast) {
             call.respond(
                 status = HttpStatusCode.Conflict,
-                message = "skjema ikke i utkast-status"
+                message = "soknad ikke i utkast-status"
             )
             return
         }
@@ -181,13 +181,13 @@ class SkjemaApi(
 
     suspend fun RoutingContext.slettUtkast(idParam: UUID) {
         val eksisterende = transaction(database) {
-            findSkjemaOrUtkastById(idParam)
+            findSoknadOrUtkastById(idParam)
         }
 
         if (eksisterende == null || eksisterende !is DTO.Utkast) {
             call.respond(
                 status = HttpStatusCode.Conflict,
-                message = "skjema ikke i utkast-status"
+                message = "soknad ikke i utkast-status"
             )
             return
         }
@@ -210,23 +210,23 @@ class SkjemaApi(
         call.respond(status = HttpStatusCode.NoContent, NullBody)
     }
 
-    suspend fun RoutingContext.sendInnSkjema(idParam: UUID) {
+    suspend fun RoutingContext.sendInnSoknad(idParam: UUID) {
         val eksisterende = transaction(database) {
-            findSkjemaOrUtkastById(idParam)
+            findSoknadOrUtkastById(idParam)
         }
 
         if (eksisterende == null || eksisterende !is DTO.Utkast) {
             call.respond(
                 status = HttpStatusCode.Conflict,
-                message = "skjema ikke i utkast-status"
+                message = "soknad ikke i utkast-status"
             )
             return
         }
 
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
-        val skjema = call.receive<DTO.Skjema>()
+        val soknad = call.receive<DTO.Soknad>()
 
-        if (!tilganger.harTilgang(skjema.virksomhet.virksomhetsnummer)) {
+        if (!tilganger.harTilgang(soknad.virksomhet.virksomhetsnummer)) {
             call.respond(
                 status = HttpStatusCode.Forbidden,
                 message = "bruker har ikke tilgang til organisasjon"
@@ -234,41 +234,41 @@ class SkjemaApi(
             return
         }
 
-        val adresse = eregService.hentForretningsadresse(skjema.virksomhet.virksomhetsnummer)
+        val adresse = eregService.hentForretningsadresse(soknad.virksomhet.virksomhetsnummer)
 
         val innsendt = transaction(database) {
-            val skjema = SkjemaTable.insertReturning {
+            val opprettet = SoknadTable.insertReturning {
                 it[id] = idParam
-                it[virksomhetsnummer] = skjema.virksomhet.virksomhetsnummer
-                it[virksomhetsnavn] = skjema.virksomhet.virksomhetsnavn
-                it[kontaktpersonNavn] = skjema.virksomhet.kontaktperson.navn
-                it[kontaktpersonEpost] = skjema.virksomhet.kontaktperson.epost
-                it[kontaktpersonTelefon] = skjema.virksomhet.kontaktperson.telefonnummer
+                it[virksomhetsnummer] = soknad.virksomhet.virksomhetsnummer
+                it[virksomhetsnavn] = soknad.virksomhet.virksomhetsnavn
+                it[kontaktpersonNavn] = soknad.virksomhet.kontaktperson.navn
+                it[kontaktpersonEpost] = soknad.virksomhet.kontaktperson.epost
+                it[kontaktpersonTelefon] = soknad.virksomhet.kontaktperson.telefonnummer
                 it[beliggenhetsadresse] = adresse
-                it[ansattFnr] = skjema.ansatt.fnr
-                it[ansattNavn] = skjema.ansatt.navn
-                it[ekspertNavn] = skjema.ekspert.navn
-                it[ekspertVirksomhet] = skjema.ekspert.virksomhet
-                it[ekspertKompetanse] = skjema.ekspert.kompetanse
-                it[behovForBistand] = skjema.behovForBistand.behov
-                it[behovForBistandBegrunnelse] = skjema.behovForBistand.begrunnelse
-                it[behovForBistandEstimertKostnad] = skjema.behovForBistand.estimertKostnad
-                it[behovForBistandTimer] = skjema.behovForBistand.timer
-                it[behovForBistandTilrettelegging] = skjema.behovForBistand.tilrettelegging
-                it[behovForBistandStartdato] = skjema.behovForBistand.startdato
+                it[ansattFnr] = soknad.ansatt.fnr
+                it[ansattNavn] = soknad.ansatt.navn
+                it[ekspertNavn] = soknad.ekspert.navn
+                it[ekspertVirksomhet] = soknad.ekspert.virksomhet
+                it[ekspertKompetanse] = soknad.ekspert.kompetanse
+                it[behovForBistand] = soknad.behovForBistand.behov
+                it[behovForBistandBegrunnelse] = soknad.behovForBistand.begrunnelse
+                it[behovForBistandEstimertKostnad] = soknad.behovForBistand.estimertKostnad
+                it[behovForBistandTimer] = soknad.behovForBistand.timer
+                it[behovForBistandTilrettelegging] = soknad.behovForBistand.tilrettelegging
+                it[behovForBistandStartdato] = soknad.behovForBistand.startdato
 
-                it[navKontaktPerson] = skjema.nav.kontaktperson
+                it[navKontaktPerson] = soknad.nav.kontaktperson
                 it[opprettetAv] = innloggetBruker
-                it[status] = SkjemaStatus.innsendt.toString()
-            }.single().tilSkjemaDTO().also {
+                it[status] = SoknadStatus.innsendt.toString()
+            }.single().tilSoknadDTO().also {
                 UtkastTable.deleteWhere { UtkastTable.id eq idParam }
             }
 
             QueuedEvents.insert {
-                it[eventData] = EventData.SkjemaInnsendt(skjema)
+                it[eventData] = EventData.SoknadInnsendt(opprettet)
             }
 
-            skjema
+            opprettet
         }
 
         call.respond(innsendt)
@@ -285,14 +285,14 @@ class SkjemaApi(
         }
     }
 
-    fun slettGamleInnsendteSkjema(
+    fun slettGamleInnsendteSoknader(
         ttl: Duration = 365.days,
         clock: Clock = Clock.System,
     ) = transaction {
-        SkjemaTable.deleteWhere {
-            SkjemaTable.opprettetTidspunkt lessEq (clock.now() - ttl) //TODO: hvorfor er opprettettidspunkt text og ikke instant her?
+        SoknadTable.deleteWhere {
+            SoknadTable.opprettetTidspunkt lessEq (clock.now() - ttl)
         }.let {
-            log.info("Slettet $it gamle utkast eldre enn $ttl")
+            log.info("Slettet $it gamle søknader eldre enn $ttl")
         }
     }
 
@@ -300,11 +300,11 @@ class SkjemaApi(
 
 sealed interface DTO {
     /**
-     * Default-verdier på Skjema brukes da de blir satt etter persistering.
+     * Default-verdier på soknad brukes da de blir satt etter persistering.
      */
 
     @Serializable
-    data class Skjema(
+    data class Soknad(
         val id: String? = null,
         val virksomhet: Virksomhet,
         val ansatt: Ansatt,
@@ -313,7 +313,7 @@ sealed interface DTO {
         val nav: Nav,
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
-        val status: SkjemaStatus = SkjemaStatus.innsendt,
+        val status: SoknadStatus = SoknadStatus.innsendt,
     ) : DTO
 
 
@@ -328,7 +328,7 @@ sealed interface DTO {
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
     ) : DTO {
-        val status = SkjemaStatus.utkast
+        val status = SoknadStatus.utkast
     }
 
     @Serializable
@@ -376,7 +376,7 @@ sealed interface DTO {
 }
 
 @Suppress("EnumEntryName")
-enum class SkjemaStatus {
+enum class SoknadStatus {
     utkast,
     innsendt,
     godkjent,
@@ -384,12 +384,12 @@ enum class SkjemaStatus {
 }
 
 @Suppress("EnumEntryName")
-enum class SkjemaStatusQueryParam {
+enum class SoknadStatusQueryParam {
     utkast,
     innsendt
 }
 
-val DTO.Skjema.kvitteringsLenke: String
+val DTO.Soknad.kvitteringsLenke: String
     get() = basedOnEnv(
         prod = "https://arbeidsgiver.nav.no",
         dev = "https://arbeidsgiver.intern.dev.nav.no",

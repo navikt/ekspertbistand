@@ -9,13 +9,16 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.common.header.internals.RecordHeaders
+import org.apache.kafka.common.record.TimestampType
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertDoesNotThrow
+import java.time.Instant
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -26,15 +29,15 @@ class ArenaTilsagnsbrevProcessorTest {
     fun `eksempelmelding for tiltak som ikke er EKSPEBIST skal ikke behandles`() = testApplicationWithDatabase { db ->
         val saksnummer = "2019319383"
         transaction {
-            insertArenaSak(saksnummer, 123, skjema)
+            insertArenaSak(saksnummer, 123, soknad)
         }
 
         ArenaTilsagnsbrevProcessor(
-            db.config.jdbcDatabase
+            db.config.jdbcDatabase,
+            Instant.EPOCH,
         ).processRecord(
-            ConsumerRecord(
-                ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
-                "key",
+            createConsumerRecord(
+
                 kafkaMelding(
                     1,
                     42,
@@ -52,14 +55,13 @@ class ArenaTilsagnsbrevProcessorTest {
         testApplicationWithDatabase { db ->
             val saksnummer = "201942"
             transaction {
-                insertArenaSak(saksnummer, 123, skjema)
+                insertArenaSak(saksnummer, 123, soknad)
             }
             ArenaTilsagnsbrevProcessor(
-                db.config.jdbcDatabase
+                db.config.jdbcDatabase,
+                Instant.EPOCH,
             ).processRecord(
-                ConsumerRecord(
-                    ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
-                    "key",
+                createConsumerRecord(
                     kafkaMelding(
                         2,
                         43,
@@ -68,14 +70,14 @@ class ArenaTilsagnsbrevProcessorTest {
                 )
             )
             transaction(db.config.jdbcDatabase) {
-                val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
-                assertEquals(1, queuedEvents.count())
-                val eventData = queuedEvents.first().eventData as EventData.TilskuddsbrevMottattKildeAltinn
-                assertNotNull(eventData)
-                assertEquals(2019, eventData.tilsagnData.tilsagnNummer.aar)
-                assertEquals(319383, eventData.tilsagnData.tilsagnNummer.loepenrSak)
+            val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
+            assertEquals(1, queuedEvents.count())
+            val eventData = queuedEvents.first().eventData as EventData.TilskuddsbrevMottattKildeAltinn
+            assertNotNull(eventData)
+            assertEquals(2019, eventData.tilsagnData.tilsagnNummer.aar)
+            assertEquals(319383, eventData.tilsagnData.tilsagnNummer.loepenrSak)
 
-            }
+        }
         }
 
     @Test
@@ -83,14 +85,13 @@ class ArenaTilsagnsbrevProcessorTest {
         testApplicationWithDatabase { db ->
             val saksnummer = "2019319383"
             transaction {
-                insertArenaSak(saksnummer, 123, skjema)
+                insertArenaSak(saksnummer, 123, soknad)
             }
             ArenaTilsagnsbrevProcessor(
-                db.config.jdbcDatabase
+                db.config.jdbcDatabase,
+                Instant.EPOCH,
             ).processRecord(
-                ConsumerRecord(
-                    ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
-                    "key",
+                createConsumerRecord(
                     kafkaMelding(
                         1,
                         42,
@@ -109,6 +110,35 @@ class ArenaTilsagnsbrevProcessorTest {
             }
         }
 
+
+    @Test
+    fun `eksempelmelding for tiltak som er EKSPEBIST og opprettet av oss skal ikke behandles da før startProcessingAt`() =
+        testApplicationWithDatabase { db ->
+            val saksnummer = "2019319383"
+            transaction {
+                insertArenaSak(saksnummer, 123, soknad)
+            }
+
+            ArenaTilsagnsbrevProcessor(
+                db.config.jdbcDatabase,
+                Instant.parse("2026-02-26T10:00:00.00Z")
+            ).processRecord(
+                createConsumerRecord(
+                    kafkaMelding(
+                        1,
+                        42,
+                        eksempelMelding(EKSPERTBISTAND_TILTAKSKODE, 2019, 319383)
+                    ),
+                    Instant.parse("2026-02-25T10:00:00.00Z")
+                )
+            )
+            transaction(db.config.jdbcDatabase) {
+                val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
+                assertEquals(0, queuedEvents.count())
+            }
+        }
+
+
     @Test
     fun `kafka consumer feiler ikke`() {
         assertDoesNotThrow {
@@ -121,19 +151,32 @@ class ArenaTilsagnsbrevProcessorTest {
     fun `tombstone skippes`() = testApplicationWithDatabase { db ->
         assertDoesNotThrow {
             ArenaTilsagnsbrevProcessor(
-                db.config.jdbcDatabase
+                db.config.jdbcDatabase,
+                Instant.EPOCH,
             ).processRecord(
-                ConsumerRecord(
-                    ArenaTilsagnsbrevProcessor.TOPIC, 0, 0,
-                    "key",
+                createConsumerRecord(
                     null
                 )
             )
         }
     }
-
-
 }
+
+private fun createConsumerRecord(melding: String?, timestamp: Instant = Instant.parse("2026-01-01T00:00:00.00Z")) =
+    ConsumerRecord(
+        ArenaTilsagnsbrevProcessor.TOPIC,
+        0,
+        0,
+        timestamp.toEpochMilli(),
+        TimestampType.NO_TIMESTAMP_TYPE,
+        ConsumerRecord.NULL_SIZE,
+        ConsumerRecord.NULL_SIZE,
+        "key",
+        melding,
+        RecordHeaders(),
+        Optional.empty<Int?>()
+    )
+
 
 /**
  * kafka meldinger kommer wrappet. se: https://confluence.adeo.no/spaces/ARENA/pages/340837316/Arena+-+Funksjonalitet+-+Tilsagnsbrev+-+TAG#ArenaFunksjonalitetTilsagnsbrevTAG-KafkaTopic
@@ -251,7 +294,7 @@ fun eksempelMelding(tiltakKode: String, aar: Int, loepenrSak: Int) = """
     }
 """.trimIndent()
 
-private val skjema = DTO.Skjema(
+private val soknad = DTO.Soknad(
     id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "1337",
@@ -283,5 +326,5 @@ private val skjema = DTO.Skjema(
         kontaktperson = "Navn Navnesen"
     ),
     opprettetAv = "Noen Noensen",
-    status = SkjemaStatus.innsendt,
+    status = SoknadStatus.innsendt,
 )

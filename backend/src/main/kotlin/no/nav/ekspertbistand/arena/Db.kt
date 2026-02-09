@@ -1,7 +1,7 @@
 package no.nav.ekspertbistand.arena
 
 import kotlinx.serialization.json.Json
-import no.nav.ekspertbistand.skjema.DTO
+import no.nav.ekspertbistand.soknad.DTO
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
@@ -13,21 +13,21 @@ object ArenaSakTable : Table("arena_sak") {
     val loepenummer = integer("løpenummer")
     val aar = integer("år")
     val tiltaksgjennomfoeringId = integer("tiltakgjennomforing_id")
-    val skjema = text("skjema")
+    val soknad = text("soknad")
 
 }
 
 fun insertArenaSak(
     saksnummer: Saksnummer,
     tiltaksgjennomfoeringId: Int,
-    skjema: DTO.Skjema
+    soknad: DTO.Soknad
 ) {
     ArenaSakTable.insert {
         it[ArenaSakTable.tiltaksgjennomfoeringId] = tiltaksgjennomfoeringId
         it[ArenaSakTable.saksnummer] = saksnummer
         it[ArenaSakTable.loepenummer] = saksnummer.loepenrSak
         it[ArenaSakTable.aar] = saksnummer.aar
-        it[ArenaSakTable.skjema] = Json.encodeToString(skjema)
+        it[ArenaSakTable.soknad] = Json.encodeToString(soknad)
     }
 }
 

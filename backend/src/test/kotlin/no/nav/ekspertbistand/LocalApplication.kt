@@ -16,13 +16,14 @@ import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
-import no.nav.ekspertbistand.skjema.SkjemaTable
-import no.nav.ekspertbistand.skjema.UtkastTable
-import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
+import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.UtkastTable
+import no.nav.ekspertbistand.soknad.configureSoknadApiV1
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.datetime.CurrentDate
@@ -89,8 +90,8 @@ fun main() {
     )
 
     testDb.cleanMigrate()
-    val godkjentSkjemaId = UUID.fromString("f8f48c1f-9a5c-4a75-9d1a-2fb0a3a2eaa1")
-    val avlystSkjemaId = UUID.fromString("2f3f8f6d-4f7e-4a6b-bb32-7b44c0b3f589")
+    val godkjentSoknadId = UUID.fromString("f8f48c1f-9a5c-4a75-9d1a-2fb0a3a2eaa1")
+    val avlystSoknadId = UUID.fromString("2f3f8f6d-4f7e-4a6b-bb32-7b44c0b3f589")
     val godkjentTilsagnData = TilsagnData(
         tilsagnNummer = TilsagnData.TilsagnNummer(
             aar = 2024,
@@ -164,8 +165,8 @@ fun main() {
         kommentar = "Mock-tilsagn for local testing."
     )
     transaction(testDb.config.jdbcDatabase) {
-        SkjemaTable.insert {
-            it[id] = godkjentSkjemaId
+        SoknadTable.insert {
+            it[id] = godkjentSoknadId
             it[virksomhetsnummer] = "123456780"
             it[virksomhetsnavn] = "Eksempel Bedrift AS Avd. Oslo"
             it[beliggenhetsadresse] = "Testveien 1, 0557 Oslo"
@@ -189,8 +190,8 @@ fun main() {
             it[navKontaktPerson] = "Navkontaktperson NN"
             it[status] = "godkjent"
         }
-        SkjemaTable.insert {
-            it[id] = avlystSkjemaId
+        SoknadTable.insert {
+            it[id] = avlystSoknadId
             it[virksomhetsnummer] = "123456780"
             it[virksomhetsnavn] = "Eksempel Bedrift AS Avd. Oslo"
             it[opprettetAv] = "42"
@@ -214,7 +215,7 @@ fun main() {
             it[navKontaktPerson] = "Navkontaktperson NN"
             it[status] = "avlyst"
         }
-        insertTilsagndata(godkjentSkjemaId, godkjentTilsagnData)
+        insertTilsagndata(godkjentSoknadId, godkjentTilsagnData)
         UtkastTable.insert {
             it[id] = UUID.randomUUID()
             it[virksomhetsnummer] = "123456780"
@@ -283,13 +284,15 @@ fun main() {
         configureTokenXAuth()
 
         // application modules
-        configureSkjemaApiV1()
+        configureSoknadApiV1()
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()
         configureEregApiV1()
 
         // event manager and event handlers
         configureEventHandlers()
+
+        configureProjectionBuilders()
 
         // internal endpoints and lifecycle hooks
         configureInternal()

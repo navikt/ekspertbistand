@@ -16,7 +16,7 @@ const ensureMockServiceWorkerReady = async (page: Page) => {
 
 const tryCreateDraftId = async (page: Page): Promise<string | null> =>
   page.evaluate(async () => {
-    const response = await fetch("/ekspertbistand-backend/api/skjema/v1", { method: "POST" });
+    const response = await fetch("/ekspertbistand-backend/api/soknad/v1", { method: "POST" });
     if (!response.ok) {
       return null;
     }

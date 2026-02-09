@@ -38,21 +38,28 @@ import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
+import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
-import no.nav.ekspertbistand.skjema.configureSkjemaApiV1
-import no.nav.ekspertbistand.skjema.subjectToken
+import no.nav.ekspertbistand.soknad.configureSoknadApiV1
+import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
+import java.time.Instant
 import java.util.*
 
 
 const val altinn3Ressursid = "nav_tiltak_ekspertbistand"
+val startKafkaProsesseringAt = basedOnEnv(
+    other = { Instant.EPOCH },
+    prod = { Instant.parse("2026-02-23T10:00:00.00Z") }
+)
+
 
 fun main() {
     val dbConfig = DbConfig.nais()
@@ -60,7 +67,7 @@ fun main() {
     ktorServer {
         dependencies {
             provide<Database> {
-//                dbConfig.destroyExistingDatabase()
+                //dbConfig.destroyExistingDatabase()
                 dbConfig.flywayAction {
                     migrate()
                 }
@@ -83,8 +90,8 @@ fun main() {
             provide(PdlApiKlient::class)
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
-            provide(ArenaTilsagnsbrevProcessor::class)
-            provide(ArenaTiltaksgjennomforingEndretProcessor::class)
+            provide { ArenaTilsagnsbrevProcessor(resolve(), startKafkaProsesseringAt) }
+            provide { ArenaTiltaksgjennomforingEndretProcessor(resolve(), startKafkaProsesseringAt) }
         }
 
         // configure standard server stuff
@@ -94,13 +101,15 @@ fun main() {
         configureTokenXAuth()
 
         // configure application modules and endpoints
-        configureSkjemaApiV1()
+        configureSoknadApiV1()
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()
         configureEregApiV1()
 
         // event manager and event handlers
         configureEventHandlers()
+
+        configureProjectionBuilders()
 
         startKafkaConsumers(coroutineContext)
 
@@ -109,6 +118,8 @@ fun main() {
         registerShutdownListener()
     }
 }
+// ... existing code ...
+
 
 fun ktorServer(
     initialConfig: suspend Application.() -> Unit,

@@ -7,10 +7,10 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.tilsagndata.TilsagndataTable
-import no.nav.ekspertbistand.tilsagndata.findTilsagnDataBySkjemaId
+import no.nav.ekspertbistand.tilsagndata.findTilsagnDataBySoknadId
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -31,7 +31,7 @@ class LagreTilsagnDataTest {
             data = EventData.TilskuddsbrevJournalfoert(
                 journaldpostId = 1,
                 dokumentId = 1,
-                skjema = sampleSkjema(),
+                soknad = sampleSoknad(),
                 tilsagnData = sampleTilskuddsbrev()
             )
         )
@@ -55,19 +55,19 @@ class LagreTilsagnDataTest {
             data = EventData.TilskuddsbrevJournalfoert(
                 journaldpostId = 1,
                 dokumentId = 1,
-                skjema = sampleSkjema(),
+                soknad = sampleSoknad(),
                 tilsagnData = sampleTilskuddsbrev()
             )
         )
 
         transaction(database) {
-            insertTilsagndata(UUID.fromString(event.data.skjema.id), sampleTilskuddsbrev())
+            insertTilsagndata(UUID.fromString(event.data.soknad.id), sampleTilskuddsbrev())
         }
 
         assertIs<EventHandledResult.Success>(handler.handle(event))
 
         transaction(database) {
-            assertEquals(2, findTilsagnDataBySkjemaId(UUID.fromString(event.data.skjema.id)).count())
+            assertEquals(2, findTilsagnDataBySoknadId(UUID.fromString(event.data.soknad.id)).count())
             val queuedEvents = QueuedEvents.selectAll()
             assertEquals(1, queuedEvents.count())
             assertIs<EventData.TilsagnsdataLagret>(queuedEvents.first()[QueuedEvents.eventData])
@@ -75,7 +75,7 @@ class LagreTilsagnDataTest {
     }
 
     @Test
-    fun `skjemaId er null returnerer unrecoverable error`() = testApplicationWithDatabase {
+    fun `soknad id er null returnerer unrecoverable error`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val handler = LagreTilsagnsData(database = database)
 
@@ -84,7 +84,7 @@ class LagreTilsagnDataTest {
             data = EventData.TilskuddsbrevJournalfoert(
                 journaldpostId = 1,
                 dokumentId = 1,
-                skjema = sampleSkjema().copy(id = null),
+                soknad = sampleSoknad().copy(id = null),
                 tilsagnData = sampleTilskuddsbrev()
             )
         )
@@ -95,7 +95,7 @@ class LagreTilsagnDataTest {
         }
     }
 
-    private fun sampleSkjema() = DTO.Skjema(
+    private fun sampleSoknad() = DTO.Soknad(
         id = UUID.randomUUID().toString(),
         virksomhet = DTO.Virksomhet(
             virksomhetsnummer = "1337",
@@ -126,7 +126,7 @@ class LagreTilsagnDataTest {
         nav = DTO.Nav(
             kontaktperson = "Navn Navnesen"
         ),
-        status = SkjemaStatus.innsendt,
+        status = SoknadStatus.innsendt,
     )
 
     private fun sampleTilskuddsbrev() = TilsagnData(

@@ -116,7 +116,7 @@ object EventQueue {
 
         EventLog.insert {
             it[EventLog.id] = event[QueuedEvents.id]
-            it[this.eventData] = event[QueuedEvents.eventData]
+            it[eventData] = event[QueuedEvents.eventData]
             if (errorResults.isEmpty()) {
                 it[status] = ProcessingStatus.COMPLETED
             } else {
@@ -175,19 +175,6 @@ data class QueuedEvent(
             updatedAt = this[QueuedEvents.updatedAt]
         )
     }
-}
-
-@OptIn(ExperimentalTime::class)
-object EventLog : Table("event_log") {
-    val id = long("id")
-    val eventData = json<EventData>("event_json", Json)
-    val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
-    val errors = json<List<EventHandledResult.UnrecoverableError>>("errors", Json).default(emptyList())
-    val attempts = integer("attempts").default(0)
-    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
-    val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
-
-    override val primaryKey = PrimaryKey(id)
 }
 
 enum class ProcessingStatus {

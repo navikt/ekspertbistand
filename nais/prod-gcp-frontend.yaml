@@ -9,14 +9,14 @@ spec:
   image: {{ image }}
   port: 4000
   ingresses:
-    - https://arbeidsgiver.intern.dev.nav.no/ekspertbistand
+    - https://arbeidsgiver.intern.nav.no/ekspertbistand
   env:
     - name: BASE_PATH
       value: "/ekspertbistand"
     - name: EKSPERTBISTAND_API_BASEURL
       value: "http://ekspertbistand-backend"
     - name: EKSPERTBISTAND_API_AUDIENCE
-      value: "dev-gcp:fager:ekspertbistand-backend"
+      value: "prod-gcp:fager:ekspertbistand-backend"
 
   replicas:
     min: 2

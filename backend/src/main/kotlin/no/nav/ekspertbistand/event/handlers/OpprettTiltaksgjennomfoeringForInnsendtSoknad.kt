@@ -9,22 +9,22 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
-class OpprettTiltaksgjennomfoeringForInnsendtSkjema(
+class OpprettTiltaksgjennomfoeringForInnsendtSoknad(
     private val arenaClient: ArenaClient,
     private val database: Database,
-) : EventHandler<EventData.InnsendtSkjemaJournalfoert> {
-    override val id = "Opprett Tiltaksgjennomfoering For Innsendt Skjema"
-    override val eventType = EventData.InnsendtSkjemaJournalfoert::class
+) : EventHandler<EventData.InnsendtSoknadJournalfoert> {
+    override val id = "Opprett Tiltaksgjennomfoering For Innsendt Soknad"
+    override val eventType = EventData.InnsendtSoknadJournalfoert::class
 
-    override suspend fun handle(event: Event<EventData.InnsendtSkjemaJournalfoert>): EventHandledResult {
-        val skjema = event.data.skjema
+    override suspend fun handle(event: Event<EventData.InnsendtSoknadJournalfoert>): EventHandledResult {
+        val soknad = event.data.soknad
         val opprettetResponse = try {
             arenaClient.opprettTiltaksgjennomfoering(
                 OpprettEkspertbistand(
                     behandlendeEnhetId = event.data.behandlendeEnhetId,
-                    virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
-                    ansattFnr = skjema.ansatt.fnr,
-                    periodeFom = skjema.behovForBistand.startdato,
+                    virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
+                    ansattFnr = soknad.ansatt.fnr,
+                    periodeFom = soknad.behovForBistand.startdato,
                     journalpostId = event.data.journaldpostId,
                     dokumentId = event.data.dokumentId
                 )
@@ -39,11 +39,11 @@ class OpprettTiltaksgjennomfoeringForInnsendtSkjema(
             insertArenaSak(
                 saksnummer,
                 tiltaksgjennomfoeringId,
-                skjema
+                soknad
             )
             QueuedEvents.insert {
-                it[eventData] = EventData.TiltaksgjennomføringOpprettet(
-                    skjema,
+                it[eventData] = EventData.TiltaksgjennomforingOpprettet(
+                    soknad,
                     saksnummer,
                     tiltaksgjennomfoeringId,
                 )

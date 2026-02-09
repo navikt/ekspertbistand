@@ -30,8 +30,8 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.NyStatus
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.NyStatusSakVellykket
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.StatusOppdatering
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.*
-import no.nav.ekspertbistand.skjema.DTO
-import no.nav.ekspertbistand.skjema.SkjemaStatus
+import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertIs
@@ -64,7 +64,7 @@ class VarsleArbeidsgiverSoknadAvlystTest {
         val event = Event(
             id = 1L,
             data = EventData.SoknadAvlystIArena(
-                skjema = skjema1,
+                soknad = soknad1,
                 tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
                     tiltaksgjennomfoeringId = 1,
                     tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
@@ -95,7 +95,7 @@ class VarsleArbeidsgiverSoknadAvlystTest {
             val event = Event(
                 id = 1L,
                 data = EventData.SoknadAvlystIArena(
-                    skjema = skjema1,
+                    soknad = soknad1,
                     tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
                         tiltaksgjennomfoeringId = 1,
                         tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
@@ -109,7 +109,7 @@ class VarsleArbeidsgiverSoknadAvlystTest {
 }
 
 
-private val skjema1 = DTO.Skjema(
+private val soknad1 = DTO.Soknad(
     id = UUID.randomUUID().toString(),
     virksomhet = DTO.Virksomhet(
         virksomhetsnummer = "1337",
@@ -140,7 +140,7 @@ private val skjema1 = DTO.Skjema(
     nav = DTO.Nav(
         kontaktperson = "Navn Navnesen"
     ),
-    status = SkjemaStatus.godkjent,
+    status = SoknadStatus.godkjent,
 )
 
 

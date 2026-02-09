@@ -6,9 +6,9 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
-import no.nav.ekspertbistand.skjema.SkjemaStatus
-import no.nav.ekspertbistand.skjema.SkjemaTable
-import no.nav.ekspertbistand.skjema.tilSkjemaDTO
+import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.tilSoknadDTO
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -18,20 +18,20 @@ import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
-class SettAvlystSkjemaStatusTest {
+class SettAvlystSoknadStatusTest {
 
     @Test
     fun `Søknad settes til avlyst`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
-        val handler = SettAvlystSkjemaStatus(database = database)
+        val handler = SettAvlystSoknadStatus(database = database)
 
-        val skjema = transaction(database) {
-            SkjemaTable.insertReturning {
+        val soknad = transaction(database) {
+            SoknadTable.insertReturning {
                 it[id] = UUID.randomUUID()
                 it[virksomhetsnummer] = "1337"
                 it[virksomhetsnavn] = " foo bar AS"
                 it[opprettetAv] = "42"
-                it[behovForBistand] = "innsendt skjema"
+                it[behovForBistand] = "innsendt soknad"
                 it[behovForBistandTilrettelegging] = ""
                 it[behovForBistandBegrunnelse] = ""
                 it[behovForBistandEstimertKostnad] = "42"
@@ -47,15 +47,15 @@ class SettAvlystSkjemaStatusTest {
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
                 it[beliggenhetsadresse] = ""
-                it[status] = SkjemaStatus.innsendt.toString()
-            }.single().tilSkjemaDTO().also {
-                assertEquals(SkjemaStatus.innsendt, it.status)
+                it[status] = SoknadStatus.innsendt.toString()
+            }.single().tilSoknadDTO().also {
+                assertEquals(SoknadStatus.innsendt, it.status)
             }
         }
 
         val event = Event(
             id = 1L, data = EventData.SoknadAvlystIArena(
-                skjema = skjema,
+                soknad = soknad,
                 tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
                     tiltaksgjennomfoeringId = 1,
                     tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
@@ -66,8 +66,8 @@ class SettAvlystSkjemaStatusTest {
         assertIs<EventHandledResult.Success>(handler.handle(event))
 
         transaction(database) {
-            SkjemaTable.selectAll().single().tilSkjemaDTO().let {
-                assertEquals(SkjemaStatus.avlyst, it.status)
+            SoknadTable.selectAll().single().tilSoknadDTO().let {
+                assertEquals(SoknadStatus.avlyst, it.status)
             }
         }
     }
@@ -75,15 +75,15 @@ class SettAvlystSkjemaStatusTest {
     @Test
     fun `Søknad finnes ikke i databasen returnerer unrecoverable`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
-        val handler = SettAvlystSkjemaStatus(database = database)
+        val handler = SettAvlystSoknadStatus(database = database)
 
-        val skjema = transaction(database) {
-            SkjemaTable.insertReturning {
+        val soknad = transaction(database) {
+            SoknadTable.insertReturning {
                 it[id] = UUID.randomUUID()
                 it[virksomhetsnummer] = "1337"
                 it[virksomhetsnavn] = " foo bar AS"
                 it[opprettetAv] = "42"
-                it[behovForBistand] = "innsendt skjema"
+                it[behovForBistand] = "innsendt soknad"
                 it[behovForBistandTilrettelegging] = ""
                 it[behovForBistandBegrunnelse] = ""
                 it[behovForBistandEstimertKostnad] = "42"
@@ -99,15 +99,15 @@ class SettAvlystSkjemaStatusTest {
                 it[ekspertKompetanse] = ""
                 it[navKontaktPerson] = ""
                 it[beliggenhetsadresse] = ""
-                it[status] = SkjemaStatus.innsendt.toString()
-            }.single().tilSkjemaDTO().also {
-                assertEquals(SkjemaStatus.innsendt, it.status)
+                it[status] = SoknadStatus.innsendt.toString()
+            }.single().tilSoknadDTO().also {
+                assertEquals(SoknadStatus.innsendt, it.status)
             }
         }.copy(id = UUID.randomUUID().toString())
 
         val event = Event(
             id = 1L, data = EventData.SoknadAvlystIArena(
-                skjema = skjema,
+                soknad = soknad,
                 tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
                     tiltaksgjennomfoeringId = 1,
                     tiltakKode = EKSPERTBISTAND_TILTAKSKODE,

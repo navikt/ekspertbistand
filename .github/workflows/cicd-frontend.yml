@@ -122,3 +122,29 @@ jobs:
           PRINT_PAYLOAD: "true"
           VAR: image=${{ needs.compile-test-and-build.outputs.image }}
           REF: ${{ github.sha }}
+
+  deploy-prod-gcp:
+    name: Deploy to prod-gcp
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    needs: compile-test-and-build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Login to NAIS (sets registry and OIDC)
+        uses: nais/login@v0
+        with:
+          team: fager
+
+      - name: Deploy prod-gcp
+        uses: nais/deploy/actions/deploy@v2
+        env:
+          CLUSTER: prod-gcp
+          RESOURCE: nais/prod-gcp-frontend.yaml
+          PRINT_PAYLOAD: "true"
+          VAR: image=${{ needs.compile-test-and-build.outputs.image }}
+          REF: ${{ github.sha }}

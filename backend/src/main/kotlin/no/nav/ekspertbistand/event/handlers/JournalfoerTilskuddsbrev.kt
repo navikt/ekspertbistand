@@ -43,9 +43,9 @@ class JournalfoerTilskuddsbrev(
             return success()
         }
 
-        val skjema = event.data.skjema
-        if (skjema.id == null) {
-            return unrecoverableError("Skjema mangler id")
+        val soknad = event.data.soknad
+        if (soknad.id == null) {
+            return unrecoverableError("Søknad mangler id")
         }
 
         val tilsagnPdf = try {
@@ -57,7 +57,7 @@ class JournalfoerTilskuddsbrev(
         val journalpostResponse = try {
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = tittel,
-                virksomhetsnummer = skjema.virksomhet.virksomhetsnummer,
+                virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
                 eksternReferanseId = event.data.tilsagnData.tilsagnNummer.concat(),
                 dokumentPdfAsBytes = tilsagnPdf,
                 journalposttype = JournalpostType.UTGAAENDE,
@@ -81,7 +81,7 @@ class JournalfoerTilskuddsbrev(
         transaction(database) {
             QueuedEvents.insert {
                 it[eventData] = EventData.TilskuddsbrevJournalfoert(
-                    skjema = skjema,
+                    soknad = soknad,
                     dokumentId = dokumentInfoId,
                     journaldpostId = journalpostId,
                     tilsagnData = event.data.tilsagnData,
