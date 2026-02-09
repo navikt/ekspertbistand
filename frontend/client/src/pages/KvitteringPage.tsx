@@ -266,7 +266,7 @@ export default function KvitteringPage() {
                 {HENT_FORSTESIDE_URL ? (
                   <Link href={HENT_FORSTESIDE_URL} target="_blank" rel="noreferrer">
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-                      Hent førsteside
+                      Førsteside til sluttrapport
                       <ArrowRightIcon aria-hidden focusable="false" />
                     </span>
                   </Link>

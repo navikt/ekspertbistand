@@ -107,7 +107,7 @@ export default function SkjemaSteg1Page() {
                 )}
               />
               {hasVirksomhet ? (
-                <VStack gap="space-8" style={{ marginBlockStart: "var(--a-spacing-16)" }}>
+                <VStack gap="space-8" style={{ marginBlockStart: "var(--a-spacing-4)" }}>
                   <Label>Beliggenhetsadresse (hentet fra brreg.no)</Label>
                   {adresseLoading ? (
                     <BodyShort size="small">
@@ -158,7 +158,7 @@ export default function SkjemaSteg1Page() {
           </VStack>
 
           <Fieldset legend="Ansatt" style={FORM_COLUMN_STYLE}>
-            <VStack gap="space-32">
+            <VStack gap="space-16">
               <TextField
                 id="ansatt.fnr"
                 label="Fødselsnummer"
@@ -180,7 +180,7 @@ export default function SkjemaSteg1Page() {
             description="Må ha offentlig godkjent utdanning eller autorisasjon. Bedriftshelsetjenesten kan bare brukes som ekspert hvis hjelpen går utover det som vanligvis inngår i avtalen."
             style={FORM_COLUMN_STYLE}
           >
-            <VStack gap="space-32">
+            <VStack gap="space-16">
               <TextField
                 id="ekspert.navn"
                 label="Navn"

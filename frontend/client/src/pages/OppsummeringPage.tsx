@@ -136,6 +136,12 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
               </FormSummary.Answers>
             </FormSummary.Value>
           </FormSummaryAnswer>
+          <FormSummary.Answer>
+            <FormSummary.Label>
+              Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?
+            </FormSummary.Label>
+            <FormSummary.Value>{formatValue(nav.kontaktperson)}</FormSummary.Value>
+          </FormSummary.Answer>
         </FormSummary.Answers>
         {editable && onEditStep1 && (
           <FormSummary.Footer>
@@ -177,12 +183,6 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
           <FormSummary.Answer>
             <FormSummary.Label>Startdato</FormSummary.Label>
             <FormSummary.Value>{formatDate(behovForBistand.startdato)}</FormSummary.Value>
-          </FormSummary.Answer>
-          <FormSummary.Answer>
-            <FormSummary.Label>
-              Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?
-            </FormSummary.Label>
-            <FormSummary.Value>{formatValue(nav.kontaktperson)}</FormSummary.Value>
           </FormSummary.Answer>
         </FormSummary.Answers>
         {editable && onEditStep2 && (
