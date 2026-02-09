@@ -12,12 +12,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@navikt/oasis": "^4.1.1",
-    "@navikt/pino-logger": "^4.5.0",
+    "@navikt/oasis": "^4.1.4",
+    "@navikt/pino-logger": "^4.5.1",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "http-proxy-middleware": "^3.0.5",
-    "pino": "^10.2.1",
+    "pino": "^10.3.0",
     "shared": "workspace:*"
   },
   "devDependencies": {

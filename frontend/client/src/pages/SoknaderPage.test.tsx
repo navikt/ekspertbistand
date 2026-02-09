@@ -1,11 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createElement, Fragment, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
-vi.mock("react-router-dom", () => ({
-  MemoryRouter: ({ children }: { children?: ReactNode }) => createElement(Fragment, null, children),
-  Link: ({ to, children }: { to?: string; children?: ReactNode }) =>
-    createElement("a", { href: to ?? "" }, children),
-}));
+vi.mock("react-router-dom", async () => {
+  const React = await import("react");
+  return {
+    __esModule: true,
+    MemoryRouter: ({ children }: { children?: ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    Link: ({ to, children }: { to?: string; children?: ReactNode }) =>
+      React.createElement("a", { href: to ?? "" }, children),
+    useLocation: () => ({ state: {} }),
+    useNavigate: () => vi.fn(),
+  };
+});
 
 import { MemoryRouter } from "react-router-dom";
 import { render, screen, waitFor } from "@testing-library/react";

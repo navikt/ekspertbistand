@@ -14,7 +14,7 @@ export default function LandingPage() {
   if (isLoading) {
     return (
       <DecoratedPage>
-        <VStack align="center" gap="space-4" style={{ padding: "2rem" }}>
+        <VStack align="center" gap="space-4" padding="space-32">
           <Loader size="large" title="Sjekker innlogging" />
           <BodyShort>Sjekker innlogging …</BodyShort>
         </VStack>
@@ -24,7 +24,7 @@ export default function LandingPage() {
 
   return (
     <DecoratedPage>
-      <VStack gap="space-8">
+      <VStack gap="space-8" align="start">
         <VStack gap="space-4">
           <Heading level="1" size="xlarge">
             Tilskudd til ekspertbistand
@@ -40,7 +40,7 @@ export default function LandingPage() {
           </VStack>
         </VStack>
 
-        <Button as="a" href={LOGIN_URL} className="button-align-start">
+        <Button as="a" href={LOGIN_URL}>
           Logg inn
         </Button>
 
