@@ -25,12 +25,6 @@ async function startMockServiceWorker() {
   await worker.start({ onUnhandledRequest: "bypass", serviceWorker: { url: swUrl } });
 }
 
-function onError(error: Error) {
-  console.error(
-    `#FARO: Generisk feil ${error.name}:\nmessage: ${error.message}\nstack: ${error.stack}\n`
-  );
-}
-
 async function bootstrap() {
   await startMockServiceWorker();
 
@@ -60,7 +54,6 @@ async function bootstrap() {
                   </Alert>
                 </VStack>
               }
-              onError={onError}
             >
               <App />
             </ErrorBoundaryComponent>
