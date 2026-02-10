@@ -184,6 +184,11 @@ sequenceDiagram
     end
 ```
 
+### Event Log Projections
+
+Once an event is finalized and moved to the `event_log`, projections can be built to create read-optimized views of the event data. 
+See [EventLogProjectionBuilder](projections/README.md) for details.
+
 ### Source
-- [EventQueue.kt](EventQueue.kt), 
+- [EventQueue.kt](EventQueue.kt)
 - [EventManager.kt](EventManager.kt)
