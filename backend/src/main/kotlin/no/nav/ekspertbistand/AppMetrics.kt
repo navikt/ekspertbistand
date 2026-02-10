@@ -1,9 +1,20 @@
-package no.nav.ekspertbistand.event
+package no.nav.ekspertbistand
 
+import io.ktor.server.application.Application
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.MultiGauge
 import io.micrometer.core.instrument.Tags
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import no.nav.ekspertbistand.event.EventHandlerStates
+import no.nav.ekspertbistand.event.EventLog
+import no.nav.ekspertbistand.event.ProcessingStatus
+import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelse
+import no.nav.ekspertbistand.event.projections.TilskuddsbrevVist
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
 import org.jetbrains.exposed.v1.core.alias
@@ -17,8 +28,7 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
-
-class EventMetrics(
+class AppMetrics(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     meterRegistry: MeterRegistry = Metrics.meterRegistry,
 ) {
@@ -40,6 +50,18 @@ class EventMetrics(
 
     val eventHandlerStateGauge: MultiGauge = MultiGauge.builder("eventhandlerstate.size")
         .description("The number of events being handled by status")
+        .register(meterRegistry)
+
+    val soknadBehandletForsinkelseGauge: MultiGauge = MultiGauge.builder("soknad.behandlet.age")
+        .description("The number of processed soknad bucketed by processing time")
+        .register(meterRegistry)
+
+    val tilskuddsbrevVistProsentGauge: MultiGauge = MultiGauge.builder("tilskuddsbrev.vist.prosent")
+        .description("Prosentandel tilskuddsbrev vist")
+        .register(meterRegistry)
+
+    val tilskuddsbrevVistAgeGauge: MultiGauge = MultiGauge.builder("tilskuddsbrev.vist.age")
+        .description("Aldersfordeling tilskuddsbrev vist")
         .register(meterRegistry)
 
     fun queueSizeByStatus(): Map<ProcessingStatus, Double> = transaction {
@@ -101,7 +123,7 @@ class EventMetrics(
             .mapValues { (_, rows) -> rows.sumOf { it[QueuedEvents.attempts].toDouble() } }
             .filterValues { it > 0 }
     }
-    
+
 
     @OptIn(ExperimentalTime::class)
     suspend fun updateGaugesProcessingLoop(clock: Clock = Clock.System) = withContext(dispatcher) {
@@ -164,7 +186,53 @@ class EventMetrics(
                 true
             )
 
+            soknadBehandletForsinkelseGauge.register(
+                SoknadBehandletForsinkelse.soknadBehandletForsinkelseByAgeBucket(clock)
+                    .map { (key, count) ->
+                        val (status, ageBucket) = key
+                        MultiGauge.Row.of(
+                            Tags.of(
+                                "status", status,
+                                "age", ageBucket
+                            ),
+                            count.toDouble()
+                        )
+                    },
+                true
+            )
+
+            tilskuddsbrevVistProsentGauge.register(
+                listOf(
+                    MultiGauge.Row.of(
+                        Tags.empty(),
+                        TilskuddsbrevVist.tilskuddsbrevVistProsent()
+                    )
+                ),
+                true
+            )
+
+            tilskuddsbrevVistAgeGauge.register(
+                TilskuddsbrevVist.tilskuddsbrevFoerstVistAlderFordelt()
+                    .map { (ageBucket, count) ->
+                        MultiGauge.Row.of(
+                            Tags.of("age", ageBucket),
+                            count.toDouble()
+                        )
+                    },
+                true
+            )
+
+
             delay(60.seconds)
         }
+    }
+}
+
+@OptIn(ExperimentalTime::class)
+fun Application.configureAppMetrics() {
+    val appMetrics = AppMetrics()
+
+    launch {
+        appMetrics.updateGaugesProcessingLoop()
     }
 }

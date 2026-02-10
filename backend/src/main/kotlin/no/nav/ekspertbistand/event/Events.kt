@@ -5,6 +5,7 @@ import io.ktor.server.plugins.di.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.AppMetrics
 import no.nav.ekspertbistand.event.handlers.OpprettTiltaksgjennomfoeringForInnsendtSoknad
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
@@ -148,13 +149,5 @@ suspend fun Application.configureEventHandlers() {
     // Start event processing loop
     launch {
         eventManager.runProcessLoop()
-    }
-
-    val metrics = EventMetrics(
-        dispatcher = eventManager.config.dispatcher
-    )
-    // Start metrics processing loop
-    launch {
-        metrics.updateGaugesProcessingLoop()
     }
 }

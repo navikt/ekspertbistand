@@ -294,6 +294,8 @@ fun main() {
 
         configureProjectionBuilders()
 
+        configureAppMetrics()
+
         // internal endpoints and lifecycle hooks
         configureInternal()
         registerShutdownListener()
