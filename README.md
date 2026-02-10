@@ -1,7 +1,8 @@
 # Ekspertbistand
 
-Dette repoet inneholder kode for håndtering av tiltaket Ekspertbistand. 
-Den består av en frontend-applikasjon for innsending og utlisting av innsendte søknader, samt en backend-tjeneste for behandling av disse søknadene.
+Dette repoet inneholder kode for håndtering av tiltaket Ekspertbistand.
+Den består av en frontend-applikasjon for innsending og utlisting av innsendte søknader, samt en backend-tjeneste for
+behandling av disse søknadene.
 
 Applikasjonen er utviklet av Team Fager som en del av utfasing av Altinn 2 for NAV.
 Den erstatter eksisterende løsning i Altinn 2 for Ekspertbistand.
@@ -12,45 +13,35 @@ For spørsmål eller bistand, kontakt Team Fager på Slack: [#team-fager](https:
 
 Dette repoet erstatter funksjonalitet som tidligere var tilgjengelig i Altinn 2 for Ekspertbistand.
 Tidligere sendte arbeidsgiver inn søknader om ekspertbistand via Altinn 2, hvor de ble rutet videre til saksbehandler.
-Dette mottaket har vært under utfasing men er [beskrevet på confluence](https://confluence.adeo.no/spaces/TAD/pages/90553562/Verdikjeder). 
+Dette mottaket har vært under utfasing men
+er [beskrevet på confluence](https://confluence.adeo.no/spaces/TAD/pages/90553562/Verdikjeder).
 
-Når søknad sendes inn opprettes det en midlertidig journalpost og det sendes en kafka melding som lyttes på av [Dokumentfordeling](https://github.com/navikt/dokumentfordeling) applikasjonen.
+Når søknad sendes inn opprettes det en midlertidig journalpost og det sendes en kafka melding som lyttes på
+av [Dokumentfordeling](https://github.com/navikt/dokumentfordeling) applikasjonen.
 Den applikasjonen ruter så videre journalposten til riktig saksbehandler basert på regler definert i applikasjonen.
-Løsningsbeskrivelse for denne appen finnes [på confluence](https://confluence.adeo.no/spaces/AR/pages/294497858/Dokumentfordeling+-+tiltak+-+Funksjonell+bekrivelse#DokumentfordelingtiltakFunksjonellbekrivelse-Ruting).
+Løsningsbeskrivelse for denne appen
+finnes [på confluence](https://confluence.adeo.no/spaces/AR/pages/294497858/Dokumentfordeling+-+tiltak+-+Funksjonell+bekrivelse#DokumentfordelingtiltakFunksjonellbekrivelse-Ruting).
 
-## Ny løsning 
+## Ny løsning
 
 I den nye løsningen sendes søknader direkte til Ekspertbistand applikasjonen uten å gå via Altinn 2.
-Applikasjonen mottar søknader via en REST API som autentiseres med TokenX.
+Koden for den nye løsningen er i dette repoet, og den erstatter funksjonaliteten beskrevet i forrige avsnitt.
+Arbeidsgiver sender inn søknad ved å logge inn i [frontend applikasjonen](/frontend) som er tilgjengelig på
+arbeidsgiver.nav.no.
+Frontend applikasjonen kommuniserer med [backend applikasjonen](/backend) som inneholder all logikk for behandling av
+søknader, opprettelse av saker i arena, og kommunikasjon med produsent-api / Min side arbeidsgiver for å opprette
+beskjeder og statusoppdateringer der.
 
-Når en søknad mottas starter følgende prosess i applikasjonen:
+### Frontend applikasjonen
 
-1. Søknaden valideres og lagres i databasen og prosess trigges for videre behandling. (SoknadInnsendt hendelse)
-2. Avgjør behandlende enhet:  
-- Sjekk Adressebeskyttelse i pdl for arbeidstaker
-   - Hvis kode 6 aka. SPSF (Sperret adresse, strengt fortrolig) (PDL: STRENGT_FORTROLIG, STRENGT_FORTROLIG_UTLAND)
-     - hent geotilknytning for arbeidstaker fra pdl, default NAV_VIKAFOSSEN:2103 dersom mangler
-     - slå opp behandlende enhet i norg for geotilknytning og diskresjonskode SPSF
-   - Hvis kode 7 aka. SPFO (Sperret adresse, fortrolig) (PDL: FORTROLIG)
-     - rutes som normalt *
-   - hvis ingen adressebeskyttelse
-     - rutes som normalt * 
-   - normalt *: 
-     - slå opp kommunenr for virksomhet og slå opp behandlende enhet i norg for kommunenr
-   - Untak: dersom behandlende enhet er NAV_ARBEIDSLIVSSENTER_NORDLAND:1891 må denne mappes om til 1899 som er NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA
-     - TODO: sjekke om dette fortsatt gjelder og finne ut hvorfor?
-3. opprett journalpost
-4. opprett sak i arena og ta vare på saksnummer
-5. ferdigstill journalpost (TOOD: kan vi opprette og ferdigstille som et steg?)
-6. send bekreftelse til arbeidsgiver via notifikasjonsplattformen
-7. TODO: vurdere å sende melding til arbeidstaker på min side. Dette ser ikke ut som blir gjort i dagens løsning.
-8. Når vedtak blir gjort i arena får denne applikasjonen vite det via en melding på kafka topic i arena. Dette håndteres i dag av tiltak-tilsagnsbrev applikasjonen.
-   Siden tilsagnsbrev håndteres av to applikasjoner må vi sørge for at det ikke blir dobbelthåndtering av vedtak. Enten ved å skru av behandling av tiltakKode=EKSPERTBIST i tiltak-tilsagnsbrev applikasjonen eller ved å implementere logikk for å sjekke om vedtak allerede er håndtert i denne applikasjonen.
-   I denne applikasjonen sjekker vi:
-   Dersom saksnummer i meldingen samsvarer med en sak i denne applikasjonen oppdateres status på søknaden og lager melding om godkjent søknad (tidligere tilsagnsbrev).
-   Dersom saksnummer ikke finnes i denne applikasjonen ignoreres meldingen, dette for å hindre dobbelthåndtering av vedtak gjort i eksisterende løsning (tiltak-tilsagnsbrev).
-   Vurdere om tiltak-tilsagnsbrev kan gjøre en sjekk mot denne applikasjonen for å se om vedtak allerede er håndtert her før tilsagnsbrev sendes ut, eller bare skru av behandling av EKSPERTBIST der.
- 
- 
+Frontend applikasjonen er en React app som håndterer innsendingsskjema for søknader, og en oversikt over innsendte
+søknader for arbeidsgiver.
+Applikasjonen er utviklet i Vite og React, og bruker Typescript for type-sikkerhet. For mer informasjon om frontend
+applikasjonen, se [frontend/README.md](/frontend/README.md).
 
+### Backend applikasjonen
+
+Backend applikasjonen er en Ktor applikasjon skrevet i Kotlin, og håndterer all logikk for behandling av søknader,
+opprettelse av saker i arena, og kommunikasjon med produsent-api / Min side arbeidsgiver for å opprette beskjeder og
+statusoppdateringer der. For mer informasjon om backend applikasjonen, se [backend/README.md](/backend/README.md).
 
