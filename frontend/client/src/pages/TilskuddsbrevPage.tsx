@@ -27,9 +27,9 @@ export default function TilskuddsbrevPage() {
       <VStack gap="space-32">
         <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
 
-        <VStack gap="space-2" style={{ textAlign: "center" }}>
+        <VStack gap="space-2" align="center">
           <Box background="success-moderate" padding="space-12">
-            <Heading level="1" size="medium">
+            <Heading level="1" size="medium" align="center">
               Søknaden godkjent
             </Heading>
           </Box>

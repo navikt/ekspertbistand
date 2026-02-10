@@ -5,7 +5,9 @@ import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import {
   EKSPERTBISTAND_API_PATH,
   EKSPERTBISTAND_EREG_ADRESSE_PATH,
+  EKSPERTBISTAND_ORGANISASJONER_PATH,
   EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH,
+  SESSION_URL,
 } from "../utils/constants";
 
 const organisasjoner: Organisasjon[] = [
@@ -358,6 +360,9 @@ export const handlers = [
   http.get("/ekspertbistand-backend/api/organisasjoner/v1", () =>
     HttpResponse.json({ hierarki: organisasjoner })
   ),
+  http.get(EKSPERTBISTAND_ORGANISASJONER_PATH, () =>
+    HttpResponse.json({ hierarki: organisasjoner })
+  ),
   http.get(`${EKSPERTBISTAND_EREG_ADRESSE_PATH}/:orgnr/adresse`, ({ params }) => {
     const orgnr = getParamValue(params.orgnr);
     if (!orgnr || !/^\d{9}$/.test(orgnr)) {
@@ -510,4 +515,5 @@ export const handlers = [
     HttpResponse.json(loginSessionJson)
   ),
   http.get("/oauth2/session", () => HttpResponse.json(loginSessionJson)),
+  http.get(SESSION_URL, () => HttpResponse.json(loginSessionJson)),
 ];

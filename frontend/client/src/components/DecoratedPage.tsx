@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Page, type PageBlockProps } from "@navikt/ds-react";
+import { Page, type PageBlockProps, VStack } from "@navikt/ds-react";
 import { injectDecoratorClientSide } from "@navikt/nav-dekoratoren-moduler";
 import { EKSPERTBISTAND_URL } from "../utils/constants";
 import { envSwitch } from "../utils/env";
@@ -18,14 +18,15 @@ export function DecoratedPage({ children, blockProps }: DecoratedPageProps) {
     width: "lg",
     gutters: true,
     ...blockProps,
-    className: "page-content",
   };
 
   return (
     <Page footer={<Footer />}>
       <Header />
       <Page.Block as="main" {...mergedBlockProps}>
-        {children}
+        <VStack gap="space-32" paddingBlock="space-48">
+          {children}
+        </VStack>
       </Page.Block>
     </Page>
   );

@@ -1,5 +1,5 @@
-import { type JSX } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { type JSX, useEffect, useState } from "react";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { Alert, BodyShort, Box, Button, Heading, Loader, Tag, VStack } from "@navikt/ds-react";
 import { LinkCard } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
@@ -10,17 +10,29 @@ import { useSoknader } from "../hooks/useSoknader.ts";
 
 export default function SoknaderPage() {
   const { soknader, error, loading, requiresLogin } = useSoknader();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const savedDraftFromState =
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "savedDraft" in location.state &&
+    Boolean((location.state as { savedDraft?: boolean }).savedDraft);
+  const [showSavedAlert, setShowSavedAlert] = useState(savedDraftFromState);
 
+  useEffect(() => {
+    if (!savedDraftFromState) return;
+    navigate(".", { replace: true, state: {} });
+  }, [navigate, savedDraftFromState]);
   let content: JSX.Element | null;
   if (loading) {
     content = (
-      <Box className="home-page__loader" aria-live="polite">
+      <Box aria-live="polite">
         <Loader size="large" title="Laster søknader" />
       </Box>
     );
   } else if (error) {
     content = (
-      <Alert variant="error" className="home-page__alert">
+      <Alert variant="error">
         <VStack gap="space-24">
           <BodyShort>{error}</BodyShort>
           {requiresLogin ? (
@@ -35,20 +47,26 @@ export default function SoknaderPage() {
     content = <BodyShort>Du har ingen søknader ennå.</BodyShort>;
   } else {
     content = (
-      <VStack as="ul" gap="space-16" className="home-page__application-list">
+      <VStack
+        as="ul"
+        gap="space-16"
+        padding="space-0"
+        margin="space-0"
+        style={{ listStyle: "none" }}
+      >
         {soknader.map((application) => (
           <li key={application.id}>
-            <LinkCard className="home-page__application-card">
+            <LinkCard>
               <LinkCard.Title as="h3">
                 <LinkCard.Anchor asChild>
                   <RouterLink to={application.href}>{application.title}</RouterLink>
                 </LinkCard.Anchor>
               </LinkCard.Title>
               <LinkCard.Description>
-                <div className="home-page__application-meta">
+                <VStack gap="space-4" align="start">
                   <BodyShort>{application.description}</BodyShort>
                   <Tag variant={application.tag.variant}>{application.tag.label}</Tag>
-                </div>
+                </VStack>
               </LinkCard.Description>
             </LinkCard>
           </li>
@@ -59,28 +77,49 @@ export default function SoknaderPage() {
 
   return (
     <DecoratedPage>
-      <div className="home-page">
-        <BackLink href={MIN_SIDE_URL}>Tilbake til Min side - arbeidsgiver</BackLink>
-
+      <VStack gap="space-32">
         <Heading level="1" size="xlarge" spacing>
-          Søknader
+          Tilskudd til ekspertbistand
         </Heading>
 
-        <LinkCard className="home-page__create-card" size="medium" arrowPosition="center">
-          <LinkCard.Icon aria-hidden>
-            <ApplicationPictogram aria-hidden width={48} />
-          </LinkCard.Icon>
-          <LinkCard.Title as="h2">
-            <LinkCard.Anchor asChild>
-              <RouterLink to="/skjema/start">
-                Opprett søknad om tilskudd til ekspertbistand
-              </RouterLink>
-            </LinkCard.Anchor>
-          </LinkCard.Title>
-        </LinkCard>
+        <BackLink href={MIN_SIDE_URL}>Tilbake til Min side - arbeidsgiver</BackLink>
 
-        {content}
-      </div>
+        <VStack gap="space-12">
+          <LinkCard size="medium" arrowPosition="center">
+            <LinkCard.Icon aria-hidden>
+              <ApplicationPictogram aria-hidden width={48} />
+            </LinkCard.Icon>
+            <LinkCard.Title as="h2">
+              <LinkCard.Anchor asChild>
+                <RouterLink to="/skjema/start">
+                  Opprett søknad om tilskudd til ekspertbistand
+                </RouterLink>
+              </LinkCard.Anchor>
+            </LinkCard.Title>
+          </LinkCard>
+
+          <Heading level="2" size="large">
+            Søknader
+          </Heading>
+
+          {showSavedAlert ? (
+            <>
+              <BodyShort size="small" textColor="subtle">
+                Utkast lagres i 48 timer innen vi sletter dem.
+              </BodyShort>
+              <Alert
+                variant="success"
+                role="status"
+                closeButton
+                onClose={() => setShowSavedAlert(false)}
+              >
+                Utkast lagret
+              </Alert>
+            </>
+          ) : null}
+          {content}
+        </VStack>
+      </VStack>
     </DecoratedPage>
   );
 }

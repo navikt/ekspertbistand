@@ -40,7 +40,8 @@ export default function SkjemaSteg2Page() {
     | undefined;
   const syncingDateRef = useRef(false);
   const { draftId, clearDraft, lastPersistedAt } = useSoknadDraft();
-  const { goToSoknader, goToStep1, goToSummary, createLinkHandler } = useSkjemaNavigation();
+  const { goToSoknader, goToSoknaderWithSaveNotice, goToStep1, goToSummary, createLinkHandler } =
+    useSkjemaNavigation();
   const handleStepOneLink = createLinkHandler(goToStep1);
   const handleSummaryLink = createLinkHandler(goToSummary);
 
@@ -228,7 +229,7 @@ export default function SkjemaSteg2Page() {
             </HGrid>
             <DraftActions
               onContinueLater={() => {
-                goToSoknader();
+                goToSoknaderWithSaveNotice();
               }}
               onDeleteDraft={async () => {
                 await clearDraft();

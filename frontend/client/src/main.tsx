@@ -7,19 +7,15 @@ import { Theme } from "@navikt/ds-react/Theme";
 import "./index.css";
 import App from "./App.tsx";
 import { FaroErrorBoundary } from "@grafana/faro-react";
-import { Alert, Button } from "@navikt/ds-react";
-import { APP_BASE_PATH, TELEMETRY_COLLECTOR_URL } from "./utils/constants";
+import { Alert, Button, VStack } from "@navikt/ds-react";
+import { APP_BASE_PATH, isMockEnabled, TELEMETRY_COLLECTOR_URL } from "./utils/constants";
 import { SimpleErrorBoundary } from "./components/SimpleErrorBoundary";
 import { SWRConfig } from "swr";
 import { fetchJson } from "./utils/api";
 
 const routerBasename = APP_BASE_PATH || "/";
 
-const shouldEnableMocks = () => {
-  if (import.meta.env.DEV) return true;
-  const flag = import.meta.env.VITE_ENABLE_MOCKS?.toLowerCase();
-  return flag === "true" || flag === "1";
-};
+const shouldEnableMocks = () => isMockEnabled();
 
 async function startMockServiceWorker() {
   if (!shouldEnableMocks()) return;
@@ -27,6 +23,12 @@ async function startMockServiceWorker() {
   const swUrl =
     APP_BASE_PATH === "/" ? "/mockServiceWorker.js" : `${APP_BASE_PATH}/mockServiceWorker.js`;
   await worker.start({ onUnhandledRequest: "bypass", serviceWorker: { url: swUrl } });
+}
+
+function onError(error: Error) {
+  console.error(
+    `#FARO: Generisk feil ${error.name}:\nmessage: ${error.message}\nstack: ${error.stack}\n`
+  );
 }
 
 async function bootstrap() {
@@ -46,18 +48,19 @@ async function bootstrap() {
           >
             <ErrorBoundaryComponent
               fallback={
-                <div style={{ padding: "1rem" }}>
+                <VStack padding="space-16">
                   <Alert variant="error" inline={false} fullWidth>
                     <strong>Oops! Noe gikk galt.</strong>
                     <div>Vi har registrert feilen. Prøv å laste siden på nytt.</div>
-                    <div style={{ marginTop: "0.75rem" }}>
+                    <VStack style={{ marginBlockStart: "var(--a-spacing-12)" }}>
                       <Button size="small" onClick={() => window.location.reload()}>
                         Last inn på nytt
                       </Button>
-                    </div>
+                    </VStack>
                   </Alert>
-                </div>
+                </VStack>
               }
+              onError={onError}
             >
               <App />
             </ErrorBoundaryComponent>

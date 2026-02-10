@@ -92,8 +92,8 @@ const ekspertbistandBackendProxy = createProxyMiddleware({
     proxyReq(proxyReq: ClientRequest) {
       proxyReq.removeHeader("cookie");
     },
-    error(err: Error, _req: IncomingMessage, res: ServerResponse | Socket) {
-      logger.error({ err }, "Proxy error mot skjema-api");
+    error(err: Error, req: IncomingMessage, res: ServerResponse | Socket) {
+      logger.error({ err, path: req.url }, "Proxy error mot skjema-api");
       if ("writeHead" in res && typeof (res as ServerResponse).writeHead === "function") {
         const serverRes = res as ServerResponse;
         if (!serverRes.headersSent)

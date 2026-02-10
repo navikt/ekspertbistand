@@ -136,6 +136,12 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
               </FormSummary.Answers>
             </FormSummary.Value>
           </FormSummaryAnswer>
+          <FormSummary.Answer>
+            <FormSummary.Label>
+              Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?
+            </FormSummary.Label>
+            <FormSummary.Value>{formatValue(nav.kontaktperson)}</FormSummary.Value>
+          </FormSummary.Answer>
         </FormSummary.Answers>
         {editable && onEditStep1 && (
           <FormSummary.Footer>
@@ -178,12 +184,6 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
             <FormSummary.Label>Startdato</FormSummary.Label>
             <FormSummary.Value>{formatDate(behovForBistand.startdato)}</FormSummary.Value>
           </FormSummary.Answer>
-          <FormSummary.Answer>
-            <FormSummary.Label>
-              Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?
-            </FormSummary.Label>
-            <FormSummary.Value>{formatValue(nav.kontaktperson)}</FormSummary.Value>
-          </FormSummary.Answer>
         </FormSummary.Answers>
         {editable && onEditStep2 && (
           <FormSummary.Footer>
@@ -198,7 +198,8 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
 export default function OppsummeringPage() {
   const navigate = useNavigate();
   const { draftId, draft: formData, clearDraft, lastPersistedAt } = useSoknadDraft();
-  const { goToSoknader, goToStep1, goToStep2, createLinkHandler } = useSkjemaNavigation();
+  const { goToSoknader, goToSoknaderWithSaveNotice, goToStep1, goToStep2, createLinkHandler } =
+    useSkjemaNavigation();
   const [submitError, setSubmitError] = useState<ApiErrorInfo | null>(null);
   const { trigger: submitDraft, isMutating: submitting } = useSWRMutation<
     null,
@@ -315,7 +316,7 @@ export default function OppsummeringPage() {
           </HGrid>
           <DraftActions
             onContinueLater={() => {
-              goToSoknader();
+              goToSoknaderWithSaveNotice();
             }}
             onDeleteDraft={async () => {
               await clearDraft();
