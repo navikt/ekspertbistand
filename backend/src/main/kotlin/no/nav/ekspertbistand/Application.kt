@@ -111,6 +111,8 @@ fun main() {
 
         configureProjectionBuilders()
 
+        configureAppMetrics()
+
         startKafkaConsumers(coroutineContext)
 
         // internal endpoints and lifecycle hooks

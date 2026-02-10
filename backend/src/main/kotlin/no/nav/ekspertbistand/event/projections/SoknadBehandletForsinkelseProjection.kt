@@ -12,8 +12,13 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
+import kotlin.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -81,7 +86,39 @@ data class SoknadBehandletForsinkelse(
             godkjentTidspunkt = this[godkjentTidspunkt],
             avlystTidspunkt = this[avlystTidspunkt],
         )
+
+        fun soknadBehandletForsinkelseByAgeBucket(clock: Clock): Map<Pair<String, String>, Int> = transaction {
+            SoknadBehandletForsinkelseState
+                .selectAll()
+                .map { it.tilSoknadBehandletForsinkelse() }
+                .flatMap { soknad ->
+                    val godkjentForsinkelse = soknad.godkjentTidspunkt?.let {
+                        "godkjent" to ageBucket(it - soknad.innsendtTidspunkt)
+                    }
+
+                    val avlystForsinkelse = soknad.avlystTidspunkt?.let {
+                        "avlyst" to ageBucket(it - soknad.innsendtTidspunkt)
+                    }
+                    val innsendtForsinkelse = if (soknad.godkjentTidspunkt == null && soknad.avlystTidspunkt == null) {
+                        "innsendt" to ageBucket(clock.now() - soknad.innsendtTidspunkt)
+                    } else null
+
+                    listOfNotNull(godkjentForsinkelse, avlystForsinkelse, innsendtForsinkelse)
+                }
+                .groupingBy { it }
+                .eachCount()
+        }
     }
 }
 
 
+private fun ageBucket(duration: Duration): String {
+    val ageBucket = when {
+        duration <= 1.hours -> "<=1h"
+        duration <= 24.hours -> "<=1d"
+        duration <= 48.hours -> "<=2d"
+        duration <= 7.days -> "<=1w"
+        else -> ">1w"
+    }
+    return ageBucket
+}

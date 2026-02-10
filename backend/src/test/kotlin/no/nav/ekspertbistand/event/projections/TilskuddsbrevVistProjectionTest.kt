@@ -69,6 +69,27 @@ class TilskuddsbrevVistProjectionTest {
             assertNotNull(it.first().tilskuddsbrevOpprettetAt)
             assertNotNull(it.first().tilskuddsbrevFoersVistAt)
         }
+
+        assertEquals(100.0, TilskuddsbrevVist.tilskuddsbrevVistProsent())
+        TilskuddsbrevVist.tilskuddsbrevFoerstVistAlderFordelt().let {
+            assertEquals(1, it.size)
+            assertEquals("<=1h", it.entries.first().key)
+            assertEquals(1, it.entries.first().value)
+        }
+
+        publishAndFinalize(
+            EventData.TilskuddsbrevMottatt(
+                soknad = sampleSoknad,
+                tilsagnbrevId = 42,
+                tilsagnData = sampleTilsagnData.copy(tilsagnNummer = TilsagnData.TilsagnNummer(
+                    1338, 42, 43,
+                )),
+            )
+        )
+        projection.poll()
+
+        assertEquals(50.0, TilskuddsbrevVist.tilskuddsbrevVistProsent())
+
     }
 
 }

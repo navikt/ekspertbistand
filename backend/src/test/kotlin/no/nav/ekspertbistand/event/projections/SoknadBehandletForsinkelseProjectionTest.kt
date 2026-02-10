@@ -19,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -113,6 +114,12 @@ class SoknadBehandletForsinkelseProjectionTest {
             assertNotNull(it.innsendtTidspunkt)
             assertNull(it.godkjentTidspunkt)
             assertNotNull(it.avlystTidspunkt)
+        }
+
+        SoknadBehandletForsinkelse.soknadBehandletForsinkelseByAgeBucket(Clock.System).let {
+            assertEquals(2, it.size)
+            assertEquals(1, it[Pair("godkjent", "<=1h")] ?: 1)
+            assertEquals(1, it[Pair("avlyst", "<=1h")] ?: 1)
         }
     }
 
