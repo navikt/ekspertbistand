@@ -72,8 +72,8 @@ importers:
         specifier: ^3.6.2
         version: 3.6.2(csp-header@6.1.0)(html-react-parser@5.2.6(@types/react@19.2.13)(react@19.2.4))(jsdom@27.0.0)(react@19.2.4)
       '@navikt/virksomhetsvelger':
-        specifier: ^1.0.6
-        version: 1.0.6(@navikt/ds-css@8.3.0)(@navikt/ds-react@8.3.0(@types/react@19.2.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react-dom@19.2.3(@types/react@19.2.13))(@types/react@19.2.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: ^1.0.7
+        version: 1.0.7(@navikt/ds-css@8.3.0)(@navikt/ds-react@8.3.0(@types/react@19.2.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react-dom@19.2.3(@types/react@19.2.13))(@types/react@19.2.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react:
         specifier: ^19.2.4
         version: 19.2.4
@@ -634,6 +634,9 @@ packages:
       '@types/react': ^17.0.30 || ^18 || ^19
       react: ^17 || ^18 || ^19
       react-dom: ^17 || ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
 
   '@navikt/ds-tokens@8.3.0':
     resolution: {integrity: sha512-1Zy7L+FpLjE59Zfs997/X/lzyEup8DqcRwJdZ0HKw0v5YZJqa38Q6cI3DPgTq8Pc4/HUjoElUL9f4UQGMO9k5A==, tarball: https://npm.pkg.github.com/download/@navikt/ds-tokens/8.3.0/4b19cd79cb1fa5a60b87c3d44e932802564a52f7}
@@ -649,6 +652,9 @@ packages:
       html-react-parser: '>=5.x'
       jsdom: '>=16.x'
       react: '>=17.x'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@navikt/oasis@4.1.4':
     resolution: {integrity: sha512-v+LW8V5CTiHkfIXhceQ8RXRtrBktCK8wSFYmiR6hmzl9CJRYRLUpFC7YbLiC7jwHIuLHKUyl+Zawf8zQm6fDeQ==, tarball: https://npm.pkg.github.com/download/@navikt/oasis/4.1.4/0d9c93820b9b6d93b1bd9da134feb95461ad8a47}
@@ -664,8 +670,8 @@ packages:
     resolution: {integrity: sha512-WS+agfWCqHyCtIpn/iQHNBRwn1gzCQDe0NY9Tz5ErrBsWHNxtqIV7W2eAmRUa3DLrZGHczoQhup+PYT6UX/SpQ==, tarball: https://npm.pkg.github.com/download/@navikt/texas/4.1.4/1725aca0fa0b803e0048212c3e202d24c10f3c3b}
     engines: {node: ^20.19.0 || >= 22.12.0 || 24.x || 25.x}
 
-  '@navikt/virksomhetsvelger@1.0.6':
-    resolution: {integrity: sha512-mRmggcilm7u2JehgA4bIaQnWLSVfsaFlxQktMXIvkI4PxJNYf+sxsH9vyenCNUkPAN3/druXqOUHhSL/qPQ74w==, tarball: https://npm.pkg.github.com/download/@navikt/virksomhetsvelger/1.0.6/be14a744ce9343b5f3e0e9211147efaf4d3ee076}
+  '@navikt/virksomhetsvelger@1.0.7':
+    resolution: {integrity: sha512-myfId6OgbmTJhK5m/589FsxxDAG8QU2pswVf0P0d/3n0aqf1UM9PB0BGRz0Igh+ajgmPnbQa8FP5EvXLSNBJNA==, tarball: https://npm.pkg.github.com/download/@navikt/virksomhetsvelger/1.0.7/69de653df4d7bcffdc06c70f33957e85072e7eb1}
     peerDependencies:
       '@navikt/ds-css': '>=6'
       '@navikt/ds-react': '>=6'
@@ -3639,11 +3645,12 @@ snapshots:
       '@floating-ui/react-dom': 2.1.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@navikt/aksel-icons': 8.3.0
       '@navikt/ds-tokens': 8.3.0
-      '@types/react': 19.2.13
       date-fns: 4.1.0
       react: 19.2.4
       react-day-picker: 9.7.0(react@19.2.4)
       react-dom: 19.2.4(react@19.2.4)
+    optionalDependencies:
+      '@types/react': 19.2.13
 
   '@navikt/ds-tokens@8.3.0': {}
 
@@ -3655,6 +3662,7 @@ snapshots:
       html-react-parser: 5.2.6(@types/react@19.2.13)(react@19.2.4)
       js-cookie: 3.0.5
       jsdom: 27.0.0
+    optionalDependencies:
       react: 19.2.4
 
   '@navikt/oasis@4.1.4':
@@ -3673,7 +3681,7 @@ snapshots:
 
   '@navikt/texas@4.1.4': {}
 
-  '@navikt/virksomhetsvelger@1.0.6(@navikt/ds-css@8.3.0)(@navikt/ds-react@8.3.0(@types/react@19.2.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react-dom@19.2.3(@types/react@19.2.13))(@types/react@19.2.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@navikt/virksomhetsvelger@1.0.7(@navikt/ds-css@8.3.0)(@navikt/ds-react@8.3.0(@types/react@19.2.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react-dom@19.2.3(@types/react@19.2.13))(@types/react@19.2.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@navikt/ds-css': 8.3.0
       '@navikt/ds-react': 8.3.0(@types/react@19.2.13)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
