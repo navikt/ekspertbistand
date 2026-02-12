@@ -26,7 +26,7 @@
     "@navikt/ds-react": "^8.3.0",
     "@navikt/fnrvalidator": "^2.2.1",
     "@navikt/nav-dekoratoren-moduler": "^3.6.2",
-    "@navikt/virksomhetsvelger": "^1.0.6",
+    "@navikt/virksomhetsvelger": "^1.0.7",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.71.1",

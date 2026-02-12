@@ -255,7 +255,7 @@ export default function KvitteringPage() {
                 <strong>Snarveier</strong>
               </BodyShort>
               <BodyLong>
-                <Link href={REFUSJON_URL} target="_blank" rel="noreferrer">
+                <Link href={REFUSJON_URL}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
                     Søk refusjon
                     <ArrowRightIcon aria-hidden focusable="false" />
@@ -264,7 +264,7 @@ export default function KvitteringPage() {
               </BodyLong>
               <BodyLong>
                 {HENT_FORSTESIDE_URL ? (
-                  <Link href={HENT_FORSTESIDE_URL} target="_blank" rel="noreferrer">
+                  <Link href={HENT_FORSTESIDE_URL}>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
                       Førsteside til sluttrapport
                       <ArrowRightIcon aria-hidden focusable="false" />

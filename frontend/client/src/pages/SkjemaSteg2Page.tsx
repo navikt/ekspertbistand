@@ -105,7 +105,7 @@ export default function SkjemaSteg2Page() {
 
   return (
     <DecoratedPage>
-      <form onSubmit={handleSubmitStep2}>
+      <form onSubmit={handleSubmitStep2} autoComplete="off">
         <VStack gap="space-32">
           <Heading level="1" size="xlarge">
             Søknadsskjema – ekspertbistand

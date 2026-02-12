@@ -13,7 +13,7 @@ export type TilskuddsbrevHtml = z.infer<typeof tilskuddsbrevHtmlSchema>;
 
 export async function fetchTilskuddsbrevHtmlForSkjema(skjemaId: string): Promise<TilskuddsbrevHtml[]> {
   const response = await fetchJson<unknown[]>(
-    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/soknad/${skjemaId}/tilskuddsbrev-html`
+    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/skjema/${skjemaId}/tilskuddsbrev-html`
   );
   return tilskuddsbrevHtmlListSchema.parse(response ?? []);
 }
