@@ -81,7 +81,7 @@ export default function SoknadPage() {
 
   return (
     <DecoratedPage>
-      <form onSubmit={handleSubmit(onValid, () => bumpFocusKey())}>
+      <form onSubmit={handleSubmit(onValid, () => bumpFocusKey())} autoComplete="off">
         <VStack gap="space-32" data-aksel-template="form-intropage-v4">
           <VStack gap="space-12">
             <Bleed asChild marginInline={{ lg: "space-128" }}>
