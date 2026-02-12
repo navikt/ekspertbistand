@@ -117,7 +117,7 @@ export const soknadSchema = z.object({
     virksomhetsnavn: z.string(),
     virksomhetsnummer: orgnrField,
     kontaktperson: z.object({
-      navn: trimmedText("Du må fylle ut navn."),
+      navn: trimmedText("Du må fylle ut navn for kontaktperson."),
       epost: emailField,
       telefonnummer: phoneField,
     }),
@@ -125,7 +125,7 @@ export const soknadSchema = z.object({
   }),
   ansatt: z.object({
     fnr: fnrField,
-    navn: trimmedText("Du må fylle ut navn."),
+    navn: trimmedText("Du må fylle ut navn for ansatt."),
   }),
   ekspert: z.object({
     navn: trimmedText("Du må fylle ut navn på ekspert."),
@@ -133,7 +133,9 @@ export const soknadSchema = z.object({
     kompetanse: trimmedText("Du må beskrive ekspertens kompetanse."),
   }),
   behovForBistand: z.object({
-    begrunnelse: trimmedText("Du må beskrive problemstillingen."),
+    begrunnelse: trimmedText(
+      "Beskriv arbeidssituasjonen og hva som er utfordrende (stilling, oppgaver, arbeidstid)."
+    ),
     behov: trimmedText("Du må beskrive hva dere ønsker hjelp til fra eksperten."),
     timer: timerSchema,
     estimertKostnad: estimertKostnadSchema,
