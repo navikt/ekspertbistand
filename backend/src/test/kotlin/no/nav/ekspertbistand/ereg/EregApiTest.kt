@@ -38,7 +38,7 @@ class EregApiTest {
                   {
                     "adresselinje1": "Testveien 1",
                     "postnummer": "0557",
-                    "poststed": "Oslo"
+                    "poststed": ""
                   }
                 ]
               }
@@ -85,7 +85,7 @@ class EregApiTest {
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.body<AdresseResponse>()
-        assertEquals("Testveien 1, 0557 Oslo", body.adresse)
+        assertEquals("Testveien 1, 0557 OSLO", body.adresse)
     }
 
     @Test

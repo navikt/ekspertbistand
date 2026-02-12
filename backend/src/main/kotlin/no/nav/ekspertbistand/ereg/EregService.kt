@@ -1,9 +1,11 @@
 package no.nav.ekspertbistand.ereg
 
+import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.infrastruktur.logger
 
 class EregService(private val eregClient: EregClient) {
     private val log = logger()
+    
 
     suspend fun hentPostAdresse(orgnr: String): String? {
         return runCatching {
@@ -22,12 +24,23 @@ class EregService(private val eregClient: EregClient) {
     }
 
     companion object {
+        private val postadresser = Json.decodeFromString<Map<String, String>>(
+            this::class.java.getResource("/poststeder.json")!!.readText()
+        )
+
+        private fun String?.orFromMapping(postnummer: String?): String? =
+            if (isNullOrEmpty() && !postnummer.isNullOrEmpty()) {
+                postadresser[postnummer]
+            } else {
+                this
+            }
+        
         private fun Postadresse.toSingleLine(): String? = adresseTilSingleLine(
             adresselinje1,
             adresselinje2,
             adresselinje3,
             postnummer,
-            poststed
+            poststed.orFromMapping(postnummer)
         )
 
         private fun Forretningsadresse.toSingleLine(): String? = adresseTilSingleLine(
@@ -35,7 +48,7 @@ class EregService(private val eregClient: EregClient) {
             adresselinje2,
             adresselinje3,
             postnummer,
-            poststed
+            poststed.orFromMapping(postnummer)
         )
 
         private fun adresseTilSingleLine(
