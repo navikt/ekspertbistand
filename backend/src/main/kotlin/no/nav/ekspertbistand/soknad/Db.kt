@@ -10,10 +10,15 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.date
 import org.jetbrains.exposed.v1.datetime.timestamp
+import org.jetbrains.exposed.v1.datetime.timestampParam
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.*
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
+
+/** Slett innsendte søknader om 12 + 3 måneder siden siste oppdatering */
+val slettSøknadOm = 455.days
 
 @OptIn(ExperimentalTime::class)
 object SoknadTable : Table("soknad") {
@@ -51,6 +56,8 @@ object SoknadTable : Table("soknad") {
     val opprettetAv = text("opprettet_av")
 
     val opprettetTidspunkt = timestamp("opprettet_tidspunkt").defaultExpression(CurrentTimestamp)
+    val sletteTidspunkt =
+        timestamp("slett_tidspunkt").defaultExpression(timestampParam(Clock.System.now().plus(slettSøknadOm)))
 
     val status = text("status")
 

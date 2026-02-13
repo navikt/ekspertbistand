@@ -286,13 +286,12 @@ class SoknadApi(
     }
 
     fun slettGamleInnsendteSoknader(
-        ttl: Duration = 365.days,
         clock: Clock = Clock.System,
     ) = transaction {
         SoknadTable.deleteWhere {
-            SoknadTable.opprettetTidspunkt lessEq (clock.now() - ttl)
+            SoknadTable.sletteTidspunkt lessEq (clock.now())
         }.let {
-            log.info("Slettet $it gamle søknader eldre enn $ttl")
+            log.info("Slettet $it gamle innsendte søknader eldre enn $slettSøknadOm")
         }
     }
 

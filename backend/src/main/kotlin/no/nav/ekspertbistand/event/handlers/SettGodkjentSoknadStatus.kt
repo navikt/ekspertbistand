@@ -10,12 +10,15 @@ import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.slettSøknadOm
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import java.util.*
 import kotlin.reflect.KClass
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class SettGodkjentSoknadStatus(
     private val database: Database
@@ -26,6 +29,7 @@ class SettGodkjentSoknadStatus(
 
     private val logger = logger()
 
+    @OptIn(ExperimentalTime::class)
     override suspend fun handle(event: Event<EventData.TilskuddsbrevJournalfoert>): EventHandledResult {
         checkNotNull(event.data.soknad.id) { "soknad.id kan ikke være null" }
 
@@ -34,6 +38,7 @@ class SettGodkjentSoknadStatus(
                 val updates = SoknadTable.update(
                     where = { SoknadTable.id eq UUID.fromString(event.data.soknad.id) }) {
                     it[status] = SoknadStatus.godkjent.toString()
+                    it[sletteTidspunkt] = Clock.System.now().plus(slettSøknadOm)
                 }
                 if (updates == 0) {
                     unrecoverableError("Forsøkte å oppdatere status for søknad med id ${event.data.soknad.id}, men finner ikke søknad i databasen.")

@@ -10,11 +10,14 @@ import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.slettSøknadOm
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import java.util.*
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class SettAvlystSoknadStatus(
     private val database: Database
@@ -25,6 +28,8 @@ class SettAvlystSoknadStatus(
 
     private val logger = logger()
 
+
+    @OptIn(ExperimentalTime::class)
     override suspend fun handle(event: Event<EventData.SoknadAvlystIArena>): EventHandledResult {
         if (event.data.soknad.id == null) {
             throw RuntimeException("soknad.id er null")
@@ -35,6 +40,7 @@ class SettAvlystSoknadStatus(
                 val updates = SoknadTable.update(
                     where = { SoknadTable.id eq UUID.fromString(event.data.soknad.id) }) {
                     it[status] = SoknadStatus.avlyst.toString()
+                    it[sletteTidspunkt] = Clock.System.now().plus(slettSøknadOm)
                 }
                 if (updates == 0) {
                     unrecoverableError("Forsøkte å oppdatere status for soknad med id ${event.data.soknad.id}, men finner ikke soknad i databasen.")

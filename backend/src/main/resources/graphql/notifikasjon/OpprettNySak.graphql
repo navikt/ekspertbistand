@@ -6,11 +6,10 @@ mutation OpprettNySak(
     $lenke: String!
     $tidspunkt: ISO8601DateTime
     $mottaker: MottakerInput!
+    $hardDelete: FutureTemporalInput
 ) {
     nySak(
-        hardDelete: {
-            om: "PT17520H"
-        }
+        hardDelete: $hardDelete
         grupperingsid: $grupperingsid
         merkelapp: $merkelapp
         virksomhetsnummer: $virksomhetsnummer
