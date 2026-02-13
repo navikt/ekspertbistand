@@ -57,7 +57,7 @@ object SoknadTable : Table("soknad") {
 
     val opprettetTidspunkt = timestamp("opprettet_tidspunkt").defaultExpression(CurrentTimestamp)
     val sletteTidspunkt =
-        timestamp("slett_tidspunkt").defaultExpression(timestampParam(Clock.System.now().plus(slettSøknadOm)))
+        timestamp("slette_tidspunkt").defaultExpression(timestampParam(Clock.System.now().plus(slettSøknadOm)))
 
     val status = text("status")
 

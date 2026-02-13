@@ -20,8 +20,9 @@ import kotlin.reflect.KClass
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-class SettGodkjentSoknadStatus(
-    private val database: Database
+class SettGodkjentSoknadStatus @OptIn(ExperimentalTime::class) constructor(
+    private val database: Database,
+    private val clock: Clock = Clock.System
 ) : EventHandler<EventData.TilskuddsbrevJournalfoert> {
 
     override val id = "Sett soknadstatus godkjent"
@@ -38,7 +39,7 @@ class SettGodkjentSoknadStatus(
                 val updates = SoknadTable.update(
                     where = { SoknadTable.id eq UUID.fromString(event.data.soknad.id) }) {
                     it[status] = SoknadStatus.godkjent.toString()
-                    it[sletteTidspunkt] = Clock.System.now().plus(slettSøknadOm)
+                    it[sletteTidspunkt] = clock.now().plus(slettSøknadOm)
                 }
                 if (updates == 0) {
                     unrecoverableError("Forsøkte å oppdatere status for søknad med id ${event.data.soknad.id}, men finner ikke søknad i databasen.")

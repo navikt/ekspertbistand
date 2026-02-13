@@ -19,8 +19,9 @@ import java.util.*
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-class SettAvlystSoknadStatus(
-    private val database: Database
+class SettAvlystSoknadStatus @OptIn(ExperimentalTime::class) constructor(
+    private val database: Database,
+    private val clock: Clock = Clock.System,
 ) : EventHandler<EventData.SoknadAvlystIArena> {
 
     override val id = "Sett soknadstatus avlyst"
@@ -40,7 +41,7 @@ class SettAvlystSoknadStatus(
                 val updates = SoknadTable.update(
                     where = { SoknadTable.id eq UUID.fromString(event.data.soknad.id) }) {
                     it[status] = SoknadStatus.avlyst.toString()
-                    it[sletteTidspunkt] = Clock.System.now().plus(slettSøknadOm)
+                    it[sletteTidspunkt] = clock.now().plus(slettSøknadOm)
                 }
                 if (updates == 0) {
                     unrecoverableError("Forsøkte å oppdatere status for soknad med id ${event.data.soknad.id}, men finner ikke soknad i databasen.")
