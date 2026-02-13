@@ -3,9 +3,6 @@ package no.nav.ekspertbistand.infrastruktur
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.http.*
-import io.ktor.server.application.Application
-import io.ktor.server.plugins.di.dependencies
-import kotlinx.coroutines.runBlocking
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.configuration.FluentConfiguration
 import org.jetbrains.exposed.v1.core.DatabaseConfig
@@ -140,33 +137,4 @@ class DbUrl(
     val r2dbcUrl = "r2dbc:postgresql://$host:$port/$database"
 
     override fun toString() = "jdbc:$uri"
-}
-
-fun Application.configureDatabase() = runBlocking {
-    val dbConfig = dependencies.resolve<DbConfig>()
-
-    dbConfig.flywayAction {
-        migrate()
-    }
-
-    dependencies {
-        // mixing r2dbc and jdbc does not work well together, so we use only jdbc for now
-        //provide<R2dbcDatabase> {
-        //    dbConfig.r2dbcDatabase
-        //}
-        provide<Database> {
-            dbConfig.jdbcDatabase
-        }
-    }
-}
-
-/**
- * cleans all data in database. Should only be used in dev/test environments.
- */
-fun DbConfig.destroyExistingDatabase() = runBlocking {
-    flywayConfig.cleanDisabled(false)
-    flywayConfig.validateOnMigrate(false)
-    flywayAction {
-        clean()
-    }
 }
