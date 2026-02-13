@@ -8,26 +8,14 @@ import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
 import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.infrastruktur.*
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.HardDeleteSak
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.ISO8601DateTime
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.NyStatusSak
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNyBeskjed
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNySak
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.*
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.NyTidStrategi
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.Sendevindu
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.DefaultHardDeleteSakResultatImplementation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.harddeletesak.HardDeleteSakVellykket
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.AltinnRessursMottakerInput
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.EksterntVarselAltinnressursInput
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.EksterntVarselInput
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.MottakerInput
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.SendetidspunktInput
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.DefaultNyStatusSakResultatImplementation
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.Konflikt
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.NyStatusSakVellykket
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.SakFinnesIkke
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.UgyldigMerkelapp
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.UkjentProdusent
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.inputs.*
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.*
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DefaultNyBeskjedResultatImplementation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DuplikatEksternIdOgMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedVellykket
@@ -35,6 +23,7 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.Default
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsid
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsidEtterDelete
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.NySakVellykket
+import no.nav.ekspertbistand.soknad.slettSøknadOm
 import java.net.URI
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
@@ -101,7 +90,8 @@ class ProdusentApiKlient(
                     tittel = tittel,
                     lenke = lenke,
                     tidspunkt = tidspunkt,
-                    mottaker = mottaker
+                    mottaker = mottaker,
+                    hardDelete = FutureTemporalInput(om = slettSøknadOm.toIsoString()),
                 )
             )
         ) {
@@ -184,10 +174,14 @@ class ProdusentApiKlient(
                 variables = NyStatusSak.Variables(
                     idempotencyKey = "$grupperingsid-$statusTekst",
                     grupperingsid = grupperingsid,
-                    merkelapp =  merkelapp,
+                    merkelapp = merkelapp,
                     nyStatus = status,
+                    overstyrStatustekstMed = statusTekst,
                     tidspunkt = tidspunkt,
-                    overstyrStatustekstMed = statusTekst
+                    hardDelete = HardDeleteUpdateInput(
+                        nyTid = FutureTemporalInput(om = slettSøknadOm.toIsoString()),
+                        strategi = NyTidStrategi.OVERSKRIV
+                    )
                 )
             )
         ) {

@@ -6,7 +6,7 @@ mutation NyStatusSak(
     $tidspunkt: ISO8601DateTime,
     $overstyrStatustekstMed: String,
     $hardDelete: HardDeleteUpdateInput,
-    $nyLenkeTilSak: String
+    $nyLenkeTilSak: String,
 ) {
     nyStatusSakByGrupperingsid(
         idempotencyKey: $idempotencyKey,

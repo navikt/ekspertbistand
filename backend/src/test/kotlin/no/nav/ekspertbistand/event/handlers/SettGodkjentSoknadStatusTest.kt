@@ -7,6 +7,7 @@ import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.slettSøknadOm
 import no.nav.ekspertbistand.soknad.tilSoknadDTO
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insertReturning
@@ -16,13 +17,24 @@ import org.junit.jupiter.api.Test
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 class SettGodkjentSoknadStatusTest {
 
+    @OptIn(ExperimentalTime::class)
     @Test
     fun `Søknad settes til godkjent`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
-        val handler = SettGodkjentSoknadStatus(database = database)
+        var now = Instant.parse("2026-01-01T12:00:00Z")
+
+        val handler = SettGodkjentSoknadStatus(database = database, clock = object : Clock {
+            override fun now(): Instant {
+                return now
+            }
+        })
 
         val soknad = transaction(database) {
             SoknadTable.insertReturning {
@@ -47,10 +59,15 @@ class SettGodkjentSoknadStatusTest {
                 it[navKontaktPerson] = ""
                 it[beliggenhetsadresse] = ""
                 it[status] = SoknadStatus.innsendt.toString()
-            }.single().tilSoknadDTO().also {
-                assertEquals(SoknadStatus.innsendt, it.status)
-            }
+                it[sletteTidspunkt] = now
+            }.single().also { rw ->
+                assertEquals(SoknadStatus.innsendt, SoknadStatus.valueOf(rw[SoknadTable.status]))
+                assertEquals(now, rw[SoknadTable.sletteTidspunkt])
+            }.tilSoknadDTO()
         }
+
+        // flytt now en dag frem i tid
+        now = now.plus(1.days)
 
         val event = Event(
             id = 1L, data = EventData.TilskuddsbrevJournalfoert(
@@ -61,14 +78,17 @@ class SettGodkjentSoknadStatusTest {
             )
         )
         assertIs<EventHandledResult.Success>(handler.handle(event))
+        val nyttSletteTidspunkt = now.plus(slettSøknadOm)
 
         transaction(database) {
-            SoknadTable.selectAll().single().tilSoknadDTO().let {
-                assertEquals(SoknadStatus.godkjent, it.status)
+            SoknadTable.selectAll().single().let { rw ->
+                assertEquals(SoknadStatus.godkjent, SoknadStatus.valueOf(rw[SoknadTable.status]))
+                assertEquals(nyttSletteTidspunkt, rw[SoknadTable.sletteTidspunkt])
             }
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     @Test
     fun `Søknad finnes ikke i databasen returnerer unrecoverable`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase

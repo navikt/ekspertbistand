@@ -164,11 +164,6 @@ fun Application.configureDatabase() = runBlocking {
  * cleans all data in database. Should only be used in dev/test environments.
  */
 fun DbConfig.destroyExistingDatabase() = runBlocking {
-    basedOnEnv(
-        prod = { error("destroyExistingDatabase enabled! Cannot destroy database in prod environment") },
-        other = Unit,
-    )
-
     flywayConfig.cleanDisabled(false)
     flywayConfig.validateOnMigrate(false)
     flywayAction {
