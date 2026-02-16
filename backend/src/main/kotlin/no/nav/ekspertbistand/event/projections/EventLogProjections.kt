@@ -15,7 +15,10 @@ import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.ForUpdate
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED
 import org.jetbrains.exposed.v1.jdbc.*
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -36,58 +39,70 @@ import kotlin.time.Instant
 @OptIn(ExperimentalTime::class)
 abstract class EventLogProjectionBuilder(
     val database: Database,
+    val batchSize: Int = 100,
 ) {
     val log = logger()
     abstract val name: String
 
+    /**
+     * Handle a single event from the event log. This method is called for each event that has not yet been processed by this projection builder.
+     * Projection builders are at-least-once, so the same event may be delivered multiple times in case of errors.
+     * Implementations should ensure that handling is idempotent.
+     */
     abstract fun handle(event: Event<out EventData>, eventTimestamp: Instant)
 
     fun poll() = transaction(database) {
-        val currentPosition = ProjectionBuilderState
-            .select(ProjectionBuilderState.position)
-            .where { ProjectionBuilderState.builderName eq name }
-            .firstOrNull().let {
-                if (it == null) {
-                    // not registered yet, TODO: consider moving this to a setup step
-                    ProjectionBuilderState.insertReturning(
-                        returning = listOf(ProjectionBuilderState.position)
-                    ) { stmnt ->
-                        stmnt[builderName] = name
-                        stmnt[this.position] = 0
-                    }.first()[ProjectionBuilderState.position]
-                } else {
-                    it[ProjectionBuilderState.position]
-                }
-            }
+        initializePositionIfNeeded()
 
-        // fetch events from event log with id > position
+        // Claim the projection row using FOR UPDATE SKIP LOCKED to ensure serial processing
+        val currentPosition = getCurrentPositionWithLock() ?: return@transaction false
+
         val loggedEvents = EventLog
             .selectAll()
             .where { EventLog.id greater currentPosition }
             .andWhere { EventLog.status eq COMPLETED }
             .orderBy(EventLog.id)
-            .limit(1) // TODO: configurable batch size
+            .limit(batchSize)
             .map { it.tilLoggedEvent() }
 
         loggedEvents.forEach { loggedEvent ->
             try {
                 handle(loggedEvent.event, loggedEvent.createdAt)
-
-                ProjectionBuilderState.upsert(
-                    where = { ProjectionBuilderState.builderName eq name },
-                ) { stmnt ->
-                    stmnt[builderName] = name
-                    stmnt[position] = loggedEvent.id
-                }
             } catch (e: Exception) {
                 e.rethrowIfCancellation()
                 throw Exception("error handling event ${loggedEvent.id} in projection builder $name", e)
             }
         }
 
+        loggedEvents.lastOrNull()?.let { lastEvent ->
+            ProjectionBuilderState.update(
+                where = { ProjectionBuilderState.builderName eq name },
+            ) { stmnt ->
+                stmnt[position] = lastEvent.id
+            }
+        }
+
         loggedEvents.isNotEmpty() // return true if we processed any events
     }
 
+    /**
+     * Attempts to acquire a lock on the projection state row for this builder.
+     * If the row is locked by another transaction, returns null.
+     * If return value is null it means another instance of this projection builder is currently processing
+     */
+    private fun getCurrentPositionWithLock(): Long? =
+        ProjectionBuilderState
+            .select(ProjectionBuilderState.position)
+            .where { ProjectionBuilderState.builderName eq name }
+            .forUpdate(ForUpdate(SKIP_LOCKED))
+            .firstOrNull()?.get(ProjectionBuilderState.position)
+
+    private fun initializePositionIfNeeded() {
+        ProjectionBuilderState.insertIgnore {
+            it[builderName] = name
+            it[this.position] = 0
+        }
+    }
 }
 
 object ProjectionBuilderState : Table("projection_builder_state") {
@@ -109,11 +124,11 @@ suspend fun Application.configureProjectionBuilders() {
             while (true) {
                 try {
                     val processed = builder.poll()
-                    if (!processed) delay(100.milliseconds) // prevent busy loop
+                    if (!processed) delay(10.seconds) // prevent busy loop
                 } catch (e: Exception) {
                     e.rethrowIfCancellation()
                     logger().error("error polling projection builder ${builder.name}", e)
-                    delay(5.seconds) // wait before retrying on error
+                    delay(60.seconds) // wait before retrying on error
                 }
             }
         }
