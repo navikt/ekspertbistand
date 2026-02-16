@@ -45,14 +45,14 @@ abstract class EventLogProjectionBuilder(
     fun poll() = transaction(database) {
         val currentPosition = ProjectionBuilderState
             .select(ProjectionBuilderState.position)
-            .where { ProjectionBuilderState.builderName eq id }
+            .where { ProjectionBuilderState.builderName eq name }
             .firstOrNull().let {
                 if (it == null) {
                     // not registered yet, TODO: consider moving this to a setup step
                     ProjectionBuilderState.insertReturning(
                         returning = listOf(ProjectionBuilderState.position)
                     ) { stmnt ->
-                        stmnt[builderName] = id
+                        stmnt[builderName] = name
                         stmnt[this.position] = 0
                     }.first()[ProjectionBuilderState.position]
                 } else {
@@ -74,9 +74,9 @@ abstract class EventLogProjectionBuilder(
                 handle(loggedEvent.event, loggedEvent.createdAt)
 
                 ProjectionBuilderState.upsert(
-                    where = { ProjectionBuilderState.builderName eq id },
+                    where = { ProjectionBuilderState.builderName eq name },
                 ) { stmnt ->
-                    stmnt[builderName] = id
+                    stmnt[builderName] = name
                     stmnt[position] = loggedEvent.id
                 }
             } catch (e: Exception) {
