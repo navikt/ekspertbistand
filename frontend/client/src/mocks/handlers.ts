@@ -357,9 +357,6 @@ const createMockTilskuddsbrevHtml = () => [
 
 export const handlers = [
   http.get("/internal/isAlive", () => HttpResponse.json({ status: "ok" })),
-  http.get("/ekspertbistand-backend/api/organisasjoner/v1", () =>
-    HttpResponse.json({ hierarki: organisasjoner })
-  ),
   http.get(EKSPERTBISTAND_ORGANISASJONER_PATH, () =>
     HttpResponse.json({ hierarki: organisasjoner })
   ),

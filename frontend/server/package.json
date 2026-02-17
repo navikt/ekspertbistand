@@ -17,8 +17,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "http-proxy-middleware": "^3.0.5",
-    "pino": "^10.3.0",
-    "shared": "workspace:*"
+    "pino": "^10.3.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

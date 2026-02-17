@@ -61,4 +61,4 @@ export const LOGIN_URL = envSwitch({
 export const SESSION_URL = withBasePath("/oauth2/session");
 
 export const TILGANGSSTYRING_URL =
-  "https://www.nav.no/arbeidsgiver/min-side-arbeidsgiver/tilgangsstyring";
+  "https://www.nav.no/arbeidsgiver/tilganger";

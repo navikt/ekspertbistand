@@ -1,6 +1,5 @@
 import express from "express";
 import type { Request, Response } from "express";
-import type { ApiHealth } from "shared";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -11,6 +10,10 @@ import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import type { Socket } from "net";
 import rateLimit, { ipKeyGenerator, type RateLimitInfo } from "express-rate-limit";
 import { createHash } from "crypto";
+
+type ApiHealth = {
+  status: "ok";
+};
 
 const {
   PORT = "4000",

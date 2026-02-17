@@ -1,5 +1,8 @@
 import useSWR from "swr";
-import type { ApiHealth } from "shared";
+
+type ApiHealth = {
+  status: "ok";
+};
 
 export default function HealthPage() {
   const { data } = useSWR<ApiHealth>("/internal/isAlive");
