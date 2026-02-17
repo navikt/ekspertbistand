@@ -47,7 +47,19 @@ function SkjemaDraftOutlet() {
 }
 
 function OrganisasjonerGate() {
+  const { authenticated, error: sessionError, isLoading: isSessionLoading } = useSession();
   const { organisasjoner, error, isLoading } = useOrganisasjoner();
+  if (isSessionLoading) {
+    return (
+      <VStack align="center" gap="space-4" padding="space-32">
+        <Loader size="large" title="Sjekker innlogging" />
+        <BodyShort>Sjekker innlogging …</BodyShort>
+      </VStack>
+    );
+  }
+  if (sessionError || !authenticated) {
+    return <LoginRequiredPage />;
+  }
   if (error) {
     return <TilgangFeilPage />;
   }
