@@ -49,8 +49,8 @@ export default function LandingPage() {
             Les om tilgangsstyring
           </Heading>
           <BodyLong size="small">
-            For å kunne sende inn søknad må du ha blitt tildelt enkelttrettigheten “Ekspertbistand”
-            for den aktuelle virksomheten.
+            For å kunne sende inn søknad må du ha blitt tildelt enkeltrettigheten "Tilskudd til
+            ekspertbistand" for den aktuelle virksomheten.
           </BodyLong>
         </LinkPanel>
       </VStack>
