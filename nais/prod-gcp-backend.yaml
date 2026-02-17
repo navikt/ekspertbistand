@@ -10,11 +10,11 @@ spec:
 
   liveness:
     path: /internal/isalive
-    initialDelay: 30
+    initialDelay: 45
 
   readiness:
     path: /internal/isready
-    initialDelay: 30
+    initialDelay: 45
 
   prometheus:
     enabled: true
@@ -27,9 +27,9 @@ spec:
 
   resources:
     requests:
-      memory: 512Mi
-    limits:
       memory: 1024Mi
+    limits:
+      memory: 2048Mi
 
   tokenx:
     enabled: true
