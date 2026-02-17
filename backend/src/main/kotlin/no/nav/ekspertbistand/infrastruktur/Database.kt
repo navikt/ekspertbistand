@@ -36,7 +36,7 @@ class DbConfig(
 
             maximumPoolSize = 20
             minimumIdle = 5
-            connectionTimeout = 60000
+            connectionTimeout = 30000
             idleTimeout = 600000
             maxLifetime = 1800000
             leakDetectionThreshold = 60000
