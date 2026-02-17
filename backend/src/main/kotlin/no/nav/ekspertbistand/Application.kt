@@ -89,8 +89,8 @@ fun main() {
             provide(PdlApiKlient::class)
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
-            provide { ArenaTilsagnsbrevProcessor(resolve(), startKafkaProsesseringAt) }
-            provide { ArenaTiltaksgjennomforingEndretProcessor(resolve(), startKafkaProsesseringAt) }
+            provide<ArenaTilsagnsbrevProcessor> { ArenaTilsagnsbrevProcessor(resolve(), startKafkaProsesseringAt) }
+            provide<ArenaTiltaksgjennomforingEndretProcessor> { ArenaTiltaksgjennomforingEndretProcessor(resolve(), startKafkaProsesseringAt) }
         }
 
         // configure standard server stuff
