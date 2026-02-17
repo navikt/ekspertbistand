@@ -51,12 +51,4 @@ export default defineConfig([
       globals: globals.node,
     },
   },
-
-  {
-    files: ["frontend/shared/**/*.{ts,tsx,js}"],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: {},
-    },
-  },
 ]);

@@ -12,7 +12,6 @@ RUN corepack enable
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./.npmrc ./
 COPY frontend/client/package.json frontend/client/
 COPY frontend/server/package.json frontend/server/
-COPY frontend/shared/package.json frontend/shared/
 
 ARG NODE_AUTH_TOKEN
 
