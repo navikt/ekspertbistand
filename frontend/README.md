@@ -63,7 +63,6 @@ pnpm --filter server run dev`
 - Bygg/verktøy: `pnpm` workspaces, Vite, TypeScript, `tsx`
 - Klient: React (med `@vitejs/plugin-react-swc`)
 - Server (BFF): Express (TypeScript)
-- Delte typer: `frontend/shared`-pakke
 - Testing: Vitest, Testing Library, Playwright (e2e), MSW
 - Kodekvalitet: ESLint og Prettier (husky + lint-staged)
 
