@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.infrastruktur
 
 import io.micrometer.core.instrument.Clock
+import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Timer.builder
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
@@ -12,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
-import kotlin.text.compareTo
 
 object Metrics {
     val clock: Clock = Clock.SYSTEM
@@ -20,10 +20,23 @@ object Metrics {
     val meterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
 }
 
+/**
+ * Interceptor for measuring execution time of SQL statements.
+ * It records the start time before execution and calculates the duration after execution, recording it in a Micrometer Timer metric.
+ * Is registered as a global interceptor via SPI, so it will measure all SQL statements executed through Exposed.
+ */
 @OptIn(ExperimentalAtomicApi::class)
-class MetricsStatementInterceptor : GlobalStatementInterceptor {
+class MetricsStatementInterceptor(
+    /**
+     * MeterRegistry to record metrics to. By default, it uses the global MeterRegistry, but can be overridden for testing.
+     */
+    val meterRegistry: MeterRegistry = Metrics.meterRegistry,
+) : GlobalStatementInterceptor {
+    companion object {
+        const val TIMER_ID = "database.execution"
+    }
+
     private val log = logger()
-    private val metricName = "database.execution"
     private val startTimes = ConcurrentHashMap<Pair<String, String>, Long>()
     private val lastCleanupCheck = AtomicLong(Metrics.clock.monotonicTime())
 
@@ -49,10 +62,10 @@ class MetricsStatementInterceptor : GlobalStatementInterceptor {
             val coord = transaction.id to parameterizedSQL
             startTimes.remove(coord)?.let { startTime ->
                 val duration = endTime - startTime
-                builder(metricName)
+                builder(TIMER_ID)
                     .publishPercentiles(0.5, 0.8, 0.9, 0.99)
                     .tag("sql", parameterizedSQL)
-                    .register(Metrics.meterRegistry)
+                    .register(meterRegistry)
                     .record(duration, TimeUnit.NANOSECONDS)
             }
         }

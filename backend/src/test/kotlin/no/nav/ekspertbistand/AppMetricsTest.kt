@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -13,15 +14,21 @@ import no.nav.ekspertbistand.event.EventHandlerStates
 import no.nav.ekspertbistand.event.EventLog
 import no.nav.ekspertbistand.event.ProcessingStatus
 import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelse.Companion.tilSoknadBehandletForsinkelse
 import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelseState
 import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState
+import no.nav.ekspertbistand.infrastruktur.MetricsStatementInterceptor
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
+import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.junit.jupiter.api.Assertions
 import java.util.UUID
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -64,14 +71,14 @@ class AppMetricsTest {
                     .get("eventqueue.size")
                     .tag("status", ProcessingStatus.PENDING.name)
                     .gauge().let {
-                        Assertions.assertEquals(2.0, it.value())
+                        assertEquals(2.0, it.value())
                     }
 
                 meterRegistry
                     .get("eventqueue.size")
                     .tag("status", ProcessingStatus.PROCESSING.name)
                     .gauge().let {
-                        Assertions.assertEquals(1.0, it.value())
+                        assertEquals(1.0, it.value())
                     }
             }
 
@@ -117,14 +124,14 @@ class AppMetricsTest {
                     .get("eventlog.size")
                     .tag("status", ProcessingStatus.COMPLETED.name)
                     .gauge().let {
-                        Assertions.assertEquals(2.0, it.value())
+                        assertEquals(2.0, it.value())
                     }
 
                 meterRegistry
                     .get("eventlog.size")
                     .tag("status", ProcessingStatus.COMPLETED_WITH_ERRORS.name)
                     .gauge().let {
-                        Assertions.assertEquals(1.0, it.value())
+                        assertEquals(1.0, it.value())
                     }
             }
         }
@@ -171,28 +178,28 @@ class AppMetricsTest {
                 meterRegistry.get("eventqueue.age")
                     .tag("age", "<1m")
                     .gauge().let {
-                        Assertions.assertEquals(1.0, it.value())
+                        assertEquals(1.0, it.value())
 
                     }
                 meterRegistry.get("eventqueue.age")
                     .tag("age", "<5m")
                     .gauge().let {
-                        Assertions.assertEquals(1.0, it.value())
+                        assertEquals(1.0, it.value())
                     }
                 meterRegistry.get("eventqueue.age")
                     .tag("age", "<15m")
                     .gauge().let {
-                        Assertions.assertEquals(1.0, it.value())
+                        assertEquals(1.0, it.value())
                     }
                 meterRegistry.get("eventqueue.age")
                     .tag("age", "<30m")
                     .gauge().let {
-                        Assertions.assertEquals(0.0, it.value())
+                        assertEquals(0.0, it.value())
                     }
                 meterRegistry.get("eventqueue.age")
                     .tag("age", ">30m")
                     .gauge().let {
-                        Assertions.assertEquals(1.0, it.value())
+                        assertEquals(1.0, it.value())
                     }
             }
         }
@@ -237,19 +244,19 @@ class AppMetricsTest {
                     .tag("handlerId", "handlerA")
                     .tag("result", "Success")
                     .gauge().let {
-                        Assertions.assertEquals(1.0, it.value())
+                        assertEquals(1.0, it.value())
                     }
                 meterRegistry.get("eventhandlerstate.size")
                     .tag("handlerId", "handlerA")
                     .tag("result", "TransientError")
                     .gauge().let {
-                        Assertions.assertEquals(1.0, it.value())
+                        assertEquals(1.0, it.value())
                     }
                 meterRegistry.get("eventhandlerstate.size")
                     .tag("handlerId", "handlerB")
                     .tag("result", "Success")
                     .gauge().let {
-                        Assertions.assertEquals(2.0, it.value())
+                        assertEquals(2.0, it.value())
                     }
             }
         }
@@ -297,12 +304,12 @@ class AppMetricsTest {
                 meterRegistry.get("eventqueue.retries")
                     .tag("event", "foo") // see SerialName in EventData
                     .gauge().let {
-                        Assertions.assertEquals(2.0, it.value())
+                        assertEquals(2.0, it.value())
                     }
                 meterRegistry.get("eventqueue.retries")
                     .tag("event", "bar") // see SerialName in EventData
                     .gauge().let {
-                        Assertions.assertEquals(6.0, it.value())
+                        assertEquals(6.0, it.value())
                     }
             }
         }
@@ -358,7 +365,7 @@ class AppMetricsTest {
                             .tag("status", status)
                             .tag("age", ageBucket)
                             .gauge().let {
-                                Assertions.assertEquals(1.0, it.value())
+                                assertEquals(1.0, it.value())
                             }
                     }
                 }
@@ -395,7 +402,7 @@ class AppMetricsTest {
 
                 meterRegistry.get("tilskuddsbrev.vist.prosent")
                     .gauge().let {
-                        Assertions.assertEquals(33.33333333333333, it.value())
+                        assertEquals(33.33333333333333, it.value())
                     }
             }
         }
@@ -432,12 +439,64 @@ class AppMetricsTest {
                     meterRegistry.get("tilskuddsbrev.vist.age")
                         .tag("age", ageBucket)
                         .gauge().let {
-                            Assertions.assertEquals(1.0, it.value())
+                            assertEquals(1.0, it.value())
                         }
                 }
             }
         }
+    }
 
+    @Test
+    fun `MetricsStatementInterceptor records database query execution times`() = runTest {
+        TestDatabase().cleanMigrate().use {
+            val now = Clock.System.now()
+
+            // Create some test data
+            transaction {
+                SoknadBehandletForsinkelseState.insert {
+                    it[soknadId] = UUID.randomUUID().toString()
+                    it[innsendtTidspunkt] = now.minus(2.hours)
+                    it[godkjentTidspunkt] = null
+                    it[avlystTidspunkt] = now
+                }
+            }
+
+            val simpleMeterRegistry = SimpleMeterRegistry()
+            // Ensure no timers are recorded before the interceptor is registered
+            assertEquals(0, simpleMeterRegistry.find(MetricsStatementInterceptor.TIMER_ID).timers().count())
+            transaction {
+                registerInterceptor(MetricsStatementInterceptor(
+                    meterRegistry = simpleMeterRegistry
+                ))
+
+                SoknadBehandletForsinkelseState.selectAll()
+                    .where { SoknadBehandletForsinkelseState.innsendtTidspunkt lessEq now }
+                    .count()
+            }
+
+
+            // Verify that the metric is recorded
+            val timers = simpleMeterRegistry.find(MetricsStatementInterceptor.TIMER_ID).timers()
+            assertEquals(1, timers.count())
+            timers.first().let { timer ->
+                assertEquals(1, timer.count())
+                assertTrue(timer.totalTime(java.util.concurrent.TimeUnit.NANOSECONDS) > 0)
+
+                // ensure percentiles are enabled
+                assertTrue(timer.takeSnapshot().percentileValues().isNotEmpty())
+                timer.takeSnapshot().percentileValues().forEach { percentile ->
+                    assertTrue(percentile.value() > 0)
+                }
+
+                // ensure the SQL tag contains the parameterized query, not the raw query with parameters
+                assertEquals(
+                    "SELECT COUNT(*) FROM soknad_behandlet_forsinkelse_state WHERE soknad_behandlet_forsinkelse_state.innsendt_at <= ?",
+                    timer.id.getTag("sql")
+                )
+
+            }
+
+        }
     }
 
 
