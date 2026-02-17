@@ -13,6 +13,7 @@ import no.nav.ekspertbistand.event.EventHandlerStates
 import no.nav.ekspertbistand.event.EventLog
 import no.nav.ekspertbistand.event.ProcessingStatus
 import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.projections.ProjectionBuilderState
 import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelse
 import no.nav.ekspertbistand.event.projections.TilskuddsbrevVist
 import no.nav.ekspertbistand.infrastruktur.Metrics
@@ -62,6 +63,10 @@ class AppMetrics(
 
     val tilskuddsbrevVistAgeGauge: MultiGauge = MultiGauge.builder("tilskuddsbrev.vist.age")
         .description("Aldersfordeling tilskuddsbrev vist")
+        .register(meterRegistry)
+
+    val projectionBuilderLagGauge: MultiGauge = MultiGauge.builder("projectionbuilder.lag")
+        .description("Lag per projection builder")
         .register(meterRegistry)
 
     fun queueSizeByStatus(): Map<ProcessingStatus, Double> = transaction {
@@ -217,6 +222,17 @@ class AppMetrics(
                         MultiGauge.Row.of(
                             Tags.of("age", ageBucket),
                             count.toDouble()
+                        )
+                    },
+                true
+            )
+
+            projectionBuilderLagGauge.register(
+                ProjectionBuilderState.lagPerBuilder()
+                    .map { (builderName, lag) ->
+                        MultiGauge.Row.of(
+                            Tags.of("builder", builderName),
+                            lag.toDouble()
                         )
                     },
                 true

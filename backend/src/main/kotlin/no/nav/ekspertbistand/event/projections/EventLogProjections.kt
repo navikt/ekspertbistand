@@ -12,6 +12,7 @@ import no.nav.ekspertbistand.event.LoggedEvent.Companion.tilLoggedEvent
 import no.nav.ekspertbistand.event.ProcessingStatus.COMPLETED
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
@@ -20,7 +21,6 @@ import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.MODE.SKI
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -110,6 +110,17 @@ object ProjectionBuilderState : Table("projection_builder_state") {
     val position = long("position").default(0)
 
     override val primaryKey = PrimaryKey(builderName)
+
+    fun lagPerBuilder(): Map<String, Long> = transaction {
+        val maxPosition = EventLog.select(EventLog.id)
+            .orderBy(EventLog.id, SortOrder.DESC)
+            .limit(1)
+            .firstOrNull()?.get(EventLog.id) ?: 0L
+
+        ProjectionBuilderState
+            .selectAll()
+            .associate { it[builderName] to (maxPosition - it[position]) }
+    }
 }
 
 suspend fun Application.configureProjectionBuilders() {
