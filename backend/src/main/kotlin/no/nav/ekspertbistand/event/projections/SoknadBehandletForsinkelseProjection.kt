@@ -28,7 +28,7 @@ class SoknadBehandletForsinkelseProjection(
 ) : EventLogProjectionBuilder(database) {
     override val name = "SoknadBehandlet"
 
-    override fun handle(event: Event<out EventData>, eventTimestamp: Instant) = transaction<Unit>(database) {
+    override fun handle(event: Event<out EventData>, eventTimestamp: Instant) {
         when (event.data) {
             is EventData.SoknadInnsendt -> {
                 SoknadBehandletForsinkelseState.insert {
