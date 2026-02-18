@@ -30,7 +30,7 @@ class TilskuddsbrevVistProjection(
 ) : EventLogProjectionBuilder(database) {
     override val name = "TilskuddsbrevVist"
 
-    override fun handle(event: Event<out EventData>, eventTimestamp: Instant) = transaction<Unit>(database) {
+    override fun handle(event: Event<out EventData>, eventTimestamp: Instant) {
         when (event.data) {
             is EventData.TilskuddsbrevMottatt -> {
                 TilskuddsbrevVistState.insert {

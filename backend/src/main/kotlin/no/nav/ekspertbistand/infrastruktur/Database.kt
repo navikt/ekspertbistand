@@ -33,6 +33,7 @@ class DbConfig(
         HikariDataSource(HikariConfig().apply {
             jdbcUrl = url
             driverClassName = "org.postgresql.Driver"
+            metricRegistry = Metrics.meterRegistry
 
             maximumPoolSize = 20
             minimumIdle = 5

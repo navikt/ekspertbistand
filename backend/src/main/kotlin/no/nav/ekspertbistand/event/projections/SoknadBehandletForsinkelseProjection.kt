@@ -87,7 +87,7 @@ data class SoknadBehandletForsinkelse(
             avlystTidspunkt = this[avlystTidspunkt],
         )
 
-        fun soknadBehandletForsinkelseByAgeBucket(clock: Clock): Map<Pair<String, String>, Int> = transaction {
+        fun soknadBehandletForsinkelseByAgeBucket(clock: Clock): Map<Pair<String, String>, Int> =
             SoknadBehandletForsinkelseState
                 .selectAll()
                 .map { it.tilSoknadBehandletForsinkelse() }
@@ -107,7 +107,6 @@ data class SoknadBehandletForsinkelse(
                 }
                 .groupingBy { it }
                 .eachCount()
-        }
     }
 }
 
