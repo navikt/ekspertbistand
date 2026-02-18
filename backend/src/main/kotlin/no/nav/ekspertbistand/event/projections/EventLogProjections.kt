@@ -39,7 +39,7 @@ import kotlin.time.Instant
 @OptIn(ExperimentalTime::class)
 abstract class EventLogProjectionBuilder(
     val database: Database,
-    val batchSize: Int = 100,
+    val batchSize: Int = 10,
 ) {
     val log = logger()
     abstract val name: String
