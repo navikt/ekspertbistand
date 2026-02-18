@@ -33,7 +33,7 @@ class MetricsStatementInterceptor(
     val meterRegistry: MeterRegistry = Metrics.meterRegistry,
 ) : GlobalStatementInterceptor {
     companion object {
-        const val TIMER_ID = "database.execution"
+        const val TIMER_ID = "exposed.database.execution"
     }
 
     private val log = logger()
