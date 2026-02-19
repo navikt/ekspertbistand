@@ -5,22 +5,10 @@ import io.ktor.server.plugins.di.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import no.nav.ekspertbistand.AppMetrics
-import no.nav.ekspertbistand.event.handlers.OpprettTiltaksgjennomfoeringForInnsendtSoknad
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
-import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrev
-import no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrevKildeAltinn
-import no.nav.ekspertbistand.event.handlers.LagreTilsagnsData
-import no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSoknad
-import no.nav.ekspertbistand.event.handlers.LagreTilsagnsDataKildeAltinn
-import no.nav.ekspertbistand.event.handlers.SettAvlystSoknadStatus
-import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjent
-import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottatt
-import no.nav.ekspertbistand.event.handlers.SettGodkjentSoknadStatus
-import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst
-import no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjentKildeAltinn
+import no.nav.ekspertbistand.event.handlers.*
 import no.nav.ekspertbistand.soknad.DTO
 import kotlin.time.ExperimentalTime
 

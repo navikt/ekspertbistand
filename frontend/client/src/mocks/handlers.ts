@@ -489,7 +489,7 @@ export const handlers = [
     return HttpResponse.json(toSkjemaDto(entry));
   }),
   http.get(
-    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/skjema/:skjemaId/tilskuddsbrev-html`,
+    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/soknad/:skjemaId/tilskuddsbrev-html`,
     ({ params }) => {
       const skjemaId = getParamValue(params.skjemaId);
       if (!skjemaId) {
