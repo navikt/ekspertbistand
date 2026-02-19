@@ -126,6 +126,10 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(SettAvlystSoknadStatus::class))
         register(dependencies.create(LagreTilsagnsData::class))
         register(dependencies.create(LagreTilsagnsDataKildeAltinn::class))
+        register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
+            // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
+            EventHandledResult.Success()
+        }
 
         register<EventData>("InlineAlEventsHandler") { event ->
             // Inline handler example
