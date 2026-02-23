@@ -67,6 +67,6 @@ spec:
           namespace: fager
         - application: norg2
           namespace: org
-        - application: arena-api-q2
+        - application: arena-api
           namespace: teamarenanais
           cluster: prod-fss
