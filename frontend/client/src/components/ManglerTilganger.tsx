@@ -31,6 +31,10 @@ export default function ManglerTilganger() {
             For å kunne sende inn søknad må du ha blitt tildelt enkeltrettigheten “Tilskudd til
             ekspertbistand” for den aktuelle virksomheten.
           </List.Item>
+          <List.Item>
+            Har du nettopp fått delegert tilgang? Det kan ta opptil 10 minutter før den blir
+            tilgjengelig her.
+          </List.Item>
         </List>
       </div>
       <LinkCard>
