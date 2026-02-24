@@ -21,19 +21,23 @@ export default function TilskuddsbrevPage() {
       ? error.message
       : "Kunne ikke hente tilskuddsbrevet akkurat nå."
     : null;
+  const hasTilskuddsbrev = Boolean(tilskuddsbrevHtml?.tilsagnNummer && tilskuddsbrevHtml?.html);
+  const shouldShowApproved = !isLoading && !errorMessage && hasTilskuddsbrev;
 
   return (
     <DecoratedPage>
       <VStack gap="space-32">
         <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
 
-        <VStack gap="space-2" align="center">
-          <Box background="success-moderate" padding="space-12">
-            <Heading level="1" size="medium" align="center">
-              Søknaden godkjent
-            </Heading>
-          </Box>
-        </VStack>
+        {shouldShowApproved && (
+          <VStack gap="space-2" align="center">
+            <Box background="success-moderate" padding="space-12">
+              <Heading level="1" size="medium" align="center">
+                Søknaden godkjent
+              </Heading>
+            </Box>
+          </VStack>
+        )}
 
         {isLoading && (
           <Box aria-live="polite">
@@ -47,7 +51,7 @@ export default function TilskuddsbrevPage() {
           </Alert>
         )}
 
-        {!isLoading && !errorMessage && tilskuddsbrevHtml && (
+        {!isLoading && !errorMessage && hasTilskuddsbrev && tilskuddsbrevHtml && (
           <VStack gap="space-12">
             <Heading level="2" size="small">
               Tilskuddsbrev {tilskuddsbrevHtml.tilsagnNummer}
