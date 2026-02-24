@@ -11,7 +11,8 @@ export default function LoginRequiredPage() {
         </Heading>
         <Alert variant="warning">
           <BodyLong>
-            For å se søknadene dine må du logge inn med Altinn-rettigheten «Ekspertbistand».
+            For å kunne sende inn søknad må du ha blitt tildelt enkeltrettigheten "Tilskudd til
+            ekspertbistand" for den aktuelle virksomheten.
           </BodyLong>
         </Alert>
         <Button as="a" href={LOGIN_URL} variant="primary">
