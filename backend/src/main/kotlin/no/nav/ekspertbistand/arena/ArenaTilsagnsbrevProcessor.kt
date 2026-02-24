@@ -173,10 +173,10 @@ data class TilsagnData(
     @Serializable
     data class TiltakArrangor(
         val arbgiverNavn: String,
-        val landKode: String,
-        val postAdresse: String,
-        val postNummer: String,
-        val postSted: String,
+        val landKode: String? = null,
+        val postAdresse: String? = null,
+        val postNummer: String? = null,
+        val postSted: String? = null,
         val orgNummerMorselskap: Long,
         val orgNummer: Long,
         val kontoNummer: String,
