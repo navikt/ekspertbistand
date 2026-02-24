@@ -270,7 +270,7 @@ sealed class EventHandledResult {
 
         fun Throwable.toErrorDetails() = ErrorDetails(
             message = message,
-            stackTrace = stackTrace.toString()
+            stackTrace = stackTrace.joinToString()
         )
     }
 }
