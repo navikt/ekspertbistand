@@ -7,10 +7,12 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
+import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.soknad.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.time.Instant
 
@@ -86,24 +88,28 @@ class ArenaTilsagnsbrevProcessor(
                 Json.decodeFromString<DTO.Soknad>(this[ArenaSakTable.soknad])
             }
         }
-        if (soknad != null) {
+        val event = if (soknad != null) {
             // Det er vi som har opprettet tiltaket
-            EventQueue.publish(
-                EventData.TilskuddsbrevMottatt(
-                    soknad = soknad,
-                    tilsagnbrevId = tilskuddsbrevMelding.tilsagnBrevId,
-                    tilsagnData = tilskuddsbrevMelding.tilsagnData
-                )
+            EventData.TilskuddsbrevMottatt(
+                soknad = soknad,
+                tilsagnbrevId = tilskuddsbrevMelding.tilsagnBrevId,
+                tilsagnData = tilskuddsbrevMelding.tilsagnData
             )
         } else {
             // søknad godkjent men sendt inn i gammel altinn 2 løsning
             // dette vil skje i overgangsperioden
-            EventQueue.publish(
-                EventData.TilskuddsbrevMottattKildeAltinn(
-                    tilsagnbrevId = tilskuddsbrevMelding.tilsagnBrevId,
-                    tilsagnData = tilskuddsbrevMelding.tilsagnData
-                )
+            EventData.TilskuddsbrevMottattKildeAltinn(
+                tilsagnbrevId = tilskuddsbrevMelding.tilsagnBrevId,
+                tilsagnData = tilskuddsbrevMelding.tilsagnData
             )
+        }
+        transaction(database) {
+            val ikkeTidligereBehandlet = markerTilsagnsbrevMeldingSomBehandlet(tilskuddsbrevMelding.tilsagnBrevId)
+            if (ikkeTidligereBehandlet) {
+                EventQueue.publish(event)
+            } else {
+                log.info("Tilsagnsbrev melding med tilsagnBrevId=${tilskuddsbrevMelding.tilsagnBrevId} er allerede behandlet, ignorerer melding")
+            }
         }
     }
 

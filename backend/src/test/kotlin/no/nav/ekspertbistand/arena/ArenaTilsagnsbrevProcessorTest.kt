@@ -21,6 +21,7 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import java.time.Instant
 import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
 class ArenaTilsagnsbrevProcessorTest {
@@ -70,14 +71,14 @@ class ArenaTilsagnsbrevProcessorTest {
                 )
             )
             transaction(db.config.jdbcDatabase) {
-            val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
-            assertEquals(1, queuedEvents.count())
-            val eventData = queuedEvents.first().eventData as EventData.TilskuddsbrevMottattKildeAltinn
-            assertNotNull(eventData)
-            assertEquals(2019, eventData.tilsagnData.tilsagnNummer.aar)
-            assertEquals(319383, eventData.tilsagnData.tilsagnNummer.loepenrSak)
+                val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
+                assertEquals(1, queuedEvents.count())
+                val eventData = queuedEvents.first().eventData as EventData.TilskuddsbrevMottattKildeAltinn
+                assertNotNull(eventData)
+                assertEquals(2019, eventData.tilsagnData.tilsagnNummer.aar)
+                assertEquals(319383, eventData.tilsagnData.tilsagnNummer.loepenrSak)
 
-        }
+            }
         }
 
     @Test
@@ -107,6 +108,35 @@ class ArenaTilsagnsbrevProcessorTest {
                 assertEquals(2019, eventData.tilsagnData.tilsagnNummer.aar)
                 assertEquals(319383, eventData.tilsagnData.tilsagnNummer.loepenrSak)
 
+            }
+        }
+
+    @Test
+    fun `duplikatmelding med samme tilsagnsId skal kun publiseres èn gang`() =
+        testApplicationWithDatabase { db ->
+            val saksnummer = "2019319383"
+            transaction {
+                insertArenaSak(saksnummer, 123, soknad)
+            }
+            val processor = ArenaTilsagnsbrevProcessor(
+                db.config.jdbcDatabase,
+                Instant.EPOCH,
+            )
+            val record = createConsumerRecord(
+                kafkaMelding(
+                    1,
+                    42,
+                    eksempelMelding(EKSPERTBISTAND_TILTAKSKODE, 2019, 319383)
+                )
+            )
+
+            processor.processRecord(record)
+            processor.processRecord(record)
+
+            transaction(db.config.jdbcDatabase) {
+                val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
+                assertEquals(1, queuedEvents.count())
+                assertIs<EventData.TilskuddsbrevMottatt>(queuedEvents.first().eventData)
             }
         }
 
