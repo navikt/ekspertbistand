@@ -98,6 +98,33 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
             }
         }
 
+    @Test
+    fun `duplikatmelding med samme tilskuddsbrevid skal kun publiseres én gang`() =
+        testApplicationWithDatabase { db ->
+            val tiltaksgjennomfoeringId = 1337
+            transaction {
+                insertArenaSak("2019319383", tiltaksgjennomfoeringId, soknad)
+            }
+            val processor = ArenaTiltaksgjennomforingEndretProcessor(
+                db.config.jdbcDatabase,
+                Instant.EPOCH
+            )
+            val record = createConsumerRecord(
+                kafkaMelding(tiltaksgjennomfoeringId, "EKSPEBIST", AVLYST)
+            )
+
+            processor.processRecord(record)
+            processor.processRecord(record)
+
+            transaction(db.config.jdbcDatabase) {
+                val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
+                assertEquals(1, queuedEvents.count())
+                val eventData = queuedEvents.first().eventData as EventData.SoknadAvlystIArena
+                assertNotNull(eventData)
+                assertEquals(tiltaksgjennomfoeringId, eventData.tiltaksgjennomforingEndret.tiltaksgjennomfoeringId)
+            }
+        }
+
 
     @Test
     fun `eksempelmelding for tiltak som er EKSPEBIST, status == AVLYST og opprettet av oss skal ikke behandles før startProcessingAt`() =
