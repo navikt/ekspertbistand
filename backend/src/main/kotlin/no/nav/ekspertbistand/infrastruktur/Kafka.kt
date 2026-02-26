@@ -48,7 +48,7 @@ class CoroutineKafkaConsumer(
             consumer.subscribe(config.topics)
             log.info("Successfully subscribed to $config")
 
-            while (isActive) {
+            while (isActiveAndNotTerminating) {
                 var currentRecord: ConsumerRecord<String?, String?>? = null
                 try {
                     val records = consumer.poll(java.time.Duration.ofMillis(1000))
@@ -82,7 +82,7 @@ class CoroutineKafkaConsumer(
         kafkaConsumer.use { consumer ->
             consumer.subscribe(config.topics)
 
-            while (isActive) {
+            while (isActiveAndNotTerminating) {
                 try {
                     val records = consumer.poll(java.time.Duration.ofMillis(1000))
                     if (records.any()) {
