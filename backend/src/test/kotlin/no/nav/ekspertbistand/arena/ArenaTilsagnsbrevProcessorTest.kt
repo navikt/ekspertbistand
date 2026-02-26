@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.arena
 import io.ktor.http.*
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import no.nav.ekspertbistand.event.EventData
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import java.time.Instant
 import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 
 class ArenaTilsagnsbrevProcessorTest {
@@ -159,6 +161,32 @@ class ArenaTilsagnsbrevProcessorTest {
                 )
             )
         }
+    }
+
+    @Test
+    fun `melding med manglende deltaker kaster exception`() = testApplicationWithDatabase { db ->
+        val meldingUtenDeltaker = Json.parseToJsonElement(eksempelMelding(EKSPERTBISTAND_TILTAKSKODE, 2019, 319383))
+            .jsonObject
+            .toMutableMap()
+            .apply { put("deltaker", JsonNull) }
+            .let { Json.encodeToString(JsonObject.serializer(), JsonObject(it)) }
+
+        val exception = assertFailsWith<Exception> {
+            ArenaTilsagnsbrevProcessor(
+                db.config.jdbcDatabase,
+                Instant.EPOCH,
+            ).processRecord(
+                createConsumerRecord(
+                    kafkaMelding(
+                        1,
+                        42,
+                        meldingUtenDeltaker
+                    )
+                )
+            )
+        }
+
+        assertEquals("TilsagnsbrevKafkaMelding mangler deltaker. key: key", exception.message)
     }
 }
 
