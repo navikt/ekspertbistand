@@ -40,22 +40,28 @@ class ArenaTilsagnsbrevProcessor(
             return
         }
 
-        val kafkaMelding = json.decodeFromString<JsonObject>(value)
-        val tilskuddsbrevMelding = kafkaMelding.let { wrapper ->
-            wrapper["after"]?.let { after ->
-                if (after is JsonObject) {
-                    val tilsagnBrevId = after["TILSAGNSBREV_ID"]!!.jsonPrimitive.int
-                    val tilsagnId = after["TILSAGN_ID"]!!.jsonPrimitive.int
-                    val tilsagnData = json.decodeFromString<TilsagnData>(after["TILSAGN_DATA"]!!.jsonPrimitive.content)
-                    TilsagnsbrevKafkaMelding(
-                        tilsagnBrevId = tilsagnBrevId,
-                        tilsagnId = tilsagnId,
-                        tilsagnData = tilsagnData,
-                    )
-                } else {
-                    null
+        val tilskuddsbrevMelding = try {
+            val kafkaMelding = json.decodeFromString<JsonObject>(value)
+            kafkaMelding.let { wrapper ->
+                wrapper["after"]?.let { after ->
+                    if (after is JsonObject) {
+                        val tilsagnBrevId = after["TILSAGNSBREV_ID"]!!.jsonPrimitive.int
+                        val tilsagnId = after["TILSAGN_ID"]!!.jsonPrimitive.int
+                        val tilsagnData =
+                            json.decodeFromString<TilsagnData>(after["TILSAGN_DATA"]!!.jsonPrimitive.content)
+                        TilsagnsbrevKafkaMelding(
+                            tilsagnBrevId = tilsagnBrevId,
+                            tilsagnId = tilsagnId,
+                            tilsagnData = tilsagnData,
+                        )
+                    } else {
+                        null
+                    }
                 }
             }
+        } catch (e: Exception) {
+            teamLog.error("Kunne ikke parse TilsagnsbrevKafkaMelding. record: {}", record.toString())
+            throw Exception("Kunne ikke parse TilsagnsbrevKafkaMelding. key: ${record.key()}", e)
         }
 
         if (tilskuddsbrevMelding == null) {
