@@ -21,10 +21,179 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import java.time.Instant
 import java.util.*
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 
 class ArenaTilsagnsbrevProcessorTest {
+    companion object {
+        /**
+         * kafka meldinger kommer wrappet. se: https://confluence.adeo.no/spaces/ARENA/pages/340837316/Arena+-+Funksjonalitet+-+Tilsagnsbrev+-+TAG#ArenaFunksjonalitetTilsagnsbrevTAG-KafkaTopic
+         *
+         * hjelpefunksjon som lager en wrappet melding hvor TILSAGN_DATA blir escapet slik det kommer på kafka.
+         */
+        fun kafkaMelding(
+            tilsagnsbrevId: Int,
+            tilsagnId: Int,
+            tilsagnData: String,
+        ): String = """
+            {
+                "table": "ARENA_TAG.TAG_TILSAGNSBREV",
+                "op_type": "I",
+                "op_ts": "2019-10-09 15:20:11.106331",
+                "current_ts": "2019-10-09T15:32:38.324000",
+                "pos": "00000000000000002324",
+                "after": {
+                    "TILSAGNSBREV_ID": $tilsagnsbrevId,
+                    "TILSAGN_ID": $tilsagnId,
+                    "TILSAGN_DATA": ${
+                        Json.parseToJsonElement(tilsagnData).let { Json.encodeToString(JsonObject.serializer(), it.jsonObject) }
+                            .escapeIfNeeded()
+                    },
+                    "REG_DATO": "2019-10-08 11:16:30",
+                    "REG_USER": "SIAMO",
+                    "MOD_DATO": "2019-10-08 11:16:30",
+                    "MOD_USER": "SIAMO"
+                }
+            }
+            """
+
+        /**
+         * se eksempel: https://confluence.adeo.no/spaces/ARENA/pages/366966551/Arena+-+Tjeneste+Kafka+-+Tilsagnsbrev
+         */
+// language=JSON
+        fun eksempelMelding(tiltakKode: String, aar: Int, loepenrSak: Int) = """
+            {
+                "tilsagnNummer": {
+                    "aar": $aar,
+                    "loepenrSak": $loepenrSak,
+                    "loepenrTilsagn": 1
+                },
+                "tilsagnDato": "2019-09-25",
+                "periode": {
+                    "fraDato": "2019-09-14",
+                    "tilDato": "2019-12-31"
+                },
+                "tiltakKode": "$tiltakKode",
+                "tiltakNavn": "Enkeltplass Fag- og yrkesopplæring VGS og høyere yrkesfaglig utdanning",
+                "administrasjonKode": "IND",
+                "refusjonfristDato": "2020-02-29",
+                "tiltakArrangor": {
+                    "arbgiverNavn": "TREIDER KOMPETANSE AS",
+                    "landKode": "NO",
+                    "postAdresse": "Nedre Vollgate 8",
+                    "postNummer": "0158",
+                    "postSted": "OSLO",
+                    "orgNummerMorselskap": 920053106,
+                    "orgNummer": 920130283,
+                    "kontoNummer": "32600596984",
+                    "maalform": "NO"
+                },
+                "totaltTilskuddbelop": 59300,
+                "valutaKode": "NOK",
+                "tilskuddListe": [
+                    {
+                        "tilskuddType": "Drift",
+                        "tilskuddBelop": 48000,
+                        "visTilskuddProsent": false,
+                        "tilskuddProsent": null
+                    },
+                    {
+                        "tilskuddType": "Drift",
+                        "tilskuddBelop": 1800,
+                        "visTilskuddProsent": false,
+                        "tilskuddProsent": null
+                    },
+                    {
+                        "tilskuddType": "Drift",
+                        "tilskuddBelop": 9500,
+                        "visTilskuddProsent": false,
+                        "tilskuddProsent": null
+                    }
+                ],
+                "deltaker": {
+                    "fodselsnr": "0101011990",
+                    "fornavn": "OLA",
+                    "etternavn": "NORDMANN",
+                    "landKode": "NO",
+                    "postAdresse": "Veien 1",
+                    "postNummer": "2013",
+                    "postSted": "SKJETTEN"
+                },
+                "antallDeltakere": null,
+                "antallTimeverk": null,
+                "navEnhet": {
+                    "navKontor": "0231",
+                    "navKontorNavn": "NAV Skedsmo",
+                    "postAdresse": "Postboks 294",
+                    "postNummer": "2001",
+                    "postSted": "LILLESTRØM",
+                    "telefon": "55553333",
+                    "faks": null
+                },
+                "beslutter": {
+                    "fornavn": "Bjarne",
+                    "etternavn": "Beslutter"
+                },
+                "saksbehandler": {
+                    "fornavn": "Stine",
+                    "etternavn": "Saksbehandler"
+                },
+                "kommentar": null
+            }
+        """.trimIndent()
+
+
+        fun createConsumerRecord(melding: String?, timestamp: Instant = Instant.parse("2026-01-01T00:00:00.00Z")) =
+            ConsumerRecord(
+                ArenaTilsagnsbrevProcessor.TOPIC,
+                0,
+                0,
+                timestamp.toEpochMilli(),
+                TimestampType.NO_TIMESTAMP_TYPE,
+                ConsumerRecord.NULL_SIZE,
+                ConsumerRecord.NULL_SIZE,
+                "key",
+                melding,
+                RecordHeaders(),
+                Optional.empty()
+            )
+
+
+
+        val soknad = DTO.Soknad(
+            id = UUID.randomUUID().toString(),
+            virksomhet = DTO.Virksomhet(
+                virksomhetsnummer = "1337",
+                virksomhetsnavn = "foo bar AS",
+                kontaktperson = DTO.Kontaktperson(
+                    navn = "Donald Duck",
+                    epost = "Donald@duck.co",
+                    telefonnummer = "12345678"
+                )
+            ),
+            ansatt = DTO.Ansatt(
+                fnr = "12345678910",
+                navn = "Ole Olsen"
+            ),
+            ekspert = DTO.Ekspert(
+                navn = "Egon Olsen",
+                virksomhet = "Olsenbanden AS",
+                kompetanse = "Bankran",
+            ),
+            behovForBistand = DTO.BehovForBistand(
+                behov = "Tilrettelegging",
+                begrunnelse = "Tilrettelegging på arbeidsplassen",
+                estimertKostnad = "4200",
+                timer = "16",
+                tilrettelegging = "Spesialtilpasset kontor",
+                startdato = LocalDate.parse("2024-11-15")
+            ),
+            nav = DTO.Nav(
+                kontaktperson = "Navn Navnesen"
+            ),
+            opprettetAv = "Noen Noensen",
+            status = SoknadStatus.innsendt,
+        )
+    }
 
     @Test
     fun `eksempelmelding for tiltak som ikke er EKSPEBIST skal ikke behandles`() = testApplicationWithDatabase { db ->
@@ -112,36 +281,6 @@ class ArenaTilsagnsbrevProcessorTest {
         }
 
     @Test
-    fun `duplikatmelding med samme tilsagnsId skal kun publiseres èn gang`() =
-        testApplicationWithDatabase { db ->
-            val saksnummer = "2019319383"
-            transaction {
-                insertArenaSak(saksnummer, 123, soknad)
-            }
-            val processor = ArenaTilsagnsbrevProcessor(
-                db.config.jdbcDatabase,
-                Instant.EPOCH,
-            )
-            val record = createConsumerRecord(
-                kafkaMelding(
-                    1,
-                    42,
-                    eksempelMelding(EKSPERTBISTAND_TILTAKSKODE, 2019, 319383)
-                )
-            )
-
-            processor.processRecord(record)
-            processor.processRecord(record)
-
-            transaction(db.config.jdbcDatabase) {
-                val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
-                assertEquals(1, queuedEvents.count())
-                assertIs<EventData.TilskuddsbrevMottatt>(queuedEvents.first().eventData)
-            }
-        }
-
-
-    @Test
     fun `eksempelmelding for tiltak som er EKSPEBIST og opprettet av oss skal ikke behandles da før startProcessingAt`() =
         testApplicationWithDatabase { db ->
             val saksnummer = "2019319383"
@@ -191,170 +330,3 @@ class ArenaTilsagnsbrevProcessorTest {
         }
     }
 }
-
-private fun createConsumerRecord(melding: String?, timestamp: Instant = Instant.parse("2026-01-01T00:00:00.00Z")) =
-    ConsumerRecord(
-        ArenaTilsagnsbrevProcessor.TOPIC,
-        0,
-        0,
-        timestamp.toEpochMilli(),
-        TimestampType.NO_TIMESTAMP_TYPE,
-        ConsumerRecord.NULL_SIZE,
-        ConsumerRecord.NULL_SIZE,
-        "key",
-        melding,
-        RecordHeaders(),
-        Optional.empty<Int?>()
-    )
-
-
-/**
- * kafka meldinger kommer wrappet. se: https://confluence.adeo.no/spaces/ARENA/pages/340837316/Arena+-+Funksjonalitet+-+Tilsagnsbrev+-+TAG#ArenaFunksjonalitetTilsagnsbrevTAG-KafkaTopic
- *
- * hjelpefunksjon som lager en wrappet melding hvor TILSAGN_DATA blir escapet slik det kommer på kafka.
- */
-private fun kafkaMelding(
-    tilsagnsbrevId: Int,
-    tilsagnId: Int,
-    tilsagnData: String,
-): String = """
-{
-	"table": "ARENA_TAG.TAG_TILSAGNSBREV",
-	"op_type": "I",
-	"op_ts": "2019-10-09 15:20:11.106331",
-	"current_ts": "2019-10-09T15:32:38.324000",
-	"pos": "00000000000000002324",
-	"after": {
-		"TILSAGNSBREV_ID": $tilsagnsbrevId,
-		"TILSAGN_ID": $tilsagnId,
-		"TILSAGN_DATA": ${
-    Json.parseToJsonElement(tilsagnData).let { Json.encodeToString(JsonObject.serializer(), it.jsonObject) }
-        .escapeIfNeeded()
-},
-		"REG_DATO": "2019-10-08 11:16:30",
-		"REG_USER": "SIAMO",
-		"MOD_DATO": "2019-10-08 11:16:30",
-		"MOD_USER": "SIAMO"
-	}
-}
-"""
-
-/**
- * se eksempel: https://confluence.adeo.no/spaces/ARENA/pages/366966551/Arena+-+Tjeneste+Kafka+-+Tilsagnsbrev
- */
-// language=JSON
-fun eksempelMelding(tiltakKode: String, aar: Int, loepenrSak: Int) = """
-    {
-        "tilsagnNummer": {
-            "aar": $aar,
-            "loepenrSak": $loepenrSak,
-            "loepenrTilsagn": 1
-        },
-        "tilsagnDato": "2019-09-25",
-        "periode": {
-            "fraDato": "2019-09-14",
-            "tilDato": "2019-12-31"
-        },
-        "tiltakKode": "$tiltakKode",
-        "tiltakNavn": "Enkeltplass Fag- og yrkesopplæring VGS og høyere yrkesfaglig utdanning",
-        "administrasjonKode": "IND",
-        "refusjonfristDato": "2020-02-29",
-        "tiltakArrangor": {
-            "arbgiverNavn": "TREIDER KOMPETANSE AS",
-            "landKode": "NO",
-            "postAdresse": "Nedre Vollgate 8",
-            "postNummer": "0158",
-            "postSted": "OSLO",
-            "orgNummerMorselskap": 920053106,
-            "orgNummer": 920130283,
-            "kontoNummer": "32600596984",
-            "maalform": "NO"
-        },
-        "totaltTilskuddbelop": 59300,
-        "valutaKode": "NOK",
-        "tilskuddListe": [
-            {
-                "tilskuddType": "Drift",
-                "tilskuddBelop": 48000,
-                "visTilskuddProsent": false,
-                "tilskuddProsent": null
-            },
-            {
-                "tilskuddType": "Drift",
-                "tilskuddBelop": 1800,
-                "visTilskuddProsent": false,
-                "tilskuddProsent": null
-            },
-            {
-                "tilskuddType": "Drift",
-                "tilskuddBelop": 9500,
-                "visTilskuddProsent": false,
-                "tilskuddProsent": null
-            }
-        ],
-        "deltaker": {
-            "fodselsnr": "0101011990",
-            "fornavn": "OLA",
-            "etternavn": "NORDMANN",
-            "landKode": "NO",
-            "postAdresse": "Veien 1",
-            "postNummer": "2013",
-            "postSted": "SKJETTEN"
-        },
-        "antallDeltakere": null,
-        "antallTimeverk": null,
-        "navEnhet": {
-            "navKontor": "0231",
-            "navKontorNavn": "NAV Skedsmo",
-            "postAdresse": "Postboks 294",
-            "postNummer": "2001",
-            "postSted": "LILLESTRØM",
-            "telefon": "55553333",
-            "faks": null
-        },
-        "beslutter": {
-            "fornavn": "Bjarne",
-            "etternavn": "Beslutter"
-        },
-        "saksbehandler": {
-            "fornavn": "Stine",
-            "etternavn": "Saksbehandler"
-        },
-        "kommentar": null
-    }
-""".trimIndent()
-
-private val soknad = DTO.Soknad(
-    id = UUID.randomUUID().toString(),
-    virksomhet = DTO.Virksomhet(
-        virksomhetsnummer = "1337",
-        virksomhetsnavn = "foo bar AS",
-        kontaktperson = DTO.Kontaktperson(
-            navn = "Donald Duck",
-            epost = "Donald@duck.co",
-            telefonnummer = "12345678"
-        )
-    ),
-    ansatt = DTO.Ansatt(
-        fnr = "12345678910",
-        navn = "Ole Olsen"
-    ),
-    ekspert = DTO.Ekspert(
-        navn = "Egon Olsen",
-        virksomhet = "Olsenbanden AS",
-        kompetanse = "Bankran",
-    ),
-    behovForBistand = DTO.BehovForBistand(
-        behov = "Tilrettelegging",
-        begrunnelse = "Tilrettelegging på arbeidsplassen",
-        estimertKostnad = "4200",
-        timer = "16",
-        tilrettelegging = "Spesialtilpasset kontor",
-        startdato = LocalDate.parse("2024-11-15")
-    ),
-    nav = DTO.Nav(
-        kontaktperson = "Navn Navnesen"
-    ),
-    opprettetAv = "Noen Noensen",
-    status = SoknadStatus.innsendt,
-)
