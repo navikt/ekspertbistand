@@ -1,6 +1,6 @@
 package no.nav.ekspertbistand
 
-import io.ktor.client.HttpClient
+import io.ktor.client.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -15,9 +15,8 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.di.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
-import io.ktor.server.response.respond
-import io.ktor.server.routing.get
-import io.ktor.server.routing.routing
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import io.ktor.utils.io.*
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics
 import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics
@@ -29,15 +28,13 @@ import io.micrometer.core.instrument.binder.system.ProcessorMetrics
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
-import no.nav.ekspertbistand.arena.ArenaTilsagnsbrevProcessor
-import no.nav.ekspertbistand.arena.ArenaTiltaksgjennomforingEndretProcessor
 import no.nav.ekspertbistand.arena.startKafkaConsumers
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
-import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
+import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
@@ -50,15 +47,10 @@ import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
-import java.time.Instant
 import java.util.*
 
 
 const val altinn3Ressursid = "nav_tiltak_ekspertbistand"
-val startKafkaProsesseringAt = basedOnEnv(
-    other = { Instant.EPOCH },
-    prod = { Instant.parse("2026-02-23T10:00:00.00Z") }
-)
 
 
 fun main() {
@@ -89,8 +81,6 @@ fun main() {
             provide(PdlApiKlient::class)
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
-            provide<ArenaTilsagnsbrevProcessor> { ArenaTilsagnsbrevProcessor(resolve(), startKafkaProsesseringAt) }
-            provide<ArenaTiltaksgjennomforingEndretProcessor> { ArenaTiltaksgjennomforingEndretProcessor(resolve(), startKafkaProsesseringAt) }
         }
 
         // configure standard server stuff
