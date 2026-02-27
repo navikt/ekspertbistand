@@ -116,11 +116,14 @@ val TilsagnData.virksomhetsnummer: String
 val TilsagnData.virksomhetsnavn: String
     get() = tiltakArrangor.arbgiverNavn
 
+private val TilsagnData.paaKrevdDeltaker: TilsagnData.Deltaker
+    get() = requireNotNull(deltaker) { "TilsagnData mangler deltaker for tilsagn ${tilsagnNummer.concat()}" }
+
 val TilsagnData.ansattNavn: String
-    get() = "${deltaker.fornavn} ${deltaker.etternavn}"
+    get() = "${paaKrevdDeltaker.fornavn} ${paaKrevdDeltaker.etternavn}"
 
 val TilsagnData.ansattFoedselsdato: String
-    get() = deltaker.fodselsnr.tilFødselsdato()
+    get() = paaKrevdDeltaker.fodselsnr.tilFødselsdato()
 
 val TilsagnData.kvitteringsLenke: String
     get() = basedOnEnv(

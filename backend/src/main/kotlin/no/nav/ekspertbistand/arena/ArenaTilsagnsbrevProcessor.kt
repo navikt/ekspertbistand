@@ -76,6 +76,11 @@ class ArenaTilsagnsbrevProcessor(
             return
         }
 
+        if (tilskuddsbrevMelding.tilsagnData.deltaker == null) {
+            teamLog.error("TilsagnsbrevKafkaMelding mangler deltaker. record: {}", record)
+            throw Exception("TilsagnsbrevKafkaMelding mangler deltaker. key: ${record.key()}")
+        }
+
         // sjekk at vi er kilde til tilsagn, tilsagnData.aar og tilsagnData.loepenrSak finnes i vårt system
 
         val soknad = transaction(database) {
@@ -161,7 +166,7 @@ data class TilsagnData(
     val totaltTilskuddbelop: Int,
     val valutaKode: String,
     val tilskuddListe: List<Tilskudd>,
-    val deltaker: Deltaker,
+    val deltaker: Deltaker? = null,
     val antallDeltakere: Int? = null,
     val antallTimeverk: Int? = null,
     val navEnhet: NavEnhet,
