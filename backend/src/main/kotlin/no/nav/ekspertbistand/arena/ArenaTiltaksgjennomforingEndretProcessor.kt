@@ -80,6 +80,7 @@ class ArenaTiltaksgjennomforingEndretProcessor(
                     EventQueue.publish(event)
                 } else {
                     log.info("TiltaksgjennomforingEndret melding for tiltaksgjennomfoeringId=${endring.tiltaksgjennomfoeringId} er allerede behandlet, hopper over.")
+                    teamLog.info("TiltaksgjennomforingEndret melding for tiltaksgjennomfoeringId=${endring.tiltaksgjennomfoeringId} er allerede behandlet, hopper over. record: {}", record)
                 }
             }
 

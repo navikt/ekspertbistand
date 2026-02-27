@@ -114,6 +114,7 @@ class ArenaTilsagnsbrevProcessor(
                 EventQueue.publish(event)
             } else {
                 log.info("Tilsagnsbrev melding med tilsagnBrevId=${tilskuddsbrevMelding.tilsagnBrevId} er allerede behandlet, ignorerer melding")
+                teamLog.info("Tilsagnsbrev melding med tilsagnBrevId=${tilskuddsbrevMelding.tilsagnBrevId} er allerede behandlet, ignorerer melding. record: {}", record)
             }
         }
     }
