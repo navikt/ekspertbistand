@@ -226,7 +226,7 @@ export default function OppsummeringPage() {
     }
     setSubmitError(null);
     try {
-      const payload = buildSkjemaPayload(draftId, formData);
+      const payload = buildSkjemaPayload(draftId, result.data);
       await submitDraft({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
