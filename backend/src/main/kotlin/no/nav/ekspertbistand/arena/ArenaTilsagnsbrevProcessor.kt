@@ -40,22 +40,28 @@ class ArenaTilsagnsbrevProcessor(
             return
         }
 
-        val kafkaMelding = json.decodeFromString<JsonObject>(value)
-        val tilskuddsbrevMelding = kafkaMelding.let { wrapper ->
-            wrapper["after"]?.let { after ->
-                if (after is JsonObject) {
-                    val tilsagnBrevId = after["TILSAGNSBREV_ID"]!!.jsonPrimitive.int
-                    val tilsagnId = after["TILSAGN_ID"]!!.jsonPrimitive.int
-                    val tilsagnData = json.decodeFromString<TilsagnData>(after["TILSAGN_DATA"]!!.jsonPrimitive.content)
-                    TilsagnsbrevKafkaMelding(
-                        tilsagnBrevId = tilsagnBrevId,
-                        tilsagnId = tilsagnId,
-                        tilsagnData = tilsagnData,
-                    )
-                } else {
-                    null
+        val tilskuddsbrevMelding = try {
+            val kafkaMelding = json.decodeFromString<JsonObject>(value)
+            kafkaMelding.let { wrapper ->
+                wrapper["after"]?.let { after ->
+                    if (after is JsonObject) {
+                        val tilsagnBrevId = after["TILSAGNSBREV_ID"]!!.jsonPrimitive.int
+                        val tilsagnId = after["TILSAGN_ID"]!!.jsonPrimitive.int
+                        val tilsagnData =
+                            json.decodeFromString<TilsagnData>(after["TILSAGN_DATA"]!!.jsonPrimitive.content)
+                        TilsagnsbrevKafkaMelding(
+                            tilsagnBrevId = tilsagnBrevId,
+                            tilsagnId = tilsagnId,
+                            tilsagnData = tilsagnData,
+                        )
+                    } else {
+                        null
+                    }
                 }
             }
+        } catch (e: Exception) {
+            teamLog.error("Kunne ikke parse TilsagnsbrevKafkaMelding. record: {}", record.toString())
+            throw Exception("Kunne ikke parse TilsagnsbrevKafkaMelding. key: ${record.key()}", e)
         }
 
         if (tilskuddsbrevMelding == null) {
@@ -66,6 +72,11 @@ class ArenaTilsagnsbrevProcessor(
         if (!tilskuddsbrevMelding.erEkspertbistand) {
             // ikke relevant
             return
+        }
+
+        if (tilskuddsbrevMelding.tilsagnData.deltaker == null) {
+            teamLog.error("TilsagnsbrevKafkaMelding mangler deltaker. record: {}", record)
+            throw Exception("TilsagnsbrevKafkaMelding mangler deltaker. key: ${record.key()}")
         }
 
         // sjekk at vi er kilde til tilsagn, tilsagnData.aar og tilsagnData.loepenrSak finnes i vårt system
@@ -149,7 +160,7 @@ data class TilsagnData(
     val totaltTilskuddbelop: Int,
     val valutaKode: String,
     val tilskuddListe: List<Tilskudd>,
-    val deltaker: Deltaker,
+    val deltaker: Deltaker? = null,
     val antallDeltakere: Int? = null,
     val antallTimeverk: Int? = null,
     val navEnhet: NavEnhet,

@@ -20,8 +20,6 @@ spec:
         - id: loki
   replicas:
     min: 1
-  secureLogs:
-    enabled: true
   accessPolicy:
     inbound:
       rules:

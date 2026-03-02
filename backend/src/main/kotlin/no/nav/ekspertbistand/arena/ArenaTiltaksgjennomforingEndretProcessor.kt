@@ -41,6 +41,14 @@ class ArenaTiltaksgjennomforingEndretProcessor(
             throw Exception("Kunne ikke parse TiltaksgjennomforingEndretKafkaMelding. key: ${record.key()}", e)
         }
         val endring = kafkaMelding.after
+        if (endring == null) {
+            log.info(
+                "Melding uten after (op_type={}) ignoreres for tiltaksgjennomforing. key={}",
+                kafkaMelding.opType,
+                record.key()
+            )
+            return
+        }
         if (!endring.erEkspertbistand) {
             // ikke relevant
             return
@@ -101,7 +109,10 @@ class ArenaTiltaksgjennomforingEndretProcessor(
 
 @Serializable
 data class TiltaksgjennomforingEndretKafkaMelding(
-    val after: TiltaksgjennomforingEndret,
+    @SerialName("op_type")
+    val opType: String? = null,
+    val before: TiltaksgjennomforingEndret? = null,
+    val after: TiltaksgjennomforingEndret? = null,
 )
 
 @Serializable

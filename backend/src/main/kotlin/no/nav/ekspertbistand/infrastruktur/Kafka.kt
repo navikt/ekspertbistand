@@ -6,10 +6,14 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.ConsumerRecords
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.config.SslConfigs
 import org.apache.kafka.common.serialization.StringDeserializer
 import java.lang.System.getenv
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 
 data class KafkaConsumerConfig(
     val topics: Set<String>,
@@ -24,6 +28,7 @@ class CoroutineKafkaConsumer(
     private val properties = buildMap {
         put(ConsumerConfig.GROUP_ID_CONFIG, config.groupId)
         put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, (getenv("KAFKA_BROKERS") ?: "localhost:9092"))
+        put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100")
         put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, "60000")
         put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
         put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
@@ -47,44 +52,32 @@ class CoroutineKafkaConsumer(
             consumer.subscribe(config.topics)
             log.info("Successfully subscribed to $config")
 
-            while (isActive) {
+            while (isActiveAndNotTerminating) {
                 try {
-                    val records = consumer.poll(java.time.Duration.ofMillis(1000))
-                    log.debug("polled {} records {}", records.count(), config)
+                    val records = consumer.poll(1000.milliseconds.toJavaDuration())
+                    log.info("polled {} records {}", records.count(), config)
 
                     if (records.any()) {
                         for (record in records) {
-                            processor.processRecord(record)
+                            try {
+                                processor.processRecord(record)
+                            } catch (e: Exception) {
+                                log.error("Feil ved prosessering av kafka-melding.", e)
+
+                                // without seek next poll will advance the offset, regardless of autocommit=false
+                                consumer.seek(TopicPartition(record.topic(), record.partition()), record.offset())
+
+                                throw Exception("Feil ved prosessering av kafka-melding. partition=${record.partition()} offset=${record.offset()} $config", e)
+                            }
                         }
-                        log.debug("committing offsets for {} records {}", records.count(), config)
+                        log.info("committing offsets: {} {}", records.partitions().associateWith { tp -> records.records(tp).last().offset() }, config)
                         consumer.commitSync()
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     log.error("Feil ved prosessering av kafka-melding. $config", e)
-                    delay(5000) // TODO: backoff
-                }
-            }
-        }
-    }
-
-    suspend fun batchConsume(processor: ConsumerRecordProcessor) = withContext(Dispatchers.IO) {
-        kafkaConsumer.use { consumer ->
-            consumer.subscribe(config.topics)
-
-            while (isActive) {
-                try {
-                    val records = consumer.poll(java.time.Duration.ofMillis(1000))
-                    if (records.any()) {
-                        processor.processRecords(records)
-                        consumer.commitSync()
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    log.error("Feil ved prosessering av kafka-melding", e)
-                    delay(5000) // TODO: backoff
+                    delay(5000)
                 }
             }
         }
@@ -93,9 +86,4 @@ class CoroutineKafkaConsumer(
 
 interface ConsumerRecordProcessor {
     suspend fun processRecord(record: ConsumerRecord<String?, String?>)
-    suspend fun processRecords(records: ConsumerRecords<String?, String?>) {
-        for (record in records) {
-            processRecord(record)
-        }
-    }
 }

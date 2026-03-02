@@ -144,6 +144,23 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
             )
         }
     }
+
+    @Test
+    fun `delete-melding med kun before skippes`() = testApplicationWithDatabase { db ->
+        assertDoesNotThrow {
+            ArenaTiltaksgjennomforingEndretProcessor(
+                db.config.jdbcDatabase,
+                Instant.EPOCH
+            ).processRecord(
+                createConsumerRecord(
+                    kafkaDeleteMelding(1337, "EKSPEBIST", AVLYST)
+                )
+            )
+        }
+        transaction(db.config.jdbcDatabase) {
+            assertEquals(0, QueuedEvents.selectAll().count())
+        }
+    }
 }
 
 private fun createConsumerRecord(melding: String?, timestamp: Instant = Instant.parse("2026-01-01T00:00:00.00Z")) =
@@ -262,6 +279,24 @@ private fun kafkaMelding(
     "PARTISJON": null,
     "MAALFORM_KRAVBREV": "NO",
     "EKSTERN_ID": null
+  }
+}
+"""
+
+private fun kafkaDeleteMelding(
+    tiltaksgjennomfoeringId: Int,
+    tiltakskode: String,
+    tiltakstatuskode: TiltaksgjennomforingEndret.TiltakStatusKode,
+): String =
+    //language=JSON
+    """
+{
+  "table": "SIAMO.TILTAKGJENNOMFORING",
+  "op_type": "D",
+  "before": {
+    "TILTAKGJENNOMFORING_ID": $tiltaksgjennomfoeringId,
+    "TILTAKSKODE": "$tiltakskode",
+    "TILTAKSTATUSKODE": "$tiltakstatuskode"
   }
 }
 """
