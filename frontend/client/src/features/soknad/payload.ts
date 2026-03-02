@@ -13,6 +13,9 @@ const normalizeEstimertKostnad = (
   value: SoknadInputs["behovForBistand"]["estimertKostnad"]
 ): string => (typeof value === "string" ? value.trim() : "");
 
+const normalizeFnr = (value: SoknadInputs["ansatt"]["fnr"]): string =>
+  typeof value === "string" ? value.replace(/\s/g, "") : "";
+
 const mapInputsToPayload = (inputs: SoknadInputs) => ({
   virksomhet: {
     virksomhetsnummer: inputs.virksomhet.virksomhetsnummer,
@@ -24,7 +27,7 @@ const mapInputsToPayload = (inputs: SoknadInputs) => ({
     },
   },
   ansatt: {
-    fnr: inputs.ansatt.fnr,
+    fnr: normalizeFnr(inputs.ansatt.fnr),
     navn: inputs.ansatt.navn,
   },
   ekspert: {
