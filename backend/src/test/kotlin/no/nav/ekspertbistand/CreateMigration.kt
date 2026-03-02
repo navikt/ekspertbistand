@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
 @OptIn(ExperimentalDatabaseMigrationApi::class)
 fun main() {
     val testDatabase = TestDatabase()
+    testDatabase.cleanMigrate()
     transaction(testDatabase.config.jdbcDatabase) {
         MigrationUtils.generateMigrationScript(
             FagsakIdTable,

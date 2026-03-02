@@ -28,7 +28,11 @@ class FagsakIdService(
 
 object FagsakIdTable : Table("fagsak_id_mapping") {
     val soknadId = text("soknad_id")
-    val fagsakId = long("fagsak_id").autoIncrement()
+    val fagsakId = long("fagsak_id").autoIncrement().uniqueIndex()
 
     override val primaryKey = PrimaryKey(soknadId)
+
+    init {
+        index("fagsak_id_mapping_soknad_id_fagsak_id_unique", true, soknadId, fagsakId)
+    }
 }
