@@ -3,14 +3,14 @@ import { buildSkjemaPayload } from "./payload";
 import { createEmptyInputs } from "./schema";
 
 describe("soknad payload", () => {
-  it("vasker whitespace fra ansatt fnr", () => {
+  it("vasker alle ikke-digit tegn fra ansatt fnr", () => {
     const inputs = createEmptyInputs();
     inputs.virksomhet.virksomhetsnummer = "123456789";
     inputs.virksomhet.virksomhetsnavn = "Virksomhet";
     inputs.virksomhet.kontaktperson.navn = "Kontakt";
     inputs.virksomhet.kontaktperson.epost = "kontakt@virksomhet.no";
     inputs.virksomhet.kontaktperson.telefonnummer = "12345678";
-    inputs.ansatt.fnr = "\t12345 678910 ";
+    inputs.ansatt.fnr = "12 345-6789a10";
     inputs.ansatt.navn = "Ansatt";
     inputs.ekspert.navn = "Ekspert";
     inputs.ekspert.virksomhet = "Ekspert AS";

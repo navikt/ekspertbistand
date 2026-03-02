@@ -41,7 +41,10 @@ const isValidFnrOrTnr = (value: string) =>
     local: () => isValidFnr(value) || isValidTnr(value),
   });
 
+const normalizeFnr = (value: string) => value.replace(/\D/g, "");
+
 const fnrField = trimmedText("Du må fylle ut fødselsnummer.")
+  .transform((value) => normalizeFnr(value))
   .refine((value) => fnrPattern.test(value), { message: "Fødselsnummer må være 11 siffer." })
   .refine((value) => isValidFnrOrTnr(value), {
     message: "Fødselsnummer er ikke gyldig.",

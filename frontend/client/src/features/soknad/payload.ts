@@ -14,7 +14,7 @@ const normalizeEstimertKostnad = (
 ): string => (typeof value === "string" ? value.trim() : "");
 
 const normalizeFnr = (value: SoknadInputs["ansatt"]["fnr"]): string =>
-  typeof value === "string" ? value.replace(/\s/g, "") : "";
+  typeof value === "string" ? value.replace(/\D/g, "") : "";
 
 const mapInputsToPayload = (inputs: SoknadInputs) => ({
   virksomhet: {
