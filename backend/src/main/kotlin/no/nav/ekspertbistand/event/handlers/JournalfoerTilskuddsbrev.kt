@@ -1,7 +1,9 @@
 package no.nav.ekspertbistand.event.handlers
 
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
+import no.nav.ekspertbistand.dokarkiv.Sak
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
@@ -30,6 +32,7 @@ private const val tittel = "Tilskuddsbrev ekspertbistand"
 class JournalfoerTilskuddsbrev(
     private val dokgenClient: DokgenClient,
     private val dokArkivClient: DokArkivClient,
+    private val fagsakIdService: FagsakIdService,
     private val database: Database,
 ) : EventHandler<EventData.TilskuddsbrevMottatt> {
     override val id: String = "Journalfoer Tilskuddsbrev"
@@ -58,6 +61,7 @@ class JournalfoerTilskuddsbrev(
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = tittel,
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
+                sak = Sak.FagSak(fagsakId = fagsakIdService.opprettEllerHentFagsakId(soknadId = soknad.id)),
                 eksternReferanseId = event.data.tilsagnData.tilsagnNummer.concat(),
                 dokumentPdfAsBytes = tilsagnPdf,
                 journalposttype = JournalpostType.UTGAAENDE,

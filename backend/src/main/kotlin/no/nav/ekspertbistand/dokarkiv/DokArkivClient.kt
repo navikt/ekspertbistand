@@ -16,7 +16,10 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.encodedPath
 import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonClassDiscriminator
 import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
@@ -65,6 +68,7 @@ class DokArkivClient(
     suspend fun opprettOgFerdigstillJournalpost(
         tittel: String,
         virksomhetsnummer: String,
+        sak: Sak,
         eksternReferanseId: String,
         dokumentPdfAsBytes: ByteArray,
         journalposttype: JournalpostType,
@@ -92,7 +96,7 @@ class DokArkivClient(
             kanal = "NAV_NO",
             tema = "TIL",
             behandlingstema = "ab0423",
-            sak = Sak(sakstype = "GENERELL_SAK"),
+            sak = sak,
         )
         val response = httpClient.post {
             url {
@@ -170,10 +174,23 @@ private data class AvsenderMottaker(
     val idType: String,
 )
 
+
 @Serializable
-private data class Sak(
-    val sakstype: String,
-)
+@OptIn(ExperimentalSerializationApi::class)
+@JsonClassDiscriminator("sakstype")
+sealed interface Sak {
+
+    @Serializable
+    @SerialName("FAGSAK")
+    data class FagSak(
+        val fagsakId: String,
+        val fagsaksystem: String = "EKSPERTBISTAND",
+    ) : Sak
+
+    @Serializable
+    @SerialName("GENERELL_SAK")
+    class GenerellSak : Sak
+}
 
 @Serializable
 private data class Bruker(

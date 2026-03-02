@@ -12,6 +12,8 @@ import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.FagsakIdService
+import no.nav.ekspertbistand.dokarkiv.FagsakIdTable
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
 import no.nav.ekspertbistand.dokgen.DokgenClient
@@ -282,6 +284,7 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
             provide(JournalfoerInnsendtSoknad::class)
+            provide(FagsakIdService::class)
         }
     }
 }

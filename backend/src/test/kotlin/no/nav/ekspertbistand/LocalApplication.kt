@@ -16,6 +16,7 @@ import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.NorgKlient
@@ -279,6 +280,7 @@ fun main() {
                     defaultHttpClient = defaultHttpClient()
                 )
             }
+            provide(FagsakIdService::class)
         }
         configureServer()
         configureTokenXAuth()

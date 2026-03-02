@@ -8,6 +8,7 @@ import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
 import no.nav.ekspertbistand.dokgen.DokgenClient
@@ -178,6 +179,7 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
             provide(JournalfoerTilskuddsbrevKildeAltinn::class)
+            provide(FagsakIdService::class)
         }
     }
 }

@@ -30,6 +30,7 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.arena.startKafkaConsumers
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
@@ -81,6 +82,7 @@ fun main() {
             provide(PdlApiKlient::class)
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
+            provide(FagsakIdService::class)
         }
 
         // configure standard server stuff

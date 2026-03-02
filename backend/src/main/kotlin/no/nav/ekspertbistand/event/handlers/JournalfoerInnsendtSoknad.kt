@@ -1,7 +1,9 @@
 package no.nav.ekspertbistand.event.handlers
 
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
+import no.nav.ekspertbistand.dokarkiv.Sak
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.event.*
@@ -39,6 +41,7 @@ class JournalfoerInnsendtSoknad(
     private val pdlApiKlient: PdlApiKlient,
     private val behandlendeEnhetService: BehandlendeEnhetService,
     private val eregClient: EregClient,
+    private val fagsakIdService: FagsakIdService,
     private val database: Database,
 ) : EventHandler<EventData.SoknadInnsendt> {
     override val id: String = "Journalfoer Innsendt Soknad"
@@ -74,6 +77,7 @@ class JournalfoerInnsendtSoknad(
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = tittel,
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
+                sak = Sak.FagSak(fagsakId = fagsakIdService.opprettEllerHentFagsakId(soknadId = soknad.id)),
                 eksternReferanseId = soknadId,
                 dokumentPdfAsBytes = soknadPdf,
                 journalposttype = JournalpostType.INNGAAENDE,

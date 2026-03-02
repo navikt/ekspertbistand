@@ -12,6 +12,7 @@ import no.nav.ekspertbistand.mocks.OpprettJournalpostRequest
 import no.nav.ekspertbistand.mocks.mockDokArkiv
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class DokArkivClientTest {
     @Test
@@ -31,7 +32,9 @@ class DokArkivClientTest {
             assertEquals("TIL", request.tema)
             // Se https://kodeverk.ansatt.nav.no/kodeverk/Behandlingstema/21824
             assertEquals("ab0423", request.behandlingstema)
-            assertEquals("GENERELL_SAK", request.sak.sakstype)
+            assertIs<Sak.FagSak>(request.sak)
+            assertEquals("EKSPERTBISTAND", request.sak.fagsaksystem)
+            assertEquals("1234", request.sak.fagsakId)
 
             val dokument = request.dokumenter.single()
             assertEquals("Søknad om tilskudd til ekspertbistand", dokument.tittel)
@@ -62,6 +65,7 @@ class DokArkivClientTest {
         dokArkivClient.opprettOgFerdigstillJournalpost(
             tittel = "Søknad om tilskudd til ekspertbistand",
             virksomhetsnummer = "123456789",
+            sak = Sak.FagSak("1234"),
             eksternReferanseId = "ekstern-ref-123",
             dokumentPdfAsBytes = dokumentPdfAsBytes,
             journalposttype = JournalpostType.INNGAAENDE
