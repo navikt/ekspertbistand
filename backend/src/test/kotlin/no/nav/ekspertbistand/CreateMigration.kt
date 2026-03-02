@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand
 
+import no.nav.ekspertbistand.arena.ArenaMeldingIdempotencyTable
 import no.nav.ekspertbistand.arena.ArenaSakTable
 import no.nav.ekspertbistand.event.EventHandlerStates
 import no.nav.ekspertbistand.event.EventLog
@@ -19,22 +20,11 @@ import org.jetbrains.exposed.v1.migration.jdbc.MigrationUtils
 @OptIn(ExperimentalDatabaseMigrationApi::class)
 fun main() {
     val testDatabase = TestDatabase()
-    testDatabase.flyway.clean()
     transaction(testDatabase.config.jdbcDatabase) {
         MigrationUtils.generateMigrationScript(
-            SoknadTable,
-            UtkastTable,
-            QueuedEvents,
-            EventLog,
-            ProjectionBuilderState,
-            EventHandlerStates,
-            IdempotencyGuardRecords,
-            ArenaSakTable,
-            TilsagndataTable,
-            TilskuddsbrevVistState,
-            SoknadBehandletForsinkelseState,
+            ArenaMeldingIdempotencyTable,
             scriptDirectory = "backend/src/main/resources/db/migration",
-            scriptName = "V1__initial_setup",
+            scriptName = "V2__arena_melding_idempotency",
         )
     }
 }

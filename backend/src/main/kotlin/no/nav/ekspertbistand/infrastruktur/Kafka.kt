@@ -55,9 +55,9 @@ class CoroutineKafkaConsumer(
             while (isActiveAndNotTerminating) {
                 try {
                     val records = consumer.poll(1000.milliseconds.toJavaDuration())
-                    log.info("polled {} records {}", records.count(), config)
 
                     if (records.any()) {
+                        log.info("polled {} records {}", records.count(), config)
                         for (record in records) {
                             try {
                                 processor.processRecord(record)

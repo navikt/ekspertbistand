@@ -6,6 +6,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.selectAll
 
 object ArenaSakTable : Table("arena_sak") {
@@ -16,6 +17,27 @@ object ArenaSakTable : Table("arena_sak") {
     val soknad = text("soknad")
 
 }
+
+object ArenaMeldingIdempotencyTable : Table("arena_melding_idempotency") {
+    val meldingstype = enumerationByName("meldingstype", 50, ArenaMeldingType::class)
+    val eksternId = integer("ekstern_id")
+
+    override val primaryKey = PrimaryKey(meldingstype, eksternId)
+}
+
+private fun markerArenaMeldingSomBehandlet(meldingstype: ArenaMeldingType, eksternId: Int): Boolean {
+    val insertStatement = ArenaMeldingIdempotencyTable.insertIgnore {
+        it[ArenaMeldingIdempotencyTable.meldingstype] = meldingstype
+        it[ArenaMeldingIdempotencyTable.eksternId] = eksternId
+    }
+    return insertStatement.insertedCount > 0
+}
+
+fun markerTiltaksgjennomfoeringEndretMeldingSomBehandlet(tiltaksgjennomfoeringId: Int) =
+    markerArenaMeldingSomBehandlet(ArenaMeldingType.TILTAKSGJENNOMFORING, tiltaksgjennomfoeringId)
+
+fun markerTilsagnsbrevMeldingSomBehandlet(tilsagnBrevId: Int) =
+    markerArenaMeldingSomBehandlet(ArenaMeldingType.TILSKUDDSBREV_GODKJENT, tilsagnBrevId)
 
 fun insertArenaSak(
     saksnummer: Saksnummer,
@@ -46,3 +68,8 @@ fun <T> hentArenaSakBytiltaksgjennomfoeringId(tiltaksgjennomfoeringId: Int, mapp
         }
         .map { mapper(it) }
         .firstOrNull()
+
+enum class ArenaMeldingType {
+    TILSKUDDSBREV_GODKJENT,
+    TILTAKSGJENNOMFORING
+}
