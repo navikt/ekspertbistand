@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.event.handlers
 
+import no.nav.ekspertbistand.dokarkiv.AvsenderMottaker
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
@@ -60,6 +61,7 @@ class JournalfoerTilskuddsbrevKildeAltinn(
                 eksternReferanseId = event.data.tilsagnData.tilsagnNummer.concat(),
                 dokumentPdfAsBytes = tilsagnPdf,
                 journalposttype = JournalpostType.UTGAAENDE,
+                avsenderMottaker = AvsenderMottaker.orgnr(event.data.tilsagnData.tiltakArrangor.orgNummer.toString()),
             )
         } catch (e: Exception) {
             return transientError("Feil ved opprettelse av journalpost: ${e.message}", e)

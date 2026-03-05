@@ -72,10 +72,11 @@ class DokArkivClient(
         eksternReferanseId: String,
         dokumentPdfAsBytes: ByteArray,
         journalposttype: JournalpostType,
+        avsenderMottaker: AvsenderMottaker?,
     ): OpprettJournalpostResponse {
         val journalpost = Journalpost(
             bruker = Bruker(id = virksomhetsnummer, idType = "ORGNR"),
-            avsenderMottaker = AvsenderMottaker(id = virksomhetsnummer, idType = "ORGNR"),
+            avsenderMottaker = avsenderMottaker,
             eksternReferanseId = eksternReferanseId,
             journalfoerendeEnhet = "9999",
             tittel = tittel,
@@ -139,7 +140,7 @@ enum class JournalpostType {
     /**
      * NOTAT brukes for dokumentasjon som NAV har produsert selv og uten mål om å distribuere dette ut av NAV. Eksempler på dette er forvaltningsnotater og referater fra telefonsamtaler med brukere.
      */
-    //NOTAT, vi bruker ikke denne i Ekspertbistand
+    NOTAT,
 }
 
 @Serializable
@@ -151,7 +152,7 @@ private data class Journalpost(
      * Ved journalposttype UTGÅENDE skal mottaker av dokumentene oppgis.
      * avsenderMottaker skal ikke settes for journalposttype NOTAT.
      */
-    val avsenderMottaker: AvsenderMottaker,
+    val avsenderMottaker: AvsenderMottaker?,
 
     /**
      * Unik id for forsendelsen som kan brukes til sporing gjennom verdikjeden. Eksempler på eksternReferanseId kan være en GUID, sykmeldingsId for sykmeldinger, Altinn ArchiveReference for Altinn-skjema eller SEDid for SED.
@@ -169,10 +170,14 @@ private data class Journalpost(
 )
 
 @Serializable
-private data class AvsenderMottaker(
+data class AvsenderMottaker(
     val id: String,
     val idType: String,
-)
+) {
+    companion object {
+        fun orgnr(orgnummer: String) = AvsenderMottaker(id = orgnummer, idType = "ORGNR")
+    }
+}
 
 
 @Serializable

@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.event.handlers
 
+import no.nav.ekspertbistand.dokarkiv.AvsenderMottaker
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
@@ -81,6 +82,7 @@ class JournalfoerInnsendtSoknad(
                 eksternReferanseId = soknadId,
                 dokumentPdfAsBytes = soknadPdf,
                 journalposttype = JournalpostType.INNGAAENDE,
+                avsenderMottaker = AvsenderMottaker.orgnr(soknad.virksomhet.virksomhetsnummer),
             )
         }.getOrElse { e ->
             return transientError("Feil ved opprettelse av journalpost", e)

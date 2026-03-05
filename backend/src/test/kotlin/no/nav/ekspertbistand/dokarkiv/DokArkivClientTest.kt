@@ -68,7 +68,8 @@ class DokArkivClientTest {
             sak = Sak.FagSak("1234"),
             eksternReferanseId = "ekstern-ref-123",
             dokumentPdfAsBytes = dokumentPdfAsBytes,
-            journalposttype = JournalpostType.INNGAAENDE
+            journalposttype = JournalpostType.INNGAAENDE,
+            avsenderMottaker = AvsenderMottaker.orgnr("123456789")
         ).let {
             assertEquals("DOK123456", it.journalpostId)
         }
