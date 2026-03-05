@@ -11,19 +11,18 @@ class FagsakIdService(
     val database: Database
 ) {
 
-    fun opprettEllerHentFagsakId(soknadId: String): String = soknadId
-        //transaction(database) {
-        //FagsakIdTable.insertIgnore {
-        //    it[FagsakIdTable.soknadId] = soknadId
-        //}
-//
-        //transaction {
-        //    FagsakIdTable.selectAll()
-        //        .where { FagsakIdTable.soknadId eq soknadId }
-        //        .map { it[FagsakIdTable.fagsakId] }
-        //        .first().toString()
-        //}
-    //}
+    fun opprettEllerHentFagsakId(soknadId: String): String = transaction(database) {
+        FagsakIdTable.insertIgnore {
+            it[FagsakIdTable.soknadId] = soknadId
+        }
+
+        transaction {
+            FagsakIdTable.selectAll()
+                .where { FagsakIdTable.soknadId eq soknadId }
+                .map { it[FagsakIdTable.fagsakId] }
+                .first().toString()
+        }
+    }
 }
 
 
