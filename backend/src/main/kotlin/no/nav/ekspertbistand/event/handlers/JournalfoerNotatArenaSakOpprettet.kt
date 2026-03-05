@@ -51,7 +51,7 @@ class JournalfoerNotatArenaSakOpprettet(
                 eksternReferanseId = "notat-${event.data.saksnummer}-${event.data.tiltaksgjennomfoeringId}",
                 dokumentPdfAsBytes = notatPdf,
                 journalposttype = JournalpostType.NOTAT,
-                avsenderMottaker = AvsenderMottaker.orgnr(soknad.virksomhet.virksomhetsnummer),
+                avsenderMottaker = null,
             )
         } catch (e: Exception) {
             return transientError(

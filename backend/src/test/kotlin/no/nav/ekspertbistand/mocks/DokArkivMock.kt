@@ -17,7 +17,7 @@ import no.nav.ekspertbistand.dokarkiv.Sak
 @Serializable
 data class OpprettJournalpostRequest(
     val bruker: Ident,
-    val avsenderMottaker: Ident,
+    val avsenderMottaker: Ident?,
     val eksternReferanseId: String,
     val journalfoerendeEnhet: String,
     val tittel: String,

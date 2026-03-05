@@ -23,7 +23,7 @@ class DokArkivClientTest {
             assertEquals("Søknad om tilskudd til ekspertbistand", request.tittel)
             assertEquals("123456789", request.bruker.id)
             assertEquals("ORGNR", request.bruker.idType)
-            assertEquals("123456789", request.avsenderMottaker.id)
+            assertEquals("123456789", request.avsenderMottaker!!.id)
             assertEquals("ORGNR", request.avsenderMottaker.idType)
             assertEquals("ekstern-ref-123", request.eksternReferanseId)
             assertEquals("9999", request.journalfoerendeEnhet)

@@ -23,6 +23,7 @@ import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class JournalfoerNotatArenaSakOpprettetTest {
     @Test
@@ -35,6 +36,7 @@ class JournalfoerNotatArenaSakOpprettetTest {
                 assertEquals("Saken er opprettet i Arena under saksnummer: 1337", request.tittel)
                 assertEquals("1234", request.bruker.id)
                 assertEquals("ORGNR", request.bruker.idType)
+                assertNull(request.avsenderMottaker)
                 assertIs<Sak.FagSak>(request.sak)
                 assertEquals("1", request.sak.fagsakId)
             }
