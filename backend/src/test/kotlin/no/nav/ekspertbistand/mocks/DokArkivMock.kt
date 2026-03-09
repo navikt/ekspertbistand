@@ -12,11 +12,12 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
+import no.nav.ekspertbistand.dokarkiv.Sak
 
 @Serializable
 data class OpprettJournalpostRequest(
     val bruker: Ident,
-    val avsenderMottaker: Ident,
+    val avsenderMottaker: Ident?,
     val eksternReferanseId: String,
     val journalfoerendeEnhet: String,
     val tittel: String,
@@ -47,10 +48,6 @@ data class OpprettJournalpostRequest(
         val variantformat: String,
     )
 
-    @Serializable
-    data class Sak(
-        val sakstype: String,
-    )
 }
 
 fun ApplicationTestBuilder.mockDokArkiv(

@@ -16,7 +16,10 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.encodedPath
 import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonClassDiscriminator
 import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
@@ -65,13 +68,15 @@ class DokArkivClient(
     suspend fun opprettOgFerdigstillJournalpost(
         tittel: String,
         virksomhetsnummer: String,
+        sak: Sak,
         eksternReferanseId: String,
         dokumentPdfAsBytes: ByteArray,
         journalposttype: JournalpostType,
+        avsenderMottaker: AvsenderMottaker?,
     ): OpprettJournalpostResponse {
         val journalpost = Journalpost(
             bruker = Bruker(id = virksomhetsnummer, idType = "ORGNR"),
-            avsenderMottaker = AvsenderMottaker(id = virksomhetsnummer, idType = "ORGNR"),
+            avsenderMottaker = avsenderMottaker,
             eksternReferanseId = eksternReferanseId,
             journalfoerendeEnhet = "9999",
             tittel = tittel,
@@ -92,7 +97,7 @@ class DokArkivClient(
             kanal = "NAV_NO",
             tema = "TIL",
             behandlingstema = "ab0423",
-            sak = Sak(sakstype = "GENERELL_SAK"),
+            sak = sak,
         )
         val response = httpClient.post {
             url {
@@ -135,7 +140,7 @@ enum class JournalpostType {
     /**
      * NOTAT brukes for dokumentasjon som NAV har produsert selv og uten mål om å distribuere dette ut av NAV. Eksempler på dette er forvaltningsnotater og referater fra telefonsamtaler med brukere.
      */
-    //NOTAT, vi bruker ikke denne i Ekspertbistand
+    NOTAT,
 }
 
 @Serializable
@@ -147,7 +152,7 @@ private data class Journalpost(
      * Ved journalposttype UTGÅENDE skal mottaker av dokumentene oppgis.
      * avsenderMottaker skal ikke settes for journalposttype NOTAT.
      */
-    val avsenderMottaker: AvsenderMottaker,
+    val avsenderMottaker: AvsenderMottaker?,
 
     /**
      * Unik id for forsendelsen som kan brukes til sporing gjennom verdikjeden. Eksempler på eksternReferanseId kan være en GUID, sykmeldingsId for sykmeldinger, Altinn ArchiveReference for Altinn-skjema eller SEDid for SED.
@@ -165,15 +170,32 @@ private data class Journalpost(
 )
 
 @Serializable
-private data class AvsenderMottaker(
+data class AvsenderMottaker(
     val id: String,
     val idType: String,
-)
+) {
+    companion object {
+        fun orgnr(orgnummer: String) = AvsenderMottaker(id = orgnummer, idType = "ORGNR")
+    }
+}
+
 
 @Serializable
-private data class Sak(
-    val sakstype: String,
-)
+@OptIn(ExperimentalSerializationApi::class)
+@JsonClassDiscriminator("sakstype")
+sealed interface Sak {
+
+    @Serializable
+    @SerialName("FAGSAK")
+    data class FagSak(
+        val fagsakId: String,
+        val fagsaksystem: String = "EKSPERTBISTAND",
+    ) : Sak
+
+    @Serializable
+    @SerialName("GENERELL_SAK")
+    class GenerellSak : Sak
+}
 
 @Serializable
 private data class Bruker(

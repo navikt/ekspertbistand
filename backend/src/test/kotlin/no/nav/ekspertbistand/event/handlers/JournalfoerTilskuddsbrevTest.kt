@@ -9,6 +9,7 @@ import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
+import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
 import no.nav.ekspertbistand.dokgen.DokgenClient
@@ -218,6 +219,7 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
             provide(JournalfoerTilskuddsbrev::class)
+            provide(FagsakIdService::class)
         }
     }
 }

@@ -28,7 +28,7 @@ class ArenaClientTest {
         )
 
         val requestAssertions = mutableListOf<() -> Unit>()
-        mockTiltaksgjennomfoering(responseProvider = {
+        mockTiltaksgjennomfoering {
             requestAssertions.add {
                 JSONAssert.assertEquals(
                     """
@@ -63,13 +63,13 @@ class ArenaClientTest {
                 "tiltaksgjennomfoeringId": $tiltaksgjennomfoeringId
             }    
             """
-        })
+        }
         val arenaClient = ArenaClient(
             tokenProvider = mockTokenProvider,
             defaultHttpClient = client
         )
         arenaClient.opprettTiltaksgjennomfoering(opprettEkspertbistand).let {
-            requestAssertions.forEach { assertion -> assertion() } // run assertions on the request payload
+            requestAssertions.forEach { assertion -> assertion() } // run assertions on the request payload'
             assertEquals(saksnummer, it.saksnummer)
             assertEquals(2025, it.saksnummer.aar)
             assertEquals(42, it.saksnummer.loepenrSak)

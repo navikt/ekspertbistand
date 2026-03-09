@@ -10,6 +10,7 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
@@ -91,6 +92,32 @@ class DokgenClient(
             accept(ContentType.Text.Html)
             setBody(tilsagnData)
         }.body()
+    }
+
+
+
+    suspend fun genererArenaNotatPdf(
+        saksnummer: String,
+        tiltaksgjennomfoeringId: String
+    ): ByteArray {
+        val bytes: ByteArray = httpClient.post {
+            url {
+                takeFrom(baseUrl)
+                path("template", "arenaNotat", "create-pdf")
+            }
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Application.Pdf)
+            setBody(mapOf(
+                "saksnummer" to saksnummer,
+                "tiltaksgjennomfoeringId" to tiltaksgjennomfoeringId,
+            ))
+        }.body()
+
+        check(bytes.hasPdfHeader()) {
+            "Dokgen returnerte ikke en gyldig PDF for arenaNotat/create-pdf"
+        }
+
+        return bytes
     }
 }
 

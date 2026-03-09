@@ -12,6 +12,7 @@ import no.nav.ekspertbistand.mocks.OpprettJournalpostRequest
 import no.nav.ekspertbistand.mocks.mockDokArkiv
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class DokArkivClientTest {
     @Test
@@ -22,7 +23,7 @@ class DokArkivClientTest {
             assertEquals("Søknad om tilskudd til ekspertbistand", request.tittel)
             assertEquals("123456789", request.bruker.id)
             assertEquals("ORGNR", request.bruker.idType)
-            assertEquals("123456789", request.avsenderMottaker.id)
+            assertEquals("123456789", request.avsenderMottaker!!.id)
             assertEquals("ORGNR", request.avsenderMottaker.idType)
             assertEquals("ekstern-ref-123", request.eksternReferanseId)
             assertEquals("9999", request.journalfoerendeEnhet)
@@ -31,7 +32,9 @@ class DokArkivClientTest {
             assertEquals("TIL", request.tema)
             // Se https://kodeverk.ansatt.nav.no/kodeverk/Behandlingstema/21824
             assertEquals("ab0423", request.behandlingstema)
-            assertEquals("GENERELL_SAK", request.sak.sakstype)
+            assertIs<Sak.FagSak>(request.sak)
+            assertEquals("EKSPERTBISTAND", request.sak.fagsaksystem)
+            assertEquals("1234", request.sak.fagsakId)
 
             val dokument = request.dokumenter.single()
             assertEquals("Søknad om tilskudd til ekspertbistand", dokument.tittel)
@@ -62,9 +65,11 @@ class DokArkivClientTest {
         dokArkivClient.opprettOgFerdigstillJournalpost(
             tittel = "Søknad om tilskudd til ekspertbistand",
             virksomhetsnummer = "123456789",
+            sak = Sak.FagSak("1234"),
             eksternReferanseId = "ekstern-ref-123",
             dokumentPdfAsBytes = dokumentPdfAsBytes,
-            journalposttype = JournalpostType.INNGAAENDE
+            journalposttype = JournalpostType.INNGAAENDE,
+            avsenderMottaker = AvsenderMottaker.orgnr("123456789")
         ).let {
             assertEquals("DOK123456", it.journalpostId)
         }

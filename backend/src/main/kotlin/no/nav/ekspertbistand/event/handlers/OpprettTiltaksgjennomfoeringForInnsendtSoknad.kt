@@ -41,13 +41,13 @@ class OpprettTiltaksgjennomfoeringForInnsendtSoknad(
                 tiltaksgjennomfoeringId,
                 soknad
             )
-            QueuedEvents.insert {
-                it[eventData] = EventData.TiltaksgjennomforingOpprettet(
+            EventQueue.publish(
+                EventData.TiltaksgjennomforingOpprettet(
                     soknad,
                     saksnummer,
                     tiltaksgjennomfoeringId,
                 )
-            }
+            )
         }
         return EventHandledResult.Success()
     }

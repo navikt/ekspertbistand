@@ -116,6 +116,7 @@ suspend fun Application.configureEventHandlers() {
         // Registrer all event handlers here
         register(dependencies.create(JournalfoerInnsendtSoknad::class))
         register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))
+        register(dependencies.create(JournalfoerNotatArenaSakOpprettet::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadMottatt::class))
         register(dependencies.create(JournalfoerTilskuddsbrev::class))
         register(dependencies.create(JournalfoerTilskuddsbrevKildeAltinn::class))
