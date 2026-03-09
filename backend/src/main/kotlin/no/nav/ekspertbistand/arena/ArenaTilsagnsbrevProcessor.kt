@@ -216,8 +216,8 @@ data class TilsagnData(
         val etternavn: String,
         val landKode: String,
         val postAdresse: String,
-        val postNummer: String,
-        val postSted: String,
+        val postNummer: String? = null,
+        val postSted: String? = null,
     )
 
     @Serializable
