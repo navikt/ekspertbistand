@@ -177,7 +177,7 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
             <FormSummary.Value>{formatTimer(behovForBistand.timer)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
-            <FormSummary.Label>Estimert kostnad for ekspertbistand</FormSummary.Label>
+            <FormSummary.Label>Søknadssum</FormSummary.Label>
             <FormSummary.Value>{formatCurrency(behovForBistand.estimertKostnad)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
