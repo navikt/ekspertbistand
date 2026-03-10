@@ -2,6 +2,7 @@
   "name": "ekspertbistand",
   "private": true,
   "version": "0.0.0",
+  "packageManager": "pnpm@10.32.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"pnpm --filter ./frontend/client dev\" \"pnpm --filter ./frontend/server dev\"",
