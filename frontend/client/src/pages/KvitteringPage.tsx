@@ -155,7 +155,7 @@ function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummar
             <FormSummary.Value>{formatTimer(data.behovForBistand.timer)}</FormSummary.Value>
           </FormSummary.Answer>
           <FormSummary.Answer>
-            <FormSummary.Label>Estimert kostnad for ekspertbistand</FormSummary.Label>
+            <FormSummary.Label>Søknadssum</FormSummary.Label>
             <FormSummary.Value>
               {formatCurrency(data.behovForBistand.estimertKostnad)}
             </FormSummary.Value>

@@ -165,7 +165,7 @@ export default function SkjemaSteg2Page() {
               />
               <TextField
                 id="behovForBistand.estimertKostnad"
-                label="Estimert kostnad for ekspertbistand"
+                label="Søknadssum"
                 inputMode="numeric"
                 max={MAX_ESTIMERT_KOSTNAD}
                 error={errors.behovForBistand?.estimertKostnad?.message}
