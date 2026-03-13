@@ -20,6 +20,12 @@ data class KafkaConsumerConfig(
     val groupId: String
 )
 
+/**
+ * We are subscribed to arena topics and have auto offset reset to none so that we will fail if no committed offset is found for a partition. This ensures that we won't miss any messages, but also means that we need to be able to handle the case where the consumer group is new and has no committed offsets.
+ * We do this so we dont skip any messages in case of an outage.
+ * We have idempotency, but only from when we started consuming the topic. We can not do a complete rebuild from start.
+ * In case of missing offset we should set offset to an offset recently processed, and then restart the consumer. This will ensure that we don't miss any messages, but also means that we might process some messages twice. We should be able to handle this with our idempotency.
+ */
 class CoroutineKafkaConsumer(
     private val config: KafkaConsumerConfig,
 ) {
@@ -30,7 +36,7 @@ class CoroutineKafkaConsumer(
         put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, (getenv("KAFKA_BROKERS") ?: "localhost:9092"))
         put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100")
         put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, "60000")
-        put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
+        put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none")
         put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
         put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.canonicalName)
         put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.canonicalName)
