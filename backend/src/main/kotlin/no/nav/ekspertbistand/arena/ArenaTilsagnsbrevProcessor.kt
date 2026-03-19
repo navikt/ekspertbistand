@@ -214,8 +214,8 @@ data class TilsagnData(
         val fodselsnr: String,
         val fornavn: String,
         val etternavn: String,
-        val landKode: String,
-        val postAdresse: String,
+        val landKode: String? = null,
+        val postAdresse: String? = null,
         val postNummer: String? = null,
         val postSted: String? = null,
     )
