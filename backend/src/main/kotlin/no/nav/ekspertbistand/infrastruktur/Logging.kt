@@ -139,7 +139,7 @@ inline fun <reified T> T.teamLogger(): Logger = MarkerLogger(logger(), teamLogsM
 class MarkerLogger(
     val logger: Logger,
     val marker: Marker
-) : Logger by logger {
+) : Logger {
 
 
     /**
@@ -225,4 +225,11 @@ class MarkerLogger(
     override fun atInfo(): LoggingEventBuilder? = logger.atInfo()
     override fun atWarn(): LoggingEventBuilder? = logger.atWarn()
     override fun atError(): LoggingEventBuilder? = logger.atError()
+
+    override fun isTraceEnabled(): Boolean = logger.isTraceEnabled
+    override fun isDebugEnabled(): Boolean = logger.isDebugEnabled
+    override fun isInfoEnabled(): Boolean = logger.isInfoEnabled
+    override fun isWarnEnabled(): Boolean = logger.isWarnEnabled
+    override fun isErrorEnabled(): Boolean = logger.isErrorEnabled
+    override fun getName(): String? = logger.name
 }
