@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory
 import org.slf4j.Marker
 import org.slf4j.MarkerFactory
 import org.slf4j.spi.LoggingEventBuilder
+import java.time.Instant
 
 const val TEAM_LOGS = "TEAM_LOGS"
 val teamLogsMarker = MarkerFactory.getMarker(TEAM_LOGS)
@@ -104,6 +105,15 @@ class MaskingAppender : AppenderBase<ILoggingEvent>() {
                         override fun getMessage(): String? =
                             mask(event.throwableProxy.message)
                     }
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun getMarker(): Marker? {
+                    return super.getMarker()
+                }
+
+                override fun getInstant(): Instant? {
+                    return super.getInstant()
                 }
 
             }
