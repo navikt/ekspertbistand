@@ -68,6 +68,12 @@ class LogConfig : ContextAwareBase(), Configurator {
                         |"nais_container_name":"${System.getenv("NAIS_APP_NAME")}"
                         |}""".trimMargin()
                     }
+                    addFilter(object : Filter<ILoggingEvent>() {
+                        override fun decide(event: ILoggingEvent) = when {
+                            (event.markerList ?: emptyList()).contains(teamLogsMarker) -> FilterReply.ACCEPT
+                            else -> FilterReply.DENY
+                        }
+                    })
                 })
             }
         }
