@@ -6,10 +6,12 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"pnpm --filter ./frontend/client dev\" \"pnpm --filter ./frontend/server dev\"",
+    "dev:saksbehandling": "pnpm --filter ./frontend/saksbehandling dev",
+    "serve:saksbehandling": "pnpm --filter ./frontend/saksbehandling build && pnpm --filter ./frontend/saksbehandling-server dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm --filter ./frontend/client lint && pnpm --filter ./frontend/server lint",
-    "lint:fix": "pnpm --filter ./frontend/client lint:fix && pnpm --filter ./frontend/server lint:fix",
+    "lint": "pnpm --filter ./frontend/client lint && pnpm --filter ./frontend/saksbehandling lint && pnpm --filter ./frontend/server lint && pnpm --filter ./frontend/saksbehandling-server lint",
+    "lint:fix": "pnpm --filter ./frontend/client lint:fix && pnpm --filter ./frontend/saksbehandling lint:fix && pnpm --filter ./frontend/server lint:fix && pnpm --filter ./frontend/saksbehandling-server lint:fix",
     "format": "prettier --check frontend",
     "format:fix": "prettier --write frontend",
     "test": "pnpm --filter ./frontend/client test:run"
