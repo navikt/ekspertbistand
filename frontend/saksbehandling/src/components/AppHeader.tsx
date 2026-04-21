@@ -16,7 +16,7 @@ export default function AppHeader() {
       <InternalHeader.Title as={NavLink} to={OVERSIKT_PATH}>
         Ekspertbistand saksbehandling
       </InternalHeader.Title>
-      <HStack justify="end" align="center" gap="space-2" wrap={false} style={{ flex: 1 }}>
+      <HStack justify="end" align="stretch" gap="space-2" wrap={false} style={{ flex: 1 }}>
         <ActionMenu>
           <ActionMenu.Trigger>
             <InternalHeader.Button>
