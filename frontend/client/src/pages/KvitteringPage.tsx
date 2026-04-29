@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowRightIcon } from "@navikt/aksel-icons";
+import { ArrowRightIcon, FilePdfIcon } from "@navikt/aksel-icons";
 import {
   Alert,
   BodyShort,
   BodyLong,
   Box,
+  Button,
   ExpansionCard,
   FormSummary,
   Heading,
@@ -16,7 +17,10 @@ import {
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
-import { fetchTilskuddsbrevHtmlForSkjema } from "../features/tilsagn/tilsagn";
+import {
+  fetchTilskuddsbrevHtmlForSkjema,
+  fetchTilskuddsbrevPdfForTilsagnNummer,
+} from "../features/tilsagn/tilsagn";
 import {
   SOKNADER_PATH,
   EKSPERTBISTAND_API_PATH,
@@ -208,6 +212,22 @@ export default function KvitteringPage() {
     (location.state as { submissionSuccess?: boolean } | null)?.submissionSuccess
   );
   const [showSubmittedAlert, setShowSubmittedAlert] = useState(false);
+  const [pdfLoadingMap, setPdfLoadingMap] = useState<Record<string, boolean>>({});
+
+  async function lastNedPdf(tilsagnNummer: string) {
+    setPdfLoadingMap((prev) => ({ ...prev, [tilsagnNummer]: true }));
+    try {
+      const blob = await fetchTilskuddsbrevPdfForTilsagnNummer(tilsagnNummer);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `tilskuddsbrev-${tilsagnNummer}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setPdfLoadingMap((prev) => ({ ...prev, [tilsagnNummer]: false }));
+    }
+  }
 
   useEffect(() => {
     if (!isSubmitted || !submissionSuccess) return;
@@ -348,7 +368,20 @@ export default function KvitteringPage() {
                     </ExpansionCard.Title>
                   </ExpansionCard.Header>
                   <ExpansionCard.Content>
-                    <Box dangerouslySetInnerHTML={{ __html: tilskuddsbrev.html }} />
+                    <VStack gap="space-8">
+                      <HStack justify="end">
+                        <Button
+                          variant="tertiary"
+                          size="small"
+                          icon={<FilePdfIcon aria-hidden />}
+                          loading={pdfLoadingMap[tilskuddsbrev.tilsagnNummer] ?? false}
+                          onClick={() => lastNedPdf(tilskuddsbrev.tilsagnNummer)}
+                        >
+                          Last ned PDF
+                        </Button>
+                      </HStack>
+                      <Box dangerouslySetInnerHTML={{ __html: tilskuddsbrev.html }} />
+                    </VStack>
                   </ExpansionCard.Content>
                 </ExpansionCard>
               );

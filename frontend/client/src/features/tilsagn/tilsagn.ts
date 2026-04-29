@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH } from "../../utils/constants";
-import { fetchJson } from "../../utils/api";
+import { fetchJson, fetchBlob } from "../../utils/api";
 
 const tilskuddsbrevHtmlSchema = z.object({
   tilsagnNummer: z.string(),
@@ -35,4 +35,10 @@ export async function fetchTilskuddsbrevHtmlForTilsagnNummer(
   }
 
   return tilskuddsbrevHtmlSchema.parse(response);
+}
+
+export async function fetchTilskuddsbrevPdfForTilsagnNummer(tilsagnNummer: string): Promise<Blob> {
+  return fetchBlob(
+    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/tilskuddsbrev/${tilsagnNummer}/tilskuddsbrev-pdf`
+  );
 }
