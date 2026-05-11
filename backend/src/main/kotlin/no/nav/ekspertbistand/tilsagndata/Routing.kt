@@ -45,6 +45,28 @@ suspend fun Application.configureTilsagnDataApiV1() {
                         hentTilskuddsbrevHtmlForTilsagnnummer(tilsagnNummer)
 
                     }
+                    get("/soknad/{id}/tilskuddsbrev-pdf") {
+                        val soknadId: UUID = call.pathParameters.getRequired(
+                            name = "id",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig id")
+                            return@get
+                        }
+
+                        hentTilskuddsbrevPdfForSoknad(soknadId)
+                    }
+                    get("/tilskuddsbrev/{tilsagnNummer}/tilskuddsbrev-pdf") {
+                        val tilsagnNummer: String = call.pathParameters.getRequired(
+                            name = "tilsagnNummer",
+                            transform = { it },
+                        ) {
+                            call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig tilsagnNummer")
+                            return@get
+                        }
+
+                        hentTilskuddsbrevPdfForTilsagnnummer(tilsagnNummer)
+                    }
                 }
             }
         }

@@ -56,3 +56,20 @@ export async function fetchJson<T>(input: string, init?: RequestInit): Promise<T
 
   return handleResponse<T>(response);
 }
+
+export async function fetchBlob(input: string): Promise<Blob> {
+  const response = await fetch(input, { headers: { Accept: "application/pdf" } });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      redirectToLogin();
+    }
+    const message = await parseErrorMessage(response);
+    throw new HttpError(message ?? `Kunne ikke hente fil (${response.status}).`, {
+      status: response.status,
+      statusText: response.statusText,
+    });
+  }
+
+  return response.blob();
+}
