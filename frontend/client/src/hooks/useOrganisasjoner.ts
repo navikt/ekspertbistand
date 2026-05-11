@@ -2,7 +2,7 @@ import useSWRImmutable from "swr/immutable";
 import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import { EKSPERTBISTAND_ORGANISASJONER_PATH } from "../utils/constants";
 
-type OrganisasjonResponse = { hierarki?: Organisasjon[] };
+type OrganisasjonResponse = { isError?: boolean; hierarki?: Organisasjon[] };
 
 export const useOrganisasjoner = () => {
   const { data, error, isLoading } = useSWRImmutable<OrganisasjonResponse>(
@@ -11,6 +11,7 @@ export const useOrganisasjoner = () => {
 
   return {
     organisasjoner: data?.hierarki ?? [],
+    altinnIsError: data?.isError ?? false,
     error,
     isLoading,
   };

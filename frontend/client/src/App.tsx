@@ -48,8 +48,8 @@ function SkjemaDraftOutlet() {
 
 function OrganisasjonerGate() {
   const { authenticated, error: sessionError, isLoading: isSessionLoading } = useSession();
-  const { organisasjoner, error, isLoading } = useOrganisasjoner();
-  if (isSessionLoading) {
+  const { organisasjoner, altinnIsError, error, isLoading } = useOrganisasjoner();
+  if (isSessionLoading || isLoading) {
     return (
       <VStack align="center" gap="space-4" padding="space-32">
         <Loader size="large" title="Sjekker innlogging" />
@@ -60,10 +60,10 @@ function OrganisasjonerGate() {
   if (sessionError || !authenticated) {
     return <LoginRequiredPage />;
   }
-  if (error) {
+  if (error || altinnIsError) {
     return <TilgangFeilPage />;
   }
-  if (!isLoading && organisasjoner.length === 0) {
+  if (organisasjoner.length === 0) {
     return <ManglerTilgangPage />;
   }
   return <Outlet />;

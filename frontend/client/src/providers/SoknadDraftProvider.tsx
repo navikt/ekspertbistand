@@ -103,7 +103,10 @@ export function SoknadDraftProvider({
     [clearDraft, draft, draftId, hydrated, lastPersistedAt, saveDraft, status]
   );
 
-  if (error instanceof HttpError && (error.status === 400 || error.status === 404)) {
+  if (
+    error instanceof HttpError &&
+    (error.status === 400 || error.status === 403 || error.status === 404)
+  ) {
     return <UgyldigSkjemaPage message={error.message} />;
   }
 
