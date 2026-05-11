@@ -1,4 +1,5 @@
 import { getWebInstrumentations, initializeFaro } from "@grafana/faro-web-sdk";
+import { ReactIntegration } from "@grafana/faro-react";
 import { TELEMETRY_COLLECTOR_URL } from "../utils/constants";
 
 // Initialize Faro as early as possible to capture errors
@@ -12,6 +13,7 @@ if (TELEMETRY_COLLECTOR_URL) {
       ...getWebInstrumentations({
         captureConsole: true,
       }),
+      new ReactIntegration(),
     ],
   });
 }
