@@ -1,6 +1,8 @@
 package no.nav.ekspertbistand.tilsagndata
 
+import io.ktor.http.*
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.routing.RoutingContext
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
@@ -73,6 +75,59 @@ class TilsagnDataApi(
         )
 
         call.respond(html)
+    }
+
+    suspend fun RoutingContext.hentTilskuddsbrevPdfForSoknad(soknadId: UUID) {
+        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
+
+        val (soknad, tilsagnData) = transaction(database) {
+            findSoknadById(soknadId) to findTilsagnDataBySoknadId(soknadId)
+        }
+
+        if (soknad == null || soknad.virksomhet.virksomhetsnummer !in tilganger.organisasjoner) {
+            call.respond(HttpStatusCode.Forbidden)
+            return
+        }
+
+        if (tilsagnData.isEmpty()) {
+            call.respond(HttpStatusCode.NotFound)
+            return
+        }
+
+        val tilsagn = tilsagnData.first()
+
+        EventQueue.publish(
+            EventData.TilskuddsbrevVist(
+                tilsagnNummer = tilsagn.tilsagnNummer.concat(),
+                soknad = soknad,
+            )
+        )
+
+        val pdf = dokgenClient.genererTilskuddsbrevPdf(tilsagn)
+        call.respondBytes(pdf, ContentType.Application.Pdf)
+    }
+
+    suspend fun RoutingContext.hentTilskuddsbrevPdfForTilsagnnummer(tilsagnNummer: String) {
+        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
+
+        val tilsagnData = transaction(database) {
+            findTilsagnDataByTilsagnNummer(tilsagnNummer)
+        }
+
+        if (tilsagnData == null || "${tilsagnData.tiltakArrangor.orgNummer}" !in tilganger.organisasjoner) {
+            call.respond(HttpStatusCode.Forbidden)
+            return
+        }
+
+        EventQueue.publish(
+            EventData.TilskuddsbrevVist(
+                tilsagnNummer = tilsagnNummer,
+                soknad = null,
+            )
+        )
+
+        val pdf = dokgenClient.genererTilskuddsbrevPdf(tilsagnData)
+        call.respondBytes(pdf, ContentType.Application.Pdf)
     }
 }
 
