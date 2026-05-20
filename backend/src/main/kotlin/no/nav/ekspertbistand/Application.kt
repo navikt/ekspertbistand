@@ -26,6 +26,7 @@ import io.micrometer.core.instrument.binder.logging.LogbackMetrics
 import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
+import no.nav.ekspertbistand.aareg.AaregClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.arena.startKafkaConsumers
@@ -82,6 +83,7 @@ fun main() {
             provide(PdlApiKlient::class)
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
+            provide(AaregClient::class)
             provide(FagsakIdService::class)
         }
 
