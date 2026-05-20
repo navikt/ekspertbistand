@@ -328,6 +328,9 @@ const loginSessionJson = {
   },
 };
 
+// Minimal valid PDF for local development mocking
+const mockPdfBytes = (): Uint8Array => new TextEncoder().encode("%PDF-1.4\n%%EOF\n");
+
 const createMockTilskuddsbrevHtml = () => [
   {
     tilsagnNummer: "2024-123-1",
@@ -506,6 +509,30 @@ export const handlers = [
         return HttpResponse.json({ message: "ugyldig tilsagnNummer" }, { status: 400 });
       }
       return HttpResponse.json(createMockTilskuddsbrevHtml()[0]);
+    }
+  ),
+  http.get(
+    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/soknad/:skjemaId/tilskuddsbrev-pdf`,
+    ({ params }) => {
+      const skjemaId = getParamValue(params.skjemaId);
+      if (!skjemaId) {
+        return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+      }
+      return new HttpResponse(mockPdfBytes(), {
+        headers: { "Content-Type": "application/pdf" },
+      });
+    }
+  ),
+  http.get(
+    `${EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH}/tilskuddsbrev/:tilsagnNummer/tilskuddsbrev-pdf`,
+    ({ params }) => {
+      const tilsagnNummer = getParamValue(params.tilsagnNummer);
+      if (!tilsagnNummer) {
+        return HttpResponse.json({ message: "ugyldig tilsagnNummer" }, { status: 400 });
+      }
+      return new HttpResponse(mockPdfBytes(), {
+        headers: { "Content-Type": "application/pdf" },
+      });
     }
   ),
   http.get("https://login.ekstern.dev.nav.no/oauth2/session", () =>
