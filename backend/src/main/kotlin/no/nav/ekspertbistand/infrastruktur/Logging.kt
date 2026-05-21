@@ -15,6 +15,7 @@ import ch.qos.logback.core.spi.ContextAwareBase
 import ch.qos.logback.core.spi.FilterReply
 import ch.qos.logback.core.spi.LifeCycle
 import net.logstash.logback.appender.LogstashTcpSocketAppender
+import net.logstash.logback.composite.loggingevent.LoggingEventPatternJsonProvider
 import net.logstash.logback.encoder.LogstashEncoder
 import no.nav.ekspertbistand.infrastruktur.NaisEnvironment.clusterName
 import org.slf4j.Logger
@@ -26,12 +27,18 @@ import org.slf4j.spi.LoggingEventBuilder
 import java.time.Instant
 
 const val TEAM_LOGS = "TEAM_LOGS"
-val teamLogsMarker = MarkerFactory.getMarker(TEAM_LOGS)
+val TEAM_LOG_MARKER: Marker = MarkerFactory.getMarker(TEAM_LOGS)
 
 /* used by resources/META-INF/services/ch.qos.logback.classic.spi */
 class LogConfig : ContextAwareBase(), Configurator {
 
     override fun configure(lc: LoggerContext): ExecutionStatus {
+        // Suppress repeated transport-error status messages from the TCP appender.
+        // Without this, logback's StatusManager prints a connection error to
+        // stderr on every failed reconnect, which is noisy and was a contributor
+        // to v1 being rolled back.
+        lc.statusManager.add(RateLimitedStatusListener(maxMessagesPerMinute = 6))
+
         val rootAppender = MaskingAppender().setup(lc) {
             appender = ConsoleAppender<ILoggingEvent>().setup(lc) {
                 encoder = LogstashEncoder().setup(lc) {
@@ -39,14 +46,12 @@ class LogConfig : ContextAwareBase(), Configurator {
                 }
                 addFilter(object : Filter<ILoggingEvent>() {
                     override fun decide(event: ILoggingEvent) = when {
-                        (event.markerList ?: emptyList()).contains(teamLogsMarker) -> FilterReply.DENY
+                        (event.markerList ?: emptyList()).contains(TEAM_LOG_MARKER) -> FilterReply.DENY
                         else -> FilterReply.NEUTRAL
                     }
                 })
             }
         }
-
-        lc.getLogger("org.flywaydb.core.internal").level = Level.WARN
 
         lc.getLogger(ROOT_LOGGER_NAME).apply {
             level = basedOnEnv(
@@ -60,6 +65,17 @@ class LogConfig : ContextAwareBase(), Configurator {
                 addAppender(LogstashTcpSocketAppender().setup(lc) {
                     this.name = "TEAMLOGS"
                     addDestination("team-logs.nais-system:5170")
+
+                    // --- hardening: bound queue, never block caller, no busy spin ---
+                    this.ringBufferSize = 1024                                                          // default 8192
+                    this.appendTimeout =
+                        ch.qos.logback.core.util.Duration.buildByMilliseconds(0.0)     // drop on full instead of blocking
+                    setWaitStrategyType("sleeping")                                                     // method (no getter → no synthetic property); no CPU burn on idle
+                    this.reconnectionDelay = ch.qos.logback.core.util.Duration.buildByMinutes(1.0)      // default 30s
+                    this.keepAliveDuration =
+                        ch.qos.logback.core.util.Duration.buildByMinutes(5.0)      // keep socket warm
+                    // --- end hardening ---
+
                     this.encoder = LogstashEncoder().setup(lc) {
                         this.customFields = """{
                         |"google_cloud_project":"${System.getenv("GOOGLE_CLOUD_PROJECT")}",
@@ -67,10 +83,15 @@ class LogConfig : ContextAwareBase(), Configurator {
                         |"nais_pod_name":"${System.getenv("NAIS_POD_NAME")}",
                         |"nais_container_name":"${System.getenv("NAIS_APP_NAME")}"
                         |}""".trimMargin()
+                        this.isIncludeContext = false
+                        addProvider(LoggingEventPatternJsonProvider().apply {
+                            this.pattern =
+                                """{"message":"%replace(%message){'^(.{125000}).+$', '$1...truncated'}"}"""
+                        })
                     }
                     addFilter(object : Filter<ILoggingEvent>() {
                         override fun decide(event: ILoggingEvent) = when {
-                            (event.markerList ?: emptyList()).contains(teamLogsMarker) -> FilterReply.ACCEPT
+                            (event.markerList ?: emptyList()).contains(TEAM_LOG_MARKER) -> FilterReply.ACCEPT
                             else -> FilterReply.DENY
                         }
                     })
@@ -90,6 +111,57 @@ private fun <T> T.setup(context: LoggerContext, body: T.() -> Unit = {}): T
     this.body()
     this.start()
     return this
+}
+
+
+/**
+ * StatusListener that rate-limits status messages to N per minute.
+ *
+ * Used to silence the reconnect-error storm from LogstashTcpSocketAppender
+ * when team-logs.nais-system is briefly unreachable. Without this, every
+ * reconnect attempt produces a Status WARN/ERROR that the StatusManager
+ * prints to stderr.
+ *
+ * INFO-level status events (mostly lifecycle messages on boot) are not
+ * rate-limited.
+ */
+class RateLimitedStatusListener(
+    private val maxMessagesPerMinute: Int,
+) : ch.qos.logback.core.status.StatusListener, LifeCycle {
+
+    private val window = java.time.Duration.ofMinutes(1)
+    private val timestamps = java.util.ArrayDeque<Instant>()
+    private var started = false
+
+    override fun addStatusEvent(status: ch.qos.logback.core.status.Status) {
+        if (status.level < ch.qos.logback.core.status.Status.WARN) {
+            System.err.println(status)
+            return
+        }
+        val now = Instant.now()
+        synchronized(timestamps) {
+            while (timestamps.isNotEmpty() &&
+                java.time.Duration.between(timestamps.peekFirst(), now) > window
+            ) {
+                timestamps.pollFirst()
+            }
+            if (timestamps.size < maxMessagesPerMinute) {
+                timestamps.addLast(now)
+                System.err.println(status)
+            }
+            // else: drop silently
+        }
+    }
+
+    override fun start() {
+        started = true
+    }
+
+    override fun stop() {
+        started = false
+    }
+
+    override fun isStarted(): Boolean = started
 }
 
 
@@ -144,7 +216,7 @@ class MaskingAppender : AppenderBase<ILoggingEvent>() {
 }
 
 inline fun <reified T> T.logger(): Logger = LoggerFactory.getLogger(T::class.qualifiedName)
-inline fun <reified T> T.teamLogger(): Logger = MarkerLogger(logger(), teamLogsMarker)
+inline fun <reified T> T.teamLogger(): Logger = MarkerLogger(logger(), TEAM_LOG_MARKER)
 
 /**
  * Logger wrapper that enforces usage of a specific Marker for all logging methods.
