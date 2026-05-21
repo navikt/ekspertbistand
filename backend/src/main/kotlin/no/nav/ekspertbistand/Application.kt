@@ -141,10 +141,10 @@ suspend fun Application.configureOrganisasjonerApiV1() {
                 get("api/organisasjoner/v1") {
                     val altinnTilganger = hentTilganger(subjectToken)
                     if(altinnTilganger.hierarki.any {
-                        it.organisasjonsform == "KOMM"
+                        it.underenheter.isEmpty()
                     }) {
-                        logger().error("Ekspertbistand delegert på KOMM nivå, sjekk team logs for detaljer")
-                        teamLogger().error("Ekspertbistand delegert på KOMM nivå. bruker: {} tilganger: {}", innloggetBruker, altinnTilganger)
+                        logger().error("Ekspertbistand delegert på topp nivå, sjekk team logs for detaljer")
+                        teamLogger().error("Ekspertbistand delegert på topp nivå. bruker: {} tilganger: {}", innloggetBruker, altinnTilganger)
                     }
                     call.respond(altinnTilganger)
                 }
