@@ -152,6 +152,30 @@ const ansatteProxy = createProxyMiddleware({
 
 api.use("/api/ansatte", azureObo, ansatteProxy);
 
+const oversiktProxy = createProxyMiddleware({
+  target: EKSPERTBISTAND_API_BASEURL,
+  changeOrigin: true,
+  on: {
+    proxyReq(proxyReq: ClientRequest) {
+      proxyReq.removeHeader("cookie");
+    },
+    error(err: Error, req: IncomingMessage, res: ServerResponse | Socket) {
+      logger.error({ err, path: req.url }, "Proxy error mot oversikt-api");
+      if ("writeHead" in res && typeof (res as ServerResponse).writeHead === "function") {
+        const serverRes = res as ServerResponse;
+        if (!serverRes.headersSent) {
+          serverRes.writeHead(502, { "Content-Type": "application/json" });
+        }
+        if (!serverRes.writableEnded) {
+          serverRes.end(JSON.stringify({ message: "Kunne ikke kontakte oversikt-api." }));
+        }
+      }
+    },
+  },
+});
+
+api.use("/api/saksbehandling/oversikt", azureObo, oversiktProxy);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 

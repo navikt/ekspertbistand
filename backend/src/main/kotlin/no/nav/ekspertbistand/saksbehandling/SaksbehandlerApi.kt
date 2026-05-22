@@ -63,6 +63,13 @@ suspend fun Application.configureSaksbehandlerApiV1() {
                     call.respond(HttpStatusCode.NoContent)
                 }
             }
+
+            get("/api/saksbehandling/oversikt") {
+                call.principal<AzureAdPrincipal>()
+                    ?: return@get call.respond(HttpStatusCode.Unauthorized)
+
+                call.respond(OversiktResponse(saker = stubbedOversikt))
+            }
         }
     }
 }
@@ -81,4 +88,49 @@ data class AnsattEnhetResponse(
     val id: String,
     val nummer: String,
     val navn: String,
+)
+
+@Serializable
+data class OversiktResponse(
+    val saker: List<OversiktRad>,
+)
+
+@Serializable
+data class OversiktRad(
+    val id: String,
+    val virksomhet: String,
+    val deltaker: String,
+    val status: String,
+    val saksbehandler: String,
+    val opprettetDato: String,
+    val tilsagnNummer: String? = null,
+)
+
+private val stubbedOversikt = listOf(
+    OversiktRad(
+        id = "sak-1001",
+        virksomhet = "Eksempel Bedrift AS",
+        deltaker = "Ola Nordmann",
+        status = "Til behandling",
+        saksbehandler = "Silje Saksbehandler",
+        opprettetDato = "2026-04-18",
+        tilsagnNummer = "2026-101-1",
+    ),
+    OversiktRad(
+        id = "sak-1002",
+        virksomhet = "Demo Solutions AS",
+        deltaker = "Eva Hansen",
+        status = "Avventer svar",
+        saksbehandler = "Silje Saksbehandler",
+        opprettetDato = "2026-04-15",
+    ),
+    OversiktRad(
+        id = "sak-1003",
+        virksomhet = "Testfirma Norge AS",
+        deltaker = "Per Pedersen",
+        status = "Ferdigstilt",
+        saksbehandler = "Vurderer Vilkårsen",
+        opprettetDato = "2026-04-09",
+        tilsagnNummer = "2026-087-2",
+    ),
 )
