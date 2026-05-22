@@ -56,6 +56,7 @@ spec:
         - host: pdl-api.prod-fss-pub.nais.io
         - host: dokarkiv.prod-fss-pub.nais.io
         - host: ereg-services.prod-fss-pub.nais.io
+        - host: entraproxy.intern.nav.no
       rules:
         - application: logging
           namespace: nais-system

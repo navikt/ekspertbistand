@@ -62,6 +62,7 @@ spec:
         - host: dokarkiv-q2.dev-fss-pub.nais.io
         - host: ereg-services.dev-fss-pub.nais.io
         - host: aareg-services.intern.dev.nav.no
+        - host: entraproxy.intern.dev.nav.no
       rules:
         - application: logging
           namespace: nais-system

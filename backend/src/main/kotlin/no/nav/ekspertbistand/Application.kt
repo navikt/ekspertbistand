@@ -33,6 +33,7 @@ import no.nav.ekspertbistand.arena.startKafkaConsumers
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
@@ -45,6 +46,7 @@ import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
+import no.nav.ekspertbistand.soknad.innloggetBruker
 import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -84,6 +86,7 @@ fun main() {
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
             provide(AaregClient::class)
+            provide(EntraProxyClient::class)
             provide(FagsakIdService::class)
         }
 
@@ -138,7 +141,14 @@ suspend fun Application.configureOrganisasjonerApiV1() {
         authenticate(TOKENX_PROVIDER) {
             with(altinnTilgangerClient) {
                 get("api/organisasjoner/v1") {
-                    call.respond(hentTilganger(subjectToken))
+                    val altinnTilganger = hentTilganger(subjectToken)
+                    if(altinnTilganger.hierarki.any {
+                        it.underenheter.isEmpty()
+                    }) {
+                        logger().error("Ekspertbistand delegert på topp nivå, sjekk team logs for detaljer")
+                        teamLogger().error("Ekspertbistand delegert på topp nivå. bruker: {} tilganger: {}", innloggetBruker, altinnTilganger)
+                    }
+                    call.respond(altinnTilganger)
                 }
             }
         }
