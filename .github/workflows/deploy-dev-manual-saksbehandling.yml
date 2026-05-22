@@ -12,7 +12,7 @@ jobs:
       id-token: write
       packages: write
     env:
-      VITE_ENABLE_MOCKS: "true"
+      VITE_ENABLE_MOCKS: "false"
     outputs:
       image: ${{ steps.docker-build-push.outputs.image }}
 
