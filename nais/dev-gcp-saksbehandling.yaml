@@ -16,10 +16,26 @@ spec:
     max: 1
 
   tokenx:
-    enabled: false
+    enabled: true
 
-  idporten:
-    enabled: false
+  azure:
+    application:
+      enabled: true
+      allowAllUsers: true
+    sidecar:
+      enabled: true
+      autoLogin: false
+
+  env:
+    - name: EKSPERTBISTAND_API_BASEURL
+      value: "http://ekspertbistand-backend"
+    - name: EKSPERTBISTAND_API_AUDIENCE
+      value: "dev-gcp:fager:ekspertbistand-backend"
+
+  accessPolicy:
+    outbound:
+      rules:
+        - application: ekspertbistand-backend
 
   observability:
     autoInstrumentation:

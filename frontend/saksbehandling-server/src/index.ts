@@ -117,6 +117,32 @@ const tokenX = tokenXMiddleware({
 
 api.use("/ekspertbistand-backend", tokenX, ekspertbistandBackendProxy);
 
+const ansatteProxy = createProxyMiddleware({
+  target: EKSPERTBISTAND_API_BASEURL,
+  changeOrigin: true,
+  pathRewrite: (incomingPath) =>
+    incomingPath.replace(/^\/api\/ansatte/, "/api/saksbehandling/ansatte"),
+  on: {
+    proxyReq(proxyReq: ClientRequest) {
+      proxyReq.removeHeader("cookie");
+    },
+    error(err: Error, req: IncomingMessage, res: ServerResponse | Socket) {
+      logger.error({ err, path: req.url }, "Proxy error mot ansatte-api");
+      if ("writeHead" in res && typeof (res as ServerResponse).writeHead === "function") {
+        const serverRes = res as ServerResponse;
+        if (!serverRes.headersSent) {
+          serverRes.writeHead(502, { "Content-Type": "application/json" });
+        }
+        if (!serverRes.writableEnded) {
+          serverRes.end(JSON.stringify({ message: "Kunne ikke kontakte ansatte-api." }));
+        }
+      }
+    },
+  },
+});
+
+api.use("/api/ansatte", tokenX, ansatteProxy);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
