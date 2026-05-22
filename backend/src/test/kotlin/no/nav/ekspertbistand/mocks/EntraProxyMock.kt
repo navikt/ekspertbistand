@@ -21,3 +21,19 @@ fun ApplicationTestBuilder.mockEntraProxy(
     }
 }
 
+fun ApplicationTestBuilder.mockEntraProxyAnsatt(
+    responseProvider: (navIdent: String) -> String
+) {
+    externalServices {
+        hosts(EntraProxyClient.ingress) {
+            routing {
+                get("${EntraProxyClient.ANSATT_API_PATH}/{navIdent}") {
+                    val navIdent = call.parameters["navIdent"]!!
+                    val response = responseProvider(navIdent)
+                    call.respondText(response, contentType = io.ktor.http.ContentType.Application.Json)
+                }
+            }
+        }
+    }
+}
+
