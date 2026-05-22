@@ -129,8 +129,7 @@ const azureObo = azureOboMiddleware({
 const ansatteProxy = createProxyMiddleware({
   target: EKSPERTBISTAND_API_BASEURL,
   changeOrigin: true,
-  pathRewrite: (incomingPath) =>
-    incomingPath.replace(/^\/api\/ansatte/, "/api/saksbehandling/ansatte"),
+  pathRewrite: (path) => `/api/saksbehandling/ansatte${path}`,
   on: {
     proxyReq(proxyReq: ClientRequest) {
       proxyReq.removeHeader("cookie");
@@ -155,6 +154,7 @@ api.use("/api/ansatte", azureObo, ansatteProxy);
 const oversiktProxy = createProxyMiddleware({
   target: EKSPERTBISTAND_API_BASEURL,
   changeOrigin: true,
+  pathRewrite: () => "/api/saksbehandling/oversikt",
   on: {
     proxyReq(proxyReq: ClientRequest) {
       proxyReq.removeHeader("cookie");
