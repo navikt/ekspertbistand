@@ -33,6 +33,7 @@ import no.nav.ekspertbistand.arena.startKafkaConsumers
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
@@ -85,6 +86,7 @@ fun main() {
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
             provide(AaregClient::class)
+            provide(EntraProxyClient::class)
             provide(FagsakIdService::class)
         }
 
