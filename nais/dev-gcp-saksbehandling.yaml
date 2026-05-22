@@ -22,7 +22,7 @@ spec:
     application:
       enabled: true
       allowAllUsers: true
-      tenant: trygdeetaten.no
+      # tenant: trygdeetaten.no  # Midlertidig deaktivert - cross-tenant OBO krever ekstra konfig
     sidecar:
       enabled: true
       autoLogin: false

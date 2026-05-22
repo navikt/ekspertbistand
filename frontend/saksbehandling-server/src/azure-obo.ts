@@ -34,7 +34,10 @@ export const azureOboMiddleware =
 
       const oboResult = await requestAzureOboToken(subjectToken, audience);
       if (!oboResult.ok) {
-        logger.error({ error: oboResult.error }, "Azure OBO feilet");
+        logger.error(
+          { error: String(oboResult.error), message: oboResult.error?.message ?? "unknown" },
+          "Azure OBO feilet"
+        );
         res.status(401).json({ message: "Kunne ikke hente tilgangstoken." });
         return;
       }
