@@ -179,7 +179,14 @@ data class TokenXPrincipal(
     val subjectToken: String,
 )
 
+data class AzureAdPrincipal(
+    val navIdent: String,
+    val name: String?,
+    val clientId: String,
+)
+
 const val TOKENX_PROVIDER = "TOKEN_X"
+const val AZURE_AD_PROVIDER = "AZURE_AD"
 
 suspend fun Application.configureTokenXAuth() {
     val introspector = dependencies.resolve<TokenXTokenIntrospector>()
@@ -217,6 +224,26 @@ suspend fun Application.configureTokenXAuth() {
                     }
 
 
+                }
+            }
+        }
+
+        bearer(AZURE_AD_PROVIDER) {
+            authenticate { credentials ->
+                val introspection = introspector.introspect(credentials.token)
+
+                with(introspection) {
+                    if (!active) return@authenticate null
+
+                    val navIdent = other["NAVident"] as? String ?: return@authenticate null
+                    val clientId = other["client_id"] as? String ?: return@authenticate null
+                    val name = other["name"] as? String
+
+                    AzureAdPrincipal(
+                        navIdent = navIdent,
+                        name = name,
+                        clientId = clientId,
+                    )
                 }
             }
         }

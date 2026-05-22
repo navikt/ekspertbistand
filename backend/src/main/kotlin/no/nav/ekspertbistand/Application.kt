@@ -48,6 +48,7 @@ import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
 import no.nav.ekspertbistand.soknad.innloggetBruker
 import no.nav.ekspertbistand.soknad.subjectToken
+import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
@@ -101,6 +102,7 @@ fun main() {
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()
         configureEregApiV1()
+        configureSaksbehandlerApiV1()
 
         // event manager and event handlers
         configureEventHandlers()

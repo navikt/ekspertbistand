@@ -96,28 +96,28 @@ Frontenden kaller allerede `/api/ansatte/meg` (se `TilgangProvider.tsx`), men de
 
 Backend validerer i dag kun TokenX-tokens fra ID-porten (krever `pid` og `acr: idporten-loa-high`). For saksbehandler-flyten er tokenet fra Azure AD → TokenX, som har `NAVident` i stedet for `pid`.
 
-### Anbefalt tilnærming: Alternativ A — Nytt backend-endepunkt med Azure AD-originated TokenX
+### Anbefalt tilnærming: Alternativ A — Azure AD OBO til backend
 
 **Flyt:**
 1. Saksbehandler logger inn via Azure AD (Wonderwall sidecar)
 2. BFF mottar Azure AD-token fra Wonderwall
-3. BFF veksler via TokenX OBO → får TokenX-token for backend
-4. Backend validerer TokenX-token med ny auth-provider som aksepterer Azure AD-claims (`NAVident`)
-5. Backend kaller `EntraProxyClient.hentAnsatt(navIdent)` + `hentEnheter(navIdent)` med CC-flow
+3. BFF veksler via Azure AD OBO (`requestAzureOboToken`) → får nytt Azure AD-token for backend
+4. Backend validerer Azure AD-token med `AZURE_AD_PROVIDER` (via NAIS token introspection)
+5. Backend leser `NAVident` fra token, kaller `EntraProxyClient.hentAnsatt(navIdent)` + `hentEnheter(navIdent)` med CC-flow
 6. Returnerer `InnloggetAnsatt` til frontend
 
+**Merk:** Backend har allerede `azure.application.enabled: true` i Nais-config, som gir tilgang til token introspection-endepunktet for å validere Azure AD-tokens.
+
 **Backend-endringer:**
-- Ny auth-provider `AZURE_TOKENX_PROVIDER` som validerer TokenX-tokens med `NAVident`-claim (i stedet for `pid`)
-- Nytt endepunkt `GET /api/saksbehandling/ansatte/meg` autentisert med ny provider
-- Endepunktet leser `NAVident` fra token, kaller `EntraProxyClient`
-- Returnerer data i format som matcher frontend-typen `InnloggetAnsatt`
-- Nytt endepunkt `POST /api/saksbehandling/ansatte/enhet` for å bytte valgt enhet (kan være no-op/stateless i første iterasjon)
+- Ny auth-provider `AZURE_AD_PROVIDER` i samme `install(Authentication)`-blokk som `TOKENX_PROVIDER`
+- Validerer Azure AD-tokens via introspection, sjekker `NAVident`-claim
+- `AzureAdPrincipal` data class med navIdent, name, clientId
+- Nytt endepunkt `GET /api/saksbehandling/ansatte/meg` autentisert med `AZURE_AD_PROVIDER`
+- Nytt endepunkt `POST /api/saksbehandling/ansatte/enhet` (no-op/stateless)
 
 **BFF-endringer:**
-- Legg til proxy for `/api/ansatte/*` → backend `/api/saksbehandling/ansatte/*` (med TokenX OBO, samme som `/ekspertbistand-backend`)
-
-**Nais backend-endringer:**
-- Legg til `accessPolicy.inbound.rules` for `ekspertbistand-saksbehandling` i `dev-gcp-backend.yaml`
+- Ny `azure-obo.ts` middleware som bruker `requestAzureOboToken` fra `@navikt/oasis`
+- Proxy for `/api/ansatte/*` → backend `/api/saksbehandling/ansatte/*` med Azure AD OBO
 
 ### Responsformat (matcher frontend-typen `InnloggetAnsatt`)
 

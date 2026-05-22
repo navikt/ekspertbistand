@@ -5,6 +5,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { tokenXMiddleware } from "./tokenx.js";
+import { azureOboMiddleware } from "./azure-obo.js";
 import { logger } from "@navikt/pino-logger";
 import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import type { Socket } from "net";
@@ -21,6 +22,7 @@ const {
   EKSPERTBISTAND_API_BASEURL = "http://localhost:8080",
   EKSPERTBISTAND_API_AUDIENCE,
   TOKEN_X_ISSUER,
+  AZURE_APP_CLIENT_ID,
   LOCAL_SUBJECT_TOKEN,
   STATIC_DIR,
   NODE_ENV,
@@ -31,6 +33,7 @@ const {
 const port = Number(PORT);
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
 const tokenxEnabled = Boolean(TOKEN_X_ISSUER);
+const azureEnabled = Boolean(AZURE_APP_CLIENT_ID);
 
 if (tokenxEnabled && !EKSPERTBISTAND_API_AUDIENCE) {
   throw new Error("Mangler EKSPERTBISTAND_API_AUDIENCE for TokenX OBO.");
@@ -117,6 +120,12 @@ const tokenX = tokenXMiddleware({
 
 api.use("/ekspertbistand-backend", tokenX, ekspertbistandBackendProxy);
 
+const azureObo = azureOboMiddleware({
+  enabled: azureEnabled,
+  audience: EKSPERTBISTAND_API_AUDIENCE,
+  localSubjectToken: LOCAL_SUBJECT_TOKEN,
+});
+
 const ansatteProxy = createProxyMiddleware({
   target: EKSPERTBISTAND_API_BASEURL,
   changeOrigin: true,
@@ -141,7 +150,7 @@ const ansatteProxy = createProxyMiddleware({
   },
 });
 
-api.use("/api/ansatte", tokenX, ansatteProxy);
+api.use("/api/ansatte", azureObo, ansatteProxy);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
