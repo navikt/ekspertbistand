@@ -1,5 +1,6 @@
-import { Alert, BodyLong, Heading, Loader, Table, Tag, VStack } from "@navikt/ds-react";
+import { Alert, BodyLong, BodyShort, Heading, Loader, Table, Tag, VStack } from "@navikt/ds-react";
 import { useOversikt } from "../hooks/useOversikt";
+import { useTilgangContext } from "../tilgang/useTilgang";
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("nb-NO", {
@@ -17,6 +18,7 @@ function statusVariant(status: "Til behandling" | "Avventer svar" | "Ferdigstilt
 
 export default function OversiktPage() {
   const { saker, error, isLoading } = useOversikt();
+  const { innloggetAnsatt } = useTilgangContext();
 
   if (isLoading) {
     return (
@@ -56,6 +58,10 @@ export default function OversiktPage() {
       <Heading level="1" size="large">
         Saksoversikt
       </Heading>
+      <BodyShort size="small">
+        Innlogget: {innloggetAnsatt.navn} ({innloggetAnsatt.id}) — Enhet:{" "}
+        {innloggetAnsatt.gjeldendeEnhet.nummer} {innloggetAnsatt.gjeldendeEnhet.navn}
+      </BodyShort>
       <Table>
         <Table.Header>
           <Table.Row>
