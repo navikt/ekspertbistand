@@ -32,6 +32,7 @@ class EntraProxyClient(
         )
 
         const val API_PATH = "/api/v1/enhet/ansatt"
+        const val ANSATT_API_PATH = "/api/v1/ansatt"
     }
 
     val httpClient = defaultHttpClient.config {
@@ -61,11 +62,37 @@ class EntraProxyClient(
                 )
             )
         }.body()
+
+    suspend fun hentAnsatt(navIdent: String): UtvidetAnsatt =
+        httpClient.get {
+            url {
+                takeFrom(ingress)
+                path("$ANSATT_API_PATH/$navIdent")
+            }
+            accept(ContentType.Application.Json)
+            bearerAuth(
+                tokenProvider.token(targetAudience).fold(
+                    { it.accessToken },
+                    { throw Exception("Failed to get token: ${it.error}") }
+                )
+            )
+        }.body()
 }
 
 @Serializable
 data class Enhet(
     val enhetnummer: String,
     val navn: String,
+)
+
+@Serializable
+data class UtvidetAnsatt(
+    val navIdent: String,
+    val visningNavn: String? = null,
+    val fornavn: String? = null,
+    val etternavn: String? = null,
+    val epost: String? = null,
+    val enhet: Enhet,
+    val tident: String,
 )
 
