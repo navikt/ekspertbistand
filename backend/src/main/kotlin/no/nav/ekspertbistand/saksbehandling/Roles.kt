@@ -7,12 +7,12 @@ import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 enum class Role(val groupId: String) {
     SAKSBEHANDLER(basedOnEnv(
         prod = "",
-        dev = "",
+        dev = "1b3a2c4d-d620-4fcf-a29b-a6cdadf29680",
         other = "test-saksbehandler-group-id",
     )),
     BESLUTTER(basedOnEnv(
         prod = "",
-        dev = "",
+        dev = "79985315-b2de-40b8-a740-9510796993c6",
         other = "test-beslutter-group-id",
     )),
     FORTROLIG_ADRESSE(basedOnEnv(
