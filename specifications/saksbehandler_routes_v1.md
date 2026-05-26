@@ -114,7 +114,7 @@ suspend fun Application.configureAzureAdAuth() {
 Plassering: `backend/src/main/kotlin/no/nav/ekspertbistand/saksbehandler/Roles.kt`
 
 ```kotlin
-package no.nav.ekspertbistand.saksbehandler
+package no.nav.ekspertbistand.saksbehandling
 
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 
@@ -152,7 +152,7 @@ enum class Role(val groupId: String) {
 Plassering: `backend/src/main/kotlin/no/nav/ekspertbistand/saksbehandler/SaksbehandlerInfo.kt`
 
 ```kotlin
-package no.nav.ekspertbistand.saksbehandler
+package no.nav.ekspertbistand.saksbehandling
 
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.entraproxy.Enhet
@@ -179,7 +179,7 @@ data class SaksbehandlerInfo(
 Plassering: `backend/src/main/kotlin/no/nav/ekspertbistand/saksbehandler/Routing.kt`
 
 ```kotlin
-package no.nav.ekspertbistand.saksbehandler
+package no.nav.ekspertbistand.saksbehandling
 
 import io.ktor.server.application.*
 import io.ktor.server.auth.*

@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.saksbehandler
+package no.nav.ekspertbistand.saksbehandling
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals

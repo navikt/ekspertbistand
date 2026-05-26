@@ -64,6 +64,7 @@ spec:
     inbound:
       rules:
         - application: ekspertbistand-frontend
+        - application: ekspertbistand-saksbehandling
         - application: azure-token-generator
           namespace: nais
           cluster: dev-gcp

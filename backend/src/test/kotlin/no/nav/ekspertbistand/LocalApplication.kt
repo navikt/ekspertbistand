@@ -23,7 +23,7 @@ import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
-import no.nav.ekspertbistand.saksbehandler.configureSaksbehandlerApiV1
+import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.UtkastTable
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1

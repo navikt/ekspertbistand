@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.saksbehandler
+package no.nav.ekspertbistand.saksbehandling
 
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -68,18 +68,15 @@ class SaksbehandlerRoutingTest {
             configureServer()
         }
 
-        val response = client.get("/api/saksbehandler/v1/me") {
+        val response = client.get("/api/saksbehandling/v1/meg") {
             bearerAuth("valid-azure-token")
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.body<SaksbehandlerInfo>()
-        assertEquals("A123456", body.navIdent)
-        assertEquals("Tore Tang", body.visningNavn)
-        assertEquals("Tore", body.fornavn)
-        assertEquals("Tang", body.etternavn)
+        val body = response.body<InnloggetAnsattResponse>()
+        assertEquals("A123456", body.id)
+        assertEquals("Tore Tang", body.navn)
         assertEquals("tore.tang@nav.no", body.epost)
-        assertEquals("T123456", body.tident)
         assertEquals(2, body.enheter.size)
         assertEquals(setOf(Role.SAKSBEHANDLER, Role.BESLUTTER), body.roller)
     }
@@ -110,7 +107,7 @@ class SaksbehandlerRoutingTest {
             configureServer()
         }
 
-        val response = client.get("/api/saksbehandler/v1/me")
+        val response = client.get("/api/saksbehandling/v1/meg")
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
@@ -143,7 +140,7 @@ class SaksbehandlerRoutingTest {
             configureServer()
         }
 
-        val response = client.get("/api/saksbehandler/v1/me") {
+        val response = client.get("/api/saksbehandling/v1/meg") {
             bearerAuth("inactive-token")
         }
 
@@ -182,7 +179,7 @@ class SaksbehandlerRoutingTest {
             configureServer()
         }
 
-        val response = client.get("/api/saksbehandler/v1/me") {
+        val response = client.get("/api/saksbehandling/v1/meg") {
             bearerAuth("no-navident-token")
         }
 
@@ -220,12 +217,12 @@ class SaksbehandlerRoutingTest {
             configureServer()
         }
 
-        val response = client.get("/api/saksbehandler/v1/me") {
+        val response = client.get("/api/saksbehandling/v1/meg") {
             bearerAuth("no-groups-token")
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
-        val body = response.body<SaksbehandlerInfo>()
+        val body = response.body<InnloggetAnsattResponse>()
         assertEquals(emptySet(), body.roller)
     }
 }

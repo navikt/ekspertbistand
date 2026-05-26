@@ -1,5 +1,7 @@
 packages:
   - frontend/client
+  - frontend/saksbehandling
+  - frontend/saksbehandling-server
   - frontend/server
 
 onlyBuiltDependencies:

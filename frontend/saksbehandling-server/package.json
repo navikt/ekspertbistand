@@ -1,0 +1,27 @@
+{
+  "name": "saksbehandling-server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -b",
+    "start": "node dist/index.js",
+    "lint": "eslint ../../frontend/saksbehandling-server",
+    "lint:fix": "eslint ../../frontend/saksbehandling-server --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@navikt/oasis": "^4.1.4",
+    "@navikt/pino-logger": "^4.5.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
+    "http-proxy-middleware": "^3.0.5",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
