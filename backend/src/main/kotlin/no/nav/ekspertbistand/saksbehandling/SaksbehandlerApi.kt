@@ -20,12 +20,13 @@ suspend fun Application.configureSaksbehandlerApiV1() {
 
     routing {
         authenticate(AZURE_AD_PROVIDER) {
-            route("/api/saksbehandling/ansatte") {
+            route("/api/saksbehandling/v1") {
                 get("/meg") {
                     val principal = call.principal<AzureAdPrincipal>()
                         ?: return@get call.respond(HttpStatusCode.Unauthorized)
 
                     val navIdent = principal.navIdent
+                    val roller = Role.fromGroups(principal.groups)
 
                     try {
                         val ansatt = entraProxyClient.hentAnsatt(navIdent)
@@ -47,6 +48,7 @@ suspend fun Application.configureSaksbehandlerApiV1() {
                                 nummer = ansatt.enhet.enhetnummer,
                                 navn = ansatt.enhet.navn,
                             ),
+                            roller = roller,
                         )
 
                         call.respond(response)
@@ -62,14 +64,15 @@ suspend fun Application.configureSaksbehandlerApiV1() {
                 post("/enhet") {
                     call.respond(HttpStatusCode.NoContent)
                 }
+
+                get("/oversikt") {
+                    call.principal<AzureAdPrincipal>()
+                        ?: return@get call.respond(HttpStatusCode.Unauthorized)
+
+                    call.respond(OversiktResponse(saker = stubbedOversikt))
+                }
             }
 
-            get("/api/saksbehandling/oversikt") {
-                call.principal<AzureAdPrincipal>()
-                    ?: return@get call.respond(HttpStatusCode.Unauthorized)
-
-                call.respond(OversiktResponse(saker = stubbedOversikt))
-            }
         }
     }
 }
@@ -81,6 +84,7 @@ data class InnloggetAnsattResponse(
     val epost: String,
     val enheter: List<AnsattEnhetResponse>,
     val gjeldendeEnhet: AnsattEnhetResponse,
+    val roller: Set<Role>,
 )
 
 @Serializable
@@ -134,3 +138,4 @@ private val stubbedOversikt = listOf(
         tilsagnNummer = "2026-087-2",
     ),
 )
+

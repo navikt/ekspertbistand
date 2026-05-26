@@ -36,7 +36,17 @@ spec:
   azure:
     application:
       enabled: true
-      allowAllUsers: true
+      tenant: trygdeetaten.no
+      claims:
+        groups:
+          # saksbehandler-gruppe
+          - id: ""
+          # Beslutter-gruppe
+          - id: ""
+          # Fortrolig adresse gruppe
+          - id: ""
+          # Strengt fortrolig adresse gruppe
+          - id: ""
   kafka:
     pool: nav-dev
   gcp:
