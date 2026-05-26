@@ -45,6 +45,7 @@ import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
+import no.nav.ekspertbistand.saksbehandler.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
 import no.nav.ekspertbistand.soknad.innloggetBruker
 import no.nav.ekspertbistand.soknad.subjectToken
@@ -74,6 +75,7 @@ fun main() {
             provide<TokenXTokenIntrospector>(TokenXAuthClient::class)
             provide<TokenXTokenExchanger>(TokenXAuthClient::class)
             provide<AzureAdTokenProvider>(AzureAdAuthClient::class)
+            provide<AzureAdTokenIntrospector>(AzureAdAuthClient::class)
 
             provide(AltinnTilgangerClient::class)
             provide(DokgenClient::class)
@@ -95,12 +97,14 @@ fun main() {
 
         // configure authentication of clients
         configureTokenXAuth()
+        configureAzureAdAuth()
 
         // configure application modules and endpoints
         configureSoknadApiV1()
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()
         configureEregApiV1()
+        configureSaksbehandlerApiV1()
 
         // event manager and event handlers
         configureEventHandlers()
