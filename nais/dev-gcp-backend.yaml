@@ -36,7 +36,6 @@ spec:
   azure:
     application:
       enabled: true
-      tenant: trygdeetaten.no
       claims:
         groups:
           # saksbehandler-gruppe
