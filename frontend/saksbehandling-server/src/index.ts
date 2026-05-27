@@ -4,7 +4,6 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { createProxyMiddleware } from "http-proxy-middleware";
-import { tokenXMiddleware } from "./tokenx.js";
 import { azureOboMiddleware } from "./azure-obo.js";
 import { logger } from "@navikt/pino-logger";
 import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
@@ -21,7 +20,6 @@ const {
   BASE_PATH = "/",
   EKSPERTBISTAND_API_BASEURL = "http://localhost:8080",
   EKSPERTBISTAND_API_AUDIENCE,
-  TOKEN_X_ISSUER,
   AZURE_APP_CLIENT_ID,
   LOCAL_SUBJECT_TOKEN,
   STATIC_DIR,
@@ -32,12 +30,7 @@ const {
 
 const port = Number(PORT);
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
-const tokenxEnabled = Boolean(TOKEN_X_ISSUER);
 const azureEnabled = Boolean(AZURE_APP_CLIENT_ID);
-
-if (tokenxEnabled && !EKSPERTBISTAND_API_AUDIENCE) {
-  throw new Error("Mangler EKSPERTBISTAND_API_AUDIENCE for TokenX OBO.");
-}
 
 const app = express();
 const api = express.Router();
@@ -89,10 +82,16 @@ if (localSessionEnabled) {
   });
 }
 
+const azureObo = azureOboMiddleware({
+  enabled: azureEnabled,
+  audience: EKSPERTBISTAND_API_AUDIENCE,
+  localSubjectToken: LOCAL_SUBJECT_TOKEN,
+});
+
 const ekspertbistandBackendProxy = createProxyMiddleware({
   target: EKSPERTBISTAND_API_BASEURL,
   changeOrigin: true,
-  pathRewrite: (incomingPath) => incomingPath.replace(/^\/ekspertbistand-backend/, ""),
+  pathRewrite: (incomingPath) => incomingPath.replace(/^\/api\/ansatte/, "/api/saksbehandling/v1"),
   on: {
     proxyReq(proxyReq: ClientRequest) {
       proxyReq.removeHeader("cookie");
@@ -112,49 +111,12 @@ const ekspertbistandBackendProxy = createProxyMiddleware({
   },
 });
 
-const tokenX = tokenXMiddleware({
-  enabled: tokenxEnabled,
-  audience: EKSPERTBISTAND_API_AUDIENCE,
-  localSubjectToken: LOCAL_SUBJECT_TOKEN,
-});
-
-api.use("/ekspertbistand-backend", tokenX, ekspertbistandBackendProxy);
-
-const azureObo = azureOboMiddleware({
-  enabled: azureEnabled,
-  audience: EKSPERTBISTAND_API_AUDIENCE,
-  localSubjectToken: LOCAL_SUBJECT_TOKEN,
-});
-
-const ansatteProxy = createProxyMiddleware({
-  target: EKSPERTBISTAND_API_BASEURL,
-  changeOrigin: true,
-  pathRewrite: (path) => `/api/saksbehandling/ansatte${path}`,
-  on: {
-    proxyReq(proxyReq: ClientRequest) {
-      proxyReq.removeHeader("cookie");
-    },
-    error(err: Error, req: IncomingMessage, res: ServerResponse | Socket) {
-      logger.error({ err, path: req.url }, "Proxy error mot ansatte-api");
-      if ("writeHead" in res && typeof (res as ServerResponse).writeHead === "function") {
-        const serverRes = res as ServerResponse;
-        if (!serverRes.headersSent) {
-          serverRes.writeHead(502, { "Content-Type": "application/json" });
-        }
-        if (!serverRes.writableEnded) {
-          serverRes.end(JSON.stringify({ message: "Kunne ikke kontakte ansatte-api." }));
-        }
-      }
-    },
-  },
-});
-
-api.use("/api/ansatte", azureObo, ansatteProxy);
+api.use("/api/ansatte", azureObo, ekspertbistandBackendProxy);
 
 const oversiktProxy = createProxyMiddleware({
   target: EKSPERTBISTAND_API_BASEURL,
   changeOrigin: true,
-  pathRewrite: () => "/api/saksbehandling/oversikt",
+  pathRewrite: () => "/api/saksbehandling/v1/oversikt",
   on: {
     proxyReq(proxyReq: ClientRequest) {
       proxyReq.removeHeader("cookie");
