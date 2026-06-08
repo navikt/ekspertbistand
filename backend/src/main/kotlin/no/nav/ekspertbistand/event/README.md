@@ -55,7 +55,7 @@ Køen har nøyaktig én vei inn, og du skal aldri skrive til `event_queue`/`Queu
   `transaction(database) { publishEventQueue(ev) }`. Da står skrivingen synlig på kallstedet.
 
 **Aldri et suspend-kall inne i `transaction { }`** — åpne transaksjonen rundt skrivingen, ikke rundt
-hele arbeidet (f.eks. dokgen-HTTP-kall). Se `TilsagnDataApi.hentTilskuddsbrevHtmlForSoknad`.
+hele arbeidet (f.eks. PDF-rendering via `DokumentService`). Se `TilsagnDataApi.hentTilskuddsbrevHtmlForSoknad`.
 
 ## `aggregateRootId` — felles aggregatrot på alle events
 

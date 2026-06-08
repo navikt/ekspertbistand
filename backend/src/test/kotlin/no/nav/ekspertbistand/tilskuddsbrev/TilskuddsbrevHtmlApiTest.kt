@@ -1,20 +1,17 @@
 package no.nav.ekspertbistand.tilskuddsbrev
 
-import io.ktor.client.HttpClient
 import io.ktor.client.call.*
-import io.ktor.client.engine.mock.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
-import io.ktor.utils.io.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.configureServer
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
@@ -57,14 +54,10 @@ class TilskuddsbrevHtmlApiTest {
             defaultHttpClient = client,
             tokenExchanger = successTokenXTokenExchanger
         )
-        val dokgenClient = DokgenClient(
-            defaultHttpClient = HttpClient(MockEngine {
-                respond(
-                    content = ByteReadChannel("<html>Mock tilskuddsbrev</html>"),
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(HttpHeaders.ContentType, ContentType.Text.Html.toString())
-                )
-            }),
+        val dokumentService = DokumentService(
+            pdf = no.nav.ekspertbistand.mocks.StubPdfGenerator(
+                html = "<html>Mock tilskuddsbrev</html>",
+            ),
         )
         application {
             dependencies {
@@ -80,7 +73,7 @@ class TilskuddsbrevHtmlApiTest {
                     altinnTilgangerClient
                 }
                 provide {
-                    dokgenClient
+                    dokumentService
                 }
             }
 

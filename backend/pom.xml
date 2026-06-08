@@ -248,6 +248,31 @@
             <version>${graphql-kotlin.version}</version>
         </dependency>
 
+        <!-- Dokumentgenerering (erstatter ekspertbistand-dokgen) -->
+        <!-- Handlebars templating (samme motor som dokgen) -->
+        <dependency>
+            <groupId>com.github.jknack</groupId>
+            <artifactId>handlebars</artifactId>
+            <version>4.4.0</version>
+        </dependency>
+        <!-- Markdown -> HTML -->
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark</artifactId>
+            <version>0.24.0</version>
+        </dependency>
+        <!-- HTML -> PDF/A -->
+        <dependency>
+            <groupId>com.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-pdfbox</artifactId>
+            <version>1.0.10</version>
+        </dependency>
+        <dependency>
+            <groupId>com.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-svg-support</artifactId>
+            <version>1.0.10</version>
+        </dependency>
+
         <dependency>
             <groupId>io.ktor</groupId>
             <artifactId>ktor-server-test-host-jvm</artifactId>
@@ -380,6 +405,7 @@
                 <version>3.5.4</version>
                 <configuration>
                     <failIfNoTests>true</failIfNoTests>
+                    <argLine>-Djava.awt.headless=true</argLine> <!-- prevent pdf tests from stealing user focus -->
                 </configuration>
             </plugin>
             <plugin>

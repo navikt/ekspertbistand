@@ -1,16 +1,13 @@
-package no.nav.ekspertbistand.dokgen
+package no.nav.ekspertbistand.dokument
 
-import io.ktor.client.*
-import io.ktor.client.engine.mock.*
-import io.ktor.http.*
-import io.ktor.http.content.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.mocks.StubPdfGenerator
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import kotlin.test.Test
@@ -18,85 +15,75 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class DokgenClientTest {
+class DokumentServiceTest {
 
     @Test
-    fun `lager soknad-pdf med korrekt payload`() = runBlocking {
+    fun `lager soknad-pdf med korrekt mal og payload`() = runBlocking {
         val pdf = "%PDF-mock".toByteArray()
-        var captured = CapturedRequest()
+        var template: String? = null
+        var data: JsonObject? = null
 
-        val client = dokgenClient(pdf) { captured = it }
-        val payload = sampleSoknad()
+        val client = DokumentService(StubPdfGenerator(pdf = pdf, onRenderPdf = { t, d -> template = t; data = d }))
 
-        val response = client.genererSoknadPdf(payload)
+        val response = client.genererSoknadPdf(sampleSoknad())
 
         assertContentEquals(pdf, response)
-        assertEquals("/template/soknad/create-pdf", captured.path)
+        assertEquals("soknad", template)
 
-        val body = requireNotNull(captured.body) { "Request body was not captured" }
-        val jsonBody = Json.parseToJsonElement(body).jsonObject
-
-        assertEquals("987654321", jsonBody["virksomhet"]!!.jsonObject["virksomhetsnummer"]!!.jsonPrimitive.content)
-        val behov = jsonBody["behovForBistand"]!!.jsonObject
+        val body = requireNotNull(data)
+        assertEquals("987654321", body["virksomhet"]!!.jsonObject["virksomhetsnummer"]!!.jsonPrimitive.content)
+        val behov = body["behovForBistand"]!!.jsonObject
         assertTrue(behov["timer"]!!.jsonPrimitive.isString)
         assertEquals("12", behov["timer"]!!.jsonPrimitive.content)
         assertEquals("9000", behov["estimertKostnad"]!!.jsonPrimitive.content)
-        val ekspert = jsonBody["ekspert"]!!.jsonObject
+        val ekspert = body["ekspert"]!!.jsonObject
         assertEquals("Psykolog", ekspert["godkjentUtdanningEllerAutorisasjon"]!!.jsonArray[0].jsonPrimitive.content)
         assertEquals("Tilrettelegging på arbeidsplassen", ekspert["relevantKompetanse"]!!.jsonArray[0].jsonPrimitive.content)
     }
 
     @Test
-    fun `lager tilskuddbrev-pdf med korrekt payload`() = runBlocking {
+    fun `lager tilskuddbrev-pdf med korrekt mal og payload`() = runBlocking {
         val pdf = "%PDF-mock".toByteArray()
-        var captured = CapturedRequest()
+        var template: String? = null
+        var data: JsonObject? = null
 
-        val client = dokgenClient(pdf) { captured = it }
-        val payload = sampleTilskuddsbrev()
+        val client = DokumentService(StubPdfGenerator(pdf = pdf, onRenderPdf = { t, d -> template = t; data = d }))
 
-        val response = client.genererTilskuddsbrevPdf(payload)
+        val response = client.genererTilskuddsbrevPdf(sampleTilskuddsbrev())
 
         assertContentEquals(pdf, response)
-        assertEquals("/template/tilskuddsbrev/create-pdf", captured.path)
+        assertEquals("tilskuddsbrev", template)
 
-        val body = requireNotNull(captured.body) { "Request body was not captured" }
-        val jsonBody = Json.parseToJsonElement(body).jsonObject
-
-        assertEquals("1337", jsonBody["tilsagnNummer"]!!.jsonObject["aar"]!!.jsonPrimitive.content)
-        assertEquals("Ekspertbistand", jsonBody["tiltakNavn"]!!.jsonPrimitive.content)
+        val body = requireNotNull(data)
+        assertEquals("1337", body["tilsagnNummer"]!!.jsonObject["aar"]!!.jsonPrimitive.content)
+        assertEquals("Ekspertbistand", body["tiltakNavn"]!!.jsonPrimitive.content)
     }
 
-    private fun dokgenClient(pdf: ByteArray, capture: (CapturedRequest) -> Unit): DokgenClient {
-        val engine = MockEngine { request ->
-            capture(
-                CapturedRequest(
-                    path = request.url.fullPath,
-                    body = (request.body as TextContent).text
-                )
-            )
-            respond(
-                content = pdf,
-                status = HttpStatusCode.OK,
-                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Pdf.toString())
-            )
-        }
+    @Test
+    fun `lager arenaNotat-pdf med korrekt mal og payload`() = runBlocking {
+        var template: String? = null
+        var data: JsonObject? = null
 
-        return DokgenClient(
-            defaultHttpClient = HttpClient(engine) {},
-        )
+        val client = DokumentService(StubPdfGenerator(onRenderPdf = { t, d -> template = t; data = d }))
+
+        client.genererArenaNotatPdf(saksnummer = "42", tiltaksgjennomfoeringId = "314")
+
+        assertEquals("arenaNotat", template)
+        val body = requireNotNull(data)
+        assertEquals("42", body["saksnummer"]!!.jsonPrimitive.content)
+        assertEquals("314", body["tiltaksgjennomfoeringId"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `tilskuddsbrev-html bruker html-rendring`() = runBlocking {
+        val client = DokumentService(StubPdfGenerator(html = "<html>brev</html>"))
+        assertEquals("<html>brev</html>", client.genererTilskuddsbrevHtml(sampleTilskuddsbrev()))
     }
 
     private fun sampleTilskuddsbrev() = TilsagnData(
-        tilsagnNummer = TilsagnData.TilsagnNummer(
-            1337,
-            42,
-            43,
-        ),
+        tilsagnNummer = TilsagnData.TilsagnNummer(1337, 42, 43),
         tilsagnDato = "01.01.2021",
-        periode = TilsagnData.Periode(
-            fraDato = "01.01.2021",
-            tilDato = "01.02.2021"
-        ),
+        periode = TilsagnData.Periode(fraDato = "01.01.2021", tilDato = "01.02.2021"),
         tiltakKode = "42",
         tiltakNavn = "Ekspertbistand",
         administrasjonKode = "etellerannet",
@@ -142,14 +129,8 @@ class DokgenClientTest {
             telefon = "12341234",
             faks = null
         ),
-        beslutter = TilsagnData.Person(
-            fornavn = "Ole",
-            etternavn = "Brum",
-        ),
-        saksbehandler = TilsagnData.Person(
-            fornavn = "Nasse",
-            etternavn = "Nøff",
-        ),
+        beslutter = TilsagnData.Person(fornavn = "Ole", etternavn = "Brum"),
+        saksbehandler = TilsagnData.Person(fornavn = "Nasse", etternavn = "Nøff"),
         kommentar = "Dette var unødvendig mye testdata å skrive"
     )
 
@@ -187,9 +168,5 @@ class DokgenClientTest {
         ),
         status = SoknadStatus.innsendt,
     )
-
-    private data class CapturedRequest(
-        val path: String? = null,
-        val body: String? = null,
-    )
 }
+

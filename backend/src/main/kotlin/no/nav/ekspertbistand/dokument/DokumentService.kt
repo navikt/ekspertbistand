@@ -1,123 +1,63 @@
-package no.nav.ekspertbistand.dokgen
+package no.nav.ekspertbistand.dokument
 
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
-import no.nav.ekspertbistand.arena.Saksnummer
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
+import no.nav.ekspertbistand.dokument.pdf.PdfGenerator
+import no.nav.ekspertbistand.dokument.pdf.PdfGeneratorImpl
 import no.nav.ekspertbistand.arena.TilsagnData
-import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
-import no.nav.ekspertbistand.infrastruktur.Metrics
-import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.defaultJson
 import no.nav.ekspertbistand.soknad.DTO
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-class DokgenClient(
-    defaultHttpClient: HttpClient,
+/**
+ * Domeneadapter for dokumentgenerering.
+ *
+ * Erstatter den tidligere HTTP-baserte `DokgenClient`. Rendrer PDF/HTML in-process via den
+ * generiske [PdfGenerator]-kjernen (`no.nav.ekspertbistand.dokument.pdf`) i stedet for å kalle
+ * den separate `ekspertbistand-dokgen`-tjenesten. De fire offentlige metodesignaturene er uendret.
+ */
+class DokumentService(
+    private val pdf: PdfGenerator = PdfGeneratorImpl(resourcePrefix = "dokumentmaler"),
 ) {
-    companion object {
-        val baseUrl: String = basedOnEnv(
-            prod = "http://ekspertbistand-dokgen",
-            dev = "http://ekspertbistand-dokgen",
-            other = "http://localhost:9000",
-        )
+    suspend fun genererSoknadPdf(soknad: DTO.Soknad): ByteArray = withContext(Dispatchers.IO) {
+        val data = defaultJson.encodeToJsonElement(SoknadRequest.from(soknad)).jsonObject
+        val bytes = pdf.renderPdf("soknad", data)
+        check(bytes.hasPdfHeader()) { "Generert dokument for soknad er ikke en gyldig PDF" }
+        bytes
     }
 
-    private val httpClient = defaultHttpClient.config {
-        install(ContentNegotiation) {
-            json(defaultJson)
-        }
-        install(HttpClientMetricsFeature) {
-            registry = Metrics.meterRegistry
-            clientName = "dokgen.client"
-        }
-        install(HttpTimeout) {
-            requestTimeoutMillis = 10_000
-        }
+    suspend fun genererTilskuddsbrevPdf(tilsagnData: TilsagnData): ByteArray = withContext(Dispatchers.IO) {
+        val data = defaultJson.encodeToJsonElement(tilsagnData).jsonObject
+        val bytes = pdf.renderPdf("tilskuddsbrev", data)
+        check(bytes.hasPdfHeader()) { "Generert dokument for tilskuddsbrev er ikke en gyldig PDF" }
+        bytes
     }
 
-    suspend fun genererSoknadPdf(soknad: DTO.Soknad): ByteArray {
-        val payload = SoknadRequest.from(soknad)
-
-        val bytes: ByteArray = httpClient.post {
-            url {
-                takeFrom(baseUrl)
-                path("template", "soknad", "create-pdf")
-            }
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Pdf)
-            setBody(payload)
-        }.body()
-
-        check(bytes.hasPdfHeader()) {
-            "Dokgen returnerte ikke en gyldig PDF for soknad/create-pdf"
-        }
-
-        return bytes
+    suspend fun genererTilskuddsbrevHtml(tilsagnData: TilsagnData): String = withContext(Dispatchers.IO) {
+        val data = defaultJson.encodeToJsonElement(tilsagnData).jsonObject
+        pdf.renderHtml("tilskuddsbrev", data)
     }
-
-    suspend fun genererTilskuddsbrevPdf(tilsagnData: TilsagnData): ByteArray {
-        val bytes: ByteArray = httpClient.post {
-            url {
-                takeFrom(baseUrl)
-                path("template", "tilskuddsbrev", "create-pdf")
-            }
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Pdf)
-            setBody(tilsagnData)
-        }.body()
-
-        check(bytes.hasPdfHeader()) {
-            "Dokgen returnerte ikke en gyldig PDF for tilskuddbrev/create-pdf"
-        }
-
-        return bytes
-    }
-
-    suspend fun genererTilskuddsbrevHtml(tilsagnData: TilsagnData): String {
-        return httpClient.post {
-            url {
-                takeFrom(baseUrl)
-                path("template", "tilskuddsbrev", "create-html")
-            }
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Text.Html)
-            setBody(tilsagnData)
-        }.body()
-    }
-
-
 
     suspend fun genererArenaNotatPdf(
         saksnummer: String,
-        tiltaksgjennomfoeringId: String
-    ): ByteArray {
-        val bytes: ByteArray = httpClient.post {
-            url {
-                takeFrom(baseUrl)
-                path("template", "arenaNotat", "create-pdf")
-            }
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Pdf)
-            setBody(mapOf(
-                "saksnummer" to saksnummer,
-                "tiltaksgjennomfoeringId" to tiltaksgjennomfoeringId,
-            ))
-        }.body()
-
-        check(bytes.hasPdfHeader()) {
-            "Dokgen returnerte ikke en gyldig PDF for arenaNotat/create-pdf"
+        tiltaksgjennomfoeringId: String,
+    ): ByteArray = withContext(Dispatchers.IO) {
+        val data: JsonObject = buildJsonObject {
+            put("saksnummer", saksnummer)
+            put("tiltaksgjennomfoeringId", tiltaksgjennomfoeringId)
         }
-
-        return bytes
+        val bytes = pdf.renderPdf("arenaNotat", data)
+        check(bytes.hasPdfHeader()) { "Generert dokument for arenaNotat er ikke en gyldig PDF" }
+        bytes
     }
 }
 

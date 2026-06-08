@@ -5,7 +5,7 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
 import no.nav.ekspertbistand.dokarkiv.Sak
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
@@ -36,7 +36,7 @@ private const val tittel = "Søknad om ekspertbistand"
  * som inneholder informasjon om journalpostId og dokumentId samt behandlendeEnhetId.
  */
 class JournalfoerInnsendtSoknad(
-    private val dokgenClient: DokgenClient,
+    private val dokumentService: DokumentService,
     private val dokArkivClient: DokArkivClient,
     private val pdlApiKlient: PdlApiKlient,
     private val behandlendeEnhetService: BehandlendeEnhetService,
@@ -68,7 +68,7 @@ class JournalfoerInnsendtSoknad(
                 }
             }
 
-        val soknadPdf = runCatching { dokgenClient.genererSoknadPdf(soknad) }
+        val soknadPdf = runCatching { dokumentService.genererSoknadPdf(soknad) }
             .getOrElse { e ->
                 return transientError("Klarte ikke generere søknad-PDF", e)
             }
