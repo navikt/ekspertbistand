@@ -124,7 +124,7 @@ export default function SkjemaSteg2Page() {
           </VStack>
 
           <Alert variant="warning">
-            <Heading size="xsmall" level="3" spacing>
+            <Heading size="xsmall" level="2" spacing>
               Unngå sensitive personopplysninger
             </Heading>
             For eksempel arbeidstakerens diagnose eller sensitive opplysninger om arbeidstakerens
