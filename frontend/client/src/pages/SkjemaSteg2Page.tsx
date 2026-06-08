@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, type FormEvent } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
+  Alert,
   Button,
   HGrid,
   Heading,
@@ -121,6 +122,15 @@ export default function SkjemaSteg2Page() {
               onSummary={handleSummaryLink}
             />
           </VStack>
+
+          <Alert variant="warning">
+            <Heading size="xsmall" level="2" spacing>
+              Unngå sensitive personopplysninger
+            </Heading>
+            For eksempel arbeidstakerens diagnose eller sensitive opplysninger om arbeidstakerens
+            familie eller andre ansatte. Husk at den ansatte har innsynsrett i det du skriver i
+            søknaden.
+          </Alert>
 
           <Heading level="2" size="large">
             Behov for bistand
