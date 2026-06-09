@@ -19,6 +19,7 @@ import TilgangFeilPage from "./pages/TilgangFeilPage";
 import { useSession } from "./hooks/useSession";
 import { BodyShort, Loader, VStack } from "@navikt/ds-react";
 import LoginRequiredPage from "./pages/LoginRequiredPage";
+import TilgangKunKOMMPage from "./pages/TilgangKunKOMMPage.tsx";
 
 function SkjemaDraftRoute() {
   const { id } = useParams<{ id: string }>();
@@ -65,6 +66,9 @@ function OrganisasjonerGate() {
   }
   if (!isLoading && organisasjoner.length === 0) {
     return <ManglerTilgangPage />;
+  }
+  if (!isLoading && organisasjoner.every((org) => org.underenheter.length === 0)) {
+    return <TilgangKunKOMMPage />;
   }
   return <Outlet />;
 }

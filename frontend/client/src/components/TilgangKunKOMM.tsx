@@ -2,7 +2,7 @@ import { Bleed, Box, Heading, LinkCard, List, VStack } from "@navikt/ds-react";
 import { ApplicationPictogram } from "./ApplicationPictogram.tsx";
 import { TILGANGSSTYRING_URL } from "../utils/constants.ts";
 
-export default function ManglerTilganger() {
+export default function TilgangKunKOMM() {
   return (
     <VStack gap="space-8" data-aksel-template="form-intropage-v4">
       <VStack gap="space-12">
@@ -24,16 +24,14 @@ export default function ManglerTilganger() {
       </VStack>
       <div>
         <Heading level="2" size="large" spacing>
-          Før du søker
+          Du mangler tilgang i Altinn
         </Heading>
         <List>
           <List.Item>
-            For å kunne sende inn søknad må du ha blitt tildelt enkelttjeneste “Tilskudd til
-            ekspertbistand” for den aktuelle virksomheten.
-          </List.Item>
-          <List.Item>
-            Har du nettopp fått delegert tilgang? Det kan ta opptil 10 minutter før den blir
-            tilgjengelig her.
+            Du har fått delegert tilgangen på et nivå som ikke fungerer for virksomheter i
+            organisasjoner med organisasjonsledd. Be den som ga deg enkelttjenesten “Tilskudd til
+            ekspertbistand” om å delegere på nytt – på organisasjonsleddet eller direkte på
+            virksomheten. Dette er en kjent begrensning i Altinn.
           </List.Item>
         </List>
       </div>
