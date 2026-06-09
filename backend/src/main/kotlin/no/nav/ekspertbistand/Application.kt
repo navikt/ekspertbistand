@@ -141,16 +141,7 @@ suspend fun Application.configureOrganisasjonerApiV1() {
         authenticate(TOKENX_PROVIDER) {
             with(altinnTilgangerClient) {
                 get("api/organisasjoner/v1") {
-                    val altinnTilganger = hentTilganger(subjectToken)
-                    if (altinnTilganger.hierarki.all { it.underenheter.isEmpty() }) {
-                        logger().error("Ekspertbistand delegert på topp nivå, sjekk team logs for detaljer")
-                        teamLogger().error(
-                            "Ekspertbistand delegert på topp nivå. bruker: {} tilganger: {}",
-                            innloggetBruker,
-                            altinnTilganger
-                        )
-                    }
-                    call.respond(altinnTilganger)
+                    call.respond(hentTilganger(subjectToken))
                 }
             }
         }
