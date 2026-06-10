@@ -90,6 +90,7 @@ export default function SkjemaSteg1Page() {
                 render={({ field, fieldState }) => (
                   <VirksomhetVelger
                     label="Velg underenhet"
+                    description="Velg underenheten der den ansatte arbeider, dvs. der inntekten rapporteres i A-meldingen."
                     value={field.value ?? ""}
                     onChange={(orgnr, virksomhet) => {
                       if (field.value === orgnr) return;
@@ -107,7 +108,7 @@ export default function SkjemaSteg1Page() {
                 )}
               />
               {hasVirksomhet ? (
-                <VStack gap="space-8" style={{ marginBlockStart: "var(--a-spacing-4)" }}>
+                <VStack gap="space-8" style={{ marginBlockStart: "var(--ax-space-16)" }}>
                   <Label>Beliggenhetsadresse (hentet fra brreg.no)</Label>
                   {adresseLoading ? (
                     <BodyShort size="small">
