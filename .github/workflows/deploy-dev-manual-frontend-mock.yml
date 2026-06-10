@@ -2,6 +2,9 @@ name: Manuell deploy dev frontend mock
 
 on:
   workflow_dispatch: {}
+  push:
+    branches:
+      - main
 
 jobs:
   compile-test-and-build:
