@@ -31,12 +31,11 @@ Path:
   "enhet": {
     "enhetnummer": "1234",
     "navn": "Nav Avdeling Sydpolen"
-  },
-  "tident": "T123456"
+  }
 }
 ```
 
-Nullable felter: `visningNavn`, `fornavn`, `etternavn`, `epost`. Feltet `enhet` er av eksisterende type `Enhet`. `navIdent` og `tident` er non-nullable.
+Nullable felter: `visningNavn`, `fornavn`, `etternavn`, `epost`. Feltet `enhet` er av eksisterende type `Enhet`. `navIdent` er non-nullable.
 
 ## Implementasjonsplan
 
@@ -55,7 +54,6 @@ data class UtvidetAnsatt(
     val etternavn: String? = null,
     val epost: String? = null,
     val enhet: Enhet,
-    val tident: String,
 )
 ```
 
@@ -163,7 +161,7 @@ Følgende krever **ingen** endringer:
 
 ## Acceptance Criteria
 
-- [ ] `UtvidetAnsatt` data class er `@Serializable` med nullable felter (`visningNavn`, `fornavn`, `etternavn`, `epost`) og non-nullable felter (`navIdent`, `tident`, `enhet`)
+- [ ] `UtvidetAnsatt` data class er `@Serializable` med nullable felter (`visningNavn`, `fornavn`, `etternavn`, `epost`) og non-nullable felter (`navIdent`, `enhet`)
 - [ ] `UtvidetAnsatt` gjenbruker eksisterende `Enhet`-type for `enhet`-feltet
 - [ ] Ny `suspend fun hentAnsatt(navIdent: String): UtvidetAnsatt` i `EntraProxyClient`
 - [ ] Kaller `GET /api/v1/ansatt/{navIdent}` med bearer token

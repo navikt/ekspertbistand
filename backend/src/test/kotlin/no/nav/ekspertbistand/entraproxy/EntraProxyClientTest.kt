@@ -101,8 +101,7 @@ class EntraProxyClientTest {
                 "fornavn": "Tore",
                 "etternavn": "Tang",
                 "epost": "tore.tang@nav.no",
-                "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
-                "tident": "T123456"
+                "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" }
             }
             """
         }
@@ -120,7 +119,6 @@ class EntraProxyClientTest {
         assertEquals("tore.tang@nav.no", ansatt.epost)
         assertEquals("1234", ansatt.enhet.enhetnummer)
         assertEquals("Nav Avdeling Sydpolen", ansatt.enhet.navn)
-        assertEquals("T123456", ansatt.tident)
     }
 
     @Test
@@ -134,8 +132,7 @@ class EntraProxyClientTest {
                 "fornavn": null,
                 "etternavn": null,
                 "epost": null,
-                "enhet": { "enhetnummer": "5678", "navn": "Nav Kontor" },
-                "tident": "T999999"
+                "enhet": { "enhetnummer": "5678", "navn": "Nav Kontor" }
             }
             """
         }
@@ -152,7 +149,6 @@ class EntraProxyClientTest {
         assertEquals(null, ansatt.etternavn)
         assertEquals(null, ansatt.epost)
         assertEquals("5678", ansatt.enhet.enhetnummer)
-        assertEquals("T999999", ansatt.tident)
     }
 
     @Test
@@ -167,7 +163,6 @@ class EntraProxyClientTest {
                 "etternavn": "Tang",
                 "epost": "tore.tang@nav.no",
                 "enhet": { "enhetnummer": "1234", "navn": "Nav Kontor" },
-                "tident": "T123456",
                 "ukjentFelt": "ignoreres"
             }
             """
