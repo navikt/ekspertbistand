@@ -59,8 +59,8 @@ export default function OversiktPage() {
         Saksoversikt
       </Heading>
       <BodyShort size="small">
-        Innlogget: {innloggetAnsatt.navn} ({innloggetAnsatt.id}) — Enhet:{" "}
-        {innloggetAnsatt.gjeldendeEnhet.nummer} {innloggetAnsatt.gjeldendeEnhet.navn}
+        Innlogget: {innloggetAnsatt?.navn} ({innloggetAnsatt?.id}) — Enhet:{" "}
+        {innloggetAnsatt?.gjeldendeEnhet.nummer} {innloggetAnsatt?.gjeldendeEnhet.navn}
       </BodyShort>
       <Table>
         <Table.Header>

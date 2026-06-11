@@ -41,7 +41,7 @@ export const handlers = [
       },
     })
   ),
-  http.get("/api/ansatte/meg", () => {
+  http.get("/api/saksbehandling/v1/meg", () => {
     const gjeldendeEnhet =
       mockInnloggetAnsatt.enheter.find((enhet) => enhet.nummer === valgtEnhetsnummer) ??
       mockInnloggetAnsatt.gjeldendeEnhet;
@@ -51,7 +51,7 @@ export const handlers = [
       gjeldendeEnhet,
     });
   }),
-  http.post("/api/ansatte/enhet", async ({ request }) => {
+  http.post("/api/saksbehandling/v1/enhet", async ({ request }) => {
     const body = (await request.json()) as { valgtEnhetsnummer?: string };
     if (body.valgtEnhetsnummer) {
       valgtEnhetsnummer = body.valgtEnhetsnummer;

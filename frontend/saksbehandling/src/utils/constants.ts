@@ -1,7 +1,7 @@
 import { envSwitch } from "./env";
 
 export const OVERSIKT_PATH = "/oversikt";
-export const SAKSBEHANDLING_OVERSIKT_URL = "/api/saksbehandling/oversikt";
+export const SAKSBEHANDLING_OVERSIKT_URL = "/api/saksbehandling/v1/oversikt";
 export const SESSION_URL = "/oauth2/session";
 export const LOGOUT_URL = "/oauth2/logout";
 export const GOSYS_URL = "https://gosys.intern.nav.no/gosys/";

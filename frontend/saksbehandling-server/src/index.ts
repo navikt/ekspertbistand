@@ -1,5 +1,5 @@
 import express from "express";
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -88,10 +88,9 @@ const azureObo = azureOboMiddleware({
   localSubjectToken: LOCAL_SUBJECT_TOKEN,
 });
 
-const ekspertbistandBackendProxy = createProxyMiddleware({
+const backendProxy = createProxyMiddleware({
   target: EKSPERTBISTAND_API_BASEURL,
   changeOrigin: true,
-  pathRewrite: (incomingPath) => incomingPath.replace(/^\/api\/ansatte/, "/api/saksbehandling/v1"),
   on: {
     proxyReq(proxyReq: ClientRequest) {
       proxyReq.removeHeader("cookie");
@@ -111,32 +110,13 @@ const ekspertbistandBackendProxy = createProxyMiddleware({
   },
 });
 
-api.use("/api/ansatte", azureObo, ekspertbistandBackendProxy);
-
-const oversiktProxy = createProxyMiddleware({
-  target: EKSPERTBISTAND_API_BASEURL,
-  changeOrigin: true,
-  pathRewrite: () => "/api/saksbehandling/v1/oversikt",
-  on: {
-    proxyReq(proxyReq: ClientRequest) {
-      proxyReq.removeHeader("cookie");
-    },
-    error(err: Error, req: IncomingMessage, res: ServerResponse | Socket) {
-      logger.error({ err, path: req.url }, "Proxy error mot oversikt-api");
-      if ("writeHead" in res && typeof (res as ServerResponse).writeHead === "function") {
-        const serverRes = res as ServerResponse;
-        if (!serverRes.headersSent) {
-          serverRes.writeHead(502, { "Content-Type": "application/json" });
-        }
-        if (!serverRes.writableEnded) {
-          serverRes.end(JSON.stringify({ message: "Kunne ikke kontakte oversikt-api." }));
-        }
-      }
-    },
-  },
+api.use((req: Request, res: Response, next: NextFunction) => {
+  if (!req.path.startsWith("/api/saksbehandling")) return next();
+  azureObo(req, res, (err?: unknown) => {
+    if (err) return next(err as Error);
+    backendProxy(req, res, next);
+  });
 });
-
-api.use("/api/saksbehandling/oversikt", azureObo, oversiktProxy);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

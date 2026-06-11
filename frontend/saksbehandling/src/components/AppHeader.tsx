@@ -9,7 +9,7 @@ export default function AppHeader() {
   const { theme, toggleTheme } = useAppTheme();
   const { innloggetAnsatt, setValgtEnhet } = useTilgangContext();
   const nextTheme = theme === "light" ? "dark" : "light";
-  const valgtEnhet = innloggetAnsatt.gjeldendeEnhet;
+  const valgtEnhet = innloggetAnsatt?.gjeldendeEnhet;
 
   return (
     <InternalHeader>
@@ -43,12 +43,15 @@ export default function AppHeader() {
         </ActionMenu>
         <ActionMenu>
           <ActionMenu.Trigger>
-            <InternalHeader.UserButton name={innloggetAnsatt.navn} description={valgtEnhet.navn} />
+            <InternalHeader.UserButton
+              name={innloggetAnsatt?.navn ?? ""}
+              description={valgtEnhet?.navn ?? ""}
+            />
           </ActionMenu.Trigger>
           <ActionMenu.Content>
             <ActionMenu.Group label="Andre enheter">
-              {innloggetAnsatt.enheter
-                .filter(({ nummer }) => nummer !== valgtEnhet.nummer)
+              {innloggetAnsatt?.enheter
+                .filter(({ nummer }) => nummer !== valgtEnhet?.nummer)
                 .map((enhet) => (
                   <ActionMenu.Item key={enhet.id} onSelect={() => setValgtEnhet(enhet.nummer)}>
                     {enhet.nummer} - {enhet.navn}
