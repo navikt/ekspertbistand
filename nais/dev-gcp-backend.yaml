@@ -36,16 +36,7 @@ spec:
   azure:
     application:
       enabled: true
-      claims:
-        groups:
-          # saksbehandler-gruppe
-          - id: 1b3a2c4d-d620-4fcf-a29b-a6cdadf29680
-          # Beslutter-gruppe
-          - id: 79985315-b2de-40b8-a740-9510796993c6
-          # Fortrolig adresse gruppe
-          # - id: TODO
-          # Strengt fortrolig adresse gruppe
-          # - id: TODO
+      allowAllUsers: true
   kafka:
     pool: nav-dev
   gcp:
