@@ -36,17 +36,16 @@ spec:
   azure:
     application:
       enabled: true
-      tenant: nav.no
-      claims:
-        groups:
+      #claims:
+        #groups:
           # saksbehandler-gruppe
-          - id: ""
+          # - id: ""
           # Beslutter-gruppe
-          - id: ""
+          # - id: ""
           # Fortrolig adresse gruppe
-          - id: ""
+          #- id: ""
           # Strengt fortrolig adresse gruppe
-          - id: ""
+          #- id: ""
   kafka:
     pool: nav-prod
   gcp:
