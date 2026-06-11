@@ -97,5 +97,6 @@ data class UtvidetAnsatt(
     val etternavn: String? = null,
     val epost: String? = null,
     val enhet: Enhet,
+    val tident: String,
 )
 
