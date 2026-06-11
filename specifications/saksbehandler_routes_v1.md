@@ -166,7 +166,7 @@ data class SaksbehandlerInfo(
     val etternavn: String? = null,
     val epost: String? = null,
     val enhet: Enhet,
-    val tident: String,
+    val tIdent: String,
     val enheter: List<Enhet>,
     val roller: Set<Role>,
 )
@@ -212,7 +212,7 @@ suspend fun Application.configureSaksbehandlerApiV1() {
                             etternavn = ansatt.etternavn,
                             epost = ansatt.epost,
                             enhet = ansatt.enhet,
-                            tident = ansatt.tident,
+                            tIdent = ansatt.tIdent,
                             enheter = enheter,
                             roller = roles,
                         )
@@ -315,7 +315,7 @@ Headers:
     "enhetnummer": "1234",
     "navn": "Nav Avdeling Sydpolen"
   },
-  "tident": "T123456",
+  "tIdent": "T123456",
   "enheter": [
     { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
     { "enhetnummer": "5678", "navn": "Nav Arbeid og Ytelser" }

@@ -25,7 +25,7 @@ class SaksbehandlerRoutingTest {
             "etternavn": "Tang",
             "epost": "tore.tang@nav.no",
             "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
-            "tident": "T123456"
+            "tIdent": "T123456"
         }
     """.trimIndent()
 
