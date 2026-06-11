@@ -14,14 +14,18 @@ import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.defaultJson
 
+/**
+ * https://github.com/navikt/entra-proxy
+ * https://entraproxy.intern.dev.nav.no/swagger-ui/index.html#/
+ */
 class EntraProxyClient(
     val tokenProvider: AzureAdTokenProvider,
     defaultHttpClient: HttpClient
 ) {
     companion object {
         val targetAudience = basedOnEnv(
-            prod = "api://prod-gcp.fager.entraproxy/.default",
-            dev = "api://dev-gcp.fager.entraproxy/.default",
+            prod = "api://prod-gcp.sikkerhetstjenesten.entra-proxy/.default",
+            dev = "api://dev-gcp.sikkerhetstjenesten.entra-proxy/.default",
             other = "api://mock.entraproxy/.default",
         )
 
