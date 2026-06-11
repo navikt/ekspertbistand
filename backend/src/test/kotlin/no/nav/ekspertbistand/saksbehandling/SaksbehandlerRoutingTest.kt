@@ -63,7 +63,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAzureAdAuth()
+            configureAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -102,7 +102,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAzureAdAuth()
+            configureAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -135,7 +135,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAzureAdAuth()
+            configureAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -174,7 +174,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAzureAdAuth()
+            configureAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -212,7 +212,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAzureAdAuth()
+            configureAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }

@@ -84,7 +84,7 @@ class SoknadTest {
                 }
             }
 
-            configureTokenXAuth()
+            configureAuthentication()
             configureServer()
             configureSoknadApiV1()
         }
@@ -246,7 +246,7 @@ class SoknadTest {
                 }
             }
 
-            configureTokenXAuth()
+            configureAuthentication()
             configureServer()
             configureSoknadApiV1()
 
@@ -456,7 +456,7 @@ class SoknadTest {
                 }
             }
 
-            configureTokenXAuth()
+            configureAuthentication()
             configureServer()
             configureSoknadApiV1()
         }
@@ -617,7 +617,7 @@ class SoknadTest {
                 }
             }
 
-            configureTokenXAuth()
+            configureAuthentication()
             configureServer()
             configureSoknadApiV1()
         }
@@ -698,7 +698,7 @@ class SoknadTest {
                     provide<EregService> { EregService(eregClient) }
                 }
 
-                configureTokenXAuth()
+                configureAuthentication()
                 configureServer()
                 configureSoknadApiV1()
             }

@@ -81,7 +81,7 @@ class TilskuddsbrevHtmlApiTest {
                 }
             }
 
-            configureTokenXAuth()
+            configureAuthentication()
             configureServer()
             configureTilsagnDataApiV1()
         }

@@ -73,7 +73,7 @@ class EregApiTest {
                 provide<EregService> { EregService(resolve()) }
             }
 
-            configureTokenXAuth()
+            configureAuthentication()
             configureEregApiV1()
             configureServer()
         }
@@ -127,7 +127,7 @@ class EregApiTest {
                 provide<EregService> { EregService(resolve()) }
             }
 
-            configureTokenXAuth()
+            configureAuthentication()
             configureEregApiV1()
         }
 

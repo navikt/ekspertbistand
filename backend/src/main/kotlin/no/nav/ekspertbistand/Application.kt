@@ -96,8 +96,7 @@ fun main() {
         configureServer()
 
         // configure authentication of clients
-        configureTokenXAuth()
-        configureAzureAdAuth()
+        configureAuthentication()
 
         // configure application modules and endpoints
         configureSoknadApiV1()

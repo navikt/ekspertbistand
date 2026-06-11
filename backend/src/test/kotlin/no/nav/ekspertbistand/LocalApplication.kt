@@ -291,8 +291,7 @@ fun main() {
             provide(FagsakIdService::class)
         }
         configureServer()
-        configureTokenXAuth()
-        configureAzureAdAuth()
+        configureAuthentication()
 
         // application modules
         configureSoknadApiV1()

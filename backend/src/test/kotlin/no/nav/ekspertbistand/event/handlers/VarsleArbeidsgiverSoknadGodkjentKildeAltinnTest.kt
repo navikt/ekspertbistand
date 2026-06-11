@@ -122,7 +122,7 @@ private fun ApplicationTestBuilder.setupTestApplication(database: Database) {
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
             provide(VarsleArbeidsgiverSoknadGodkjentKildeAltinn::class)
         }
-        configureTokenXAuth()
+        configureAuthentication()
     }
 }
 
