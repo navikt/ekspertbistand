@@ -124,6 +124,8 @@ sealed interface TokenIntrospector {
 
 interface TokenXTokenIntrospector : TokenIntrospector
 
+interface AzureAdTokenIntrospector : TokenIntrospector
+
 class TokenXAuthClient(
     config: AuthConfig,
     httpClient: HttpClient,
@@ -132,7 +134,7 @@ class TokenXAuthClient(
 class AzureAdAuthClient(
     config: AuthConfig,
     httpClient: HttpClient,
-) : AuthClient(config, IdentityProvider.AZURE_AD, httpClient), AzureAdTokenProvider
+) : AuthClient(config, IdentityProvider.AZURE_AD, httpClient), AzureAdTokenProvider, AzureAdTokenIntrospector
 
 abstract class AuthClient(
     private val config: AuthConfig,
@@ -181,15 +183,19 @@ data class TokenXPrincipal(
 
 const val TOKENX_PROVIDER = "TOKEN_X"
 
-suspend fun Application.configureTokenXAuth() {
-    val introspector = dependencies.resolve<TokenXTokenIntrospector>()
+data class AzureAdPrincipal(
+    val navIdent: String,
+    val groups: List<String>,
+    val name: String?,
+)
 
+const val AZURE_AD_PROVIDER = "AZURE_AD"
+
+fun Application.configureAuthentication() {
     install(Authentication) {
         bearer(TOKENX_PROVIDER) {
             authenticate { credentials ->
-                val introspection = introspector.introspect(credentials.token)
-
-                with(introspection) {
+                with(application.dependencies.resolve<TokenXTokenIntrospector>().introspect(credentials.token)) {
                     if (!active) return@authenticate null
 
                     /**
@@ -217,6 +223,28 @@ suspend fun Application.configureTokenXAuth() {
                     }
 
 
+                }
+            }
+        }
+
+        bearer(AZURE_AD_PROVIDER) {
+            authenticate { credentials ->
+                with(application.dependencies.resolve<AzureAdTokenIntrospector>().introspect(credentials.token)) {
+                    if (!active) return@authenticate null
+
+                    val navIdent = other["NAVident"] as? String
+                        ?: return@authenticate null
+                    val name = other["name"] as? String
+                    val groups = (other["groups"] as? List<*>)
+                        ?.filterIsInstance<String>()
+                        ?: emptyList()
+
+
+                    AzureAdPrincipal(
+                        navIdent = navIdent,
+                        groups = groups,
+                        name = name,
+                    )
                 }
             }
         }

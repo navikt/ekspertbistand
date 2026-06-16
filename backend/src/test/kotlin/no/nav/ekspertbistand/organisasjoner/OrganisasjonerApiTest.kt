@@ -79,7 +79,7 @@ class OrganisasjonerApiTest {
                 }
             }
             configureServer()
-            configureTokenXAuth()
+            configureAuthentication()
             configureOrganisasjonerApiV1()
         }
 

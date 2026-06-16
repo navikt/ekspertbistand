@@ -38,3 +38,27 @@ val successTokenXTokenExchanger = object : TokenXTokenExchanger {
         target: String, userToken: String
     ) = TokenResponse.Success("access_token", 3600)
 }
+
+class MockAzureAdIntrospector(
+    val mocks: (String) -> TokenIntrospectionResponse?,
+) : AzureAdTokenIntrospector {
+    override suspend fun introspect(accessToken: String) =
+        mocks(accessToken) ?: TokenIntrospectionResponse(
+            active = false,
+            error = "no introspect response mocked for $accessToken"
+        )
+}
+
+val mockAzureAdIntrospectionResponse = TokenIntrospectionResponse(
+    active = true,
+    error = null,
+    other = mutableMapOf(),
+)
+    .withNavIdent("A123456")
+    .withGroups(emptyList())
+
+fun TokenIntrospectionResponse.withNavIdent(navIdent: String) =
+    this.copy(other = this.other + ("NAVident" to navIdent))
+
+fun TokenIntrospectionResponse.withGroups(groups: List<String>) =
+    this.copy(other = this.other + ("groups" to groups))

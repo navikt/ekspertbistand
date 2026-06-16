@@ -36,6 +36,16 @@ spec:
   azure:
     application:
       enabled: true
+      #claims:
+        #groups:
+          # saksbehandler-gruppe
+          # - id: ""
+          # Beslutter-gruppe
+          # - id: ""
+          # Fortrolig adresse gruppe
+          #- id: ""
+          # Strengt fortrolig adresse gruppe
+          #- id: ""
   kafka:
     pool: nav-prod
   gcp:
