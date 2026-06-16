@@ -36,7 +36,6 @@ spec:
   azure:
     application:
       enabled: true
-      allowAllUsers: true
   kafka:
     pool: nav-dev
   gcp:
