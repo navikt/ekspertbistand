@@ -12,14 +12,22 @@ type VirksomhetPickerProps = {
   value: string;
   onChange: (organisasjonsnummer: string, virksomhet?: Organisasjon) => void;
   error?: React.ReactNode;
+  description?: React.ReactNode;
 };
 
-export function VirksomhetVelger({ label, value, onChange, error }: VirksomhetPickerProps) {
+export function VirksomhetVelger({
+  label,
+  value,
+  onChange,
+  error,
+  description,
+}: VirksomhetPickerProps) {
   const { organisasjoner, isLoading } = useOrganisasjoner();
 
   return (
-    <VStack gap="space-1">
+    <VStack gap="space-8">
       <Label>{label}</Label>
+      {description ? <BodyShort size="small">{description}</BodyShort> : null}
       {isLoading && (
         <BodyShort size="small">
           <Loader size="small" title="Laster virksomheter" aria-live="polite" /> Laster virksomheter
