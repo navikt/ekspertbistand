@@ -56,6 +56,10 @@ class ArenaTiltaksgjennomforingEndretProcessor(
             return
         }
 
+        if (NaisEnvironment.clusterName == "dev-gcp") {
+            log.info("TiltaksgjennomforingEndretKafkaMelding. {}", kafkaMelding)
+        }
+
         if (endring.tiltakStatusKode != TiltaksgjennomforingEndret.TiltakStatusKode.AVLYST) {
             // vi bryr oss kun om endringer som er avlyste/avslåtte tiltak
             return
