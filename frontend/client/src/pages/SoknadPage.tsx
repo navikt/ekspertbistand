@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ArrowRightIcon } from "@navikt/aksel-icons";
 import { type Path, type SubmitHandler, useForm } from "react-hook-form";
 import { z } from "zod";
