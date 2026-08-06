@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ReactNode } from "react";
 
-vi.mock("react-router-dom", async () => {
+vi.mock("react-router", async () => {
   const React = await import("react");
   return {
     __esModule: true,
@@ -14,7 +14,7 @@ vi.mock("react-router-dom", async () => {
   };
 });
 
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import SoknaderPage from "./SoknaderPage.tsx";
 

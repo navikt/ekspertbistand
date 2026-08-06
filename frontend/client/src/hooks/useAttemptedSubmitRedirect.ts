@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import type { FieldPath, UseFormReturn } from "react-hook-form";
 import type { SoknadInputs } from "../features/soknad/schema";
 
