@@ -7,6 +7,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.handlers.*
 import no.nav.ekspertbistand.soknad.DTO
@@ -96,6 +97,13 @@ sealed interface EventData {
     ) : EventData
 
     @Serializable
+    @SerialName("saksbehandlingStartetIArena")
+    data class SaksbehandlingStartetIArena(
+        val soknad: DTO.Soknad,
+        val tiltakssakEndret: TiltakssakEndret,
+    ) : EventData
+
+    @Serializable
     @SerialName("TilsagnsdataLagret")
     data class TilsagnsdataLagret(
         val soknad: DTO.Soknad,
@@ -125,6 +133,7 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(VarsleArbeidsgiverSoknadAvlyst::class))
         register(dependencies.create(SettGodkjentSoknadStatus::class))
         register(dependencies.create(SettAvlystSoknadStatus::class))
+        register(dependencies.create(MarkerSakUnderBehandlingIArena::class))
         register(dependencies.create(LagreTilsagnsData::class))
         register(dependencies.create(LagreTilsagnsDataKildeAltinn::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->

@@ -14,6 +14,15 @@ val startKafkaProsesseringAt: Instant = basedOnEnv(
     prod = { Instant.parse("2026-02-23T10:00:00.00Z") }
 )
 
+/**
+ * [ArenaTiltakssakEndretProcessor] skal lese hele topicets historikk ved første oppstart, slik at
+ * saker som allerede er tatt til behandling i Arena blir markert (backfill). Idempotens på sak_id
+ * gjør replay trygt.
+ *
+ * TODO(#117): vurder å sette denne til deploy-tidspunktet når backfill er gjennomført i prod.
+ */
+val startTiltakssakProsesseringAt: Instant = Instant.EPOCH
+
 fun Application.startKafkaConsumers(parentContext: CoroutineContext) {
 
     // Arena Tilsagnsbrev Processor
@@ -29,6 +38,14 @@ fun Application.startKafkaConsumers(parentContext: CoroutineContext) {
         ArenaTiltaksgjennomforingEndretProcessor(
             dependencies.resolve(),
             startKafkaProsesseringAt
+        ).startProcessing()
+    }
+
+    // Arena TiltakssakEndret Processor
+    CoroutineScope(parentContext + Dispatchers.IO.limitedParallelism(1)).launch {
+        ArenaTiltakssakEndretProcessor(
+            dependencies.resolve(),
+            startTiltakssakProsesseringAt
         ).startProcessing()
     }
 
