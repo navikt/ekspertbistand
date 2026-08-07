@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { MouseEventHandler } from "react";
-import type { NavigateOptions } from "react-router-dom";
+import type { NavigateOptions } from "react-router";
 import { SOKNADER_PATH } from "../utils/constants";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { useAutosaveNavigate } from "./useAutosaveNavigate";

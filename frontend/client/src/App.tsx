@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Outlet, useParams } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet, useParams } from "react-router";
 import HealthPage from "./pages/HealthPage";
 import SoknaderPage from "./pages/SoknaderPage.tsx";
 import LandingPage from "./pages/LandingPage";
