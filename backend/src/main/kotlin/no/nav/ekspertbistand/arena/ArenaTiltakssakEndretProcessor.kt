@@ -103,7 +103,8 @@ class ArenaTiltakssakEndretProcessor(
         // ville hver oppstart med startProcessingAt = EPOCH skrive en saksbehandlerident per
         // tiltakssak i hele Arena, ikke bare våre egne.
         if (NaisEnvironment.clusterName == "dev-gcp") {
-            log.info("TiltakssakEndretKafkaMelding. {}", kafkaMelding)
+            // TODO: fjern denne loggingen etter debug i dev. Gjerne før prodsetting
+            log.info("TiltakssakEndret gjelder vår sak. TiltakssakEndretKafkaMelding. {}", kafkaMelding)
         }
 
         // Datagrunnlag for å bekrefte at tilstandsregelen sammenfaller med en reell endring av feltet,
