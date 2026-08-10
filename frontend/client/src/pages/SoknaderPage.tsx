@@ -1,5 +1,5 @@
 import { type JSX, useEffect, useState } from "react";
-import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router";
 import { Alert, BodyShort, Box, Button, Heading, Loader, Tag, VStack } from "@navikt/ds-react";
 import { LinkCard } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";

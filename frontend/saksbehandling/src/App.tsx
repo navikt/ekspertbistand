@@ -1,6 +1,6 @@
 import { Alert, BodyShort, Button, Loader, VStack } from "@navikt/ds-react";
 import { useEffect } from "react";
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router";
 import { RequireAuth } from "./RequireAuth";
 import AppLayout from "./components/AppLayout";
 import { useSession } from "./hooks/useSession";

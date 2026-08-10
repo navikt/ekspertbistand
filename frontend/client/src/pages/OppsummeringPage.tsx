@@ -22,7 +22,7 @@ import useSWRMutation from "swr/mutation";
 import { fetchJson } from "../utils/api";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { resolveApiError, type ApiErrorInfo } from "../utils/http";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 import {

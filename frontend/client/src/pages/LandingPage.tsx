@@ -1,5 +1,5 @@
 import { BodyLong, BodyShort, Button, Heading, LinkPanel, Loader, VStack } from "@navikt/ds-react";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 import DecoratedPage from "../components/DecoratedPage";
 import { TILGANGSSTYRING_URL, LOGIN_URL, SOKNADER_PATH } from "../utils/constants";
 import { useSession } from "../hooks/useSession";

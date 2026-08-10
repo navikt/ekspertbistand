@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { ArrowRightIcon, FilePdfIcon } from "@navikt/aksel-icons";
 import {
   Alert,
