@@ -160,7 +160,8 @@ private data class SoknadRequest(
     data class Ekspert(
         val navn: String,
         val virksomhet: String,
-        val kompetanse: String,
+        val godkjentUtdanningEllerAutorisasjon: List<String>,
+        val relevantKompetanse: List<String>,
     )
 
     @Serializable
@@ -198,7 +199,8 @@ private data class SoknadRequest(
             ekspert = Ekspert(
                 navn = dto.ekspert.navn,
                 virksomhet = dto.ekspert.virksomhet,
-                kompetanse = dto.ekspert.kompetanse,
+                godkjentUtdanningEllerAutorisasjon = dto.ekspert.godkjentUtdanningEllerAutorisasjon,
+                relevantKompetanse = dto.ekspert.relevantKompetanse,
             ),
             behovForBistand = BehovForBistand(
                 begrunnelse = dto.behovForBistand.begrunnelse,
