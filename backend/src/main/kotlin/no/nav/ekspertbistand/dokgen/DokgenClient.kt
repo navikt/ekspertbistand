@@ -199,7 +199,8 @@ private data class SoknadRequest(
             ekspert = Ekspert(
                 navn = dto.ekspert.navn,
                 virksomhet = dto.ekspert.virksomhet,
-                godkjentUtdanningEllerAutorisasjon = dto.ekspert.godkjentUtdanningEllerAutorisasjon,
+                godkjentUtdanningEllerAutorisasjon = dto.ekspert.godkjentUtdanningEllerAutorisasjon
+                    .ifEmpty { if (dto.ekspert.kompetanse.isNotBlank()) listOf(dto.ekspert.kompetanse) else emptyList() },
                 relevantKompetanse = dto.ekspert.relevantKompetanse,
             ),
             behovForBistand = BehovForBistand(
