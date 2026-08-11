@@ -145,7 +145,7 @@ verdien selv sammen med flagget slik at vi kan se faktiske formater i produksjon
 - `backend/src/main/kotlin/no/nav/ekspertbistand/infrastruktur/Kafka.kt` — `CoroutineKafkaConsumer`,
   `ConsumerRecordProcessor`
 - `backend/src/main/kotlin/no/nav/ekspertbistand/arena/Db.kt` — `ArenaSakTable`, `ArenaMeldingIdempotencyTable`
-- `ADR.md` — event-kø og event-prosessorer
+- `adr/0001-asynkron-prosessering-med-event-ko.md` — event-kø og event-prosessorer
 - `backend/src/main/kotlin/no/nav/ekspertbistand/event/README.md`
 
 ## ⚠️ Eksterne avhengigheter
