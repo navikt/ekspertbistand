@@ -61,7 +61,7 @@ Det er dette som gjør at klagestøtte i stor grad er gjenbruk, ikke nybygg.
   [ BEHANDLINGSMOTOR ]  ──► VEDTAK: tilskudd                    ◄── KLAGE
    │                          innvilget | redusert | avslag
    │                          brev til deltaker + brev til AG
-   │                          midler settes av
+   │                          Bestilling: midler settes av
    ▼
   Tiltaket gjennomføres
    │  påminnelse når sluttdato nærmer seg
@@ -72,12 +72,15 @@ Det er dette som gjør at klagestøtte i stor grad er gjenbruk, ikke nybygg.
    ▼
   ── refusjonsfrist ───────────────────────────────────
    ▼
-  Refusjonssøknad (AG, med bilag/faktura)   kan komme etter fristen
+  Refusjonskrav (AG, med bilag)   kan komme etter fristen
+   │   └► mangelfullt → saksbehandler låser opp → AG retter (B21)
    ▼
   [ BEHANDLINGSMOTOR ]  ──► VEDTAK: refusjon                    ◄── KLAGE
-   │                          innvilget | avslag | avvist   (B20)
+   │                          innvilget | avslag | avvist
    ▼
-  Utbetaling via tiltaksøkonomi → OeBS ──► utbetalt
+  Faktura + oppgjør av hele bestillingen                        (B18)
+   ▼
+  Utbetalt
 
   Sidespor:
    • AG trekker søknaden / saksbehandler trekker på vegne av AG   ◄── KLAGE?
@@ -87,18 +90,16 @@ Det er dette som gjør at klagestøtte i stor grad er gjenbruk, ikke nybygg.
 
 ## Hvor kan det klages — og hvor kan det ikke
 
-Dette er dokumentets hovedpoeng. Klageobjektet er **alltid et fattet vedtak**, aldri en
-intern arbeidstilstand.
+Klageobjektet er **alltid et fattet vedtak**, aldri en intern arbeidstilstand.
 
 ### Klagbare avgjørelser
 
 | Avgjørelse | Utfall som utløser klage | Klager |
 |------------|--------------------------|--------|
-| Tilskuddsvedtak | avslag, redusert beløp | AG (se Å1) |
+| Tilskuddsvedtak | avslag, redusert beløp | Arbeidsgiver |
 | Tilskuddsvedtak | innvilget | Deltaker |
-| Refusjonsvedtak | avslag | AG |
-| Refusjonsvedtak | avvist — oversittet frist | AG |
-| Trukket søknad | hvis dette regnes som vedtak (Å4) | AG, deltaker |
+| Refusjonsvedtak | avslag, avvist, justert beløp | Arbeidsgiver |
+| Trukket søknad | hvis dette regnes som vedtak (Å2) | Begge |
 
 ### Ikke klagbare — prosessledende eller interne
 
@@ -108,8 +109,7 @@ intern arbeidstilstand.
 | **Retur fra beslutter** | Intern arbeidsflyt |
 | **Vilkårsvurdering** | Veiledende arbeidsverktøy, ikke en avgjørelse |
 | **Avvist sluttrapport / purring** | Anmodning om retting — mangelbrev, ikke vedtak |
-| **Refusjonskrav returnert til retting** | Samme — mangelbrev, jf. B21 |
-| **Etterspørsel om mer dokumentasjon** | Saksforberedelse (fvl. § 17) |
+| **Refusjonskrav låst opp for retting** | Samme — mangelbrev, jf. B21 |
 
 > **Navnerisiko:** «foreløpig vedtak» er en innstilling, ikke et vedtak. Begrepet er
 > innarbeidet internt, men hvis det noen gang lekker til parten — i et brevutkast, en
@@ -119,9 +119,8 @@ intern arbeidstilstand.
 
 ### Klagen kommer inn manuelt
 
-Det finnes ikke noe digitalt inntak for klage i første versjon. Klagen kommer på e-post og
-registreres manuelt av saksbehandler. Den som ringer blir bedt om å sende e-post. Se B16
-for hva dette flytter av krav over på vedtaksbrevet og på datamodellen.
+Det finnes ikke noe digitalt inntak for klage i første versjon. Klagen må foreligge
+skriftlig og registreres av saksbehandler med selve klagedokumentet som vedlegg (B23).
 
 ### Klagebehandling bruker samme motor
 
@@ -132,6 +131,8 @@ vedtaket i én operasjon — og kan returnere hele pakken.
 
 Dette er nøyaktig det dagpenger-teamet ønsker seg og ikke får: de må hoppe ut av
 klagesaken og opprette en ny behandling manuelt, med separat kontroll og separate brev.
+
+**Den økonomiske siden av et medhold er derimot manuell.** Se B18 og B19.
 
 ---
 
@@ -167,8 +168,7 @@ en del av saksdokumentasjonen, og en klager kan be om innsyn i dem.
 ### B3 — Foreløpig vedtak versjoneres, ikke overskrives
 
 Retur–revider-løkka kan gå flere runder. Hver innstilling og hvert returnotat lagres som
-en ny versjon. `antallReturer` faller ut gratis som kvalitetsindikator, og
-saksdokumentasjonen blir komplett.
+en ny versjon. `antallReturer` faller ut gratis som kvalitetsindikator.
 
 ### B4 — Én avgjørelse, ett vedtaksbrev per part
 
@@ -179,32 +179,24 @@ tilpass begrunnelse».
 Vi modellerer dette som **ett `Vedtak` med flere `Underretning`-er**, ikke som to vedtak.
 Det er én realitetsavgjørelse; to vedtak ville gitt to klageobjekter for samme forhold.
 
-Klagefrist og klagerett håndteres per underretning. Det er dette som gjør det mulig at
-partene har ulik klagerett mot samme vedtak — se Å1.
-
 ### B5 — Vilkårsvurderingen er veiledende, men fryses ved vedtak
 
-Vilkårsvurderingen er ment som støtte til saksbehandler, ikke som en låsemekanisme.
-Vilkår kan settes automatisk eller manuelt, og saksbehandler kan overstyre med begrunnelse.
+Vilkårsvurderingen er støtte til saksbehandler, ikke en låsemekanisme. Vilkår kan settes
+automatisk eller manuelt, og saksbehandler kan overstyre med begrunnelse.
 
-**Men:** i det øyeblikket beslutter fatter vedtaket må vilkårsvurderingen fryses og
-knyttes uforanderlig til vedtaket. Uten dette mister vi sporet av *hva som faktisk ble
-vurdert* — og det er nettopp det en klagebehandler trenger å se.
+**Men:** når beslutter fatter vedtaket må vilkårsvurderingen fryses og knyttes uforanderlig
+til vedtaket. Uten dette mister vi sporet av *hva som faktisk ble vurdert* — og det er
+nettopp det en klagebehandler trenger å se.
 
-Dette er særlig viktig for vilkåret **«Deltaker er enig»**, som bygger på arbeidsgivers
-påstand om at samtykke foreligger (jf. B15). Hvis deltaker senere klager med at de ikke
-var enige, er den frosne vilkårsvurderingen dokumentasjonen på hva Nav la til grunn og
-hvorfor.
+Særlig viktig for vilkåret **«Deltaker er enig»**, som bygger på arbeidsgivers påstand om
+at samtykke foreligger (B15). Klager deltaker senere med at de ikke var enige, er den
+frosne vilkårsvurderingen dokumentasjonen på hva Nav la til grunn og hvorfor.
 
 ### B6 — Refusjon er et vedtak, ikke bare en attestering
 
-Designutkastene viser refusjonskrav med samme vilkårsvurdering, samme foreløpige vedtak
-med `innvilge | innvilge med redusert beløp | avslå`, samme forhåndsvisning og samme
-beslutterløype som søknaden.
-
-Refusjonsvedtaket har dermed begrunnelse, underretning og klagerett på lik linje med
-tilskuddsvedtaket. Dette avklarer et tidligere åpent spørsmål — refusjonssteget er ikke
-en ren økonomisk attestering.
+Designutkastene viser refusjonskrav med samme vilkårsvurdering, samme foreløpige vedtak,
+samme forhåndsvisning og samme beslutterløype som søknaden. Refusjonsvedtaket har dermed
+begrunnelse, underretning og klagerett på lik linje med tilskuddsvedtaket.
 
 ### B7 — Utfallsstyrt klageflyt
 
@@ -214,42 +206,35 @@ en ren økonomisk attestering.
 | Opprettholdelse | Oversendelsesbrev til Nav klageinstans + orientering til klager |
 | Medhold / delvis medhold | Omgjøringen inngår i samme innstilling til beslutter |
 
-Ved medhold genereres ikke et eget klagebrev først. Klagen og omgjøringen avsluttes med
-ett brevsett.
+### B8 — Refusjonsfrist er en frist, ikke et vilkår
 
-### B8 — Sluttrapport: forutsetning eller ikke er uavklart
-
-Det er ikke landet om sluttrapport skal være en forutsetning for refusjon. To alternativer
-er i spill:
-
-1. **Utenfor vilkårene** — sluttrapport spores, men blokkerer ikke refusjon
-2. **Gult vilkår** — vises som ikke oppfylt, men saksbehandler kan krysse av «fortsett
-   uten» med begrunnelse
-
-Alternativ 2 er mest i tråd med at vilkårsvurderingen skal veilede og ikke låse, og det
-gir en dokumentert skjønnsutøvelse i stedet for en usynlig omgåelse. Uansett valg:
-avvisning av sluttrapport med purring er et **mangelbrev, ikke et vedtak**, og utløser
-ikke klagerett.
-
-Modellen holdes åpen: `Sluttrapport` er et eget objekt med egen tilstand, og koblingen til
-refusjonsvedtaket går via vilkårsvurderingen — ikke som en hard fremmednøkkelbetingelse.
-
-### B9 — Refusjonsfrist er en frist, ikke et vilkår
-
-En refusjonssøknad kan sendes inn etter fristen, og det er saksbehandlers
-**skjønnsvurdering** om den likevel skal realitetsbehandles.
+Et refusjonskrav kan sendes inn etter fristen, og det er saksbehandlers
+**skjønnsvurdering** om det likevel skal realitetsbehandles.
 
 - Innsending etter frist blokkeres ikke teknisk; kravet markeres som fremsatt etter fristen
 - Vurderingen begrunnes
 - Godtas ikke fristoversittelsen, avvises kravet med `avvisningsgrunn = oversittet_frist`.
   Det er et vedtak og kan påklages
 
+### B9 — Sluttrapport: forutsetning eller ikke er uavklart
+
+Ikke landet om sluttrapport skal være en forutsetning for refusjon. To alternativer:
+
+1. **Utenfor vilkårene** — sluttrapport spores, men blokkerer ikke refusjon
+2. **Gult vilkår** — vises som ikke oppfylt, men saksbehandler kan krysse av «fortsett
+   uten» med begrunnelse
+
+Alternativ 2 er mest i tråd med at vilkårsvurderingen skal veilede og ikke låse, og gir en
+dokumentert skjønnsutøvelse i stedet for en usynlig omgåelse. Uansett valg: avvisning av
+sluttrapport med purring er et **mangelbrev, ikke et vedtak**, og utløser ikke klagerett.
+Se Å3.
+
 ### B10 — Tre fristtyper skal ikke blandes
 
 | Frist | Kilde | Konsekvens ved oversittelse |
 |-------|-------|-----------------------------|
 | Tiltaksperiode | Tilsagnets `periode` | Skjønnsvurdering ved refusjon, jf. B11 |
-| Refusjonsfrist | Tilsagnets `refusjonsfrist` | Skjønnsvurdering, jf. B9 |
+| Refusjonsfrist | Tilsagnets `refusjonsfrist` | Skjønnsvurdering, jf. B8 |
 | Klagefrist | Underretning om vedtak (fvl. § 29) | Klagen kan avvises |
 
 Klagefrist og formkrav holdes i en ytelsesuavhengig modul — ren forvaltningslov, ingen
@@ -263,85 +248,66 @@ tilsagnet.
 
 I stedet håndteres avvik der pengene faktisk gjøres opp: **i refusjonsbehandlingen, ved
 saksbehandlers og beslutters skjønn.** Har tiltaket løpt litt utover perioden, eller ble
-det brukt mindre enn planlagt, vurderes det når refusjonskravet behandles. Dette gjør
-tiltaksperioden til et skjønnsmoment i refusjonsvurderingen, ikke en hard grense.
+det brukt mindre enn planlagt, vurderes det når refusjonskravet behandles. Tiltaksperioden
+er dermed et skjønnsmoment i refusjonsvurderingen, ikke en hard grense.
 
-Tre operasjoner må holdes fra hverandre her, fordi de har helt ulik gjennomførbarhet mot
-OeBS:
+Tre operasjoner må holdes fra hverandre, fordi de har ulik gjennomførbarhet mot OeBS:
 
 | Operasjon | Mekanisme | Status |
 |-----------|-----------|--------|
-| Utbetale **mindre** enn tilsagnet | `Faktura` på lavere beløp + `GjorOppBestilling` for resten | Støttet, og det normale (B20) |
-| **Endre** tilsagnsbeløpet før utbetaling | `Annullering` + ny `Bestilling` | Mulig, men ute av scope som brukerinitiert flyt |
-| **Kreve tilbake** penger som er utbetalt | Ingen meldingstype finnes | Ikke støttet, se Å8 |
+| Utbetale **mindre** enn tilsagnet | `Faktura` på lavere beløp + oppgjør av bestillingen | Støttet, og det normale |
+| **Endre** tilsagnsbeløpet før utbetaling | `Annullering` + ny `Bestilling` | Ute av scope som brukerinitiert flyt |
+| **Kreve tilbake** utbetalte penger | Ingen meldingstype finnes | Manuell rutine, se B24 |
 
-Merk konsekvensen av rad 1: **å utbetale mindre enn tilsagnet er ikke en reduksjon av
-avsatte midler** — det er en lavere uttrekning fra dem, og fullt støttet. Faktura på det
-dokumenterte beløpet, oppgjør av resten. Det er nettopp derfor underforbruk ikke er en
-delvis innvilgelse, jf. B20.
+**Mekanismen i rad 2 kan ikke scopes helt bort.** Et klagemedhold som øker tilsagnsbeløpet
+krever nettopp `Annullering` + ny `Bestilling`. En klagerett systemet ikke kan innfri er
+ikke en klagerett. Vi scoper ut inngangen, ikke kapabiliteten — se Å1.
 
-Det som scopes ut er rad 2 som brukerinitiert funksjon, og rad 3 helt.
+#### Avveining: skal `delvis_innvilget` støttes på søknad? *(ikke besluttet)*
 
-**Men mekanismen i rad 2 kan ikke scopes helt bort.** Et klagemedhold som øker
-tilsagnsbeløpet krever nettopp `Annullering` + ny `Bestilling`. En klagerett systemet ikke
-kan innfri er ikke en klagerett. Vi scoper altså ut inngangen, ikke kapabiliteten — og den
-må avklares mot tiltaksøkonomi før klagestøtten er reell. Se Å3.
+Fag har etterspurt delvis innvilgelse på søknad. Det er verdt å veie mot kompleksiteten.
 
-#### Avveining: skal `delvis_innvilget` støttes i det hele tatt? *(ikke besluttet)*
-
-Fag har etterspurt delvis innvilgelse, primært på **søknad**. Det er verdt å veie mot
-kompleksiteten den drar med seg, og kostnaden er ulik på de to vedtakstypene.
-
-**På søknad er det `delvis_innvilget` som skaper det vanskelige klagetilfellet.** Klage på
-et rent avslag er teknisk enkelt ved medhold: det finnes ingen bestilling fra før, så vi
-oppretter bare én. Klage på et *redusert* beløp krever derimot at en eksisterende
-bestilling annulleres og erstattes — nettopp den operasjonen Å3 stiller spørsmål ved.
-Droppes `delvis_innvilget`, forsvinner den hardeste økonomiske klagesituasjonen med den.
-
-**På refusjon er spørsmålet avgjort.** Kravet avledes fra bilagene og kappes til
-tilsagnet, så det oppstår ikke noe gap å innvilge delvis. Se B20.
-
-Avveiningen gjelder derfor bare **søknad**.
+**Det er `delvis_innvilget` som skaper det vanskelige klagetilfellet.** Klage på et rent
+avslag er teknisk enkelt ved medhold: det finnes ingen bestilling fra før, så vi oppretter
+bare én. Klage på et *redusert* beløp krever at en eksisterende bestilling annulleres og
+erstattes — operasjonen Å1 stiller spørsmål ved. Droppes `delvis_innvilget`, forsvinner den
+hardeste økonomiske klagesituasjonen med den.
 
 To konsekvenser som bør være med i avveiningen:
 
-**Uten `delvis_innvilget` finnes heller ikke «delvis medhold».** Klageutfallene reduseres
-i praksis til opprettholdelse eller fullt medhold, siden det ikke finnes noen vedtakstilstand
-som uttrykker «noe av det du ba om». Det binder også en eventuell klageinstans.
+**Uten `delvis_innvilget` finnes heller ikke «delvis medhold».** Klageutfallene reduseres i
+praksis til opprettholdelse eller fullt medhold, siden ingen vedtakstilstand uttrykker «noe
+av det du ba om». Det binder også en eventuell klageinstans.
 
 **Omveien fjerner klageretten.** Alternativet uten teknisk støtte er at arbeidsgiver etter
-en prat med veileder trekker søknaden og sender en ny på lavere beløp. Da finnes det
-*ingen avgjørelse å klage på* — reduksjonen fremstår som arbeidsgivers eget valg, selv om
-den i realiteten er Navs. Det er sannsynligvis en vesentlig del av grunnen til at fag
-etterspør funksjonen, og det bør ikke leses som ren bekvemmelighet.
+en prat med veileder trekker søknaden og sender en ny på lavere beløp. Da finnes det *ingen
+avgjørelse å klage på* — reduksjonen fremstår som arbeidsgivers eget valg, selv om den i
+realiteten er Navs. Det er sannsynligvis en vesentlig del av grunnen til at fag etterspør
+funksjonen, og bør ikke leses som ren bekvemmelighet.
 
-Tilsvarende omvei finnes på refusjon: avvise kravet som mangelfullt og be om korrigert
-innsending, slik vi allerede gjør for sluttrapport. Samme innvending gjelder der.
-
-Beslutningen for **søknad** tas ikke i dette dokumentet. Modellen bærer
-`delvis_innvilget` som utfall på tilskuddsvedtak, og å ta det ut senere er en
-innsnevring — det motsatte er en utvidelse som treffer vedtak, brev, økonomiflyt og
-klage samtidig. For refusjon er spørsmålet avgjort, jf. B20.
+Modellen bærer `delvis_innvilget` på tilskuddsvedtak. Å ta det ut senere er en innsnevring;
+å legge det til senere treffer vedtak, brev, økonomiflyt og klage samtidig.
 
 ### B12 — Trukket søknad avsluttes eksplisitt og frigjør avsatte midler
 
-Både arbeidsgiver og saksbehandler (på vegne av arbeidsgiver) kan trekke søknaden.
-Begge tilfeller varsler både arbeidsgiver og deltaker. Om trekking er et enkeltvedtak er
-uavklart — se Å4.
+Både arbeidsgiver og saksbehandler (på vegne av arbeidsgiver) kan trekke søknaden. Begge
+tilfeller varsler både arbeidsgiver og deltaker. Om trekking er et enkeltvedtak er
+uavklart, se Å2.
 
 ### B13 — Underretning registreres per part
 
-Underretning er en liste av hendelser, ikke ett felt. Partene varsles gjennom ulike
-kanaler og kan bli underrettet på ulikt tidspunkt. Klagefristen løper fra underretning og
-kan derfor løpe ulikt for de to.
+Underretning er en liste av hendelser, ikke ett felt — én per part, med eget dokument og
+egen kanal. I praksis sendes de **samtidig og med samme klagefrist** (B22), men de
+registreres hver for seg fordi dokument og kanal er ulike, og fordi sporbarheten på hvem
+som ble underrettet når må være entydig.
 
 ### B14 — Innsigelse før vedtak skilles fra klage etter vedtak
 
 Deltaker får kopi av søknaden ved innsending, altså før vedtaket fattes.
 
 - **Innsigelse før vedtak** — en opplysning i saken som saksbehandler tar med i
-  vurderingen, typisk mot vilkåret «Deltaker er enig». Ingen formkrav, ingen frist,
-  ingen beslutterrunde
+  vurderingen, typisk mot vilkåret «Deltaker er enig». Ingen formkrav, ingen frist, ingen
+  beslutterrunde
 - **Klage etter vedtak** — formell klageflyt
 
 Deltaker deltar ikke i drøftingsmøtet slik kartleggingen viser det. Kopi av søknaden er
@@ -353,239 +319,219 @@ Besluttet med fag. Deltaker varsles i stedet om mottatt søknad, med kopi. Arbei
 informeres i søknaden om at deltaker får kopi.
 
 Samtykket lever videre som **vilkåret «Deltaker er enig»**, basert på arbeidsgivers
-påstand. Vi har dermed dokumentasjon på *varsling* og på *hva Nav la til grunn*, ikke på
+påstand. Vi har dokumentasjon på *varsling* og på *hva Nav la til grunn*, ikke på
 *involvering*. `KopiAvSoknadSendtDeltaker` og den frosne vilkårsvurderingen (B5) er
 bevisgrunnlaget.
 
 ### B16 — Klage registreres manuelt av saksbehandler
 
 I første omgang bygges **ikke** noe grensesnitt der arbeidsgiver eller deltaker kan sende
-klage digitalt. Klagen skal komme **på e-post**, og saksbehandler registrerer den manuelt i
-saksbehandlingsløsningen. Samme gjelder innsigelser før vedtak (B14).
+klage digitalt. Saksbehandler registrerer klagen i saksbehandlingsløsningen. Samme gjelder
+innsigelser før vedtak (B14).
 
-**Telefon er ikke et klageinntak.** Ringer noen for å klage, blir de bedt om å sende klagen
-på e-post. Det løser skriftlighetskravet i fvl. § 32 uten at vi må ta stilling til om et
-telefonnotat er tilstrekkelig — men det gjenstår å bekrefte at e-post pluss manuell
-registrering faktisk oppfyller kravet, se Å2.
+Dette flytter noen krav over på andre deler av løsningen:
 
-Telefonhenvendelsen skal likevel loggføres på saken. Grunnen er fristen: ringer noen på
-dag 41 av 42 og e-posten kommer på dag 44, er den loggførte kontakten avgjørende for om
-fristoversittelsen bør unnskyldes (fvl. § 31). Uten loggen er den opplysningen tapt.
-
-Dette er en bevisst forenkling, men flytter noen krav over på andre deler av løsningen:
-
-**Klageveiledningen må ligge i vedtaksbrevet.** Når det ikke finnes en digital kanal, er
-brevet det eneste stedet parten får vite at de kan klage. Brevet må derfor oppfylle
-fvl. § 27 tredje ledd: klagerett, klagefrist, klageinstans, og *hvor og hvordan* klagen
-sendes. Dette gjelder begge brevmalene, og for både tilskudds- og refusjonsvedtak.
+**Klageveiledningen må ligge i vedtaksbrevet.** Uten digital kanal er brevet eneste sted
+parten får vite at de kan klage. Brevet må oppfylle fvl. § 27 tredje ledd: klagerett,
+klagefrist, klageinstans, og hvor klagen sendes. Gjelder begge brevmalene, for både
+tilskudds- og refusjonsvedtak.
 
 **Mottatt og registrert er to ulike datoer.** Klagefristen måles mot da Nav faktisk mottok
-henvendelsen, ikke da den ble tastet inn. Saksbehandler må kunne sette en mottaksdato
-bakover i tid, og begge datoene lagres. Dette er ikke kosmetikk — differansen avgjør om
-klagen er rettidig.
+klagen, ikke da den ble tastet inn. Saksbehandler må kunne sette en mottaksdato bakover i
+tid, og begge datoene lagres.
 
-**Henvendelsen journalføres som klagedokument.** E-posten arkiveres. Ved telefon skriver
-saksbehandler et notat som journalføres.
-
-**Kvittering går ut selv om inntaket er manuelt.** Vi har utgående kanaler mot begge
-parter allerede. Når klagen er registrert bør parten få en beskjed om at den er mottatt —
-billig å gjøre, og uten det har den som ringte ingen bekreftelse på at noe skjedde.
+**Kvittering går ut selv om inntaket er manuelt.** Når klagen er registrert bør parten få
+en beskjed om at den er mottatt.
 
 ### B17 — Saksbehandler og beslutter må være ulike personer **per behandling**
 
-Regelen gjelder per behandling, ikke per sak. Det stilles **ingen** krav om at
-saksbehandler eller beslutter i en klagesak må være andre enn de som behandlet det
-opprinnelige vedtaket.
-
-Illustrasjon av hva det innebærer:
+Regelen gjelder per behandling, ikke per sak. Det stilles ingen krav om at saksbehandler
+eller beslutter i en klagesak må være andre enn de som behandlet det opprinnelige vedtaket.
 
 > Kari innstiller på søknadsvedtaket, Ola fatter det. Seks måneder senere kommer en klage.
-> Ola kan innstille på klagen, og Kari kan fatte den. Hver behandling har to par øyne, og
-> det er tilstrekkelig.
+> Ola kan innstille på klagen, og Kari kan fatte den. Hver behandling har to par øyne.
 
 En Nav-ansatt kan inneha begge rollene, så dette kan ikke håndheves gjennom rolletildeling.
-Håndhevingen er på handlingsnivå og må ligge i backend, ikke bare i skjuling av en knapp:
+Håndhevingen er på handlingsnivå og må ligge i backend:
 
 - `ForelopigVedtak.innstiltAv` registreres ved innsending til beslutter
 - Beslutt-handlingen avvises hvis `innloggetBruker` har innstilt på **noen versjon** av
   samme behandling
 
-Presiseringen om «noen versjon» er nødvendig fordi retur–revider-løkka kan involvere flere
-saksbehandlere. Har du innstilt én gang på behandlingen, er du ute som beslutter for den.
-
-Konsekvens for små enheter: en behandling krever to tilgjengelige personer. Per behandling
-i stedet for per sak gjør at ingen låses permanent ute av en sak.
-
-### B18 — Økonomi håndteres via tiltaksøkonomi (team Valp), ikke av oss
+### B18 — Økonomi via tiltaksøkonomi. Vi holder ikke av penger etter refusjon
 
 [Tiltaksøkonomi](https://github.com/navikt/mulighetsrommet/tree/main/mulighetsrommet-tiltaksokonomi)
-er en ACL mot OeBS PO/AP som allerede løser avsetning og utbetaling for
-arbeidsmarkedstiltak. Vi produserer Kafka-meldinger og lytter på statustopics; vi snakker
-ikke med OeBS direkte.
-
-Våre begreper mapper rent over:
+er en ACL mot OeBS PO/AP. Vi produserer Kafka-meldinger og lytter på statustopics; vi
+snakker ikke med OeBS direkte.
 
 | Vår hendelse | Melding til tiltaksøkonomi |
 |--------------|----------------------------|
 | Tilskuddsvedtak innvilget | `Bestilling` — holder av midlene |
 | Søknad trukket, avslag etter tilsagn | `Annullering` |
-| Medhold som øker tilsagnsbeløpet | `Annullering` + ny `Bestilling` — se B11 og Å3 |
-| Refusjonsvedtak innvilget | `Faktura` mot bestillingen |
-| Refusjonsfrist passert uten krav, eller refusjon lavere enn tilsagn | `GjorOppBestilling` |
+| Refusjonsvedtak innvilget | `Faktura` + `GjorOppBestilling` for eventuelt restbeløp |
+| Refusjonsfrist passert uten krav, refusjonskrav avslått | `GjorOppBestilling` |
+| Klagemedhold som krever penger | Ny `Bestilling` — manuell håndtering, se B19 |
 
-To ting dette avklarer:
+**Bestillingen gjøres opp i sin helhet ved refusjonsvedtaket.** Vi holder ikke midler
+avsatt i påvente av en eventuell klage. Er kravet lavere enn tilsagnet, utbetales det
+dokumenterte beløpet og resten gjøres opp umiddelbart.
 
-**Annullér-og-opprett-mønsteret er ikke bare praksis, det er OeBS-modellen.** Det finnes
-ingen «endre bestilling». Skal et fattet tilsagn endres — i praksis kun etter
-klagemedhold, jf. B11 — må det gjøres ved å annullere og opprette på nytt.
+Konsekvensen er bevisst: **et klagemedhold etter utbetaling krever en ny bestilling og
+behandles manuelt.** Vi bytter bort automatikk i et sjeldent tilfelle mot å slippe å holde
+budsjettmidler bundet i uker etter at saken reelt er ferdig. En delvis innvilgelse på
+refusjon etterlater dermed heller ikke noe utestående delbeløp arbeidsgiver kan gjøre krav
+på — bestillingen er lukket.
 
-**Restmidler må gjøres opp aktivt.** Bruker arbeidsgiver mindre enn tilsagnet, eller lar
-refusjonsfristen løpe ut, blir midlene liggende bundet i OeBS til vi sender
-`GjorOppBestilling`. Dette er et steg vi må trigge selv — det skjer ikke av seg selv når
-saken avsluttes hos oss.
+**Annullér-og-opprett er OeBS-modellen.** Det finnes ingen «endre bestilling». Skal et
+fattet tilsagn endres — i praksis kun etter klagemedhold — må det gjøres ved å annullere og
+opprette på nytt, eller ved en ny bestilling dersom den gamle er gjort opp.
 
 #### Bestillingens livsløp
-
-Bestillingen opprettes ved **søknadsvedtaket** og fullføres ved **refusjonsvedtaket**. Den
-lever altså gjennom hele gjennomføringsperioden:
 
 ```
  søknadsvedtak                                    refusjonsvedtak
       │                                                  │
       ▼                                                  ▼
-  Bestilling ──────── midler bundet, ikke trukket ──── Faktura ──► GjorOppBestilling
-      │                                                            (restbeløp)
-      │◄── klagefrist tilskudd ──►│                          │◄─ klagefrist refusjon ─►│
+  Bestilling ──────── midler bundet, ikke trukket ──── Faktura + GjorOppBestilling
+                                                              │
+                                                       bestillingen er lukket
+                                                       senere medhold = ny bestilling,
+                                                       manuelt
 ```
 
-Dette har tre konsekvenser som ikke er åpenbare:
-
 **Klage på tilskuddsvedtaket treffer nesten alltid en ubetalt bestilling.** Klagefristen er
-seks uker fra underretning, mens refusjon først kommer etter at tiltaket er gjennomført.
-En tilskuddsklage vil derfor i praksis alltid behandles mens midlene er bundet, men ikke
-trukket — som er det gunstigste tidspunktet for `Annullering` + ny `Bestilling`. Det
-reduserer risikoen i Å3 betydelig: det er variant «før utbetaling» som betyr noe her.
+seks uker fra underretning, mens refusjon først kommer etter at tiltaket er gjennomført. En
+tilskuddsklage behandles derfor i praksis mens midlene er bundet men ikke trukket — det
+gunstigste tidspunktet for `Annullering` + ny `Bestilling`.
 
-**Refusjonen er begrenset oppad av bestillingen.** Krever arbeidsgiver mer enn tilsagnet,
-kan ikke overskytende utbetales uansett vurdering. Delvis innvilgelse på refusjon er
-dermed delvis påtvunget av mekanikken, ikke bare en fagvurdering — se avveiningen i B11.
-
-**`GjorOppBestilling` må ikke sendes for tidlig.** Gjør vi opp restbeløpet straks
-refusjonen er utbetalt, river vi bort beholderen vi trenger dersom en klage på
-refusjonsvedtaket får medhold innenfor klagefristen. Regel: **vent med oppgjør til
-klagefristen på refusjonsvedtaket er utløpt, eller til en verserende klage er avgjort.**
-Samme forsiktighet gjelder når refusjonsfristen passerer uten krav mens en klage på
-tilskuddsvedtaket fortsatt er åpen.
+**Uavklart: datoer på bestillingen.** Aksepterer saksbehandler et refusjonskrav etter
+refusjonsfristen, eller utenfor tiltaksperioden, kommer fakturaen mot en bestilling hvis
+datoer ikke lenger stemmer. Om OeBS bryr seg om dette, og om det må håndteres med nye
+datoer eller en ny bestilling, må avklares med team Valp — og det trengs en beskrevet
+rutine for saksbehandler. Se Å5.
 
 ### B19 — Vedtak og økonomistatus er to ulike tilstander
 
-Kvitteringer fra OeBS kommer asynkront på egne Kafka-topics. Det betyr at et vedtak kan
-være fattet og underrettet, mens bestillingen fortsatt er ubekreftet — eller har feilet.
-Feilkoder som `PO_PDOI_INVALID_PROJ_INFO` krever endringer hos OeBS før de kan løses.
+Kvitteringer fra OeBS kommer asynkront. Et vedtak kan være fattet og underrettet mens
+bestillingen fortsatt er ubekreftet — eller har feilet. Feilkoder som
+`PO_PDOI_INVALID_PROJ_INFO` krever endringer hos OeBS før de kan løses.
 
 Vi kan ikke rulle tilbake et fattet og underrettet vedtak fordi en bestilling feilet.
-Konsekvensen er at `Tilsagn` og `Refusjonskrav` må bære en **egen økonomistatus** ved siden
-av vedtakstilstanden, og at det trengs en **avstemmingsliste** for saker der de to har
-kommet i utakt. Uten den blir feilede bestillinger usynlige til noen oppdager at pengene
-aldri ble avsatt.
+`Tilsagn` og `Refusjonskrav` må derfor bære en **egen økonomistatus**, og det trengs en
+**avstemmingsliste** for saker der de to er i utakt. Uten den blir feilede bestillinger
+usynlige til noen oppdager at pengene aldri ble avsatt.
 
-Tiltaksøkonomi garanterer rekkefølge og avhengigheter — en faktura sendes ikke før
-bestillingen er kvittert OK — så det slipper vi å håndtere. Duplikathåndtering
+Samme liste er stedet der **klagemedhold som krever penger** havner, siden de håndteres
+manuelt (B18). En saksbehandler må kunne se «dette vedtaket er omgjort, økonomien er ikke
+gjennomført» og gjøre noe med det.
+
+Tiltaksøkonomi garanterer rekkefølge og avhengigheter. Duplikathåndtering
 (`DUPLICATE INVOICE NUMBER`) passer med `IdempotencyGuard` vi allerede har.
 
-### B20 — Refusjonskravet avledes fra bilagene, og refusjonsvedtaket har binære utfall
+### B20 — Arbeidsgiver oppgir krevd beløp, validert mot tilsagnet
 
-**Beslutning**
+Arbeidsgiver oppgir `krevdBelop` i skjemaet. Beløpet **valideres mot et tak lik tilsagnet**
+— det er ikke mulig å kreve mer enn det som er innvilget. Bilagene dokumenterer kravet, men
+beløpet avledes ikke automatisk fra dem; det er saksbehandlers oppgave å kontrollere at
+bilagene faktisk understøtter beløpet.
 
-1. `krevdBelop` **avledes fra bilagene** — arbeidsgiver oppgir ikke et fritt beløp.
-   Kravet mot Nav er `min(sum bilag, tilsagn)`.
-2. At bilagene dokumenterer mindre enn tilsagnet gir utfallet **`innvilget`**, ikke
-   `delvis_innvilget`. Restbeløpet gjøres opp med `GjorOppBestilling`.
-3. `delvis_innvilget` støttes **kun på tilskuddsvedtak**. Refusjonsvedtaket har utfallene
-   `innvilget | avslag | avvist`.
+At kravet er lavere enn tilsagnet er **ikke** en delvis innvilgelse. Arbeidsgiver har krevd
+det de har krevd, og får det innfridd. Restbeløpet gjøres opp mot bestillingen (B18).
+`delvis_innvilget` som utfall reserveres for tilskuddsvedtaket.
 
-**Begrunnelse**
+**Åpent: kan saksbehandler justere krevd beløp?** Det er mulig vi bør tillate at
+saksbehandler setter et lavere beløp enn arbeidsgiver har krevd, framfor å låse opp kravet
+og be om retting. Fordi bestillingen uansett gjøres opp i sin helhet (B18), er dette
+økonomisk uproblematisk — det er ingen midler som blir hengende.
 
-*Tilsagnet er et tak, ikke en rettighet.* Ordningen refunderer dokumenterte kostnader
-opptil tilsagnet. Bruker arbeidsgiver mindre enn planlagt, er utbetaling av det
-dokumenterte beløpet en **full innfrielse av kravet** — ikke en delvis innvilgelse.
+Men det er en avgjørelse i disfavør av arbeidsgiver og dermed klagbart på beløpet.
+Merk at dette står i spenning med avgrensningen over om at `delvis_innvilget` reserveres
+for tilskuddsvedtak: en nedjustering *er* en delvis innvilgelse, uansett hva feltet heter.
+Se Å4.
 
-| Tilsagn | Sum bilag | Krav mot Nav | Utbetalt | Utfall |
-|---------|-----------|--------------|----------|--------|
-| 22 000 | 22 000 | 22 000 | 22 000 | `innvilget` |
-| 22 000 | 18 000 | 18 000 | 18 000 | `innvilget` |
-| 22 000 | 25 000 | 22 000 | 22 000 | `innvilget` |
+Uansett utfall gjelder B18: en klage på refusjonsbeløpet som fører fram må håndteres med ny
+bestilling og manuelt arbeid.
 
-*Underforbruk er normalen.* Å merke det som «delvis innvilget» ville produsert
-klagegrunnlag ut av helt ordinær drift, og krevd en begrunnelse for noe som ikke er
-avslått. Et vedtaksbrev som sier «innvilget» inviterer ikke til klage; «delvis innvilget»
-gjør det.
+### B21 — Saksbehandler låser opp refusjonskravet for retting
 
-*Overforbruk håndteres ved avledningen, ikke ved vedtaket.* Fordi kravet kappes til
-tilsagnet allerede ved innsending, oppstår ikke situasjonen der Nav «avslår» det
-overskytende. Arbeidsgiver får en tydelig melding i skjemaet om at bilagene overstiger
-tilsagnet og at kravet begrenses. Konflikten flyttes fra et påklagbart vedtak til en
-valideringsmelding — samme prinsipp som ellers i dokumentet: ikke produser klagbare
-avgjørelser du kan unngå.
-
-*Ett sted å endre beløp.* `delvis_innvilget` finnes dermed bare på tilskuddsvedtaket, som
-også er der fag har etterspurt det og der beløpet faktisk fastsettes.
-
-**Konsekvenser**
-
-Kan saksbehandler ikke godta deler av dokumentasjonen — en post er ikke støtteberettiget —
-finnes det ikke lenger noe «innvilg delvis». Kravet må da returneres til arbeidsgiver for
-korrigert innsending, som et **mangelbrev**, på samme måte som en avvist sluttrapport.
-Det er ikke et vedtak og utløser ikke klagerett.
-
-Restrisiko: nekter arbeidsgiver å korrigere, står vi igjen med å avslå hele kravet. Det er
-et hardere utfall enn en delvis innvilgelse ville vært, og bør følges opp hvis det viser
-seg å forekomme.
-
-Klage på et refusjonsvedtak er fortsatt mulig — det er et vedtak. Men den vil gjelde
-`avslag` eller `avvist`, ikke beløpsstørrelsen, siden beløpet nå følger direkte av
-bilagene og tilsagnet.
-
-### B21 — Refusjonskrav kan returneres til arbeidsgiver for retting
-
-Fordi refusjonsvedtaket har binære utfall (B20), må det finnes en vei tilbake når
-dokumentasjonen ikke holder: saksbehandler returnerer kravet og ber arbeidsgiver rette det
-— erstatte eller supplere bilag — i stedet for å innvilge delvis.
-
-Mekanikken speiler sluttrapportkontrollen, som allerede har avvis → purring → ny
-innsending:
+Et innsendt refusjonskrav er **låst**. Er bilagene mangelfulle, beløpet feil, eller noe
+annet krever oppdatering, **låser saksbehandler opp kravet** slik at arbeidsgiver kan endre
+det — erstatte eller supplere bilag, justere beløp — og sende inn på nytt.
 
 ```
-  Refusjonskrav mottatt
+  Refusjonskrav innsendt (låst)
         ▼
   saksbehandlers kontroll
         ├── i orden ──────────────► behandlingsmotoren → vedtak
         └── mangelfullt
               ▼
-        returnert til retting  ──► Oppgave til AG (med svarfrist)
+        låst opp med begrunnelse ──► Oppgave til AG (med svarfrist)
               ▼                         │
-        AG erstatter bilag  ◄───────────┘  purring ved manglende svar
+        AG retter og sender inn  ◄──────┘  purring ved manglende svar
               ▼
-        ny versjon av kravet → tilbake til kontroll
+        låst igjen → tilbake til kontroll
 ```
 
+Opplåsing framfor «send inn på nytt» beholder det arbeidsgiver allerede har fylt ut, og
+holder saken samlet på ett krav i stedet for å spre den over flere innsendinger.
+
 **Dette er et mangelbrev, ikke et vedtak.** Det utløser ikke klagerett, på linje med avvist
-sluttrapport og etterspørsel om mer dokumentasjon.
+sluttrapport.
 
-**Kravet versjoneres, det erstattes ikke.** Bilag og avledet `krevdBelop` lagres per
-versjon, slik vi gjør for foreløpig vedtak (B3). Den opprinnelige innsendingen må bevares —
-en senere klage kan gjelde hva som faktisk ble levert første gang.
+**Historikken bevares.** Hvilke bilag som lå ved opprinnelig, hva som ble bedt rettet, og
+hva som kom tilbake, må kunne rekonstrueres. En senere klage kan gjelde nettopp dette.
 
-**Fristen relaterer seg til første innsending.** Dette er den viktige detaljen: en
-retteroppfordring må ikke kunne gjøre et rettidig krav for sent. `fremsattEtterFrist`
-vurderes mot **første** innsendingsdato, ikke mot den korrigerte versjonen. Uten denne
-regelen kan Nav i praksis frata arbeidsgiver retten til refusjon ved å be om en retting
-tett opp mot refusjonsfristen.
+**Svarer arbeidsgiver aldri, ender det i avslag.** Etter purring uten respons avslås
+kravet. Det er et vedtak med klagerett, og bestillingen gjøres opp.
 
-**Svarfrist og opphør.** Oppgaven har en svarfrist, med purring ved manglende respons.
-Svarer arbeidsgiver aldri, må saken kunne avsluttes: enten ved avslag på kravet — som er et
-vedtak med klagerett — eller ved at bestillingen gjøres opp. Hvilken av dem, og etter hvor
-lang tid, er ikke avklart, se Å13.
+### B22 — Begge parter har klagerett, med samtidig underretning og felles frist
+
+Både arbeidsgiver og deltaker er parter med klagerett på tilskuddsvedtaket.
+
+Underretningene sendes **samtidig**, og klagefristen er dermed **den samme for begge**.
+Modellen holder fristen per underretning (B13), men i praksis er de like — det er ingen
+skjev fristberegning å håndtere.
+
+Deltaker underrettes ikke om refusjonsvedtaket (B26), og har dermed ingen klagerett der.
+
+### B23 — Klagen må foreligge skriftlig og registreres med vedlegg
+
+Fvl. § 32 krever skriftlig klage. Om den kommer på e-post eller i fysisk post er
+uinteressant for oss — kravet er at det finnes et skriftlig klagedokument.
+
+Saksbehandler registrerer klagen manuelt, og **selve klagedokumentet legges ved** som
+vedlegg på saken. Registreringen uten vedlegget er ikke tilstrekkelig; det er dokumentet
+som er klagen.
+
+Ringer noen for å klage, blir de bedt om å sende det skriftlig. Telefonhenvendelsen bør
+likevel loggføres på saken, fordi den kan være relevant for å vurdere en senere
+fristoversittelse (fvl. § 31).
+
+### B24 — Tilbakekreving er en manuell rutine som registreres i saken
+
+Tiltaksøkonomi har ingen meldingstype for tilbakekreving. Ved feilutbetaling håndteres
+tilbakekrevingen etter en **egen servicerutine utenfor systemet**.
+
+Vi bygger ikke selve prosessen, men gjør det **mulig å registrere at tilbakekreving er
+iverksatt og gjennomført** på saken, slik at saksbildet ikke lyver om hva som faktisk er
+utbetalt. Rutinen beskrives separat.
+
+### B25 — Kontonummer hentes fra Sokos kontoregister
+
+Utbetaling skjer til virksomhetens **kontonummer for refusjoner**. Det oppgis ikke manuelt
+— verken av arbeidsgiver eller saksbehandler.
+
+Ved innsending av refusjonskrav validerer vi at kontonummer for refusjoner er registrert.
+Mangler det, blokkeres innsendingen og arbeidsgiver henvises til å registrere det i Sokos
+kontoregister.
+
+### B26 — Deltaker får kopi av søknaden, men ikke refusjonsvedtaket
+
+Deltaker skal få tilgang til en kopi av søknaden, fortrinnsvis via Min side. De tekniske
+detaljene avgjøres ved implementasjon.
+
+Deltaker underrettes **ikke** om refusjonsvedtaket. Refusjonen er et økonomisk oppgjør
+mellom Nav og arbeidsgiver som ikke berører deltakers rettsstilling.
 
 ---
 
@@ -614,7 +560,7 @@ Vilkaarsvurdering                        // én per behandling, fryses ved vedta
       begrunnelse : tekst?
   }
 
-ForelopigVedtak                          // saksbehandlers innstilling, versjonert (B3)
+ForelopigVedtak                          // innstilling, versjonert (B3)
   id, behandlingId, versjon
   utfall          : innvilge | innvilge_redusert | avslaa
                   | (klage) avvis | oppretthold | medhold | delvis_medhold
@@ -622,7 +568,7 @@ ForelopigVedtak                          // saksbehandlers innstilling, versjone
   begrunnelsePerPart : { deltaker: tekst, arbeidsgiver: tekst }
   innstiltAv      : NAVident
   sendtTidspunkt
-  returNotat      : tekst?               // beslutters kommentar hvis returnert
+  returNotat      : tekst?
   returnertAv     : NAVident?
 
 Vedtak
@@ -640,9 +586,9 @@ Vedtak
   annullert       : bool
   foranledigetAv  : KlageId?
 
-Underretning                             // én per part, jf. B4
+Underretning                             // én per part (B13), sendes samtidig (B22)
   vedtakId, part, kanal, dokumentId, tidspunkt
-  klagefrist      : dato?                // null når parten ikke har klagerett
+  klagefrist      : dato
 
 Tilsagn
   vedtakId, periode, refusjonsfrist, tilskuddsbrevId, avsattBelop
@@ -659,40 +605,34 @@ Sluttrapport
 
 Refusjonskrav
   id, sakId, tilsagnVedtakId, behandlingId
-  forstInnsendt      : dato          // fristen måles mot denne, jf. B21
-  status             : mottatt | til_kontroll | returnert_til_retting
-                     | til_behandling | avgjort
-  kontonummer
-  versjoner[]        : {
-      versjon, innsendt, bilag[],
-      dokumentertBelop : sum bilag,
-      krevdBelop       : min(sum bilag, tilsagn)     // avledet, jf. B20
-  }
-  retur              : { begrunnelse, svarfrist, sendtAv, tidspunkt }?
-  fremsattEtterFrist : bool          // vurdert mot forstInnsendt
+  status             : utkast | innsendt_laast | apnet_for_retting
+                     | til_behandling | avgjort               // jf. B21
+  innsendt           : dato
+  krevdBelop         : oppgitt av AG, validert mot tilsagn    // jf. B20
+  bilag[]
+  fremsattEtterFrist : bool
+  fristvurdering     : tekst?
+  opplaasinger[]     : { begrunnelse, svarfrist, aapnetAv, tidspunkt,
+                         bilagFoer[], innsendtPaaNytt? }      // historikk, B21
   fakturanummer      : string?
   okonomistatus      : ikke_sendt | sendt | bekreftet | feilet | utbetalt
-  okonomifeil        : { kode, melding, tidspunkt }?
+  tilbakekreving     : { registrertAv, tidspunkt, belop, notat }?   // B24
 
 Klage
   id
   gjelderVedtak   : VedtakId             // tilskudd eller refusjon
   klager          : deltaker | arbeidsgiver | fullmektig
-  mottakskanal    : epost | brev         // telefon henvises til e-post, B16
-  mottatt         : dato                 // da Nav mottok henvendelsen — måler fristen
-  registrert      : tidspunkt            // da saksbehandler tastet den inn
+  mottatt         : dato                 // da Nav mottok klagen — måler fristen
+  registrert      : tidspunkt
   registrertAv    : NAVident
-  dokumentId      : journalført henvendelse eller telefonnotat
+  dokumentId      : selve klagedokumentet, påkrevd            // jf. B23
   frist / innenFrist / grunnlag
   formkrav        : { skriftlig, signert, angirEndring, rettsligKlageinteresse }
-  behandlingId    : BehandlingId         // klagen behandles gjennom samme motor
+  behandlingId    : BehandlingId
 
 Innsigelse                               // deltaker, før vedtak — ikke en klage
-  id, soknadId, mottakskanal, mottatt, registrert, registrertAv, innhold
+  id, soknadId, mottatt, registrert, registrertAv, innhold
 ```
-
-`Klage` peker på `VedtakId` og henger på en `Behandling`. Det er dette som gjør klage på
-tilskuddsvedtak og refusjonsvedtak til samme mekanisme.
 
 ---
 
@@ -707,7 +647,7 @@ SoknadInnsendt                                                      (finnes)
 KopiAvSoknadSendtDeltaker(soknadId, mottaker, kanal, tidspunkt, dokumentId)
 InnsigelseMottatt(soknadId, innhold, mottatt, registrertAv)
 SoknadTrukket(soknadId, trukketAv, begrunnelse)
-PartUnderrettet(vedtakId, part, kanal, tidspunkt, dokumentId, klagefrist?)
+PartUnderrettet(vedtakId, part, kanal, tidspunkt, dokumentId, klagefrist)
 ```
 
 **Behandlingsmotoren** — identisk for søknad, refusjon og klage
@@ -724,7 +664,7 @@ VedtakFattet(vedtakId, behandlingId, type, utfall, avvisningsgrunn?,
 VedtakAnnullert(vedtakId, erstattetAv, aarsak)
 ```
 
-**Gjennomføring, sluttrapport, refusjon og utbetaling**
+**Gjennomføring, sluttrapport og refusjon**
 ```
 TilskuddsbrevGenerert(vedtakId, dokumentId, periode, refusjonsfrist)
 SluttrapportPaaminnelseSendt(sakId, tidspunkt)
@@ -733,28 +673,30 @@ SluttrapportAvvist(sluttrapportId, begrunnelse)
 SluttrapportPurringSendt(sluttrapportId, tidspunkt)
 SluttrapportGodkjent(sluttrapportId, godkjentAv)
 RefusjonsfristPassert(tilsagnVedtakId, tidspunkt)
-RefusjonskravMottatt(refusjonskravId, krevdBelop, fremsattEtterFrist)
-RefusjonskravReturnertTilRetting(refusjonskravId, begrunnelse, svarfrist, sendtAv)
+RefusjonskravMottatt(refusjonskravId, krevdBelop, bilag, fremsattEtterFrist)
+RefusjonskravAapnetForRetting(refusjonskravId, begrunnelse, svarfrist, aapnetAv)
 RefusjonskravPurringSendt(refusjonskravId, tidspunkt)
-RefusjonskravKorrigert(refusjonskravId, versjon, bilag, krevdBelop, innsendt)
+RefusjonskravSendtInnPaaNytt(refusjonskravId, krevdBelop, bilag, tidspunkt)
+FristoversittelseVurdert(refusjonskravId, godtatt: bool, begrunnelse)
 ```
 
-**Økonomi mot tiltaksøkonomi** — utgående meldinger og innkommende kvitteringer (B18, B19)
+**Økonomi mot tiltaksøkonomi** (B18, B19)
 ```
 BestillingSendt(vedtakId, bestillingsnummer, belop, periode)
 BestillingBekreftet(vedtakId, bestillingsnummer, tidspunkt)
 BestillingFeilet(vedtakId, feilkode, melding, tidspunkt)
 AnnulleringSendt(vedtakId, bestillingsnummer, aarsak)
-FakturaSendt(refusjonskravId, fakturanummer, bestillingsnummer, belop, kontonummer)
+FakturaSendt(refusjonskravId, fakturanummer, bestillingsnummer, belop)
 FakturaBekreftet(refusjonskravId, fakturanummer, tidspunkt)
 FakturaFeilet(refusjonskravId, feilkode, melding, tidspunkt)
 BestillingGjortOpp(vedtakId, restbelop, aarsak)
+TilbakekrevingRegistrert(refusjonskravId, belop, registrertAv, notat)   // B24
 ```
 
-**Klage** — merk at selve avgjørelsen går via behandlingsmotoren over
+**Klage**
 ```
-KlageveiledningGitt(sakId, kanal: telefon, tidspunkt, notat)   // henvist til e-post, B16
-KlageRegistrert(klageId, gjelderVedtak, klager, grunnlag, mottakskanal,
+KlageveiledningGitt(sakId, kanal: telefon, tidspunkt, notat)
+KlageRegistrert(klageId, gjelderVedtak, klager, grunnlag,
                 mottatt, registrert, registrertAv, dokumentId, frist)
 KlageMottakBekreftet(klageId, part, kanal, tidspunkt)
 KlageFormkravVurdert(klageId, formkrav, innenFrist)
@@ -769,71 +711,75 @@ KlageOversendtKlageinstans(klageId, oversendelsesbrevId, tidspunkt)
 
 `ProdusentApiKlient` støtter i dag `opprettNySak`, `opprettNyBeskjed`, `nyStatusSak` og
 `hardDeleteSak`. **Oppgave er ikke implementert** — sluttrapport-, refusjons- og
-dokumentasjonsoppgaver er nytt arbeid mot produsent-API-et.
+rettingsoppgaver er nytt arbeid mot produsent-API-et.
 
-| Hendelse | Arbeidsgiver | Deltaker (Min side-varsler) |
-|----------|--------------|------------------------------|
+| Hendelse | Arbeidsgiver | Deltaker (Min side) |
+|----------|--------------|---------------------|
 | Søknad innsendt | Sak opprettes, beskjed | Beskjed med kopi av søknaden |
 | Søknad trukket | Beskjed | Beskjed |
-| Tilskuddsvedtak | Sakstatus + beskjed, brev | Brev + beskjed |
+| Tilskuddsvedtak | Sakstatus + beskjed, brev | Brev + beskjed, samtidig (B22) |
 | Sluttdato nærmer seg | **Oppgave**: send sluttrapport | — |
 | Sluttrapport avvist | **Oppgave**: send på nytt, purring | — |
 | Refusjon skal søkes | **Oppgave** med utløp = refusjonsfrist | — |
 | Refusjonsfrist passert | Oppgaven utgår | — |
 | Refusjonskrav mottatt | Beskjed + sakstatusoppdatering | — |
-| Refusjonskrav returnert til retting | **Oppgave** med svarfrist: erstatt/suppler bilag | — |
-| Svarfrist nærmer seg | Purring | — |
-| Korrigert krav mottatt | Beskjed, oppgave utført | — |
-| Refusjonsvedtak | Sakstatus + beskjed, brev | — (se Å5) |
+| Kravet låst opp for retting | **Oppgave** med svarfrist, purring | — |
+| Refusjonsvedtak | Sakstatus + beskjed, brev | — (B26) |
 | Utbetalt | Beskjed | — |
-| Klage registrert | Beskjed: «vi har mottatt klagen din» | Samme, ved klage fra deltaker |
+| Klage registrert | Beskjed: «vi har mottatt klagen din» | Ved klage fra deltaker |
 | Klage avgjort | Sakstatus + beskjed, brev | Ved klage fra deltaker |
 
 Når refusjonskravet kommer etter fristen er oppgaven allerede utgått. Da er beskjed +
-sakstatusoppdatering eneste kvittering. Teksten bør være tydelig på at kravet faktisk er
-registrert.
+sakstatusoppdatering eneste kvittering. Teksten bør være tydelig på at kravet er registrert.
 
-Merk at klageinntaket er manuelt (B16), men **kvitteringen er det ikke**. Utgående kanaler
-finnes mot begge parter, så den som har ringt eller sendt e-post bør få en bekreftelse på
-at klagen er registrert. Uten det er telefonhenvendelsen sporløs sett fra klagers side.
+Manglende kontonummer for refusjoner blokkerer innsending (B25) — meldingen må peke
+arbeidsgiver til Sokos kontoregister, ikke bare si at noe mangler.
+
+---
+
+## Saksbehandlerflaten
+
+Kartleggingen etterlyser «oversikt over pågående saker, utestående refusjonskrav, filtrer
+etc». Minimum: saker gruppert per sak (ikke per oppgave), med synlig kobling mellom vedtak,
+klage og omgjøring, og filtrering på utestående refusjonskrav og passerte frister.
+
+I tillegg trengs **avstemmingslista** fra B19: saker der vedtak og økonomistatus er i utakt,
+inkludert klagemedhold som venter på manuell økonomihåndtering.
 
 ---
 
 ## Samtidighet
 
-**Klage på tilskuddsvedtak mens gjennomføringen går.** Klagefristen kan løpe inn i
-tiltaksperioden. Anbefaling: **ikke sett gjennomføring eller refusjonsløp på vent.** La
-klagen løpe parallelt og håndter et senere medhold som omgjøring. `erstatterVedtak` og
-`foranledigetAv` gjør kjeden sporbar.
+**Klage på tilskuddsvedtaket mens gjennomføringen går.** Klagefristen kan løpe inn i
+tiltaksperioden. Gjennomføring og refusjonsløp settes ikke på vent. Behandles klagen mens
+bestillingen er ubetalt, kan omgjøringen gjøres med `Annullering` + ny `Bestilling`.
 
-**Medhold etter at refusjon er utbetalt.** Øker medholdet tilsagnet, må differansen
-etterbetales: `Annullering` + ny `Bestilling` + ny `Faktura` for differansen, i den
-rekkefølgen tiltaksøkonomi håndhever. Reduserer medholdet tilsagnet etter utbetaling,
-oppstår tilbakekreving — og tiltaksøkonomi har ingen meldingstype for det, se Å8.
+**Klage etter at refusjonen er utbetalt.** Bestillingen er da gjort opp i sin helhet (B18).
+Et medhold som krever penger må realiseres med en **ny bestilling**, opprettet manuelt, og
+saken føres på avstemmingslista til det er gjort.
 
-**Vedtak fattet, bestilling feilet.** Vedtaket står og parten er underrettet, men pengene
-er ikke avsatt. Saken må havne på avstemmingslista (B19) og løses operativt — den kan ikke
-løses ved å omgjøre vedtaket.
+**Vedtak fattet, bestilling feilet.** Vedtaket står og parten er underrettet, men pengene er
+ikke avsatt. Havner på avstemmingslista og løses operativt — ikke ved å omgjøre vedtaket.
 
-**Flere behandlinger åpne samtidig.** En klagebehandling kan løpe mens refusjonsløpet
-går. Gjeldende vedtak er alltid det siste ikke-annullerte i
-`erstatterVedtak`-kjeden.
+**Klage på et annullert vedtak.** Skal ikke være mulig; klagen retter seg mot gjeldende
+vedtak, det siste ikke-annullerte i `erstatterVedtak`-kjeden.
 
-**Klage på annullert vedtak.** Skal ikke være mulig; klagen retter seg mot gjeldende
-vedtak.
+**Begge parter klager på samme tilskuddsvedtak.** Modellen tillater flere `Klage` mot samme
+`VedtakId`. Siden fristen er felles (B22), vil de normalt komme i samme vindu og bør ses i
+sammenheng.
 
 ---
 
 ## Forvaltningsrettslige premisser
 
-Må bekreftes av fag.
-
-- **Klagefrist** løper fra underretning om vedtaket (fvl. § 29), per part
-- **Medhold i klage fra deltaker** på et innvilget vedtak vil i praksis være omgjøring til
-  ugunst for arbeidsgiver (fvl. § 35), med egne vilkår og krav om forhåndsvarsel
-- **Foreløpig vedtak** er en intern innstilling uten rettsvirkning, ikke et
-  enkeltvedtak etter fvl. § 2 b
-- **Oversittet refusjonsfrist** — hjemmelsgrunnlaget for skjønnet bør identifiseres
+- **Klagefrist** løper fra underretning om vedtaket (fvl. § 29). Underretning skjer
+  samtidig til begge parter, så fristen er felles (B22)
+- **Klagen må være skriftlig** (fvl. § 32), jf. B23
+- **Medhold i klage fra deltaker** på et innvilget tilskuddsvedtak vil i praksis være
+  omgjøring til ugunst for arbeidsgiver (fvl. § 35), med egne vilkår og krav om
+  forhåndsvarsel
+- **Foreløpig vedtak** er en intern innstilling uten rettsvirkning, ikke et enkeltvedtak
+  etter fvl. § 2 b
 - **Opprettholdelse** medfører oversendelse til Nav klageinstans
 
 ---
@@ -844,117 +790,60 @@ Må bekreftes av fag.
 
 - Klagebehandling er gjenbruk av behandlingsmotoren, ikke en parallell løsning
 - Klage, medhold og omgjøring i én innstilling, én beslutterrunde, ett brevsett
-- Eksplisitt sporbarhet mellom klage, omgjøring og annullert vedtak
-- Frosset vilkårsvurdering gir klagebehandler nøyaktig det beslutningsgrunnlaget som forelå
-- Redusert beløp blir målbart og begrunnet
+- Frosset vilkårsvurdering gir klagebehandler beslutningsgrunnlaget som faktisk forelå
+- Ingen budsjettmidler holdes bundet i påvente av klagefrister
 - Antall returer fra beslutter blir en målbar kvalitetsindikator
 
 **Kostnader og ny kompleksitet**
 
 - Migrering fra `SoknadStatus` til behandling + foreløpig vedtak + vedtak
 - Versjonering og frysing av vilkårsvurdering
-- Fristmotor: refusjonsfrist med oppgaveutløp, sluttrapportpåminnelse, klagefrist per part
-- Oppgave-støtte mot notifikasjonsplattformen: sluttrapport, refusjon, retting av krav
-- Kafka-integrasjon mot tiltaksøkonomi: fire utgående meldingstyper, to statustopics
-- Økonomistatus som egen tilstand, med avstemmingsliste for utakt (B19)
-- Aktiv oppgjørslogikk for ubrukte restmidler (`GjorOppBestilling`)
-- Nye dokgen-maler: vedtaksbrev per part for tilskudd og refusjon, samt mangelbrev,
-  klagevedtak og oversendelsesbrev
-- **Klageveiledning i alle vedtaksbrev** (fvl. § 27 tredje ledd) — med manuelt inntak er
-  brevet eneste sted parten får vite hvordan de klager
-- Backend-håndheving av tomannsregelen (B17)
+- Fristmotor: refusjonsfrist med oppgaveutløp, sluttrapportpåminnelse, klagefrist
+- Oppgave-støtte mot notifikasjonsplattformen: sluttrapport, refusjon, retting
+- Opplåsingsmekanikk på refusjonskrav med historikk (B21)
+- Kafka-integrasjon mot tiltaksøkonomi, med økonomistatus og avstemmingsliste (B19)
+- Oppslag mot Sokos kontoregister med blokkerende validering (B25)
+- Manuell håndtering av klagemedhold som krever penger (B18)
+- Nye dokgen-maler: vedtaksbrev per part for tilskudd og refusjon, mangelbrev,
+  klagevedtak, oversendelsesbrev
 - Integrasjon mot Nav klageinstans
-
-**Forenklet av manuelt klageinntak**
-
-- Ingen klageflate for arbeidsgiver, ingen klagefunksjon i deltakers microfrontend
-- Ingen validering av innsendt klage i sanntid — formkrav vurderes av saksbehandler
-- Til gjengjeld hviler klagerettens realitet helt på at brevteksten er god
 
 ---
 
 ## Åpne spørsmål
 
-**Å1 — Hvem har klagerett?** *(blokkerende)*
+**Å1 — Kan `Annullering` + ny `Bestilling` gjøres på en bekreftet, ubetalt bestilling?**
+Antas mulig. Må avsjekkes med team Valp / OeBS om det kan gi feilsituasjoner. Dette er
+veien for klagemedhold før utbetaling; etter utbetaling er svaret allerede gitt — ny
+bestilling, manuelt (B18).
 
-Prosesskartleggingen forutsetter at **deltaker har klagerett**, og setter spørsmålstegn
-ved arbeidsgivers («ikke klagerett?»). Det er motsatt av hva man kanskje skulle tro, siden
-tilskuddet utbetales til arbeidsgiver.
-
-Vurderingen bør skille mellom hvem vedtaket *retter seg mot* og hvem det *direkte gjelder*
-(fvl. § 2 e). Det er fullt mulig at begge er parter med klagerett mot ulike sider av
-vedtaket: deltaker mot tiltaket, arbeidsgiver mot beløpet. Modellen støtter det gjennom
-klagefrist per underretning (B4), men svaret må komme fra fag.
-
-Merk at hvis arbeidsgiver ikke har klagerett på tilskuddsvedtaket, blir spørsmålet ekstra
-skarpt for refusjonsvedtaket — der er arbeidsgiver utvilsomt den avgjørelsen retter seg mot.
-
-**Å2 — Oppfyller e-post skriftlighetskravet i fvl. § 32?**
-
-Klagen kommer på e-post og registreres manuelt av saksbehandler (B16). Det må bekreftes at
-denne kombinasjonen holder — både at e-post regnes som skriftlig, og at manuell
-registrering i fagsystemet med journalføring av e-posten er tilstrekkelig dokumentasjon.
-
-Telefon er ikke lenger et åpent spørsmål: den som ringer henvises til e-post.
-
-Dagpenger-teamet har et beslektet uavklart punkt: «det må være en form for bekreftelse på
-at det er en gyldig klage, enten den er skriftlig eller muntlig». Verdt å avklare felles.
-
-**Å3 — Kan et klagemedhold som øker tilsagnsbeløpet gjennomføres økonomisk?**
-*(blokkerende for reell klagestøtte)*
-
-B11 scoper ut endring av fattet tilsagn som brukerinitiert flyt, men mekanismen kreves
-fortsatt ved medhold. To varianter må avklares med team Valp:
-
-- **Før utbetaling** — kan vi sende `Annullering` på en bekreftet bestilling og opprette
-  en ny med høyere beløp på samme sak? Dette er den viktige varianten: en klage på
-  tilskuddsvedtaket vil nesten alltid behandles i dette vinduet, jf. bestillingens
-  livsløp i B18
-- **Etter utbetaling** — bestillingen kan ikke annulleres når det er betalt ut mot den.
-  Kan vi opprette en *tilleggsbestilling* med egen faktura for differansen, eller finnes
-  det ingen vei? Gjelder først og fremst klage på refusjonsvedtaket. Der kan vi kjøpe oss
-  handlingsrom ved å utsette `GjorOppBestilling`, jf. B18
-
-Uten svar på minst den første har vi en klagerett vi ikke kan innfri på beløpsklager.
-
-Merk koblingen til avveiningen i B11: droppes `delvis_innvilget` på søknad, blir dette
-spørsmålet vesentlig mindre kritisk — medhold på et rent avslag krever bare en ny
-bestilling, ikke annullering av en eksisterende.
-
-**Å4 — Er trukket søknad et vedtak?** Har betydning for om det kreves begrunnelse og
+**Å2 — Er trukket søknad et vedtak?** Har betydning for om det kreves begrunnelse og
 underretning med klagerett, særlig når saksbehandler trekker på vegne av arbeidsgiver.
+*Hanna følger opp med Sadia.*
 
-**Å5 — Skal deltaker underrettes om refusjonsvedtaket?** Refusjonen er et økonomisk
-oppgjør mellom Nav og arbeidsgiver. Antatt nei, men henger sammen med Å1.
+**Å3 — Sluttrapport som vilkår.** Utenfor vilkårene, eller gult vilkår med «fortsett uten»
+og begrunnelse? Avklares etter hvert. Se B9.
 
-**Å6 — Sluttrapport som vilkår.** Utenfor vilkårene, eller gult vilkår med «fortsett uten»
-og begrunnelse? Se B8.
+**Å4 — Kan saksbehandler justere krevd beløp på et refusjonskrav?** Alternativet er å låse
+opp kravet og be arbeidsgiver rette det selv (B21). Justering er økonomisk uproblematisk
+siden bestillingen uansett gjøres opp, men det er en avgjørelse i disfavør av arbeidsgiver
+og dermed klagbar på beløpet — og den er reelt en delvis innvilgelse, uansett hva utfallet
+heter. Se B20.
 
-**Å7 — Hva gjør vi når deler av et bilag ikke er støtteberettiget?** B20 gir binære utfall
-på refusjon, og B21 gir veien tilbake: returner kravet til retting. Det fungerer så lenge
-arbeidsgiver retter — se Å13 for tilfellet der de ikke gjør det.
+**Å5 — Datoer på bestillingen ved skjønnsmessig aksept.** Godtar saksbehandler et krav
+etter refusjonsfristen eller utenfor tiltaksperioden, kommer fakturaen mot en bestilling
+med datoer som ikke lenger stemmer. Bryr OeBS seg? Må det sendes nye datoer, eller en ny
+bestilling? Avklares med team Valp, og det trengs en beskrevet rutine for saksbehandler.
+Se B18.
 
-**Å8 — Tilbakekreving.** Hva skjer ved feilutbetaling? Tiltaksøkonomi har ingen
-meldingstype for tilbakekreving, jf. tabellen i B11, så dette må eventuelt løses utenfor
-integrasjonen. Ikke vurdert i dette dokumentet.
+**Å6 — Tilsagnsår og årsskifte.** OeBS avviser bestillinger for langt frem i tid
+(`PO_PDOI_INVALID_PROJ_INFO`). Hvilke guards trenger vi? Avklares med team Valp.
 
-**Å9 — Klageinstans-integrasjon.** Tar Nav klageinstans imot via Kabal for vår tiltakstype,
-under hvilket tema og i hvilket format?
+**Å7 — Klageinstans-integrasjon.** Tar Nav klageinstans imot via Kabal for vår tiltakstype,
+under hvilket tema og i hvilket format? Foreløpig ukjent. Ikke sikkert det må være avklart
+før prodsetting, men det må være avklart før første opprettholdelse skal oversendes.
 
-**Å10 — Kontonummer.** Er det krav om oppgitt kontonummer, og må vi gjøre noe for å kunne
-bruke kontonummer for refusjoner fra Nav? Blokkerer utbetaling.
-
-**Å11 — Hvor mye av søknaden skal deltaker se?** Antatt hele, gitt B15, men bør bekreftes
-med personvern.
-
-**Å12 — Tilsagnsår og årsskifte.** OeBS avviser bestillinger for langt frem i tid
-(`PO_PDOI_INVALID_PROJ_INFO`). Et tilsagn gitt i desember med tiltaksperiode inn i neste
-år kan feile. Hvordan budsjettår håndteres må avklares med team Valp før B18
-implementeres.
-
-**Å13 — Hva skjer når arbeidsgiver aldri retter et returnert refusjonskrav?**
-Etter hvor mange purringer og hvor lang tid avsluttes saken, og avsluttes den med avslag
-(vedtak, klagerett) eller med at bestillingen bare gjøres opp? Se B21.
+**Å8 — Skal `delvis_innvilget` støttes på tilskuddsvedtaket?** Se avveiningen i B11.
 
 ---
 
@@ -962,17 +851,17 @@ Etter hvor mange purringer og hvor lang tid avsluttes saken, og avsluttes den me
 
 Beslutter — eller en egen økonomirolle — skal kunne se et regnskap per år, avdeling og
 sektor. Rolletildeling og tilgangsstyring på enhet og sak er uavklart. **Dette planlegges i
-egen sesjon og får sin egen ADR**, og er bevisst holdt utenfor dette dokumentet.
+egen sesjon og får sin egen ADR.**
 
-To ting fra B18 og B19 som bør tas med inn i den:
+To ting fra B18 og B19 bør tas med dit:
 
 **Oversikten må skille mellom tre tall.** *Disponert* (vedtatt hos oss), *bekreftet*
 (kvittert av OeBS) og *utbetalt*. De divergerer i det asynkrone vinduet, og permanent
-dersom en melding feiler. En oversikt som viser ett tall vil før eller siden vise feil tall.
+dersom en melding feiler.
 
 **Vi er ikke fasit.** OeBS er den autoritative økonomikilden. Vår oversikt er en projeksjon
-over egne vedtak og mottatte kvitteringer, og bør presenteres som det — ikke som regnskap.
-Projeksjonsmekanikken finnes allerede i `event/projections/`.
+over egne vedtak og mottatte kvitteringer, og bør presenteres som det.
+Projeksjonsmekanikken finnes i `event/projections/`.
 
 ---
 
@@ -986,7 +875,6 @@ Projeksjonsmekanikken finnes allerede i `event/projections/`.
 - `specifications/saksbehandler_routes_v1.md` — roller, inkl. `Beslutter`
 - [mulighetsrommet-tiltaksokonomi](https://github.com/navikt/mulighetsrommet/tree/main/mulighetsrommet-tiltaksokonomi)
   — ACL mot OeBS PO/AP (team Valp)
-- Designutkast ny saksbehandlerløsning (Figma) — vilkårsvurdering, foreløpig vedtak,
-  beslutters notat, refusjonskrav, sluttrapportkontroll
+- Designutkast ny saksbehandlerløsning (Figma)
 - Teamets prosesskartlegging
 - Dagpenger-teamets kartlegging av klageflyt
