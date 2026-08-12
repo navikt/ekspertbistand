@@ -8,6 +8,8 @@ import SkjemaSteg2Page from "./pages/SkjemaSteg2Page";
 import OppsummeringPage from "./pages/OppsummeringPage";
 import KvitteringPage from "./pages/KvitteringPage";
 import TilskuddsbrevPage from "./pages/TilskuddsbrevPage";
+import SluttrapportPage from "./pages/SluttrapportPage";
+import SokRefusjonPage from "./pages/SokRefusjonPage";
 import { useSoknadDraft } from "./context/SoknadDraftContext";
 import { SoknadDraftProvider } from "./providers/SoknadDraftProvider";
 import { SkjemaFormProvider } from "./providers/SkjemaFormProvider.tsx";
@@ -20,6 +22,7 @@ import { useSession } from "./hooks/useSession";
 import { BodyShort, Loader, VStack } from "@navikt/ds-react";
 import LoginRequiredPage from "./pages/LoginRequiredPage";
 import TilgangKunKOMMPage from "./pages/TilgangKunKOMMPage.tsx";
+import { isFeatureEnabled } from "./utils/featureFlags";
 
 function SkjemaDraftRoute() {
   const { id } = useParams<{ id: string }>();
@@ -103,6 +106,12 @@ export default function App() {
             <Route path="/skjema/start" element={<SoknadPage />} />
             <Route path="/skjema/:id/kvittering" element={<KvitteringPage />} />
             <Route path="/tilskuddsbrev/:tilsagnNummer" element={<TilskuddsbrevPage />} />
+            {isFeatureEnabled("EKSPERTBISTAND_SAKSBEHANDLING_BETA") && (
+              <Route path="/skjema/:id/sluttrapport" element={<SluttrapportPage />} />
+            )}
+            {isFeatureEnabled("EKSPERTBISTAND_SAKSBEHANDLING_BETA") && (
+              <Route path="/skjema/:id/refusjon" element={<SokRefusjonPage />} />
+            )}
             <Route path="/skjema/:id" element={<SkjemaDraftRoute />}>
               <Route path="steg-1" element={<SkjemaSteg1Page />} />
               <Route path="steg-2" element={<SkjemaSteg2Page />} />
