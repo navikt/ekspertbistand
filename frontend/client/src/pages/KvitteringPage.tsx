@@ -33,6 +33,7 @@ import { type SoknadInputs } from "../features/soknad/schema";
 import {
   formatCurrency,
   formatDate,
+  formatStringArray,
   formatSubmittedDateOrNull,
   formatTimer,
   formatValue,
@@ -128,8 +129,18 @@ function KvitteringSummary({ data, saksnummer, innsendtTekst }: KvitteringSummar
                   <FormSummary.Value>{formatValue(data.ekspert.virksomhet)}</FormSummary.Value>
                 </FormSummary.Answer>
                 <FormSummary.Answer>
-                  <FormSummary.Label>Kompetanse / autorisasjon</FormSummary.Label>
-                  <FormSummary.Value>{formatValue(data.ekspert.kompetanse)}</FormSummary.Value>
+                  <FormSummary.Label>
+                    Offentlig godkjent utdanning eller autorisasjon
+                  </FormSummary.Label>
+                  <FormSummary.Value>
+                    {formatStringArray(data.ekspert.godkjentUtdanningEllerAutorisasjon)}
+                  </FormSummary.Value>
+                </FormSummary.Answer>
+                <FormSummary.Answer>
+                  <FormSummary.Label>Relevant kompetanse for denne saken</FormSummary.Label>
+                  <FormSummary.Value>
+                    {formatStringArray(data.ekspert.relevantKompetanse)}
+                  </FormSummary.Value>
                 </FormSummary.Answer>
               </FormSummary.Answers>
             </FormSummary.Value>

@@ -33,7 +33,9 @@ const mapInputsToPayload = (inputs: SoknadInputs) => ({
   ekspert: {
     navn: inputs.ekspert.navn,
     virksomhet: inputs.ekspert.virksomhet,
-    kompetanse: inputs.ekspert.kompetanse,
+    kompetanse: "",
+    godkjentUtdanningEllerAutorisasjon: inputs.ekspert.godkjentUtdanningEllerAutorisasjon,
+    relevantKompetanse: inputs.ekspert.relevantKompetanse,
   },
   behovForBistand: {
     begrunnelse: inputs.behovForBistand.begrunnelse,
@@ -86,7 +88,18 @@ const draftDtoToInputsSchema = draftDtoServerSchema.transform((dto) => {
   if (dto.ekspert) {
     inputs.ekspert.navn = dto.ekspert.navn ?? "";
     inputs.ekspert.virksomhet = dto.ekspert.virksomhet ?? "";
-    inputs.ekspert.kompetanse = dto.ekspert.kompetanse ?? "";
+    const hasNewFields =
+      (dto.ekspert.godkjentUtdanningEllerAutorisasjon?.length ?? 0) > 0 ||
+      (dto.ekspert.relevantKompetanse?.length ?? 0) > 0;
+    if (hasNewFields) {
+      inputs.ekspert.godkjentUtdanningEllerAutorisasjon =
+        dto.ekspert.godkjentUtdanningEllerAutorisasjon ?? [];
+      inputs.ekspert.relevantKompetanse = dto.ekspert.relevantKompetanse ?? [];
+    } else if (dto.ekspert.kompetanse) {
+      // Eldre søknader: vis det gamle fritekstfeltet under utdanning/autorisasjon
+      inputs.ekspert.godkjentUtdanningEllerAutorisasjon = [dto.ekspert.kompetanse];
+      inputs.ekspert.relevantKompetanse = [];
+    }
   }
 
   if (dto.behovForBistand) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatCurrency,
   formatDate,
+  formatStringArray,
   formatSubmittedDate,
   formatTimer,
   formatValue,
@@ -29,5 +30,13 @@ describe("summary formatters", () => {
   it("returns a placeholder for invalid dates", () => {
     expect(formatDate("not-a-date")).toBe("—");
     expect(formatSubmittedDate("not-a-date")).toBe("—");
+  });
+
+  it("formats string arrays as comma-separated values", () => {
+    expect(formatStringArray(["Psykolog", "Ergoterapeut"])).toBe("Psykolog, Ergoterapeut");
+    expect(formatStringArray(["Psykolog"])).toBe("Psykolog");
+    expect(formatStringArray([])).toBe("—");
+    expect(formatStringArray(null)).toBe("—");
+    expect(formatStringArray(undefined)).toBe("—");
   });
 });
