@@ -3,6 +3,9 @@ package no.nav.ekspertbistand.soknad
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone.Companion.currentSystemDefault
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.dao.id.UUIDTable
@@ -40,6 +43,9 @@ object SoknadTable : Table("soknad") {
     val ekspertNavn = text("ekspert_navn")
     val ekspertVirksomhet = text("ekspert_virksomhet")
     val ekspertKompetanse = text("ekspert_kompetanse")
+    val ekspertGodkjentUtdanningEllerAutorisasjon =
+        text("ekspert_godkjent_utdanning_eller_autorisasjon").nullable()
+    val ekspertRelevantKompetanse = text("ekspert_relevant_kompetanse").nullable()
 
     // Behov for bistand
     val behovForBistandBegrunnelse = text("behov_for_bistand_begrunnelse")
@@ -81,6 +87,9 @@ object UtkastTable : UUIDTable("utkast") {
     val ekspertNavn = text("ekspert_navn").nullable()
     val ekspertVirksomhet = text("ekspert_virksomhet").nullable()
     val ekspertKompetanse = text("ekspert_kompetanse").nullable()
+    val ekspertGodkjentUtdanningEllerAutorisasjon =
+        text("ekspert_godkjent_utdanning_eller_autorisasjon").nullable()
+    val ekspertRelevantKompetanse = text("ekspert_relevant_kompetanse").nullable()
 
     // Behov for bistand
     val behovForBistandBegrunnelse = text("behov_for_bistand_begrunnelse").nullable()
@@ -99,6 +108,16 @@ object UtkastTable : UUIDTable("utkast") {
     @OptIn(ExperimentalTime::class)
     val opprettetTidspunkt = timestamp("opprettet_tidspunkt").defaultExpression(CurrentTimestamp)
 }
+
+private val jsonParser = Json { ignoreUnknownKeys = true }
+private val stringListSerializer = ListSerializer(String.serializer())
+
+private fun parseJsonStringList(value: String?): List<String> =
+    if (value.isNullOrBlank()) emptyList()
+    else runCatching { jsonParser.decodeFromString(stringListSerializer, value) }.getOrElse { emptyList() }
+
+internal fun encodeStringList(list: List<String>): String =
+    jsonParser.encodeToString(stringListSerializer, list)
 
 fun findSoknadOrUtkastById(id: UUID): DTO? =
     findSoknadById(id) ?: findUtkastById(id)
@@ -132,6 +151,8 @@ fun ResultRow.tilSoknadDTO() = DTO.Soknad(
         navn = this[SoknadTable.ekspertNavn],
         virksomhet = this[SoknadTable.ekspertVirksomhet],
         kompetanse = this[SoknadTable.ekspertKompetanse],
+        godkjentUtdanningEllerAutorisasjon = parseJsonStringList(this[SoknadTable.ekspertGodkjentUtdanningEllerAutorisasjon]),
+        relevantKompetanse = parseJsonStringList(this[SoknadTable.ekspertRelevantKompetanse]),
     ),
     behovForBistand = DTO.BehovForBistand(
         begrunnelse = this[SoknadTable.behovForBistandBegrunnelse],
@@ -175,6 +196,8 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
             navn = navn,
             virksomhet = this[UtkastTable.ekspertVirksomhet] ?: "",
             kompetanse = this[UtkastTable.ekspertKompetanse] ?: "",
+            godkjentUtdanningEllerAutorisasjon = parseJsonStringList(this[UtkastTable.ekspertGodkjentUtdanningEllerAutorisasjon]),
+            relevantKompetanse = parseJsonStringList(this[UtkastTable.ekspertRelevantKompetanse]),
         )
     },
     behovForBistand = DTO.BehovForBistand(
