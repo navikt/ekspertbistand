@@ -76,16 +76,7 @@ class ArenaTiltakssakEndretProcessor(
             return
         }
 
-        if (NaisEnvironment.clusterName == "dev-gcp") {
-            // TODO: fjern denne loggingen etter debug i dev. Gjerne før prodsetting
-            log.info("TiltakssakEndretKafkaMelding. {}", kafkaMelding)
-        }
-
-        if (!endring.erTiltakssak) {
-            return
-        }
-
-        if (!endring.erTattAvSaksbehandler) {
+        if (!endring.erTiltakssak || !endring.erTattAvSaksbehandler) {
             return
         }
 
@@ -97,8 +88,8 @@ class ArenaTiltakssakEndretProcessor(
         }
 
         if (soknad == null) {
-            // sak i Arena vi ikke er kilde til: sendt inn via Altinn 2, eller opprettet direkte i Arena
-            log.info("Tiltakssak tatt til behandling i Arena som vi ikke er kilde til, sakId=${endring.sakId}")
+            // sak i Arena vi ikke er kilde til
+            // sendt inn via Altinn 2, eller opprettet direkte i Arena eller et annet type tiltak
             return
         }
 
