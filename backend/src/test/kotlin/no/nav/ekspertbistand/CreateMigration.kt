@@ -16,7 +16,7 @@ fun main() {
             ArenaSakTable,
             ArenaSakUnderBehandlingTable,
             scriptDirectory = "backend/src/main/resources/db/migration",
-            scriptName = "V4__arena_sak_under_behandling",
+            scriptName = "V5__arena_sak_under_behandling",
         )
     }
 }
