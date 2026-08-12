@@ -16,7 +16,8 @@
   "ekspert": {
     "navn": "Ekspert NN",
     "virksomhet": "ErgoConsult AS",
-    "kompetanse": "Ergoterapeut, autorisasjon HPR 1337"
+    "godkjentUtdanningEllerAutorisasjon": ["Ergoterapeut"],
+    "relevantKompetanse": ["Tilrettelegging på arbeidsplassen", "Arbeidsplassvurdering"]
   },
   "behovForBistand": {
     "begrunnelse": "Langvarig skulderplage med 50% sykefravær",

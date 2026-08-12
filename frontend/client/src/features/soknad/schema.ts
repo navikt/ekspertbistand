@@ -133,7 +133,10 @@ export const soknadSchema = z.object({
   ekspert: z.object({
     navn: trimmedText("Du må fylle ut navn på ekspert."),
     virksomhet: trimmedText("Du må fylle ut tilknyttet virksomhet."),
-    kompetanse: trimmedText("Du må beskrive ekspertens kompetanse."),
+    godkjentUtdanningEllerAutorisasjon: z
+      .array(z.string())
+      .min(1, "Du må velge minst én utdanning eller autorisasjon."),
+    relevantKompetanse: z.array(z.string()).min(1, "Du må velge minst én relevant kompetanse."),
   }),
   behovForBistand: z.object({
     begrunnelse: trimmedText(
@@ -163,7 +166,8 @@ export const STEP1_FIELDS = [
   "ansatt.navn",
   "ekspert.navn",
   "ekspert.virksomhet",
-  "ekspert.kompetanse",
+  "ekspert.godkjentUtdanningEllerAutorisasjon",
+  "ekspert.relevantKompetanse",
   "nav.kontaktperson",
 ] as const satisfies ReadonlyArray<Path<SoknadInputs>>;
 
@@ -194,7 +198,8 @@ export const createEmptyInputs = (): SoknadInputs => ({
   ekspert: {
     navn: "",
     virksomhet: "",
-    kompetanse: "",
+    godkjentUtdanningEllerAutorisasjon: [],
+    relevantKompetanse: [],
   },
   behovForBistand: {
     begrunnelse: "",

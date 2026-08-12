@@ -33,9 +33,16 @@
       "properties": {
         "navn": { "type": "string" },
         "virksomhet": { "type": "string" },
-        "kompetanse": { "type": "string" }
+        "godkjentUtdanningEllerAutorisasjon": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "relevantKompetanse": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
       },
-      "required": ["navn", "virksomhet", "kompetanse"]
+      "required": ["navn", "virksomhet", "godkjentUtdanningEllerAutorisasjon", "relevantKompetanse"]
     },
     "behovForBistand": {
       "type": "object",
@@ -75,7 +82,8 @@
     "ekspert": {
       "navn": "Ekspert NN",
       "virksomhet": "ErgoConsult AS",
-      "kompetanse": "Ergoterapeut, autorisasjon HPR 1337"
+      "godkjentUtdanningEllerAutorisasjon": ["Ergoterapeut"],
+      "relevantKompetanse": ["Tilrettelegging på arbeidsplassen", "Arbeidsplassvurdering"]
     },
     "behovForBistand": {
       "begrunnelse": "Langvarig skulderplage med 50% sykefravær",

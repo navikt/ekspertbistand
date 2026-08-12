@@ -79,6 +79,11 @@ export const formatSubmittedDate = (value: string | null | undefined): string =>
   return shortDateFormatter.format(date);
 };
 
+export const formatStringArray = (value: string[] | null | undefined): string => {
+  if (!value || value.length === 0) return "—";
+  return value.join(", ");
+};
+
 export const formatSubmittedDateOrNull = (value: string | null | undefined): string | null => {
   if (!value) return null;
   const formatted = formatSubmittedDate(value);

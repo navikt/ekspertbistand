@@ -6,8 +6,8 @@
  * - Please do NOT modify this file.
  */
 
-const PACKAGE_VERSION = "2.11.3";
-const INTEGRITY_CHECKSUM = "4db4a41e972cec1b64cc569c66952d82";
+const PACKAGE_VERSION = "2.15.0";
+const INTEGRITY_CHECKSUM = "03cb67ac84128e63d7cd722a6e5b7f1e";
 const IS_MOCKED_RESPONSE = Symbol("isMockedResponse");
 const activeClientIds = new Set();
 
@@ -28,17 +28,7 @@ addEventListener("message", async function (event) {
 
   const client = await self.clients.get(clientId);
 
-  if (!client || !client.url) {
-    return;
-  }
-
-  // CodeQL: Check the origin of the client to only allow messages from trusted origins
-  try {
-    const clientOrigin = new URL(client.url).origin;
-    if (clientOrigin !== self.location.origin) {
-      return;
-    }
-  } catch (_e) {
+  if (!client) {
     return;
   }
 
@@ -138,8 +128,18 @@ async function handleRequest(event, requestId, requestInterceptedAt) {
   if (client && activeClientIds.has(client.id)) {
     const serializedRequest = await serializeRequest(requestCloneForEvents);
 
+    // Omit the body of server-sent event stream responses.
+    // Cloning such responses would prevent client-side stream cancelations
+    // from reaching the original stream (a teed stream only cancels its
+    // source once both of its branches cancel) and would buffer the
+    // entire stream into the unconsumed clone indefinitely.
+    const isEventStreamResponse = response.headers
+      .get("content-type")
+      ?.toLowerCase()
+      .startsWith("text/event-stream");
+
     // Clone the response so both the client and the library could consume it.
-    const responseClone = response.clone();
+    const responseClone = isEventStreamResponse ? null : response.clone();
 
     sendToClient(
       client,
@@ -152,15 +152,15 @@ async function handleRequest(event, requestId, requestInterceptedAt) {
             ...serializedRequest,
           },
           response: {
-            type: responseClone.type,
-            status: responseClone.status,
-            statusText: responseClone.statusText,
-            headers: Object.fromEntries(responseClone.headers.entries()),
-            body: responseClone.body,
+            type: response.type,
+            status: response.status,
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+            body: responseClone ? responseClone.body : null,
           },
         },
       },
-      responseClone.body ? [serializedRequest.body, responseClone.body] : []
+      responseClone && responseClone.body ? [serializedRequest.body, responseClone.body] : []
     );
   }
 
@@ -206,6 +206,7 @@ async function resolveMainClient(event) {
  * @param {FetchEvent} event
  * @param {Client | undefined} client
  * @param {string} requestId
+ * @param {number} requestInterceptedAt
  * @returns {Promise<Response>}
  */
 async function getResponse(event, client, requestId, requestInterceptedAt) {

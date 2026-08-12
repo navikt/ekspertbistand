@@ -192,7 +192,11 @@ const ensureSkjemaStoreLoaded = async () => {
     inputs.ansatt.navn = "Ola Nordmann";
     inputs.ekspert.navn = "Dr. Ekspert";
     inputs.ekspert.virksomhet = "Ekspert & Co";
-    inputs.ekspert.kompetanse = "Arbeidsrettet oppfolging";
+    inputs.ekspert.godkjentUtdanningEllerAutorisasjon = ["Psykolog"];
+    inputs.ekspert.relevantKompetanse = [
+      "Arbeidsplassvurdering",
+      "Tilrettelegging på arbeidsplassen",
+    ];
     inputs.behovForBistand.begrunnelse = "Behov for tilrettelegging etter skade.";
     inputs.behovForBistand.behov = "Ressurs til tilrettelegging og oppfolging.";
     inputs.behovForBistand.timer = "80";
@@ -227,7 +231,11 @@ const ensureSkjemaStoreLoaded = async () => {
     rejectedInputs.ansatt.navn = "Eva Hansen";
     rejectedInputs.ekspert.navn = "Anne Ekspert";
     rejectedInputs.ekspert.virksomhet = "Ekspert Partner";
-    rejectedInputs.ekspert.kompetanse = "Tilrettelegging og arbeidsplassvurdering";
+    rejectedInputs.ekspert.godkjentUtdanningEllerAutorisasjon = ["Ergoterapeut"];
+    rejectedInputs.ekspert.relevantKompetanse = [
+      "Tilrettelegging på arbeidsplassen",
+      "Arbeidsplassvurdering",
+    ];
     rejectedInputs.behovForBistand.begrunnelse = "Uklart behov for bistand.";
     rejectedInputs.behovForBistand.behov = "Avklaring av mulige tiltak.";
     rejectedInputs.behovForBistand.timer = "40";

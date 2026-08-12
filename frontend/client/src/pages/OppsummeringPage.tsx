@@ -28,6 +28,7 @@ import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 import {
   formatCurrency,
   formatDate,
+  formatStringArray,
   formatTimer,
   formatValue,
 } from "../components/summaryFormatters";
@@ -130,8 +131,18 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
                   <FormSummary.Value>{formatValue(ekspert.virksomhet)}</FormSummary.Value>
                 </FormSummary.Answer>
                 <FormSummary.Answer>
-                  <FormSummary.Label>Kompetanse / autorisasjon</FormSummary.Label>
-                  <FormSummary.Value>{formatValue(ekspert.kompetanse)}</FormSummary.Value>
+                  <FormSummary.Label>
+                    Offentlig godkjent utdanning eller autorisasjon
+                  </FormSummary.Label>
+                  <FormSummary.Value>
+                    {formatStringArray(ekspert.godkjentUtdanningEllerAutorisasjon)}
+                  </FormSummary.Value>
+                </FormSummary.Answer>
+                <FormSummary.Answer>
+                  <FormSummary.Label>Relevant kompetanse for denne saken</FormSummary.Label>
+                  <FormSummary.Value>
+                    {formatStringArray(ekspert.relevantKompetanse)}
+                  </FormSummary.Value>
                 </FormSummary.Answer>
               </FormSummary.Answers>
             </FormSummary.Value>
