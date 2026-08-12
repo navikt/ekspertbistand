@@ -76,6 +76,11 @@ class ArenaTiltakssakEndretProcessor(
             return
         }
 
+        if (NaisEnvironment.clusterName == "dev-gcp") {
+            // TODO: fjern denne loggingen etter debug i dev. Gjerne før prodsetting
+            log.info("TiltakssakEndretKafkaMelding. {}", kafkaMelding)
+        }
+
         if (!endring.erTiltakssak) {
             return
         }
