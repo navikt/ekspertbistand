@@ -30,6 +30,7 @@ import no.nav.ekspertbistand.aareg.AaregClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.arena.startKafkaConsumers
+import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokgen.DokgenClient
@@ -45,6 +46,7 @@ import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
+import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
 import no.nav.ekspertbistand.soknad.innloggetBruker
@@ -78,6 +80,7 @@ fun main() {
             provide<AzureAdTokenIntrospector>(AzureAdAuthClient::class)
 
             provide(AltinnTilgangerClient::class)
+            provide(ClamAvClient::class)
             provide(DokgenClient::class)
             provide(DokArkivClient::class)
             provide(EregClient::class)
@@ -100,6 +103,7 @@ fun main() {
 
         // configure application modules and endpoints
         configureSoknadApiV1()
+        configureVedleggApiV1()
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()
         configureEregApiV1()

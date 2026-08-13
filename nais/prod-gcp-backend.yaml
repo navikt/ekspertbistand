@@ -81,3 +81,5 @@ spec:
         - application: arena-api
           namespace: teamarenanais
           cluster: prod-fss
+        - application: clamav
+          namespace: nais-system
