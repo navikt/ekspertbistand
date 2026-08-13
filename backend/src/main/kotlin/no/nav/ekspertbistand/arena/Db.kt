@@ -21,7 +21,7 @@ object ArenaSakTable : Table("arena_sak") {
      * oppslag en full table scan.
      *
      * Indeksen er *unik* fordi saksnummer er unikt per sak i Arena. Merk konsekvensene:
-     *  - Migrasjonen V4 feiler hardt hvis dev/prod allerede inneholder duplikate saksnummer.
+     *  - DB Migrering feiler hardt hvis dev/prod allerede inneholder duplikate saksnummer.
      *    Kjør `SELECT saksnummer, count(*) FROM arena_sak GROUP BY saksnummer HAVING count(*) > 1`
      *    mot begge miljøer før deploy. Ved duplikater: bytt til `.index()` (ikke-unik) og fjern
      *    ALTER TABLE-setningen i V4.
