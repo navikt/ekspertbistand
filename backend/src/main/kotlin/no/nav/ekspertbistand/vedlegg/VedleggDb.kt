@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
 
+@OptIn(kotlin.time.ExperimentalTime::class)
 object VedleggTable : UUIDTable("vedlegg") {
     val soknadId = uuid("soknad_id")
     val type = text("type")

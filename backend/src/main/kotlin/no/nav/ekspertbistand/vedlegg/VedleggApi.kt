@@ -17,8 +17,6 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
 
-private val log = logger()
-
 private const val MAKS_FIL_STORRELSE_BYTES = 10 * 1024 * 1024
 private const val MAKS_ANTALL_FILER = 5
 
@@ -33,6 +31,8 @@ class VedleggApi(
     private val clamAvClient: ClamAvClient,
     private val altinnTilgangerClient: AltinnTilgangerClient,
 ) {
+    private val log = logger()
+
     suspend fun RoutingContext.lastOppSluttrapport(soknadId: UUID) {
         val soknad = transaction(database) { findSoknadById(soknadId) }
 
