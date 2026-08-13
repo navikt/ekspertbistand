@@ -61,71 +61,33 @@ class ArenaTiltakssakEndretProcessor(
             throw Exception("Kunne ikke parse TiltakssakEndretKafkaMelding. key: ${record.key()}", e)
         }
 
-        if (!kafkaMelding.erOppdatering) {
-            // kun oppdateringer er interessante. I er saksopprettelsen, D har ingen after.
-            return
-        }
-
         val endring = kafkaMelding.after
-        if (endring == null) {
-            log.info(
-                "Melding uten after (op_type={}) ignoreres for tiltakssak. key={}",
-                kafkaMelding.opType,
-                record.key()
-            )
-            return
+        when {
+            // kun oppdateringer er interessante. I er saksopprettelsen, D har ingen after.
+            !kafkaMelding.erOppdatering -> return
+            endring == null -> return
+            !endring.erTiltakssak -> return
+            !endring.erTattAvSaksbehandler -> return
         }
 
-        if (!endring.erTiltakssak || !endring.erTattAvSaksbehandler) {
-            return
-        }
-
-        // sjekk at vi er kilde til saken, saksnummer finnes i vårt system
-        val soknad = transaction(database) {
+        // NB: skal logging av meldingsinnhold legges inn igjen, må den stå *etter* oppslaget mot
+        // arena_sak. Forfiltrene over er ikke selektive — SAKSKODE er "TILT" for alle meldinger på
+        // dette topicet, og ansvarlig-regelen slår til for enhver tiltakssak som er tatt til
+        // behandling i Arena. Logget før oppslaget ville vi skrevet en saksbehandlerident per
+        // tiltakssak i hele Arena, ikke bare våre egne.
+        transaction(database) {
             hentArenaSakBySaksnummer(endring.saksnummer) {
                 Json.decodeFromString<DTO.Soknad>(this[ArenaSakTable.soknad])
-            }
-        }
-
-        if (soknad == null) {
-            // sak i Arena vi ikke er kilde til
-            // sendt inn via Altinn 2, eller opprettet direkte i Arena eller et annet type tiltak
-            return
-        }
-
-        // NB: loggingen står bevisst *etter* oppslaget mot arena_sak. Forfiltrene over er ikke
-        // selektive — SAKSKODE er "TILT" for alle meldinger på dette topicet, og ansvarlig-regelen
-        // slår til for enhver tiltakssak som er tatt til behandling i Arena. Logget før oppslaget
-        // ville hver oppstart med startProcessingAt = EPOCH skrive en saksbehandlerident per
-        // tiltakssak i hele Arena, ikke bare våre egne.
-        if (NaisEnvironment.clusterName == "dev-gcp") {
-            // TODO: fjern denne loggingen etter debug i dev. Gjerne før prodsetting
-            log.info("TiltakssakEndret gjelder vår sak. TiltakssakEndretKafkaMelding. {}", kafkaMelding)
-        }
-
-        // Datagrunnlag for å bekrefte at tilstandsregelen sammenfaller med en reell endring av feltet,
-        // slik at vi senere kan vurdere å stramme inn til en ren before/after-diff.
-        teamLog.info(
-            "TiltakssakEndret gjelder vår sak. sakId={} saksnummer={} beforeBrukeridAnsvarlig={} afterBrukeridAnsvarlig={} aetatenhetAnsvarlig={} brukeridEndret={} brukeridLiknerSaksbehandlerIdent={}",
-            endring.sakId,
-            endring.saksnummer,
-            kafkaMelding.before?.brukeridAnsvarlig,
-            endring.brukeridAnsvarlig,
-            endring.aetatenhetAnsvarlig,
-            kafkaMelding.before?.brukeridAnsvarlig != endring.brukeridAnsvarlig,
-            endring.brukeridLiknerSaksbehandlerIdent,
-        )
-
-        val event = EventData.SaksbehandlingStartetIArena(
-            soknad = soknad,
-            tiltakssakEndret = endring,
-        )
-        transaction(database) {
-            val ikkeTidligereBehandlet = markerTiltakssakEndretMeldingSomBehandlet(endring.sakId)
-            if (ikkeTidligereBehandlet) {
-                EventQueue.publish(event)
-            } else {
-                log.info("TiltakssakEndret melding for sakId=${endring.sakId} er allerede behandlet, hopper over.")
+            }?.let { soknad ->
+                val ikkeTidligereBehandlet = markerTiltakssakEndretMeldingSomBehandlet(endring.sakId)
+                if (ikkeTidligereBehandlet) {
+                    EventQueue.publish(
+                        EventData.SaksbehandlingStartetIArena(
+                            soknad = soknad,
+                            tiltakssakEndret = endring,
+                        )
+                    )
+                }
             }
         }
     }
@@ -171,6 +133,12 @@ data class TiltakssakEndretKafkaMelding(
     val table: String? = null,
     @SerialName("op_ts")
     val opTs: String? = null,
+    /**
+     * Beholdt for å dokumentere konvoluttformatet, men brukes ikke. Deteksjonsregelen er validert i
+     * dev og er en ren tilstandssjekk på [after] — se [TiltakssakEndret.erTattAvSaksbehandler].
+     * En before/after-diff ville ikke fanget saker som ble tatt til behandling før vi begynte å
+     * konsumere topicet, og ville brutt under backfill.
+     */
     val before: TiltakssakEndret? = null,
     val after: TiltakssakEndret? = null,
 ) {
@@ -212,18 +180,6 @@ data class TiltakssakEndret(
     val erTattAvSaksbehandler: Boolean
         get() = !brukeridAnsvarlig.isNullOrBlank() &&
                 brukeridAnsvarlig != aetatenhetAnsvarlig
-
-    /**
-     * Kun for logging/verifisering — ikke beslutningsgrunnlag.
-     *
-     * Arena-identer, ikke NAV-identer. Observerte verdier i dev: KG0219, KGB0219 — varierende antall
-     * bokstaver etterfulgt av siffer. Ikke lås antallet i noen av delene.
-     *
-     * Det som faktisk skiller er at en Nav-enhet er rent numerisk (1899) mens en Arena-ident
-     * inneholder bokstaver.
-     */
-    val brukeridLiknerSaksbehandlerIdent: Boolean
-        get() = brukeridAnsvarlig?.matches(Regex("^[A-ZÆØÅ]+\\d+$", RegexOption.IGNORE_CASE)) == true
 
     enum class Sakstatuskode {
         AKTIV,   // Aktiv

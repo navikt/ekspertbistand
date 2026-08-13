@@ -297,21 +297,6 @@ class ArenaTiltakssakEndretProcessorTest {
     }
 
     @Test
-    fun `14b - brukeridLiknerSaksbehandlerIdent gjenkjenner varierende identformater`() {
-        fun medBrukerid(brukerid: String?) = TiltakssakEndret(
-            sakId = 1,
-            aar = AAR,
-            lopenrsak = LOPENRSAK,
-            brukeridAnsvarlig = brukerid,
-        )
-
-        assertTrue(medBrukerid("KG0219").brukeridLiknerSaksbehandlerIdent)
-        assertTrue(medBrukerid("KGB0219").brukeridLiknerSaksbehandlerIdent)
-        assertFalse(medBrukerid("1899").brukeridLiknerSaksbehandlerIdent)
-        assertFalse(medBrukerid(null).brukeridLiknerSaksbehandlerIdent)
-    }
-
-    @Test
     fun `14b - ukjent identformat hindrer ikke at saken markeres`() = testApplicationWithDatabase { db ->
         transaction { insertArenaSak(SAKSNUMMER, 1, soknad) }
 
@@ -323,7 +308,6 @@ class ArenaTiltakssakEndretProcessorTest {
         assertEquals(1, events.size)
         val eventData = assertIs<EventData.SaksbehandlingStartetIArena>(events.first().eventData)
         assertEquals("XYZ", eventData.tiltakssakEndret.brukeridAnsvarlig)
-        assertFalse(eventData.tiltakssakEndret.brukeridLiknerSaksbehandlerIdent)
     }
 
     @Test
