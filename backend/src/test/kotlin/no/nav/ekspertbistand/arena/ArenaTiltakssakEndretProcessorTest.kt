@@ -316,15 +316,6 @@ class ArenaTiltakssakEndretProcessorTest {
             ArenaTiltakssakEndretProcessor.consumer
         }
     }
-
-    @Test
-    fun `kafka config bruker forventet groupId og earliest`() {
-        assertEquals("fager.ekspertbistand.tiltakssakendret", ArenaTiltakssakEndretProcessor.kafkaConfig.groupId)
-        assertEquals(
-            no.nav.ekspertbistand.infrastruktur.AutoOffsetReset.EARLIEST,
-            ArenaTiltakssakEndretProcessor.kafkaConfig.autoOffsetReset
-        )
-    }
 }
 
 private val json = Json {

@@ -112,10 +112,6 @@ class ArenaTiltakssakEndretProcessor(
         val kafkaConfig = KafkaConsumerConfig(
             groupId = "fager.ekspertbistand.tiltakssakendret",
             topics = setOf(TOPIC),
-            // Midlertidig: consumer group er ny og har ingen committede offsets, og vi ønsker backfill
-            // av saker som allerede er tatt til behandling i Arena.
-            // TODO(#117): sett til AutoOffsetReset.NONE når consumeren er etablert i prod.
-            autoOffsetReset = AutoOffsetReset.EARLIEST,
         )
 
         val consumer by lazy {
