@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand
 
-import no.nav.ekspertbistand.dokarkiv.FagsakIdTable
+import no.nav.ekspertbistand.arena.ArenaSakTable
+import no.nav.ekspertbistand.arena.ArenaSakUnderBehandlingTable
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import org.jetbrains.exposed.v1.core.ExperimentalDatabaseMigrationApi
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -12,9 +13,10 @@ fun main() {
     testDatabase.cleanMigrate()
     transaction(testDatabase.config.jdbcDatabase) {
         MigrationUtils.generateMigrationScript(
-            FagsakIdTable,
+            ArenaSakTable,
+            ArenaSakUnderBehandlingTable,
             scriptDirectory = "backend/src/main/resources/db/migration",
-            scriptName = "V3__fagsak_id",
+            scriptName = "V5__arena_sak_under_behandling",
         )
     }
 }
