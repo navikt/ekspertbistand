@@ -3,14 +3,17 @@ package no.nav.ekspertbistand.clamav
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.forms.submitFormWithBinaryData
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
+import no.nav.ekspertbistand.infrastruktur.defaultJson
 import no.nav.ekspertbistand.infrastruktur.logger
 
 class ClamAvClient(
@@ -26,6 +29,9 @@ class ClamAvClient(
         install(HttpClientMetricsFeature) {
             registry = Metrics.meterRegistry
             clientName = "clamav.client"
+        }
+        install(ContentNegotiation) {
+            json(defaultJson)
         }
     }
 
