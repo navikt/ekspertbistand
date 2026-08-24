@@ -1,7 +1,7 @@
 CREATE TABLE refusjonskrav (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     soknad_id    UUID NOT NULL REFERENCES soknad(id) ON DELETE CASCADE,
-    belop_kroner INT NOT NULL,
+    belop_ore    BIGINT NOT NULL,
     utgifter     TEXT NOT NULL,
     status       TEXT NOT NULL DEFAULT 'MOTTATT',
     opprettet    TIMESTAMPTZ NOT NULL DEFAULT now()

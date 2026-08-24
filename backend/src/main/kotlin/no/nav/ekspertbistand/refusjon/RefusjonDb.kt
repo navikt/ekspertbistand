@@ -14,7 +14,7 @@ import java.util.UUID
 @OptIn(kotlin.time.ExperimentalTime::class)
 object RefusjonskravTable : UUIDTable("refusjonskrav") {
     val soknadId = uuid("soknad_id")
-    val belopKroner = integer("belop_kroner")
+    val belopOre = long("belop_ore")
     val utgifter = text("utgifter")
     val status = text("status")
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
@@ -26,13 +26,13 @@ class RefusjonDb(private val database: Database) {
 
     fun lagreRefusjonskrav(
         soknadId: UUID,
-        belopKroner: Int,
+        belopOre: Long,
         utgifter: String,
         filer: List<RefusjonsfilInput>,
     ): UUID = transaction(database) {
         val refusjonskravId = RefusjonskravTable.insertReturning {
             it[RefusjonskravTable.soknadId] = soknadId
-            it[RefusjonskravTable.belopKroner] = belopKroner
+            it[RefusjonskravTable.belopOre] = belopOre
             it[RefusjonskravTable.utgifter] = utgifter
             it[status] = "MOTTATT"
         }.single()[RefusjonskravTable.id].value

@@ -80,8 +80,8 @@ class RefusjonApi(
             return
         }
 
-        val belopKroner = try {
-            belopKroner(belopRaw ?: "")
+        val belopOre = try {
+            belopKronerTilOre(belopRaw ?: "")
         } catch (e: UgyldigBelopException) {
             call.respond(HttpStatusCode.BadRequest, e.message ?: "Ugyldig beløp")
             return
@@ -137,12 +137,12 @@ class RefusjonApi(
 
         refusjonDb.lagreRefusjonskrav(
             soknadId = soknadId,
-            belopKroner = belopKroner,
+            belopOre = belopOre,
             utgifter = utgifterVerdi,
             filer = filer.map { RefusjonsfilInput(it.filnavn, it.innhold) },
         )
 
-        log.info("Mottok refusjonskrav med {} vedlegg: soknadId={}, belopKroner={}", filer.size, soknadId, belopKroner)
+        log.info("Mottok refusjonskrav med {} vedlegg: soknadId={}, belopOre={}", filer.size, soknadId, belopOre)
         refusjonMottattCounter.increment()
 
         call.respond(HttpStatusCode.Created)
