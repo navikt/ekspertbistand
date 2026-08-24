@@ -35,8 +35,8 @@ class DbConfig(
             driverClassName = "org.postgresql.Driver"
             metricRegistry = Metrics.meterRegistry
 
-            maximumPoolSize = 20
-            minimumIdle = 5
+            maximumPoolSize = basedOnEnv(other = 20, dev = 3)
+            minimumIdle = basedOnEnv(other = 5, dev = 1)
             connectionTimeout = 30000
             idleTimeout = 600000
             maxLifetime = 1800000
