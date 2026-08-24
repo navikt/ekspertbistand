@@ -38,6 +38,8 @@ export const EKSPERTBISTAND_INFO_URL = "https://www.nav.no/arbeidsgiver/ekspertb
 export const EKSPERTBISTAND_API_PATH = withBasePath("/ekspertbistand-backend/api/soknad/v1");
 export const EKSPERTBISTAND_SLUTTRAPPORT_PATH = (id: string) =>
   withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/sluttrapport`);
+export const EKSPERTBISTAND_REFUSJON_PATH = (id: string) =>
+  withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/refusjon`);
 export const EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH = withBasePath(
   "/ekspertbistand-backend/api/tilsagndata/v1"
 );

@@ -21,8 +21,8 @@ import { formatDate } from "../components/summaryFormatters";
 import { EKSPERTBISTAND_SLUTTRAPPORT_PATH } from "../utils/constants";
 import { resolveApiError, type ApiErrorInfo } from "../utils/http";
 
-const MAX_FILES = 10;
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_FILES = 5;
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export default function SluttrapportPage() {
   const { id } = useParams<{ id: string }>();
@@ -130,7 +130,7 @@ export default function SluttrapportPage() {
           <FileUpload>
             <FileUpload.Dropzone
               label="Last opp sluttrapport fra eksperten"
-              description="Kun PDF-filer. Maks 20 MB per fil."
+              description="Kun PDF-filer. Maks 10 MB per fil."
               accept=".pdf,application/pdf"
               maxSizeInBytes={MAX_FILE_SIZE_BYTES}
               multiple

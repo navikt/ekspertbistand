@@ -10,6 +10,9 @@ import {
   SESSION_URL,
 } from "../utils/constants";
 
+const MOCK_MAKS_ANTALL_VEDLEGG = 5;
+const MOCK_MAKS_VEDLEGG_STORRELSE_BYTES = 10 * 1024 * 1024;
+
 const organisasjoner: Organisasjon[] = [
   {
     orgnr: "123456789",
@@ -413,6 +416,80 @@ export const handlers = [
     skjemaStore.set(id, entry);
     await persistSkjemaStore();
     return HttpResponse.json(toUtkastDto(entry), { status: 201 });
+  }),
+  http.post(`${EKSPERTBISTAND_API_PATH}/:id/sluttrapport`, async ({ params, request }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+
+    const formData = await request.formData();
+    const filer = formData.getAll("filer").filter((f): f is File => f instanceof File);
+
+    if (filer.length === 0) {
+      return HttpResponse.json({ message: "Minst én fil må lastes opp" }, { status: 400 });
+    }
+    if (filer.length > MOCK_MAKS_ANTALL_VEDLEGG) {
+      return HttpResponse.json(
+        { message: `Maks ${MOCK_MAKS_ANTALL_VEDLEGG} filer tillatt` },
+        { status: 400 }
+      );
+    }
+    for (const fil of filer) {
+      if (fil.size > MOCK_MAKS_VEDLEGG_STORRELSE_BYTES) {
+        return HttpResponse.json(
+          { message: `Filen '${fil.name}' overskrider maks 10 MB` },
+          { status: 400 }
+        );
+      }
+    }
+
+    return new HttpResponse(null, { status: 201 });
+  }),
+  http.post(`${EKSPERTBISTAND_API_PATH}/:id/refusjon`, async ({ params, request }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+
+    const formData = await request.formData();
+    const utgifter = formData.get("utgifter");
+    const belop = formData.get("belop");
+    const filer = formData.getAll("filer").filter((f): f is File => f instanceof File);
+
+    if (typeof utgifter !== "string" || utgifter.trim() === "") {
+      return HttpResponse.json({ message: "Du må beskrive utgiftene" }, { status: 400 });
+    }
+    if (typeof belop !== "string" || !/^\d+$/.test(belop)) {
+      return HttpResponse.json({ message: "Ugyldig beløp" }, { status: 400 });
+    }
+    if (filer.length === 0) {
+      return HttpResponse.json({ message: "Minst én fil må lastes opp" }, { status: 400 });
+    }
+    if (filer.length > MOCK_MAKS_ANTALL_VEDLEGG) {
+      return HttpResponse.json(
+        { message: `Maks ${MOCK_MAKS_ANTALL_VEDLEGG} filer tillatt` },
+        { status: 400 }
+      );
+    }
+    for (const fil of filer) {
+      if (fil.size > MOCK_MAKS_VEDLEGG_STORRELSE_BYTES) {
+        return HttpResponse.json(
+          { message: `Filen '${fil.name}' overskrider maks 10 MB` },
+          { status: 400 }
+        );
+      }
+    }
+
+    return new HttpResponse(null, { status: 201 });
   }),
   http.get(EKSPERTBISTAND_API_PATH, async ({ request }) => {
     await ensureSkjemaStoreLoaded();

@@ -16,6 +16,7 @@ object VedleggTable : UUIDTable("vedlegg") {
     val innhold = binary("innhold")
     val storrelse = integer("storrelse")
     val lastetOpp = timestamp("lastet_opp").defaultExpression(CurrentTimestamp)
+    val refusjonskravId = uuid("refusjonskrav_id").nullable()
 }
 
 class VedleggDb(private val database: Database) {
@@ -36,5 +37,5 @@ class VedleggDb(private val database: Database) {
     }
 }
 
-enum class VedleggType { SLUTTRAPPORT }
+enum class VedleggType { SLUTTRAPPORT, REFUSJONSDOKUMENTASJON }
 

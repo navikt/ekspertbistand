@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, Navigate } from "react-router";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,12 +26,13 @@ import { BackLink } from "../components/BackLink";
 import { FormErrorSummary } from "../components/FormErrorSummary";
 import { useSoknad } from "../hooks/useSoknad";
 import { formatDate } from "../components/summaryFormatters";
-import { EKSPERTBISTAND_SLUTTRAPPORT_PATH } from "../utils/constants";
+import { EKSPERTBISTAND_REFUSJON_PATH } from "../utils/constants";
 import { resolveApiError, type ApiErrorInfo } from "../utils/http";
 import { useErrorFocus } from "../hooks/useErrorFocus";
+import { isProd } from "../utils/env";
 
-const MAX_FILES = 10;
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_FILES = 5;
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_UTGIFTER_CHARS = 2000;
 
 const refusjonSchema = z.object({
@@ -42,7 +43,7 @@ const refusjonSchema = z.object({
   belop: z
     .string()
     .min(1, "Du må oppgi beløp for refusjonskravet.")
-    .regex(/^\d+([.,]\d{1,2})?$/, "Beløpet må være et gyldig tall, f.eks. 12500 eller 12500,50."),
+    .regex(/^\d+$/, "Beløpet må være et helt antall kroner, f.eks. 12500."),
   bekreftUtgifter: z
     .boolean()
     .refine(Boolean, { message: "Du må bekrefte at utgiftene er betalt." }),
@@ -105,10 +106,10 @@ export default function SokRefusjonPage() {
       formData.append("belop", data.belop);
       acceptedFiles.forEach((file) => formData.append("filer", file));
 
-      const response = await fetch(
-        EKSPERTBISTAND_SLUTTRAPPORT_PATH(id).replace("sluttrapport", "refusjon"),
-        { method: "POST", body: formData }
-      );
+      const response = await fetch(EKSPERTBISTAND_REFUSJON_PATH(id), {
+        method: "POST",
+        body: formData,
+      });
       if (!response.ok) {
         throw new Error(`Feil ved innsending (${response.status})`);
       }
@@ -124,6 +125,10 @@ export default function SokRefusjonPage() {
     if (acceptedFiles.length === 0) setFileError("Du må laste opp minst én fil.");
     bumpFocusKey();
   };
+
+  if (isProd()) {
+    return <Navigate to={id ? `/skjema/${id}/kvittering` : "/soknader"} replace />;
+  }
 
   if (isLoading) {
     return (
@@ -208,8 +213,8 @@ export default function SokRefusjonPage() {
           <TextField
             id="belop"
             label="Beløp for refusjonskravet"
-            description="Oppgi beløp i kroner, f.eks. 12500"
-            inputMode="decimal"
+            description="Oppgi beløp i hele kroner, f.eks. 12500"
+            inputMode="numeric"
             error={errors.belop?.message}
             style={{ maxWidth: "16rem" }}
             {...register("belop")}
@@ -219,7 +224,7 @@ export default function SokRefusjonPage() {
             <FileUpload>
               <FileUpload.Dropzone
                 label="Last opp kvittering eller dokumentasjon på faktiske utgifter"
-                description="Kun PDF-filer. Maks 20 MB per fil."
+                description="Kun PDF-filer. Maks 10 MB per fil."
                 accept=".pdf,application/pdf"
                 maxSizeInBytes={MAX_FILE_SIZE_BYTES}
                 multiple
