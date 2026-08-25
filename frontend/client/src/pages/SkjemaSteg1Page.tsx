@@ -19,6 +19,7 @@ import { FORM_COLUMN_STYLE } from "../styles/forms";
 import type { SoknadInputs } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { VirksomhetVelger } from "../components/VirksomhetVelger.tsx";
+import { EkspertVirksomhetVelger } from "../components/EkspertVirksomhetVelger.tsx";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { useErrorFocus } from "../hooks/useErrorFocus";
 import { BackLink } from "../components/BackLink";
@@ -208,11 +209,26 @@ export default function SkjemaSteg1Page() {
                 error={errors.ekspert?.navn?.message}
                 {...register("ekspert.navn")}
               />
-              <TextField
-                id="ekspert.virksomhet"
-                label="Tilknyttet virksomhet"
-                error={errors.ekspert?.virksomhet?.message}
-                {...register("ekspert.virksomhet")}
+              <Controller
+                name="ekspert.virksomhet"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <EkspertVirksomhetVelger
+                    label="Tilknyttet virksomhet"
+                    description="Søk på navn for å finne virksomheten, eller skriv inn selv."
+                    value={field.value ?? ""}
+                    onChange={(virksomhet) => field.onChange(virksomhet)}
+                    onSelectOrganisasjon={(organisasjon) => {
+                      setValue("ekspert.virksomhetNavn", organisasjon?.navn ?? null, {
+                        shouldDirty: true,
+                      });
+                      setValue("ekspert.virksomhetOrgnr", organisasjon?.orgnr ?? null, {
+                        shouldDirty: true,
+                      });
+                    }}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
               <Controller
                 name="ekspert.godkjentUtdanningEllerAutorisasjon"

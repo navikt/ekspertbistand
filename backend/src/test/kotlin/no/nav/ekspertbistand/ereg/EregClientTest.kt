@@ -79,4 +79,44 @@ class EregClientTest {
         assertEquals(ContentType.Application.Json, request.headers[HttpHeaders.Accept]?.let { ContentType.parse(it) })
         assertEquals(ContentType.Application.Json, request.headers[HttpHeaders.ContentType]?.let { ContentType.parse(it) })
     }
+
+    @Test
+    fun `finnOrganisasjon soeker og parser treff`() = runTest {
+        val responseJson = """
+            {
+              "organisasjoner": [
+                {
+                  "organisasjonsnummer": "910825226",
+                  "navn": { "sammensattnavn": "Test Org AS" }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        var capturedRequest: HttpRequestData? = null
+        val mockEngine = MockEngine { request ->
+            capturedRequest = request
+            respond(
+                content = responseJson,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }
+
+        val client = HttpClient(mockEngine) {
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true })
+            }
+        }
+
+        val eregClient = EregClient(defaultHttpClient = client)
+
+        val resultat = eregClient.finnOrganisasjon("Test")
+        assertEquals(1, resultat.organisasjoner.size)
+        assertEquals("910825226", resultat.organisasjoner.first().organisasjonsnummer)
+        assertEquals("Test Org AS", resultat.organisasjoner.first().navn?.sammensattnavn)
+
+        val request = capturedRequest
+        assertNotNull(request, "request should be captured")
+        assertEquals("/v2/organisasjon/finn", request.url.fullPath)
+    }
 }

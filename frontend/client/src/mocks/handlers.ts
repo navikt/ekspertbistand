@@ -5,6 +5,7 @@ import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import {
   EKSPERTBISTAND_API_PATH,
   EKSPERTBISTAND_EREG_ADRESSE_PATH,
+  EKSPERTBISTAND_EREG_ORGANISASJONER_PATH,
   EKSPERTBISTAND_ORGANISASJONER_PATH,
   EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH,
   SESSION_URL,
@@ -48,6 +49,13 @@ const eregAdresser: Record<string, string> = {
   "111222333": "Demogata 3, 5003 Bergen",
   "444555666": "Mockveien 4, 2317 Hamar",
 };
+
+const eregOrganisasjoner: { organisasjonsnummer: string; navn: string }[] = [
+  { organisasjonsnummer: "910825226", navn: "Ekspert & Co AS" },
+  { organisasjonsnummer: "915933149", navn: "Ekspertpartner Norge AS" },
+  { organisasjonsnummer: "912998960", navn: "Fysio Ekspertene ANS" },
+  { organisasjonsnummer: "811076732", navn: "Psykolog Ekspert Ola Nordmann" },
+];
 
 const DRAFT_CACHE_NAME = "mock-soknad-draft";
 const DRAFT_CACHE_URL = "/mock/soknad/draft";
@@ -371,6 +379,16 @@ export const handlers = [
   http.get(EKSPERTBISTAND_ORGANISASJONER_PATH, () =>
     HttpResponse.json({ hierarki: organisasjoner })
   ),
+  http.get(EKSPERTBISTAND_EREG_ORGANISASJONER_PATH, ({ request }) => {
+    const navn = new URL(request.url).searchParams.get("navn")?.trim() ?? "";
+    if (navn.length < 2) {
+      return HttpResponse.json({ message: "søkeord må være minst 2 tegn" }, { status: 400 });
+    }
+    const treff = eregOrganisasjoner.filter((org) =>
+      org.navn.toLowerCase().includes(navn.toLowerCase())
+    );
+    return HttpResponse.json(treff);
+  }),
   http.get(`${EKSPERTBISTAND_EREG_ADRESSE_PATH}/:orgnr/adresse`, ({ params }) => {
     const orgnr = getParamValue(params.orgnr);
     if (!orgnr || !/^\d{9}$/.test(orgnr)) {

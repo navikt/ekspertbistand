@@ -6,6 +6,8 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.accept
 import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.path
@@ -28,6 +30,7 @@ class EregClient(
             other = "http://ereg-services.mock.svc.cluster.local",
         )
         const val API_PATH = "/v2/organisasjon/"
+        const val FINN_API_PATH = "/v2/organisasjon/finn"
     }
 
     private val httpClient = defaultHttpClient.config {
@@ -54,6 +57,25 @@ class EregClient(
         }.body()
     }
 
+    /**
+     * Skjelett: søk etter organisasjoner på (deler av) navn mot Ereg `/v2/organisasjon/finn`.
+     *
+     * TODO(utvikler): fastsett endelig request-kontrakt mot Ereg-dokumentasjonen.
+     * Ereg `finn` tar typisk et JSON-body med søkekriterier (f.eks. navn, aktiveRoller,
+     * organisasjonsform, paginering). Juster [OrganisasjonSokRequest] og query/body deretter.
+     */
+    suspend fun finnOrganisasjon(navn: String): OrganisasjonSokResultat {
+        return httpClient.post {
+            url {
+                takeFrom(ingress)
+                path(FINN_API_PATH)
+            }
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Application.Json)
+            setBody(OrganisasjonSokRequest(navn = navn))
+        }.body()
+    }
+
     suspend fun hentPostAdresse(orgnr: String): List<Postadresse> {
         val organisasjon = hentOrganisasjon(orgnr)
         return organisasjon.organisasjonDetaljer?.postadresser ?: emptyList()
@@ -64,6 +86,32 @@ class EregClient(
         return organisasjon.organisasjonDetaljer?.forretningsadresser ?: emptyList()
     }
 }
+
+/**
+ * Skjelett for søkeforespørsel mot Ereg `/v2/organisasjon/finn`.
+ * TODO(utvikler): utvid med endelige søkekriterier (roller, organisasjonsform, paginering).
+ */
+@Serializable
+data class OrganisasjonSokRequest(
+    val navn: String,
+)
+
+/**
+ * Skjelett for søkeresultat fra Ereg `/v2/organisasjon/finn`.
+ * TODO(utvikler): tilpass feltnavn til faktisk Ereg-respons (f.eks. antallTreff/paginering).
+ */
+@Serializable
+data class OrganisasjonSokResultat(
+    val organisasjoner: List<OrganisasjonSokTreff> = emptyList(),
+)
+
+@Serializable
+data class OrganisasjonSokTreff(
+    val organisasjonsnummer: String? = null,
+    val navn: Navn? = null,
+    val type: String? = null,
+    val organisasjonDetaljer: OrganisasjonDetaljer? = null,
+)
 
 @Serializable
 data class OrganisasjonResponse(

@@ -45,6 +45,9 @@ export const EKSPERTBISTAND_ORGANISASJONER_PATH = withBasePath(
   "/ekspertbistand-backend/api/organisasjoner/v1"
 );
 export const EKSPERTBISTAND_EREG_ADRESSE_PATH = withBasePath("/ekspertbistand-backend/api/ereg");
+export const EKSPERTBISTAND_EREG_ORGANISASJONER_PATH = withBasePath(
+  "/ekspertbistand-backend/api/ereg/organisasjoner"
+);
 
 export const SOKNADER_PATH = "/soknader";
 export const REFUSJON_URL = "https://www.nav.no/fyllut/nav761390?sub=paper";
