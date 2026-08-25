@@ -153,10 +153,12 @@ class EregApiTest {
         mockEregFinn {
             """
             {
-              "organisasjoner": [
+              "totalAntallTreff": 1,
+              "organisasjonSammendrag": [
                 {
                   "organisasjonsnummer": "$orgnr",
-                  "navn": { "sammensattnavn": "Test Org AS" }
+                  "enhetstype": "BEDR",
+                  "sammensattnavn": "Test Org AS"
                 }
               ]
             }

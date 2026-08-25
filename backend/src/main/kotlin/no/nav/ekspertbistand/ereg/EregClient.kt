@@ -1,23 +1,16 @@
 package no.nav.ekspertbistand.ereg
 
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.accept
-import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.http.path
-import io.ktor.http.takeFrom
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
-import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 import no.nav.ekspertbistand.infrastruktur.defaultJson
 
 class EregClient(
@@ -58,21 +51,24 @@ class EregClient(
     }
 
     /**
-     * Skjelett: søk etter organisasjoner på (deler av) navn mot Ereg `/v2/organisasjon/finn`.
+     * Søk etter organisasjoner på (deler av) navn mot Ereg `GET /v2/organisasjon/finn`.
+     * Returnerer et sammendrag (subsett) av organisasjonene som matcher [organisasjonsnavn].
      *
-     * TODO(utvikler): fastsett endelig request-kontrakt mot Ereg-dokumentasjonen.
-     * Ereg `finn` tar typisk et JSON-body med søkekriterier (f.eks. navn, aktiveRoller,
-     * organisasjonsform, paginering). Juster [OrganisasjonSokRequest] og query/body deretter.
+     * @param antall maks antall responsobjekter (typeahead trenger ikke mange treff).
      */
-    suspend fun finnOrganisasjon(navn: String): OrganisasjonSokResultat {
-        return httpClient.post {
+    suspend fun finnOrganisasjon(
+        organisasjonsnavn: String,
+        antall: Int = 20,
+    ): OrganisasjonSammendragResultat {
+        return httpClient.get {
             url {
                 takeFrom(ingress)
                 path(FINN_API_PATH)
+                parameters.append("organisasjonsnavn", organisasjonsnavn)
+                parameters.append("antall", antall.toString())
             }
             contentType(ContentType.Application.Json)
             accept(ContentType.Application.Json)
-            setBody(OrganisasjonSokRequest(navn = navn))
         }.body()
     }
 
@@ -88,29 +84,31 @@ class EregClient(
 }
 
 /**
- * Skjelett for søkeforespørsel mot Ereg `/v2/organisasjon/finn`.
- * TODO(utvikler): utvid med endelige søkekriterier (roller, organisasjonsform, paginering).
+ * Svar fra Ereg `GET /v2/organisasjon/finn` — et sammendrag av matchende organisasjoner.
  */
 @Serializable
-data class OrganisasjonSokRequest(
-    val navn: String,
+data class OrganisasjonSammendragResultat(
+    val totalAntallTreff: Int? = null,
+    val organisasjonSammendrag: List<OrganisasjonSammendrag> = emptyList(),
 )
 
 /**
- * Skjelett for søkeresultat fra Ereg `/v2/organisasjon/finn`.
- * TODO(utvikler): tilpass feltnavn til faktisk Ereg-respons (f.eks. antallTreff/paginering).
+ * Sammendrag (subsett) av en organisasjon fra søk.
  */
 @Serializable
-data class OrganisasjonSokResultat(
-    val organisasjoner: List<OrganisasjonSokTreff> = emptyList(),
-)
-
-@Serializable
-data class OrganisasjonSokTreff(
+data class OrganisasjonSammendrag(
     val organisasjonsnummer: String? = null,
-    val navn: Navn? = null,
-    val type: String? = null,
-    val organisasjonDetaljer: OrganisasjonDetaljer? = null,
+    val enhetstype: String? = null,
+    val sammensattnavn: String? = null,
+    val navnelinje1: String? = null,
+    val juridiskEnhetOrganisasjonsnummer: String? = null,
+    val adresselinje1: String? = null,
+    val postnummer: String? = null,
+    val poststed: String? = null,
+    val kommunenummer: String? = null,
+    val kommunenavn: String? = null,
+    val landkode: String? = null,
+    val opphoert: Boolean? = null,
 )
 
 @Serializable

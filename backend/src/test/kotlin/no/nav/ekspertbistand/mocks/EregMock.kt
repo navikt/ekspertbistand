@@ -6,7 +6,6 @@ import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
-import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
 import no.nav.ekspertbistand.ereg.EregClient
@@ -38,7 +37,7 @@ fun ApplicationTestBuilder.mockEregFinn(responseProvider: () -> String) {
                 json()
             }
             routing {
-                post(EregClient.FINN_API_PATH) {
+                get(EregClient.FINN_API_PATH) {
                     call.respondText(
                         responseProvider(),
                         ContentType.Application.Json

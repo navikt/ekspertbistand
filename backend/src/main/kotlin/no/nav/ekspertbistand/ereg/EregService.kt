@@ -14,7 +14,7 @@ class EregService(private val eregClient: EregClient) {
      */
     suspend fun finnOrganisasjoner(navn: String): List<OrganisasjonSok> {
         return runCatching {
-            eregClient.finnOrganisasjon(navn).organisasjoner.mapNotNull { it.tilOrganisasjonSok() }
+            eregClient.finnOrganisasjon(navn).organisasjonSammendrag.mapNotNull { it.tilOrganisasjonSok() }
         }.onFailure { feil ->
             log.warn("Klarte ikke søke etter organisasjoner i EREG", feil)
         }.getOrDefault(emptyList())
@@ -37,10 +37,10 @@ class EregService(private val eregClient: EregClient) {
     }
 
     companion object {
-        private fun OrganisasjonSokTreff.tilOrganisasjonSok(): OrganisasjonSok? {
+        private fun OrganisasjonSammendrag.tilOrganisasjonSok(): OrganisasjonSok? {
             val orgnr = organisasjonsnummer ?: return null
-            val navn = navn?.sammensattnavn ?: return null
-            return OrganisasjonSok(organisasjonsnummer = orgnr, navn = navn)
+            val organisasjonsnavn = sammensattnavn ?: return null
+            return OrganisasjonSok(organisasjonsnummer = orgnr, navn = organisasjonsnavn)
         }
 
         private val postadresser = Json.decodeFromString<Map<String, String>>(
