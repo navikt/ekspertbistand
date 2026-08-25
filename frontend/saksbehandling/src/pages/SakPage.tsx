@@ -17,7 +17,7 @@ import {
   VStack,
 } from "@navikt/ds-react";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { NavLink, useParams } from "react-router-dom";
+import { NavLink, useParams } from "react-router";
 import { useSak, type Vilkår } from "../hooks/useSak";
 import { GOSYS_URL, MODIA_URL, OVERSIKT_PATH } from "../utils/constants";
 

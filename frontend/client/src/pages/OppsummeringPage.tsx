@@ -22,12 +22,13 @@ import useSWRMutation from "swr/mutation";
 import { fetchJson } from "../utils/api";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { resolveApiError, type ApiErrorInfo } from "../utils/http";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 import {
   formatCurrency,
   formatDate,
+  formatStringArray,
   formatTimer,
   formatValue,
 } from "../components/summaryFormatters";
@@ -130,8 +131,18 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
                   <FormSummary.Value>{formatValue(ekspert.virksomhet)}</FormSummary.Value>
                 </FormSummary.Answer>
                 <FormSummary.Answer>
-                  <FormSummary.Label>Kompetanse / autorisasjon</FormSummary.Label>
-                  <FormSummary.Value>{formatValue(ekspert.kompetanse)}</FormSummary.Value>
+                  <FormSummary.Label>
+                    Offentlig godkjent utdanning eller autorisasjon
+                  </FormSummary.Label>
+                  <FormSummary.Value>
+                    {formatStringArray(ekspert.godkjentUtdanningEllerAutorisasjon)}
+                  </FormSummary.Value>
+                </FormSummary.Answer>
+                <FormSummary.Answer>
+                  <FormSummary.Label>Relevant kompetanse for denne saken</FormSummary.Label>
+                  <FormSummary.Value>
+                    {formatStringArray(ekspert.relevantKompetanse)}
+                  </FormSummary.Value>
                 </FormSummary.Answer>
               </FormSummary.Answers>
             </FormSummary.Value>

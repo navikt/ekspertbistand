@@ -11,7 +11,7 @@ import {
   Tag,
   VStack,
 } from "@navikt/ds-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useOversikt } from "../hooks/useOversikt";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";

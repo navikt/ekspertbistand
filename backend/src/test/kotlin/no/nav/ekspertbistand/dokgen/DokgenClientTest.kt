@@ -7,6 +7,7 @@ import io.ktor.http.content.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.arena.TilsagnData
@@ -40,6 +41,9 @@ class DokgenClientTest {
         assertTrue(behov["timer"]!!.jsonPrimitive.isString)
         assertEquals("12", behov["timer"]!!.jsonPrimitive.content)
         assertEquals("9000", behov["estimertKostnad"]!!.jsonPrimitive.content)
+        val ekspert = jsonBody["ekspert"]!!.jsonObject
+        assertEquals("Psykolog", ekspert["godkjentUtdanningEllerAutorisasjon"]!!.jsonArray[0].jsonPrimitive.content)
+        assertEquals("Tilrettelegging på arbeidsplassen", ekspert["relevantKompetanse"]!!.jsonArray[0].jsonPrimitive.content)
     }
 
     @Test
@@ -167,7 +171,8 @@ class DokgenClientTest {
         ekspert = DTO.Ekspert(
             navn = "Ekspert Navn",
             virksomhet = "Ekspertselskap",
-            kompetanse = "Ekspertise",
+            godkjentUtdanningEllerAutorisasjon = listOf("Psykolog", "Ergoterapeut"),
+            relevantKompetanse = listOf("Tilrettelegging på arbeidsplassen"),
         ),
         behovForBistand = DTO.BehovForBistand(
             begrunnelse = "Behov begrunnelse",

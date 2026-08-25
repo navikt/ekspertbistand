@@ -1,7 +1,7 @@
 import "./observability/faro";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter } from "react-router";
 import "@navikt/ds-css/dist/index.css";
 import { Theme } from "@navikt/ds-react/Theme";
 import "./index.css";

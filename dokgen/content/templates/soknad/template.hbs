@@ -59,8 +59,12 @@
         <td>{{ekspert.virksomhet}}</td>
     </tr>
     <tr>
-        <td class="td03">Kompetanse:</td>
-        <td>{{ekspert.kompetanse}}</td>
+        <td class="td03">Offentlig godkjent utdanning eller autorisasjon:</td>
+        <td>{{#each ekspert.godkjentUtdanningEllerAutorisasjon}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</td>
+    </tr>
+    <tr>
+        <td class="td03">Relevant kompetanse for denne saken:</td>
+        <td>{{#each ekspert.relevantKompetanse}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}</td>
     </tr>
 </table>
 

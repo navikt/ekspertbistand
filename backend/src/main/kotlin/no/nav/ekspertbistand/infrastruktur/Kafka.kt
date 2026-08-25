@@ -15,9 +15,20 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
+enum class AutoOffsetReset(val value: String) {
+    EARLIEST("earliest"),
+    NONE("none"),
+}
+
 data class KafkaConsumerConfig(
     val topics: Set<String>,
-    val groupId: String
+    val groupId: String,
+    /**
+     * Default [AutoOffsetReset.NONE] slik at en consumer feiler høylytt dersom committet offset mangler,
+     * i stedet for å stille hoppe over meldinger. Bruk [AutoOffsetReset.EARLIEST] kun midlertidig for
+     * nye consumer groups som ikke har committet offset ennå.
+     */
+    val autoOffsetReset: AutoOffsetReset = AutoOffsetReset.NONE,
 )
 
 /**
@@ -25,31 +36,17 @@ data class KafkaConsumerConfig(
  * We do this so we dont skip any messages in case of an outage.
  * We have idempotency, but only from when we started consuming the topic. We can not do a complete rebuild from start.
  * In case of missing offset we should set offset to an offset recently processed, and then restart the consumer. This will ensure that we don't miss any messages, but also means that we might process some messages twice. We should be able to handle this with our idempotency.
+ *
+ * En helt ny consumer group har ingen committede offsets og kan derfor ikke starte med `none`.
+ * Slike consumere kan settes opp med [AutoOffsetReset.EARLIEST] via [KafkaConsumerConfig.autoOffsetReset],
+ * og skal settes tilbake til [AutoOffsetReset.NONE] så snart de har committet offsets i prod.
  */
 class CoroutineKafkaConsumer(
     private val config: KafkaConsumerConfig,
 ) {
     private val log = logger()
 
-    private val properties = buildMap {
-        put(ConsumerConfig.GROUP_ID_CONFIG, config.groupId)
-        put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, (getenv("KAFKA_BROKERS") ?: "localhost:9092"))
-        put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100")
-        put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, "60000")
-        put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none")
-        put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
-        put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.canonicalName)
-        put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.canonicalName)
-        if (!getenv("KAFKA_KEYSTORE_PATH").isNullOrBlank()) {
-            put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
-            put(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG, "PKCS12")
-            put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, getenv("KAFKA_KEYSTORE_PATH"))
-            put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, getenv("KAFKA_CREDSTORE_PASSWORD"))
-            put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, "PKCS12")
-            put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, getenv("KAFKA_TRUSTSTORE_PATH"))
-            put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, getenv("KAFKA_CREDSTORE_PASSWORD"))
-        }
-    }
+    private val properties = kafkaConsumerProperties(config)
 
     private val kafkaConsumer = KafkaConsumer<String?, String?>(properties)
 
@@ -92,4 +89,24 @@ class CoroutineKafkaConsumer(
 
 interface ConsumerRecordProcessor {
     suspend fun processRecord(record: ConsumerRecord<String?, String?>)
+}
+
+internal fun kafkaConsumerProperties(config: KafkaConsumerConfig): Map<String, Any?> = buildMap {
+    put(ConsumerConfig.GROUP_ID_CONFIG, config.groupId)
+    put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, (getenv("KAFKA_BROKERS") ?: "localhost:9092"))
+    put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100")
+    put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, "60000")
+    put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, config.autoOffsetReset.value)
+    put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
+    put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.canonicalName)
+    put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java.canonicalName)
+    if (!getenv("KAFKA_KEYSTORE_PATH").isNullOrBlank()) {
+        put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SSL")
+        put(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG, "PKCS12")
+        put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, getenv("KAFKA_KEYSTORE_PATH"))
+        put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, getenv("KAFKA_CREDSTORE_PASSWORD"))
+        put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, "PKCS12")
+        put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, getenv("KAFKA_TRUSTSTORE_PATH"))
+        put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, getenv("KAFKA_CREDSTORE_PASSWORD"))
+    }
 }

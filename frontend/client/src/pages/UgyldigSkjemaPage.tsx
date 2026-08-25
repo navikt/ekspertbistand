@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Alert, BodyLong, Button, Heading, VStack } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { BackLink } from "../components/BackLink";

@@ -1,6 +1,6 @@
 import { MenuGridIcon, ThemeIcon } from "@navikt/aksel-icons";
 import { ActionMenu, HStack, InternalHeader } from "@navikt/ds-react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import { useTilgangContext } from "../tilgang/useTilgang";
 import { GOSYS_URL, LOGOUT_URL, MODIA_URL, OVERSIKT_PATH } from "../utils/constants";
 import { useAppTheme } from "./AppThemeProvider";

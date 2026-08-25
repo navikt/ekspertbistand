@@ -8,15 +8,22 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.arena.ArenaBehandlingStatus
+import no.nav.ekspertbistand.arena.erArenaSakUnderBehandling
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
+import no.nav.ekspertbistand.soknad.getRequired
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.slf4j.LoggerFactory
+import java.util.*
 
 private val logger = LoggerFactory.getLogger("SaksbehandlerApi")
 
 suspend fun Application.configureSaksbehandlerApiV1() {
     val entraProxyClient = dependencies.resolve<EntraProxyClient>()
+    val database = dependencies.resolve<Database>()
 
     routing {
         authenticate(AZURE_AD_PROVIDER) {
@@ -71,6 +78,25 @@ suspend fun Application.configureSaksbehandlerApiV1() {
 
                     call.respond(OversiktResponse(saker = stubbedOversikt))
                 }
+
+                get("/soknad/{soknadId}/arena-behandling") {
+                    call.principal<AzureAdPrincipal>()
+                        ?: return@get call.respond(HttpStatusCode.Unauthorized)
+
+                    val soknadId = call.parameters.getRequired(
+                        name = "soknadId",
+                        transform = UUID::fromString,
+                    ) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("message" to "ugyldig soknadId"))
+                        return@get
+                    }
+
+                    val status = transaction(database) {
+                        erArenaSakUnderBehandling(soknadId)
+                    } ?: ArenaBehandlingStatus(underBehandlingIArena = false)
+
+                    call.respond(status)
+                }
             }
 
         }
@@ -108,6 +134,8 @@ data class OversiktRad(
     val saksbehandler: String,
     val opprettetDato: String,
     val tilsagnNummer: String? = null,
+    // TODO: fyll fra arena_sak_under_behandling når oversikten kobles mot ekte data
+    val underBehandlingIArena: Boolean = false,
 )
 
 private val stubbedOversikt = listOf(
@@ -127,6 +155,7 @@ private val stubbedOversikt = listOf(
         status = "Avventer svar",
         saksbehandler = "Silje Saksbehandler",
         opprettetDato = "2026-04-15",
+        underBehandlingIArena = true,
     ),
     OversiktRad(
         id = "sak-1003",

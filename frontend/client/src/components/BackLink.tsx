@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEventHandler, ReactNode } from "react";
-import { Link as RouterLink, type To, type NavigateOptions } from "react-router-dom";
+import { Link as RouterLink, type To, type NavigateOptions } from "react-router";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import { Link } from "@navikt/ds-react";
 

@@ -4,6 +4,7 @@ import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
   BodyShort,
   Button,
+  UNSAFE_Combobox,
   ErrorMessage,
   Fieldset,
   HGrid,
@@ -29,6 +30,24 @@ import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { SOKNADER_PATH } from "../utils/constants";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
+
+const GODKJENT_UTDANNING_ALTERNATIVER = [
+  "Ergoterapeut",
+  "Fysioterapeut",
+  "Karriereveileder",
+  "Psykolog",
+  "Sykepleier",
+];
+
+const RELEVANT_KOMPETANSE_ALTERNATIVER = [
+  "Relasjoner og kommunikasjon på arbeidsplassen",
+  "Tilrettelegging på arbeidsplassen",
+  "Konflikthåndtering",
+  "Omstillingsarbeid (endring i arbeidslivet)",
+  "Arbeidsplassvurdering",
+  "God kjennskap til offentlige virkemidler",
+  "Karriereveiledning",
+];
 
 export default function SkjemaSteg1Page() {
   const form = useFormContext<SoknadInputs>();
@@ -195,12 +214,49 @@ export default function SkjemaSteg1Page() {
                 error={errors.ekspert?.virksomhet?.message}
                 {...register("ekspert.virksomhet")}
               />
-              <TextField
-                id="ekspert.kompetanse"
-                label="Kompetanse / autorisasjon"
-                description="Psykolog, ergoterapeut, fysioterapeut, sykepleier etc."
-                error={errors.ekspert?.kompetanse?.message}
-                {...register("ekspert.kompetanse")}
+              <Controller
+                name="ekspert.godkjentUtdanningEllerAutorisasjon"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <UNSAFE_Combobox
+                    id="ekspert.godkjentUtdanningEllerAutorisasjon"
+                    label="Offentlig godkjent utdanning eller autorisasjon"
+                    options={GODKJENT_UTDANNING_ALTERNATIVER}
+                    isMultiSelect
+                    allowNewValues
+                    selectedOptions={field.value}
+                    onToggleSelected={(option, isSelected) => {
+                      field.onChange(
+                        isSelected
+                          ? [...field.value, option]
+                          : field.value.filter((v) => v !== option)
+                      );
+                    }}
+                    error={fieldState.error?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="ekspert.relevantKompetanse"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <UNSAFE_Combobox
+                    id="ekspert.relevantKompetanse"
+                    label="Relevant kompetanse for denne saken"
+                    options={RELEVANT_KOMPETANSE_ALTERNATIVER}
+                    isMultiSelect
+                    allowNewValues
+                    selectedOptions={field.value}
+                    onToggleSelected={(option, isSelected) => {
+                      field.onChange(
+                        isSelected
+                          ? [...field.value, option]
+                          : field.value.filter((v) => v !== option)
+                      );
+                    }}
+                    error={fieldState.error?.message}
+                  />
+                )}
               />
             </VStack>
           </Fieldset>
