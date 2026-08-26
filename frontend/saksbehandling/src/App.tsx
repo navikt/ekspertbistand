@@ -5,8 +5,9 @@ import { RequireAuth } from "./RequireAuth";
 import AppLayout from "./components/AppLayout";
 import { useSession } from "./hooks/useSession";
 import OversiktPage from "./pages/OversiktPage";
+import SakPage from "./pages/SakPage";
 import UautorisertPage from "./pages/UautorisertPage";
-import { LOGIN_URL, OVERSIKT_PATH } from "./utils/constants";
+import { LOGIN_URL, OVERSIKT_PATH, SAK_PATH } from "./utils/constants";
 
 const centeredStateStyle = {
   minHeight: "100vh",
@@ -64,6 +65,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <OversiktPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={SAK_PATH}
+            element={
+              <RequireAuth>
+                <SakPage />
               </RequireAuth>
             }
           />
