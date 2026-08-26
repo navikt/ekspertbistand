@@ -21,7 +21,7 @@ class DbConfig(
         )
     }
 
-    /**
+     /**
      * Nais env var `DB_JDBC_URL` format does not match expected r2dbc format, so we need to parse and reformat.
      * expected format: r2dbc:driver[:protocol]://[user:password@]host[:port][/path][?option=value]
      * example: r2dbc:postgresql://host:5432/database
