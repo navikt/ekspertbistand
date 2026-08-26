@@ -55,6 +55,12 @@ const eregOrganisasjoner: { organisasjonsnummer: string; navn: string }[] = [
   { organisasjonsnummer: "915933149", navn: "Ekspertpartner Norge AS" },
   { organisasjonsnummer: "912998960", navn: "Fysio Ekspertene ANS" },
   { organisasjonsnummer: "811076732", navn: "Psykolog Ekspert Ola Nordmann" },
+  { organisasjonsnummer: "923609016", navn: "Arbeidshelse og Ergonomi AS" },
+  { organisasjonsnummer: "998877665", navn: "Bedriftshelsetjenesten Vest AS" },
+  { organisasjonsnummer: "889955332", navn: "Karriere og Kompetanse AS" },
+  { organisasjonsnummer: "976543210", navn: "Nordic Ergoterapi AS" },
+  { organisasjonsnummer: "934567891", navn: "Oslo Arbeidspsykologi AS" },
+  { organisasjonsnummer: "812345678", navn: "Tilrettelegging og Trivsel ANS" },
 ];
 
 const DRAFT_CACHE_NAME = "mock-soknad-draft";

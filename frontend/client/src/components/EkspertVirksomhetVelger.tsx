@@ -27,7 +27,7 @@ export function EkspertVirksomhetVelger({
   const options = useMemo(
     () =>
       organisasjoner.map((org) => ({
-        label: `${org.navn} (${org.organisasjonsnummer})`,
+        label: `${org.navn} (Org.nr. ${org.organisasjonsnummer})`,
         value: org.organisasjonsnummer,
       })),
     [organisasjoner]
