@@ -23,11 +23,18 @@ function getStoredTheme(): AppTheme {
 }
 
 export function AppThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<AppTheme>(getStoredTheme);
+  const [theme, setThemeState] = useState<AppTheme>(() => {
+    const stored = getStoredTheme();
+    document.documentElement.setAttribute("data-theme", stored);
+    document.documentElement.classList.toggle("dark", stored === "dark");
+    return stored;
+  });
 
   const setTheme = (nextTheme: AppTheme) => {
     setThemeState(nextTheme);
     window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    document.documentElement.setAttribute("data-theme", nextTheme);
+    document.documentElement.classList.toggle("dark", nextTheme === "dark");
   };
 
   const toggleTheme = () => {
