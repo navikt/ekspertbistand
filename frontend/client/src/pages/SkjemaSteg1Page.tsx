@@ -215,7 +215,7 @@ export default function SkjemaSteg1Page() {
                 render={({ field, fieldState }) => (
                   <EkspertVirksomhetVelger
                     label="Tilknyttet virksomhet"
-                    description="Søk på navn for å finne virksomheten, eller skriv inn selv."
+                    description="Søk på virksomhet og velg fra listen."
                     value={field.value ?? ""}
                     onChange={(virksomhet, organisasjon) => {
                       field.onChange(virksomhet);

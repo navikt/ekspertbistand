@@ -8,8 +8,8 @@ type EkspertVirksomhetVelgerProps = {
   /** Fritekstverdien (bevart for bakoverkompatibilitet). */
   value: string;
   /**
-   * Kalles ved endring. [virksomhet] er den (berikede) fritekstverdien, og [organisasjon]
-   * er satt når bruker velger et søketreff, ellers null (fri inntasting eller fjernet valg).
+   * Kalles ved endring. [virksomhet] er den berikede fritekstverdien for et valgt treff,
+   * og [organisasjon] er den valgte organisasjonen — begge tømmes (""/null) når valget fjernes.
    */
   onChange: (
     virksomhet: string,
@@ -50,7 +50,6 @@ export function EkspertVirksomhetVelger({
       options={options}
       selectedOptions={selectedOptions}
       isLoading={isLoading}
-      allowNewValues
       shouldAutocomplete
       onChange={(value) => setSokeord(value ?? "")}
       onToggleSelected={(option, isSelected) => {
@@ -64,9 +63,6 @@ export function EkspertVirksomhetVelger({
             navn: valgt.navn,
             orgnr: valgt.organisasjonsnummer,
           });
-        } else {
-          // Fri inntasting: behold fritekst, ingen strukturert organisasjon.
-          onChange(option, null);
         }
       }}
       error={error}

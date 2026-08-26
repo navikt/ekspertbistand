@@ -132,7 +132,7 @@ export const soknadSchema = z.object({
   }),
   ekspert: z.object({
     navn: trimmedText("Du må fylle ut navn på ekspert."),
-    virksomhet: trimmedText("Du må fylle ut tilknyttet virksomhet."),
+    virksomhet: trimmedText("Du må velge en tilknyttet virksomhet."),
     virksomhetNavn: z.string().nullable(),
     virksomhetOrgnr: z.string().nullable(),
     godkjentUtdanningEllerAutorisasjon: z
