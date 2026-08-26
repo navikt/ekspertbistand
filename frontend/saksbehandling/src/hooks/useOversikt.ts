@@ -2,14 +2,18 @@ import useSWR from "swr";
 import { SAKSBEHANDLING_OVERSIKT_URL } from "../utils/constants";
 import { HttpError } from "../utils/http";
 
+export type Oppgavetype = "Søknad" | "Søknad - beslutter" | "Refusjon" | "Refusjon - beslutter";
+
 export type OversiktRad = {
   id: string;
   virksomhet: string;
   deltaker: string;
   status: "Til behandling" | "Avventer svar" | "Ferdigstilt";
-  saksbehandler: string;
+  saksbehandler: string | null;
+  oppgavetype: Oppgavetype;
+  tiltaksperiodeFra: string;
+  tiltaksperiodeTil: string;
   opprettetDato: string;
-  tilsagnNummer?: string;
 };
 
 export type OversiktResponse = {
