@@ -33,6 +33,16 @@ suspend fun Application.configureVedleggApiV1() {
                         }
                         lastOppSluttrapport(soknadId)
                     }
+                    get("/sluttrapport") {
+                        val soknadId: UUID = call.pathParameters.getRequired(
+                            name = "id",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(HttpStatusCode.BadRequest, "ugyldig id")
+                            return@get
+                        }
+                        hentSluttrapportStatus(soknadId)
+                    }
                 }
             }
         }

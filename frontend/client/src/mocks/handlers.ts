@@ -13,6 +13,8 @@ import {
 const MOCK_MAKS_ANTALL_VEDLEGG = 5;
 const MOCK_MAKS_VEDLEGG_STORRELSE_BYTES = 10 * 1024 * 1024;
 
+const sluttrapportStore = new Map<string, { filnavn: string; lastetOpp: string }>();
+
 const organisasjoner: Organisasjon[] = [
   {
     orgnr: "123456789",
@@ -448,7 +450,27 @@ export const handlers = [
       }
     }
 
+    sluttrapportStore.set(id, {
+      filnavn: filer[0]?.name ?? "vedlegg.pdf",
+      lastetOpp: new Date().toISOString(),
+    });
+
     return new HttpResponse(null, { status: 201 });
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/sluttrapport`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+    const status = sluttrapportStore.get(id);
+    if (!status) {
+      return new HttpResponse(null, { status: 204 });
+    }
+    return HttpResponse.json(status, { status: 200 });
   }),
   http.post(`${EKSPERTBISTAND_API_PATH}/:id/refusjon`, async ({ params, request }) => {
     await ensureSkjemaStoreLoaded();

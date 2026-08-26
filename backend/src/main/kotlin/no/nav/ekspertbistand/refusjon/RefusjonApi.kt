@@ -11,6 +11,7 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.logger
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.vedlegg.erGyldigPdf
@@ -43,6 +44,11 @@ class RefusjonApi(
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
         if (!tilganger.harTilgang(soknad.virksomhet.virksomhetsnummer)) {
             call.respond(HttpStatusCode.Forbidden, "bruker har ikke tilgang til organisasjon")
+            return
+        }
+
+        if (soknad.status != SoknadStatus.godkjent) {
+            call.respond(HttpStatusCode.Conflict, "Søknaden må være godkjent før du kan sende refusjonskrav")
             return
         }
 

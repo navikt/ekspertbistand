@@ -13,16 +13,21 @@ import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.subjectToken
+import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
 
 private const val MAKS_FIL_STORRELSE_BYTES = 10 * 1024 * 1024
-private const val MAKS_ANTALL_FILER = 5
+private const val MAKS_ANTALL_FILER = 1
 
 private val vedleggLastetOppCounter = Metrics.meterRegistry.counter(
     "vedlegg_lastet_opp_total",
     "type", VedleggType.SLUTTRAPPORT.name,
+)
+
+private val sluttrapportStatusHentetCounter = Metrics.meterRegistry.counter(
+    "sluttrapport_status_hentet_total",
 )
 
 class VedleggApi(
@@ -33,8 +38,7 @@ class VedleggApi(
 ) {
     private val log = logger()
 
-    suspend fun RoutingContext.lastOppSluttrapport(soknadId: UUID) {
-        val soknad = transaction(database) { findSoknadById(soknadId) }
+    suspend fun RoutingContext.lastOppSluttrapport(soknadId: UUID) {        val soknad = transaction(database) { findSoknadById(soknadId) }
 
         if (soknad == null) {
             call.respond(HttpStatusCode.NotFound, "søknad ikke funnet")
@@ -65,7 +69,7 @@ class VedleggApi(
             return
         }
         if (filer.size > MAKS_ANTALL_FILER) {
-            call.respond(HttpStatusCode.BadRequest, "Maks $MAKS_ANTALL_FILER filer tillatt")
+            call.respond(HttpStatusCode.BadRequest, "Kun ett vedlegg tillatt")
             return
         }
 
@@ -120,7 +124,47 @@ class VedleggApi(
 
         call.respond(HttpStatusCode.Created)
     }
+
+    /**
+     * Returnerer kun metadata om innsendt sluttrapport (filnavn + tidspunkt).
+     * Selve filen eksponeres bevisst ikke – innholdet kan være personsensitivt,
+     * og det finnes ingen nedlastingsrute for arbeidsgiver.
+     */
+    suspend fun RoutingContext.hentSluttrapportStatus(soknadId: UUID) {
+        val soknad = transaction(database) { findSoknadById(soknadId) }
+
+        if (soknad == null) {
+            call.respond(HttpStatusCode.NotFound, "søknad ikke funnet")
+            return
+        }
+
+        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
+        if (!tilganger.harTilgang(soknad.virksomhet.virksomhetsnummer)) {
+            call.respond(HttpStatusCode.Forbidden, "bruker har ikke tilgang til organisasjon")
+            return
+        }
+
+        val metadata = vedleggDb.finnSluttrapportMetadata(soknadId)
+        if (metadata == null) {
+            call.respond(HttpStatusCode.NoContent)
+            return
+        }
+
+        sluttrapportStatusHentetCounter.increment()
+        call.respond(
+            SluttrapportStatusDto(
+                filnavn = metadata.filnavn,
+                lastetOpp = metadata.lastetOpp,
+            )
+        )
+    }
 }
+
+@Serializable
+data class SluttrapportStatusDto(
+    val filnavn: String,
+    val lastetOpp: String,
+)
 
 fun erGyldigPdf(bytes: ByteArray): Boolean =
     bytes.size >= 4 &&

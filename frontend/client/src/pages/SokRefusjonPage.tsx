@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams, Navigate } from "react-router";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -35,21 +35,35 @@ const MAX_FILES = 5;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_UTGIFTER_CHARS = 2000;
 
-const refusjonSchema = z.object({
-  utgifter: z
-    .string()
-    .min(1, "Du må beskrive hvilke utgifter tilskuddet skal dekke.")
-    .max(MAX_UTGIFTER_CHARS, `Beskrivelsen kan ikke være lengre enn ${MAX_UTGIFTER_CHARS} tegn.`),
-  belop: z
-    .string()
-    .min(1, "Du må oppgi beløp for refusjonskravet.")
-    .regex(/^\d+$/, "Beløpet må være et helt antall kroner, f.eks. 12500."),
-  bekreftUtgifter: z
-    .boolean()
-    .refine(Boolean, { message: "Du må bekrefte at utgiftene er betalt." }),
-});
+// TODO: Vi må sjekke refusjonsbeløpet mot maksbeløpet i tilsagnsbrevet.
+// Maksbeløpet er ikke eksponert fra backend/tilsagnsbrev ennå – når det er på
+// plass, hent det via useSoknad/tilsagn og send det inn til makeRefusjonSchema
+// nedenfor. Da vil feltet vise feil og skjemaet blokkeres ved beløp over maks.
+const makeRefusjonSchema = (maksBelopKroner?: number) =>
+  z.object({
+    utgifter: z
+      .string()
+      .min(1, "Du må beskrive hvilke utgifter tilskuddet skal dekke.")
+      .max(MAX_UTGIFTER_CHARS, `Beskrivelsen kan ikke være lengre enn ${MAX_UTGIFTER_CHARS} tegn.`),
+    belop: z
+      .string()
+      .min(1, "Du må oppgi beløp for refusjonskravet.")
+      .regex(/^\d+$/, "Beløpet må være et helt antall kroner, f.eks. 12500.")
+      .superRefine((value, ctx) => {
+        if (maksBelopKroner === undefined || !/^\d+$/.test(value)) return;
+        if (Number(value) > maksBelopKroner) {
+          ctx.addIssue({
+            code: "custom",
+            message: `Beløpet kan ikke være høyere enn maksbeløpet i tilsagnsbrevet (${maksBelopKroner} kroner).`,
+          });
+        }
+      }),
+    bekreftUtgifter: z
+      .boolean()
+      .refine(Boolean, { message: "Du må bekrefte at utgiftene er betalt." }),
+  });
 
-type RefusjonInputs = z.infer<typeof refusjonSchema>;
+type RefusjonInputs = z.infer<ReturnType<typeof makeRefusjonSchema>>;
 
 const FIELDS = ["utgifter", "belop", "bekreftUtgifter"] as const satisfies ReadonlyArray<
   keyof RefusjonInputs
@@ -66,6 +80,11 @@ export default function SokRefusjonPage() {
   const [submitError, setSubmitError] = useState<ApiErrorInfo | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { focusKey, bumpFocusKey } = useErrorFocus();
+
+  // TODO: Hent maksbeløpet fra tilsagnsbrevet når det er tilgjengelig fra backend.
+  // Så lenge dette er undefined gjøres ingen maks-sjekk.
+  const maksBelopKroner: number | undefined = undefined;
+  const refusjonSchema = useMemo(() => makeRefusjonSchema(maksBelopKroner), [maksBelopKroner]);
 
   const {
     register,
