@@ -9,7 +9,7 @@ export type OrganisasjonSok = {
 };
 
 const MIN_SOK_LENGDE = 2;
-const DEBOUNCE_MS = 500;
+const DEBOUNCE_MS = 300;
 
 const fetchOrganisasjoner = async (url: string): Promise<OrganisasjonSok[]> => {
   const data = await fetchJson<OrganisasjonSok[]>(url);

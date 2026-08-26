@@ -58,7 +58,7 @@ class EregClient(
      */
     suspend fun finnOrganisasjon(
         organisasjonsnavn: String,
-        antall: Int = 20,
+        antall: Int = 10,
     ): OrganisasjonSammendragResultat {
         return httpClient.get {
             url {

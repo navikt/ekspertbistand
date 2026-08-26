@@ -33,7 +33,6 @@ suspend fun Application.configureEregApiV1() {
                     return@get
                 }
 
-                // Bevisst ingen orgnr-tilgangssjekk: kun offentlig Ereg-navnedata eksponeres.
                 val organisasjoner = eregService.finnOrganisasjoner(navn)
                 call.respond(organisasjoner)
             }
