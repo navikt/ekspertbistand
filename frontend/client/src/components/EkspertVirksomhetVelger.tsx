@@ -11,15 +11,17 @@ type EkspertVirksomhetVelgerProps = {
    * Kalles ved endring. [virksomhet] er den berikede fritekstverdien for et valgt treff,
    * og [organisasjon] er den valgte organisasjonen — begge tømmes (""/null) når valget fjernes.
    */
-  onChange: (
-    virksomhet: string,
-    organisasjon: { navn: string; orgnr: string } | null
-  ) => void;
+  onChange: (organisasjon: { navn: string; orgnr: string } | null) => void;
   error?: React.ReactNode;
 };
 
 /** Beriker fritekstfeltet med navn + organisasjonsnummer, f.eks. «Ekspert & Co AS (910825226)». */
-const formaterVirksomhet = (navn: string, orgnr: string) => `${navn} (${orgnr})`;
+export const formaterVirksomhet = (navn: string | null, orgnr: string | null) => {
+  if (navn == null || orgnr == null) {
+    return "";
+  }
+  return `${navn} (${orgnr})`;
+};
 
 export function EkspertVirksomhetVelger({
   label,
@@ -54,12 +56,12 @@ export function EkspertVirksomhetVelger({
       onChange={(value) => setSokeord(value ?? "")}
       onToggleSelected={(option, isSelected) => {
         if (!isSelected) {
-          onChange("", null);
+          onChange(null);
           return;
         }
         const valgt = organisasjoner.find((org) => org.organisasjonsnummer === option);
         if (valgt) {
-          onChange(formaterVirksomhet(valgt.navn, valgt.organisasjonsnummer), {
+          onChange({
             navn: valgt.navn,
             orgnr: valgt.organisasjonsnummer,
           });
