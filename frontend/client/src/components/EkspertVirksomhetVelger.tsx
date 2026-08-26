@@ -7,18 +7,25 @@ type EkspertVirksomhetVelgerProps = {
   description?: React.ReactNode;
   /** Fritekstverdien (bevart for bakoverkompatibilitet). */
   value: string;
-  onChange: (virksomhet: string) => void;
-  /** Kalles når bruker velger en organisasjon fra søkeforslagene. */
-  onSelectOrganisasjon: (organisasjon: { navn: string; orgnr: string } | null) => void;
+  /**
+   * Kalles ved endring. [virksomhet] er den (berikede) fritekstverdien, og [organisasjon]
+   * er satt når bruker velger et søketreff, ellers null (fri inntasting eller fjernet valg).
+   */
+  onChange: (
+    virksomhet: string,
+    organisasjon: { navn: string; orgnr: string } | null
+  ) => void;
   error?: React.ReactNode;
 };
+
+/** Beriker fritekstfeltet med navn + organisasjonsnummer, f.eks. «Ekspert & Co AS (910825226)». */
+const formaterVirksomhet = (navn: string, orgnr: string) => `${navn} (${orgnr})`;
 
 export function EkspertVirksomhetVelger({
   label,
   description,
   value,
   onChange,
-  onSelectOrganisasjon,
   error,
 }: EkspertVirksomhetVelgerProps) {
   const [sokeord, setSokeord] = useState("");
@@ -27,7 +34,7 @@ export function EkspertVirksomhetVelger({
   const options = useMemo(
     () =>
       organisasjoner.map((org) => ({
-        label: `${org.navn} (Org.nr. ${org.organisasjonsnummer})`,
+        label: formaterVirksomhet(org.navn, org.organisasjonsnummer),
         value: org.organisasjonsnummer,
       })),
     [organisasjoner]
@@ -48,18 +55,18 @@ export function EkspertVirksomhetVelger({
       onChange={(value) => setSokeord(value ?? "")}
       onToggleSelected={(option, isSelected) => {
         if (!isSelected) {
-          onChange("");
-          onSelectOrganisasjon(null);
+          onChange("", null);
           return;
         }
         const valgt = organisasjoner.find((org) => org.organisasjonsnummer === option);
         if (valgt) {
-          onChange(valgt.navn);
-          onSelectOrganisasjon({ navn: valgt.navn, orgnr: valgt.organisasjonsnummer });
+          onChange(formaterVirksomhet(valgt.navn, valgt.organisasjonsnummer), {
+            navn: valgt.navn,
+            orgnr: valgt.organisasjonsnummer,
+          });
         } else {
           // Fri inntasting: behold fritekst, ingen strukturert organisasjon.
-          onChange(option);
-          onSelectOrganisasjon(null);
+          onChange(option, null);
         }
       }}
       error={error}

@@ -217,8 +217,8 @@ export default function SkjemaSteg1Page() {
                     label="Tilknyttet virksomhet"
                     description="Søk på navn for å finne virksomheten, eller skriv inn selv."
                     value={field.value ?? ""}
-                    onChange={(virksomhet) => field.onChange(virksomhet)}
-                    onSelectOrganisasjon={(organisasjon) => {
+                    onChange={(virksomhet, organisasjon) => {
+                      field.onChange(virksomhet);
                       setValue("ekspert.virksomhetNavn", organisasjon?.navn ?? null, {
                         shouldDirty: true,
                       });
