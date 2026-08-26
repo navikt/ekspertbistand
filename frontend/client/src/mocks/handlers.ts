@@ -15,6 +15,18 @@ const MOCK_MAKS_VEDLEGG_STORRELSE_BYTES = 10 * 1024 * 1024;
 
 const sluttrapportStore = new Map<string, { filnavn: string; lastetOpp: string }>();
 
+type MockRefusjonVedlegg = { id: string; filnavn: string; storrelse: number; innhold: Uint8Array };
+const refusjonStore = new Map<
+  string,
+  {
+    belopKroner: number;
+    utgifter: string;
+    opprettet: string;
+    kontonummer: string | null;
+    vedlegg: MockRefusjonVedlegg[];
+  }
+>();
+
 const organisasjoner: Organisasjon[] = [
   {
     orgnr: "123456789",
@@ -511,7 +523,72 @@ export const handlers = [
       }
     }
 
+    refusjonStore.set(id, {
+      belopKroner: Number(belop),
+      utgifter,
+      opprettet: new Date().toISOString(),
+      kontonummer: null,
+      vedlegg: await Promise.all(
+        filer.map(async (f) => ({
+          id: crypto.randomUUID(),
+          filnavn: f.name,
+          storrelse: f.size,
+          innhold: new Uint8Array(await f.arrayBuffer()),
+        }))
+      ),
+    });
+
     return new HttpResponse(null, { status: 201 });
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/refusjon`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+    const status = refusjonStore.get(id);
+    if (!status) {
+      return new HttpResponse(null, { status: 204 });
+    }
+    return HttpResponse.json(
+      {
+        belopKroner: status.belopKroner,
+        utgifter: status.utgifter,
+        opprettet: status.opprettet,
+        kontonummer: status.kontonummer,
+        vedlegg: status.vedlegg.map((v) => ({
+          id: v.id,
+          filnavn: v.filnavn,
+          storrelse: v.storrelse,
+        })),
+      },
+      { status: 200 }
+    );
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/refusjon/vedlegg/:vedleggId`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    const vedleggId = getParamValue(params.vedleggId);
+    if (!id || !vedleggId) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+    const vedlegg = refusjonStore.get(id)?.vedlegg.find((v) => v.id === vedleggId);
+    if (!vedlegg) {
+      return HttpResponse.json({ message: "vedlegg ikke funnet" }, { status: 404 });
+    }
+    return new HttpResponse(vedlegg.innhold, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${vedlegg.filnavn}"`,
+      },
+    });
   }),
   http.get(EKSPERTBISTAND_API_PATH, async ({ request }) => {
     await ensureSkjemaStoreLoaded();

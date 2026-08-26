@@ -6,7 +6,8 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.readRemaining
-import io.ktor.utils.io.core.readBytes
+import kotlinx.io.readByteArray
+import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.infrastruktur.Metrics
@@ -24,6 +25,9 @@ private const val MAKS_ANTALL_FILER = 5
 private const val MAKS_UTGIFTER_LENGDE = 2000
 
 private val refusjonMottattCounter = Metrics.meterRegistry.counter("refusjon_mottatt_total")
+private val refusjonStatusHentetCounter = Metrics.meterRegistry.counter("refusjon_status_hentet_total")
+private val refusjonVedleggLastetNedCounter =
+    Metrics.meterRegistry.counter("refusjon_vedlegg_lastet_ned_total")
 
 class RefusjonApi(
     private val database: Database,
@@ -67,7 +71,7 @@ class RefusjonApi(
 
                 is PartData.FileItem -> {
                     val filnavn = part.originalFileName?.ifBlank { null } ?: "vedlegg.pdf"
-                    val bytes = part.provider().readRemaining().readBytes()
+                    val bytes = part.provider().readRemaining().readByteArray()
                     filer.add(UploadedFile(filnavn, bytes))
                 }
 
@@ -153,4 +157,93 @@ class RefusjonApi(
 
         call.respond(HttpStatusCode.Created)
     }
+
+    /**
+     * Returnerer metadata om siste refusjonskrav (beløp, utgifter, tidspunkt, vedleggsliste).
+     * Filinnhold følger ikke med – vedlegg lastes ned separat via [lastNedVedlegg].
+     */
+    suspend fun RoutingContext.hentRefusjonStatus(soknadId: UUID) {
+        val soknad = transaction(database) { findSoknadById(soknadId) }
+
+        if (soknad == null) {
+            call.respond(HttpStatusCode.NotFound, "søknad ikke funnet")
+            return
+        }
+
+        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
+        if (!tilganger.harTilgang(soknad.virksomhet.virksomhetsnummer)) {
+            call.respond(HttpStatusCode.Forbidden, "bruker har ikke tilgang til organisasjon")
+            return
+        }
+
+        val status = refusjonDb.finnRefusjonskravStatus(soknadId)
+        if (status == null) {
+            call.respond(HttpStatusCode.NoContent)
+            return
+        }
+
+        refusjonStatusHentetCounter.increment()
+        call.respond(
+            RefusjonStatusDto(
+                belopKroner = status.belopKroner,
+                utgifter = status.utgifter,
+                opprettet = status.opprettet,
+                kontonummer = status.kontonummer,
+                vedlegg = status.vedlegg.map {
+                    RefusjonVedleggDto(id = it.id, filnavn = it.filnavn, storrelse = it.storrelse)
+                },
+            )
+        )
+    }
+
+    /**
+     * Laster ned ett refusjonsvedlegg. Krever tilgang til virksomheten OG at vedlegget
+     * tilhører søknadens refusjonskrav (eierskapssjekk i [RefusjonDb.hentRefusjonsvedlegg]),
+     * slik at man ikke kan hente vedlegg på tvers av søknader.
+     */
+    suspend fun RoutingContext.lastNedVedlegg(soknadId: UUID, vedleggId: UUID) {
+        val soknad = transaction(database) { findSoknadById(soknadId) }
+
+        if (soknad == null) {
+            call.respond(HttpStatusCode.NotFound, "søknad ikke funnet")
+            return
+        }
+
+        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
+        if (!tilganger.harTilgang(soknad.virksomhet.virksomhetsnummer)) {
+            call.respond(HttpStatusCode.Forbidden, "bruker har ikke tilgang til organisasjon")
+            return
+        }
+
+        val vedlegg = refusjonDb.hentRefusjonsvedlegg(soknadId, vedleggId)
+        if (vedlegg == null) {
+            call.respond(HttpStatusCode.NotFound, "vedlegg ikke funnet")
+            return
+        }
+
+        refusjonVedleggLastetNedCounter.increment()
+        call.response.header(
+            HttpHeaders.ContentDisposition,
+            ContentDisposition.Attachment
+                .withParameter(ContentDisposition.Parameters.FileName, vedlegg.filnavn)
+                .toString(),
+        )
+        call.respondBytes(vedlegg.innhold, ContentType.Application.Pdf)
+    }
 }
+
+@Serializable
+data class RefusjonStatusDto(
+    val belopKroner: Long,
+    val utgifter: String,
+    val opprettet: String,
+    val kontonummer: String?,
+    val vedlegg: List<RefusjonVedleggDto>,
+)
+
+@Serializable
+data class RefusjonVedleggDto(
+    val id: String,
+    val filnavn: String,
+    val storrelse: Int,
+)

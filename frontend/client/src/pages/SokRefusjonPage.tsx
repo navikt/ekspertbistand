@@ -9,9 +9,12 @@ import {
   Button,
   Checkbox,
   ErrorMessage,
+  ExpansionCard,
   FileUpload,
   FormSummary,
   Heading,
+  Label,
+  Link,
   Loader,
   TextField,
   Textarea,
@@ -20,13 +23,18 @@ import {
   type FileObject,
   type FileRejected,
 } from "@navikt/ds-react";
-import { PaperplaneIcon } from "@navikt/aksel-icons";
+import { FileTextIcon, PaperplaneIcon } from "@navikt/aksel-icons";
 import DecoratedPage from "../components/DecoratedPage";
 import { BackLink } from "../components/BackLink";
 import { FormErrorSummary } from "../components/FormErrorSummary";
 import { useSoknad } from "../hooks/useSoknad";
+import { useRefusjonStatus } from "../hooks/useRefusjonStatus";
 import { formatDate } from "../components/summaryFormatters";
-import { EKSPERTBISTAND_REFUSJON_PATH } from "../utils/constants";
+import { formatBytes } from "../utils/format";
+import {
+  EKSPERTBISTAND_REFUSJON_PATH,
+  EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH,
+} from "../utils/constants";
 import { resolveApiError, type ApiErrorInfo } from "../utils/http";
 import { useErrorFocus } from "../hooks/useErrorFocus";
 import { isProd } from "../utils/env";
@@ -73,6 +81,7 @@ export default function SokRefusjonPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { soknad, isLoading, error: fetchError } = useSoknad(id);
+  const { refusjon, isLoading: isLoadingStatus } = useRefusjonStatus(id);
 
   const [acceptedFiles, setAcceptedFiles] = useState<File[]>([]);
   const [rejectedFiles, setRejectedFiles] = useState<FileRejected[]>([]);
@@ -149,7 +158,7 @@ export default function SokRefusjonPage() {
     return <Navigate to={id ? `/skjema/${id}/kvittering` : "/soknader"} replace />;
   }
 
-  if (isLoading) {
+  if (isLoading || isLoadingStatus) {
     return (
       <DecoratedPage>
         <VStack align="center" gap="space-4" padding="space-32">
@@ -169,6 +178,74 @@ export default function SokRefusjonPage() {
   }
 
   const atFileLimit = acceptedFiles.length >= MAX_FILES;
+
+  if (refusjon) {
+    return (
+      <DecoratedPage>
+        <VStack gap="space-32" data-aksel-template="form-summarypage-v5">
+          <BackLink to={`/skjema/${id}/kvittering`}>Tilbake til avtalen</BackLink>
+
+          <Heading level="1" size="xlarge">
+            Refusjonskrav sendt inn
+          </Heading>
+
+          <ExpansionCard aria-label="Refusjonskrav sendt inn" defaultOpen>
+            <ExpansionCard.Header>
+              <VStack gap="space-8">
+                <FileTextIcon aria-hidden fontSize="1.5rem" />
+                <ExpansionCard.Title size="small">Refusjonskrav sendt inn</ExpansionCard.Title>
+                <ExpansionCard.Description>
+                  {formatDate(refusjon.opprettet)}
+                </ExpansionCard.Description>
+              </VStack>
+            </ExpansionCard.Header>
+            <ExpansionCard.Content>
+              <VStack gap="space-16">
+                <VStack gap="space-2">
+                  <Label>Kontonummer</Label>
+                  <BodyShort>{refusjon.kontonummer ?? "–"}</BodyShort>
+                </VStack>
+                <VStack gap="space-2">
+                  <Label>Hvilke utgifter skal tilskuddet dekke</Label>
+                  <BodyShort>{refusjon.utgifter}</BodyShort>
+                </VStack>
+                <VStack gap="space-2">
+                  <Label>Beløp for refusjonskravet</Label>
+                  <BodyShort>{refusjon.belopKroner.toLocaleString("nb-NO")} kr</BodyShort>
+                </VStack>
+                <VStack gap="space-2">
+                  <Label>Vedlegg</Label>
+                  {refusjon.vedlegg.length === 0 ? (
+                    <BodyShort>–</BodyShort>
+                  ) : (
+                    <VStack gap="space-2" as="ul">
+                      {refusjon.vedlegg.map((v) => (
+                        <li key={v.id}>
+                          <Link
+                            href={EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH(id!, v.id)}
+                            download={v.filnavn}
+                          >
+                            {v.filnavn}
+                          </Link>{" "}
+                          <BodyShort as="span" textColor="subtle">
+                            ({formatBytes(v.storrelse)})
+                          </BodyShort>
+                        </li>
+                      ))}
+                    </VStack>
+                  )}
+                </VStack>
+                <VStack gap="space-2">
+                  <Label>Sendt inn til Nav</Label>
+                  <BodyShort>{formatDate(refusjon.opprettet)}</BodyShort>
+                </VStack>
+              </VStack>
+            </ExpansionCard.Content>
+          </ExpansionCard>
+        </VStack>
+      </DecoratedPage>
+    );
+  }
 
   return (
     <DecoratedPage>

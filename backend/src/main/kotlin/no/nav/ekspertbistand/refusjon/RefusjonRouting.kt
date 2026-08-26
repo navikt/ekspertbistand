@@ -33,6 +33,33 @@ suspend fun Application.configureRefusjonApiV1() {
                         }
                         sendInnRefusjon(soknadId)
                     }
+                    get("/refusjon") {
+                        val soknadId: UUID = call.pathParameters.getRequired(
+                            name = "id",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(HttpStatusCode.BadRequest, "ugyldig id")
+                            return@get
+                        }
+                        hentRefusjonStatus(soknadId)
+                    }
+                    get("/refusjon/vedlegg/{vedleggId}") {
+                        val soknadId: UUID = call.pathParameters.getRequired(
+                            name = "id",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(HttpStatusCode.BadRequest, "ugyldig id")
+                            return@get
+                        }
+                        val vedleggId: UUID = call.pathParameters.getRequired(
+                            name = "vedleggId",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(HttpStatusCode.BadRequest, "ugyldig vedleggId")
+                            return@get
+                        }
+                        lastNedVedlegg(soknadId, vedleggId)
+                    }
                 }
             }
         }

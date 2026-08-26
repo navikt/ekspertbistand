@@ -6,7 +6,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.readRemaining
-import io.ktor.utils.io.core.readBytes
+import kotlinx.io.readByteArray
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.infrastruktur.Metrics
@@ -58,7 +58,7 @@ class VedleggApi(
         multipart.forEachPart { part ->
             if (part is PartData.FileItem) {
                 val filnavn = part.originalFileName?.ifBlank { null } ?: "vedlegg.pdf"
-                val bytes = part.provider().readRemaining().readBytes()
+                val bytes = part.provider().readRemaining().readByteArray()
                 filer.add(UploadedFile(filnavn, bytes))
             }
             part.dispose()

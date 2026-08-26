@@ -40,6 +40,8 @@ export const EKSPERTBISTAND_SLUTTRAPPORT_PATH = (id: string) =>
   withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/sluttrapport`);
 export const EKSPERTBISTAND_REFUSJON_PATH = (id: string) =>
   withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/refusjon`);
+export const EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH = (id: string, vedleggId: string) =>
+  withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/refusjon/vedlegg/${vedleggId}`);
 export const EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH = withBasePath(
   "/ekspertbistand-backend/api/tilsagndata/v1"
 );
