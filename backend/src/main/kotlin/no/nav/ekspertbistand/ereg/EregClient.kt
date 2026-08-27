@@ -1,21 +1,16 @@
 package no.nav.ekspertbistand.ereg
 
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.accept
-import io.ktor.client.request.get
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.http.path
-import io.ktor.http.takeFrom
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
-import no.nav.ekspertbistand.infrastruktur.defaultHttpClient
 import no.nav.ekspertbistand.infrastruktur.defaultJson
 
 class EregClient(
@@ -28,6 +23,7 @@ class EregClient(
             other = "http://ereg-services.mock.svc.cluster.local",
         )
         const val API_PATH = "/v2/organisasjon/"
+        const val FINN_API_PATH = "/v2/organisasjon/finn"
     }
 
     private val httpClient = defaultHttpClient.config {
@@ -54,6 +50,28 @@ class EregClient(
         }.body()
     }
 
+    /**
+     * Søk etter organisasjoner på (deler av) navn mot Ereg `GET /v2/organisasjon/finn`.
+     * Returnerer et sammendrag (subsett) av organisasjonene som matcher [organisasjonsnavn].
+     *
+     * @param antall maks antall responsobjekter (typeahead trenger ikke mange treff).
+     */
+    suspend fun finnOrganisasjon(
+        organisasjonsnavn: String,
+        antall: Int = 10,
+    ): OrganisasjonSammendragResultat {
+        return httpClient.get {
+            url {
+                takeFrom(ingress)
+                path(FINN_API_PATH)
+                parameters.append("organisasjonsnavn", organisasjonsnavn)
+                parameters.append("antall", antall.toString())
+            }
+            contentType(ContentType.Application.Json)
+            accept(ContentType.Application.Json)
+        }.body()
+    }
+
     suspend fun hentPostAdresse(orgnr: String): List<Postadresse> {
         val organisasjon = hentOrganisasjon(orgnr)
         return organisasjon.organisasjonDetaljer?.postadresser ?: emptyList()
@@ -64,6 +82,34 @@ class EregClient(
         return organisasjon.organisasjonDetaljer?.forretningsadresser ?: emptyList()
     }
 }
+
+/**
+ * Svar fra Ereg `GET /v2/organisasjon/finn` — et sammendrag av matchende organisasjoner.
+ */
+@Serializable
+data class OrganisasjonSammendragResultat(
+    val totalAntallTreff: Int? = null,
+    val organisasjonSammendrag: List<OrganisasjonSammendrag> = emptyList(),
+)
+
+/**
+ * Sammendrag (subsett) av en organisasjon fra søk.
+ */
+@Serializable
+data class OrganisasjonSammendrag(
+    val organisasjonsnummer: String? = null,
+    val enhetstype: String? = null,
+    val sammensattnavn: String? = null,
+    val navnelinje1: String? = null,
+    val juridiskEnhetOrganisasjonsnummer: String? = null,
+    val adresselinje1: String? = null,
+    val postnummer: String? = null,
+    val poststed: String? = null,
+    val kommunenummer: String? = null,
+    val kommunenavn: String? = null,
+    val landkode: String? = null,
+    val opphoert: Boolean? = null,
+)
 
 @Serializable
 data class OrganisasjonResponse(

@@ -14,6 +14,7 @@ import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
 import no.nav.ekspertbistand.mocks.mockEreg
+import no.nav.ekspertbistand.mocks.mockEregFinn
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -137,5 +138,121 @@ class EregApiTest {
         }
 
         assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
+
+    @Test
+    fun `soek etter organisasjoner returnerer treff uten tilgangssjekk`() = testApplication {
+        mockAltinnTilganger(
+            AltinnTilgangerClientResponse(
+                isError = false,
+                hierarki = emptyList(),
+                orgNrTilTilganger = emptyMap(),
+                tilgangTilOrgNr = emptyMap(),
+            )
+        )
+        mockEregFinn {
+            """
+            {
+              "totalAntallTreff": 1,
+              "organisasjonSammendrag": [
+                {
+                  "organisasjonsnummer": "$orgnr",
+                  "enhetstype": "BEDR",
+                  "sammensattnavn": "Test Org AS"
+                }
+              ]
+            }
+            """.trimIndent()
+        }
+
+        val client = createClient {
+            install(ContentNegotiation) {
+                json()
+            }
+        }
+
+        val altinnTilgangerClient = AltinnTilgangerClient(
+            defaultHttpClient = client,
+            tokenExchanger = successTokenXTokenExchanger
+        )
+
+        application {
+            dependencies {
+                provide {
+                    altinnTilgangerClient
+                }
+                provide {
+                    EregClient(defaultHttpClient = client)
+                }
+                provide<TokenXTokenIntrospector> {
+                    MockTokenIntrospector {
+                        if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
+                    }
+                }
+                provide<EregService> { EregService(resolve()) }
+            }
+
+            configureAuthentication()
+            configureEregApiV1()
+            configureServer()
+        }
+
+        val response = client.get("/api/ereg/organisasjoner?navn=Test") {
+            bearerAuth("faketoken")
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.body<List<OrganisasjonSok>>()
+        assertEquals(1, body.size)
+        assertEquals(orgnr, body.first().organisasjonsnummer)
+        assertEquals("Test Org AS", body.first().navn)
+    }
+
+    @Test
+    fun `soek med for kort soekeord gir bad request`() = testApplication {
+        mockAltinnTilganger(
+            AltinnTilgangerClientResponse(
+                isError = false,
+                hierarki = emptyList(),
+                orgNrTilTilganger = emptyMap(),
+                tilgangTilOrgNr = emptyMap(),
+            )
+        )
+
+        val client = createClient {
+            install(ContentNegotiation) {
+                json()
+            }
+        }
+
+        val altinnTilgangerClient = AltinnTilgangerClient(
+            defaultHttpClient = client,
+            tokenExchanger = successTokenXTokenExchanger
+        )
+
+        application {
+            dependencies {
+                provide { altinnTilgangerClient }
+                provide { EregClient(defaultHttpClient = client) }
+                provide<TokenXTokenIntrospector> {
+                    MockTokenIntrospector {
+                        if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
+                    }
+                }
+                provide<EregService> { EregService(resolve()) }
+            }
+
+            configureAuthentication()
+            configureEregApiV1()
+            configureServer()
+        }
+
+        val response = client.get("/api/ereg/organisasjoner?navn=T") {
+            bearerAuth("faketoken")
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 }

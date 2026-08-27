@@ -42,6 +42,8 @@ object SoknadTable : Table("soknad") {
     // Ekspert
     val ekspertNavn = text("ekspert_navn")
     val ekspertVirksomhet = text("ekspert_virksomhet")
+    val ekspertVirksomhetNavn = text("ekspert_virksomhet_navn").nullable()
+    val ekspertVirksomhetOrgnr = text("ekspert_virksomhet_orgnr").nullable()
     val ekspertKompetanse = text("ekspert_kompetanse")
     val ekspertGodkjentUtdanningEllerAutorisasjon =
         text("ekspert_godkjent_utdanning_eller_autorisasjon").nullable()
@@ -86,6 +88,8 @@ object UtkastTable : UUIDTable("utkast") {
     // Ekspert
     val ekspertNavn = text("ekspert_navn").nullable()
     val ekspertVirksomhet = text("ekspert_virksomhet").nullable()
+    val ekspertVirksomhetNavn = text("ekspert_virksomhet_navn").nullable()
+    val ekspertVirksomhetOrgnr = text("ekspert_virksomhet_orgnr").nullable()
     val ekspertKompetanse = text("ekspert_kompetanse").nullable()
     val ekspertGodkjentUtdanningEllerAutorisasjon =
         text("ekspert_godkjent_utdanning_eller_autorisasjon").nullable()
@@ -150,6 +154,8 @@ fun ResultRow.tilSoknadDTO() = DTO.Soknad(
     ekspert = DTO.Ekspert(
         navn = this[SoknadTable.ekspertNavn],
         virksomhet = this[SoknadTable.ekspertVirksomhet],
+        virksomhetNavn = this[SoknadTable.ekspertVirksomhetNavn],
+        virksomhetOrgnr = this[SoknadTable.ekspertVirksomhetOrgnr],
         kompetanse = this[SoknadTable.ekspertKompetanse],
         godkjentUtdanningEllerAutorisasjon = parseJsonStringList(this[SoknadTable.ekspertGodkjentUtdanningEllerAutorisasjon]),
         relevantKompetanse = parseJsonStringList(this[SoknadTable.ekspertRelevantKompetanse]),
@@ -195,6 +201,8 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
         DTO.Ekspert(
             navn = navn,
             virksomhet = this[UtkastTable.ekspertVirksomhet] ?: "",
+            virksomhetNavn = this[UtkastTable.ekspertVirksomhetNavn],
+            virksomhetOrgnr = this[UtkastTable.ekspertVirksomhetOrgnr],
             kompetanse = this[UtkastTable.ekspertKompetanse] ?: "",
             godkjentUtdanningEllerAutorisasjon = parseJsonStringList(this[UtkastTable.ekspertGodkjentUtdanningEllerAutorisasjon]),
             relevantKompetanse = parseJsonStringList(this[UtkastTable.ekspertRelevantKompetanse]),
