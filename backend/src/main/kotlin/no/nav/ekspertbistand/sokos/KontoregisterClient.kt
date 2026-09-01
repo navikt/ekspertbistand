@@ -14,14 +14,11 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.defaultJson
-import no.nav.ekspertbistand.sokos.KontoregisterClient.Companion.apiPath
-import no.nav.ekspertbistand.sokos.KontoregisterClient.Companion.baseUrl
-import no.nav.ekspertbistand.sokos.KontoregisterClient.Companion.targetScope
 
-
-interface KontoregisterClient {
-    suspend fun hentKontonummer(virksomhetsnummer: String): Kontooppslag?
-
+class KontoregisterClient(
+    defaultHttpClient: HttpClient,
+    private val tokenProvider: AzureAdTokenProvider,
+) {
     companion object {
         val baseUrl = basedOnEnv(
             prod = { "https://sokos-kontoregister.prod-fss-pub.nais.io" },
@@ -34,12 +31,6 @@ interface KontoregisterClient {
             other = { "" }
         )
     }
-}
-
-class KontoregisterClientImpl(
-    defaultHttpClient: HttpClient,
-    private val tokenProvider: AzureAdTokenProvider,
-) : KontoregisterClient {
 
     private val httpClient = defaultHttpClient.config {
         expectSuccess = true
@@ -49,7 +40,7 @@ class KontoregisterClientImpl(
         }
     }
 
-    override suspend fun hentKontonummer(virksomhetsnummer: String): Kontooppslag? {
+    suspend fun hentKontonummer(virksomhetsnummer: String): Kontooppslag? {
         return try {
             httpClient.get {
                 url {
@@ -65,7 +56,7 @@ class KontoregisterClientImpl(
             }.body<Kontooppslag>()
         } catch (e: ClientRequestException) {
             if (e.response.status == HttpStatusCode.NotFound) {
-                null
+                return null
             }
             throw e
         }
