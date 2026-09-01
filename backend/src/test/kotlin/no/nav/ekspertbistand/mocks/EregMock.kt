@@ -29,3 +29,21 @@ fun ApplicationTestBuilder.mockEreg(responseProvider: (String) -> String) {
         }
     }
 }
+
+fun ApplicationTestBuilder.mockEregFinn(responseProvider: () -> String) {
+    externalServices {
+        hosts(EregClient.ingress) {
+            install(ContentNegotiation) {
+                json()
+            }
+            routing {
+                get(EregClient.FINN_API_PATH) {
+                    call.respondText(
+                        responseProvider(),
+                        ContentType.Application.Json
+                    )
+                }
+            }
+        }
+    }
+}

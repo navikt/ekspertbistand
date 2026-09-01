@@ -1,11 +1,24 @@
 package no.nav.ekspertbistand.ereg
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.infrastruktur.logger
 
 class EregService(private val eregClient: EregClient) {
     private val log = logger()
-    
+
+    /**
+     * Søk etter organisasjoner på (deler av) navn. Returnerer en forenklet liste med orgnr + navn
+     * som brukes til forslag i skjemaet. ENK inkluderes. Ingen tilgangssjekk — kun offentlig
+     * Ereg-navnedata eksponeres.
+     */
+    suspend fun finnOrganisasjoner(navn: String): List<OrganisasjonSok> {
+        return runCatching {
+            eregClient.finnOrganisasjon(navn).organisasjonSammendrag.mapNotNull { it.tilOrganisasjonSok() }
+        }.onFailure { feil ->
+            log.warn("Klarte ikke søke etter organisasjoner i EREG", feil)
+        }.getOrDefault(emptyList())
+    }
 
     suspend fun hentPostAdresse(orgnr: String): String? {
         return runCatching {
@@ -24,6 +37,12 @@ class EregService(private val eregClient: EregClient) {
     }
 
     companion object {
+        private fun OrganisasjonSammendrag.tilOrganisasjonSok(): OrganisasjonSok? {
+            val orgnr = organisasjonsnummer ?: return null
+            val organisasjonsnavn = sammensattnavn ?: return null
+            return OrganisasjonSok(organisasjonsnummer = orgnr, navn = organisasjonsnavn)
+        }
+
         private val postadresser = Json.decodeFromString<Map<String, String>>(
             this::class.java.getResource("/poststeder.json")!!.readText()
         )
@@ -76,3 +95,9 @@ class EregService(private val eregClient: EregClient) {
     }
 }
 
+
+@Serializable
+data class OrganisasjonSok(
+    val organisasjonsnummer: String,
+    val navn: String,
+)

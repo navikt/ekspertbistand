@@ -160,6 +160,8 @@ class SoknadApi(
                 oppdatertUtkast.ekspert?.also { e ->
                     utkast[ekspertNavn] = e.navn
                     utkast[ekspertVirksomhet] = e.virksomhet
+                    utkast[ekspertVirksomhetNavn] = e.virksomhetNavn
+                    utkast[ekspertVirksomhetOrgnr] = e.virksomhetOrgnr
                     utkast[ekspertKompetanse] = e.kompetanse
                     utkast[ekspertGodkjentUtdanningEllerAutorisasjon] = encodeStringList(e.godkjentUtdanningEllerAutorisasjon)
                     utkast[ekspertRelevantKompetanse] = encodeStringList(e.relevantKompetanse)
@@ -251,6 +253,8 @@ class SoknadApi(
                 it[ansattNavn] = soknad.ansatt.navn
                 it[ekspertNavn] = soknad.ekspert.navn
                 it[ekspertVirksomhet] = soknad.ekspert.virksomhet
+                it[ekspertVirksomhetNavn] = soknad.ekspert.virksomhetNavn
+                it[ekspertVirksomhetOrgnr] = soknad.ekspert.virksomhetOrgnr
                 it[ekspertKompetanse] = soknad.ekspert.kompetanse
                 it[ekspertGodkjentUtdanningEllerAutorisasjon] = encodeStringList(soknad.ekspert.godkjentUtdanningEllerAutorisasjon)
                 it[ekspertRelevantKompetanse] = encodeStringList(soknad.ekspert.relevantKompetanse)
@@ -356,9 +360,11 @@ sealed interface DTO {
     )
 
     @Serializable
-    data class Ekspert(
+    data class   Ekspert(
         val navn: String,
         val virksomhet: String,
+        val virksomhetNavn: String? = null,
+        val virksomhetOrgnr: String? = null,
         val kompetanse: String = "",
         val godkjentUtdanningEllerAutorisasjon: List<String> = emptyList(),
         val relevantKompetanse: List<String> = emptyList(),

@@ -29,6 +29,8 @@ export const ansattServerSchema = z.object({
 export const ekspertServerSchema = z.object({
   navn: z.string(),
   virksomhet: z.string(),
+  virksomhetNavn: z.string().nullable().optional(),
+  virksomhetOrgnr: z.string().nullable().optional(),
   kompetanse: z.string().optional().default(""),
   godkjentUtdanningEllerAutorisasjon: z.array(z.string()),
   relevantKompetanse: z.array(z.string()),
@@ -37,6 +39,8 @@ export const ekspertServerSchema = z.object({
 const ekspertDraftServerSchema = z.object({
   navn: z.string().optional(),
   virksomhet: z.string().optional(),
+  virksomhetNavn: z.string().nullable().optional(),
+  virksomhetOrgnr: z.string().nullable().optional(),
   kompetanse: z.string().optional(),
   godkjentUtdanningEllerAutorisasjon: z.array(z.string()).optional(),
   relevantKompetanse: z.array(z.string()).optional(),

@@ -33,6 +33,8 @@ const mapInputsToPayload = (inputs: SoknadInputs) => ({
   ekspert: {
     navn: inputs.ekspert.navn,
     virksomhet: inputs.ekspert.virksomhet,
+    virksomhetNavn: inputs.ekspert.virksomhetNavn,
+    virksomhetOrgnr: inputs.ekspert.virksomhetOrgnr,
     kompetanse: "",
     godkjentUtdanningEllerAutorisasjon: inputs.ekspert.godkjentUtdanningEllerAutorisasjon,
     relevantKompetanse: inputs.ekspert.relevantKompetanse,
@@ -88,6 +90,8 @@ const draftDtoToInputsSchema = draftDtoServerSchema.transform((dto) => {
   if (dto.ekspert) {
     inputs.ekspert.navn = dto.ekspert.navn ?? "";
     inputs.ekspert.virksomhet = dto.ekspert.virksomhet ?? "";
+    inputs.ekspert.virksomhetNavn = dto.ekspert.virksomhetNavn ?? null;
+    inputs.ekspert.virksomhetOrgnr = dto.ekspert.virksomhetOrgnr ?? null;
     const hasNewFields =
       (dto.ekspert.godkjentUtdanningEllerAutorisasjon?.length ?? 0) > 0 ||
       (dto.ekspert.relevantKompetanse?.length ?? 0) > 0;

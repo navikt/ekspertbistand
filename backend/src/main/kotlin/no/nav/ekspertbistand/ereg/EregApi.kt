@@ -15,6 +15,7 @@ import no.nav.ekspertbistand.soknad.subjectToken
 data class AdresseResponse(val adresse: String)
 
 private val orgnrRegex = Regex("^\\d{9}$")
+private const val MIN_SOK_LENGDE = 2
 
 suspend fun Application.configureEregApiV1() {
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
@@ -22,6 +23,20 @@ suspend fun Application.configureEregApiV1() {
 
     routing {
         authenticate(TOKENX_PROVIDER) {
+            get("/api/ereg/organisasjoner") {
+                val navn = call.request.queryParameters["navn"]?.trim()
+                if (navn == null || navn.length < MIN_SOK_LENGDE) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        "søkeord må være minst $MIN_SOK_LENGDE tegn"
+                    )
+                    return@get
+                }
+
+                val organisasjoner = eregService.finnOrganisasjoner(navn)
+                call.respond(organisasjoner)
+            }
+
             get("/api/ereg/{orgnr}/adresse") {
                 val orgnr = call.parameters["orgnr"]
                 if (orgnr == null || !orgnrRegex.matches(orgnr)) {
