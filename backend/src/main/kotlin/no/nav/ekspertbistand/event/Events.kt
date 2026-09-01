@@ -23,18 +23,6 @@ data class Event<T : EventData>(
 sealed interface EventData {
 
     @Serializable
-    @SerialName("foo")
-    data class Foo(
-        val fooName: String
-    ) : EventData
-
-    @Serializable
-    @SerialName("bar")
-    data class Bar(
-        val barName: String
-    ) : EventData
-
-    @Serializable
     @SerialName("soknadInnsendt")
     data class SoknadInnsendt(
         val soknad: DTO.Soknad
