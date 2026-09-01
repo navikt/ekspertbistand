@@ -11,6 +11,23 @@ import {
   SESSION_URL,
 } from "../utils/constants";
 
+const MOCK_MAKS_ANTALL_VEDLEGG = 5;
+const MOCK_MAKS_VEDLEGG_STORRELSE_BYTES = 10 * 1024 * 1024;
+
+const sluttrapportStore = new Map<string, { filnavn: string; lastetOpp: string }>();
+
+type MockRefusjonVedlegg = { id: string; filnavn: string; storrelse: number; innhold: Uint8Array };
+const refusjonStore = new Map<
+  string,
+  {
+    belopKroner: number;
+    utgifter: string;
+    opprettet: string;
+    kontonummer: string | null;
+    vedlegg: MockRefusjonVedlegg[];
+  }
+>();
+
 const organisasjoner: Organisasjon[] = [
   {
     orgnr: "123456789",
@@ -437,6 +454,165 @@ export const handlers = [
     skjemaStore.set(id, entry);
     await persistSkjemaStore();
     return HttpResponse.json(toUtkastDto(entry), { status: 201 });
+  }),
+  http.post(`${EKSPERTBISTAND_API_PATH}/:id/sluttrapport`, async ({ params, request }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+
+    const formData = await request.formData();
+    const filer = formData.getAll("filer").filter((f): f is File => f instanceof File);
+
+    if (filer.length === 0) {
+      return HttpResponse.json({ message: "Minst én fil må lastes opp" }, { status: 400 });
+    }
+    if (filer.length > MOCK_MAKS_ANTALL_VEDLEGG) {
+      return HttpResponse.json(
+        { message: `Maks ${MOCK_MAKS_ANTALL_VEDLEGG} filer tillatt` },
+        { status: 400 }
+      );
+    }
+    for (const fil of filer) {
+      if (fil.size > MOCK_MAKS_VEDLEGG_STORRELSE_BYTES) {
+        return HttpResponse.json(
+          { message: `Filen '${fil.name}' overskrider maks 10 MB` },
+          { status: 400 }
+        );
+      }
+    }
+
+    sluttrapportStore.set(id, {
+      filnavn: filer[0]?.name ?? "vedlegg.pdf",
+      lastetOpp: new Date().toISOString(),
+    });
+
+    return new HttpResponse(null, { status: 201 });
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/sluttrapport`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+    const status = sluttrapportStore.get(id);
+    if (!status) {
+      return new HttpResponse(null, { status: 204 });
+    }
+    return HttpResponse.json(status, { status: 200 });
+  }),
+  http.post(`${EKSPERTBISTAND_API_PATH}/:id/refusjon`, async ({ params, request }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+
+    const formData = await request.formData();
+    const utgifter = formData.get("utgifter");
+    const belop = formData.get("belop");
+    const filer = formData.getAll("filer").filter((f): f is File => f instanceof File);
+
+    if (typeof utgifter !== "string" || utgifter.trim() === "") {
+      return HttpResponse.json({ message: "Du må beskrive utgiftene" }, { status: 400 });
+    }
+    if (typeof belop !== "string" || !/^\d+$/.test(belop)) {
+      return HttpResponse.json({ message: "Ugyldig beløp" }, { status: 400 });
+    }
+    if (filer.length === 0) {
+      return HttpResponse.json({ message: "Minst én fil må lastes opp" }, { status: 400 });
+    }
+    if (filer.length > MOCK_MAKS_ANTALL_VEDLEGG) {
+      return HttpResponse.json(
+        { message: `Maks ${MOCK_MAKS_ANTALL_VEDLEGG} filer tillatt` },
+        { status: 400 }
+      );
+    }
+    for (const fil of filer) {
+      if (fil.size > MOCK_MAKS_VEDLEGG_STORRELSE_BYTES) {
+        return HttpResponse.json(
+          { message: `Filen '${fil.name}' overskrider maks 10 MB` },
+          { status: 400 }
+        );
+      }
+    }
+
+    refusjonStore.set(id, {
+      belopKroner: Number(belop),
+      utgifter,
+      opprettet: new Date().toISOString(),
+      kontonummer: null,
+      vedlegg: await Promise.all(
+        filer.map(async (f) => ({
+          id: crypto.randomUUID(),
+          filnavn: f.name,
+          storrelse: f.size,
+          innhold: new Uint8Array(await f.arrayBuffer()),
+        }))
+      ),
+    });
+
+    return new HttpResponse(null, { status: 201 });
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/refusjon`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+    const status = refusjonStore.get(id);
+    if (!status) {
+      return new HttpResponse(null, { status: 204 });
+    }
+    return HttpResponse.json(
+      {
+        belopKroner: status.belopKroner,
+        utgifter: status.utgifter,
+        opprettet: status.opprettet,
+        kontonummer: status.kontonummer,
+        vedlegg: status.vedlegg.map((v) => ({
+          id: v.id,
+          filnavn: v.filnavn,
+          storrelse: v.storrelse,
+        })),
+      },
+      { status: 200 }
+    );
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/refusjon/vedlegg/:vedleggId`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    const vedleggId = getParamValue(params.vedleggId);
+    if (!id || !vedleggId) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+    const vedlegg = refusjonStore.get(id)?.vedlegg.find((v) => v.id === vedleggId);
+    if (!vedlegg) {
+      return HttpResponse.json({ message: "vedlegg ikke funnet" }, { status: 404 });
+    }
+    return new HttpResponse(vedlegg.innhold, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${vedlegg.filnavn}"`,
+      },
+    });
   }),
   http.get(EKSPERTBISTAND_API_PATH, async ({ request }) => {
     await ensureSkjemaStoreLoaded();
