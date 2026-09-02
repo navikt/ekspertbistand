@@ -6,6 +6,7 @@ import {
   EKSPERTBISTAND_API_PATH,
   EKSPERTBISTAND_EREG_ADRESSE_PATH,
   EKSPERTBISTAND_EREG_ORGANISASJONER_PATH,
+  EKSPERTBISTAND_KONTONUMMER_PATH,
   EKSPERTBISTAND_ORGANISASJONER_PATH,
   EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH,
   SESSION_URL,
@@ -65,6 +66,12 @@ const eregAdresser: Record<string, string> = {
   "987654321": "Eksempelveien 2, 7010 Trondheim",
   "111222333": "Demogata 3, 5003 Bergen",
   "444555666": "Mockveien 4, 2317 Hamar",
+};
+
+// Kontonummer per virksomhet. Virksomheter uten oppføring (f.eks. 987654321)
+// mangler registrert kontonummer, slik at "kontonummer mangler"-flyten kan testes.
+const kontonumre: Record<string, string> = {
+  "123456789": "12345678901",
 };
 
 const eregOrganisasjoner: { organisasjonsnummer: string; navn: string }[] = [
@@ -251,6 +258,44 @@ const ensureSkjemaStoreLoaded = async () => {
     };
     skjemaStore.set(entry.id, entry);
 
+    const utenKontonummerInputs = createEmptyInputs();
+    utenKontonummerInputs.virksomhet.virksomhetsnummer = "444555666";
+    utenKontonummerInputs.virksomhet.virksomhetsnavn = "Mangler Konto AS";
+    utenKontonummerInputs.virksomhet.beliggenhetsadresse = "Mockveien 4, 2317 Hamar";
+    utenKontonummerInputs.virksomhet.kontaktperson.navn = "Kari Kontakt";
+    utenKontonummerInputs.virksomhet.kontaktperson.epost = "kari.kontakt@manglerkonto.no";
+    utenKontonummerInputs.virksomhet.kontaktperson.telefonnummer = "99001122";
+    utenKontonummerInputs.ansatt.fnr = MOCK_BRUKER;
+    utenKontonummerInputs.ansatt.navn = "Per Persen";
+    utenKontonummerInputs.ekspert.navn = "Dr. Hjelpsom";
+    utenKontonummerInputs.ekspert.virksomhet = "Ekspert & Co";
+    utenKontonummerInputs.ekspert.godkjentUtdanningEllerAutorisasjon = ["Fysioterapeut"];
+    utenKontonummerInputs.ekspert.relevantKompetanse = [
+      "Arbeidsplassvurdering",
+      "Tilrettelegging på arbeidsplassen",
+    ];
+    utenKontonummerInputs.behovForBistand.begrunnelse = "Behov for tilrettelegging etter skade.";
+    utenKontonummerInputs.behovForBistand.behov = "Ressurs til tilrettelegging og oppfolging.";
+    utenKontonummerInputs.behovForBistand.timer = "60";
+    utenKontonummerInputs.behovForBistand.estimertKostnad = "120000";
+    utenKontonummerInputs.behovForBistand.tilrettelegging = "Tilrettelegging av arbeidsoppgaver.";
+    utenKontonummerInputs.behovForBistand.startdato = "2024-11-01";
+    utenKontonummerInputs.nav.kontaktperson = "Nav Kontakt";
+
+    const utenKontonummerEntry: MockSkjema = {
+      id: randomId(),
+      status: "innsendt",
+      data: utenKontonummerInputs,
+      opprettetAv: MOCK_BRUKER,
+      opprettetTidspunkt: now,
+      innsendtTidspunkt: now,
+      beslutning: {
+        status: "godkjent",
+        tidspunkt: now,
+      },
+    };
+    skjemaStore.set(utenKontonummerEntry.id, utenKontonummerEntry);
+
     const rejectedInputs = createEmptyInputs();
     rejectedInputs.virksomhet.virksomhetsnummer = "987654321";
     rejectedInputs.virksomhet.virksomhetsnavn = "Testfirma Norge AS";
@@ -422,6 +467,13 @@ export const handlers = [
       return HttpResponse.json({ message: "adresse ikke funnet" }, { status: 404 });
     }
     return HttpResponse.json({ adresse });
+  }),
+  http.get(`${EKSPERTBISTAND_KONTONUMMER_PATH}/:orgnr`, ({ params }) => {
+    const orgnr = getParamValue(params.orgnr);
+    if (!orgnr || !/^\d{9}$/.test(orgnr)) {
+      return HttpResponse.json({ message: "ugyldig orgnr" }, { status: 400 });
+    }
+    return HttpResponse.json({ finnes: orgnr in kontonumre });
   }),
   http.get("/api/soknad/draft", async () => {
     const currentDraft = await loadDraft();
