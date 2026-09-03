@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
+import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import no.nav.ekspertbistand.event.projections.TilskuddsbrevVist.Companion.tilTilskuddsbrevVist
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.soknad.DTO
@@ -94,8 +95,8 @@ class TilskuddsbrevVistProjectionTest {
 
 }
 
-private fun publishAndFinalize(mottatt: EventData) =
-    EventQueue.publish(mottatt).also {
+private fun JdbcTransaction.publishAndFinalize(mottatt: EventData) =
+    EventQueue.publishInTx(mottatt).also {
         EventQueue.finalize(it.id)
     }
 

@@ -149,7 +149,8 @@ domeneegenskap: `EventData.aggregateRootId` er `String` (ikke `String?`), så al
 Nullbarheten i databasen er utelukkende et migreringsartefakt og fjernes i [P6](#p6--stramme-inn-til-not-null).
 
 Alle historiske event-typer er deriverbare fra payload (se mapping-tabellen), så vi forventer 0 gjenstående
-`NULL`-rader etter backfill. `foo`/`bar` finnes kun i tester.
+`NULL`-rader etter backfill. `Foo` og `Bar` er fjernet fra modellen, og ble aldri publisert i prod — skulle det
+ligge rester av dem i dev, dukker de opp som `uderiverbare` i måle-spørringen i [P0](#p0--måling).
 
 ### D5 — DDL i Flyway, backfill i applikasjonen
 
@@ -193,73 +194,106 @@ Merk hva dette betyr for planen: alternativet er å *dokumentere og teste* at Ex
 leve med at garantien er usynlig på kallstedet. Å dele `publish` i to gjør spørsmålet irrelevant i stedet for å måtte
 besvares.
 
-#### Løsning: to metoder, der den ene ikke kompilerer i feil kontekst
+#### Løsning: to metoder på `EventQueue`, én per transaksjonssemantikk
 
 ```kotlin
 object EventQueue {
+
     /**
      * Publiserer eventet i en NY transaksjon.
      *
-     * Bruk denne kun når kalleren ikke selv har en transaksjon — typisk fra route-handlere som
-     * ikke skriver noe annet. Trenger publiseringen å være atomisk med annet arbeid, er det en
-     * feil å bruke denne: bruk [publishInCurrentTransaction].
+     * Bruk denne når kalleren ikke selv har en transaksjon — typisk fra route-handlere som ikke
+     * skriver noe annet. Skal publiseringen være atomisk med annet arbeid, er det en feil å bruke
+     * denne: bruk [publishInTx].
      */
-    fun publishInNewTransaction(ev: EventData): QueuedEvent {
+    fun publish(ev: EventData): QueuedEvent {
         require(TransactionManager.currentOrNull() == null) {
-            "publishInNewTransaction() ble kalt inne i en pågående transaksjon. " +
-                "Bruk publishInCurrentTransaction() hvis publiseringen skal være atomisk med kallerens arbeid."
+            "EventQueue.publish() åpner egen transaksjon, men ble kalt inne i en pågående transaksjon. " +
+                "Bruk publishInTx(ev) hvis publiseringen skal være atomisk med kallerens arbeid."
         }
-        return transaction { publishInCurrentTransaction(ev) }
+        return transaction { insertEvent(ev) }
     }
-}
 
-/**
- * Publiserer eventet i kallerens pågående transaksjon — commiter og rulles tilbake med den.
- *
- * Receiveren er ikke dekorasjon: den er håndhevelsen. Funksjonen finnes ikke utenfor en
- * transaction { }-blokk, så det er umulig å kalle den og tro at man har fått atomisitet.
- */
-fun JdbcTransaction.publishInCurrentTransaction(ev: EventData): QueuedEvent =
-    QueuedEvents.insertReturning {
-        it[eventData] = ev
-        it[aggregateRootId] = ev.aggregateRootId
-    }.first().tilQueuedEvent()
+    /**
+     * Publiserer eventet i kallerens pågående transaksjon — commiter og rulles tilbake med den.
+     */
+    fun publishInTx(ev: EventData): QueuedEvent {
+        require(TransactionManager.currentOrNull() != null) {
+            "publishInTx() må kalles inne i en pågående transaksjon."
+        }
+        return insertEvent(ev)
+    }
+
+    private fun insertEvent(ev: EventData): QueuedEvent =
+        QueuedEvents.insertReturning {
+            it[eventData] = ev
+        }.first().tilQueuedEvent()
+}
 ```
 
 Egenskapene som gjør dette verdt å gjøre nå, mens vi likevel er inne i alle kallstedene:
 
-* **Feil kontekst kompilerer ikke.** `publishInCurrentTransaction` krever en `JdbcTransaction` som receiver. Utenfor
-  en `transaction { }`-blokk finnes ingen slik receiver, og kallet er en kompileringsfeil — ikke en subtil
-  atomisitets-bug.
-* **Motsatt feil fanges ved kjøring.** `require` i `publishInNewTransaction` gjør det umulig å ved uhell få
-  «egen transaksjon»-semantikk der man faktisk er inne i en. Dette er bevisst en hard feil framfor en stille: den
-  slår ut i første test som treffer kallveien, og alle publiseringsveiene har testdekning.
-* **Én implementasjon av selve inserten.** `publishInNewTransaction` delegerer til
-  `publishInCurrentTransaction`, så det finnes ett sted som setter `event_json` og `aggregate_root_id`.
-* **Kallstedet dokumenterer intensjonen.** Navnet sier hvilken garanti man får, i stedet for at leseren må vite hva
-  Exposed gjør med nøstede kall.
+* **Begge veiene ligger på `EventQueue`.** Ett sted å slå opp, én import, og `event/README.md` kan beskrive
+  publisering samlet. Køens API hører til køens objekt.
+* **`publish` beholder navn og signatur.** De fire kallstedene som allerede brukte den riktig endres ikke med et
+  tegn. Å døpe om det vanlige, korrekte tilfellet uten at oppførselen endrer seg er ren churn.
+* **Begge feilene er dekket, symmetrisk.** `publish` krever at det *ikke* finnes en pågående transaksjon;
+  `publishInTx` krever at den innsendte *er* den pågående. Identitetssjekken (`===`) fanger også en transaksjon
+  fanget fra et annet scope.
+* **Én implementasjon av inserten.** `insertEvent` er privat, og blir det eneste stedet i kodebasen som skriver en
+  rad til `event_queue`.
+* **`this` fungerer overalt.** Alle åtte kallstedene som skal ha `publishInTx` ligger direkte i
+  `transaction(database) { }`-lambdaen, eller inne i et `let` som ikke rebinder `this` — ingen trenger
+  `val tx = this`. Et feil `this` blir en typefeil, ikke en stille bug.
+
+#### Prisen: runtime-sjekk framfor kompileringsfeil
+
+Dette skal stå eksplisitt, for det er den ene tingen designet gir opp.
+
+I dagens kode *virker* `publish` kalt fra inne i en transaksjon — den joiner. Etter endringen kaster den. Det er
+hele poenget, men det betyr at et kallsted vi glemmer å migrere går fra «stille korrekt» til
+`IllegalArgumentException` — og **kompilatoren hjelper oss ikke**, fordi begge funksjonene finnes og begge
+kompilerer på hvert kallsted.
+
+Alternativet som lukker dette er `fun JdbcTransaction.publishInTx(ev)` som receiver-extension: da er en glemt
+migrering en kompileringsfeil, og Kotlins implisitte receiver-oppslag gjør at `this` ikke må skrives. Men en member
+extension krever `EventQueue` i scope (`with(EventQueue) { … }`), så funksjonen må ligge som toppnivå-funksjon
+*utenfor* objektet. Halve publiserings-API-et havner da et annet sted enn køen, med egen import i åtte filer, og det
+vanlige tilfellet må døpes om (`publishInNewTransaction`) for å unngå navnekollisjon.
+
+Med tolv kallsteder, alle greppbare på ett navn, og testdekning på hver publiseringsvei, er runtime-sjekken en
+akseptabel pris for et API som ligger samlet og som ikke rører det som allerede var riktig. Migreringen må til
+gjengjeld være uttømmende — se akseptansekriteriene i [P1](#p1--forutsetning-eventqueue-grensesnittet).
+
+**Vurdert og forkastet:** ett inngangspunkt med valgfri transaksjon,
+`publish(ev: EventData, tx: JdbcTransaction? = null)`. Uten `require` er den farligste feilen — kalleren står i en
+transaksjon og glemmer argumentet — fortsatt stille korrekt via Exposeds joining, altså status quo med et parameter
+påklistret. Med `require` i default-grenen er den like sterk som løsningen over, men signaturen inviterer kalleren
+til ikke å tenke, og «default = ny transaksjon» er en usannhet i nettopp det tilfellet som betyr noe.
+
+**Vurdert og utsatt:** `context(tx: JdbcTransaction)` i stedet for parameter. Semantisk mest presist, men
+context-parametre er ferske i Kotlin og gir ingen praktisk gevinst her.
 
 Merk: `JdbcTransaction` er typen på `transaction { }`-blokkens receiver i Exposed 1.0 (den het `Transaction` i 0.x).
 Eksakt navn og pakke bekreftes mot `1.0.0-rc-2` når koden skrives — det endrer ikke designet, bare importen.
 
-**Vurdert og forkastet:** å kalle begge `publish` (én member, én extension). Overload-oppløsning ville avhengt av
-hvilke importer som var i scope, og det er den typen tvetydighet vi nettopp forsøker å bli kvitt.
-
-**Vurdert og utsatt:** `context(tx: JdbcTransaction)` i stedet for receiver. Semantisk mer presist, men
-context-parametre er ferske i Kotlin og gir ingen praktisk gevinst her.
-
 #### Migrering av kallstedene
 
-Åtte kall til `publishInCurrentTransaction` (tre Arena-prosessorer + de fem tidligere direkte innsettingene) og fire
-til `publishInNewTransaction` (`TilsagnDataApi`). Ingen av dem endrer oppførsel: alle åtte kjørte allerede i
-kallerens transaksjon, og alle fire i sin egen. Endringen gjør bare det som skjedde implisitt, eksplisitt — men fra
-og med nå kan ingen av dem havne i feil kategori uten at kompilatoren eller en `require` sier fra.
+| Kallsteder                    | Før                                          | Etter                              |
+|-------------------------------|----------------------------------------------|------------------------------------|
+| 3 Arena-prosessorer           | `EventQueue.publish(ev)` inne i transaksjon  | `EventQueue.publishInTx(ev, this)` |
+| 5 tidligere direkte inserts   | `QueuedEvents.insert { it[eventData] = … }`  | `EventQueue.publishInTx(ev, this)` |
+| 4 i `TilsagnDataApi`          | `EventQueue.publish(ev)` utenfor transaksjon | `EventQueue.publish(ev)` — uendret |
+
+Ingen av dem endrer oppførsel: alle åtte kjørte allerede i kallerens transaksjon, og alle fire i sin egen. Endringen
+gjør bare det som skjedde implisitt, eksplisitt.
 
 #### Hvordan «eneste vei inn» håndheves
 
 Tre lag, i økende styrke:
 
-1. **KDoc på `QueuedEvents`:** «skriv aldri til denne tabellen direkte — bruk `EventQueue`». Tabellen forblir
+1. **KDoc på `QueuedEvents`:** «skriv aldri til denne tabellen direkte — bruk `EventQueue.publish` eller
+   `EventQueue.publishInTx`». Tabellen forblir
    offentlig fordi `AppMetrics` og `EventManager.cleanupFinalizedEvents` leser fra den.
 2. **Test som skanner kildekoden:** feiler hvis `QueuedEvents.insert`, `.insertReturning` eller `.upsert` finnes i
    `src/main` utenfor `EventQueue.kt`. Krever ingen nye avhengigheter, og fanger en ny bypass i PR-en som innfører
@@ -275,8 +309,8 @@ To presiseringer om lag 3:
   kø-rader), og `event_log` skrives kun av `finalize`. I vinduet P3–P6 er det altså lag 1 og 2 som bærer — og de
   er allerede på plass, siden [P1](#p1--forutsetning-eventqueue-grensesnittet) kommer først.
 * **Det håndhever ikke hvilken metode som brukes**, bare at raden er riktig — en bypass som setter begge kolonnene
-  korrekt passerer. Det er akseptabelt: det er radens innhold som betyr noe. Atomisiteten er det receiveren og
-  `require` tar seg av.
+  korrekt passerer. Det er akseptabelt: det er radens innhold som betyr noe. Atomisiteten er det de to
+  `require`-ene tar seg av.
 
 #### Vurdert: full innkapsling av tabellen
 
@@ -318,7 +352,6 @@ en egen leveranse — se [P7](#p7--oppfølging).
 | `tilskuddsbrevMottattKildeAltinn`   | tilsagn              | `tilsagnData.aggregateRootId`             | `concat_ws(':', aar, loepenrSak, loepenrTilsagn)`       |
 | `tilskuddsbrevJournalfoertKildeAltinn` | tilsagn           | `tilsagnData.aggregateRootId`             | `concat_ws(':', aar, loepenrSak, loepenrTilsagn)`       |
 | `tilskuddsbrevVist`                 | søknad, ellers tilsagn | `soknad?.aggregateRootId ?: tilsagnNummer` | `coalesce(->'soknad'->>'id', ->>'tilsagnNummer')`     |
-| `foo`, `bar`                        | kun test             | `"test:$fooName"` / `"test:$barName"`     | ingen — forventes ikke i prod                           |
 
 Merk to fallgruver:
 
@@ -423,23 +456,29 @@ migrering og ingen ny kolonne — bare refaktoreringen fra [D6](#d6--to-eksplisi
 
 #### Innhold
 
-1. Splitt `EventQueue.publish` i `JdbcTransaction.publishInCurrentTransaction(ev)` og
-   `EventQueue.publishInNewTransaction(ev)`, der sistnevnte delegerer til førstnevnte og har `require`-vakten.
-   I denne fasen setter innsettingen fortsatt bare `event_json` — kolonnen finnes ikke ennå.
-2. Flytt de tolv kallstedene til riktig variant (åtte i kallerens transaksjon, fire i egen), og fjern de fem direkte
-   `QueuedEvents.insert { ... }`.
+1. Legg til `EventQueue.publishInTx(ev, tx)` ved siden av dagens `EventQueue.publish(ev)`, begge med sin
+   `require`-vakt og med en felles privat `insertEvent(ev)`. `publish` beholder navn og signatur — den blir bare
+   streng om at den ikke kalles fra inne i en transaksjon. I denne fasen setter innsettingen fortsatt bare
+   `event_json`; kolonnen finnes ikke ennå.
+2. Flytt de åtte in-transaksjon-kallstedene til `publishInTx(ev, this)`, og fjern de fem direkte
+   `QueuedEvents.insert { ... }` i samme grep. De fire `TilsagnDataApi`-kallene står urørt.
 3. KDoc på `QueuedEvents`: skriv aldri til denne tabellen direkte.
 4. Legg til den kildekode-skannende testen (håndhevingslag 2).
-5. Legg til atomisitets-testene: `publishInCurrentTransaction` rulles tilbake med kallerens transaksjon,
-   `publishInNewTransaction` gjør det ikke, `require`-en slår ut ved feil bruk, og rollback av
-   `markerXSomBehandlet` ruller også tilbake publiseringen i Arena-prosessorene.
+5. Legg til atomisitets-testene: `publishInTx` rulles tilbake med kallerens transaksjon, `publish` gjør det ikke,
+   begge `require`-ene slår ut ved feil bruk, og rollback av `markerXSomBehandlet` ruller også tilbake
+   publiseringen i Arena-prosessorene.
 6. Oppdater `event/README.md` med det nye grensesnittet.
 
 #### Akseptansekriterier
 
 * Ingen `QueuedEvents.insert` / `.insertReturning` / `.upsert` i `src/main` utenfor `EventQueue.kt`.
+* **Migreringen er uttømmende.** Kompilatoren fanger ikke et glemt kallsted (se
+  [D6](#d6--to-eksplisitte-publiseringsmetoder-og-eventqueue-som-eneste-vei-inn-i-køen) — begge metodene kompilerer
+  overalt), så dette må verifiseres manuelt: `grep -rn "EventQueue.publish(" src/main` skal treffe nøyaktig de fire
+  `TilsagnDataApi`-kallene, og ingen av dem ligger inne i en `transaction { }`. Et glemt kallsted gir
+  `IllegalArgumentException` ved kjøring, ikke en stille bug — men det bør fanges i review.
 * Alle eksisterende tester grønne uten funksjonelle endringer — oppførselen skal være identisk før og etter.
-* De fire nye atomisitets-testene grønne.
+* De fem nye atomisitets-testene grønne (se [Testplan](#testplan)).
 * Deployet til dev og prod før P2 starter. P1 og P2 skal ikke ligge i samme PR.
 
 ### P2 — DDL (Flyway `V7`)
@@ -477,12 +516,12 @@ Feiler migreringen på `lock_timeout`: finn den blokkerende transaksjonen (`pg_s
 
 Kodeendringer:
 
-1. `EventData` får abstrakt `val aggregateRootId: String`; alle 13 subklasser implementerer den med getter etter
+1. `EventData` får abstrakt `val aggregateRootId: String`; alle 11 subklasser implementerer den med getter etter
    mapping-tabellen.
 2. `DTO.Soknad.aggregateRootId` og `TilsagnData.aggregateRootId` som extension properties.
 3. `QueuedEvents` og `EventLog` får `val aggregateRootId = text("aggregate_root_id").nullable()`.
-4. `publishInCurrentTransaction` får **én ny linje** — `it[aggregateRootId] = ev.aggregateRootId`. Dette er hele
-   skriveveis-endringen, fordi [P1](#p1--forutsetning-eventqueue-grensesnittet) allerede har gjort dette til det
+4. Den private `insertEvent` får **én ny linje** — `it[aggregateRootId] = ev.aggregateRootId`. Dette er hele
+   skriveveis-endringen, fordi [P1](#p1--forutsetning-eventqueue-grensesnittet) allerede har gjort den til det
    eneste innsettingsstedet.
 5. `EventQueue.finalize` kopierer verdien til loggen, med derivering som fallback for rader som ble lagt i køen
    *før* denne deployen:
@@ -498,7 +537,7 @@ Kodeendringer:
 6. `QueuedEvent` og `LoggedEvent` får feltet `aggregateRootId: String?` lest fra kolonnen (ikke fra payload — for
    backfillede rader er kolonnen det vi faktisk har lagret).
 7. `Event<T>` får `val aggregateRootId get() = data.aggregateRootId` som bekvemmelighet for handlers.
-8. Tester som setter inn events direkte (`AppMetricsTest`) oppdateres; `foo`/`bar` får sin derivering.
+8. Tester som setter inn events direkte (`AppMetricsTest`) oppdateres.
 
 `V8__aggregate_root_id_not_null_check.sql` — låser invarianten for nye logg-rader umiddelbart, uten å bry seg om
 historiske rader:
@@ -788,7 +827,7 @@ alle event-typene i mapping-tabellen.
 
 **Deriveringen** ga korrekt verdi for alle typer, inkludert de tre fallgruvene: `tilskuddsbrevVist` med
 `"soknad": null` faller korrekt gjennom til `tilsagnNummer`, `tilskuddsbrevMottatt` med både `soknad` og
-`tilsagnData` velger søknaden, og `foo` gir `NULL` som forventet.
+`tilsagnData` velger søknaden, og en payload uten deriverbare felt gir `NULL` som forventet.
 
 **`NOT VALID`-constraint på `event_queue` ble bekreftet å være farlig** — dette er ikke teori:
 
@@ -827,9 +866,10 @@ Sortert på fase, slik at hver PR har sin egen liste.
 | Fase | Nivå        | Test                                                                                                   |
 |------|-------------|--------------------------------------------------------------------------------------------------------|
 | P1   | Statisk     | Kildekode-skann: `QueuedEvents.insert` / `.insertReturning` / `.upsert` finnes ikke i `src/main` utenfor `EventQueue.kt` |
-| P1   | Integrasjon | `publishInCurrentTransaction` rulles tilbake med kallerens transaksjon — publiser i en `transaction` som rulles tilbake, verifiser at raden ikke finnes |
-| P1   | Integrasjon | `publishInNewTransaction` overlever kallerens rollback — dvs. den *er* en egen transaksjon               |
-| P1   | Integrasjon | `publishInNewTransaction` kalt inne i en transaksjon feiler på `require` med forklarende melding         |
+| P1   | Integrasjon | `publishInTx` rulles tilbake med kallerens transaksjon — publiser i en `transaction` som rulles tilbake, verifiser at raden ikke finnes |
+| P1   | Integrasjon | `publish` commiter i sin egen transaksjon, uavhengig av kalleren                                        |
+| P1   | Integrasjon | `publish` kalt inne i en transaksjon feiler på `require`, med melding som peker på `publishInTx`        |
+| P1   | Integrasjon | `publishInTx` med en annen transaksjon enn den pågående feiler på `require`                             |
 | P1   | Integrasjon | Arena-prosessorene: rollback av `markerXSomBehandlet` ruller også tilbake publiseringen (atomisiteten de hviler på) |
 | P2   | Migrering   | `V7` kjører rent på tom base og på base med eksisterende rader; kolonnen er nullbar                     |
 | P3   | Enhet       | For hver `EventData`-subklasse: derivering gir forventet verdi, og aldri blank                          |
@@ -874,7 +914,7 @@ Ingen fase gjør destruktive endringer på `event_json`, så event-loggen er ald
 ## Sjekkliste
 
 - [ ] P0: kjørt måle-spørringene i prod, `uderiverbare = 0` for alle typer, batch-parametre valgt
-- [ ] P1: de to publiseringsmetodene, tolv kallsteder flyttet, kildekode-skann + atomisitets-tester grønne, deployet dev → prod
+- [ ] P1: `publish` + `publishInTx` på plass, åtte kallsteder flyttet, kildekode-skann + atomisitets-tester grønne, deployet dev → prod
 - [ ] P2: `V7` deployet til dev, så prod
 - [ ] P3: modell + `finalize`-fallback + `V8`, alle tester grønne, deployet dev → prod
 - [ ] P4: backfill kjørt ferdig i dev, verifisert, deretter prod; logg viser `completed_at`

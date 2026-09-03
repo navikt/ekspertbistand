@@ -81,11 +81,11 @@ class ArenaTiltakssakEndretProcessor(
             }?.let { soknad ->
                 val ikkeTidligereBehandlet = markerTiltakssakEndretMeldingSomBehandlet(endring.sakId)
                 if (ikkeTidligereBehandlet) {
-                    EventQueue.publish(
+                    EventQueue.publishInTx(
                         EventData.SaksbehandlingStartetIArena(
                             soknad = soknad,
                             tiltakssakEndret = endring,
-                        )
+                        ),
                     )
                 }
             }

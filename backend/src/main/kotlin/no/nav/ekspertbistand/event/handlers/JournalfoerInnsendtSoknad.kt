@@ -20,7 +20,6 @@ import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
 import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
 import no.nav.ekspertbistand.soknad.DTO
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.reflect.KClass
 
@@ -98,14 +97,14 @@ class JournalfoerInnsendtSoknad(
             ?: return unrecoverableError("DokArkiv mangler gyldig journalpostId")
 
         transaction(database) {
-            QueuedEvents.insert {
-                it[eventData] = EventData.InnsendtSoknadJournalfoert(
+            EventQueue.publishInTx(
+                EventData.InnsendtSoknadJournalfoert(
                     soknad = soknad,
                     dokumentId = dokumentInfoId,
                     journaldpostId = journalpostId,
                     behandlendeEnhetId = behandlendeEnhet
-                )
-            }
+                ),
+            )
         }
 
         idempotencyGuard.guard(event, publiserJournalpostEventSubtask)
