@@ -176,7 +176,7 @@
             <!-- brukes av flyway -->
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.2</version>
+            <version>42.7.13</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.exposed</groupId>
@@ -217,7 +217,7 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
-            <version>3.9.1</version>
+            <version>3.9.2</version>
         </dependency>
 
         <dependency>
