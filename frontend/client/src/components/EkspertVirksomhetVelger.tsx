@@ -42,7 +42,14 @@ export function EkspertVirksomhetVelger({
     [organisasjoner]
   );
 
-  const selectedOptions = value ? [value] : [];
+  /**
+   * Combobox sammenligner valgt verdi mot [value] i options-listen, som her er
+   * organisasjonsnummeret. Sendes fritekstverdien inn som en ren streng, blir den
+   * aldri gjenkjent som valgt (og et nytt klikk på treffet velger det på nytt i
+   * stedet for å fjerne det).
+   */
+  const valgtOrgnr = value.match(/\((\d{9})\)\s*$/)?.[1];
+  const selectedOptions = value ? [{ label: value, value: valgtOrgnr ?? value }] : [];
 
   return (
     <UNSAFE_Combobox
@@ -50,10 +57,17 @@ export function EkspertVirksomhetVelger({
       label={label}
       description={description}
       options={options}
+      /**
+       * Søket gjøres i Ereg. Uten [filteredOptions] filtrerer Combobox treffene på
+       * nytt internt, med et enkelt «label.includes(det du har skrevet)». Da forsvinner
+       * gyldige treff der Ereg matcher annerledes enn ren delstreng (annen ordstilling,
+       * doble mellomrom i sammensattnavn, treff på tidligere navn), og listen blir tom
+       * eller henger igjen på forrige søk mens man skriver.
+       */
+      filteredOptions={options}
       selectedOptions={selectedOptions}
       isLoading={isLoading}
-      shouldAutocomplete
-      onChange={(value) => setSokeord(value ?? "")}
+      onChange={(sok) => setSokeord(sok ?? "")}
       onToggleSelected={(option, isSelected) => {
         if (!isSelected) {
           onChange(null);

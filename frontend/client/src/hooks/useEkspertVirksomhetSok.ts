@@ -26,19 +26,27 @@ const useDebouncedValue = <T,>(value: T, delayMs: number): T => {
 };
 
 export const useEkspertVirksomhetSok = (navn: string) => {
-  const debouncedNavn = useDebouncedValue(navn.trim(), DEBOUNCE_MS);
+  const sokeord = navn.trim();
+  const debouncedNavn = useDebouncedValue(sokeord, DEBOUNCE_MS);
   const shouldFetch = debouncedNavn.length >= MIN_SOK_LENGDE;
 
   const { data, error, isLoading } = useSWR<OrganisasjonSok[]>(
     shouldFetch
       ? `${EKSPERTBISTAND_EREG_ORGANISASJONER_PATH}?navn=${encodeURIComponent(debouncedNavn)}`
       : null,
-    fetchOrganisasjoner
+    fetchOrganisasjoner,
+    // Uten keepPreviousData blir data undefined i det nøkkelen endres, slik at
+    // trefflisten kollapser til tom mellom hvert søk.
+    { keepPreviousData: true, revalidateOnFocus: false }
   );
 
   return {
-    organisasjoner: data ?? [],
-    isLoading: shouldFetch && isLoading,
+    // keepPreviousData beholder treff også etter at søkeordet er blitt for kort,
+    // så nullstill eksplisitt når vi ikke søker.
+    organisasjoner: shouldFetch ? (data ?? []) : [],
+    // Marker også debounce-vinduet som lasting, ellers vises forrige søks treff
+    // som om de var ferdige resultater for det man nettopp skrev.
+    isLoading: shouldFetch && (isLoading || sokeord !== debouncedNavn),
     error,
   };
 };
