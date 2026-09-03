@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.EventQueue
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.logger
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -272,7 +272,7 @@ class SoknadApi(
                 UtkastTable.deleteWhere { UtkastTable.id eq idParam }
             }
 
-            EventQueue.publishInTx(EventData.SoknadInnsendt(opprettet))
+            publishEventQueue(EventData.SoknadInnsendt(opprettet))
 
             opprettet
         }

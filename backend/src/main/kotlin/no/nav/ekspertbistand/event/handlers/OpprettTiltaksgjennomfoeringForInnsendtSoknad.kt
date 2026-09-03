@@ -40,7 +40,7 @@ class OpprettTiltaksgjennomfoeringForInnsendtSoknad(
                 tiltaksgjennomfoeringId,
                 soknad
             )
-            EventQueue.publishInTx(
+            publishEventQueue(
                 EventData.TiltaksgjennomforingOpprettet(
                     soknad,
                     saksnummer,

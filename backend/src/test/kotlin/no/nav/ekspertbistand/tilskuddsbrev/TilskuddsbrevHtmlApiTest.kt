@@ -15,6 +15,8 @@ import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
 import no.nav.ekspertbistand.soknad.SoknadStatus
@@ -25,6 +27,7 @@ import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
@@ -113,6 +116,19 @@ class TilskuddsbrevHtmlApiTest {
                 assertEquals("1337:42:43", tilskuddsbrev.tilsagnNummer)
                 assertEquals("<html>Mock tilskuddsbrev</html>", tilskuddsbrev.html)
             }
+        }
+
+        // Regresjon (P1): begge endepunktene publiserer fortsatt TilskuddsbrevVist etter at
+        // publiseringen fikk sin egen transaksjon.
+        transaction(testDb.config.jdbcDatabase) {
+            val tilskuddsbrevVist = QueuedEvents.selectAll()
+                .map { it[QueuedEvents.eventData] }
+                .filterIsInstance<EventData.TilskuddsbrevVist>()
+            assertEquals(
+                2,
+                tilskuddsbrevVist.size,
+                "html-for-soknad og html-for-tilsagnnummer skal begge publisere TilskuddsbrevVist"
+            )
         }
     }
 

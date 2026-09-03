@@ -6,7 +6,7 @@ import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
-import no.nav.ekspertbistand.event.EventQueue
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -35,7 +35,7 @@ class LagreTilsagnsData(
                 insertTilsagndata(UUID.fromString(soknadId), tilsagnData)
                 logger.info("Lagret tilsagndata for soknad med id $soknadId")
 
-                EventQueue.publishInTx(
+                publishEventQueue(
                     EventData.TilsagnsdataLagret(
                         soknad = event.data.soknad,
                         tilsagnData = event.data.tilsagnData

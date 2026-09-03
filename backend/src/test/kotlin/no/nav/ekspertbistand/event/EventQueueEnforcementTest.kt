@@ -32,8 +32,8 @@ class EventQueueEnforcementTest {
 
         if (brudd.isNotEmpty()) {
             fail(
-                "Skriv aldri til QueuedEvents direkte — bruk EventQueue.publish " +
-                    "eller EventQueue.publishInTx. Fant:\n" + brudd.joinToString("\n")
+                "Skriv aldri til QueuedEvents direkte — bruk publishEventQueue(ev) " +
+                    "inne i en transaksjon. Fant:\n" + brudd.joinToString("\n")
             )
         }
     }

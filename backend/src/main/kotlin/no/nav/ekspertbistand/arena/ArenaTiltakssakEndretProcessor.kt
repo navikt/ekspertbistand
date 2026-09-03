@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.EventQueue
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.soknad.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -81,7 +81,7 @@ class ArenaTiltakssakEndretProcessor(
             }?.let { soknad ->
                 val ikkeTidligereBehandlet = markerTiltakssakEndretMeldingSomBehandlet(endring.sakId)
                 if (ikkeTidligereBehandlet) {
-                    EventQueue.publishInTx(
+                    publishEventQueue(
                         EventData.SaksbehandlingStartetIArena(
                             soknad = soknad,
                             tiltakssakEndret = endring,
