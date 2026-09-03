@@ -84,7 +84,7 @@ class JournalfoerTilskuddsbrev(
             ?: return unrecoverableError("DokArkiv mangler gyldig journalpostId")
 
         transaction(database) {
-            EventQueue.publishInTx(
+            publishEventQueue(
                 EventData.TilskuddsbrevJournalfoert(
                     soknad = soknad,
                     dokumentId = dokumentInfoId,

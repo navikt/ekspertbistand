@@ -97,7 +97,7 @@ class JournalfoerInnsendtSoknad(
             ?: return unrecoverableError("DokArkiv mangler gyldig journalpostId")
 
         transaction(database) {
-            EventQueue.publishInTx(
+            publishEventQueue(
                 EventData.InnsendtSoknadJournalfoert(
                     soknad = soknad,
                     dokumentId = dokumentInfoId,
