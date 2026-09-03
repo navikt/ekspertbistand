@@ -6,11 +6,10 @@ import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
-import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.EventQueue
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
 
@@ -36,12 +35,12 @@ class LagreTilsagnsData(
                 insertTilsagndata(UUID.fromString(soknadId), tilsagnData)
                 logger.info("Lagret tilsagndata for soknad med id $soknadId")
 
-                QueuedEvents.insert {
-                    it[eventData] = EventData.TilsagnsdataLagret(
+                EventQueue.publishInTx(
+                    EventData.TilsagnsdataLagret(
                         soknad = event.data.soknad,
                         tilsagnData = event.data.tilsagnData
-                    )
-                }
+                    ),
+                )
 
                 success()
             }

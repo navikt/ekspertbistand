@@ -6,6 +6,20 @@ Durable, at-least-once event processing using a relational database queue and lo
 - Use `EventQueue` to publish events and manage their lifecycle.
 - Use `EventManager` to process events from the queue, dispatching them to registered handlers.
 
+### Publisering — to eksplisitte metoder
+
+Køen har nøyaktig to veier inn, begge på `EventQueue`, og du skal aldri skrive til `event_queue`/`QueuedEvents` direkte:
+
+- `EventQueue.publish(ev): QueuedEvent` — åpner en **ny** transaksjon. Bruk denne når kalleren ikke selv
+  har en transaksjon (typisk fra route-handlere som ikke skriver noe annet). Kalles den inne i en pågående
+  transaksjon, feiler den med en `require` — det er en programmeringsfeil.
+- `EventQueue.publishInTx(ev, tx): QueuedEvent` — publiserer i **kallerens** pågående transaksjon, og
+  commiter/rulles tilbake med den. `tx` er transaksjonen kalleren står i; inne i en `transaction { }`-blokk
+  er det `this`. En `require` sjekker at `tx` faktisk er den pågående transaksjonen på tråden — parameteret
+  ruter ingenting (Exposed henter transaksjonen fra en thread-local), det er en påstand som sjekkes. Bruk
+  denne når publiseringen skal være atomisk med annet arbeid (f.eks. å markere en Kafka-melding som
+  behandlet i samme transaksjon).
+
 ## Overview
 
 - QueuedEvents are stored in the `event_queue` table.
@@ -15,7 +29,7 @@ Durable, at-least-once event processing using a relational database queue and lo
 
 ## Lifecycle
 
-- `publish(event: Event)`: Insert into `events` with status PENDING, attempts=0.
+- `publish(ev: EventData)` / `publishInTx(ev: EventData, tx: JdbcTransaction)`: Insert into `event_queue` with status PENDING, attempts=0. Se «Publisering — to eksplisitte metoder» over.
 - `poll(clock: Clock = Clock.System): QueuedEvent?`: Atomically select the next eligible row and mark it PROCESSING, incrementing attempts.
   - Eligibility: status = PENDING, or status = PROCESSING and `updated_at` older than the abandonment timeout.
   - Uses `FOR UPDATE SKIP LOCKED` so only one process acquires a row.
@@ -35,7 +49,7 @@ sequenceDiagram
     participant H as EventHandlers
     participant L as Event Log
 
-    P->>Q: publish(event)
+    P->>Q: publish(event) / publishInTx(event, this)
     Note over Q: events += {status: PENDING, attempts: 0}
 
     M->>Q: poll()
@@ -77,7 +91,7 @@ sequenceDiagram
 
 ## API (Kotlin)
 
-- `publish(event: Event): QueuedEvent` 
+- `publish(ev: EventData): QueuedEvent` / `publishInTx(ev: EventData, tx: JdbcTransaction): QueuedEvent`
 - `poll(clock: Clock = Clock.System): QueuedEvent?`  // non-blocking; returns null if none
 - `finalize(id: Long, errorResults: List<EventHandledResult.Error> = emptyList())`
 

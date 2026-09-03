@@ -6,6 +6,7 @@ import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
+import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelse.Companion.tilSoknadBehandletForsinkelse
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.soknad.DTO
@@ -125,8 +126,8 @@ class SoknadBehandletForsinkelseProjectionTest {
 
 }
 
-private fun publishAndFinalize(mottatt: EventData) =
-    EventQueue.publish(mottatt).also {
+private fun JdbcTransaction.publishAndFinalize(mottatt: EventData) =
+    EventQueue.publishInTx(mottatt).also {
         EventQueue.finalize(it.id)
     }
 

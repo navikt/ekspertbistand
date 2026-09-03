@@ -8,6 +8,7 @@ import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.MODE.SKI
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.*
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.json.json
 import kotlin.time.Clock
@@ -24,7 +25,7 @@ import kotlin.time.ExperimentalTime
  * - finalize: Mark an event as completed or failed, move it to the event log, and remove from the queue.
  *
  * Event lifecycle:
- * 1. publish(Event) -> Event is stored in the queue (Events table).
+ * 1. publish(ev) / publishInTx(ev, tx) -> Event is stored in the queue (Events table).
  * 2. poll() -> Fetches the next PENDING (or abandoned) event and marks it PROCESSING.
  * 3. finalize(id, success) -> Moves event to EventLog table as COMPLETED or FAILED, deletes from queue.
  *
@@ -33,20 +34,48 @@ import kotlin.time.ExperimentalTime
  * - finalize is idempotent: if event is already moved to log, does nothing.
  *
  * Usage:
+ *   // Uten egen transaksjon (typisk fra route-handler):
  *   EventQueue.publish(event)
+ *   // Atomisk med kallerens arbeid:
+ *   transaction { EventQueue.publishInTx(event, this) }
  *   val event = EventQueue.poll()
  *   EventQueue.finalize(event.id, success)
  *
- * [EventQueue.publish] is used to add new events to the queue.
+ * Publisering skjer via [EventQueue.publish] eller [EventQueue.publishInTx] — dette er de eneste
+ * veiene inn i køen. Skriv aldri til [QueuedEvents] direkte.
  */
 object EventQueue {
     val abandonedTimeout = 1.minutes
 
-    fun publish(ev: EventData) = transaction {
+    /**
+     * Publiserer eventet i en NY transaksjon.
+     *
+     * Bruk denne når kalleren ikke selv har en transaksjon — typisk fra route-handlere som ikke
+     * skriver noe annet. Skal publiseringen være atomisk med annet arbeid, er det en feil å bruke
+     * denne: bruk [publishInTx].
+     */
+    fun publish(ev: EventData): QueuedEvent {
+        require(TransactionManager.currentOrNull() == null) {
+            "EventQueue.publish() åpner egen transaksjon, men ble kalt inne i en pågående transaksjon. " +
+                "Bruk EventQueue.publishInTx(ev) hvis publiseringen skal være atomisk med kallerens arbeid."
+        }
+        return transaction { insertEvent(ev) }
+    }
+
+    /**
+     * Publiserer eventet i kallerens pågående transaksjon — commiter og rulles tilbake med den.
+     */
+    fun publishInTx(ev: EventData): QueuedEvent {
+        require(TransactionManager.currentOrNull() != null) {
+            "publishInTx() må kalles inne i en pågående transaksjon."
+        }
+        return insertEvent(ev)
+    }
+
+    private fun insertEvent(ev: EventData): QueuedEvent =
         QueuedEvents.insertReturning {
             it[eventData] = ev
         }.first().tilQueuedEvent()
-    }
 
 
     /**
@@ -134,6 +163,14 @@ object EventQueue {
 
 
 
+/**
+ * Underliggende tabell for [EventQueue].
+ *
+ * Skriv aldri til denne tabellen direkte — bruk [EventQueue.publish] eller [EventQueue.publishInTx].
+ * Tabellen er offentlig fordi lesere som `AppMetrics` og `EventManager.cleanupFinalizedEvents` trenger
+ * tilgang, men enhver innsetting skal gå gjennom publiseringsmetodene slik at køens invarianter
+ * håndheves ett sted.
+ */
 @OptIn(ExperimentalTime::class)
 object QueuedEvents : Table("event_queue") {
     val id = long("id").autoIncrement()

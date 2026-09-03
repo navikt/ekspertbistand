@@ -13,7 +13,6 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableErr
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.reflect.KClass
 
@@ -85,14 +84,14 @@ class JournalfoerTilskuddsbrev(
             ?: return unrecoverableError("DokArkiv mangler gyldig journalpostId")
 
         transaction(database) {
-            QueuedEvents.insert {
-                it[eventData] = EventData.TilskuddsbrevJournalfoert(
+            EventQueue.publishInTx(
+                EventData.TilskuddsbrevJournalfoert(
                     soknad = soknad,
                     dokumentId = dokumentInfoId,
                     journaldpostId = journalpostId,
                     tilsagnData = event.data.tilsagnData,
-                )
-            }
+                ),
+            )
         }
         idempotencyGuard.guard(event, publiserJournalpostEventSubtask)
         return success()
