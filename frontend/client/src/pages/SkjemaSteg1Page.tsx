@@ -19,7 +19,8 @@ import { FORM_COLUMN_STYLE } from "../styles/forms";
 import type { SoknadInputs } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { VirksomhetVelger } from "../components/VirksomhetVelger.tsx";
-import { EkspertVirksomhetVelger, formaterVirksomhet } from "../components/EkspertVirksomhetVelger.tsx";
+import { EkspertVirksomhetVelger } from "../components/EkspertVirksomhetVelger.tsx";
+import { formaterVirksomhet } from "../components/formaterVirksomhet.ts";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { useErrorFocus } from "../hooks/useErrorFocus";
 import { BackLink } from "../components/BackLink";
@@ -218,7 +219,7 @@ export default function SkjemaSteg1Page() {
                     description="Søk på virksomhet og velg fra listen."
                     value={field.value ?? ""}
                     onChange={(organisasjon) => {
-                      field.onChange(formaterVirksomhet(organisasjon?.navn, organisasjon?.orgnr))
+                      field.onChange(formaterVirksomhet(organisasjon?.navn, organisasjon?.orgnr));
                       setValue("ekspert.virksomhetNavn", organisasjon?.navn ?? null, {
                         shouldDirty: true,
                       });

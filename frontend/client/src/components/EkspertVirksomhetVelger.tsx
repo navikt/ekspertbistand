@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { UNSAFE_Combobox } from "@navikt/ds-react";
 import { useEkspertVirksomhetSok } from "../hooks/useEkspertVirksomhetSok";
+import { formaterVirksomhet } from "./formaterVirksomhet";
 
 type EkspertVirksomhetVelgerProps = {
   label: React.ReactNode;
@@ -13,14 +14,6 @@ type EkspertVirksomhetVelgerProps = {
    */
   onChange: (organisasjon: { navn: string; orgnr: string } | null) => void;
   error?: React.ReactNode;
-};
-
-/** Beriker fritekstfeltet med navn + organisasjonsnummer, f.eks. «Ekspert & Co AS (910825226)». */
-export const formaterVirksomhet = (navn: string | null, orgnr: string | null) => {
-  if (navn == null || orgnr == null) {
-    return "";
-  }
-  return `${navn} (${orgnr})`;
 };
 
 export function EkspertVirksomhetVelger({
@@ -50,6 +43,7 @@ export function EkspertVirksomhetVelger({
       label={label}
       description={description}
       options={options}
+      filteredOptions={options}
       selectedOptions={selectedOptions}
       isLoading={isLoading}
       shouldAutocomplete
