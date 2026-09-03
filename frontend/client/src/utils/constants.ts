@@ -52,6 +52,10 @@ export const EKSPERTBISTAND_EREG_ADRESSE_PATH = withBasePath("/ekspertbistand-ba
 export const EKSPERTBISTAND_EREG_ORGANISASJONER_PATH = withBasePath(
   "/ekspertbistand-backend/api/ereg/organisasjoner"
 );
+export const EKSPERTBISTAND_KONTONUMMER_PATH = withBasePath(
+  "/ekspertbistand-backend/api/soknad/v1/virksomhet/kontonummer-finnes"
+);
+export const KONTONUMMER_REGISTRERING_URL = "https://www.nav.no/arbeidsgiver/endre-kontonummer";
 
 export const SOKNADER_PATH = "/soknader";
 export const REFUSJON_URL = "https://www.nav.no/fyllut/nav761390?sub=paper";
