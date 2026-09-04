@@ -6,7 +6,6 @@ import no.nav.ekspertbistand.arena.insertArenaSak
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 class OpprettTiltaksgjennomfoeringForInnsendtSoknad(
@@ -41,12 +40,12 @@ class OpprettTiltaksgjennomfoeringForInnsendtSoknad(
                 tiltaksgjennomfoeringId,
                 soknad
             )
-            EventQueue.publish(
+            publishEventQueue(
                 EventData.TiltaksgjennomforingOpprettet(
                     soknad,
                     saksnummer,
                     tiltaksgjennomfoeringId,
-                )
+                ),
             )
         }
         return EventHandledResult.Success()

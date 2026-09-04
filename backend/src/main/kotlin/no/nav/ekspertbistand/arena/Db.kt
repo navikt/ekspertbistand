@@ -26,7 +26,7 @@ object ArenaSakTable : Table("arena_sak") {
      *    mot begge miljøer før deploy. Ved duplikater: bytt til `.index()` (ikke-unik) og fjern
      *    ALTER TABLE-setningen i V4.
      *  - [insertArenaSak] bruker et rent `insert` uten konflikthåndtering og kalles i samme
-     *    transaksjon som `EventQueue.publish` i OpprettTiltaksgjennomfoeringForInnsendtSoknad,
+     *    transaksjon som `publishEventQueue` i OpprettTiltaksgjennomfoeringForInnsendtSoknad,
      *    utenfor try/catch. Skulle Arena gjenbruke et saksnummer på tvers av to
      *    tiltaksgjennomføringer, vil innsettingen kaste og rulle tilbake publiseringen *etter* at
      *    tiltaksgjennomføringen allerede er opprettet i Arena. Forutsetningen om at Arena minter en

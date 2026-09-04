@@ -6,13 +6,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.EventQueue
-import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.soknad.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.time.Instant
 
@@ -111,7 +109,7 @@ class ArenaTilsagnsbrevProcessor(
         transaction(database) {
             val ikkeTidligereBehandlet = markerTilsagnsbrevMeldingSomBehandlet(tilskuddsbrevMelding.tilsagnBrevId)
             if (ikkeTidligereBehandlet) {
-                EventQueue.publish(event)
+                publishEventQueue(event)
             } else {
                 log.info("Tilsagnsbrev melding med tilsagnBrevId=${tilskuddsbrevMelding.tilsagnBrevId} er allerede behandlet, ignorerer melding")
                 teamLog.info("Tilsagnsbrev melding med tilsagnBrevId=${tilskuddsbrevMelding.tilsagnBrevId} er allerede behandlet, ignorerer melding. record: {}", record)

@@ -13,10 +13,9 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
-import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 /**
@@ -77,13 +76,13 @@ class JournalfoerTilskuddsbrevKildeAltinn(
             ?: return unrecoverableError("DokArkiv mangler gyldig journalpostId")
 
         transaction(database) {
-            QueuedEvents.insert {
-                it[eventData] = EventData.TilskuddsbrevJournalfoertKildeAltinn(
+            publishEventQueue(
+                EventData.TilskuddsbrevJournalfoertKildeAltinn(
                     dokumentId = dokumentInfoId,
                     journaldpostId = journalpostId,
                     tilsagnData = event.data.tilsagnData
-                )
-            }
+                ),
+            )
         }
         idempotencyGuard.guard(event, publiserJournalpostEventSubtask)
         return EventHandledResult.Success()

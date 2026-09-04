@@ -24,7 +24,7 @@ import kotlin.time.ExperimentalTime
  * - finalize: Mark an event as completed or failed, move it to the event log, and remove from the queue.
  *
  * Event lifecycle:
- * 1. publish(Event) -> Event is stored in the queue (Events table).
+ * 1. publishEventQueue(ev) -> Event is stored in the queue (Events table).
  * 2. poll() -> Fetches the next PENDING (or abandoned) event and marks it PROCESSING.
  * 3. finalize(id, success) -> Moves event to EventLog table as COMPLETED or FAILED, deletes from queue.
  *
@@ -33,21 +33,16 @@ import kotlin.time.ExperimentalTime
  * - finalize is idempotent: if event is already moved to log, does nothing.
  *
  * Usage:
- *   EventQueue.publish(event)
+ *   // Publisering krever en transaksjon:
+ *   transaction { publishEventQueue(event) }
  *   val event = EventQueue.poll()
  *   EventQueue.finalize(event.id, success)
  *
- * [EventQueue.publish] is used to add new events to the queue.
+ * Publisering skjer via [publishEventQueue] — dette er eneste vei inn i køen.
+ * Skriv aldri til [QueuedEvents] direkte.
  */
 object EventQueue {
     val abandonedTimeout = 1.minutes
-
-    fun publish(ev: EventData) = transaction {
-        QueuedEvents.insertReturning {
-            it[eventData] = ev
-        }.first().tilQueuedEvent()
-    }
-
 
     /**
      * Polls the next pending event for processing.
@@ -133,7 +128,30 @@ object EventQueue {
 }
 
 
+/**
+ * Publiserer eventet i kallerens pågående transaksjon — commiter og rulles tilbake med den.
+ *
+ * Receiveren er ikke dekorasjon, den er håndhevelsen: funksjonen finnes ikke utenfor en
+ * `transaction { }`-blokk, så publisering uten transaksjon er en kompileringsfeil. Kallere som
+ * ikke har en transaksjon åpner en selv — da står skrivingen synlig på kallstedet i stedet for
+ * å være skjult inne i køen.
+ *
+ * Skriv aldri til [QueuedEvents] direkte; denne funksjonen er eneste vei inn i køen.
+ */
+fun JdbcTransaction.publishEventQueue(ev: EventData): QueuedEvent =
+    QueuedEvents.insertReturning {
+        it[eventData] = ev
+    }.first().tilQueuedEvent()
 
+
+/**
+ * Underliggende tabell for [EventQueue].
+ *
+ * Skriv aldri til denne tabellen direkte — bruk [publishEventQueue].
+ * Tabellen er offentlig fordi lesere som `AppMetrics` og `EventManager.cleanupFinalizedEvents` trenger
+ * tilgang, men enhver innsetting skal gå gjennom [publishEventQueue] slik at køens invarianter
+ * håndheves ett sted.
+ */
 @OptIn(ExperimentalTime::class)
 object QueuedEvents : Table("event_queue") {
     val id = long("id").autoIncrement()

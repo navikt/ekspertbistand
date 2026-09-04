@@ -4,13 +4,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.EventQueue
-import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.soknad.DTO
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.time.Instant
 
@@ -77,7 +75,7 @@ class ArenaTiltaksgjennomforingEndretProcessor(
                 val ikkeTidligereBehandlet =
                     markerTiltaksgjennomfoeringEndretMeldingSomBehandlet(endring.tiltaksgjennomfoeringId)
                 if (ikkeTidligereBehandlet) {
-                    EventQueue.publish(event)
+                    publishEventQueue(event)
                 } else {
                     log.info("TiltaksgjennomforingEndret melding for tiltaksgjennomfoeringId=${endring.tiltaksgjennomfoeringId} er allerede behandlet, hopper over.")
                     teamLog.info("TiltaksgjennomforingEndret melding for tiltaksgjennomfoeringId=${endring.tiltaksgjennomfoeringId} er allerede behandlet, hopper over. record: {}", record)
