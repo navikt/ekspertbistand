@@ -8,13 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.EventHandledResult
-import no.nav.ekspertbistand.event.EventHandlerStates
-import no.nav.ekspertbistand.event.EventLog
-import no.nav.ekspertbistand.event.ProcessingStatus
-import no.nav.ekspertbistand.event.QueuedEvents
-import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelse.Companion.tilSoknadBehandletForsinkelse
+import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelseState
 import no.nav.ekspertbistand.event.projections.TilskuddsbrevVistState
 import no.nav.ekspertbistand.infrastruktur.MetricsStatementInterceptor
@@ -24,10 +18,9 @@ import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import java.util.UUID
+import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
@@ -46,17 +39,17 @@ class AppMetricsTest {
             transaction {
                 QueuedEvents.insert {
                     it[QueuedEvents.status] = ProcessingStatus.PENDING
-                    it[QueuedEvents.eventData] = EventData.Foo("dummy1")
+                    it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.status] = ProcessingStatus.PENDING
-                    it[QueuedEvents.eventData] = EventData.Foo("dummy2")
+                    it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
-                    it[QueuedEvents.eventData] = EventData.Foo("dummy3")
+                    it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                 }
             }
@@ -94,21 +87,21 @@ class AppMetricsTest {
                 EventLog.insert {
                     it[EventLog.id] = 1L
                     it[EventLog.status] = ProcessingStatus.COMPLETED_WITH_ERRORS
-                    it[EventLog.eventData] = EventData.Foo("dummy1")
+                    it[EventLog.eventData] = TestEventData.soknadInnsendt
                     it[EventLog.createdAt] = CurrentTimestamp
                     it[EventLog.updatedAt] = CurrentTimestamp
                 }
                 EventLog.insert {
                     it[EventLog.id] = 2L
                     it[EventLog.status] = ProcessingStatus.COMPLETED
-                    it[EventLog.eventData] = EventData.Foo("dummy2")
+                    it[EventLog.eventData] = TestEventData.soknadInnsendt
                     it[EventLog.createdAt] = CurrentTimestamp
                     it[EventLog.updatedAt] = CurrentTimestamp
                 }
                 EventLog.insert {
                     it[EventLog.id] = 3L
                     it[EventLog.status] = ProcessingStatus.COMPLETED
-                    it[EventLog.eventData] = EventData.Foo("dummy3")
+                    it[EventLog.eventData] = TestEventData.soknadInnsendt
                     it[EventLog.createdAt] = CurrentTimestamp
                     it[EventLog.updatedAt] = CurrentTimestamp
                 }
@@ -144,22 +137,22 @@ class AppMetricsTest {
             val now = Clock.System.now()
             transaction {
                 QueuedEvents.insert {
-                    it[QueuedEvents.eventData] = EventData.Foo("dummy")
+                    it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.createdAt] = now.minus(30.seconds) // <1m
                 }
                 QueuedEvents.insert {
-                    it[QueuedEvents.eventData] = EventData.Foo("dummy")
+                    it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.createdAt] = now.minus(4.minutes) // <5m
                 }
                 QueuedEvents.insert {
-                    it[QueuedEvents.eventData] = EventData.Foo("dummy")
+                    it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.createdAt] = now.minus(10.minutes) // <15m
                 }
                 QueuedEvents.insert {
-                    it[QueuedEvents.eventData] = EventData.Foo("dummy")
+                    it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.createdAt] = now.minus(35.minutes) // >30m
                 }
@@ -270,28 +263,28 @@ class AppMetricsTest {
                 QueuedEvents.insert {
                     it[QueuedEvents.id] = 1L
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
-                    it[QueuedEvents.eventData] = EventData.Foo("dummy1")
+                    it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                     it[QueuedEvents.attempts] = 2
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.id] = 2L
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
-                    it[QueuedEvents.eventData] = EventData.Foo("dummy2")
+                    it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                     it[QueuedEvents.attempts] = 0
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.id] = 3L
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
-                    it[QueuedEvents.eventData] = EventData.Bar("dummy3")
+                    it[QueuedEvents.eventData] = TestEventData.innsendtSoknadJournalfoert
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                     it[QueuedEvents.attempts] = 5
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.id] = 4L
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
-                    it[QueuedEvents.eventData] = EventData.Bar("dummy4")
+                    it[QueuedEvents.eventData] = TestEventData.innsendtSoknadJournalfoert
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                     it[QueuedEvents.attempts] = 1
                 }
@@ -302,12 +295,12 @@ class AppMetricsTest {
                 delay(60.seconds)
                 updateGaugeJob.cancel()
                 meterRegistry.get("eventqueue.retries")
-                    .tag("event", "foo") // see SerialName in EventData
+                    .tag("event", "soknadInnsendt") // see SerialName in EventData
                     .gauge().let {
                         assertEquals(2.0, it.value())
                     }
                 meterRegistry.get("eventqueue.retries")
-                    .tag("event", "bar") // see SerialName in EventData
+                    .tag("event", "innsendtSoknadJournalfoert") // see SerialName in EventData
                     .gauge().let {
                         assertEquals(6.0, it.value())
                     }
