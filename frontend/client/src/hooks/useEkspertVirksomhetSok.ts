@@ -16,7 +16,7 @@ const fetchOrganisasjoner = async (url: string): Promise<OrganisasjonSok[]> => {
   return data ?? [];
 };
 
-const useDebouncedValue = <T,>(value: T, delayMs: number): T => {
+const useDebouncedValue = <T>(value: T, delayMs: number): T => {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(value), delayMs);
@@ -33,7 +33,8 @@ export const useEkspertVirksomhetSok = (navn: string) => {
     shouldFetch
       ? `${EKSPERTBISTAND_EREG_ORGANISASJONER_PATH}?navn=${encodeURIComponent(debouncedNavn)}`
       : null,
-    fetchOrganisasjoner
+    fetchOrganisasjoner,
+    { keepPreviousData: true }
   );
 
   return {
