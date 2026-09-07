@@ -21,6 +21,65 @@ Køen har nøyaktig én vei inn, og du skal aldri skrive til `event_queue`/`Queu
 **Aldri et suspend-kall inne i `transaction { }`** — åpne transaksjonen rundt skrivingen, ikke rundt
 hele arbeidet (f.eks. dokgen-HTTP-kall). Se `TilsagnDataApi.hentTilskuddsbrevHtmlForSoknad`.
 
+## `aggregateRootId` — felles aggregatrot på alle events
+
+Hver `EventData` har en `aggregateRootId: String` som identifiserer aggregatroten hendelsen tilhører
+(i praksis søknaden). Den **deriveres fra payload** og lagres bevisst *ikke* i `event_json` — kun i
+kolonnen `aggregate_root_id` på `event_queue` og `event_log`. Dermed finnes det aldri to sannheter i
+samme rad, og gamle/nye rader er byte-identiske i payload.
+
+`publishEventQueue` skriver kolonnen ved publisering, og `finalize` kopierer den videre til
+`event_log` (med derivering fra payload som fallback for eventuelle legacy-rader med `NULL`).
+
+### Mapping per event-type
+
+| Event-type | `aggregateRootId` |
+|------------|-------------------|
+| Alle med `soknad` (SoknadInnsendt, InnsendtSoknadJournalfoert, TiltaksgjennomforingOpprettet, TilskuddsbrevMottatt, TilskuddsbrevJournalfoert, SoknadAvlystIArena, SaksbehandlingStartetIArena, TilsagnsdataLagret) | `soknad.id` |
+| `TilskuddsbrevMottattKildeAltinn`, `TilskuddsbrevJournalfoertKildeAltinn` | `tilsagnData.tilsagnNummer` satt sammen som `aar:loepenrSak:loepenrTilsagn` |
+| `TilskuddsbrevVist` | `soknad?.id ?: tilsagnNummer` |
+
+Derivings-SQL-en i backfillen (`AggregateRootIdBackfill`) speiler denne tabellen og valideres mot
+faktisk serialisert payload i `AggregateRootIdBackfillTest`.
+
+### Utrulling (engangs-migrering av eksisterende rader)
+
+Kolonnen innføres i faser slik at ingen migrering holder en blokkerende lås gjennom en tabell-scan:
+
+1. **Nullbar kolonne** (Flyway `V8`) + **modell/finalize-fallback** og en `CHECK … NOT VALID` på
+   `event_log` (Flyway `V9`) som håndhever invarianten for alle *nye* rader.
+2. **Backfill-jobb** (`AggregateRootIdBackfill`, startet fra `Application.kt`): fyller legacy-rader
+   batch-vis, selv-avsluttende via `backfill_state.completed_at`. Når begge tabellene er ferdige
+   kjører den P6 steg 1: `VALIDATE CONSTRAINT` på `event_log` (ikke-blokkerende SHARE UPDATE
+   EXCLUSIVE-scan) og oppretter oppslagsindeksene `CONCURRENTLY`
+   (`(aggregate_root_id, id)` på begge tabeller).
+3. **`SET NOT NULL`** gjøres i en **egen, senere Flyway-migrering** (P6 steg 2), *etter* at
+   verifiseringen under gir 0 i miljøet. Fordi den validerte checken allerede finnes, blir
+   `SET NOT NULL` en O(1)-operasjon.
+
+### Verifisering (kjøres i dev, så prod — må gi 0 før P6 steg 2)
+
+```sql
+-- 1. Ingen gjenstående NULL
+SELECT count(*) FROM event_queue WHERE aggregate_root_id IS NULL;   -- forventet 0
+SELECT count(*) FROM event_log   WHERE aggregate_root_id IS NULL;   -- forventet 0
+
+-- 2. Kolonnen stemmer med payload for hele event_log
+SELECT count(*) AS avvik
+FROM event_log
+WHERE aggregate_root_id IS DISTINCT FROM coalesce(
+        event_json -> 'soknad' ->> 'id',
+        nullif(concat_ws(':',
+            event_json -> 'tilsagnData' -> 'tilsagnNummer' ->> 'aar',
+            event_json -> 'tilsagnData' -> 'tilsagnNummer' ->> 'loepenrSak',
+            event_json -> 'tilsagnData' -> 'tilsagnNummer' ->> 'loepenrTilsagn'
+        ), ''),
+        event_json ->> 'tilsagnNummer');                            -- forventet 0
+```
+
+Gauge `event.aggregaterootid.missing` (tagget på `table`) skal ligge flatt på 0 etter backfillen;
+et hopp over 0 betyr en skrivevei som omgår `publishEventQueue`.
+
 ## Overview
 
 - QueuedEvents are stored in the `event_queue` table.
