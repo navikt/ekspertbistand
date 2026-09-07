@@ -12,6 +12,7 @@ import kotlin.time.ExperimentalTime
 object EventLog : Table("event_log") {
     val id = long("id")
     val eventData = json<EventData>("event_json", Json.Default)
+    val aggregateRootId = text("aggregate_root_id").nullable()
     val status = enumeration<ProcessingStatus>("status")
     val errors = json<List<EventHandledResult.UnrecoverableError>>("errors", Json.Default).default(emptyList())
     val attempts = integer("attempts").default(0)
@@ -25,6 +26,7 @@ object EventLog : Table("event_log") {
 data class LoggedEvent(
     val id: Long,
     val eventData: EventData,
+    val aggregateRootId: String?,
     val status: ProcessingStatus,
     val createdAt: kotlin.time.Instant,
     val updatedAt: kotlin.time.Instant
@@ -39,6 +41,7 @@ data class LoggedEvent(
         fun ResultRow.tilLoggedEvent() = LoggedEvent(
             id = this[EventLog.id],
             eventData = this[EventLog.eventData],
+            aggregateRootId = this[EventLog.aggregateRootId],
             status = this[EventLog.status],
             createdAt = this[EventLog.createdAt],
             updatedAt = this[EventLog.updatedAt]

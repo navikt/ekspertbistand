@@ -11,22 +11,36 @@ import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.handlers.*
 import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.soknad.aggregateRootId
+import no.nav.ekspertbistand.tilsagndata.aggregateRootId
 import kotlin.time.ExperimentalTime
 
 
 data class Event<T : EventData>(
     val id: Long,
     val data: T
-)
+) {
+    val aggregateRootId: String get() = data.aggregateRootId
+}
 
 @Serializable
 sealed interface EventData {
+
+    /**
+     * Id til aggregatroten hendelsen tilhører.
+     *
+     * Deriveres fra payload — den lagres bevisst IKKE i event_json, kun i kolonnen
+     * aggregate_root_id, slik at vi ikke får to sannheter i samme rad.
+     */
+    val aggregateRootId: String
 
     @Serializable
     @SerialName("soknadInnsendt")
     data class SoknadInnsendt(
         val soknad: DTO.Soknad
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
 
     @Serializable
     @SerialName("innsendtSoknadJournalfoert")
@@ -35,7 +49,9 @@ sealed interface EventData {
         val dokumentId: Int,
         val journaldpostId: Int,
         val behandlendeEnhetId: String,
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
 
     @Serializable
     @SerialName("tiltaksgjennomforingOpprettet")
@@ -43,7 +59,9 @@ sealed interface EventData {
         val soknad: DTO.Soknad,
         val saksnummer: Saksnummer,
         val tiltaksgjennomfoeringId: Int
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
 
     @Serializable
     @SerialName("tilskuddsbrevMottatt")
@@ -51,14 +69,18 @@ sealed interface EventData {
         val soknad: DTO.Soknad,
         val tilsagnbrevId: Int,
         val tilsagnData: TilsagnData
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
 
     @Serializable
     @SerialName("tilskuddsbrevMottattKildeAltinn")
     data class TilskuddsbrevMottattKildeAltinn(
         val tilsagnbrevId: Int,
         val tilsagnData: TilsagnData
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = tilsagnData.aggregateRootId
+    }
 
     @Serializable
     @SerialName("tilskuddsbrevJournalfoert")
@@ -67,7 +89,9 @@ sealed interface EventData {
         val dokumentId: Int,
         val journaldpostId: Int,
         val tilsagnData: TilsagnData
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
 
     @Serializable
     @SerialName("tilskuddsbrevJournalfoertKildeAltinn")
@@ -75,35 +99,45 @@ sealed interface EventData {
         val dokumentId: Int,
         val journaldpostId: Int,
         val tilsagnData: TilsagnData,
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = tilsagnData.aggregateRootId
+    }
 
     @Serializable
     @SerialName("soknadAvlystIArena")
     data class SoknadAvlystIArena(
         val soknad: DTO.Soknad,
         val tiltaksgjennomforingEndret: TiltaksgjennomforingEndret
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
 
     @Serializable
     @SerialName("saksbehandlingStartetIArena")
     data class SaksbehandlingStartetIArena(
         val soknad: DTO.Soknad,
         val tiltakssakEndret: TiltakssakEndret,
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
 
     @Serializable
     @SerialName("TilsagnsdataLagret")
     data class TilsagnsdataLagret(
         val soknad: DTO.Soknad,
         val tilsagnData: TilsagnData,
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
 
     @Serializable
     @SerialName("tilskuddsbrevVist")
     data class TilskuddsbrevVist(
         val tilsagnNummer: String,
         val soknad: DTO.Soknad?
-    ) : EventData
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad?.aggregateRootId ?: tilsagnNummer
+    }
 }
 
 @OptIn(ExperimentalTime::class)

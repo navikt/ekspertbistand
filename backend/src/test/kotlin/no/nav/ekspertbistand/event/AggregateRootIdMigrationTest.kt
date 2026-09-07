@@ -2,6 +2,7 @@ package no.nav.ekspertbistand.event
 
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import org.flywaydb.core.api.MigrationVersion
+import org.jetbrains.exposed.v1.core.statements.StatementType
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.test.AfterTest
@@ -38,9 +39,15 @@ class AggregateRootIdMigrationTest {
         config.flywayAction { clean() }
         config.flywayConfig.target(MigrationVersion.fromVersion("8")).load().migrate()
 
-        // 2. Legg inn en legacy-rad uten aggregate_root_id.
-        val legacy = transaction(config.jdbcDatabase) {
-            publishEventQueue(TestEventData.soknadInnsendt)
+        // 2. Legg inn en legacy-rad uten aggregate_root_id. Rå SQL fordi Exposed-modellen nå
+        //    kjenner aggregate_root_id-kolonnen, som ikke finnes ennå på V7.
+        val legacyId = transaction(config.jdbcDatabase) {
+            exec(
+                "INSERT INTO event_queue (event_json) VALUES ('{}'::json) RETURNING id",
+                explicitStatementType = StatementType.SELECT,
+            ) { rs ->
+                rs.next(); rs.getLong(1)
+            }!!
         }
 
         // 3. Migrer resten (V9).
@@ -56,7 +63,7 @@ class AggregateRootIdMigrationTest {
 
             // Legacy-raden overlevde migreringen og har null aggregate_root_id.
             val legacyMedNull = exec(
-                "SELECT count(*) FROM event_queue WHERE id = ${legacy.id} AND aggregate_root_id IS NULL"
+                "SELECT count(*) FROM event_queue WHERE id = $legacyId AND aggregate_root_id IS NULL"
             ) { rs -> if (rs.next()) rs.getLong(1) else 0L }
             assertEquals(1L, legacyMedNull, "eksisterende rad skal beholdes med null aggregate_root_id")
         }

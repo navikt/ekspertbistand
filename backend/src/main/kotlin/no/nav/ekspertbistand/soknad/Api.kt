@@ -384,6 +384,14 @@ sealed interface DTO {
     )
 }
 
+/**
+ * Aggregatroten for et søknads-event er søknadens id.
+ *
+ * id settes først etter persistering, så et event kan ikke publiseres før søknaden er lagret.
+ */
+val DTO.Soknad.aggregateRootId: String
+    get() = id ?: error("Soknad mangler id — event kan ikke publiseres før søknaden er persistert")
+
 @Suppress("EnumEntryName")
 enum class SoknadStatus {
     utkast,

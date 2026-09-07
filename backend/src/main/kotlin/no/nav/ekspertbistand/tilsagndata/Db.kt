@@ -49,3 +49,9 @@ fun findTilsagnDataBySoknadId(soknadId: UUID) =
     }
 
 fun TilsagnData.TilsagnNummer.concat() = "$aar:$loepenrSak:$loepenrTilsagn"
+
+/**
+ * Aggregatroten for et tilsagns-event (Altinn-sporet) er tilsagnsnummeret på formen "2026:123:1".
+ */
+val TilsagnData.aggregateRootId: String
+    get() = tilsagnNummer.concat()

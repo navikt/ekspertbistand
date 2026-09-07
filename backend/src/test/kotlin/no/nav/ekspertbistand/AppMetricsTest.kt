@@ -88,6 +88,7 @@ class AppMetricsTest {
                     it[EventLog.id] = 1L
                     it[EventLog.status] = ProcessingStatus.COMPLETED_WITH_ERRORS
                     it[EventLog.eventData] = TestEventData.soknadInnsendt
+                    it[EventLog.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[EventLog.createdAt] = CurrentTimestamp
                     it[EventLog.updatedAt] = CurrentTimestamp
                 }
@@ -95,6 +96,7 @@ class AppMetricsTest {
                     it[EventLog.id] = 2L
                     it[EventLog.status] = ProcessingStatus.COMPLETED
                     it[EventLog.eventData] = TestEventData.soknadInnsendt
+                    it[EventLog.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[EventLog.createdAt] = CurrentTimestamp
                     it[EventLog.updatedAt] = CurrentTimestamp
                 }
@@ -102,6 +104,7 @@ class AppMetricsTest {
                     it[EventLog.id] = 3L
                     it[EventLog.status] = ProcessingStatus.COMPLETED
                     it[EventLog.eventData] = TestEventData.soknadInnsendt
+                    it[EventLog.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[EventLog.createdAt] = CurrentTimestamp
                     it[EventLog.updatedAt] = CurrentTimestamp
                 }
