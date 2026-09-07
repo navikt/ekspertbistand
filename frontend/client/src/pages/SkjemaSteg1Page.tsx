@@ -215,8 +215,6 @@ export default function SkjemaSteg1Page() {
                 control={control}
                 render={({ field, fieldState }) => (
                   <EkspertVirksomhetVelger
-                    label="Tilknyttet virksomhet"
-                    description="Søk på virksomhet og velg fra listen."
                     value={field.value ?? ""}
                     onChange={(organisasjon) => {
                       field.onChange(formaterVirksomhet(organisasjon?.navn, organisasjon?.orgnr));

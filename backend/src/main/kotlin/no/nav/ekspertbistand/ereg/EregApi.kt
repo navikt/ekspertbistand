@@ -33,8 +33,18 @@ suspend fun Application.configureEregApiV1() {
                     return@get
                 }
 
-                val organisasjoner = eregService.finnOrganisasjoner(navn)
+                val organisasjoner = eregService.finnOrganisasjonerForNavn(navn)
                 call.respond(organisasjoner)
+            }
+
+            get("/api/ereg/organisasjoner/{orgnr}") {
+                val orgnr = call.parameters["orgnr"]
+                if (orgnr == null || !orgnrRegex.matches(orgnr)) {
+                    call.respond(HttpStatusCode.BadRequest, "ugyldig orgnr")
+                    return@get
+                }
+
+                call.respond(eregService.finnOrganisasjonForOrgnr(orgnr))
             }
 
             get("/api/ereg/{orgnr}/adresse") {
