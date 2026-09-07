@@ -51,6 +51,7 @@ import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
 import no.nav.ekspertbistand.soknad.subjectToken
+import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.sokos.KontoregisterClient
 import no.nav.ekspertbistand.sokos.configureKontoregisterApiV1
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
@@ -95,6 +96,7 @@ fun main() {
             provide(ArenaClient::class)
             provide(AaregClient::class)
             provide(EntraProxyClient::class)
+            provide(TilgangsmaskinClient::class)
             provide(FagsakIdService::class)
             basedOnEnv(
                 dev = { provide(KontoregisterClient::class) },
