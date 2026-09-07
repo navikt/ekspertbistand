@@ -14,7 +14,7 @@ class IdempotencyGuardTest {
         TestDatabase().cleanMigrate().use {
             val idempotencyGuard = idempotencyGuard(it.config.jdbcDatabase)
 
-            val event = Event(1L, EventData.Foo("fooEvent"))
+            val event = Event(1L, TestEventData.soknadInnsendt)
             val subTask = "subtask"
 
             assertFalse(idempotencyGuard.isGuarded(event.id, subTask))
@@ -27,7 +27,7 @@ class IdempotencyGuardTest {
             TestDatabase().cleanMigrate().use {
                 val idempotencyGuard = idempotencyGuard(it.config.jdbcDatabase)
 
-                val event1 = Event(1L, EventData.Foo("fooEvent"))
+                val event1 = Event(1L, TestEventData.soknadInnsendt)
                 val subTask1 = "subtask1"
                 val subtask2 = "subtask2"
 

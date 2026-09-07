@@ -10,10 +10,8 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
-import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
-import no.nav.ekspertbistand.dokarkiv.FagsakIdTable
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
 import no.nav.ekspertbistand.dokgen.DokgenClient
@@ -22,6 +20,7 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.TestEventData.sampleSoknad
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
@@ -34,8 +33,6 @@ import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
-import no.nav.ekspertbistand.soknad.DTO
-import no.nav.ekspertbistand.soknad.SoknadStatus
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -234,40 +231,6 @@ class JournalfoerInnsendtSoknadTest {
         }
     }
 }
-
-private val sampleSoknad = DTO.Soknad(
-    id = UUID.randomUUID().toString(),
-    virksomhet = DTO.Virksomhet(
-        virksomhetsnummer = "987654321",
-        virksomhetsnavn = "Testbedrift AS",
-        kontaktperson = DTO.Kontaktperson(
-            navn = "Kontakt Person",
-            epost = "kontakt@testbedrift.no",
-            telefonnummer = "12345678",
-        )
-    ),
-    ansatt = DTO.Ansatt(
-        fnr = "01010112345",
-        navn = "Ansatt Navn",
-    ),
-    ekspert = DTO.Ekspert(
-        navn = "Ekspert Navn",
-        virksomhet = "Ekspertselskap",
-        kompetanse = "Ekspertise",
-    ),
-    behovForBistand = DTO.BehovForBistand(
-        begrunnelse = "Behov begrunnelse",
-        behov = "Behov",
-        estimertKostnad = "9000",
-        timer = "12",
-        tilrettelegging = "Tilrettelegging tekst",
-        startdato = LocalDate(2024, 12, 1),
-    ),
-    nav = DTO.Nav(
-        kontaktperson = "Veileder Navn"
-    ),
-    status = SoknadStatus.innsendt,
-)
 
 private fun ApplicationTestBuilder.setupApplication(database: Database) {
     application {
