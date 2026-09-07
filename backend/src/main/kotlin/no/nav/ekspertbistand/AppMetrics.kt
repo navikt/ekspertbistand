@@ -21,6 +21,7 @@ import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
 import org.jetbrains.exposed.v1.core.alias
 import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -67,6 +68,10 @@ class AppMetrics(
 
     val projectionBuilderLagGauge: MultiGauge = MultiGauge.builder("projectionbuilder.lag")
         .description("Lag per projection builder")
+        .register(meterRegistry)
+
+    val aggregateRootIdMissingGauge: MultiGauge = MultiGauge.builder("event.aggregaterootid.missing")
+        .description("Antall rader uten aggregate_root_id, per tabell")
         .register(meterRegistry)
 
     fun queueSizeByStatus(): Map<ProcessingStatus, Double> = transaction {
@@ -127,6 +132,19 @@ class AppMetrics(
             .groupBy { it[eventType] }
             .mapValues { (_, rows) -> rows.sumOf { it[QueuedEvents.attempts].toDouble() } }
             .filterValues { it > 0 }
+    }
+
+    /**
+     * Antall rader uten `aggregate_root_id` per tabell. Skal ligge flatt på 0 etter backfillen (P4);
+     * et hopp over 0 betyr at noen har innført en skrivevei som omgår [publishEventQueue].
+     */
+    fun aggregateRootIdMissingByTable(): Map<String, Double> = transaction {
+        mapOf(
+            "event_queue" to QueuedEvents.selectAll()
+                .where { QueuedEvents.aggregateRootId.isNull() }.count().toDouble(),
+            "event_log" to EventLog.selectAll()
+                .where { EventLog.aggregateRootId.isNull() }.count().toDouble(),
+        )
     }
 
 
@@ -233,6 +251,17 @@ class AppMetrics(
                         MultiGauge.Row.of(
                             Tags.of("builder", builderName),
                             lag.toDouble()
+                        )
+                    },
+                true
+            )
+
+            aggregateRootIdMissingGauge.register(
+                aggregateRootIdMissingByTable()
+                    .map { (table, count) ->
+                        MultiGauge.Row.of(
+                            Tags.of("table", table),
+                            count
                         )
                     },
                 true
