@@ -5,6 +5,7 @@ import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import {
   EKSPERTBISTAND_API_PATH,
   EKSPERTBISTAND_EREG_ADRESSE_PATH,
+  EKSPERTBISTAND_EREG_ORGANISASJON_PATH,
   EKSPERTBISTAND_EREG_ORGANISASJONER_PATH,
   EKSPERTBISTAND_KONTONUMMER_PATH,
   EKSPERTBISTAND_ORGANISASJONER_PATH,
@@ -447,6 +448,17 @@ export const handlers = [
   http.get(EKSPERTBISTAND_ORGANISASJONER_PATH, () =>
     HttpResponse.json({ hierarki: organisasjoner })
   ),
+  http.get(EKSPERTBISTAND_EREG_ORGANISASJON_PATH(":orgnr"), ({ params }) => {
+    const orgnr = getParamValue(params.orgnr);
+    if (!orgnr || !/^\d{9}$/.test(orgnr)) {
+      return HttpResponse.json({ message: "ugyldig orgnr" }, { status: 400 });
+    }
+
+    const treff = eregOrganisasjoner.filter((org) =>
+      org.organisasjonsnummer == orgnr
+    );
+    return HttpResponse.json(treff);
+  }),
   http.get(EKSPERTBISTAND_EREG_ORGANISASJONER_PATH, ({ request }) => {
     const navn = new URL(request.url).searchParams.get("navn")?.trim() ?? "";
     if (navn.length < 2) {

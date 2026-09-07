@@ -52,6 +52,8 @@ export const EKSPERTBISTAND_EREG_ADRESSE_PATH = withBasePath("/ekspertbistand-ba
 export const EKSPERTBISTAND_EREG_ORGANISASJONER_PATH = withBasePath(
   "/ekspertbistand-backend/api/ereg/organisasjoner"
 );
+export const EKSPERTBISTAND_EREG_ORGANISASJON_PATH = (orgnr: string) =>
+  withBasePath(`/ekspertbistand-backend/api/ereg/organisasjoner/${orgnr}`);
 export const EKSPERTBISTAND_KONTONUMMER_PATH = withBasePath(
   "/ekspertbistand-backend/api/soknad/v1/virksomhet/kontonummer-finnes"
 );
