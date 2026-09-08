@@ -82,6 +82,7 @@ fun main() {
             provide<TokenXTokenExchanger>(TokenXAuthClient::class)
             provide<AzureAdTokenProvider>(AzureAdAuthClient::class)
             provide<AzureAdTokenIntrospector>(AzureAdAuthClient::class)
+            provide<AzureAdTokenExchanger>(AzureAdAuthClient::class)
 
             provide(AltinnTilgangerClient::class)
             provide(ClamAvClient::class)

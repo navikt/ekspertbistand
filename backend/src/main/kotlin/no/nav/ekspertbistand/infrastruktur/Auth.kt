@@ -126,6 +126,8 @@ interface TokenXTokenIntrospector : TokenIntrospector
 
 interface AzureAdTokenIntrospector : TokenIntrospector
 
+interface AzureAdTokenExchanger : TokenExchanger
+
 class TokenXAuthClient(
     config: AuthConfig,
     httpClient: HttpClient,
@@ -134,7 +136,7 @@ class TokenXAuthClient(
 class AzureAdAuthClient(
     config: AuthConfig,
     httpClient: HttpClient,
-) : AuthClient(config, IdentityProvider.AZURE_AD, httpClient), AzureAdTokenProvider, AzureAdTokenIntrospector
+) : AuthClient(config, IdentityProvider.AZURE_AD, httpClient), AzureAdTokenProvider, AzureAdTokenIntrospector, AzureAdTokenExchanger
 
 abstract class AuthClient(
     private val config: AuthConfig,
@@ -187,6 +189,7 @@ data class AzureAdPrincipal(
     val navIdent: String,
     val groups: List<String>,
     val name: String?,
+    val subjectToken: String,
 )
 
 const val AZURE_AD_PROVIDER = "AZURE_AD"
@@ -244,6 +247,7 @@ fun Application.configureAuthentication() {
                         navIdent = navIdent,
                         groups = groups,
                         name = name,
+                        subjectToken = credentials.token,
                     )
                 }
             }

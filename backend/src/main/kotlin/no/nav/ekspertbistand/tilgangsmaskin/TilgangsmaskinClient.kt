@@ -11,9 +11,10 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
+import no.nav.ekspertbistand.infrastruktur.AzureAdTokenExchanger
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
+import no.nav.ekspertbistand.infrastruktur.NaisEnvironment
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.defaultJson
 
@@ -24,35 +25,34 @@ import no.nav.ekspertbistand.infrastruktur.defaultJson
  * https://github.com/navikt/populasjonstilgangskontroll
  * https://tilgangsmaskin.intern.dev.nav.no/swagger-ui/index.html
  *
- * Bruker Client Credentials Flow (CCF): saksbehandlerens `navIdent` (AnsattId)
- * oppgis som path-parameter, og backend autentiserer seg maskin-til-maskin med
- * Azure AD. Ingen OBO-token-veksling kreves; eksisterende [AzureAdTokenProvider]
- * gjenbrukes.
+ * Bruker On-Behalf-Of (OBO): saksbehandlerens innkommende Azure AD-token veksles
+ * til et token for tilgangsmaskin. Saksbehandlerens `navIdent` ligger dermed i
+ * selve tokenet – det kan IKKE overstyres via request. Kalleren må sende
+ * `userToken` fra det autentiserte
+ * [no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal.subjectToken],
+ * aldri fra klient-input.
  *
  * Semantikk (fail-closed hos kaller):
  *  - 204 No Content -> [Tilgangsresultat.Innvilget]
  *  - 403 Forbidden  -> [Tilgangsresultat.Avvist] (application/problem+json)
- *  - 404 (ukjent navIdent i Entra), 400, 5xx ... -> [TilgangsmaskinException]
+ *  - 404, 400, 5xx ... -> [TilgangsmaskinException]
  *
  * Klienten er foreløpig ikke koblet inn i noen rute.
  */
 class TilgangsmaskinClient(
-    val tokenProvider: AzureAdTokenProvider,
+    private val tokenExchanger: AzureAdTokenExchanger,
     defaultHttpClient: HttpClient,
 ) {
     companion object {
-        val targetAudience = basedOnEnv(
-            prod = "api://prod-gcp.tilgangsmaskin.populasjonstilgangskontroll/.default",
-            dev = "api://dev-gcp.tilgangsmaskin.populasjonstilgangskontroll/.default",
-            other = "api://mock.tilgangsmaskin/.default",
-        )
-
         val ingress = basedOnEnv(
             prod = "http://populasjonstilgangskontroll.tilgangsmaskin",
             dev = "http://populasjonstilgangskontroll.tilgangsmaskin",
             other = "http://tilgangsmaskin.mock.svc.cluster.local",
         )
     }
+
+    // Token-exchange-target på formatet cluster:namespace:app (jf. AltinnTilgangerClient).
+    private val target = "${NaisEnvironment.clusterName}:tilgangsmaskin:populasjonstilgangskontroll"
 
     val httpClient = defaultHttpClient.config {
         install(ContentNegotiation) {
@@ -68,26 +68,26 @@ class TilgangsmaskinClient(
     }
 
     /**
-     * Enkelt-sjekk: har [navIdent] tilgang til [brukerIdent] etter [regelsett]?
+     * Enkelt-sjekk: har den innloggede saksbehandleren (via [userToken]) tilgang
+     * til [brukerIdent] etter [regelsett]?
      *
-     * `POST /api/v1/ccf/{kjerne|komplett}/{navIdent}` med brukers ident som
-     * JSON-streng-body (f.eks. `"22420094160"`).
+     * `POST /api/v1/{kjerne|komplett}` (OBO) med brukers ident som JSON-streng-body.
      */
     suspend fun evaluer(
-        navIdent: String,
+        userToken: String,
         brukerIdent: String,
         regelsett: Regelsett = Regelsett.KOMPLETT,
     ): Tilgangsresultat {
         val response = httpClient.post {
             url {
                 takeFrom(ingress)
-                path("/api/v1/ccf/${regelsett.path}/$navIdent")
+                path("/api/v1/${regelsett.path}")
             }
             contentType(ContentType.Application.Json)
             // Endepunktet forventer brukers ident som en JSON-streng ("fnr").
             setBody(defaultJson.encodeToString(brukerIdent))
             accept(ContentType.Application.Json)
-            bearerAuth(accessToken())
+            bearerAuth(exchangeToken(userToken))
         }
 
         return when (response.status) {
@@ -105,7 +105,7 @@ class TilgangsmaskinClient(
             }
 
             else -> throw TilgangsmaskinException(
-                "Uventet respons fra tilgangsmaskin (navIdent=$navIdent): ${response.status}"
+                "Uventet respons fra tilgangsmaskin: ${response.status}"
             )
         }
     }
@@ -114,11 +114,11 @@ class TilgangsmaskinClient(
      * Bulk-sjekk for et sett brukere – tiltenkt filtrering av lister (unngår
      * N+1 mot tilgangsmaskin). Maks 1000 identer per kall.
      *
-     * `POST /api/v1/bulk/ccf/{navIdent}` med body `[{ "brukerId", "type" }]`.
+     * `POST /api/v1/bulk/obo` med body `[{ "brukerId", "type" }]`.
      * Svarer 207 Multi-Status med [AggregertBulkRespons].
      */
     suspend fun evaluerBulk(
-        navIdent: String,
+        userToken: String,
         brukerIdenter: Collection<String>,
         regelsett: Regelsett = Regelsett.KOMPLETT,
     ): AggregertBulkRespons {
@@ -129,26 +129,26 @@ class TilgangsmaskinClient(
         val response = httpClient.post {
             url {
                 takeFrom(ingress)
-                path("/api/v1/bulk/ccf/$navIdent")
+                path("/api/v1/bulk/obo")
             }
             contentType(ContentType.Application.Json)
             setBody(specs)
             accept(ContentType.Application.Json)
-            bearerAuth(accessToken())
+            bearerAuth(exchangeToken(userToken))
         }
 
         if (!response.status.isSuccess()) {
             throw TilgangsmaskinException(
-                "Uventet respons fra tilgangsmaskin bulk (navIdent=$navIdent): ${response.status}"
+                "Uventet respons fra tilgangsmaskin bulk: ${response.status}"
             )
         }
         return response.body()
     }
 
-    private suspend fun accessToken(): String =
-        tokenProvider.token(targetAudience).fold(
+    private suspend fun exchangeToken(userToken: String): String =
+        tokenExchanger.exchange(target, userToken).fold(
             { it.accessToken },
-            { throw TilgangsmaskinException("Klarte ikke hente token: ${it.error}") },
+            { throw TilgangsmaskinException("Klarte ikke veksle token (OBO): ${it.error}") },
         )
 }
 

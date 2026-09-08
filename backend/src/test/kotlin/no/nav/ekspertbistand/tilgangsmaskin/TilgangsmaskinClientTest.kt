@@ -7,7 +7,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import kotlinx.coroutines.test.runTest
-import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
+import no.nav.ekspertbistand.infrastruktur.AzureAdTokenExchanger
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -18,11 +18,11 @@ import kotlin.test.assertTrue
 
 class TilgangsmaskinClientTest {
 
-    private val navIdent = "Z999999"
+    private val userToken = "saksbehandler-token"
     private val brukerIdent = "22420094160"
 
-    private val fakeTokenProvider = object : AzureAdTokenProvider {
-        override suspend fun token(target: String, additionalParameters: Map<String, String>): TokenResponse =
+    private val fakeExchanger = object : AzureAdTokenExchanger {
+        override suspend fun exchange(target: String, userToken: String): TokenResponse =
             TokenResponse.Success(accessToken = "fake-token", expiresInSeconds = 3600)
     }
 
@@ -34,12 +34,12 @@ class TilgangsmaskinClientTest {
             respond(content = "", status = HttpStatusCode.NoContent)
         }
 
-        val resultat = client.evaluer(navIdent, brukerIdent, Regelsett.KOMPLETT)
+        val resultat = client.evaluer(userToken, brukerIdent, Regelsett.KOMPLETT)
 
         assertEquals(Tilgangsresultat.Innvilget, resultat)
         val captured = request
         assertNotNull(captured)
-        assertEquals("/api/v1/ccf/komplett/$navIdent", captured.url.encodedPath)
+        assertEquals("/api/v1/komplett", captured.url.encodedPath)
         assertEquals("Bearer fake-token", captured.headers[HttpHeaders.Authorization])
         // Brukers ident sendes som JSON-streng.
         assertEquals("\"$brukerIdent\"", (captured.body as TextContent).text)
@@ -53,9 +53,9 @@ class TilgangsmaskinClientTest {
             respond(content = "", status = HttpStatusCode.NoContent)
         }
 
-        client.evaluer(navIdent, brukerIdent, Regelsett.KJERNE)
+        client.evaluer(userToken, brukerIdent, Regelsett.KJERNE)
 
-        assertEquals("/api/v1/ccf/kjerne/$navIdent", request?.url?.encodedPath)
+        assertEquals("/api/v1/kjerne", request?.url?.encodedPath)
     }
 
     @Test
@@ -82,7 +82,7 @@ class TilgangsmaskinClientTest {
             )
         }
 
-        val resultat = client.evaluer(navIdent, brukerIdent)
+        val resultat = client.evaluer(userToken, brukerIdent)
 
         val avvist = assertIs<Tilgangsresultat.Avvist>(resultat)
         assertEquals("AVVIST_STRENGT_FORTROLIG_ADRESSE", avvist.kode)
@@ -91,7 +91,7 @@ class TilgangsmaskinClientTest {
     }
 
     @Test
-    fun `evaluer kaster ved 404 ukjent navIdent`() = runTest {
+    fun `evaluer kaster ved uventet status`() = runTest {
         val client = client {
             respond(
                 content = """{"title":"Uventet respons fra Entra","status":404}""",
@@ -101,7 +101,7 @@ class TilgangsmaskinClientTest {
         }
 
         assertFailsWith<TilgangsmaskinException> {
-            client.evaluer(navIdent, brukerIdent)
+            client.evaluer(userToken, brukerIdent)
         }
     }
 
@@ -109,7 +109,7 @@ class TilgangsmaskinClientTest {
     fun `evaluerBulk parser aggregert respons og grupperer status`() = runTest {
         val body = """
             {
-              "ansattId": "$navIdent",
+              "ansattId": "Z999999",
               "resultater": [
                 { "brukerId": "111", "status": 204 },
                 { "brukerId": "222", "status": 403, "detaljer": { "title": "AVVIST_SKJERMING", "kanOverstyres": true } },
@@ -128,9 +128,9 @@ class TilgangsmaskinClientTest {
             )
         }
 
-        val respons = client.evaluerBulk(navIdent, listOf("111", "222", "333"))
+        val respons = client.evaluerBulk(userToken, listOf("111", "222", "333"))
 
-        assertEquals("/api/v1/bulk/ccf/$navIdent", request?.url?.encodedPath)
+        assertEquals("/api/v1/bulk/obo", request?.url?.encodedPath)
         assertEquals(1, respons.godkjente.size)
         assertEquals("111", respons.godkjente.first().brukerId)
         assertEquals(1, respons.avviste.size)
@@ -142,7 +142,7 @@ class TilgangsmaskinClientTest {
     private fun client(handler: MockRequestHandleScope.(HttpRequestData) -> HttpResponseData): TilgangsmaskinClient {
         val engine = MockEngine { request -> handler(request) }
         return TilgangsmaskinClient(
-            tokenProvider = fakeTokenProvider,
+            tokenExchanger = fakeExchanger,
             defaultHttpClient = HttpClient(engine) {},
         )
     }
