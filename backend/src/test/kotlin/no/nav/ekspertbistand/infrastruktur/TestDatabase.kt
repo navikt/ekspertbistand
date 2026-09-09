@@ -24,10 +24,20 @@ class TestDatabase(
     val flyway: Flyway
         get() = config.flyway
 
+    /**
+     * Lukker poolen hvis migreringen feiler. Uten dette lekker en feilende migrering (f.eks. to
+     * migreringsfiler med samme versjon) én åpen pool per test, og etterfølgende tester feiler med
+     * "sorry, too many clients already" i stedet for den faktiske årsaken.
+     */
     fun cleanMigrate(): TestDatabase {
-        config.flywayAction {
-            clean()
-            migrate()
+        try {
+            config.flywayAction {
+                clean()
+                migrate()
+            }
+        } catch (e: Throwable) {
+            runCatching { config.close() }
+            throw e
         }
         return this
     }
@@ -40,8 +50,8 @@ class TestDatabase(
 fun testApplicationWithDatabase(
     block: suspend ApplicationTestBuilder.(testDatabase: TestDatabase) -> Unit
 ) = testApplication {
-    val database = TestDatabase().cleanMigrate()
-    database.use { testDatabase ->
+    TestDatabase().use { testDatabase ->
+        testDatabase.cleanMigrate()
         block(testDatabase)
     }
 }
