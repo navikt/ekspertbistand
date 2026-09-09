@@ -18,7 +18,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
-import kotlinx.coroutines.launch
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics
 import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics
 import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics
@@ -39,7 +38,6 @@ import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
-import no.nav.ekspertbistand.event.AggregateRootIdBackfill
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
 import no.nav.ekspertbistand.infrastruktur.*
@@ -128,9 +126,6 @@ fun main() {
         configureEventHandlers()
 
         configureProjectionBuilders()
-
-        // engangs backfill av aggregate_root_id for rader skrevet før kolonnen fantes (P4)
-        launch { AggregateRootIdBackfill(dependencies.resolve<Database>()).run() }
 
         configureAppMetrics()
 

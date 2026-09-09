@@ -48,11 +48,12 @@ Kolonnen innføres i faser slik at ingen migrering holder en blokkerende lås gj
 
 1. **Nullbar kolonne** (Flyway `V8`) + **modell/finalize-fallback** og en `CHECK … NOT VALID` på
    `event_log` (Flyway `V9`) som håndhever invarianten for alle *nye* rader.
-2. **Backfill-jobb** (`AggregateRootIdBackfill`, startet fra `Application.kt`): fyller legacy-rader
-   batch-vis, selv-avsluttende via `backfill_state.completed_at`. Når begge tabellene er ferdige
-   kjører den P6 steg 1: `VALIDATE CONSTRAINT` på `event_log` (ikke-blokkerende SHARE UPDATE
-   EXCLUSIVE-scan) og oppretter oppslagsindeksene `CONCURRENTLY`
-   (`(aggregate_root_id, id)` på begge tabeller).
+2. **Backfill-jobb** (`AggregateRootIdBackfill`, kjørt fra `Application.kt`): fylte legacy-rader
+   batch-vis, selv-avsluttende via `backfill_state.completed_at`. Når begge tabellene var ferdige
+   kjørte den P6 steg 1: `VALIDATE CONSTRAINT` på `event_log` (ikke-blokkerende SHARE UPDATE
+   EXCLUSIVE-scan) og opprettet oppslagsindeksene `CONCURRENTLY`
+   (`(aggregate_root_id, id)` på begge tabeller). Jobben er **fjernet fra kodebasen** etter at den
+   var ferdig i begge miljøer; den generiske `backfill_state`-tabellen beholdes for neste backfill.
 3. **`SET NOT NULL`** gjøres i en **egen, senere Flyway-migrering** (`V10`, P6 steg 2), *etter* at
    verifiseringen under gir 0 i miljøet og steg 1 er bekreftet ferdig. Fordi den validerte checken
    allerede finnes, blir `SET NOT NULL` på `event_log` en O(1)-operasjon; `V10` dropper deretter
