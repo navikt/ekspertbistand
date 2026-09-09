@@ -53,9 +53,11 @@ Kolonnen innføres i faser slik at ingen migrering holder en blokkerende lås gj
    kjører den P6 steg 1: `VALIDATE CONSTRAINT` på `event_log` (ikke-blokkerende SHARE UPDATE
    EXCLUSIVE-scan) og oppretter oppslagsindeksene `CONCURRENTLY`
    (`(aggregate_root_id, id)` på begge tabeller).
-3. **`SET NOT NULL`** gjøres i en **egen, senere Flyway-migrering** (P6 steg 2), *etter* at
-   verifiseringen under gir 0 i miljøet. Fordi den validerte checken allerede finnes, blir
-   `SET NOT NULL` en O(1)-operasjon.
+3. **`SET NOT NULL`** gjøres i en **egen, senere Flyway-migrering** (`V10`, P6 steg 2), *etter* at
+   verifiseringen under gir 0 i miljøet og steg 1 er bekreftet ferdig. Fordi den validerte checken
+   allerede finnes, blir `SET NOT NULL` på `event_log` en O(1)-operasjon; `V10` dropper deretter
+   checken og strammer `event_queue` på samme måte. Til slutt er Exposed-kolonnene og
+   `QueuedEvent`/`LoggedEvent.aggregateRootId` ikke-nullbare (`String`).
 
 ### Verifisering (kjøres i dev, så prod — må gi 0 før P6 steg 2)
 

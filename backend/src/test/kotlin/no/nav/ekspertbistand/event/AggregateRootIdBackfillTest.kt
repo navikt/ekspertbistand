@@ -2,6 +2,7 @@ package no.nav.ekspertbistand.event
 
 import kotlinx.coroutines.runBlocking
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
+import org.flywaydb.core.api.MigrationVersion
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.statements.StatementType
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
@@ -14,7 +15,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
@@ -35,7 +35,12 @@ class AggregateRootIdBackfillTest {
 
     @BeforeTest
     fun setup() {
-        testDb = TestDatabase().cleanMigrate()
+        // P6 steg 2 gjør kolonnen NOT NULL i terminaltilstanden. Disse testene verifiserer backfill-
+        // og steg 1-logikken slik den faktisk kjører i migreringsvinduet — mot skjemaet ved V10:
+        // nullbar kolonne + NOT VALID-check på event_log. Derfor migrerer vi bevisst kun til V10.
+        testDb = TestDatabase()
+        testDb.config.flywayAction { clean() }
+        testDb.config.flywayConfig.target(MigrationVersion.fromVersion("10")).load().migrate()
     }
 
     @AfterTest
@@ -119,12 +124,7 @@ class AggregateRootIdBackfillTest {
 
         runBlocking { AggregateRootIdBackfill(db, config).run() }
 
-        transaction(db) {
-            val faktisk = QueuedEvents.selectAll()
-                .where { QueuedEvents.id eq nyId }
-                .first()[QueuedEvents.aggregateRootId]
-            assertNull(faktisk, "en fullført jobb skal ikke røre nye NULL-rader")
-        }
+        assertTrue(hasNullAggregateRootId(nyId), "en fullført jobb skal ikke røre nye NULL-rader")
     }
 
     @Test
@@ -164,12 +164,9 @@ class AggregateRootIdBackfillTest {
 
         runBlocking { AggregateRootIdBackfill(db, config.copy(enabled = false)).run() }
 
-        transaction(db) {
-            val faktisk = QueuedEvents.selectAll()
-                .where { QueuedEvents.id eq legacyId }
-                .first()[QueuedEvents.aggregateRootId]
-            assertNull(faktisk, "deaktivert jobb skal ikke skrive noe")
+        assertTrue(hasNullAggregateRootId(legacyId), "deaktivert jobb skal ikke skrive noe")
 
+        transaction(db) {
             val harState = BackfillState.selectAll()
                 .where { BackfillState.jobName eq BackfillTable.EVENT_QUEUE.jobName }
                 .empty()
@@ -203,6 +200,13 @@ class AggregateRootIdBackfillTest {
         assertEquals(true, constraintValidated("event_log_aggregate_root_id_nn"))
         assertTrue(indexIsValid("event_log_aggregate_root_id_idx"))
         assertTrue(indexIsValid("event_queue_aggregate_root_id_idx"))
+    }
+
+    private fun hasNullAggregateRootId(id: Long): Boolean = transaction(db) {
+        exec(
+            "SELECT aggregate_root_id IS NULL FROM event_queue WHERE id = $id",
+            explicitStatementType = StatementType.SELECT,
+        ) { rs -> rs.next() && rs.getBoolean(1) } ?: false
     }
 
     private fun constraintValidated(name: String): Boolean? = transaction(db) {

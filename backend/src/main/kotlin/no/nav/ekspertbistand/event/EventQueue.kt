@@ -112,8 +112,7 @@ object EventQueue {
         EventLog.insert {
             it[EventLog.id] = event[QueuedEvents.id]
             it[eventData] = event[QueuedEvents.eventData]
-            it[EventLog.aggregateRootId] =
-                event[QueuedEvents.aggregateRootId] ?: event[QueuedEvents.eventData].aggregateRootId
+            it[EventLog.aggregateRootId] = event[QueuedEvents.aggregateRootId]
             if (errorResults.isEmpty()) {
                 it[status] = ProcessingStatus.COMPLETED
             } else {
@@ -159,7 +158,7 @@ fun JdbcTransaction.publishEventQueue(ev: EventData): QueuedEvent =
 object QueuedEvents : Table("event_queue") {
     val id = long("id").autoIncrement()
     val eventData = json<EventData>("event_json", Json)
-    val aggregateRootId = text("aggregate_root_id").nullable()
+    val aggregateRootId = text("aggregate_root_id")
     val status = enumeration<ProcessingStatus>("status").default(ProcessingStatus.PENDING)
     val attempts = integer("attempts").default(0)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
@@ -176,7 +175,7 @@ object QueuedEvents : Table("event_queue") {
 data class QueuedEvent(
     val id: Long,
     val eventData: EventData,
-    val aggregateRootId: String?,
+    val aggregateRootId: String,
     val status: ProcessingStatus,
     val attempts: Int,
     val createdAt: kotlin.time.Instant,

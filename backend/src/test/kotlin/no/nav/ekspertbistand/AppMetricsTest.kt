@@ -40,16 +40,19 @@ class AppMetricsTest {
                 QueuedEvents.insert {
                     it[QueuedEvents.status] = ProcessingStatus.PENDING
                     it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
+                    it[QueuedEvents.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.status] = ProcessingStatus.PENDING
                     it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
+                    it[QueuedEvents.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
+                    it[QueuedEvents.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                 }
             }
@@ -141,21 +144,25 @@ class AppMetricsTest {
             transaction {
                 QueuedEvents.insert {
                     it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
+                    it[QueuedEvents.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.createdAt] = now.minus(30.seconds) // <1m
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
+                    it[QueuedEvents.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.createdAt] = now.minus(4.minutes) // <5m
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
+                    it[QueuedEvents.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.createdAt] = now.minus(10.minutes) // <15m
                 }
                 QueuedEvents.insert {
                     it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
+                    it[QueuedEvents.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.createdAt] = now.minus(35.minutes) // >30m
                 }
@@ -267,6 +274,7 @@ class AppMetricsTest {
                     it[QueuedEvents.id] = 1L
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
+                    it[QueuedEvents.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                     it[QueuedEvents.attempts] = 2
                 }
@@ -274,6 +282,7 @@ class AppMetricsTest {
                     it[QueuedEvents.id] = 2L
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.eventData] = TestEventData.soknadInnsendt
+                    it[QueuedEvents.aggregateRootId] = TestEventData.soknadInnsendt.aggregateRootId
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                     it[QueuedEvents.attempts] = 0
                 }
@@ -281,6 +290,7 @@ class AppMetricsTest {
                     it[QueuedEvents.id] = 3L
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.eventData] = TestEventData.innsendtSoknadJournalfoert
+                    it[QueuedEvents.aggregateRootId] = TestEventData.innsendtSoknadJournalfoert.aggregateRootId
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                     it[QueuedEvents.attempts] = 5
                 }
@@ -288,6 +298,7 @@ class AppMetricsTest {
                     it[QueuedEvents.id] = 4L
                     it[QueuedEvents.status] = ProcessingStatus.PROCESSING
                     it[QueuedEvents.eventData] = TestEventData.innsendtSoknadJournalfoert
+                    it[QueuedEvents.aggregateRootId] = TestEventData.innsendtSoknadJournalfoert.aggregateRootId
                     it[QueuedEvents.updatedAt] = CurrentTimestamp
                     it[QueuedEvents.attempts] = 1
                 }
