@@ -6,6 +6,21 @@ Durable, at-least-once event processing using a relational database queue and lo
 - Use `EventQueue` to publish events and manage their lifecycle.
 - Use `EventManager` to process events from the queue, dispatching them to registered handlers.
 
+### Publisering — ett inngangspunkt: `publishEventQueue`
+
+Køen har nøyaktig én vei inn, og du skal aldri skrive til `event_queue`/`QueuedEvents` direkte:
+
+- `fun JdbcTransaction.publishEventQueue(ev: EventData): QueuedEvent` — en extension-funksjon på
+  toppnivå i `EventQueue.kt`. Den publiserer i **kallerens** pågående transaksjon og commiter/rulles
+  tilbake med den. Receiveren er håndhevelsen: funksjonen finnes ikke utenfor en `transaction { }`-blokk,
+  så publisering uten transaksjon er en **kompileringsfeil** — ingen `require`-vakter, ingen runtime-feilmodus.
+  Inne i en `transaction { }` kalles den ukvalifisert: `publishEventQueue(ev)`.
+- Kallere som ikke selv har en transaksjon (typisk route-handlere) åpner en selv:
+  `transaction(database) { publishEventQueue(ev) }`. Da står skrivingen synlig på kallstedet.
+
+**Aldri et suspend-kall inne i `transaction { }`** — åpne transaksjonen rundt skrivingen, ikke rundt
+hele arbeidet (f.eks. dokgen-HTTP-kall). Se `TilsagnDataApi.hentTilskuddsbrevHtmlForSoknad`.
+
 ## Overview
 
 - QueuedEvents are stored in the `event_queue` table.
@@ -15,7 +30,7 @@ Durable, at-least-once event processing using a relational database queue and lo
 
 ## Lifecycle
 
-- `publish(event: Event)`: Insert into `events` with status PENDING, attempts=0.
+- `JdbcTransaction.publishEventQueue(ev: EventData): QueuedEvent`: Insert into `event_queue` with status PENDING, attempts=0. Se «Publisering — ett inngangspunkt: `publishEventQueue`» over.
 - `poll(clock: Clock = Clock.System): QueuedEvent?`: Atomically select the next eligible row and mark it PROCESSING, incrementing attempts.
   - Eligibility: status = PENDING, or status = PROCESSING and `updated_at` older than the abandonment timeout.
   - Uses `FOR UPDATE SKIP LOCKED` so only one process acquires a row.
@@ -35,7 +50,7 @@ sequenceDiagram
     participant H as EventHandlers
     participant L as Event Log
 
-    P->>Q: publish(event)
+    P->>Q: transaction { publishEventQueue(event) }
     Note over Q: events += {status: PENDING, attempts: 0}
 
     M->>Q: poll()
@@ -77,7 +92,7 @@ sequenceDiagram
 
 ## API (Kotlin)
 
-- `publish(event: Event): QueuedEvent` 
+- `JdbcTransaction.publishEventQueue(ev: EventData): QueuedEvent`
 - `poll(clock: Clock = Clock.System): QueuedEvent?`  // non-blocking; returns null if none
 - `finalize(id: Long, errorResults: List<EventHandledResult.Error> = emptyList())`
 
