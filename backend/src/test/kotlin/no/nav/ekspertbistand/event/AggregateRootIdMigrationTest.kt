@@ -11,11 +11,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * P2 i spesifikasjonen: `V8__aggregate_root_id.sql` legger til en nullbar `aggregate_root_id`-kolonne
+ * P2 i spesifikasjonen: `V9__aggregate_root_id.sql` legger til en nullbar `aggregate_root_id`-kolonne
  * på `event_queue` og `event_log`, samt `backfill_state`-tabellen.
  *
- * Testen migrerer først til V7 (før kolonnen fantes), legger inn en legacy-rad, og migrerer så videre
- * til V8. Det verifiserer både at ADD COLUMN kjører rent på en base med eksisterende rader, og at
+ * Testen migrerer først til V8 (før kolonnen fantes), legger inn en legacy-rad, og migrerer så videre
+ * til V9. Det verifiserer både at ADD COLUMN kjører rent på en base med eksisterende rader, og at
  * kolonnen er nullbar — de eksisterende radene beholder null uten at migreringen feiler.
  */
 class AggregateRootIdMigrationTest {
@@ -33,17 +33,17 @@ class AggregateRootIdMigrationTest {
     }
 
     @Test
-    fun `V8 legger til nullbar aggregate_root_id og bevarer eksisterende rader`() {
-        // 1. Migrer til V7 — før aggregate_root_id fantes.
+    fun `V9 legger til nullbar aggregate_root_id og bevarer eksisterende rader`() {
+        // 1. Migrer til V8 — siste versjon før aggregate_root_id fantes.
         config.flywayAction { clean() }
-        config.flywayConfig.target(MigrationVersion.fromVersion("7")).load().migrate()
+        config.flywayConfig.target(MigrationVersion.fromVersion("8")).load().migrate()
 
         // 2. Legg inn en legacy-rad uten aggregate_root_id.
         val legacy = transaction(config.jdbcDatabase) {
             publishEventQueue(TestEventData.soknadInnsendt)
         }
 
-        // 3. Migrer resten (V8).
+        // 3. Migrer resten (V9).
         config.flywayConfig.target(MigrationVersion.LATEST).load().migrate()
 
         transaction(config.jdbcDatabase) {

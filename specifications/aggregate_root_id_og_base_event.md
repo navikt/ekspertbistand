@@ -512,7 +512,7 @@ Kun katalog-endringer. `ADD COLUMN` av en nullbar kolonne **uten** `DEFAULT` er 
 uavhengig av tabellstørrelse. Den tar en kortvarig `ACCESS EXCLUSIVE`-lås — derfor `lock_timeout`, så migreringen
 feiler raskt og rent i stedet for å stå i lås-kø bak en langvarig transaksjon.
 
-`backend/src/main/resources/db/migration/V7__aggregate_root_id.sql`:
+`backend/src/main/resources/db/migration/V9__aggregate_root_id.sql`:
 
 ```sql
 SET lock_timeout = '3s';
@@ -564,7 +564,7 @@ Kodeendringer:
 7. `Event<T>` får `val aggregateRootId get() = data.aggregateRootId` som bekvemmelighet for handlers.
 8. Tester som setter inn events direkte (`AppMetricsTest`) oppdateres.
 
-`V8__aggregate_root_id_not_null_check.sql` — låser invarianten for nye logg-rader umiddelbart, uten å bry seg om
+`V10__aggregate_root_id_not_null_check.sql` — låser invarianten for nye logg-rader umiddelbart, uten å bry seg om
 historiske rader:
 
 ```sql
