@@ -16,8 +16,8 @@ import kotlin.test.assertTrue
  * på `event_queue` og `event_log`, samt `backfill_state`-tabellen.
  *
  * Testen migrerer først til V8 (før kolonnen fantes), legger inn en legacy-rad, og migrerer så videre
- * til V9. Det verifiserer både at ADD COLUMN kjører rent på en base med eksisterende rader, og at
- * kolonnen er nullbar — de eksisterende radene beholder null uten at migreringen feiler.
+ * til V10 — altså til og med V9, men før V11 gjør kolonnen NOT NULL. Det verifiserer både at
+ * ADD COLUMN kjører rent på en base med eksisterende rader, og at kolonnen er nullbar — de eksisterende radene beholder null uten at migreringen feiler.
  */
 class AggregateRootIdMigrationTest {
     private lateinit var testDb: TestDatabase
@@ -40,7 +40,7 @@ class AggregateRootIdMigrationTest {
         config.flywayConfig.target(MigrationVersion.fromVersion("8")).load().migrate()
 
         // 2. Legg inn en legacy-rad uten aggregate_root_id. Rå SQL fordi Exposed-modellen nå
-        //    kjenner aggregate_root_id-kolonnen, som ikke finnes ennå på V7.
+        //    kjenner aggregate_root_id-kolonnen, som ikke finnes ennå på V8.
         val legacyId = transaction(config.jdbcDatabase) {
             exec(
                 "INSERT INTO event_queue (event_json) VALUES ('{}'::json) RETURNING id",
@@ -50,8 +50,9 @@ class AggregateRootIdMigrationTest {
             }!!
         }
 
-        // 3. Migrer resten (V9).
-        config.flywayConfig.target(MigrationVersion.LATEST).load().migrate()
+        // 3. Migrer resten fram til V10 (før P6 steg 2 gjør kolonnen NOT NULL i V11).
+        //    Legacy-raden med NULL skal overleve.
+        config.flywayConfig.target(MigrationVersion.fromVersion("10")).load().migrate()
 
         transaction(config.jdbcDatabase) {
             // Kolonnen finnes og er nullbar på begge tabellene.
