@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.event
 import kotlinx.coroutines.runBlocking
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.statements.StatementType
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
@@ -14,6 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
@@ -173,6 +175,52 @@ class AggregateRootIdBackfillTest {
                 .empty()
             assertEquals(true, harState, "deaktivert jobb skal ikke opprette state-rader")
         }
+    }
+
+    @Test
+    fun `P6 steg 1 - validerer event_log-checken og oppretter oppslagsindeksene`() {
+        // Seed noen rader i begge tabellene slik at det er noe å indeksere.
+        transaction(db) {
+            repeat(3) { publishEventQueue(TestEventData.soknadInnsendt) }
+        }
+
+        runBlocking { AggregateRootIdBackfill(db, config).run() }
+
+        // NOT VALID-checken fra V10 skal nå være validert (så et senere SET NOT NULL blir O(1)).
+        assertEquals(true, constraintValidated("event_log_aggregate_root_id_nn"))
+
+        // Begge oppslagsindeksene skal finnes og være gyldige.
+        assertTrue(indexIsValid("event_log_aggregate_root_id_idx"), "event_log-indeksen skal være gyldig")
+        assertTrue(indexIsValid("event_queue_aggregate_root_id_idx"), "event_queue-indeksen skal være gyldig")
+    }
+
+    @Test
+    fun `P6 steg 1 - er idempotent ved gjentatt oppstart`() {
+        runBlocking { AggregateRootIdBackfill(db, config).run() }
+        // Andre kjøring skal ikke feile (VALIDATE hoppes over, indekser IF NOT EXISTS).
+        runBlocking { AggregateRootIdBackfill(db, config).run() }
+
+        assertEquals(true, constraintValidated("event_log_aggregate_root_id_nn"))
+        assertTrue(indexIsValid("event_log_aggregate_root_id_idx"))
+        assertTrue(indexIsValid("event_queue_aggregate_root_id_idx"))
+    }
+
+    private fun constraintValidated(name: String): Boolean? = transaction(db) {
+        exec(
+            "SELECT convalidated FROM pg_constraint WHERE conname = '$name'",
+            explicitStatementType = StatementType.SELECT,
+        ) { rs -> if (rs.next()) rs.getBoolean(1) else null }
+    }
+
+    private fun indexIsValid(indexName: String): Boolean = transaction(db) {
+        exec(
+            """
+            SELECT i.indisvalid FROM pg_class c
+            JOIN pg_index i ON i.indexrelid = c.oid
+            WHERE c.relname = '$indexName'
+            """.trimIndent(),
+            explicitStatementType = StatementType.SELECT,
+        ) { rs -> rs.next() && rs.getBoolean(1) } ?: false
     }
 
     private data class StateSnapshot(

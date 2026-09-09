@@ -27,9 +27,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
+import java.sql.Connection
 
 /**
- * P4 — engangs backfill av `aggregate_root_id` for rader som ble skrevet før kolonnen fantes.
+ * P4 — engangs backfill av `aggregate_root_id` for rader som ble skrevet før kolonnen fantes, og
+ * P6 steg 1 — den ikke-blokkerende opprydningen som gjør en senere `SET NOT NULL` (P6 steg 2, egen
+ * Flyway-migrering) til en O(1)-operasjon.
  *
  * Jobben er en bakgrunnsløkke i backend, startet fra `Application.kt` etter samme mønster som
  * projeksjonene. Den er **selv-avsluttende**: når begge tabellene er ferdige settes `completed_at`
@@ -44,6 +47,11 @@ import kotlin.time.ExperimentalTime
  * - Én pod om gangen: `FOR UPDATE SKIP LOCKED` på state-raden (samme mønster som projeksjonene).
  * - Idempotent: setter kun rader der `aggregate_root_id IS NULL`; å kjøre den to ganger er et no-op.
  * - Skånsom: batch på N rader, `delay` mellom batcher, `lock_timeout` + `statement_timeout` per batch.
+ *
+ * Når begge tabellene er backfillet kjøres [finalizeSchema] (P6 steg 1): `VALIDATE CONSTRAINT` på
+ * `event_log` (flytter scanen til en ikke-blokkerende SHARE UPDATE EXCLUSIVE-lås) og oppretting av
+ * oppslagsindeksene `CONCURRENTLY`. Selve `SET NOT NULL` gjøres først i en senere Flyway-migrering
+ * (P6 steg 2), etter at dette er bekreftet ferdig i miljøet.
  */
 @OptIn(ExperimentalTime::class)
 class AggregateRootIdBackfill(
@@ -52,7 +60,7 @@ class AggregateRootIdBackfill(
 ) {
     private val log = logger()
 
-    /** Kjører til begge tabellene er ferdige, deretter returnerer den. */
+    /** Kjører backfillen til begge tabellene er ferdige, og strammer så skjemaet (P6 steg 1). */
     suspend fun run() = withContext(Dispatchers.IO) {
         if (!config.enabled) {
             log.info("AggregateRootIdBackfill er deaktivert (enabled=false), hopper over")
@@ -62,6 +70,7 @@ class AggregateRootIdBackfill(
         listOf(BackfillTable.EVENT_QUEUE, BackfillTable.EVENT_LOG).forEach { table ->
             backfillTable(table)
         }
+        finalizeSchema()
     }
 
     private suspend fun CoroutineScope.backfillTable(table: BackfillTable) {
@@ -218,8 +227,96 @@ class AggregateRootIdBackfill(
             buildList { while (rs.next()) add(rs.getLong("id")) }
         } ?: emptyList()
 
+    // --- P6 steg 1: ikke-blokkerende innstramming (VALIDATE + CONCURRENTLY-indekser) ---
+
+    /**
+     * Kjøres når begge tabellene er backfillet. Validerer NOT VALID-checken på `event_log` (så en
+     * senere `SET NOT NULL` blir O(1)) og oppretter oppslagsindeksene. Alt er idempotent og kjører
+     * derfor trygt på hver oppstart. `SET NOT NULL` selv gjøres først i Flyway steg 2.
+     */
+    private fun finalizeSchema() {
+        if (!isCompleted(BackfillTable.EVENT_QUEUE.jobName) || !isCompleted(BackfillTable.EVENT_LOG.jobName)) {
+            log.info("Backfill ikke fullført for begge tabellene ennå — hopper over VALIDATE/indeksering")
+            return
+        }
+        validateEventLogConstraint()
+        ensureConcurrentIndex("event_log_aggregate_root_id_idx", BackfillTable.EVENT_LOG.tableName)
+        ensureConcurrentIndex("event_queue_aggregate_root_id_idx", BackfillTable.EVENT_QUEUE.tableName)
+    }
+
+    private fun validateEventLogConstraint() {
+        when (constraintValidated(EVENT_LOG_CHECK)) {
+            // Checken er borte — P6 steg 2 har kjørt. Ingenting å validere.
+            null -> log.info("Checken $EVENT_LOG_CHECK finnes ikke (P6 steg 2 kjørt?), hopper over VALIDATE")
+            // Allerede validert — no-op.
+            true -> Unit
+            false -> {
+                log.info("Validerer $EVENT_LOG_CHECK (ikke-blokkerende SHARE UPDATE EXCLUSIVE-scan)")
+                autoCommit { "ALTER TABLE event_log VALIDATE CONSTRAINT $EVENT_LOG_CHECK" }
+            }
+        }
+    }
+
+    /**
+     * Oppretter en indeks `CONCURRENTLY`. Kan ikke kjøre i en transaksjon, så den går på en
+     * autoCommit-connection. Feiler byggingen står indeksen igjen som ugyldig (`indisvalid = false`);
+     * da droppes den og bygges på nytt ved neste oppstart.
+     */
+    private fun ensureConcurrentIndex(indexName: String, table: String) {
+        if (indexIsInvalid(indexName)) {
+            log.warn("Indeks $indexName er ugyldig (feilet CONCURRENTLY-bygg), dropper og bygger på nytt")
+            autoCommit { "DROP INDEX CONCURRENTLY IF EXISTS $indexName" }
+        }
+        autoCommit {
+            "CREATE INDEX CONCURRENTLY IF NOT EXISTS $indexName ON $table (aggregate_root_id, id)"
+        }
+    }
+
+    /** null = constrainten finnes ikke, ellers `pg_constraint.convalidated`. */
+    private fun constraintValidated(name: String): Boolean? = transaction(database) {
+        exec(
+            "SELECT convalidated FROM pg_constraint WHERE conname = '$name'",
+            explicitStatementType = StatementType.SELECT,
+        ) { rs -> if (rs.next()) rs.getBoolean(1) else null }
+    }
+
+    private fun indexIsInvalid(indexName: String): Boolean = transaction(database) {
+        exec(
+            """
+            SELECT i.indisvalid FROM pg_class c
+            JOIN pg_index i ON i.indexrelid = c.oid
+            WHERE c.relname = '$indexName'
+            """.trimIndent(),
+            explicitStatementType = StatementType.SELECT,
+        ) { rs -> if (rs.next()) !rs.getBoolean(1) else false } ?: false
+    }
+
+    /**
+     * Kjører én DDL-setning på en dedikert autoCommit-connection utenfor Exposed sin
+     * transaksjonshåndtering — nødvendig for `CREATE/DROP INDEX CONCURRENTLY`.
+     */
+    private fun autoCommit(sql: () -> String) {
+        val exposedConnection = database.connector()
+        try {
+            val connection = exposedConnection.connection as Connection
+            val previousAutoCommit = connection.autoCommit
+            connection.autoCommit = true
+            try {
+                connection.createStatement().use { it.execute(sql()) }
+            } finally {
+                connection.autoCommit = previousAutoCommit
+            }
+        } finally {
+            exposedConnection.close()
+        }
+    }
+
     private data class BatchResult(val newCursor: Long?, val scanned: Long, val updated: Long)
     private data class BatchProgress(val newCursor: Long?, val updated: Long)
+
+    private companion object {
+        const val EVENT_LOG_CHECK = "event_log_aggregate_root_id_nn"
+    }
 }
 
 /**
