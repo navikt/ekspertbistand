@@ -75,7 +75,7 @@ class AggregateRootIdBackfillTest {
 
     @Test
     fun `fyller legacy-rader i event_log`() {
-        // event_log har V9-checken (NOT VALID). Den håndheves ved INSERT, så for å simulere rader
+        // event_log har V10-checken (NOT VALID). Den håndheves ved INSERT, så for å simulere rader
         // fra før constrainten fantes dropper vi den, legger inn NULL-rader, og kjører backfillen.
         transaction(db) {
             exec("ALTER TABLE event_log DROP CONSTRAINT event_log_aggregate_root_id_nn")
