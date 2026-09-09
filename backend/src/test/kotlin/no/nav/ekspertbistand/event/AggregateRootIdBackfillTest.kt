@@ -186,7 +186,7 @@ class AggregateRootIdBackfillTest {
 
         runBlocking { AggregateRootIdBackfill(db, config).run() }
 
-        // NOT VALID-checken fra V9 skal nå være validert (så et senere SET NOT NULL blir O(1)).
+        // NOT VALID-checken fra V10 skal nå være validert (så et senere SET NOT NULL blir O(1)).
         assertEquals(true, constraintValidated("event_log_aggregate_root_id_nn"))
 
         // Begge oppslagsindeksene skal finnes og være gyldige.
