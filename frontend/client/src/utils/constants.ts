@@ -38,6 +38,10 @@ export const EKSPERTBISTAND_INFO_URL = "https://www.nav.no/arbeidsgiver/ekspertb
 export const EKSPERTBISTAND_API_PATH = withBasePath("/ekspertbistand-backend/api/soknad/v1");
 export const EKSPERTBISTAND_SLUTTRAPPORT_PATH = (id: string) =>
   withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/sluttrapport`);
+export const EKSPERTBISTAND_REFUSJON_PATH = (id: string) =>
+  withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/refusjon`);
+export const EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH = (id: string, vedleggId: string) =>
+  withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/refusjon/vedlegg/${vedleggId}`);
 export const EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH = withBasePath(
   "/ekspertbistand-backend/api/tilsagndata/v1"
 );
@@ -48,6 +52,12 @@ export const EKSPERTBISTAND_EREG_ADRESSE_PATH = withBasePath("/ekspertbistand-ba
 export const EKSPERTBISTAND_EREG_ORGANISASJONER_PATH = withBasePath(
   "/ekspertbistand-backend/api/ereg/organisasjoner"
 );
+export const EKSPERTBISTAND_EREG_ORGANISASJON_PATH = (orgnr: string) =>
+  withBasePath(`/ekspertbistand-backend/api/ereg/organisasjoner/${orgnr}`);
+export const EKSPERTBISTAND_KONTONUMMER_PATH = withBasePath(
+  "/ekspertbistand-backend/api/soknad/v1/virksomhet/kontonummer-finnes"
+);
+export const KONTONUMMER_REGISTRERING_URL = "https://www.nav.no/arbeidsgiver/endre-kontonummer";
 
 export const SOKNADER_PATH = "/soknader";
 export const REFUSJON_URL = "https://www.nav.no/fyllut/nav761390?sub=paper";

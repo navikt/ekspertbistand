@@ -12,11 +12,23 @@ class EregService(private val eregClient: EregClient) {
      * som brukes til forslag i skjemaet. ENK inkluderes. Ingen tilgangssjekk — kun offentlig
      * Ereg-navnedata eksponeres.
      */
-    suspend fun finnOrganisasjoner(navn: String): List<OrganisasjonSok> {
+    suspend fun finnOrganisasjonerForNavn(navn: String): List<OrganisasjonSok> {
         return runCatching {
             eregClient.finnOrganisasjon(navn).organisasjonSammendrag.mapNotNull { it.tilOrganisasjonSok() }
         }.onFailure { feil ->
             log.warn("Klarte ikke søke etter organisasjoner i EREG", feil)
+        }.getOrDefault(emptyList())
+    }
+
+    suspend fun finnOrganisasjonForOrgnr(orgnr: String): List<OrganisasjonSok> {
+        return runCatching {
+            eregClient.hentOrganisasjon(orgnr).let { organisasjon ->
+                val navn = organisasjon.navn?.sammensattnavn ?: organisasjon.navn?.navnelinje1
+                val organisasjonsnummer = organisasjon.organisasjonsnummer ?: orgnr
+                if (navn == null) emptyList() else listOf(OrganisasjonSok(organisasjonsnummer, navn))
+            }
+        }.onFailure { feil ->
+            log.warn("Klarte ikke hente organisasjon fra EREG for {}", orgnr, feil)
         }.getOrDefault(emptyList())
     }
 

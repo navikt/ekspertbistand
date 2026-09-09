@@ -47,11 +47,14 @@ import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
+import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
-import no.nav.ekspertbistand.soknad.innloggetBruker
 import no.nav.ekspertbistand.soknad.subjectToken
+import no.nav.ekspertbistand.sokos.KontoregisterClient
+import no.nav.ekspertbistand.sokos.configureKontoregisterApiV1
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
+import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
 import java.util.*
@@ -93,6 +96,10 @@ fun main() {
             provide(AaregClient::class)
             provide(EntraProxyClient::class)
             provide(FagsakIdService::class)
+            basedOnEnv(
+                dev = { provide(KontoregisterClient::class) },
+                other = {},
+            )
         }
 
         // configure standard server stuff
@@ -104,10 +111,16 @@ fun main() {
         // configure application modules and endpoints
         configureSoknadApiV1()
         configureVedleggApiV1()
+        configureRefusjonApiV1()
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()
         configureEregApiV1()
         configureSaksbehandlerApiV1()
+        basedOnEnvSuspending(
+            dev = { configureKontoregisterApiV1() },
+            other = {}
+
+        )
 
         // event manager and event handlers
         configureEventHandlers()

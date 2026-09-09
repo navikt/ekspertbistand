@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.vedlegg
+package no.nav.ekspertbistand.refusjon
 
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -13,17 +13,17 @@ import no.nav.ekspertbistand.soknad.getRequired
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.UUID
 
-suspend fun Application.configureVedleggApiV1() {
+suspend fun Application.configureRefusjonApiV1() {
     val database = dependencies.resolve<Database>()
     val clamAvClient = dependencies.resolve<ClamAvClient>()
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
-    val vedleggApi = VedleggApi(database, VedleggDb(database), clamAvClient, altinnTilgangerClient)
+    val refusjonApi = RefusjonApi(database, RefusjonDb(database), clamAvClient, altinnTilgangerClient)
 
     routing {
         authenticate(TOKENX_PROVIDER) {
             route("/api/soknad/v1/{id}") {
-                with(vedleggApi) {
-                    post("/sluttrapport") {
+                with(refusjonApi) {
+                    post("/refusjon") {
                         val soknadId: UUID = call.pathParameters.getRequired(
                             name = "id",
                             transform = UUID::fromString,
@@ -31,9 +31,9 @@ suspend fun Application.configureVedleggApiV1() {
                             call.respond(HttpStatusCode.BadRequest, "ugyldig id")
                             return@post
                         }
-                        lastOppSluttrapport(soknadId)
+                        sendInnRefusjon(soknadId)
                     }
-                    get("/sluttrapport") {
+                    get("/refusjon") {
                         val soknadId: UUID = call.pathParameters.getRequired(
                             name = "id",
                             transform = UUID::fromString,
@@ -41,7 +41,24 @@ suspend fun Application.configureVedleggApiV1() {
                             call.respond(HttpStatusCode.BadRequest, "ugyldig id")
                             return@get
                         }
-                        hentSluttrapportStatus(soknadId)
+                        hentRefusjonStatus(soknadId)
+                    }
+                    get("/refusjon/vedlegg/{vedleggId}") {
+                        val soknadId: UUID = call.pathParameters.getRequired(
+                            name = "id",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(HttpStatusCode.BadRequest, "ugyldig id")
+                            return@get
+                        }
+                        val vedleggId: UUID = call.pathParameters.getRequired(
+                            name = "vedleggId",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(HttpStatusCode.BadRequest, "ugyldig vedleggId")
+                            return@get
+                        }
+                        lastNedVedlegg(soknadId, vedleggId)
                     }
                 }
             }

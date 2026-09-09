@@ -4,30 +4,38 @@ import {
   Alert,
   BodyShort,
   Button,
+  ExpansionCard,
   FileUpload,
   FormSummary,
   Heading,
+  Label,
   Loader,
   VStack,
   type FileAccepted,
   type FileObject,
   type FileRejected,
 } from "@navikt/ds-react";
-import { PaperplaneIcon } from "@navikt/aksel-icons";
+import { FileTextIcon, PaperplaneIcon } from "@navikt/aksel-icons";
 import DecoratedPage from "../components/DecoratedPage";
 import { BackLink } from "../components/BackLink";
 import { useSoknad } from "../hooks/useSoknad";
+import { useSluttrapportStatus } from "../hooks/useSluttrapportStatus";
 import { formatDate } from "../components/summaryFormatters";
 import { EKSPERTBISTAND_SLUTTRAPPORT_PATH } from "../utils/constants";
 import { resolveApiError, type ApiErrorInfo } from "../utils/http";
 
-const MAX_FILES = 10;
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_FILES = 1;
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 export default function SluttrapportPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { soknad, isLoading, error: fetchError } = useSoknad(id);
+  const {
+    sluttrapport,
+    isLoading: isLoadingStatus,
+    mutate: mutateStatus,
+  } = useSluttrapportStatus(id);
 
   const [acceptedFiles, setAcceptedFiles] = useState<File[]>([]);
   const [rejectedFiles, setRejectedFiles] = useState<FileRejected[]>([]);
@@ -59,6 +67,7 @@ export default function SluttrapportPage() {
       if (!response.ok) {
         throw new Error(`Feil ved innsending (${response.status})`);
       }
+      await mutateStatus();
       navigate(`/skjema/${id}/kvittering`);
     } catch (err) {
       setSubmitError(resolveApiError(err, "Kunne ikke sende inn sluttrapporten akkurat nå."));
@@ -67,7 +76,7 @@ export default function SluttrapportPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingStatus) {
     return (
       <DecoratedPage>
         <VStack align="center" gap="space-4" padding="space-32">
@@ -126,64 +135,93 @@ export default function SluttrapportPage() {
           </FormSummary.Answers>
         </FormSummary>
 
-        <VStack gap="space-16">
-          <FileUpload>
-            <FileUpload.Dropzone
-              label="Last opp sluttrapport fra eksperten"
-              description="Kun PDF-filer. Maks 20 MB per fil."
-              accept=".pdf,application/pdf"
-              maxSizeInBytes={MAX_FILE_SIZE_BYTES}
-              multiple
-              fileLimit={{ max: MAX_FILES, current: acceptedFiles.length }}
-              onSelect={onSelect}
-              error={
-                rejectedFiles.length > 0
-                  ? rejectedFiles.map((f) => `${f.file.name}: ${f.reasons.join(", ")}`).join("\n")
-                  : undefined
-              }
-            />
-          </FileUpload>
-
-          {hasFiles && (
-            <VStack gap="space-8" as="ul">
-              {acceptedFiles.map((file) => (
-                <FileUpload.Item
-                  key={`${file.name}-${file.size}`}
-                  as="li"
-                  file={file}
-                  button={{
-                    action: "delete",
-                    onClick: () => removeFile(file),
-                  }}
+        {sluttrapport ? (
+          <ExpansionCard aria-label="Sluttrapport sendt inn" defaultOpen>
+            <ExpansionCard.Header>
+              <VStack gap="space-8">
+                <FileTextIcon aria-hidden fontSize="1.5rem" />
+                <ExpansionCard.Title size="small">Sluttrapport sendt inn</ExpansionCard.Title>
+                <ExpansionCard.Description>
+                  {formatDate(sluttrapport.lastetOpp)}
+                </ExpansionCard.Description>
+              </VStack>
+            </ExpansionCard.Header>
+            <ExpansionCard.Content>
+              <VStack gap="space-16">
+                <VStack gap="space-2">
+                  <Label>Vedlegg</Label>
+                  <BodyShort>{sluttrapport.filnavn}</BodyShort>
+                </VStack>
+                <VStack gap="space-2">
+                  <Label>Sendt inn til Nav</Label>
+                  <BodyShort>{formatDate(sluttrapport.lastetOpp)}</BodyShort>
+                </VStack>
+              </VStack>
+            </ExpansionCard.Content>
+          </ExpansionCard>
+        ) : (
+          <>
+            <VStack gap="space-16">
+              <FileUpload>
+                <FileUpload.Dropzone
+                  label="Last opp sluttrapport fra eksperten"
+                  description="Kun PDF-filer. Maks 10 MB per fil."
+                  accept=".pdf,application/pdf"
+                  maxSizeInBytes={MAX_FILE_SIZE_BYTES}
+                  fileLimit={{ max: MAX_FILES, current: acceptedFiles.length }}
+                  onSelect={onSelect}
+                  error={
+                    rejectedFiles.length > 0
+                      ? rejectedFiles
+                          .map((f) => `${f.file.name}: ${f.reasons.join(", ")}`)
+                          .join("\n")
+                      : undefined
+                  }
                 />
-              ))}
+              </FileUpload>
+
+              {hasFiles && (
+                <VStack gap="space-8" as="ul">
+                  {acceptedFiles.map((file) => (
+                    <FileUpload.Item
+                      key={`${file.name}-${file.size}`}
+                      as="li"
+                      file={file}
+                      button={{
+                        action: "delete",
+                        onClick: () => removeFile(file),
+                      }}
+                    />
+                  ))}
+                </VStack>
+              )}
+
+              {atFileLimit && (
+                <Alert variant="info" inline>
+                  Du kan kun laste opp ett vedlegg.
+                </Alert>
+              )}
             </VStack>
-          )}
 
-          {atFileLimit && (
-            <Alert variant="info" inline>
-              Maks {MAX_FILES} filer er nådd.
-            </Alert>
-          )}
-        </VStack>
+            {submitError && (
+              <Alert variant="error" role="alert">
+                {submitError.message}
+              </Alert>
+            )}
 
-        {submitError && (
-          <Alert variant="error" role="alert">
-            {submitError.message}
-          </Alert>
+            <Button
+              type="button"
+              variant="primary"
+              icon={<PaperplaneIcon aria-hidden />}
+              iconPosition="right"
+              loading={isSubmitting}
+              disabled={!hasFiles}
+              onClick={handleSubmit}
+            >
+              Send inn
+            </Button>
+          </>
         )}
-
-        <Button
-          type="button"
-          variant="primary"
-          icon={<PaperplaneIcon aria-hidden />}
-          iconPosition="right"
-          loading={isSubmitting}
-          disabled={!hasFiles}
-          onClick={handleSubmit}
-        >
-          Send inn
-        </Button>
       </VStack>
     </DecoratedPage>
   );

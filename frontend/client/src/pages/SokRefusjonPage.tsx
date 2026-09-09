@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useMemo, useState } from "react";
+import { useNavigate, useParams, Navigate } from "react-router";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,9 +9,14 @@ import {
   Button,
   Checkbox,
   ErrorMessage,
+  ExpansionCard,
   FileUpload,
   FormSummary,
   Heading,
+  InfoCard,
+  Label,
+  Link,
+  LinkCard,
   Loader,
   TextField,
   Textarea,
@@ -20,35 +25,57 @@ import {
   type FileObject,
   type FileRejected,
 } from "@navikt/ds-react";
-import { PaperplaneIcon } from "@navikt/aksel-icons";
+import { FileTextIcon, PaperplaneIcon, XMarkOctagonIcon } from "@navikt/aksel-icons";
 import DecoratedPage from "../components/DecoratedPage";
 import { BackLink } from "../components/BackLink";
 import { FormErrorSummary } from "../components/FormErrorSummary";
 import { useSoknad } from "../hooks/useSoknad";
+import { useRefusjonStatus } from "../hooks/useRefusjonStatus";
+import { useKontonummerFinnes } from "../hooks/useKontonummerFinnes";
 import { formatDate } from "../components/summaryFormatters";
-import { EKSPERTBISTAND_SLUTTRAPPORT_PATH } from "../utils/constants";
+import { formatBytes } from "../utils/format";
+import {
+  EKSPERTBISTAND_REFUSJON_PATH,
+  EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH,
+  KONTONUMMER_REGISTRERING_URL,
+} from "../utils/constants";
 import { resolveApiError, type ApiErrorInfo } from "../utils/http";
 import { useErrorFocus } from "../hooks/useErrorFocus";
+import { isProd } from "../utils/env";
 
-const MAX_FILES = 10;
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_FILES = 5;
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_UTGIFTER_CHARS = 2000;
 
-const refusjonSchema = z.object({
-  utgifter: z
-    .string()
-    .min(1, "Du må beskrive hvilke utgifter tilskuddet skal dekke.")
-    .max(MAX_UTGIFTER_CHARS, `Beskrivelsen kan ikke være lengre enn ${MAX_UTGIFTER_CHARS} tegn.`),
-  belop: z
-    .string()
-    .min(1, "Du må oppgi beløp for refusjonskravet.")
-    .regex(/^\d+([.,]\d{1,2})?$/, "Beløpet må være et gyldig tall, f.eks. 12500 eller 12500,50."),
-  bekreftUtgifter: z
-    .boolean()
-    .refine(Boolean, { message: "Du må bekrefte at utgiftene er betalt." }),
-});
+// TODO: Vi må sjekke refusjonsbeløpet mot maksbeløpet i tilsagnsbrevet.
+// Maksbeløpet er ikke eksponert fra backend/tilsagnsbrev ennå – når det er på
+// plass, hent det via useSoknad/tilsagn og send det inn til makeRefusjonSchema
+// nedenfor. Da vil feltet vise feil og skjemaet blokkeres ved beløp over maks.
+const makeRefusjonSchema = (maksBelopKroner?: number) =>
+  z.object({
+    utgifter: z
+      .string()
+      .min(1, "Du må beskrive hvilke utgifter tilskuddet skal dekke.")
+      .max(MAX_UTGIFTER_CHARS, `Beskrivelsen kan ikke være lengre enn ${MAX_UTGIFTER_CHARS} tegn.`),
+    belop: z
+      .string()
+      .min(1, "Du må oppgi beløp for refusjonskravet.")
+      .regex(/^\d+$/, "Beløpet må være et helt antall kroner, f.eks. 12500.")
+      .superRefine((value, ctx) => {
+        if (maksBelopKroner === undefined || !/^\d+$/.test(value)) return;
+        if (Number(value) > maksBelopKroner) {
+          ctx.addIssue({
+            code: "custom",
+            message: `Beløpet kan ikke være høyere enn maksbeløpet i tilsagnsbrevet (${maksBelopKroner} kroner).`,
+          });
+        }
+      }),
+    bekreftUtgifter: z
+      .boolean()
+      .refine(Boolean, { message: "Du må bekrefte at utgiftene er betalt." }),
+  });
 
-type RefusjonInputs = z.infer<typeof refusjonSchema>;
+type RefusjonInputs = z.infer<ReturnType<typeof makeRefusjonSchema>>;
 
 const FIELDS = ["utgifter", "belop", "bekreftUtgifter"] as const satisfies ReadonlyArray<
   keyof RefusjonInputs
@@ -58,6 +85,12 @@ export default function SokRefusjonPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { soknad, isLoading, error: fetchError } = useSoknad(id);
+  const { refusjon, isLoading: isLoadingStatus } = useRefusjonStatus(id);
+  const {
+    finnes: kontonummerFinnes,
+    isLoading: kontonummerLoading,
+    error: kontonummerError,
+  } = useKontonummerFinnes(soknad?.virksomhet?.virksomhetsnummer);
 
   const [acceptedFiles, setAcceptedFiles] = useState<File[]>([]);
   const [rejectedFiles, setRejectedFiles] = useState<FileRejected[]>([]);
@@ -65,6 +98,11 @@ export default function SokRefusjonPage() {
   const [submitError, setSubmitError] = useState<ApiErrorInfo | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { focusKey, bumpFocusKey } = useErrorFocus();
+
+  // TODO: Hent maksbeløpet fra tilsagnsbrevet når det er tilgjengelig fra backend.
+  // Så lenge dette er undefined gjøres ingen maks-sjekk.
+  const maksBelopKroner: number | undefined = undefined;
+  const refusjonSchema = useMemo(() => makeRefusjonSchema(maksBelopKroner), [maksBelopKroner]);
 
   const {
     register,
@@ -105,10 +143,10 @@ export default function SokRefusjonPage() {
       formData.append("belop", data.belop);
       acceptedFiles.forEach((file) => formData.append("filer", file));
 
-      const response = await fetch(
-        EKSPERTBISTAND_SLUTTRAPPORT_PATH(id).replace("sluttrapport", "refusjon"),
-        { method: "POST", body: formData }
-      );
+      const response = await fetch(EKSPERTBISTAND_REFUSJON_PATH(id), {
+        method: "POST",
+        body: formData,
+      });
       if (!response.ok) {
         throw new Error(`Feil ved innsending (${response.status})`);
       }
@@ -125,7 +163,11 @@ export default function SokRefusjonPage() {
     bumpFocusKey();
   };
 
-  if (isLoading) {
+  if (isProd()) {
+    return <Navigate to={id ? `/skjema/${id}/kvittering` : "/soknader"} replace />;
+  }
+
+  if (isLoading || isLoadingStatus || kontonummerLoading) {
     return (
       <DecoratedPage>
         <VStack align="center" gap="space-4" padding="space-32">
@@ -146,147 +188,253 @@ export default function SokRefusjonPage() {
 
   const atFileLimit = acceptedFiles.length >= MAX_FILES;
 
-  return (
-    <DecoratedPage>
-      <form onSubmit={handleSubmit(onValid, onInvalid)} autoComplete="off" noValidate>
+  if (refusjon) {
+    return (
+      <DecoratedPage>
         <VStack gap="space-32" data-aksel-template="form-summarypage-v5">
           <BackLink to={`/skjema/${id}/kvittering`}>Tilbake til avtalen</BackLink>
 
           <Heading level="1" size="xlarge">
-            Søk refusjon
+            Refusjonskrav sendt inn
           </Heading>
 
-          <FormSummary>
-            <FormSummary.Header>
-              <FormSummary.Heading level="2">Opplysninger om saken</FormSummary.Heading>
-            </FormSummary.Header>
-            <FormSummary.Answers>
-              <FormSummary.Answer>
-                <FormSummary.Label>Arbeidsgiver</FormSummary.Label>
-                <FormSummary.Value>{soknad.virksomhet?.virksomhetsnavn ?? "–"}</FormSummary.Value>
-              </FormSummary.Answer>
-              <FormSummary.Answer>
-                <FormSummary.Label>Ansatt</FormSummary.Label>
-                <FormSummary.Value>{soknad.ansatt?.navn ?? "–"}</FormSummary.Value>
-              </FormSummary.Answer>
-              <FormSummary.Answer>
-                <FormSummary.Label>Ekspert</FormSummary.Label>
-                <FormSummary.Value>{soknad.ekspert?.navn ?? "–"}</FormSummary.Value>
-              </FormSummary.Answer>
-              <FormSummary.Answer>
-                <FormSummary.Label>Startdato</FormSummary.Label>
-                <FormSummary.Value>
-                  {soknad.behovForBistand?.startdato
-                    ? formatDate(soknad.behovForBistand.startdato)
-                    : "–"}
-                </FormSummary.Value>
-              </FormSummary.Answer>
-            </FormSummary.Answers>
-          </FormSummary>
-
-          <FormErrorSummary
-            errors={errors}
-            fields={FIELDS}
-            heading="Du må rette disse feilene før du kan sende inn:"
-            focusKey={focusKey}
-            extraItems={[
-              ...(fileError ? [{ id: "filer", message: fileError, href: "#filer" }] : []),
-              ...(submitError
-                ? [{ id: "submit-error", message: submitError.message, href: "#submit-error" }]
-                : []),
-            ]}
-          />
-
-          <Textarea
-            id="utgifter"
-            label="Hvilke utgifter skal tilskuddet til ekspertbistand dekke?"
-            maxLength={MAX_UTGIFTER_CHARS}
-            error={errors.utgifter?.message}
-            {...register("utgifter")}
-          />
-
-          <TextField
-            id="belop"
-            label="Beløp for refusjonskravet"
-            description="Oppgi beløp i kroner, f.eks. 12500"
-            inputMode="decimal"
-            error={errors.belop?.message}
-            style={{ maxWidth: "16rem" }}
-            {...register("belop")}
-          />
-
-          <VStack gap="space-16" id="filer">
-            <FileUpload>
-              <FileUpload.Dropzone
-                label="Last opp kvittering eller dokumentasjon på faktiske utgifter"
-                description="Kun PDF-filer. Maks 20 MB per fil."
-                accept=".pdf,application/pdf"
-                maxSizeInBytes={MAX_FILE_SIZE_BYTES}
-                multiple
-                fileLimit={{ max: MAX_FILES, current: acceptedFiles.length }}
-                onSelect={onSelect}
-                error={
-                  fileError ??
-                  (rejectedFiles.length > 0
-                    ? rejectedFiles.map((f) => `${f.file.name}: ${f.reasons.join(", ")}`).join("\n")
-                    : undefined)
-                }
-              />
-            </FileUpload>
-
-            {acceptedFiles.length > 0 && (
-              <VStack gap="space-8" as="ul">
-                {acceptedFiles.map((file) => (
-                  <FileUpload.Item
-                    key={`${file.name}-${file.size}`}
-                    as="li"
-                    file={file}
-                    button={{ action: "delete", onClick: () => removeFile(file) }}
-                  />
-                ))}
+          <ExpansionCard aria-label="Refusjonskrav sendt inn" defaultOpen>
+            <ExpansionCard.Header>
+              <VStack gap="space-8">
+                <FileTextIcon aria-hidden fontSize="1.5rem" />
+                <ExpansionCard.Title size="small">Refusjonskrav sendt inn</ExpansionCard.Title>
+                <ExpansionCard.Description>
+                  {formatDate(refusjon.opprettet)}
+                </ExpansionCard.Description>
               </VStack>
-            )}
-
-            {atFileLimit && (
-              <Alert variant="info" inline>
-                Maks {MAX_FILES} filer er nådd.
-              </Alert>
-            )}
-          </VStack>
-
-          <VStack gap="space-2">
-            <Checkbox
-              id="bekreftUtgifter"
-              error={!!errors.bekreftUtgifter}
-              errorId="bekreftUtgifter-error"
-              {...register("bekreftUtgifter")}
-            >
-              Jeg bekrefter at utgiftene som kreves refundert er betalt.
-            </Checkbox>
-            {errors.bekreftUtgifter?.message && (
-              <ErrorMessage id="bekreftUtgifter-error">
-                {errors.bekreftUtgifter.message}
-              </ErrorMessage>
-            )}
-          </VStack>
-
-          {submitError && (
-            <Alert variant="error" role="alert" id="submit-error">
-              {submitError.message}
-            </Alert>
-          )}
-
-          <Button
-            type="submit"
-            variant="primary"
-            icon={<PaperplaneIcon aria-hidden />}
-            iconPosition="right"
-            loading={isSubmitting}
-          >
-            Send inn
-          </Button>
+            </ExpansionCard.Header>
+            <ExpansionCard.Content>
+              <VStack gap="space-16">
+                <VStack gap="space-2">
+                  <Label>Kontonummer</Label>
+                  <BodyShort>{refusjon.kontonummer ?? "–"}</BodyShort>
+                </VStack>
+                <VStack gap="space-2">
+                  <Label>Hvilke utgifter skal tilskuddet dekke</Label>
+                  <BodyShort>{refusjon.utgifter}</BodyShort>
+                </VStack>
+                <VStack gap="space-2">
+                  <Label>Beløp for refusjonskravet</Label>
+                  <BodyShort>{refusjon.belopKroner.toLocaleString("nb-NO")} kr</BodyShort>
+                </VStack>
+                <VStack gap="space-2">
+                  <Label>Vedlegg</Label>
+                  {refusjon.vedlegg.length === 0 ? (
+                    <BodyShort>–</BodyShort>
+                  ) : (
+                    <VStack gap="space-2" as="ul">
+                      {refusjon.vedlegg.map((v) => (
+                        <li key={v.id}>
+                          <Link
+                            href={EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH(id!, v.id)}
+                            download={v.filnavn}
+                          >
+                            {v.filnavn}
+                          </Link>{" "}
+                          <BodyShort as="span" textColor="subtle">
+                            ({formatBytes(v.storrelse)})
+                          </BodyShort>
+                        </li>
+                      ))}
+                    </VStack>
+                  )}
+                </VStack>
+                <VStack gap="space-2">
+                  <Label>Sendt inn til Nav</Label>
+                  <BodyShort>{formatDate(refusjon.opprettet)}</BodyShort>
+                </VStack>
+              </VStack>
+            </ExpansionCard.Content>
+          </ExpansionCard>
         </VStack>
-      </form>
+      </DecoratedPage>
+    );
+  }
+
+  return (
+    <DecoratedPage>
+      <VStack gap="space-32" data-aksel-template="form-summarypage-v5">
+        <BackLink to={`/skjema/${id}/kvittering`}>Tilbake til avtalen</BackLink>
+
+        <Heading level="1" size="xlarge">
+          Søk refusjon
+        </Heading>
+
+        <FormSummary>
+          <FormSummary.Header>
+            <FormSummary.Heading level="2">Opplysninger om saken</FormSummary.Heading>
+          </FormSummary.Header>
+          <FormSummary.Answers>
+            <FormSummary.Answer>
+              <FormSummary.Label>Arbeidsgiver</FormSummary.Label>
+              <FormSummary.Value>{soknad.virksomhet?.virksomhetsnavn ?? "–"}</FormSummary.Value>
+            </FormSummary.Answer>
+            <FormSummary.Answer>
+              <FormSummary.Label>Ansatt</FormSummary.Label>
+              <FormSummary.Value>{soknad.ansatt?.navn ?? "–"}</FormSummary.Value>
+            </FormSummary.Answer>
+            <FormSummary.Answer>
+              <FormSummary.Label>Ekspert</FormSummary.Label>
+              <FormSummary.Value>{soknad.ekspert?.navn ?? "–"}</FormSummary.Value>
+            </FormSummary.Answer>
+            <FormSummary.Answer>
+              <FormSummary.Label>Startdato</FormSummary.Label>
+              <FormSummary.Value>
+                {soknad.behovForBistand?.startdato
+                  ? formatDate(soknad.behovForBistand.startdato)
+                  : "–"}
+              </FormSummary.Value>
+            </FormSummary.Answer>
+          </FormSummary.Answers>
+        </FormSummary>
+
+        {kontonummerError ? (
+          <Alert variant="error">
+            Kunne ikke sjekke om virksomheten har registrert kontonummer. Prøv å laste siden på
+            nytt.
+          </Alert>
+        ) : !kontonummerFinnes ? (
+          <VStack gap="space-16">
+            <InfoCard data-color="danger">
+              <InfoCard.Header icon={<XMarkOctagonIcon aria-hidden />}>
+                <InfoCard.Title>Kontonummer mangler</InfoCard.Title>
+              </InfoCard.Header>
+              <InfoCard.Content>
+                For at du skal kunne søke refusjon må Nav ha et kontonummer registret for
+                utbetaling.
+              </InfoCard.Content>
+            </InfoCard>
+            <LinkCard>
+              <LinkCard.Title>
+                <LinkCard.Anchor
+                  href={KONTONUMMER_REGISTRERING_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Registrer kontonummer ho Nav
+                </LinkCard.Anchor>
+              </LinkCard.Title>
+              <LinkCard.Description>
+                Les mer om hvordan du som arbeidsgiver går frem og hvilke Altinn tilganger som
+                kreves.
+              </LinkCard.Description>
+            </LinkCard>
+          </VStack>
+        ) : (
+          <form onSubmit={handleSubmit(onValid, onInvalid)} autoComplete="off" noValidate>
+            <VStack gap="space-32">
+              <FormErrorSummary
+                errors={errors}
+                fields={FIELDS}
+                heading="Du må rette disse feilene før du kan sende inn:"
+                focusKey={focusKey}
+                extraItems={[
+                  ...(fileError ? [{ id: "filer", message: fileError, href: "#filer" }] : []),
+                  ...(submitError
+                    ? [{ id: "submit-error", message: submitError.message, href: "#submit-error" }]
+                    : []),
+                ]}
+              />
+
+              <Textarea
+                id="utgifter"
+                label="Hvilke utgifter skal tilskuddet til ekspertbistand dekke?"
+                maxLength={MAX_UTGIFTER_CHARS}
+                error={errors.utgifter?.message}
+                {...register("utgifter")}
+              />
+
+              <TextField
+                id="belop"
+                label="Beløp for refusjonskravet"
+                description="Oppgi beløp i hele kroner, f.eks. 12500"
+                inputMode="numeric"
+                error={errors.belop?.message}
+                style={{ maxWidth: "16rem" }}
+                {...register("belop")}
+              />
+
+              <VStack gap="space-16" id="filer">
+                <FileUpload>
+                  <FileUpload.Dropzone
+                    label="Last opp kvittering eller dokumentasjon på faktiske utgifter"
+                    description="Kun PDF-filer. Maks 10 MB per fil."
+                    accept=".pdf,application/pdf"
+                    maxSizeInBytes={MAX_FILE_SIZE_BYTES}
+                    multiple
+                    fileLimit={{ max: MAX_FILES, current: acceptedFiles.length }}
+                    onSelect={onSelect}
+                    error={
+                      fileError ??
+                      (rejectedFiles.length > 0
+                        ? rejectedFiles
+                            .map((f) => `${f.file.name}: ${f.reasons.join(", ")}`)
+                            .join("\n")
+                        : undefined)
+                    }
+                  />
+                </FileUpload>
+
+                {acceptedFiles.length > 0 && (
+                  <VStack gap="space-8" as="ul">
+                    {acceptedFiles.map((file) => (
+                      <FileUpload.Item
+                        key={`${file.name}-${file.size}`}
+                        as="li"
+                        file={file}
+                        button={{ action: "delete", onClick: () => removeFile(file) }}
+                      />
+                    ))}
+                  </VStack>
+                )}
+
+                {atFileLimit && (
+                  <Alert variant="info" inline>
+                    Maks {MAX_FILES} filer er nådd.
+                  </Alert>
+                )}
+              </VStack>
+
+              <VStack gap="space-2">
+                <Checkbox
+                  id="bekreftUtgifter"
+                  error={!!errors.bekreftUtgifter}
+                  errorId="bekreftUtgifter-error"
+                  {...register("bekreftUtgifter")}
+                >
+                  Jeg bekrefter at utgiftene som kreves refundert er betalt.
+                </Checkbox>
+                {errors.bekreftUtgifter?.message && (
+                  <ErrorMessage id="bekreftUtgifter-error">
+                    {errors.bekreftUtgifter.message}
+                  </ErrorMessage>
+                )}
+              </VStack>
+
+              {submitError && (
+                <Alert variant="error" role="alert" id="submit-error">
+                  {submitError.message}
+                </Alert>
+              )}
+
+              <Button
+                type="submit"
+                variant="primary"
+                icon={<PaperplaneIcon aria-hidden />}
+                iconPosition="right"
+                loading={isSubmitting}
+              >
+                Send inn
+              </Button>
+            </VStack>
+          </form>
+        )}
+      </VStack>
     </DecoratedPage>
   );
 }

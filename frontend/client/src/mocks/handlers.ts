@@ -5,11 +5,30 @@ import type { Organisasjon } from "@navikt/virksomhetsvelger";
 import {
   EKSPERTBISTAND_API_PATH,
   EKSPERTBISTAND_EREG_ADRESSE_PATH,
+  EKSPERTBISTAND_EREG_ORGANISASJON_PATH,
   EKSPERTBISTAND_EREG_ORGANISASJONER_PATH,
+  EKSPERTBISTAND_KONTONUMMER_PATH,
   EKSPERTBISTAND_ORGANISASJONER_PATH,
   EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH,
   SESSION_URL,
 } from "../utils/constants";
+
+const MOCK_MAKS_ANTALL_VEDLEGG = 5;
+const MOCK_MAKS_VEDLEGG_STORRELSE_BYTES = 10 * 1024 * 1024;
+
+const sluttrapportStore = new Map<string, { filnavn: string; lastetOpp: string }>();
+
+type MockRefusjonVedlegg = { id: string; filnavn: string; storrelse: number; innhold: Uint8Array };
+const refusjonStore = new Map<
+  string,
+  {
+    belopKroner: number;
+    utgifter: string;
+    opprettet: string;
+    kontonummer: string | null;
+    vedlegg: MockRefusjonVedlegg[];
+  }
+>();
 
 const organisasjoner: Organisasjon[] = [
   {
@@ -48,6 +67,12 @@ const eregAdresser: Record<string, string> = {
   "987654321": "Eksempelveien 2, 7010 Trondheim",
   "111222333": "Demogata 3, 5003 Bergen",
   "444555666": "Mockveien 4, 2317 Hamar",
+};
+
+// Kontonummer per virksomhet. Virksomheter uten oppføring (f.eks. 987654321)
+// mangler registrert kontonummer, slik at "kontonummer mangler"-flyten kan testes.
+const kontonumre: Record<string, string> = {
+  "123456789": "12345678901",
 };
 
 const eregOrganisasjoner: { organisasjonsnummer: string; navn: string }[] = [
@@ -234,6 +259,44 @@ const ensureSkjemaStoreLoaded = async () => {
     };
     skjemaStore.set(entry.id, entry);
 
+    const utenKontonummerInputs = createEmptyInputs();
+    utenKontonummerInputs.virksomhet.virksomhetsnummer = "444555666";
+    utenKontonummerInputs.virksomhet.virksomhetsnavn = "Mangler Konto AS";
+    utenKontonummerInputs.virksomhet.beliggenhetsadresse = "Mockveien 4, 2317 Hamar";
+    utenKontonummerInputs.virksomhet.kontaktperson.navn = "Kari Kontakt";
+    utenKontonummerInputs.virksomhet.kontaktperson.epost = "kari.kontakt@manglerkonto.no";
+    utenKontonummerInputs.virksomhet.kontaktperson.telefonnummer = "99001122";
+    utenKontonummerInputs.ansatt.fnr = MOCK_BRUKER;
+    utenKontonummerInputs.ansatt.navn = "Per Persen";
+    utenKontonummerInputs.ekspert.navn = "Dr. Hjelpsom";
+    utenKontonummerInputs.ekspert.virksomhet = "Ekspert & Co";
+    utenKontonummerInputs.ekspert.godkjentUtdanningEllerAutorisasjon = ["Fysioterapeut"];
+    utenKontonummerInputs.ekspert.relevantKompetanse = [
+      "Arbeidsplassvurdering",
+      "Tilrettelegging på arbeidsplassen",
+    ];
+    utenKontonummerInputs.behovForBistand.begrunnelse = "Behov for tilrettelegging etter skade.";
+    utenKontonummerInputs.behovForBistand.behov = "Ressurs til tilrettelegging og oppfolging.";
+    utenKontonummerInputs.behovForBistand.timer = "60";
+    utenKontonummerInputs.behovForBistand.estimertKostnad = "120000";
+    utenKontonummerInputs.behovForBistand.tilrettelegging = "Tilrettelegging av arbeidsoppgaver.";
+    utenKontonummerInputs.behovForBistand.startdato = "2024-11-01";
+    utenKontonummerInputs.nav.kontaktperson = "Nav Kontakt";
+
+    const utenKontonummerEntry: MockSkjema = {
+      id: randomId(),
+      status: "innsendt",
+      data: utenKontonummerInputs,
+      opprettetAv: MOCK_BRUKER,
+      opprettetTidspunkt: now,
+      innsendtTidspunkt: now,
+      beslutning: {
+        status: "godkjent",
+        tidspunkt: now,
+      },
+    };
+    skjemaStore.set(utenKontonummerEntry.id, utenKontonummerEntry);
+
     const rejectedInputs = createEmptyInputs();
     rejectedInputs.virksomhet.virksomhetsnummer = "987654321";
     rejectedInputs.virksomhet.virksomhetsnavn = "Testfirma Norge AS";
@@ -385,6 +448,17 @@ export const handlers = [
   http.get(EKSPERTBISTAND_ORGANISASJONER_PATH, () =>
     HttpResponse.json({ hierarki: organisasjoner })
   ),
+  http.get(EKSPERTBISTAND_EREG_ORGANISASJON_PATH(":orgnr"), ({ params }) => {
+    const orgnr = getParamValue(params.orgnr);
+    if (!orgnr || !/^\d{9}$/.test(orgnr)) {
+      return HttpResponse.json({ message: "ugyldig orgnr" }, { status: 400 });
+    }
+
+    const treff = eregOrganisasjoner.filter((org) =>
+      org.organisasjonsnummer == orgnr
+    );
+    return HttpResponse.json(treff);
+  }),
   http.get(EKSPERTBISTAND_EREG_ORGANISASJONER_PATH, ({ request }) => {
     const navn = new URL(request.url).searchParams.get("navn")?.trim() ?? "";
     if (navn.length < 2) {
@@ -405,6 +479,13 @@ export const handlers = [
       return HttpResponse.json({ message: "adresse ikke funnet" }, { status: 404 });
     }
     return HttpResponse.json({ adresse });
+  }),
+  http.get(`${EKSPERTBISTAND_KONTONUMMER_PATH}/:orgnr`, ({ params }) => {
+    const orgnr = getParamValue(params.orgnr);
+    if (!orgnr || !/^\d{9}$/.test(orgnr)) {
+      return HttpResponse.json({ message: "ugyldig orgnr" }, { status: 400 });
+    }
+    return HttpResponse.json({ finnes: orgnr in kontonumre });
   }),
   http.get("/api/soknad/draft", async () => {
     const currentDraft = await loadDraft();
@@ -437,6 +518,165 @@ export const handlers = [
     skjemaStore.set(id, entry);
     await persistSkjemaStore();
     return HttpResponse.json(toUtkastDto(entry), { status: 201 });
+  }),
+  http.post(`${EKSPERTBISTAND_API_PATH}/:id/sluttrapport`, async ({ params, request }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+
+    const formData = await request.formData();
+    const filer = formData.getAll("filer").filter((f): f is File => f instanceof File);
+
+    if (filer.length === 0) {
+      return HttpResponse.json({ message: "Minst én fil må lastes opp" }, { status: 400 });
+    }
+    if (filer.length > MOCK_MAKS_ANTALL_VEDLEGG) {
+      return HttpResponse.json(
+        { message: `Maks ${MOCK_MAKS_ANTALL_VEDLEGG} filer tillatt` },
+        { status: 400 }
+      );
+    }
+    for (const fil of filer) {
+      if (fil.size > MOCK_MAKS_VEDLEGG_STORRELSE_BYTES) {
+        return HttpResponse.json(
+          { message: `Filen '${fil.name}' overskrider maks 10 MB` },
+          { status: 400 }
+        );
+      }
+    }
+
+    sluttrapportStore.set(id, {
+      filnavn: filer[0]?.name ?? "vedlegg.pdf",
+      lastetOpp: new Date().toISOString(),
+    });
+
+    return new HttpResponse(null, { status: 201 });
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/sluttrapport`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+    const status = sluttrapportStore.get(id);
+    if (!status) {
+      return new HttpResponse(null, { status: 204 });
+    }
+    return HttpResponse.json(status, { status: 200 });
+  }),
+  http.post(`${EKSPERTBISTAND_API_PATH}/:id/refusjon`, async ({ params, request }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+
+    const formData = await request.formData();
+    const utgifter = formData.get("utgifter");
+    const belop = formData.get("belop");
+    const filer = formData.getAll("filer").filter((f): f is File => f instanceof File);
+
+    if (typeof utgifter !== "string" || utgifter.trim() === "") {
+      return HttpResponse.json({ message: "Du må beskrive utgiftene" }, { status: 400 });
+    }
+    if (typeof belop !== "string" || !/^\d+$/.test(belop)) {
+      return HttpResponse.json({ message: "Ugyldig beløp" }, { status: 400 });
+    }
+    if (filer.length === 0) {
+      return HttpResponse.json({ message: "Minst én fil må lastes opp" }, { status: 400 });
+    }
+    if (filer.length > MOCK_MAKS_ANTALL_VEDLEGG) {
+      return HttpResponse.json(
+        { message: `Maks ${MOCK_MAKS_ANTALL_VEDLEGG} filer tillatt` },
+        { status: 400 }
+      );
+    }
+    for (const fil of filer) {
+      if (fil.size > MOCK_MAKS_VEDLEGG_STORRELSE_BYTES) {
+        return HttpResponse.json(
+          { message: `Filen '${fil.name}' overskrider maks 10 MB` },
+          { status: 400 }
+        );
+      }
+    }
+
+    refusjonStore.set(id, {
+      belopKroner: Number(belop),
+      utgifter,
+      opprettet: new Date().toISOString(),
+      kontonummer: null,
+      vedlegg: await Promise.all(
+        filer.map(async (f) => ({
+          id: crypto.randomUUID(),
+          filnavn: f.name,
+          storrelse: f.size,
+          innhold: new Uint8Array(await f.arrayBuffer()),
+        }))
+      ),
+    });
+
+    return new HttpResponse(null, { status: 201 });
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/refusjon`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+    const status = refusjonStore.get(id);
+    if (!status) {
+      return new HttpResponse(null, { status: 204 });
+    }
+    return HttpResponse.json(
+      {
+        belopKroner: status.belopKroner,
+        utgifter: status.utgifter,
+        opprettet: status.opprettet,
+        kontonummer: status.kontonummer,
+        vedlegg: status.vedlegg.map((v) => ({
+          id: v.id,
+          filnavn: v.filnavn,
+          storrelse: v.storrelse,
+        })),
+      },
+      { status: 200 }
+    );
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/refusjon/vedlegg/:vedleggId`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    const vedleggId = getParamValue(params.vedleggId);
+    if (!id || !vedleggId) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+    const vedlegg = refusjonStore.get(id)?.vedlegg.find((v) => v.id === vedleggId);
+    if (!vedlegg) {
+      return HttpResponse.json({ message: "vedlegg ikke funnet" }, { status: 404 });
+    }
+    return new HttpResponse(vedlegg.innhold, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${vedlegg.filnavn}"`,
+      },
+    });
   }),
   http.get(EKSPERTBISTAND_API_PATH, async ({ request }) => {
     await ensureSkjemaStoreLoaded();

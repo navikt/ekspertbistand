@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
 import { UNSAFE_Combobox } from "@navikt/ds-react";
 import { useEkspertVirksomhetSok } from "../hooks/useEkspertVirksomhetSok";
+import { formaterVirksomhet } from "./formaterVirksomhet";
 
 type EkspertVirksomhetVelgerProps = {
-  label: React.ReactNode;
-  description?: React.ReactNode;
   /** Fritekstverdien (bevart for bakoverkompatibilitet). */
   value: string;
   /**
@@ -15,17 +14,7 @@ type EkspertVirksomhetVelgerProps = {
   error?: React.ReactNode;
 };
 
-/** Beriker fritekstfeltet med navn + organisasjonsnummer, f.eks. «Ekspert & Co AS (910825226)». */
-export const formaterVirksomhet = (navn: string | null, orgnr: string | null) => {
-  if (navn == null || orgnr == null) {
-    return "";
-  }
-  return `${navn} (${orgnr})`;
-};
-
 export function EkspertVirksomhetVelger({
-  label,
-  description,
   value,
   onChange,
   error,
@@ -37,7 +26,7 @@ export function EkspertVirksomhetVelger({
     () =>
       organisasjoner.map((org) => ({
         label: formaterVirksomhet(org.navn, org.organisasjonsnummer),
-        value: org.organisasjonsnummer,
+        value: formaterVirksomhet(org.navn, org.organisasjonsnummer),
       })),
     [organisasjoner]
   );
@@ -45,29 +34,31 @@ export function EkspertVirksomhetVelger({
   const selectedOptions = value ? [value] : [];
 
   return (
-    <UNSAFE_Combobox
-      id="ekspert.virksomhet"
-      label={label}
-      description={description}
-      options={options}
-      selectedOptions={selectedOptions}
-      isLoading={isLoading}
-      shouldAutocomplete
-      onChange={(value) => setSokeord(value ?? "")}
-      onToggleSelected={(option, isSelected) => {
-        if (!isSelected) {
-          onChange(null);
-          return;
-        }
-        const valgt = organisasjoner.find((org) => org.organisasjonsnummer === option);
-        if (valgt) {
-          onChange({
-            navn: valgt.navn,
-            orgnr: valgt.organisasjonsnummer,
-          });
-        }
-      }}
-      error={error}
-    />
+      <UNSAFE_Combobox
+        id="ekspert.virksomhet"
+        label="Tilknyttet virksomhet"
+        description="Søk på virksomhetsnavn eller skriv fullt organisasjonsnummer."
+        options={options}
+        filteredOptions={options}
+        selectedOptions={selectedOptions}
+        isLoading={isLoading}
+        onChange={(value) => setSokeord(value ?? "")}
+        onToggleSelected={(option, isSelected) => {
+          if (!isSelected) {
+            onChange(null);
+            return;
+          }
+          const valgt = organisasjoner.find(
+            (org) => formaterVirksomhet(org.navn, org.organisasjonsnummer) === option
+          );
+          if (valgt) {
+            onChange({
+              navn: valgt.navn,
+              orgnr: valgt.organisasjonsnummer,
+            });
+          }
+        }}
+        error={error}
+      />
   );
 }
