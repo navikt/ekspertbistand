@@ -6,6 +6,83 @@ Durable, at-least-once event processing using a relational database queue and lo
 - Use `EventQueue` to publish events and manage their lifecycle.
 - Use `EventManager` to process events from the queue, dispatching them to registered handlers.
 
+### Publisering — ett inngangspunkt: `publishEventQueue`
+
+Køen har nøyaktig én vei inn, og du skal aldri skrive til `event_queue`/`QueuedEvents` direkte:
+
+- `fun JdbcTransaction.publishEventQueue(ev: EventData): QueuedEvent` — en extension-funksjon på
+  toppnivå i `EventQueue.kt`. Den publiserer i **kallerens** pågående transaksjon og commiter/rulles
+  tilbake med den. Receiveren er håndhevelsen: funksjonen finnes ikke utenfor en `transaction { }`-blokk,
+  så publisering uten transaksjon er en **kompileringsfeil** — ingen `require`-vakter, ingen runtime-feilmodus.
+  Inne i en `transaction { }` kalles den ukvalifisert: `publishEventQueue(ev)`.
+- Kallere som ikke selv har en transaksjon (typisk route-handlere) åpner en selv:
+  `transaction(database) { publishEventQueue(ev) }`. Da står skrivingen synlig på kallstedet.
+
+**Aldri et suspend-kall inne i `transaction { }`** — åpne transaksjonen rundt skrivingen, ikke rundt
+hele arbeidet (f.eks. dokgen-HTTP-kall). Se `TilsagnDataApi.hentTilskuddsbrevHtmlForSoknad`.
+
+## `aggregateRootId` — felles aggregatrot på alle events
+
+Hver `EventData` har en `aggregateRootId: String` som identifiserer aggregatroten hendelsen tilhører
+(i praksis søknaden). Den **deriveres fra payload** og lagres bevisst *ikke* i `event_json` — kun i
+kolonnen `aggregate_root_id` på `event_queue` og `event_log`. Dermed finnes det aldri to sannheter i
+samme rad, og gamle/nye rader er byte-identiske i payload.
+
+`publishEventQueue` skriver kolonnen ved publisering, og `finalize` kopierer den videre til
+`event_log` (med derivering fra payload som fallback for eventuelle legacy-rader med `NULL`).
+
+### Mapping per event-type
+
+| Event-type | `aggregateRootId` |
+|------------|-------------------|
+| Alle med `soknad` (SoknadInnsendt, InnsendtSoknadJournalfoert, TiltaksgjennomforingOpprettet, TilskuddsbrevMottatt, TilskuddsbrevJournalfoert, SoknadAvlystIArena, SaksbehandlingStartetIArena, TilsagnsdataLagret) | `soknad.id` |
+| `TilskuddsbrevMottattKildeAltinn`, `TilskuddsbrevJournalfoertKildeAltinn` | `tilsagnData.tilsagnNummer` satt sammen som `aar:loepenrSak:loepenrTilsagn` |
+| `TilskuddsbrevVist` | `soknad?.id ?: tilsagnNummer` |
+
+Derivings-SQL-en i backfillen (`AggregateRootIdBackfill`) speiler denne tabellen og valideres mot
+faktisk serialisert payload i `AggregateRootIdBackfillTest`.
+
+### Utrulling (engangs-migrering av eksisterende rader)
+
+Kolonnen innføres i faser slik at ingen migrering holder en blokkerende lås gjennom en tabell-scan:
+
+1. **Nullbar kolonne** (Flyway `V8`) + **modell/finalize-fallback** og en `CHECK … NOT VALID` på
+   `event_log` (Flyway `V9`) som håndhever invarianten for alle *nye* rader.
+2. **Backfill-jobb** (`AggregateRootIdBackfill`, kjørt fra `Application.kt`): fylte legacy-rader
+   batch-vis, selv-avsluttende via `backfill_state.completed_at`. Når begge tabellene var ferdige
+   kjørte den P6 steg 1: `VALIDATE CONSTRAINT` på `event_log` (ikke-blokkerende SHARE UPDATE
+   EXCLUSIVE-scan) og opprettet oppslagsindeksene `CONCURRENTLY`
+   (`(aggregate_root_id, id)` på begge tabeller). Jobben er **fjernet fra kodebasen** etter at den
+   var ferdig i begge miljøer; den generiske `backfill_state`-tabellen beholdes for neste backfill.
+3. **`SET NOT NULL`** gjøres i en **egen, senere Flyway-migrering** (`V10`, P6 steg 2), *etter* at
+   verifiseringen under gir 0 i miljøet og steg 1 er bekreftet ferdig. Fordi den validerte checken
+   allerede finnes, blir `SET NOT NULL` på `event_log` en O(1)-operasjon; `V10` dropper deretter
+   checken og strammer `event_queue` på samme måte. Til slutt er Exposed-kolonnene og
+   `QueuedEvent`/`LoggedEvent.aggregateRootId` ikke-nullbare (`String`).
+
+### Verifisering (kjøres i dev, så prod — må gi 0 før P6 steg 2)
+
+```sql
+-- 1. Ingen gjenstående NULL
+SELECT count(*) FROM event_queue WHERE aggregate_root_id IS NULL;   -- forventet 0
+SELECT count(*) FROM event_log   WHERE aggregate_root_id IS NULL;   -- forventet 0
+
+-- 2. Kolonnen stemmer med payload for hele event_log
+SELECT count(*) AS avvik
+FROM event_log
+WHERE aggregate_root_id IS DISTINCT FROM coalesce(
+        event_json -> 'soknad' ->> 'id',
+        nullif(concat_ws(':',
+            event_json -> 'tilsagnData' -> 'tilsagnNummer' ->> 'aar',
+            event_json -> 'tilsagnData' -> 'tilsagnNummer' ->> 'loepenrSak',
+            event_json -> 'tilsagnData' -> 'tilsagnNummer' ->> 'loepenrTilsagn'
+        ), ''),
+        event_json ->> 'tilsagnNummer');                            -- forventet 0
+```
+
+Gauge `event.aggregaterootid.missing` (tagget på `table`) skal ligge flatt på 0 etter backfillen;
+et hopp over 0 betyr en skrivevei som omgår `publishEventQueue`.
+
 ## Overview
 
 - QueuedEvents are stored in the `event_queue` table.
@@ -15,7 +92,7 @@ Durable, at-least-once event processing using a relational database queue and lo
 
 ## Lifecycle
 
-- `publish(event: Event)`: Insert into `events` with status PENDING, attempts=0.
+- `JdbcTransaction.publishEventQueue(ev: EventData): QueuedEvent`: Insert into `event_queue` with status PENDING, attempts=0. Se «Publisering — ett inngangspunkt: `publishEventQueue`» over.
 - `poll(clock: Clock = Clock.System): QueuedEvent?`: Atomically select the next eligible row and mark it PROCESSING, incrementing attempts.
   - Eligibility: status = PENDING, or status = PROCESSING and `updated_at` older than the abandonment timeout.
   - Uses `FOR UPDATE SKIP LOCKED` so only one process acquires a row.
@@ -35,7 +112,7 @@ sequenceDiagram
     participant H as EventHandlers
     participant L as Event Log
 
-    P->>Q: publish(event)
+    P->>Q: transaction { publishEventQueue(event) }
     Note over Q: events += {status: PENDING, attempts: 0}
 
     M->>Q: poll()
@@ -77,7 +154,7 @@ sequenceDiagram
 
 ## API (Kotlin)
 
-- `publish(event: Event): QueuedEvent` 
+- `JdbcTransaction.publishEventQueue(ev: EventData): QueuedEvent`
 - `poll(clock: Clock = Clock.System): QueuedEvent?`  // non-blocking; returns null if none
 - `finalize(id: Long, errorResults: List<EventHandledResult.Error> = emptyList())`
 

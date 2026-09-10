@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.dokgen.DokgenClient
 import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.EventQueue
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.subjectToken
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -33,14 +33,18 @@ class TilsagnDataApi(
             return
         }
 
-        val html = tilsagnData.map { tilsagn ->
-            EventQueue.publish(
-                EventData.TilskuddsbrevVist(
-                    tilsagnNummer = tilsagn.tilsagnNummer.concat(),
-                    soknad = soknad,
+        transaction(database) {
+            tilsagnData.forEach { tilsagn ->
+                publishEventQueue(
+                    EventData.TilskuddsbrevVist(
+                        tilsagnNummer = tilsagn.tilsagnNummer.concat(),
+                        soknad = soknad,
+                    )
                 )
-            )
+            }
+        }
 
+        val html = tilsagnData.map { tilsagn ->
             TilskuddsbrevHtml(
                 tilsagnNummer = tilsagn.tilsagnNummer.concat(),
                 html = dokgenClient.genererTilskuddsbrevHtml(tilsagn),
@@ -67,12 +71,14 @@ class TilsagnDataApi(
             html = dokgenClient.genererTilskuddsbrevHtml(tilsagnData),
         )
 
-        EventQueue.publish(
-            EventData.TilskuddsbrevVist(
-                tilsagnNummer = tilsagnNummer,
-                soknad = null,
+        transaction(database) {
+            publishEventQueue(
+                EventData.TilskuddsbrevVist(
+                    tilsagnNummer = tilsagnNummer,
+                    soknad = null,
+                )
             )
-        )
+        }
 
         call.respond(html)
     }
@@ -96,12 +102,14 @@ class TilsagnDataApi(
 
         val tilsagn = tilsagnData.first()
 
-        EventQueue.publish(
-            EventData.TilskuddsbrevVist(
-                tilsagnNummer = tilsagn.tilsagnNummer.concat(),
-                soknad = soknad,
+        transaction(database) {
+            publishEventQueue(
+                EventData.TilskuddsbrevVist(
+                    tilsagnNummer = tilsagn.tilsagnNummer.concat(),
+                    soknad = soknad,
+                )
             )
-        )
+        }
 
         val pdf = dokgenClient.genererTilskuddsbrevPdf(tilsagn)
         call.respondBytes(pdf, ContentType.Application.Pdf)
@@ -119,12 +127,14 @@ class TilsagnDataApi(
             return
         }
 
-        EventQueue.publish(
-            EventData.TilskuddsbrevVist(
-                tilsagnNummer = tilsagnNummer,
-                soknad = null,
+        transaction(database) {
+            publishEventQueue(
+                EventData.TilskuddsbrevVist(
+                    tilsagnNummer = tilsagnNummer,
+                    soknad = null,
+                )
             )
-        )
+        }
 
         val pdf = dokgenClient.genererTilskuddsbrevPdf(tilsagnData)
         call.respondBytes(pdf, ContentType.Application.Pdf)

@@ -33,6 +33,9 @@ class EventManagerTest {
         testDb.close()
     }
 
+    private fun publish(event: EventData): QueuedEvent =
+        transaction(testDb.config.jdbcDatabase) { publishEventQueue(event) }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `event manager retries`() = runTest {
@@ -58,7 +61,7 @@ class EventManagerTest {
             // handler via class instance
             register(RetryThenSucceedsHandler())
         }
-        val queuedEvent = EventQueue.publish(TestEventData.soknadInnsendt)
+        val queuedEvent = publish(TestEventData.soknadInnsendt)
         val pollJob = launch { manager.runProcessLoop() }
 
 
@@ -155,7 +158,7 @@ class EventManagerTest {
                 answers.removeFirst()
             }
         }
-        val queuedEvent = EventQueue.publish(TestEventData.soknadInnsendt)
+        val queuedEvent = publish(TestEventData.soknadInnsendt)
         val pollJob = launch { manager.runProcessLoop() }
 
         delay(1.milliseconds) // give pollJob some time for processing
@@ -229,7 +232,7 @@ class EventManagerTest {
         val manager = EventManager(config) {
             // no handlers for foo registered
         }
-        val queuedEvent = EventQueue.publish(TestEventData.soknadInnsendt)
+        val queuedEvent = publish(TestEventData.soknadInnsendt)
         val pollJob = launch { manager.runProcessLoop() }
         delay(config.pollDelayMs.milliseconds)
 
@@ -271,8 +274,8 @@ class EventManagerTest {
                 EventHandledResult.Success()
             }
         }
-        val queuedEvent1 = EventQueue.publish(TestEventData.soknadInnsendt)
-        val queuedEvent2 = EventQueue.publish(TestEventData.innsendtSoknadJournalfoert)
+        val queuedEvent1 = publish(TestEventData.soknadInnsendt)
+        val queuedEvent2 = publish(TestEventData.innsendtSoknadJournalfoert)
 
         val pollJob = launch { manager.runProcessLoop() }
 

@@ -3,6 +3,8 @@ name: Manuell deploy dev frontend mock
 on:
   workflow_dispatch: {}
   push:
+    paths:
+      - frontend/**
     branches:
       - main
 
