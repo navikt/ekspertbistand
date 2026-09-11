@@ -4,6 +4,8 @@ export const OVERSIKT_PATH = "/oversikt";
 export const SAK_PATH = "/oversikt/:sakId";
 export const SAKSBEHANDLING_OVERSIKT_URL = "/api/saksbehandling/v1/oversikt";
 export const SAKSBEHANDLING_SAK_URL = (sakId: string) => `/api/saksbehandling/v1/saker/${sakId}`;
+export const SAKSBEHANDLING_VILKAR_URL = (sakId: string, vilkårId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/vilkar/${vilkårId}`;
 export const SAKSBEHANDLING_KONTONUMMER_URL = (orgnr: string) =>
   `/api/saksbehandling/v1/virksomhet/${orgnr}/kontonummer`;
 export const SESSION_URL = "/oauth2/session";
