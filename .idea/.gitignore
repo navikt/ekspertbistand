@@ -10,3 +10,7 @@
 /dataSources.local.xml
 # copilot ignored
 copilot*
+
+# Local DB tool state (churns constantly)
+/dataSources.xml
+/db-forest-config.xml
