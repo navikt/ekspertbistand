@@ -22,7 +22,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -281,7 +281,7 @@ class SoknadApi(
     }
 
     fun slettGamleUtkast(
-        ttl: Duration = 30.days,
+        ttl: Duration = 48.hours,
         clock: Clock = Clock.System,
     ) = transaction {
         UtkastTable.deleteWhere {
