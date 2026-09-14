@@ -65,6 +65,8 @@ spec:
         - host: aareg-services.intern.dev.nav.no
         - host: entraproxy.intern.dev.nav.no
       rules:
+        - application: populasjonstilgangskontroll
+          namespace: tilgangsmaskin
         - application: logging
           namespace: nais-system
         - application: notifikasjon-produsent-api

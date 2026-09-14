@@ -68,6 +68,8 @@ spec:
         - host: ereg-services.prod-fss-pub.nais.io
         - host: entraproxy.intern.nav.no
       rules:
+        - application: populasjonstilgangskontroll
+          namespace: tilgangsmaskin
         - application: logging
           namespace: nais-system
         - application: notifikasjon-produsent-api
