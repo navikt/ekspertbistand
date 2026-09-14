@@ -86,13 +86,22 @@ sequenceDiagram
     participant D as oebs_bestilling_status (DB)
     participant T as team-logs
 
-    V->>S: status-melding (bestilling/faktura)
-    S->>S: tolkStatus(raw) 🔴
-    S->>D: upsert status + trenger_manuell_oppfolging
-    alt feilet operasjon
-        S->>T: teamLogger.warn (signal for manuell oppfølging)
+    V->>S: status-melding (alle kilder på topicen)
+    S->>S: gjelderOss(bestillingsnummer)? (prefiks = FAGSYSTEM_KILDE)
+    alt ikke vår kilde
+        S-->>S: hopp over (ingen tolkning)
+    else vår bestilling
+        S->>S: tolkStatus(bestillingsnummer, raw) 🔴
+        S->>D: upsert status + trenger_manuell_oppfolging
+        opt feilet operasjon
+            S->>T: teamLogger.warn (signal for manuell oppfølging)
+        end
     end
 ```
+
+> Status-topicene deles av alle kilder i tiltaksøkonomi. Consumeren filtrerer tidlig på vår
+> fagsystembokstav (`FAGSYSTEM_KILDE`, første tegn i bestillingsnummeret) og ignorerer andres
+> meldinger før rød-sone-tolkningen kjører.
 
 ## Komponenter
 

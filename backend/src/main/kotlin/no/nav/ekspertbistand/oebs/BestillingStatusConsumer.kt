@@ -2,6 +2,7 @@ package no.nav.ekspertbistand.oebs
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.infrastruktur.ConsumerRecordProcessor
 import no.nav.ekspertbistand.infrastruktur.CoroutineKafkaConsumer
@@ -47,8 +48,11 @@ data class StatusOppdatering(
  * Konsumerer VALP sine status-topics for bestilling og faktura, og lagrer siste status per
  * bestilling i [OebsBestillingStatus].
  *
- * Skjelettet (subscribe, parse, upsert) er grønn sone. Selve tolkningen av hva som er en feilet/
- * avvist operasjon og når det krever manuell oppfølging ([tolkStatus]) er 🔴 rød sone.
+ * Topicene inneholder meldinger for **alle** kilder/fagsystemer i tiltaksøkonomi, ikke bare våre.
+ * Vi filtrerer derfor tidlig på vår fagsystembokstav ([FAGSYSTEM_KILDE]) og ignorerer alt annet.
+ *
+ * Skjelettet (subscribe, filtrering, upsert) er grønn sone. Selve tolkningen av hva som er en
+ * feilet/avvist operasjon og når det krever manuell oppfølging ([tolkStatus]) er 🔴 rød sone.
  *
  * Ikke wiret inn i oppstart før [tolkStatus] er implementert.
  */
@@ -68,11 +72,24 @@ class BestillingStatusConsumer(
         }
 
         val raw = json.decodeFromString<JsonObject>(value)
-        val oppdatering = tolkStatus(raw)
+
+        val bestillingsnummer = bestillingsnummer(raw)
+        if (bestillingsnummer == null) {
+            teamLog.warn("Status-melding uten bestillingsnummer på {} – hopper over. record={}", record.topic(), record)
+            return
+        }
+
+        if (!gjelderOss(bestillingsnummer)) {
+            // Topicen inneholder meldinger for alle kilder; ignorer andres uten å tolke dem.
+            log.debug("Hopper over status for {} på {} – ikke vår kilde", bestillingsnummer, record.topic())
+            return
+        }
+
+        val oppdatering = tolkStatus(bestillingsnummer, raw)
 
         transaction(database) {
             OebsBestillingStatus.upsert {
-                it[bestillingsnummer] = oppdatering.bestillingsnummer
+                it[OebsBestillingStatus.bestillingsnummer] = oppdatering.bestillingsnummer
                 it[status] = oppdatering.status
                 it[feilmelding] = oppdatering.feilmelding
                 it[trengerManuellOppfolging] = oppdatering.trengerManuellOppfolging
@@ -87,17 +104,31 @@ class BestillingStatusConsumer(
     }
 
     /**
+     * Leser bestillingsnummeret meldingen gjelder. Brukes til å rute meldingen til rett fagsystem
+     * ([gjelderOss]). Feltnavnet er en kontrakt-antagelse og må verifiseres mot VALP sitt faktiske
+     * statusformat (samme kontraktforbehold som [tolkStatus]).
+     */
+    private fun bestillingsnummer(raw: JsonObject): String? =
+        raw["bestillingsnummer"]?.jsonPrimitive?.contentOrNull
+
+    /**
+     * Status-topicene inneholder meldinger for alle kilder. Vår fagsystembokstav ([FAGSYSTEM_KILDE])
+     * er første tegn i bestillingsnummeret, så vi behandler kun meldinger med vårt prefiks.
+     */
+    private fun gjelderOss(bestillingsnummer: String): Boolean =
+        bestillingsnummer.startsWith(FAGSYSTEM_KILDE)
+
+    /**
      * 🔴 RØD SONE — skriv selv.
      *
-     * Tolker en status-melding fra VALP til en [StatusOppdatering]. Må avgjøre hvilke statuser som
-     * betyr feilet/avvist bestilling eller utbetaling, og sette [StatusOppdatering.trengerManuellOppfolging]
-     * deretter. Dette er feilhåndtering av avviste OeBS-operasjoner og er økonomikritisk — den skal
-     * implementeres og forstås av teamet, mot VALP sitt faktiske statusformat (kontraktverifiseres).
+     * Tolker en status-melding fra VALP (som allerede er filtrert til å gjelde oss) til en
+     * [StatusOppdatering]. Må avgjøre hvilke statuser som betyr feilet/avvist bestilling eller
+     * utbetaling, og sette [StatusOppdatering.trengerManuellOppfolging] deretter. Dette er
+     * feilhåndtering av avviste OeBS-operasjoner og er økonomikritisk — den skal implementeres og
+     * forstås av teamet, mot VALP sitt faktiske statusformat (kontraktverifiseres).
      */
-    private fun tolkStatus(raw: JsonObject): StatusOppdatering {
-        @Suppress("UNUSED_EXPRESSION")
-        raw["bestillingsnummer"]?.jsonPrimitive?.content
-        TODO("Rød sone: tolk VALP-statusmelding og avgjør behov for manuell oppfølging.")
+    private fun tolkStatus(bestillingsnummer: String, raw: JsonObject): StatusOppdatering {
+        TODO("Rød sone: tolk VALP-statusmelding for $bestillingsnummer og avgjør behov for manuell oppfølging.")
     }
 
     companion object {
