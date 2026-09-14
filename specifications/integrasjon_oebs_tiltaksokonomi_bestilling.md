@@ -144,6 +144,11 @@ Fra kortbeskrivelsen (1–4) og avklaringer 2026-09-11 (5–10):
 11. **Kafka-producer implementeres med outbox-mønster, innkapslet i klienten** (i scope nå).
     Kallere skriver til DB-outbox i egen transaksjon; en bakgrunnspoller publiserer til Kafka.
     Ingen hard avhengighet til Kafka-oppetid, og Kafka-feilhåndtering lekker ikke innover.
+12. **Varig revisjonsspor for etterlevelse** (avklart 2026-09-14). Vi må kunne svare for hva vi
+    har bestilt og hvilke svar vi fikk. Kafka-topicene har 90 dagers retention og OeBS har egne
+    rapporter, men vi må selv kunne dokumentere vår side av kommunikasjonen. Både utgående
+    meldinger og innkommende svar logges derfor **append-only** i egen database, atskilt fra
+    arbeidsdataene (outbox/siste-status). Loggingen er i scope nå.
 
 ## Avgrensning
 
@@ -285,6 +290,24 @@ tydelig, synlig signal** (egen status/tabellflagg + metrikk + logg uten PII) som
 opp for **manuell oppfølging** — ikke svelges stille. Dette krever read-ACL fra VALP på
 status-topicene (koordineres med Team VALP).
 
+### 6b. Varig revisjonsspor (etterlevelse)
+
+Jf. beslutning 12. Vi kan ikke lene oss på Kafka-topicenes 90-dagers retention for å svare for
+hva vi har bestilt og fått i svar. To append-only tabeller (egen Flyway-migrering) utgjør
+revisjonssporet, atskilt fra arbeidsdataene:
+
+- **`oebs_sendt_melding`** — hver melding vi publiserte, med nøyaktig serialisert innhold og
+  Kafka-koordinater (topic/partition/offset). Skrives av outbox-polleren i **samme transaksjon**
+  som den markerer outbox-raden `PUBLISHED`, så revisjonssporet stemmer med det som faktisk ble
+  publisert.
+- **`oebs_mottatt_status`** — hvert svar vi mottok, rått og komplett. Skrives av consumeren for
+  hvert svar som gjelder oss, **før** statustolkningen (så vi fanger alt selv om tolkningen ikke
+  er ferdig). Idempotent på Kafka-koordinatene så reprosessering ikke gir duplikater.
+
+Skille: `oebs_outbox` (dreneres) og `oebs_bestilling_status` (siste tilstand) er arbeidsdata;
+`oebs_sendt_melding`/`oebs_mottatt_status` er revisjonsspor som aldri overskrives. Skrive-hjelperne
+(`loggSendtMelding`/`loggMottattStatus`) er grønn sone.
+
 ### 7. AccessPolicy
 
 `nais/{dev,prod}-gcp-backend.yaml`: å produsere til egen Aiven-topic krever ikke ny
@@ -304,7 +327,8 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
 - `backend/src/main/kotlin/no/nav/ekspertbistand/Application.kt` /
   `configureEventHandlers()` — oppstart av outbox-poller og status-consumer, DI-registrering.
 - Ny Flyway-migrering under `backend/src/main/resources/db/migration/` — nummerserie-tabell,
-  **outbox-tabell** og status/feil-tabell.
+  **outbox-tabell** og status/feil-tabell (V12), samt **revisjonsspor-tabeller** `oebs_sendt_melding`
+  og `oebs_mottatt_status` (V13).
 
 ## Kanttilfeller og feilmodeller
 
@@ -369,6 +393,8 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
 - Kafka-producer- og status-consumer-oppsett (verifiser SSL/idempotence-config).
 - Meldingsmodell/DTO-speiling (verifiser at diskriminator og feltnavn matcher VALP eksakt).
 - Flyway-migreringer for nummerserie- og status/feil-tabell (verifiser at de er trygge).
+- Revisjonsspor-tabeller (`oebs_sendt_melding`/`oebs_mottatt_status`) + skrive-hjelperne
+  `loggSendtMelding`/`loggMottattStatus` (verifiser append-only og idempotens).
 
 ## Ferdig når
 
@@ -380,6 +406,7 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
 - Outbox + poller gir at-least-once-publisering uten hard avhengighet til Kafka-oppetid;
   Kafka-feil håndteres i poller-en og lekker ikke ut til kalleren.
 - Vi konsumerer VALP sine status-topics og oppdaterer egen tilstand.
+- Utgående meldinger og innkommende svar logges append-only (revisjonsspor) for etterlevelse.
 - Feilede operasjoner gir tydelig signal for manuell oppfølging.
 - Ingen PII i logg.
 - (Ekstern avhengighet: VALP har lagt inn `EKSPERTBISTAND` / `TILTAK_EKSPERTBISTAND` /
