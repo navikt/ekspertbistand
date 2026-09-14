@@ -273,8 +273,14 @@ inngangen saksbehandlingsflyten kobles på senere.
 ### 6. Statuslytting + feilhåndtering
 
 Ny consumer (gjenbruker `CoroutineKafkaConsumer`) på VALP sine status-topics
-`team-mulighetsrommet.tiltaksokonomi.bestilling-status-v1` og `…faktura-status-v1`. Status
-lagres på vår side og eksponeres via API-et. **Feilede bestillinger/utbetalinger må gi et
+`team-mulighetsrommet.tiltaksokonomi.bestilling-status-v1` og `…faktura-status-v1`.
+
+Status-topicene er **delt av alle kilder/fagsystemer** i tiltaksøkonomi. Consumeren må derfor
+filtrere tidlig på **vår fagsystembokstav** (`FAGSYSTEM_KILDE`, første tegn i bestillingsnummeret)
+og ignorere meldinger som ikke gjelder oss, før den tolker status. Filtreringen (ruting) er grønn
+sone; selve statustolkningen er rød sone.
+
+Status lagres på vår side og eksponeres via API-et. **Feilede bestillinger/utbetalinger må gi et
 tydelig, synlig signal** (egen status/tabellflagg + metrikk + logg uten PII) som kan plukkes
 opp for **manuell oppfølging** — ikke svelges stille. Dette krever read-ACL fra VALP på
 status-topicene (koordineres med Team VALP).
