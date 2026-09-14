@@ -72,8 +72,10 @@ val OkonomiBestillingMelding.meldingstype: String
  *
  * Poller som drenerer outbox-en til Kafka. Kjernelogikken har harde krav:
  * - hent neste PENDING-rad med `FOR UPDATE SKIP_LOCKED` (se [no.nav.ekspertbistand.event.EventQueue]),
- * - publiser via [TiltaksokonomiProducer.send],
- * - marker PUBLISHED **i samme transaksjon** slik at vi får at-least-once uten å miste meldinger,
+ * - publiser via [TiltaksokonomiProducer.send] (returnerer `RecordMetadata`),
+ * - skriv revisjonsspor med [loggSendtMelding] (topic/partition/offset fra metadata) og marker
+ *   PUBLISHED **i samme transaksjon** slik at vi får at-least-once uten å miste meldinger, og slik at
+ *   revisjonssporet (etterlevelse) alltid stemmer med det som faktisk ble publisert,
  * - håndter retry/attempts og backoff ved feil, uten å blø feilen innover.
  *
  * Transaksjonsgrensene og at-least-once-garantien er sikkerhets-/økonomikritiske og skal

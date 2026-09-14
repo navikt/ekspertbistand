@@ -18,6 +18,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.upsert
 import org.jetbrains.exposed.v1.json.jsonb
+import kotlin.time.Instant
 
 /**
  * Status/kvittering fra OeBS, mottatt via Team VALP sine status-topics. Bærer flagg for manuell
@@ -83,6 +84,19 @@ class BestillingStatusConsumer(
             // Topicen inneholder meldinger for alle kilder; ignorer andres uten å tolke dem.
             log.debug("Hopper over status for {} på {} – ikke vår kilde", bestillingsnummer, record.topic())
             return
+        }
+
+        // Etterlevelse: logg svaret varig FØR tolkning, slik at revisjonssporet fanger alt vi mottok
+        // selv om tolkningen (rød sone) ikke er ferdig. Idempotent på Kafka-koordinatene.
+        transaction(database) {
+            loggMottattStatus(
+                bestillingsnummer = bestillingsnummer,
+                kafkaTopic = record.topic(),
+                kafkaPartition = record.partition(),
+                kafkaOffset = record.offset(),
+                kafkaTidspunkt = Instant.fromEpochMilliseconds(record.timestamp()),
+                raw = raw,
+            )
         }
 
         val oppdatering = tolkStatus(bestillingsnummer, raw)

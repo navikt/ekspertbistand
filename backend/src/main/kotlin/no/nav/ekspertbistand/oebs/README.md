@@ -24,6 +24,7 @@ flowchart LR
         poller["OebsOutboxPoller 🔴"]
         status["BestillingStatusConsumer"]
         statusdb[("oebs_bestilling_status")]
+        logg[("meldingslogg 📚")]
     end
 
     subgraph valp["team-mulighetsrommet"]
@@ -34,10 +35,12 @@ flowchart LR
 
     klient -- "leggIOutbox (samme txn)" --> outbox
     poller -- "poll" --> outbox
+    poller -- "loggSendtMelding (samme txn)" --> logg
     poller -- "publiser" --> topic["fager.ekspertbistand.bestillinger-v1"]
     topic -- "read-ACL" --> tokonomi
     tokonomi <--> oebs
     tokonomi -- "bestilling-status-v1 / faktura-status-v1" --> status
+    status -- "loggMottattStatus" --> logg
     status --> statusdb
 ```
 
@@ -72,8 +75,8 @@ sequenceDiagram
     P->>O: poll (FOR UPDATE SKIP LOCKED)
     O-->>P: neste PENDING-rad
     P->>T: send(key=bestillingsnummer, value=JSON), acks=all
-    T-->>P: ack
-    P->>O: marker PUBLISHED (samme txn)
+    T-->>P: ack (RecordMetadata: topic/partition/offset)
+    P->>O: loggSendtMelding + marker PUBLISHED (samme txn)
     T-->>V: konsumerer bestilling
 ```
 
@@ -83,6 +86,7 @@ sequenceDiagram
 sequenceDiagram
     participant V as Team VALP
     participant S as BestillingStatusConsumer
+    participant L as oebs_mottatt_status (DB 📚)
     participant D as oebs_bestilling_status (DB)
     participant T as team-logs
 
@@ -91,6 +95,7 @@ sequenceDiagram
     alt ikke vår kilde
         S-->>S: hopp over (ingen tolkning)
     else vår bestilling
+        S->>L: loggMottattStatus (append-only, idempotent på Kafka-koordinat)
         S->>S: tolkStatus(bestillingsnummer, raw) 🔴
         S->>D: upsert status + trenger_manuell_oppfolging
         opt feilet operasjon
@@ -103,6 +108,25 @@ sequenceDiagram
 > fagsystembokstav (`FAGSYSTEM_KILDE`, første tegn i bestillingsnummeret) og ignorerer andres
 > meldinger før rød-sone-tolkningen kjører.
 
+## Etterlevelse (varig revisjonsspor)
+
+Vi må kunne **svare for hva vi har bestilt og hvilke svar vi fikk** — dette er et etterlevelseskrav.
+Kafka-topicene har 90 dagers retention, så vi kan ikke lene oss på dem for dette, og selv om OeBS
+har rapporter må vi kunne dokumentere vår egen side av kommunikasjonen.
+
+Derfor logges både utgående meldinger og innkommende svar **append-only** i egen database, atskilt
+fra arbeidsdataene:
+
+- **Utgående** (`oebs_sendt_melding`): polleren skriver den nøyaktig serialiserte meldingen i **samme
+  transaksjon** som den markerer outbox-raden `PUBLISHED`, med Kafka-koordinatene fra `RecordMetadata`.
+  Da stemmer revisjonssporet alltid med det som faktisk ble publisert.
+- **Innkommende** (`oebs_mottatt_status`): consumeren skriver **hele** råmeldingen for hvert svar som
+  gjelder oss, *før* rød-sone-tolkningen — så vi fanger alt vi mottok selv om tolkningen ikke er ferdig.
+  Idempotent på Kafka-koordinatene (`topic`/`partition`/`offset`) så reprosessering ikke gir duplikater.
+
+Dette skiller **revisjonsspor** (`oebs_sendt_melding`, `oebs_mottatt_status` — aldri overskrevet) fra
+**arbeidsdata** (`oebs_outbox` som dreneres, `oebs_bestilling_status` som holder siste tilstand).
+
 ## Komponenter
 
 | Fil | Ansvar | Sone |
@@ -113,17 +137,21 @@ sequenceDiagram
 | [`Nummerserie.kt`](Nummerserie.kt) | `oebs_lopenummer`-tabell + `FAGSYSTEM_KILDE` + nummergenerator | 🔴 |
 | [`TiltaksokonomiClient.kt`](TiltaksokonomiClient.kt) | Internt API: bestille / fakturere / annullere / gjøre opp | 🟢 |
 | [`BestillingStatusConsumer.kt`](BestillingStatusConsumer.kt) | Lytter på VALP sine status-topics, lagrer status | 🟢 skjelett / 🔴 tolkning |
+| [`Meldingslogg.kt`](Meldingslogg.kt) | Varig revisjonsspor: `loggSendtMelding` / `loggMottattStatus` (etterlevelse) | 🟢 |
 | [`OebsProsessering.kt`](OebsProsessering.kt) | Oppstart av poller + status-konsument | 🟢 (ikke wiret inn ennå) |
 | [`V12__oebs_tiltaksokonomi.sql`](../../../../../resources/db/migration/V12__oebs_tiltaksokonomi.sql) | Flyway: outbox-, løpenummer- og statustabeller | 🟢 |
+| [`V13__oebs_meldingslogg.sql`](../../../../../resources/db/migration/V13__oebs_meldingslogg.sql) | Flyway: revisjonsspor (sendt/mottatt melding) | 🟢 |
 | [`nais/{dev,prod}-gcp-topic-bestillinger.yaml`](../../../../../../../../nais) | Topic-manifest + ACL | 🟢 |
 
 ## Datamodell
 
 | Tabell | Rolle |
 |--------|-------|
-| `oebs_outbox` | Utgående meldinger, drenert til Kafka av polleren |
+| `oebs_outbox` | Utgående meldinger, drenert til Kafka av polleren (arbeidsdata) |
 | `oebs_lopenummer` | Neste ledige løpenummer per sak (én rad per sak) |
-| `oebs_bestilling_status` | Siste status per bestilling, med flagg for manuell oppfølging |
+| `oebs_bestilling_status` | Siste status per bestilling, med flagg for manuell oppfølging (arbeidsdata) |
+| `oebs_sendt_melding` | 📚 Revisjonsspor: hver melding vi publiserte, med Kafka-koordinater (append-only) |
+| `oebs_mottatt_status` | 📚 Revisjonsspor: hvert svar vi mottok, rått og komplett (append-only) |
 
 ## Meldingsmodell og kontrakt
 
