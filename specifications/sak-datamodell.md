@@ -37,7 +37,7 @@ Saksbehandlingsdomenet for en behandlet søknad.
 | `sak_id` | UUID | PK, default `gen_random_uuid()` | Intern, teknisk identifikator for saken. |
 | `soknad_id` | UUID | NOT NULL, UNIQUE, FK → `soknad(id)` | Søknaden saken behandler. UNIQUE håndhever én sak per søknad. |
 | `status` | TEXT | NOT NULL, default `OPPRETTET` | Sakens tilstand i livsløpet. Se `Saksstatus`. |
-| `kilde_til_behandling` | TEXT | NOT NULL | Hva som utløste behandlingen. Se `KildeTilBehandling`. |
+| `kilde_til_behandling` | TEXT | NOT NULL | Hva som utløste behandlingen. Se `KildeTilBehandling`. Default ARENA |
 | `behandlende_enhet` | TEXT | NULL | NAV-enheten som behandler saken — NORG-enhetsnummer (4 siffer, ledende nuller bevart). Null til enhet er satt. |
 | `ansvarlig_ident` | TEXT | NULL | NAV-ident til overordnet ansvarlig for saken. |
 | `saksbehandler_ident` | TEXT | NULL | NAV-ident til saksbehandler som utreder. Null før tildeling. |
@@ -76,11 +76,8 @@ Hendelseslogg / audit trail for en sak (1:N). Både saksbehandlere (`BRUKER`) og
 |---------|------|-------------|-------------|
 | `sakslogg_id` | UUID | PK, default `gen_random_uuid()` | Teknisk id for loggposten. |
 | `sak_id` | UUID | NOT NULL, FK → `sak(sak_id)` ON DELETE CASCADE | Saken hendelsen gjelder. |
-| `utfort_av_type` | TEXT | NOT NULL | Om handlingen ble utført av en `BRUKER` eller `SYSTEM`. Se `AktorType`. |
+| `utfort_av_type` | TEXT | NOT NULL | Om handlingen ble utført av en `BRUKER` eller `SYSTEM`. Se `AktorType`. | <-- Må ha med beslutter eller saksbehandler her
 | `utfort_av_ident` | TEXT | NULL | NAV-ident til den som utførte handlingen. Null når `utfort_av_type = SYSTEM`. |
-| `loggtype` | TEXT | NOT NULL | Type hendelse. Se `Loggtype`. |
-| `fra_status` | TEXT | NULL | Status før endring (kun ved `STATUS_ENDRET`). |
-| `til_status` | TEXT | NULL | Status etter endring (kun ved `STATUS_ENDRET`). |
 | `notat` | TEXT | NULL | Valgfri fritekst (f.eks. ved `NOTAT`). |
 | `utfort_at` | TIMESTAMPTZ | NOT NULL, default `now()` | Tidspunkt for hendelsen. |
 
@@ -131,9 +128,8 @@ Alle lagres som `TEXT` i databasen og valideres i Kotlin.
 
 | Verdi | Betydning |
 |-------|-----------|
-| `ALTINN` | Innsendt via Altinn / selvbetjening. |
+| `EKSPERTBISTAND` | Vårt saksbehandlingssystem |
 | `ARENA` | Opprettet fra Arena-integrasjon. |
-| `MANUELL` | Manuelt opprettet av saksbehandler. |
 
 ### `AktorType` (`sakslogg.utfort_av_type`)
 
@@ -141,18 +137,6 @@ Alle lagres som `TEXT` i databasen og valideres i Kotlin.
 |-------|-----------|
 | `BRUKER` | Handling utført av en saksbehandler (har `utfort_av_ident`). |
 | `SYSTEM` | Handling utført automatisk av systemet (`utfort_av_ident` er null). |
-
-### `Loggtype` (`sakslogg.loggtype`)
-
-Bevisst slank. Statusoverganger dekkes av `STATUS_ENDRET` sammen med `fra_status`/`til_status`,
-slik at enumen ikke må utvides for hver nye status.
-
-| Verdi | Betydning |
-|-------|-----------|
-| `SAK_OPPRETTET` | Saken ble opprettet. |
-| `STATUS_ENDRET` | Statusovergang — se `fra_status` → `til_status`. |
-| `VILKAR_VURDERT` | Vilkår ble vurdert/oppdatert. |
-| `NOTAT` | Fritt saksbehandlernotat (`notat`). |
 
 ### `Refusjonsstatus` (`refusjonskrav.status`)
 
