@@ -68,7 +68,7 @@ jobs:
         name: Deploy dev-gcp
         env:
           VAR: image=${{ needs.build.outputs.image }}
-          RESOURCE: nais/dev-gcp-backend.yaml
+          RESOURCE: nais/dev-gcp-topic-bestillinger.yaml,nais/dev-gcp-backend.yaml
           CLUSTER: dev-gcp
 
   deploy-prod:
@@ -83,5 +83,5 @@ jobs:
         name: Deploy prod-gcp
         env:
           VAR: image=${{ needs.build.outputs.image }}
-          RESOURCE: nais/prod-gcp-backend.yaml
+          RESOURCE: nais/prod-gcp-topic-bestillinger.yaml,nais/prod-gcp-backend.yaml
           CLUSTER: prod-gcp
