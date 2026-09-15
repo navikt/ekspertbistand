@@ -10,6 +10,7 @@ spec:
   port: 4000
   ingresses:
     - https://ekspertbistand-saksbehandling.intern.dev.nav.no
+    - https://ekspertbistand-saksbehandling.ansatt.dev.nav.no
 
   replicas:
     min: 1
