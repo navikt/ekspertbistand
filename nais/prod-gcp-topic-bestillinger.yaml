@@ -1,0 +1,24 @@
+apiVersion: kafka.nais.io/v1
+kind: Topic
+metadata:
+  name: ekspertbistand.bestillinger-v1
+  namespace: fager
+  labels:
+    team: fager
+spec:
+  pool: nav-prod
+  config:
+    cleanupPolicy: delete
+    minimumInSyncReplicas: 2
+    partitions: 1
+    replication: 3
+    # 90 dager retention (24 h * 90 d), som Team VALP sin bestillinger-topic
+    retentionHours: 2160
+  acl:
+    - team: fager
+      application: ekspertbistand-backend
+      access: write
+    # Team VALP (tiltaksøkonomi) abonnerer på vår topic og leser bestillinger/fakturaer.
+    - team: team-mulighetsrommet
+      application: tiltaksokonomi
+      access: read
