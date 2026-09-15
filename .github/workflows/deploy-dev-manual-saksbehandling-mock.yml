@@ -1,4 +1,4 @@
-name: Manuell deploy dev frontend mock
+name: Manuell deploy dev saksbehandling mock
 
 on:
   workflow_dispatch: {}
