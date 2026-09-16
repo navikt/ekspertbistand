@@ -243,7 +243,16 @@ soknad 1 ──── 1 sak 1 ──── 1 saksvilkar
 
 ### Rollback
 
-Ingen datatap siden tabellene er tomme:
+Trygt fordi de **nye** tabellene (`sak`, `saksvilkar`, `sakslogg`, `sak_retur`, `sluttrapport`)
+er tomme ved rollback, og endringene på eksisterende tabeller berører kun nye/tomme kolonner:
+
+- `vedlegg.sluttrapport_id` — kolonnen ble innført i denne migrasjonen, så `DROP COLUMN` fjerner
+  bare nye data. Øvrige `vedlegg`-kolonner er urørt.
+- `refusjonskrav.soknad_id` — gjenopprettes som tom kolonne. Trygt kun fordi `refusjonskrav`
+  ikke har produksjonsdata (jf. Migrasjon over); ved eksisterende data ville de gamle
+  `soknad_id`-koblingene gått tapt.
+
+⚠️ `soknad` og andre eksisterende tabeller røres ikke av denne rollbacken.
 
 ```sql
 DROP TABLE IF EXISTS sakslogg, saksvilkar, sak_retur CASCADE;
