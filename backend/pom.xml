@@ -20,6 +20,17 @@
         <graphql-kotlin.version>8.8.1</graphql-kotlin.version>
         <exposed.version>1.0.0-rc-2</exposed.version>
     </properties>
+    <repositories>
+        <!-- Legger til central eksplisitt for prioritet over github -->
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+        <repository>
+            <id>github</id>
+            <url>https://github-package-registry-mirror.gc.nav.no/cached/maven-release</url>
+        </repository>
+    </repositories>
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -154,6 +165,12 @@
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
             <version>8.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>no.nav.common</groupId>
+            <artifactId>audit-log</artifactId>
+            <version>4.2026.09.14_05.57-40a1ead1e559</version>
         </dependency>
 
         <dependency>
