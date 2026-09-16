@@ -21,7 +21,7 @@ flowchart LR
     subgraph fager["fager (oss)"]
         klient["OebsKlient"]
         outbox[("oebs_outbox")]
-        poller["OebsOutboxPoller 🔴"]
+        poller["OebsOutboxPoller"]
         status["TiltaksokonomiConsumer"]
         statusdb[("oebs_bestilling_status")]
         logg[("meldingslogg 📚")]
@@ -60,9 +60,9 @@ Dette speiler mønsteret i [`event`-pakken](../event/README.md) (`FOR UPDATE SKI
 sequenceDiagram
     participant K as Kaller (forretningslogikk)
     participant C as OebsKlient
-    participant N as Nummerserie 🔴
+    participant N as Nummerserie
     participant O as oebs_outbox (DB)
-    participant P as OebsOutboxPoller 🔴
+    participant P as OebsOutboxPoller
     participant T as Kafka-topic
     participant V as Team VALP
 
@@ -150,7 +150,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 
 | Fil | Ansvar | Sone |
 |-----|--------|------|
-| [`Outbox.kt`](model/Outbox.kt) | `oebs_outbox`-tabell + `JdbcTransaction.leggIOutbox` (skriveside) + poller-stub | 🟢 skrive / 🔴 poller |
+| [`Outbox.kt`](model/Outbox.kt) | `oebs_outbox`-tabell + `JdbcTransaction.leggIOutbox` (skriveside) + `OebsOutboxPoller` (drenering til Kafka) | 🟢 |
 | [`Nummerserie.kt`](model/Nummerserie.kt) | `oebs_lopenummer`- + `oebs_faktura_lopenummer`-tabeller + `FAGSYSTEM_KILDE` + nummergeneratorer (bestilling + faktura) | 🟢 |
 | [`Meldingslogg.kt`](model/Meldingslogg.kt) | Varig revisjonsspor: `loggSendtMelding` / `loggMottattStatus` (etterlevelse) | 🟢 |
 | [`BestillingStatusTabell.kt`](model/BestillingStatusTabell.kt) | `oebs_bestilling_status`-tabell (siste status per bestilling) | 🟢 |
@@ -193,13 +193,16 @@ grundig, ikke genereres:
   transaksjonssikker les-og-inkrementer under `FOR UPDATE`, med lengdevalidering (≤ 20 tegn).
 - **Nummerserie-generering, faktura** (`nesteFakturanummer`) — ✅ implementert: løpenummer per
   faktura per bestilling, format `<bestillingsnummer>-<faktura-løpenr>`, lengdevalidering (≤ 50 tegn).
-- **Outbox-poller** (`OebsOutboxPoller.startProcessing`) — `SKIP_LOCKED`-poll → publiser → marker
-  `PUBLISHED` i én transaksjon, med retry/backoff (at-least-once).
+- **Outbox-poller** (`OebsOutboxPoller.startProcessing`) — ✅ implementert: `SKIP_LOCKED`-poll →
+  publiser → `loggSendtMelding` + marker `PUBLISHED` i én transaksjon (radlåsen holdes gjennom
+  publiseringen), med backoff ved feil. At-least-once: raden markeres aldri `PUBLISHED` før meldingen
+  faktisk er ute, og et duplikat ved retry er ufarlig (idempotent produsent + OeBS-dedup).
 - **Tolkning av avviste operasjoner** (`TiltaksokonomiConsumer.tolkStatus`) — avgjør hva som er
   feilet/avvist og når det krever manuell oppfølging.
 
-`NummerserieTest` er skrevet og aktiv (verifiserer sekvens per sak/bestilling, samtidighet og
-lengdegrense for både bestillings- og fakturanummer); øvrige testskjeletter i
+`NummerserieTest` (sekvens per sak/bestilling, samtidighet og lengdegrense) og `OutboxTest`
+(publisering + `PUBLISHED`-markering i én transaksjon, og at publiseringsfeil lar raden ligge som
+`PENDING` for retry) er skrevet og aktive; øvrige testskjeletter i
 [`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs) er `@Ignore` til de er
 implementert.
 

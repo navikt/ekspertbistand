@@ -78,9 +78,9 @@ class OebsKlient {
  * [no.nav.ekspertbistand.arena.startKafkaConsumers]: én dedikert single-thread-dispatcher per
  * prosess.
  *
- * ⚠️ Både [OebsOutboxPoller.startProcessing] og [TiltaksokonomiConsumer.tolkStatus] er 🔴 rød sone og
- * kaster `TODO(...)` inntil de er implementert. Ikke start denne før rød-sone-logikken er skrevet,
- * ellers krasjer prosessene ved oppstart.
+ * ⚠️ [TiltaksokonomiConsumer.tolkStatus] er fortsatt 🔴 rød sone og kaster `TODO(...)` inntil den er
+ * implementert. Ikke start denne før den siste rød-sone-logikken er skrevet, ellers krasjer
+ * status-consumeren ved oppstart. [OebsOutboxPoller.startProcessing] er implementert.
  */
 class OebsProcessor(
     private val database: Database,
@@ -90,7 +90,7 @@ class OebsProcessor(
     private val statusConsumer = TiltaksokonomiConsumer(database)
 
     fun start(parentContext: CoroutineContext) {
-        // Outbox-poller (🔴 rød sone – ikke implementert).
+        // Outbox-poller (🟢 implementert).
         CoroutineScope(parentContext + Dispatchers.IO.limitedParallelism(1)).launch {
             outboxPoller.startProcessing()
         }

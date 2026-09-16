@@ -1,14 +1,30 @@
 package no.nav.ekspertbistand.oebs.model
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
+import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.oebs.integration.OebsBestillingMelding
 import no.nav.ekspertbistand.oebs.integration.TiltaksokonomiProducer
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.ForUpdate
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.json.jsonb
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.ExperimentalTime
 
 /**
  * Outbox for utgående tiltaksøkonomi-meldinger.
@@ -70,23 +86,90 @@ val OebsBestillingMelding.meldingstype: String
     }
 
 /**
- * 🔴 RØD SONE — skriv selv.
+ * Poller som drenerer outbox-en til Kafka. Kjører som bakgrunnsprosess (se
+ * [no.nav.ekspertbistand.oebs.OebsProcessor]) og speiler poll-mønsteret i
+ * [no.nav.ekspertbistand.event.EventQueue].
  *
- * Poller som drenerer outbox-en til Kafka. Kjernelogikken har harde krav:
- * - hent neste PENDING-rad med `FOR UPDATE SKIP_LOCKED` (se [no.nav.ekspertbistand.event.EventQueue]),
- * - publiser via [TiltaksokonomiProducer.send] (returnerer `RecordMetadata`),
- * - skriv revisjonsspor med [loggSendtMelding] (topic/partition/offset fra metadata) og marker
- *   PUBLISHED **i samme transaksjon** slik at vi får at-least-once uten å miste meldinger, og slik at
- *   revisjonssporet (etterlevelse) alltid stemmer med det som faktisk ble publisert,
- * - håndter retry/attempts og backoff ved feil, uten å blø feilen innover.
+ * 🔴 **RØD SONE — økonomikritisk.** Transaksjonsgrensene under er selve garantien, ikke pynt.
  *
- * Transaksjonsgrensene og at-least-once-garantien er sikkerhets-/økonomikritiske og skal
- * implementeres og forstås av teamet, ikke genereres. Ikke wiret inn i oppstart før dette er skrevet.
+ * **At-least-once i én transaksjon.** For hver rad kjører alt innenfor **én** transaksjon:
+ * 1. Hent neste PENDING-rad med `SELECT … FOR UPDATE SKIP_LOCKED` (eldste id først). Radlåsen holdes
+ *    gjennom hele publiseringen, så to pod-er aldri publiserer samme rad samtidig — de hopper over
+ *    (`SKIP_LOCKED`) og tar hver sin rad i stedet for å vente.
+ * 2. Publiser via [TiltaksokonomiProducer.send], som blokkerer til `acks=all` og **kaster** ved feil.
+ * 3. Først når publiseringen er bekreftet: skriv revisjonsspor ([loggSendtMelding] med topic/partition/
+ *    offset fra `RecordMetadata`) og marker raden PUBLISHED — i **samme** transaksjon som låsen og
+ *    publiseringen.
+ *
+ * Rekkefølgen gir garantien: vi markerer aldri PUBLISHED før meldingen faktisk er ute, og
+ * revisjonssporet stemmer alltid med det som ble publisert. Krasjer vi mellom vellykket publisering
+ * og commit, ruller transaksjonen tilbake og raden forblir PENDING → den republiseres. Duplikatet er
+ * ufarlig: produsenten er idempotent (`enable.idempotence=true`) og OeBS deduplikerer på
+ * bestillings-/fakturanummer. Det er det bevisste valget bak **at-least-once** framfor at-most-once —
+ * vi tåler duplikat, men aldri tap.
+ *
+ * **Feilhåndtering.** Er Kafka nede kaster [TiltaksokonomiProducer.send] en Kafka-exception (ikke en
+ * `SQLException`), så Exposed re-kjører ikke blokken og vi republiserer ikke ved en halv-feilet
+ * transaksjon. Transaksjonen ruller tilbake (ingen halvskrevet revisjonslogg), raden forblir PENDING,
+ * og vi venter [feilBackoff] før neste forsøk i stedet for å blø feilen innover i forretningslogikken.
  */
 class OebsOutboxPoller(
-    @Suppress("unused") private val database: Database,
-    @Suppress("unused") private val producer: TiltaksokonomiProducer,
+    private val database: Database,
+    private val producer: TiltaksokonomiProducer,
+    private val pollInterval: Duration = 5.seconds,
+    private val feilBackoff: Duration = 30.seconds,
 ) {
-    suspend fun startProcessing(): Nothing =
-        TODO("Rød sone: implementer outbox-poller (SKIP_LOCKED-poll → publiser → marker PUBLISHED i én transaksjon, med retry).")
+    private val log = logger()
+
+    /**
+     * Kjører til applikasjonen skrur seg av ([isActiveAndNotTerminating]). Drenerer én rad om gangen:
+     * ved tom kø venter vi [pollInterval], ved publiseringsfeil [feilBackoff], ellers fortsetter vi
+     * umiddelbart til neste rad så en opphopning tømmes raskt.
+     */
+    suspend fun startProcessing() = withContext(Dispatchers.IO) {
+        while (isActiveAndNotTerminating) {
+            val publiserte = try {
+                drenerNestePending()
+            } catch (e: Exception) {
+                log.error("Publisering av outbox-melding feilet; raden forblir PENDING og prøves igjen.", e)
+                delay(feilBackoff)
+                continue
+            }
+
+            if (!publiserte) {
+                delay(pollInterval)
+            }
+        }
+    }
+
+    /**
+     * Publiserer neste PENDING-rad i én transaksjon (lås → publiser → logg + marker PUBLISHED).
+     * Returnerer `true` hvis en rad ble publisert, `false` hvis køen var tom.
+     */
+    @OptIn(ExperimentalTime::class)
+    private fun drenerNestePending(): Boolean = transaction(database) {
+        val rad = OebsOutbox
+            .selectAll()
+            .where { OebsOutbox.status eq OutboxStatus.PENDING }
+            .orderBy(OebsOutbox.id, SortOrder.ASC)
+            .limit(1)
+            .forUpdate(ForUpdate(SKIP_LOCKED))
+            .firstOrNull()
+            ?: return@transaction false
+
+        val id = rad[OebsOutbox.id]
+        val melding = rad[OebsOutbox.meldingJson]
+        val value = OebsBestillingMelding.json.encodeToString(melding)
+
+        // Blokkerer til acks=all; kaster ved feil → hele transaksjonen ruller tilbake, raden forblir PENDING.
+        val metadata = producer.send(rad[OebsOutbox.bestillingsnummer], value)
+
+        loggSendtMelding(melding, metadata.topic(), metadata.partition(), metadata.offset())
+        OebsOutbox.update({ OebsOutbox.id eq id }) {
+            it[status] = OutboxStatus.PUBLISHED
+            it[attempts] = rad[attempts] + 1
+            it[updatedAt] = CurrentTimestamp
+        }
+        true
+    }
 }
