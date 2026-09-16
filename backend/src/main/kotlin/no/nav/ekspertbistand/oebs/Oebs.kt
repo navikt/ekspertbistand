@@ -78,9 +78,9 @@ class OebsKlient {
  * [no.nav.ekspertbistand.arena.startKafkaConsumers]: én dedikert single-thread-dispatcher per
  * prosess.
  *
- * ⚠️ [TiltaksokonomiConsumer.tolkStatus] er fortsatt 🔴 rød sone og kaster `TODO(...)` inntil den er
- * implementert. Ikke start denne før den siste rød-sone-logikken er skrevet, ellers krasjer
- * status-consumeren ved oppstart. [OebsOutboxPoller.startProcessing] er implementert.
+ * Rød-sone-logikken ([OebsOutboxPoller.startProcessing] og [TiltaksokonomiConsumer.tolkStatus]) er
+ * nå implementert. Wiring inn i `main()` avventer likevel ekstern koordinering med Team VALP
+ * (read-ACL på status-topicene + at ekspertbistand-kilden og enum-verdiene er lagt inn hos VALP).
  */
 class OebsProcessor(
     private val database: Database,
@@ -90,12 +90,12 @@ class OebsProcessor(
     private val statusConsumer = TiltaksokonomiConsumer(database)
 
     fun start(parentContext: CoroutineContext) {
-        // Outbox-poller (🟢 implementert).
+        // Outbox-poller (utgående).
         CoroutineScope(parentContext + Dispatchers.IO.limitedParallelism(1)).launch {
             outboxPoller.startProcessing()
         }
 
-        // Status-consument (skjelett grønt, tolkning 🔴 rød sone).
+        // Status-consument (innkommende).
         CoroutineScope(parentContext + Dispatchers.IO.limitedParallelism(1)).launch {
             statusConsumer.startProcessing()
         }
@@ -106,8 +106,8 @@ class OebsProcessor(
  * Starter bakgrunnsprosessene for OeBS-integrasjonen.
  *
  * ⚠️ IKKE wiret inn i [no.nav.ekspertbistand.Application] sin `main()` ennå — se [OebsProcessor].
- * Koble denne på i `main()` (ved siden av `startKafkaConsumers`) først når rød-sone-logikken er
- * skrevet.
+ * Rød-sone-logikken er skrevet; koble denne på i `main()` (ved siden av `startKafkaConsumers`) når
+ * den eksterne koordineringen med Team VALP er på plass.
  */
 fun Application.startOebsProsessering(parentContext: CoroutineContext) {
     // dependencies.resolve er suspend, så den må kalles i en coroutine (jf. arena.startKafkaConsumers).

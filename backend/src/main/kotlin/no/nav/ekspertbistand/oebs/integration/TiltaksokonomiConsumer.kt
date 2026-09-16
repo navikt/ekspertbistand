@@ -38,11 +38,12 @@ data class StatusOppdatering(
  * Topicene inneholder meldinger for **alle** kilder/fagsystemer i tiltaksøkonomi, ikke bare våre.
  * Vi filtrerer derfor tidlig på vår fagsystembokstav ([FAGSYSTEM_KILDE]) og ignorerer alt annet.
  *
- * Skjelettet (subscribe, deserialisering, filtrering, upsert) er grønn sone. Selve tolkningen av
- * hva som er en feilet/avvist operasjon og når det krever manuell oppfølging ([tolkStatus]) er
- * 🔴 rød sone.
+ * Tolkningen ([tolkStatus]) — avgjørelsen av hva som er en feilet/avvist operasjon og når det krever
+ * manuell oppfølging — er 🔴 rød sone (økonomikritisk) og implementert her.
  *
- * Ikke wiret inn i oppstart før [tolkStatus] er implementert.
+ * ⚠️ Consumeren er ikke wiret inn i oppstart ennå: den forutsetter read-ACL fra VALP på
+ * status-topicene og at VALP har lagt inn ekspertbistand-kilden. Koble den på i `main()` når den
+ * eksterne koordineringen er på plass.
  */
 class TiltaksokonomiConsumer(
     private val database: Database,
@@ -134,16 +135,47 @@ class TiltaksokonomiConsumer(
         referanse.startsWith(FAGSYSTEM_KILDE)
 
     /**
-     * 🔴 RØD SONE — skriv selv.
+     * 🔴 RØD SONE — feilhåndtering av avviste OeBS-operasjoner (økonomikritisk).
      *
-     * Tolker en sterkt typet status-melding fra VALP (som allerede er filtrert til å gjelde oss) til
-     * en [StatusOppdatering]. Må avgjøre hvilke [BestillingStatusType]/[FakturaStatusType]-verdier
-     * som betyr feilet/avvist bestilling eller utbetaling, og sette
-     * [StatusOppdatering.trengerManuellOppfolging] deretter. Dette er feilhåndtering av avviste
-     * OeBS-operasjoner og er økonomikritisk — den skal implementeres og forstås av teamet.
+     * Tolker en sterkt typet, allerede vår-filtrert status-melding til en [StatusOppdatering] som
+     * kalleren upserter i [OebsBestillingStatus].
+     *
+     * **Hva som krever manuell oppfølging.** Kun `FEILET` markerer en avvist/feilet operasjon (jf.
+     * enum-dokumentasjonen i [BestillingStatusType]/[FakturaStatusType], der `FEILET` eksplisitt betyr
+     * «Krever manuell oppfølging»). Alle andre verdier er normale steg i livssyklusen (sendt, aktiv,
+     * betalt, oppgjort, annullert) og skal ikke trigge oppfølging. Vi feiler bevisst **eksplisitt** på
+     * det ene kjente feil-tilfellet i stedet for å gjette på et sett «ok»-verdier — dukker en ny
+     * enum-verdi opp fra VALP, behandles den som ikke-feilet inntil vi bevisst tar stilling til den.
+     *
+     * **Nøkkel = [OebsStatusMelding.referanse].** Bestilling nøkles på bestillingsnummer, faktura på
+     * fakturanummer — samme referanse som revisjonssporet ([loggMottattStatus]) bruker. Det gir egne
+     * rader for bestilling og faktura, så en senere vellykket faktura-status aldri overskriver (og
+     * dermed nullstiller) et oppfølgingsflagg satt av en feilet bestilling. Korrelasjonen tilbake til
+     * bestillingen ligger uansett i nummeret (fakturanummer = `<bestillingsnummer>-<løpenr>`, jf. spec §4).
+     *
+     * **PII.** Meldingen bærer ingen detaljert feilårsak i dagens kontrakt, så [StatusOppdatering.feilmelding]
+     * settes til en kort, PII-fri tekst. (Utvid kontrakten med VALP sine feilkoder når de er bekreftet.)
      */
-    private fun tolkStatus(melding: OebsStatusMelding): StatusOppdatering {
-        TODO("Rød sone: tolk VALP-statusmelding ${melding.referanse} og avgjør behov for manuell oppfølging.")
+    private fun tolkStatus(melding: OebsStatusMelding): StatusOppdatering = when (melding) {
+        is OebsStatusMelding.Bestilling -> {
+            val feilet = melding.status.status == BestillingStatusType.FEILET
+            StatusOppdatering(
+                bestillingsnummer = melding.status.bestillingsnummer,
+                status = melding.status.status.name,
+                feilmelding = if (feilet) "Bestilling feilet i OeBS – krever manuell oppfølging" else null,
+                trengerManuellOppfolging = feilet,
+            )
+        }
+
+        is OebsStatusMelding.Faktura -> {
+            val feilet = melding.status.status == FakturaStatusType.FEILET
+            StatusOppdatering(
+                bestillingsnummer = melding.status.fakturanummer,
+                status = melding.status.status.name,
+                feilmelding = if (feilet) "Faktura feilet i OeBS – krever manuell oppfølging" else null,
+                trengerManuellOppfolging = feilet,
+            )
+        }
     }
 
     companion object {

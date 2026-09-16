@@ -96,7 +96,7 @@ sequenceDiagram
         S-->>S: hopp over (ingen tolkning)
     else vår bestilling
         S->>L: loggMottattStatus (append-only, idempotent på Kafka-koordinat)
-        S->>S: tolkStatus(melding: OebsStatusMelding) 🔴
+        S->>S: tolkStatus(melding: OebsStatusMelding)
         S->>D: upsert status + trenger_manuell_oppfolging
         opt feilet operasjon
             S->>T: teamLogger.warn (signal for manuell oppfølging)
@@ -106,7 +106,7 @@ sequenceDiagram
 
 > Status-topicene deles av alle kilder i tiltaksøkonomi. Consumeren filtrerer tidlig på vår
 > fagsystembokstav (`FAGSYSTEM_KILDE`, første tegn i bestillingsnummeret) og ignorerer andres
-> meldinger før rød-sone-tolkningen kjører.
+> meldinger før tolkningen kjører.
 
 ## Etterlevelse (varig revisjonsspor)
 
@@ -144,7 +144,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 | [`OebsBestillingMelding.kt`](integration/OebsBestillingMelding.kt) | Lokalt speilet utgående meldingsmodell + verdityper + `Json`-instans | 🟢 (wire-parity ⚠️) |
 | [`OebsStatusMelding.kt`](integration/OebsStatusMelding.kt) | Lokalt speilte status-DTO-er fra VALP (`BestillingStatus`/`FakturaStatus` + enums, `OebsStatusMelding`) | 🟢 (wire-parity ⚠️) |
 | [`TiltaksokonomiProducer.kt`](integration/TiltaksokonomiProducer.kt) | Idempotent Kafka-produsent (`acks=all`, SSL fra `KAFKA_*`) | 🟢 |
-| [`TiltaksokonomiConsumer.kt`](integration/TiltaksokonomiConsumer.kt) | Lytter på VALP sine status-topics, deserialiserer til typet modell, lagrer status | 🟢 skjelett / 🔴 tolkning |
+| [`TiltaksokonomiConsumer.kt`](integration/TiltaksokonomiConsumer.kt) | Lytter på VALP sine status-topics, deserialiserer til typet modell, tolker status, lagrer siste status | 🟢 |
 
 **Persistens (Exposed-tabeller + hjelpere) — `oebs/model/`:**
 
@@ -184,10 +184,9 @@ jf. spec-beslutning 8) med samme `@SerialName` og feltnavn som VALP.
 > verdityper som `Periode` og `Organisasjonsnummer`) må matche VALP eksakt. Dette er ikke fullt
 > verifisert ennå — se `OebsBestillingMeldingContractTest` (skjelett) og kanttilfellene i spec-en.
 
-## 🔴 Rød sone — implementeres av teamet
+## 🔴 Rød sone — økonomikritisk logikk (nå implementert)
 
-Disse delene er bevisst lagt igjen som stubber (`TODO`) fordi de er økonomikritiske og bør forstås
-grundig, ikke genereres:
+Disse delene er økonomikritiske og ble skrevet og forstått av teamet, ikke blindt generert:
 
 - **Nummerserie-generering, bestilling** (`nesteBestillingsnummer`) — ✅ implementert:
   transaksjonssikker les-og-inkrementer under `FOR UPDATE`, med lengdevalidering (≤ 20 tegn).
@@ -197,17 +196,21 @@ grundig, ikke genereres:
   publiser → `loggSendtMelding` + marker `PUBLISHED` i én transaksjon (radlåsen holdes gjennom
   publiseringen), med backoff ved feil. At-least-once: raden markeres aldri `PUBLISHED` før meldingen
   faktisk er ute, og et duplikat ved retry er ufarlig (idempotent produsent + OeBS-dedup).
-- **Tolkning av avviste operasjoner** (`TiltaksokonomiConsumer.tolkStatus`) — avgjør hva som er
-  feilet/avvist og når det krever manuell oppfølging.
+- **Tolkning av avviste operasjoner** (`TiltaksokonomiConsumer.tolkStatus`) — ✅ implementert: kun
+  `FEILET` (jf. enum-doc) trigger manuell oppfølging; status nøkles på `referanse`
+  (bestillings-/fakturanummer) så en vellykket faktura ikke nullstiller et oppfølgingsflagg på en
+  feilet bestilling.
 
-`NummerserieTest` (sekvens per sak/bestilling, samtidighet og lengdegrense) og `OutboxTest`
-(publisering + `PUBLISHED`-markering i én transaksjon, og at publiseringsfeil lar raden ligge som
-`PENDING` for retry) er skrevet og aktive; øvrige testskjeletter i
+`NummerserieTest` (sekvens per sak/bestilling, samtidighet og lengdegrense), `OutboxTest`
+(publisering + `PUBLISHED` i én transaksjon, og at publiseringsfeil lar raden ligge `PENDING`) og
+`TiltaksokonomiConsumerTest` (tolkning, kilde-filtrering og at flagg ikke nullstilles) er skrevet og
+aktive; øvrige testskjeletter i
 [`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs) er `@Ignore` til de er
 implementert.
 
-> `Application.startOebsProsessering` (i `Oebs.kt`) er **ikke** koblet inn i `Application.main()` ennå. Den
-> kaster `TODO(...)` fra rød sone, så den skal først wires inn når logikken over er skrevet.
+> `Application.startOebsProsessering` (i `Oebs.kt`) er **ikke** koblet inn i `Application.main()` ennå.
+> Rød-sone-logikken er nå skrevet, men wiring avventer ekstern koordinering med Team VALP (read-ACL på
+> status-topicene + at ekspertbistand-kilden og enum-verdiene er lagt inn hos VALP).
 
 ## Gjenstående eksterne avhengigheter
 
