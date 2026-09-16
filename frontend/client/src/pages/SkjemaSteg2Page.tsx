@@ -37,8 +37,7 @@ export default function SkjemaSteg2Page() {
   const { errors } = formState;
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
   const startdato = useWatch({ name: "behovForBistand.startdato" }) as
-    | SoknadInputs["behovForBistand"]["startdato"]
-    | undefined;
+    SoknadInputs["behovForBistand"]["startdato"] | undefined;
   const syncingDateRef = useRef(false);
   const { draftId, clearDraft, lastPersistedAt } = useSoknadDraft();
   const { goToSoknader, goToSoknaderWithSaveNotice, goToStep1, goToSummary, createLinkHandler } =
@@ -190,7 +189,7 @@ export default function SkjemaSteg2Page() {
                       {...inputProps}
                       id="behovForBistand.startdato"
                       label="Startdato"
-                      description="Tiltaket må være godkjent for dere kan begynne."
+                      description="Før dere begynner, må dere ha mottatt skriftlig svar om at søknaden er godkjent."
                       error={errors.behovForBistand?.startdato?.message}
                       onBlur={(e) => {
                         inputProps.onBlur?.(e);
