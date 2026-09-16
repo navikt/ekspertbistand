@@ -18,7 +18,6 @@ import org.jetbrains.exposed.v1.json.jsonb
 object OebsBestillingStatus : Table("oebs_bestilling_status") {
     val bestillingsnummer = text("bestillingsnummer")
     val status = text("status")
-    val feilmelding = text("feilmelding").nullable()
     val trengerManuellOppfolging = bool("trenger_manuell_oppfolging").default(false)
     @OptIn(kotlin.time.ExperimentalTime::class)
     val mottattTidspunkt = timestamp("mottatt_tidspunkt").defaultExpression(CurrentTimestamp)

@@ -90,12 +90,10 @@ class OebsProcessor(
     private val statusConsumer = TiltaksokonomiConsumer(database)
 
     fun start(parentContext: CoroutineContext) {
-        // Outbox-poller (utgående).
         CoroutineScope(parentContext + Dispatchers.IO.limitedParallelism(1)).launch {
             outboxPoller.startProcessing()
         }
 
-        // Status-consument (innkommende).
         CoroutineScope(parentContext + Dispatchers.IO.limitedParallelism(1)).launch {
             statusConsumer.startProcessing()
         }

@@ -39,7 +39,6 @@ CREATE TABLE IF NOT EXISTS oebs_lopenummer (
 CREATE TABLE IF NOT EXISTS oebs_bestilling_status (
     bestillingsnummer         TEXT      PRIMARY KEY,
     status                    TEXT      NOT NULL,
-    feilmelding               TEXT      NULL,
     trenger_manuell_oppfolging BOOLEAN  NOT NULL DEFAULT FALSE,
     mottatt_tidspunkt         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     raw_json                  JSONB     NOT NULL

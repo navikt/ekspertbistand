@@ -60,7 +60,6 @@ class TiltaksokonomiConsumerTest {
         val rad = assertNotNull(statusRad(database, nr))
         assertEquals("FEILET", rad[OebsBestillingStatus.status])
         assertTrue(rad[OebsBestillingStatus.trengerManuellOppfolging])
-        assertNotNull(rad[OebsBestillingStatus.feilmelding])
     }
 
     @Test
@@ -75,7 +74,6 @@ class TiltaksokonomiConsumerTest {
         val rad = assertNotNull(statusRad(database, nr))
         assertEquals("AKTIV", rad[OebsBestillingStatus.status])
         assertFalse(rad[OebsBestillingStatus.trengerManuellOppfolging])
-        assertNull(rad[OebsBestillingStatus.feilmelding])
     }
 
     @Test

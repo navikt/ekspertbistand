@@ -22,9 +22,14 @@ import kotlin.time.Instant
 data class StatusOppdatering(
     val bestillingsnummer: String,
     val status: String,
-    val feilmelding: String?,
-    val trengerManuellOppfolging: Boolean,
-)
+) {
+    /**
+     * `FEILET` er den eneste statusen som betyr avvist/feilet operasjon (jf. enum-dokumentasjonen i
+     * [BestillingStatusType]/[FakturaStatusType]). Utledes fra [status] framfor å lagres eksplisitt.
+     */
+    val feilet: Boolean
+        get() = status == BestillingStatusType.FEILET.name || status == FakturaStatusType.FEILET.name
+}
 
 /**
  * Konsumerer VALP sine status-topics for bestilling og faktura, og lagrer siste status per
@@ -60,7 +65,6 @@ class TiltaksokonomiConsumer(
             return
         }
 
-        // Rå melding beholdes for revisjonssporet; typet modell brukes til ruting og tolkning.
         val raw = json.decodeFromString<JsonObject>(value)
 
         val melding = deserialiserStatus(record.topic(), value)
@@ -94,15 +98,21 @@ class TiltaksokonomiConsumer(
             OebsBestillingStatus.upsert {
                 it[OebsBestillingStatus.bestillingsnummer] = oppdatering.bestillingsnummer
                 it[status] = oppdatering.status
-                it[feilmelding] = oppdatering.feilmelding
-                it[trengerManuellOppfolging] = oppdatering.trengerManuellOppfolging
+                it[trengerManuellOppfolging] = oppdatering.feilet
                 it[mottattTidspunkt] = CurrentTimestamp
                 it[rawJson] = raw
             }
         }
 
-        if (oppdatering.trengerManuellOppfolging) {
-            teamLog.warn("Bestilling {} krever manuell oppfølging: {}", oppdatering.bestillingsnummer, oppdatering.feilmelding)
+        if (oppdatering.feilet) {
+            teamLog.error(
+                "Status for {} er FEILET og krever manuell oppfølging. record={} raw={}",
+                melding.referanse, record, raw,
+            )
+            log.error(
+                "Status for {} er FEILET og krever manuell oppfølging – sjekk teamLogs for detaljer.",
+                melding.referanse,
+            )
         }
     }
 
@@ -153,29 +163,20 @@ class TiltaksokonomiConsumer(
      * dermed nullstiller) et oppfølgingsflagg satt av en feilet bestilling. Korrelasjonen tilbake til
      * bestillingen ligger uansett i nummeret (fakturanummer = `<bestillingsnummer>-<løpenr>`, jf. spec §4).
      *
-     * **PII.** Meldingen bærer ingen detaljert feilårsak i dagens kontrakt, så [StatusOppdatering.feilmelding]
-     * settes til en kort, PII-fri tekst. (Utvid kontrakten med VALP sine feilkoder når de er bekreftet.)
+     * Selve feilet/ikke-feilet-avgjørelsen er [StatusOppdatering.feilet] (utledet fra status), så vi
+     * lagrer ikke et redundant flagg eller en syntetisk feilmelding — råmeldingen i revisjonssporet
+     * har detaljene.
      */
     private fun tolkStatus(melding: OebsStatusMelding): StatusOppdatering = when (melding) {
-        is OebsStatusMelding.Bestilling -> {
-            val feilet = melding.status.status == BestillingStatusType.FEILET
-            StatusOppdatering(
-                bestillingsnummer = melding.status.bestillingsnummer,
-                status = melding.status.status.name,
-                feilmelding = if (feilet) "Bestilling feilet i OeBS – krever manuell oppfølging" else null,
-                trengerManuellOppfolging = feilet,
-            )
-        }
+        is OebsStatusMelding.Bestilling -> StatusOppdatering(
+            bestillingsnummer = melding.status.bestillingsnummer,
+            status = melding.status.status.name,
+        )
 
-        is OebsStatusMelding.Faktura -> {
-            val feilet = melding.status.status == FakturaStatusType.FEILET
-            StatusOppdatering(
-                bestillingsnummer = melding.status.fakturanummer,
-                status = melding.status.status.name,
-                feilmelding = if (feilet) "Faktura feilet i OeBS – krever manuell oppfølging" else null,
-                trengerManuellOppfolging = feilet,
-            )
-        }
+        is OebsStatusMelding.Faktura -> StatusOppdatering(
+            bestillingsnummer = melding.status.fakturanummer,
+            status = melding.status.status.name,
+        )
     }
 
     companion object {
