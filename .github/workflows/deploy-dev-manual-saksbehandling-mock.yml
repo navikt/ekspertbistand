@@ -1,7 +1,7 @@
 name: Manuell deploy dev saksbehandling mock
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch: { }
   push:
     paths:
       - frontend/**
@@ -87,7 +87,6 @@ jobs:
           dockerfile: Dockerfile
           build_args: |
             NODE_AUTH_TOKEN=${{ secrets.READER_TOKEN }}
-            BASE_PATH=${{ env.BASE_PATH }}
             VITE_BASE_PATH=${{ env.CDN_PUBLIC_BASE }}
             VITE_ENABLE_MOCKS=${{ env.VITE_ENABLE_MOCKS }}
           salsa: true
