@@ -13,7 +13,7 @@ behandlingen — ikke innsendingen.
 | Tema | Valg | Begrunnelse |
 |------|------|-------------|
 | Kardinalitet sak ↔ søknad | **1:1** (`sak.soknad_id` UNIQUE) | Én sak per innvilget/behandlet søknad. |
-| Refusjon | **1:1**, kun på sak (`sak.refusjon_id`) | Refusjon hører til behandlingen, ikke søknaden. `refusjonskrav.soknad_id` fjernes. |
+| Refusjon | **1:1**, kun på sak (`sak.refusjon_id`) | Refusjon hører til behandlingen, ikke søknaden. `refusjonskrav.soknad_id` fjernes senere (expand/contract, se Migrasjon). |
 | Sluttrapport | Ny tabell, **1:1** på sak (`sak.sluttrapport_id`) | Kan ha flere vedlegg; egen tabell samler metadata. |
 | Saksvilkår | **1:1**, deler PK med sak | Ren utvidelse av sak uten egen teknisk nøkkel. |
 | Sakslogg | **1:N** fra sak | Hendelseslogg / audit trail. |
@@ -151,8 +151,12 @@ Indeks: `idx_sak_retur_sak_id(sak_id)`.
 
 ### `refusjonskrav`
 
-- **Fjernes:** `soknad_id` (og indeks `idx_refusjonskrav_soknad_id`). Refusjon kobles nå til sak
-  via `sak.refusjon_id`, ikke til søknad.
+- **Utsatt fjerning:** `soknad_id` (og indeks `idx_refusjonskrav_soknad_id`) skal på sikt fjernes,
+  siden refusjon kobles til sak via `sak.refusjon_id`. Men kolonnen er fortsatt i aktiv bruk i
+  `RefusjonDb` (`lagreRefusjonskrav` + `finnRefusjonskravStatus`). Vi følger derfor
+  **expand/contract**: `V12` beholder kolonnen (additiv migrasjon), og den droppes først i en
+  senere contract-migrasjon når koden kobler refusjon via sak. Å droppe den nå ville brukket
+  refusjon i prod.
 - Tabellnavnet beholdes (`refusjonskrav`) for å unngå kodeendringer i `RefusjonskravTable`.
 
 ### `vedlegg`
@@ -237,9 +241,11 @@ soknad 1 ──── 1 sak 1 ──── 1 saksvilkar
 ## Migrasjon
 
 - Implementeres som Flyway-migrasjon `V12__legg_til_sak.sql` (neste ledige versjon etter `V11`).
-- **Rent nybygg** — ingen produksjonsdata i `refusjonskrav`, så `DROP COLUMN soknad_id` er trygt.
-- **Kodeendring kreves:** `RefusjonDb.lagreRefusjonskrav` setter i dag `RefusjonskravTable.soknadId`.
-  Denne må oppdateres til å koble refusjon mot sak i stedet for søknad.
+- **Additiv (expand-steg):** oppretter kun nye, tomme tabeller (`sluttrapport`, `sak`,
+  `saksvilkar`, `sakslogg`, `sak_retur`) og legger til nullbar `vedlegg.sluttrapport_id`. Ingen
+  eksisterende data endres eller slettes, ingen kolonner droppes — trygt i prod.
+- **Utsatt (contract-steg):** `refusjonskrav.soknad_id` droppes IKKE i `V12` (se `refusjonskrav`
+  over). Krever kodeomlegging i `RefusjonDb` først, deretter egen contract-migrasjon.
 
 ### Rollback
 
