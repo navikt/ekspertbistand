@@ -123,8 +123,12 @@ Fra kortbeskrivelsen (1–4) og avklaringer 2026-09-11 (5–10):
 2. **Egen skrive-topic i `fager`-namespace.** Vi skriver **ikke** direkte til VALP sin
    `tiltaksokonomi.bestillinger-v1`. Vi eier en egen topic og publiserer dit. Meldingsformatet
    er identisk med VALP sitt (`OkonomiBestillingMelding`).
-3. **Ekspertbistand som eget kildesystem med egen nummerserie.** Generelt format:
-   `<fagsystembokstav>-<fagsystem sak-id>-<inkrementerende løpenummer per tilsagn per sak>`.
+3. **Ekspertbistand som eget kildesystem med egne nummerserier.** OeBS-bekreftede formater:
+   bestillingsnummer `<fagsystembokstav>-<gjennomføringens saksnummer>-<løpenr bestilling per sak>`
+   (f.eks. `A-2026/10000-1`), og fakturanummer `<bestillingsnummer>-<løpenr faktura per bestilling>`
+   (f.eks. `A-2026/10000-1-1`). Fakturanummeret korrelerer til bestillingen ved prefiks (én faktura
+   hører til én bestilling; forventet 1:1, men format støtter 1:N). Bestillingsnummer maks 20 tegn,
+   fakturanummer maks 50 tegn, begge må være unike (se Endring §4).
 4. **VALP legger inn** tiltakskode `EKSPERTBISTAND`, tilskuddstype `TILTAK_EKSPERTBISTAND`,
    periode og de statlige kontoene i sitt system.
 5. **Fagsystembokstav = `E` midlertidig, som kodekonstant.** Endelig bokstav/kildenavn venter
@@ -230,14 +234,56 @@ jf. beslutning 8), med `@SerialName`-diskriminatorer som matcher VALP eksakt: `B
 Kilde-verdien (`OkonomiPart.System(kilde)`) settes til ekspertbistand-kilden (avventer OeBs,
 §4). En kontrakttest bør verifisere at vår serialiserte JSON matcher VALP sitt skjema.
 
-### 4. Nummerserie
+### 4. Nummerserie (bestilling + faktura)
 
-Egen tabell + generator som gir `<fagsystembokstav>-<sak-id>-<løpenr per tilsagn per sak>`.
-Fagsystembokstaven er **`E` midlertidig** og defineres som en **kodekonstant** (ikke ekstern
-config — vi deployer ofte, og config forbeholdes plattform-verdier og hemmeligheter); endelig
-verdi fra OeBs settes med en kodeendring. Løpenummeret må være **transaksjonelt unikt og
-monotont per sak**, og genereringen må være idempotent slik at en retry ikke lager to
-bestillingsnumre for samme tilsagn. 🔴 Rød sone.
+VALP har bekreftet det eksakte formatet OeBS krever på våre nummer. Det er **to** nummer, med
+**hver sin løpenummer-serie**, og fakturanummeret **korrelerer** til bestillingen ved at
+bestillingsnummeret er et **prefiks** av fakturanummeret:
+
+| Nummer | Format | Eksempel |
+|--------|--------|----------|
+| **Bestillingsnummer** | `<fagsystembokstav>-<gjennomføringens saksnummer>-<løpenr bestilling per sak>` | `A-2026/10000-1` |
+| **Fakturanummer** | `<bestillingsnummer>-<løpenr faktura per bestilling>` | `A-2026/10000-1-1` |
+
+```
+Bestilling 1:  A-2026/10000-1
+  Faktura 1.1: A-2026/10000-1-1
+  Faktura 1.2: A-2026/10000-1-2
+Bestilling 2:  A-2026/10000-2
+  Faktura 2.1: A-2026/10000-2-1
+```
+
+**Korrelasjon bestilling ↔ faktura.** En faktura hører alltid til nøyaktig **én** bestilling, og
+sammenhengen ligger i selve nummeret: `fakturanummer = "<bestillingsnummer>-<faktura-løpenr>"`.
+Bestillingsnummeret kan derfor utledes fra et fakturanummer ved å strippe siste `-<løpenr>`-ledd,
+og all faktura-status kan rutes tilbake til riktig bestilling uten egen koblingstabell.
+I praksis vil vi **nesten alltid ha én faktura per bestilling** (1:1), men formatet støtter
+1:N (flere delutbetalinger på samme tilsagn), så modellen må ikke anta 1:1.
+
+**To løpenummer-serier (begge økonomikritiske — 🔴 rød sone):**
+
+1. **Bestilling per sak (gjennomføring).** Løpenummeret inkrementeres per bestilling innenfor
+   samme saksnummer. Én rad per sak holder neste ledige bestillings-løpenr.
+2. **Faktura per bestilling.** Løpenummeret inkrementeres per faktura innenfor samme bestilling.
+   Én rad per bestillingsnummer holder neste ledige faktura-løpenr.
+
+Begge seriene må være **transaksjonelt unike og monotone** innenfor sitt skop (les-og-inkrementer
+under radlås i kallerens transaksjon), og genereringen må være **idempotent** slik at en retry
+ikke deler ut to nummer for samme bestilling/faktura.
+
+**Fagsystembokstaven** (`<fagsystembokstav>`) er **`E` midlertidig** og defineres som en
+**kodekonstant** (ikke ekstern config — vi deployer ofte, og config forbeholdes plattform-verdier
+og hemmeligheter); endelig verdi fra OeBs settes med en kodeendring. ⚠️ VALP sitt eksempel bruker
+`A` — det er uavklart om `A` er den konkrete bokstaven ekspertbistand skal ha, eller bare et
+generisk eksempel. Må bekreftes mot OeBs/VALP før prod (se «Gjenstående å bekrefte»).
+
+**Begrensninger fra OeBS-mottaket (harde krav):**
+- Hvert **bestillingsnummer** og **fakturanummer** må være **globalt unikt**.
+- **Bestillingsnummer: maks 20 tegn.** `A-2026/10000-1` er 14 tegn; buffer til saksnummer-vekst
+  og flersifrede løpenummer er begrenset, så generatoren bør validere lengden.
+- **Fakturanummer: maks 50 tegn.**
+- Saksnummeret (`gjennomføringens saksnummer`) kan inneholde `/` (f.eks. `2026/10000`); det er
+  et ordinært ledd i nummeret og skal ikke url-/spesial-escapes.
 
 ### 5. Klient med internt API og innkapslet outbox
 
@@ -373,14 +419,18 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
   (se Endring §2 og §5).
 
 ### Gjenstående å bekrefte
-- Endelig fagsystembokstav/kilde fra OeBs (A-1) — kun for prod.
+- Endelig fagsystembokstav/kilde fra OeBs (A-1) — kun for prod. ⚠️ VALP sitt format-eksempel
+  bruker `A` (`A-2026/10000-1`); avklar om `A` er ekspertbistands konkrete bokstav eller kun et
+  generisk eksempel. Vi bruker `E` som placeholder inntil dette er bekreftet.
 - Read-ACL fra VALP på status-topicene + at VALP abonnerer på vår topic (A-3/A-7) —
   tverr-team-koordinering.
 
 ## 🔴 Rød sone — skriv selv (med begrunnelse)
 
-- **Nummerserie-generering** — økonomikritisk, må være unik/idempotent/monoton per sak; feil
-  her gir dupliserte eller kolliderende tilsagn i OeBS.
+- **Nummerserie-generering (bestilling + faktura)** — økonomikritisk, må være
+  unik/idempotent/monoton per skop (bestilling per sak, faktura per bestilling); feil her gir
+  dupliserte eller kolliderende tilsagn/fakturaer i OeBS. Generatoren må også håndheve
+  lengdegrensene (bestilling ≤ 20 tegn, faktura ≤ 50 tegn).
 - **Outbox + poller (transaksjonell skriving og at-least-once-publisering)** — pengeflyt;
   konsekvens ved feil er tapt eller dobbel avsetning/utbetaling. Transaksjonsgrenser og
   markering av publiserte rader må være korrekt.
