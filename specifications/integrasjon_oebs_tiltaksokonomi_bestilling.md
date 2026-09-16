@@ -332,9 +332,10 @@ og ignorere meldinger som ikke gjelder oss, før den tolker status. Filtreringen
 sone; selve statustolkningen er rød sone.
 
 Status lagres på vår side og eksponeres via API-et. **Feilede bestillinger/utbetalinger må gi et
-tydelig, synlig signal** (egen status/tabellflagg + metrikk + logg uten PII) som kan plukkes
-opp for **manuell oppfølging** — ikke svelges stille. Dette krever read-ACL fra VALP på
-status-topicene (koordineres med Team VALP).
+tydelig, synlig signal** — implementert som tabellflagg (`trenger_manuell_oppfolging`, avledet av
+`FEILET`-status) + `log.error` (PII-fri alarm som trigger varsling) + `teamLog.error` (detaljer, kan
+inneholde PII) — som kan plukkes opp for **manuell oppfølging**, ikke svelges stille. Dette krever
+read-ACL fra VALP på status-topicene (koordineres med Team VALP).
 
 ### 6b. Varig revisjonsspor (etterlevelse)
 
@@ -381,7 +382,8 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
 - **Feilede bestillinger/utbetalinger (eksplisitt krav):** OeBS kan avvise en operasjon (feil
   konfig, ugyldig tilsagnsår `PO_PDOI_INVALID_PROJ_INFO`, duplikat `DUPLICATE INVOICE NUMBER`,
   m.m., jf. VALP-README). Slike statuser fra status-topicene må gi et **tydelig, synlig signal
-  for manuell oppfølging** (status-flagg + metrikk + logg uten PII) — aldri svelges stille.
+  for manuell oppfølging** (status-flagg + `log.error`-alarm uten PII + `teamLog.error` med
+  detaljer) — aldri svelges stille.
 - **Duplikate bestillinger:** OeBS avviser duplikat-nummer. Nummerserie + publisering må være
   idempotent per tilsagn.
 - **VALP mangler enum-verdiene:** publisering før VALP har lagt inn `EKSPERTBISTAND` /
@@ -427,6 +429,11 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
 
 ## 🔴 Rød sone — skriv selv (med begrunnelse)
 
+> Status: **implementert og testet** (`nesteBestillingsnummer`/`nesteFakturanummer`,
+> `OebsOutboxPoller.startProcessing`, `TiltaksokonomiConsumer.tolkStatus`). Se
+> `NummerserieTest`, `OutboxTest` og `TiltaksokonomiConsumerTest`. Beskrivelsene under
+> beholdes som begrunnelse for hvorfor disse ble skrevet manuelt.
+
 - **Nummerserie-generering (bestilling + faktura)** — økonomikritisk, må være
   unik/idempotent/monoton per skop (bestilling per sak, faktura per bestilling); feil her gir
   dupliserte eller kolliderende tilsagn/fakturaer i OeBS. Generatoren må også håndheve
@@ -464,8 +471,9 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
 
 ## Planlagt refaktorering: lettere å forstå og navigere
 
-> Status: **forslag til godkjenning.** Ingen atferdsendring — kun kodeorganisering og navngiving
-> for å gjøre pakken lett å lese og navigere. Ikke bare filflytting: vi kollapser unødige
+> Status: **gjennomført.** Målstrukturen under er implementert (commit `07fd31d`). Beholdes som
+> historikk over hvorfor pakken er organisert som den er. Ingen atferdsendring — kun kodeorganisering
+> og navngiving for å gjøre pakken lett å lese og navigere. Ikke bare filflytting: vi kollapset unødige
 > abstraksjoner, samler ting som hører sammen, og gir filer navn som forteller hva de er.
 
 ### Føringer (fra tilbakemelding)

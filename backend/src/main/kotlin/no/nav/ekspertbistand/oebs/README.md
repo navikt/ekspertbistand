@@ -98,8 +98,8 @@ sequenceDiagram
         S->>L: loggMottattStatus (append-only, idempotent på Kafka-koordinat)
         S->>S: tolkStatus(melding: OebsStatusMelding)
         S->>D: upsert status + trenger_manuell_oppfolging
-        opt feilet operasjon
-            S->>T: teamLogger.warn (signal for manuell oppfølging)
+        opt status FEILET
+            S->>T: log.error (PII-fri alarm) + teamLog.error (detaljer)
         end
     end
 ```
