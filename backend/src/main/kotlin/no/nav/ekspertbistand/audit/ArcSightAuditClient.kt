@@ -8,15 +8,6 @@ import no.nav.common.audit_log.log.AuditLoggerImpl
 
 const val AUDIT_APPLICATION_NAME = "ekspertbistand"
 
-/**
- * Klient for å sende CEF-formaterte sporingslogger til ArcSight (via naudit).
- *
- * Denne omgangen legger kun til klienten. Den er ikke koblet på noen endepunkt,
- * og det er ikke satt opp en dedikert audit-appender ennå. Før klienten tas i
- * bruk må det avklares med #auditlogging-arcsight hvilken sink loggeren
- * "AuditLogger" skal rutes til, og appenderen må konfigureres slik at fnr
- * (destinationUserId) IKKE går gjennom masking og IKKE havner i team-logs.
- */
 class ArcSightAuditClient(
     private val auditLogger: AuditLogger = AuditLoggerImpl(),
     private val applicationName: String = AUDIT_APPLICATION_NAME,
