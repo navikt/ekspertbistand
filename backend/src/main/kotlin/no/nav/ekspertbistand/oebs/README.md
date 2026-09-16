@@ -151,7 +151,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 | Fil | Ansvar | Sone |
 |-----|--------|------|
 | [`Outbox.kt`](model/Outbox.kt) | `oebs_outbox`-tabell + `JdbcTransaction.leggIOutbox` (skriveside) + poller-stub | 🟢 skrive / 🔴 poller |
-| [`Nummerserie.kt`](model/Nummerserie.kt) | `oebs_lopenummer`-tabell + `FAGSYSTEM_KILDE` + nummergenerator | 🔴 |
+| [`Nummerserie.kt`](model/Nummerserie.kt) | `oebs_lopenummer`- + `oebs_faktura_lopenummer`-tabeller + `FAGSYSTEM_KILDE` + nummergeneratorer (bestilling + faktura) | 🟢 |
 | [`Meldingslogg.kt`](model/Meldingslogg.kt) | Varig revisjonsspor: `loggSendtMelding` / `loggMottattStatus` (etterlevelse) | 🟢 |
 | [`BestillingStatusTabell.kt`](model/BestillingStatusTabell.kt) | `oebs_bestilling_status`-tabell (siste status per bestilling) | 🟢 |
 
@@ -161,6 +161,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 |-----|--------|------|
 | [`V12__oebs_tiltaksokonomi.sql`](../../../../../resources/db/migration/V12__oebs_tiltaksokonomi.sql) | Flyway: outbox-, løpenummer- og statustabeller | 🟢 |
 | [`V13__oebs_meldingslogg.sql`](../../../../../resources/db/migration/V13__oebs_meldingslogg.sql) | Flyway: revisjonsspor (sendt/mottatt melding) | 🟢 |
+| [`V14__oebs_faktura_lopenummer.sql`](../../../../../resources/db/migration/V14__oebs_faktura_lopenummer.sql) | Flyway: løpenummer-serie for fakturaer (per bestilling) | 🟢 |
 | [`nais/{dev,prod}-gcp-topic-bestillinger.yaml`](../../../../../../../../nais) | Topic-manifest + ACL | 🟢 |
 
 ## Datamodell
@@ -188,15 +189,19 @@ jf. spec-beslutning 8) med samme `@SerialName` og feltnavn som VALP.
 Disse delene er bevisst lagt igjen som stubber (`TODO`) fordi de er økonomikritiske og bør forstås
 grundig, ikke genereres:
 
-- **Nummerserie-generering** (`nesteBestillingsnummer`) — transaksjonssikker les-og-inkrementer.
+- **Nummerserie-generering, bestilling** (`nesteBestillingsnummer`) — ✅ implementert:
+  transaksjonssikker les-og-inkrementer under `FOR UPDATE`, med lengdevalidering (≤ 20 tegn).
+- **Nummerserie-generering, faktura** (`nesteFakturanummer`) — ✅ implementert: løpenummer per
+  faktura per bestilling, format `<bestillingsnummer>-<faktura-løpenr>`, lengdevalidering (≤ 50 tegn).
 - **Outbox-poller** (`OebsOutboxPoller.startProcessing`) — `SKIP_LOCKED`-poll → publiser → marker
   `PUBLISHED` i én transaksjon, med retry/backoff (at-least-once).
 - **Tolkning av avviste operasjoner** (`TiltaksokonomiConsumer.tolkStatus`) — avgjør hva som er
   feilet/avvist og når det krever manuell oppfølging.
 
-Testskjeletter finnes i
-[`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs) (`@Ignore` til de er
-implementert).
+`NummerserieTest` er skrevet og aktiv (verifiserer sekvens per sak/bestilling, samtidighet og
+lengdegrense for både bestillings- og fakturanummer); øvrige testskjeletter i
+[`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs) er `@Ignore` til de er
+implementert.
 
 > `Application.startOebsProsessering` (i `Oebs.kt`) er **ikke** koblet inn i `Application.main()` ennå. Den
 > kaster `TODO(...)` fra rød sone, så den skal først wires inn når logikken over er skrevet.

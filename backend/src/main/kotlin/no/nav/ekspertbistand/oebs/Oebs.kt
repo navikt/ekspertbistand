@@ -14,6 +14,7 @@ import no.nav.ekspertbistand.oebs.integration.TiltaksokonomiProducer
 import no.nav.ekspertbistand.oebs.model.OebsOutboxPoller
 import no.nav.ekspertbistand.oebs.model.leggIOutbox
 import no.nav.ekspertbistand.oebs.model.nesteBestillingsnummer
+import no.nav.ekspertbistand.oebs.model.nesteFakturanummer
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import kotlin.coroutines.CoroutineContext
@@ -45,15 +46,19 @@ class OebsKlient {
      * nummeret, legger meldingen i outbox-en og returnerer bestillingsnummeret.
      */
     fun JdbcTransaction.opprettBestilling(sakId: String, bygg: (bestillingsnummer: String) -> OpprettBestilling): String {
-        // 🔴 Rød sone: nummerserien er ikke implementert ennå (se Nummerserie.kt).
         val bestillingsnummer = nesteBestillingsnummer(sakId)
         leggIOutbox(OebsBestillingMelding.Bestilling(bygg(bestillingsnummer)))
         return bestillingsnummer
     }
 
-    /** Fakturerer/utbetaler mot en eksisterende bestilling. */
-    fun JdbcTransaction.opprettFaktura(faktura: OpprettFaktura) {
-        leggIOutbox(OebsBestillingMelding.Faktura(faktura))
+    /**
+     * Genererer et unikt fakturanummer for [bestillingsnummer], lar [bygg] fylle resten av fakturaen
+     * med nummeret, legger meldingen i outbox-en og returnerer fakturanummeret.
+     */
+    fun JdbcTransaction.opprettFaktura(bestillingsnummer: String, bygg: (fakturanummer: String) -> OpprettFaktura): String {
+        val fakturanummer = nesteFakturanummer(bestillingsnummer)
+        leggIOutbox(OebsBestillingMelding.Faktura(bygg(fakturanummer)))
+        return fakturanummer
     }
 
     /** Annullerer en eksisterende bestilling. */
