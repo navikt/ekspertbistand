@@ -2,14 +2,21 @@ import useSWR from "swr";
 import { SAKSBEHANDLING_SAK_URL } from "../utils/constants";
 import { HttpError } from "../utils/http";
 
-export type Vilkårstatus = "oppfylt" | "manuell";
+export type Vilkårstatus = "oppfylt" | "ikke_oppfylt" | "ikke_vurdert";
+
+export type Vilkårsvurdering = {
+  automatisk: boolean;
+  status: Vilkårstatus;
+  kommentar?: string;
+  vurdertAv?: string;
+  vurdertTidspunkt?: string;
+};
 
 export type Vilkår = {
   id: string;
   tittel: string;
   beskrivelse: string;
-  status: Vilkårstatus;
-  automatisk?: boolean;
+  vurdering: Vilkårsvurdering;
 };
 
 export type SakDetaljer = {

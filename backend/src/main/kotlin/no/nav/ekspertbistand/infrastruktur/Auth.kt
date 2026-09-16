@@ -106,48 +106,57 @@ class AuthConfig(
     }
 }
 
-sealed interface TokenExchanger {
+interface TokenXTokenExchanger {
     suspend fun exchange(target: String, userToken: String): TokenResponse
 }
 
-interface TokenXTokenExchanger : TokenExchanger
-
-sealed interface TokenProvider {
+interface AzureAdTokenProvider {
     suspend fun token(target: String, additionalParameters: Map<String, String> = mapOf()): TokenResponse
 }
 
-interface AzureAdTokenProvider : TokenProvider
-
-sealed interface TokenIntrospector {
+interface TokenXTokenIntrospector {
     suspend fun introspect(accessToken: String): TokenIntrospectionResponse
 }
 
-interface TokenXTokenIntrospector : TokenIntrospector
+interface AzureAdTokenIntrospector {
+    suspend fun introspect(accessToken: String): TokenIntrospectionResponse
+}
 
-interface AzureAdTokenIntrospector : TokenIntrospector
+interface AzureAdTokenExchanger {
+    suspend fun exchange(target: String, userToken: String): TokenResponse
+}
 
 class TokenXAuthClient(
     config: AuthConfig,
     httpClient: HttpClient,
-) : AuthClient(config, IdentityProvider.TOKEN_X, httpClient), TokenXTokenExchanger, TokenXTokenIntrospector
+) : AuthClient(config, IdentityProvider.TOKEN_X, httpClient), TokenXTokenExchanger, TokenXTokenIntrospector {
+    override suspend fun exchange(target: String, userToken: String): TokenResponse = exchangeToken(target, userToken)
+    override suspend fun introspect(accessToken: String): TokenIntrospectionResponse = introspectToken(accessToken)
+}
 
 class AzureAdAuthClient(
     config: AuthConfig,
     httpClient: HttpClient,
-) : AuthClient(config, IdentityProvider.AZURE_AD, httpClient), AzureAdTokenProvider, AzureAdTokenIntrospector
+) : AuthClient(config, IdentityProvider.AZURE_AD, httpClient), AzureAdTokenProvider, AzureAdTokenIntrospector, AzureAdTokenExchanger {
+    override suspend fun token(target: String, additionalParameters: Map<String, String>): TokenResponse =
+        fetchToken(target, additionalParameters)
+
+    override suspend fun exchange(target: String, userToken: String): TokenResponse = exchangeToken(target, userToken)
+    override suspend fun introspect(accessToken: String): TokenIntrospectionResponse = introspectToken(accessToken)
+}
 
 abstract class AuthClient(
     private val config: AuthConfig,
     private val provider: IdentityProvider,
     defaultHttpClient: HttpClient,
-): TokenProvider, TokenExchanger, TokenIntrospector {
+) {
     protected val httpClient = defaultHttpClient.config {
         install(ContentNegotiation) {
             json(defaultJson)
         }
     }
 
-    override suspend fun token(target: String, additionalParameters: Map<String, String>) = try {
+    protected suspend fun fetchToken(target: String, additionalParameters: Map<String, String>) = try {
         httpClient.submitForm(config.tokenEndpoint, parameters {
             set("target", target)
             set("identity_provider", provider.alias)
@@ -157,7 +166,7 @@ abstract class AuthClient(
         TokenResponse.Error(e.response.body<TokenErrorResponse>(), e.response.status)
     }
 
-    override suspend fun exchange(target: String, userToken: String) = try {
+    protected suspend fun exchangeToken(target: String, userToken: String) = try {
         httpClient.submitForm(config.tokenExchangeEndpoint, parameters {
             set("target", target)
             set("user_token", userToken)
@@ -167,7 +176,7 @@ abstract class AuthClient(
         TokenResponse.Error(e.response.body<TokenErrorResponse>(), e.response.status)
     }
 
-    override suspend fun introspect(accessToken: String) =
+    protected suspend fun introspectToken(accessToken: String) =
         httpClient.submitForm(config.tokenIntrospectionEndpoint, parameters {
             set("token", accessToken)
             set("identity_provider", provider.alias)
@@ -187,6 +196,7 @@ data class AzureAdPrincipal(
     val navIdent: String,
     val groups: List<String>,
     val name: String?,
+    val subjectToken: String,
 )
 
 const val AZURE_AD_PROVIDER = "AZURE_AD"
@@ -244,6 +254,7 @@ fun Application.configureAuthentication() {
                         navIdent = navIdent,
                         groups = groups,
                         name = name,
+                        subjectToken = credentials.token,
                     )
                 }
             }

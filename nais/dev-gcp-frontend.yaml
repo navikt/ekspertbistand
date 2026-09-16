@@ -10,6 +10,7 @@ spec:
   port: 4000
   ingresses:
     - https://arbeidsgiver.intern.dev.nav.no/ekspertbistand
+    - https://arbeidsgiver.ansatt.dev.nav.no/ekspertbistand
   env:
     - name: BASE_PATH
       value: "/ekspertbistand"

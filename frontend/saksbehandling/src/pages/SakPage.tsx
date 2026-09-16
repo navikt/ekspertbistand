@@ -1,11 +1,11 @@
-import { CheckmarkCircleFillIcon, ClockDashedIcon, ArrowLeftIcon } from "@navikt/aksel-icons";
+import { CheckmarkCircleFillIcon, ArrowLeftIcon } from "@navikt/aksel-icons";
 import {
   BodyLong,
   BodyShort,
   Accordion,
   Box,
-  Button,
   CopyButton,
+  Detail,
   HGrid,
   HStack,
   Heading,
@@ -16,9 +16,13 @@ import {
   Tag,
   VStack,
 } from "@navikt/ds-react";
-import { Group, Panel, Separator } from "react-resizable-panels";
+import { Group, Panel } from "react-resizable-panels";
 import { NavLink, useParams } from "react-router";
-import { useSak, type Vilkår } from "../hooks/useSak";
+import { DataRad, InfoKort } from "../components/InfoKort";
+import KolonneSeparator from "../components/KolonneSeparator";
+import VilkårItem from "../components/VilkårItem";
+import { useSak } from "../hooks/useSak";
+import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import { GOSYS_URL, MODIA_URL, OVERSIKT_PATH } from "../utils/constants";
 
 function formatDate(iso: string) {
@@ -29,86 +33,16 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-function DataRad({ label, value }: { label: string; value: string }) {
-  return (
-    <VStack gap="space-2">
-      <Label size="small">{label}</Label>
-      <BodyShort size="small">{value}</BodyShort>
-    </VStack>
-  );
-}
-
-function InfoKort({ tittel, children }: { tittel: string; children: React.ReactNode }) {
-  return (
-    <Box background="soft" padding="space-16" borderRadius="8">
-      <VStack gap="space-16">
-        <Heading level="2" size="small">
-          {tittel}
-        </Heading>
-        {children}
-      </VStack>
-    </Box>
-  );
-}
-
-function VilkårItem({ vilkår }: { vilkår: Vilkår }) {
-  const oppfylt = vilkår.status === "oppfylt";
-  return (
-    <Accordion.Item defaultOpen>
-      <Accordion.Header>
-        <HStack gap="space-8" align="center">
-          {oppfylt ? (
-            <CheckmarkCircleFillIcon
-              aria-hidden
-              style={{ color: "var(--ax-color-success-icon)", flexShrink: 0 }}
-              fontSize="1.25rem"
-            />
-          ) : (
-            <ClockDashedIcon
-              aria-hidden
-              style={{ color: "var(--ax-color-warning-icon)", flexShrink: 0 }}
-              fontSize="1.25rem"
-            />
-          )}
-          {vilkår.tittel}
-        </HStack>
-      </Accordion.Header>
-      <Accordion.Content>
-        <VStack gap="space-8">
-          <BodyShort size="small">{vilkår.beskrivelse}</BodyShort>
-          <HStack gap="space-8">
-            {oppfylt && (
-              <>
-                <Tag variant="success" size="xsmall">
-                  Oppfylt
-                </Tag>
-                {vilkår.automatisk && (
-                  <Tag variant="neutral" size="xsmall">
-                    Automatisk
-                  </Tag>
-                )}
-              </>
-            )}
-            {!oppfylt && (
-              <Button variant="primary" size="xsmall">
-                Vurdere manuelt
-              </Button>
-            )}
-          </HStack>
-        </VStack>
-      </Accordion.Content>
-    </Accordion.Item>
-  );
-}
-
 export default function SakPage() {
   const { sakId } = useParams<{ sakId: string }>();
   const { sak, error, isLoading } = useSak(sakId ?? "");
+  const { lagreVurdering, isSaving, error: lagreError } = useVilkårsvurdering(sakId ?? "");
 
   if (isLoading) return <Loader size="large" title="Laster sak" />;
   if (error || !sak) return <Tag variant="error">Kunne ikke hente saken.</Tag>;
 
   const { deltaker, arbeidsgiver, ekspert, situasjon, ekspertbistand, vilkår } = sak;
+  const antallVurdert = vilkår.filter((v) => v.vurdering.status !== "ikke_vurdert").length;
 
   return (
     <>
@@ -206,40 +140,7 @@ export default function SakPage() {
               </VStack>
             </Panel>
 
-            <Separator
-              style={{
-                width: "16px",
-                background: "transparent",
-                cursor: "col-resize",
-                position: "relative",
-                flexShrink: 0,
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  bottom: 0,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: "1px",
-                  background: "var(--ax-border-divider)",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: "4px",
-                  height: "32px",
-                  borderRadius: "2px",
-                  background: "var(--ax-border-strong)",
-                  opacity: 0.5,
-                }}
-              />
-            </Separator>
+            <KolonneSeparator />
 
             {/* Midtre kolonne */}
             <Panel defaultSize={52} minSize={30}>
@@ -303,51 +204,29 @@ export default function SakPage() {
               </Box>
             </Panel>
 
-            <Separator
-              style={{
-                width: "16px",
-                background: "transparent",
-                cursor: "col-resize",
-                position: "relative",
-                flexShrink: 0,
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  bottom: 0,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: "1px",
-                  background: "var(--ax-border-divider)",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  width: "4px",
-                  height: "32px",
-                  borderRadius: "2px",
-                  background: "var(--ax-border-strong)",
-                  opacity: 0.5,
-                }}
-              />
-            </Separator>
+            <KolonneSeparator />
 
             {/* Høyre kolonne */}
             <Panel defaultSize={26} minSize={18}>
               <Box background="soft" padding="space-16" borderRadius="8" style={{ height: "100%" }}>
                 <VStack gap="space-16">
-                  <Heading level="2" size="small">
-                    Vilkårsvurdering
-                  </Heading>
+                  <VStack gap="space-2">
+                    <Heading level="2" size="small">
+                      Vilkårsvurdering
+                    </Heading>
+                    <Detail>
+                      {antallVurdert} av {vilkår.length} vilkår vurdert
+                    </Detail>
+                  </VStack>
                   <Accordion size="small">
                     {vilkår.map((v) => (
-                      <VilkårItem key={v.id} vilkår={v} />
+                      <VilkårItem
+                        key={v.id}
+                        vilkår={v}
+                        isSaving={isSaving}
+                        error={lagreError}
+                        onLagre={lagreVurdering}
+                      />
                     ))}
                   </Accordion>
                 </VStack>
