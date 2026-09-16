@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalTime::class)
 
-package no.nav.ekspertbistand.oebs
+package no.nav.ekspertbistand.oebs.integration
 
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.SerialName
@@ -20,28 +20,28 @@ import kotlin.time.Instant
  * feltnavn.
  *
  * ⚠️ KONTRAKT: Wire-formatet (feltnavn, diskriminator og serialisering av verdityper som
- * [Periode]) MÅ matche VALP eksakt. Se `OkonomiBestillingMeldingContractTest` — den er per nå et
+ * [Periode]) MÅ matche VALP eksakt. Se `OebsBestillingMeldingContractTest` — den er per nå et
  * skjelett (rød sone) og må fylles ut mot en kjent-god melding fra VALP før produksjon.
  */
 @Serializable
-sealed class OkonomiBestillingMelding {
+sealed class OebsBestillingMelding {
 
     @Serializable
     @SerialName("BESTILLING")
-    data class Bestilling(val payload: OpprettBestilling) : OkonomiBestillingMelding()
+    data class Bestilling(val payload: OpprettBestilling) : OebsBestillingMelding()
 
     @Serializable
     @SerialName("ANNULLERING")
-    data class Annullering(val payload: AnnullerBestilling) : OkonomiBestillingMelding()
+    data class Annullering(val payload: AnnullerBestilling) : OebsBestillingMelding()
 
     @Serializable
     @SerialName("FAKTURA")
-    data class Faktura(val payload: OpprettFaktura) : OkonomiBestillingMelding()
+    data class Faktura(val payload: OpprettFaktura) : OebsBestillingMelding()
 
     @Serializable
     @SerialName("GJOR_OPP_BESTILLING")
-    data class GjorOppBestilling(val payload: no.nav.ekspertbistand.oebs.GjorOppBestilling) :
-        OkonomiBestillingMelding()
+    data class GjorOppBestilling(val payload: no.nav.ekspertbistand.oebs.integration.GjorOppBestilling) :
+        OebsBestillingMelding()
 
     companion object {
         /**

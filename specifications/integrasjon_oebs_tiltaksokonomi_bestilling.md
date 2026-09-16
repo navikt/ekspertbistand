@@ -411,3 +411,107 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
 - Ingen PII i logg.
 - (Ekstern avhengighet: VALP har lagt inn `EKSPERTBISTAND` / `TILTAK_EKSPERTBISTAND` /
   ekspertbistand-kilde og abonnerer på vår topic.)
+
+## Planlagt refaktorering: lettere å forstå og navigere
+
+> Status: **forslag til godkjenning.** Ingen atferdsendring — kun kodeorganisering og navngiving
+> for å gjøre pakken lett å lese og navigere. Ikke bare filflytting: vi kollapser unødige
+> abstraksjoner, samler ting som hører sammen, og gir filer navn som forteller hva de er.
+
+### Føringer (fra tilbakemelding)
+
+- **Ikke** bruk `internal`-modifikator. Lesbarhet skapes av struktur og navn, ikke synlighet.
+- **Ikke** bruk `interface` + `*Impl` med mindre vi eksplisitt trenger å stubbe/mocke. Vi har ikke
+  det behovet i dag (`TiltaksokonomiClient`/`TiltaksokonomiClientImpl` brukes ingen andre steder —
+  ingen DI-binding, ingen test-mock), så de kollapses til **én konkret klasse**.
+- Målet er at en leser umiddelbart ser hva som er inngangen, hva som er Kafka-integrasjonen, og hva
+  som er lagringsmodellen.
+
+### Målstruktur
+
+```
+oebs/
+  README.md
+  Oebs.kt                        # INNGANG: Application.startOebsProsessering() + OebsProcessor + OebsKlient
+  integration/                   # implementasjon mot Kafka (producer + consumer) + VALP-kontraktene
+    TiltaksokonomiProducer.kt    # Kafka-producer (utgående) + BESTILLINGER_TOPIC
+    TiltaksokonomiConsumer.kt    # Kafka-consumer (status inn) + StatusOppdatering
+    OebsBestillingMelding.kt     # utgående meldings-/verdimodell kalleren bygger
+    OebsStatusMelding.kt         # status-DTO-er fra VALP: BestillingStatus, FakturaStatus, OebsStatusMelding
+  model/                         # datamodeller for lagring (Exposed-tabeller + hjelpere)
+    Outbox.kt                    # OebsOutbox, OutboxStatus, leggIOutbox, OebsOutboxPoller
+    Nummerserie.kt               # FAGSYSTEM_KILDE, OebsLopenummer, nesteBestillingsnummer
+    Meldingslogg.kt              # OebsSendtMelding, OebsMottattStatus, logg-hjelpere
+    BestillingStatusTabell.kt    # OebsBestillingStatus (siste status per bestilling)
+```
+
+Tre tydelige lag: **`Oebs.kt`** (inngang/orkestrering), **`integration/`** (Kafka + wire-kontrakter),
+**`model/`** (persistens). En leser starter i `Oebs.kt` og kan følge tråden derfra.
+
+### Endringer per fil
+
+**`Oebs.kt` (ny, erstatter `OebsProsessering.kt` + `TiltaksokonomiClient.kt`)**
+
+- `fun Application.startOebsProsessering(parentContext)` — uendret inngang; wiret inn i
+  `Application.main()` først når rød sone er skrevet (som i dag).
+- `class OebsProcessor` — eier oppstart av bakgrunnsprosessene (outbox-poller + status-consumer).
+  Flyttet ut av dagens `startOebsProsessering`-kropp, slik at inngangen bare konstruerer avhengigheter
+  og delegerer.
+- `class OebsKlient` — skrive-API-et (bestille / fakturere / annullere / gjøre opp). **Erstatter**
+  `interface TiltaksokonomiClient` + `class TiltaksokonomiClientImpl` med én konkret klasse
+  (metodene forblir `JdbcTransaction`-extensions som skriver til outbox). Ingen interface, siden vi
+  ikke mocker den.
+
+**`integration/TiltaksokonomiProducer.kt`** — flyttet uendret (inkl. `BESTILLINGER_TOPIC` og
+`kafkaProducerProperties()`).
+
+**`integration/TiltaksokonomiConsumer.kt` (omdøpt fra `BestillingStatusConsumer.kt`)** — selve
+consumeren + `StatusOppdatering` (consumerens resultat-DTO). `OebsBestillingStatus`-tabellen flyttes
+ut herfra til `model/` (se under). `tolkStatus` forblir uendret 🔴 rød sone.
+
+**`integration/OebsBestillingMelding.kt` (omdøpt fra `OkonomiBestillingMelding.kt`)** — envelope-typen
+`OkonomiBestillingMelding` omdøpes til **`OebsBestillingMelding`** for konsistent `Oebs`-prefiks.
+Payload-/verditypene beholder VALP-navnene (`OpprettBestilling`, `OpprettFaktura`, `OkonomiPart`,
+`OkonomiSystem`, `Periode`, …) siden de speiler VALP-kontrakten direkte.
+⚠️ Wire-format er uendret: diskriminatoren er `type` + `@SerialName`-verdiene (`"BESTILLING"` osv.),
+ikke Kotlin-klassenavnet — så rename påvirker ikke serialisering.
+
+**`integration/OebsStatusMelding.kt` (fra dagens `BestillingStatus.kt`)** — samler alle status-DTO-ene
+som konsumeres fra VALP: `BestillingStatus`/`BestillingStatusType`, `FakturaStatus`/`FakturaStatusType`
+og wrapper-typen `OebsStatusMelding`. (Fila `BestillingStatus.kt` opprettet i forrige steg utgår —
+innholdet flyttes hit.)
+
+**`model/Outbox.kt`, `model/Nummerserie.kt`, `model/Meldingslogg.kt`** — flyttes uendret til
+`model/`-pakken (kun `package`-linje + importer i kallere endres).
+
+**`model/BestillingStatusTabell.kt` (ny)** — `OebsBestillingStatus`-tabellen (siste status per
+bestilling) flyttes hit fra consumeren, slik at alle Exposed-tabeller ligger i `model/`. Egen fil
+(ikke i `Meldingslogg.kt`) fordi dette er **arbeidsdata** (siste tilstand), mens meldingsloggen er
+**append-only revisjonsspor** — skillet er bevisst og bør ikke viskes ut.
+
+### Berørte referanser (ikke atferd)
+
+- `TiltaksokonomiClient`/`TiltaksokonomiClientImpl` finnes kun i egen fil i dag — trygt å kollapse
+  til `OebsKlient`. DI-registrering legges til når klienten wires inn (samme punkt som i dag).
+- `OkonomiBestillingMelding → OebsBestillingMelding` berører `Outbox.kt` (jsonb-kolonnetype +
+  `bestillingsnummer`/`meldingstype`-extensions), `Meldingslogg.kt` og
+  `OkonomiBestillingMeldingContractTest` (omdøpes til `OebsBestillingMeldingContractTest`).
+- Testene under `test/.../oebs/` (`OutboxTest`, `NummerserieTest`, kontraktstest) oppdaterer kun
+  `import`/pakke. Ingen testlogikk endres.
+- SQL-kommentar i `V12__oebs_tiltaksokonomi.sql` som nevner `OkonomiBestillingMelding` oppdateres
+  (kommentar, ingen skjemaendring).
+
+### Avgrensning
+
+- Ingen endring i rød-sone-logikk (`nesteBestillingsnummer`, `OebsOutboxPoller.startProcessing`,
+  `TiltaksokonomiConsumer.tolkStatus` forblir uendrede TODO-er).
+- Ingen endring i wire-format, DB-skjema eller Flyway-migreringer.
+- `mvn compile` + `test-compile` skal være grønt etter refaktoreringen.
+
+### Åpne beslutninger
+
+1. **`OebsProcessor` som klasse vs. beholde funksjonen?** Forslaget lager en `OebsProcessor`-klasse
+   (per din målstruktur). Alternativt kan `startOebsProsessering` beholde all oppstartslogikk uten
+   egen klasse. Anbefaling: egen klasse, som du skisserte.
+2. **Plassering av `OebsBestillingStatus`-tabellen:** egen `model/BestillingStatusTabell.kt`
+   (anbefalt) vs. inn i `model/Meldingslogg.kt`. Din skisse nevnte den ikke eksplisitt — bekreft.

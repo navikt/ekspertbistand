@@ -1,9 +1,10 @@
 @file:OptIn(ExperimentalTime::class)
 
-package no.nav.ekspertbistand.oebs
+package no.nav.ekspertbistand.oebs.model
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import no.nav.ekspertbistand.oebs.integration.OebsBestillingMelding
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
@@ -30,7 +31,7 @@ object OebsSendtMelding : Table("oebs_sendt_melding") {
     val id = long("id").autoIncrement()
     val bestillingsnummer = text("bestillingsnummer")
     val meldingstype = text("meldingstype")
-    val meldingJson = jsonb<OkonomiBestillingMelding>("melding_json", OkonomiBestillingMelding.json)
+    val meldingJson = jsonb<OebsBestillingMelding>("melding_json", OebsBestillingMelding.json)
     val kafkaTopic = text("kafka_topic")
     val kafkaPartition = integer("kafka_partition")
     val kafkaOffset = long("kafka_offset")
@@ -62,7 +63,7 @@ object OebsMottattStatus : Table("oebs_mottatt_status") {
  * som den markerer outbox-raden publisert, slik at revisjonsloggen og publiseringen er atomiske.
  */
 fun JdbcTransaction.loggSendtMelding(
-    melding: OkonomiBestillingMelding,
+    melding: OebsBestillingMelding,
     kafkaTopic: String,
     kafkaPartition: Int,
     kafkaOffset: Long,

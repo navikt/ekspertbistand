@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS oebs_outbox (
     bestillingsnummer TEXT      NOT NULL,
     -- Diskriminator for meldingstype: BESTILLING / FAKTURA / ANNULLERING / GJOR_OPP_BESTILLING.
     meldingstype      TEXT      NOT NULL,
-    -- Ferdig serialisert OkonomiBestillingMelding (JSON) klar til publisering.
+    -- Ferdig serialisert OebsBestillingMelding (JSON) klar til publisering.
     melding_json      JSONB     NOT NULL,
     status            TEXT      NOT NULL DEFAULT 'PENDING',
     attempts          INTEGER   NOT NULL DEFAULT 0,

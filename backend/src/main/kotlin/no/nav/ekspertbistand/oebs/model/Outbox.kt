@@ -1,5 +1,7 @@
-package no.nav.ekspertbistand.oebs
+package no.nav.ekspertbistand.oebs.model
 
+import no.nav.ekspertbistand.oebs.integration.OebsBestillingMelding
+import no.nav.ekspertbistand.oebs.integration.TiltaksokonomiProducer
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
@@ -21,7 +23,7 @@ object OebsOutbox : Table("oebs_outbox") {
     val id = long("id").autoIncrement()
     val bestillingsnummer = text("bestillingsnummer")
     val meldingstype = text("meldingstype")
-    val meldingJson = jsonb<OkonomiBestillingMelding>("melding_json", OkonomiBestillingMelding.json)
+    val meldingJson = jsonb<OebsBestillingMelding>("melding_json", OebsBestillingMelding.json)
     val status = enumerationByName<OutboxStatus>("status", 32).default(OutboxStatus.PENDING)
     val attempts = integer("attempts").default(0)
     @OptIn(kotlin.time.ExperimentalTime::class)
@@ -41,7 +43,7 @@ enum class OutboxStatus {
  * Legger meldingen i outbox-en i kallerens pågående transaksjon — commiter og rulles tilbake med
  * den. Dette er eneste vei inn i outbox-en; skriv aldri til [OebsOutbox] direkte.
  */
-fun JdbcTransaction.leggIOutbox(melding: OkonomiBestillingMelding) {
+fun JdbcTransaction.leggIOutbox(melding: OebsBestillingMelding) {
     OebsOutbox.insert {
         it[bestillingsnummer] = melding.bestillingsnummer
         it[meldingstype] = melding.meldingstype
@@ -50,21 +52,21 @@ fun JdbcTransaction.leggIOutbox(melding: OkonomiBestillingMelding) {
 }
 
 /** Kafka record key — ordering per bestilling. */
-val OkonomiBestillingMelding.bestillingsnummer: String
+val OebsBestillingMelding.bestillingsnummer: String
     get() = when (this) {
-        is OkonomiBestillingMelding.Bestilling -> payload.bestillingsnummer
-        is OkonomiBestillingMelding.Annullering -> payload.bestillingsnummer
-        is OkonomiBestillingMelding.Faktura -> payload.bestillingsnummer
-        is OkonomiBestillingMelding.GjorOppBestilling -> payload.bestillingsnummer
+        is OebsBestillingMelding.Bestilling -> payload.bestillingsnummer
+        is OebsBestillingMelding.Annullering -> payload.bestillingsnummer
+        is OebsBestillingMelding.Faktura -> payload.bestillingsnummer
+        is OebsBestillingMelding.GjorOppBestilling -> payload.bestillingsnummer
     }
 
 /** Diskriminator lagret i egen kolonne for enkel filtrering/observabilitet. */
-val OkonomiBestillingMelding.meldingstype: String
+val OebsBestillingMelding.meldingstype: String
     get() = when (this) {
-        is OkonomiBestillingMelding.Bestilling -> "BESTILLING"
-        is OkonomiBestillingMelding.Annullering -> "ANNULLERING"
-        is OkonomiBestillingMelding.Faktura -> "FAKTURA"
-        is OkonomiBestillingMelding.GjorOppBestilling -> "GJOR_OPP_BESTILLING"
+        is OebsBestillingMelding.Bestilling -> "BESTILLING"
+        is OebsBestillingMelding.Annullering -> "ANNULLERING"
+        is OebsBestillingMelding.Faktura -> "FAKTURA"
+        is OebsBestillingMelding.GjorOppBestilling -> "GJOR_OPP_BESTILLING"
     }
 
 /**

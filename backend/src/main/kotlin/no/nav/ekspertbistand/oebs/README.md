@@ -19,10 +19,10 @@ sender status tilbake på **sine** status-topics som vi lytter på.
 ```mermaid
 flowchart LR
     subgraph fager["fager (oss)"]
-        klient["TiltaksokonomiClient"]
+        klient["OebsKlient"]
         outbox[("oebs_outbox")]
         poller["OebsOutboxPoller 🔴"]
-        status["BestillingStatusConsumer"]
+        status["TiltaksokonomiConsumer"]
         statusdb[("oebs_bestilling_status")]
         logg[("meldingslogg 📚")]
     end
@@ -59,7 +59,7 @@ Dette speiler mønsteret i [`event`-pakken](../event/README.md) (`FOR UPDATE SKI
 ```mermaid
 sequenceDiagram
     participant K as Kaller (forretningslogikk)
-    participant C as TiltaksokonomiClient
+    participant C as OebsKlient
     participant N as Nummerserie 🔴
     participant O as oebs_outbox (DB)
     participant P as OebsOutboxPoller 🔴
@@ -85,7 +85,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant V as Team VALP
-    participant S as BestillingStatusConsumer
+    participant S as TiltaksokonomiConsumer
     participant L as oebs_mottatt_status (DB 📚)
     participant D as oebs_bestilling_status (DB)
     participant T as team-logs
@@ -96,7 +96,7 @@ sequenceDiagram
         S-->>S: hopp over (ingen tolkning)
     else vår bestilling
         S->>L: loggMottattStatus (append-only, idempotent på Kafka-koordinat)
-        S->>S: tolkStatus(bestillingsnummer, raw) 🔴
+        S->>S: tolkStatus(melding: OebsStatusMelding) 🔴
         S->>D: upsert status + trenger_manuell_oppfolging
         opt feilet operasjon
             S->>T: teamLogger.warn (signal for manuell oppfølging)
@@ -127,18 +127,38 @@ fra arbeidsdataene:
 Dette skiller **revisjonsspor** (`oebs_sendt_melding`, `oebs_mottatt_status` — aldri overskrevet) fra
 **arbeidsdata** (`oebs_outbox` som dreneres, `oebs_bestilling_status` som holder siste tilstand).
 
-## Komponenter
+## Struktur
+
+Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
+
+**Inngang — `oebs/` (det du forholder deg til):**
 
 | Fil | Ansvar | Sone |
 |-----|--------|------|
-| [`OkonomiBestillingMelding.kt`](OkonomiBestillingMelding.kt) | Lokalt speilet meldingsmodell + verdityper + `Json`-instans | 🟢 (wire-parity ⚠️) |
-| [`TiltaksokonomiProducer.kt`](TiltaksokonomiProducer.kt) | Idempotent Kafka-produsent (`acks=all`, SSL fra `KAFKA_*`) | 🟢 |
-| [`Outbox.kt`](Outbox.kt) | `oebs_outbox`-tabell + `JdbcTransaction.leggIOutbox` (skriveside) + poller-stub | 🟢 skrive / 🔴 poller |
-| [`Nummerserie.kt`](Nummerserie.kt) | `oebs_lopenummer`-tabell + `FAGSYSTEM_KILDE` + nummergenerator | 🔴 |
-| [`TiltaksokonomiClient.kt`](TiltaksokonomiClient.kt) | Internt API: bestille / fakturere / annullere / gjøre opp | 🟢 |
-| [`BestillingStatusConsumer.kt`](BestillingStatusConsumer.kt) | Lytter på VALP sine status-topics, lagrer status | 🟢 skjelett / 🔴 tolkning |
-| [`Meldingslogg.kt`](Meldingslogg.kt) | Varig revisjonsspor: `loggSendtMelding` / `loggMottattStatus` (etterlevelse) | 🟢 |
-| [`OebsProsessering.kt`](OebsProsessering.kt) | Oppstart av poller + status-konsument | 🟢 (ikke wiret inn ennå) |
+| [`Oebs.kt`](Oebs.kt) | `OebsKlient` (skrive-API), `OebsProcessor` + `Application.startOebsProsessering()` (oppstart) | 🟢 (ikke wiret inn ennå) |
+
+**Kafka-integrasjon + wire-kontrakter — `oebs/integration/`:**
+
+| Fil | Ansvar | Sone |
+|-----|--------|------|
+| [`OebsBestillingMelding.kt`](integration/OebsBestillingMelding.kt) | Lokalt speilet utgående meldingsmodell + verdityper + `Json`-instans | 🟢 (wire-parity ⚠️) |
+| [`OebsStatusMelding.kt`](integration/OebsStatusMelding.kt) | Lokalt speilte status-DTO-er fra VALP (`BestillingStatus`/`FakturaStatus` + enums, `OebsStatusMelding`) | 🟢 (wire-parity ⚠️) |
+| [`TiltaksokonomiProducer.kt`](integration/TiltaksokonomiProducer.kt) | Idempotent Kafka-produsent (`acks=all`, SSL fra `KAFKA_*`) | 🟢 |
+| [`TiltaksokonomiConsumer.kt`](integration/TiltaksokonomiConsumer.kt) | Lytter på VALP sine status-topics, deserialiserer til typet modell, lagrer status | 🟢 skjelett / 🔴 tolkning |
+
+**Persistens (Exposed-tabeller + hjelpere) — `oebs/model/`:**
+
+| Fil | Ansvar | Sone |
+|-----|--------|------|
+| [`Outbox.kt`](model/Outbox.kt) | `oebs_outbox`-tabell + `JdbcTransaction.leggIOutbox` (skriveside) + poller-stub | 🟢 skrive / 🔴 poller |
+| [`Nummerserie.kt`](model/Nummerserie.kt) | `oebs_lopenummer`-tabell + `FAGSYSTEM_KILDE` + nummergenerator | 🔴 |
+| [`Meldingslogg.kt`](model/Meldingslogg.kt) | Varig revisjonsspor: `loggSendtMelding` / `loggMottattStatus` (etterlevelse) | 🟢 |
+| [`BestillingStatusTabell.kt`](model/BestillingStatusTabell.kt) | `oebs_bestilling_status`-tabell (siste status per bestilling) | 🟢 |
+
+**Migreringer / plattform:**
+
+| Fil | Ansvar | Sone |
+|-----|--------|------|
 | [`V12__oebs_tiltaksokonomi.sql`](../../../../../resources/db/migration/V12__oebs_tiltaksokonomi.sql) | Flyway: outbox-, løpenummer- og statustabeller | 🟢 |
 | [`V13__oebs_meldingslogg.sql`](../../../../../resources/db/migration/V13__oebs_meldingslogg.sql) | Flyway: revisjonsspor (sendt/mottatt melding) | 🟢 |
 | [`nais/{dev,prod}-gcp-topic-bestillinger.yaml`](../../../../../../../../nais) | Topic-manifest + ACL | 🟢 |
@@ -155,13 +175,13 @@ Dette skiller **revisjonsspor** (`oebs_sendt_melding`, `oebs_mottatt_status` —
 
 ## Meldingsmodell og kontrakt
 
-`OkonomiBestillingMelding` er en `sealed class` med diskriminatorene `BESTILLING`, `ANNULLERING`,
+`OebsBestillingMelding` er en `sealed class` med diskriminatorene `BESTILLING`, `ANNULLERING`,
 `FAKTURA` og `GJOR_OPP_BESTILLING`. Modellen er **speilet lokalt** (ikke tatt inn som avhengighet,
 jf. spec-beslutning 8) med samme `@SerialName` og feltnavn som VALP.
 
 > ⚠️ **Kontrakt-parity:** Wire-formatet (feltnavn, `type`-diskriminator og serialisering av
 > verdityper som `Periode` og `Organisasjonsnummer`) må matche VALP eksakt. Dette er ikke fullt
-> verifisert ennå — se `OkonomiBestillingMeldingContractTest` (skjelett) og kanttilfellene i spec-en.
+> verifisert ennå — se `OebsBestillingMeldingContractTest` (skjelett) og kanttilfellene i spec-en.
 
 ## 🔴 Rød sone — implementeres av teamet
 
@@ -171,14 +191,14 @@ grundig, ikke genereres:
 - **Nummerserie-generering** (`nesteBestillingsnummer`) — transaksjonssikker les-og-inkrementer.
 - **Outbox-poller** (`OebsOutboxPoller.startProcessing`) — `SKIP_LOCKED`-poll → publiser → marker
   `PUBLISHED` i én transaksjon, med retry/backoff (at-least-once).
-- **Tolkning av avviste operasjoner** (`BestillingStatusConsumer.tolkStatus`) — avgjør hva som er
+- **Tolkning av avviste operasjoner** (`TiltaksokonomiConsumer.tolkStatus`) — avgjør hva som er
   feilet/avvist og når det krever manuell oppfølging.
 
 Testskjeletter finnes i
 [`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs) (`@Ignore` til de er
 implementert).
 
-> `OebsProsessering.startOebsProsessering` er **ikke** koblet inn i `Application.main()` ennå. Den
+> `Application.startOebsProsessering` (i `Oebs.kt`) er **ikke** koblet inn i `Application.main()` ennå. Den
 > kaster `TODO(...)` fra rød sone, så den skal først wires inn når logikken over er skrevet.
 
 ## Gjenstående eksterne avhengigheter

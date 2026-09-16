@@ -1,41 +1,22 @@
-package no.nav.ekspertbistand.oebs
+package no.nav.ekspertbistand.oebs.integration
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.infrastruktur.ConsumerRecordProcessor
 import no.nav.ekspertbistand.infrastruktur.CoroutineKafkaConsumer
 import no.nav.ekspertbistand.infrastruktur.KafkaConsumerConfig
 import no.nav.ekspertbistand.infrastruktur.AutoOffsetReset
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.infrastruktur.teamLogger
+import no.nav.ekspertbistand.oebs.model.FAGSYSTEM_KILDE
+import no.nav.ekspertbistand.oebs.model.OebsBestillingStatus
+import no.nav.ekspertbistand.oebs.model.loggMottattStatus
 import org.apache.kafka.clients.consumer.ConsumerRecord
-import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
-import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.upsert
-import org.jetbrains.exposed.v1.json.jsonb
 import kotlin.time.Instant
-
-/**
- * Status/kvittering fra OeBS, mottatt via Team VALP sine status-topics. Bærer flagg for manuell
- * oppfølging ved feilede bestillinger/utbetalinger, slik at en feilet betaling gir et tydelig
- * signal for manuell oppfølging (jf. spec-avklaring A-8).
- */
-object OebsBestillingStatus : Table("oebs_bestilling_status") {
-    val bestillingsnummer = text("bestillingsnummer")
-    val status = text("status")
-    val feilmelding = text("feilmelding").nullable()
-    val trengerManuellOppfolging = bool("trenger_manuell_oppfolging").default(false)
-    @OptIn(kotlin.time.ExperimentalTime::class)
-    val mottattTidspunkt = timestamp("mottatt_tidspunkt").defaultExpression(CurrentTimestamp)
-    val rawJson = jsonb<JsonObject>("raw_json", Json)
-
-    override val primaryKey = PrimaryKey(bestillingsnummer)
-}
 
 /** Resultatet av å tolke en status-melding fra OeBS/VALP. */
 data class StatusOppdatering(
@@ -49,15 +30,21 @@ data class StatusOppdatering(
  * Konsumerer VALP sine status-topics for bestilling og faktura, og lagrer siste status per
  * bestilling i [OebsBestillingStatus].
  *
+ * Meldingene deserialiseres til de sterkt typede, lokalt speilede kontraktene
+ * ([BestillingStatus]/[FakturaStatus], wrappet i [OebsStatusMelding]) i stedet for å leses ut av en
+ * løs `JsonObject`. Råmeldingen beholdes ved siden av for det varige revisjonssporet
+ * ([loggMottattStatus]).
+ *
  * Topicene inneholder meldinger for **alle** kilder/fagsystemer i tiltaksøkonomi, ikke bare våre.
  * Vi filtrerer derfor tidlig på vår fagsystembokstav ([FAGSYSTEM_KILDE]) og ignorerer alt annet.
  *
- * Skjelettet (subscribe, filtrering, upsert) er grønn sone. Selve tolkningen av hva som er en
- * feilet/avvist operasjon og når det krever manuell oppfølging ([tolkStatus]) er 🔴 rød sone.
+ * Skjelettet (subscribe, deserialisering, filtrering, upsert) er grønn sone. Selve tolkningen av
+ * hva som er en feilet/avvist operasjon og når det krever manuell oppfølging ([tolkStatus]) er
+ * 🔴 rød sone.
  *
  * Ikke wiret inn i oppstart før [tolkStatus] er implementert.
  */
-class BestillingStatusConsumer(
+class TiltaksokonomiConsumer(
     private val database: Database,
 ) : ConsumerRecordProcessor {
     private val log = logger()
@@ -72,17 +59,18 @@ class BestillingStatusConsumer(
             return
         }
 
+        // Rå melding beholdes for revisjonssporet; typet modell brukes til ruting og tolkning.
         val raw = json.decodeFromString<JsonObject>(value)
 
-        val bestillingsnummer = bestillingsnummer(raw)
-        if (bestillingsnummer == null) {
-            teamLog.warn("Status-melding uten bestillingsnummer på {} – hopper over. record={}", record.topic(), record)
+        val melding = deserialiserStatus(record.topic(), value)
+        if (melding == null) {
+            teamLog.warn("Ukjent/ugyldig status-melding på {} – hopper over. record={}", record.topic(), record)
             return
         }
 
-        if (!gjelderOss(bestillingsnummer)) {
+        if (!gjelderOss(melding.referanse)) {
             // Topicen inneholder meldinger for alle kilder; ignorer andres uten å tolke dem.
-            log.debug("Hopper over status for {} på {} – ikke vår kilde", bestillingsnummer, record.topic())
+            log.debug("Hopper over status for {} på {} – ikke vår kilde", melding.referanse, record.topic())
             return
         }
 
@@ -90,7 +78,7 @@ class BestillingStatusConsumer(
         // selv om tolkningen (rød sone) ikke er ferdig. Idempotent på Kafka-koordinatene.
         transaction(database) {
             loggMottattStatus(
-                bestillingsnummer = bestillingsnummer,
+                bestillingsnummer = melding.referanse,
                 kafkaTopic = record.topic(),
                 kafkaPartition = record.partition(),
                 kafkaOffset = record.offset(),
@@ -99,7 +87,7 @@ class BestillingStatusConsumer(
             )
         }
 
-        val oppdatering = tolkStatus(bestillingsnummer, raw)
+        val oppdatering = tolkStatus(melding)
 
         transaction(database) {
             OebsBestillingStatus.upsert {
@@ -118,39 +106,52 @@ class BestillingStatusConsumer(
     }
 
     /**
-     * Leser bestillingsnummeret meldingen gjelder. Brukes til å rute meldingen til rett fagsystem
-     * ([gjelderOss]). Feltnavnet er en kontrakt-antagelse og må verifiseres mot VALP sitt faktiske
-     * statusformat (samme kontraktforbehold som [tolkStatus]).
+     * Deserialiserer meldingsverdien til rett sterkt typet kontrakt basert på hvilket status-topic
+     * den kom på. Returnerer `null` for ukjente topics eller meldinger som ikke lar seg parse mot
+     * kontrakten (logges og hoppes over av kalleren).
      */
-    private fun bestillingsnummer(raw: JsonObject): String? =
-        raw["bestillingsnummer"]?.jsonPrimitive?.contentOrNull
+    private fun deserialiserStatus(topic: String, value: String): OebsStatusMelding? =
+        try {
+            when (topic) {
+                BESTILLING_STATUS_TOPIC ->
+                    OebsStatusMelding.Bestilling(json.decodeFromString<BestillingStatus>(value))
+
+                FAKTURA_STATUS_TOPIC ->
+                    OebsStatusMelding.Faktura(json.decodeFromString<FakturaStatus>(value))
+
+                else -> null
+            }
+        } catch (e: Exception) {
+            teamLog.warn("Klarte ikke deserialisere status-melding på {}", topic, e)
+            null
+        }
 
     /**
      * Status-topicene inneholder meldinger for alle kilder. Vår fagsystembokstav ([FAGSYSTEM_KILDE])
-     * er første tegn i bestillingsnummeret, så vi behandler kun meldinger med vårt prefiks.
+     * er første tegn i bestillings-/fakturanummeret, så vi behandler kun meldinger med vårt prefiks.
      */
-    private fun gjelderOss(bestillingsnummer: String): Boolean =
-        bestillingsnummer.startsWith(FAGSYSTEM_KILDE)
+    private fun gjelderOss(referanse: String): Boolean =
+        referanse.startsWith(FAGSYSTEM_KILDE)
 
     /**
      * 🔴 RØD SONE — skriv selv.
      *
-     * Tolker en status-melding fra VALP (som allerede er filtrert til å gjelde oss) til en
-     * [StatusOppdatering]. Må avgjøre hvilke statuser som betyr feilet/avvist bestilling eller
-     * utbetaling, og sette [StatusOppdatering.trengerManuellOppfolging] deretter. Dette er
-     * feilhåndtering av avviste OeBS-operasjoner og er økonomikritisk — den skal implementeres og
-     * forstås av teamet, mot VALP sitt faktiske statusformat (kontraktverifiseres).
+     * Tolker en sterkt typet status-melding fra VALP (som allerede er filtrert til å gjelde oss) til
+     * en [StatusOppdatering]. Må avgjøre hvilke [BestillingStatusType]/[FakturaStatusType]-verdier
+     * som betyr feilet/avvist bestilling eller utbetaling, og sette
+     * [StatusOppdatering.trengerManuellOppfolging] deretter. Dette er feilhåndtering av avviste
+     * OeBS-operasjoner og er økonomikritisk — den skal implementeres og forstås av teamet.
      */
-    private fun tolkStatus(bestillingsnummer: String, raw: JsonObject): StatusOppdatering {
-        TODO("Rød sone: tolk VALP-statusmelding for $bestillingsnummer og avgjør behov for manuell oppfølging.")
+    private fun tolkStatus(melding: OebsStatusMelding): StatusOppdatering {
+        TODO("Rød sone: tolk VALP-statusmelding ${melding.referanse} og avgjør behov for manuell oppfølging.")
     }
 
     companion object {
         // VALP publiserer status på egne topics; samme navn i dev og prod.
-        val TOPICS = setOf(
-            "team-mulighetsrommet.tiltaksokonomi.bestilling-status-v1",
-            "team-mulighetsrommet.tiltaksokonomi.faktura-status-v1",
-        )
+        const val BESTILLING_STATUS_TOPIC = "team-mulighetsrommet.tiltaksokonomi.bestilling-status-v1"
+        const val FAKTURA_STATUS_TOPIC = "team-mulighetsrommet.tiltaksokonomi.faktura-status-v1"
+
+        val TOPICS = setOf(BESTILLING_STATUS_TOPIC, FAKTURA_STATUS_TOPIC)
 
         val kafkaConfig = KafkaConsumerConfig(
             groupId = "fager.ekspertbistand.tiltaksokonomi-status",

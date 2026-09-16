@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.oebs
+package no.nav.ekspertbistand.oebs.integration
 
 import no.nav.ekspertbistand.infrastruktur.logger
 import org.apache.kafka.clients.CommonClientConfigs
@@ -22,7 +22,7 @@ const val BESTILLINGER_TOPIC = "fager.ekspertbistand.bestillinger-v1"
  *
  * Produsenten er idempotent (`enable.idempotence=true`, `acks=all`) slik at en retry etter en
  * tvetydig feil ikke gir duplikat på topicen. Selve at-least-once-garantien og feiltoleransen mot
- * Kafka-nedetid ligger i outbox-en ([OebsOutbox]) — denne klassen gjør kun selve publiseringen.
+ * Kafka-nedetid ligger i outbox-en ([no.nav.ekspertbistand.oebs.model.OebsOutbox]) — denne klassen gjør kun selve publiseringen.
  * Se topic-manifestene under `nais/` (dev/prod-gcp-topic-bestillinger.yaml).
  */
 class TiltaksokonomiProducer(

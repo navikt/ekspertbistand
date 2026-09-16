@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.oebs
+package no.nav.ekspertbistand.oebs.model
 
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
