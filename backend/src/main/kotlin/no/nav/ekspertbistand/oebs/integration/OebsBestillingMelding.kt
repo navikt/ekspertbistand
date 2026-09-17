@@ -20,8 +20,8 @@ import kotlin.time.Instant
  * feltnavn.
  *
  * ⚠️ KONTRAKT: Wire-formatet (feltnavn, diskriminator og serialisering av verdityper som
- * [Periode]) MÅ matche VALP eksakt. Se `OebsBestillingMeldingContractTest` — den er per nå et
- * skjelett (rød sone) og må fylles ut mot en kjent-god melding fra VALP før produksjon.
+ * [Periode]) MÅ matche VALP eksakt. Verifisert mot faktiske VALP-eksempelmeldinger i
+ * `OebsBestillingMeldingContractTest`.
  */
 @Serializable
 sealed class OebsBestillingMelding {
@@ -76,7 +76,7 @@ data class OpprettBestilling(
         abstract val organisasjonsnummer: Organisasjonsnummer
 
         @Serializable
-        @SerialName("UTENLANDSK")
+        @SerialName("no.nav.tiltak.okonomi.OpprettBestilling.Arrangor.Utenlandsk")
         data class Utenlandsk(
             override val organisasjonsnummer: Organisasjonsnummer,
             val navn: String,
@@ -87,7 +87,7 @@ data class OpprettBestilling(
         ) : Arrangor()
 
         @Serializable
-        @SerialName("NORSK")
+        @SerialName("no.nav.tiltak.okonomi.OpprettBestilling.Arrangor.Norsk")
         data class Norsk(
             override val organisasjonsnummer: Organisasjonsnummer,
         ) : Arrangor()
@@ -130,14 +130,14 @@ data class OpprettFaktura(
     @Serializable
     sealed class Betalingsinformasjon {
         @Serializable
-        @SerialName("BBAN")
+        @SerialName("no.nav.tiltak.okonomi.OpprettFaktura.Betalingsinformasjon.BBan")
         data class BBan(
             val kontonummer: Kontonummer,
             val kid: Kid?,
         ) : Betalingsinformasjon()
 
         @Serializable
-        @SerialName("IBAN")
+        @SerialName("no.nav.tiltak.okonomi.OpprettFaktura.Betalingsinformasjon.IBan")
         data class IBan(
             val bic: String,
             val iban: String,
@@ -147,21 +147,22 @@ data class OpprettFaktura(
     }
 }
 
+/**
+ * `part` er en konstruktør-property på sealed-baseklassen og serialiseres derfor som eget felt ved
+ * siden av subklassens felter — det er derfor VALP-meldinger har både `part` og `navIdent`. Vår
+ * speiling ligger i en annen pakke enn VALP, så diskriminatorene må settes eksplisitt til VALP sine
+ * fullkvalifiserte navn (`no.nav.tiltak.okonomi...`), som er default hos VALP (ingen `@SerialName`).
+ */
 @Serializable
-sealed class OkonomiPart {
-    abstract val part: String
+sealed class OkonomiPart(val part: String) {
 
     @Serializable
-    @SerialName("NAV_ANSATT")
-    data class NavAnsatt(val navIdent: String) : OkonomiPart() {
-        override val part: String get() = navIdent
-    }
+    @SerialName("no.nav.tiltak.okonomi.OkonomiPart.NavAnsatt")
+    data class NavAnsatt(val navIdent: String) : OkonomiPart(navIdent)
 
     @Serializable
-    @SerialName("SYSTEM")
-    data class System(val kilde: OkonomiSystem) : OkonomiPart() {
-        override val part: String get() = kilde.name
-    }
+    @SerialName("no.nav.tiltak.okonomi.OkonomiPart.System")
+    data class System(val kilde: OkonomiSystem) : OkonomiPart(kilde.name)
 }
 
 /**

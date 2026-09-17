@@ -232,7 +232,10 @@ jf. beslutning 8), med `@SerialName`-diskriminatorer som matcher VALP eksakt: `B
 `OpprettFaktura`, `AnnullerBestilling`, `GjorOppBestilling` med feltnavn/typer identisk med
 [VALP sin definisjon](https://github.com/navikt/mulighetsrommet/blob/main/common/tiltaksokonomi-client/src/main/kotlin/no/nav/tiltak/okonomi/OkonomiBestillingMelding.kt).
 Kilde-verdien (`OkonomiPart.System(kilde)`) settes til ekspertbistand-kilden (avventer OeBs,
-§4). En kontrakttest bør verifisere at vår serialiserte JSON matcher VALP sitt skjema.
+§4). `OebsBestillingMeldingContractTest` verifiserer mot faktiske VALP-eksempelmeldinger at vår
+serialiserte JSON matcher VALP sitt skjema — inkludert at nestede sealed classes bruker VALP sine
+fullkvalifiserte `type`-diskriminatorer (`no.nav.tiltak.okonomi.OkonomiPart.NavAnsatt` osv.) og at
+`OkonomiPart.part` serialiseres som eget felt.
 
 ### 4. Nummerserie (bestilling + faktura)
 
@@ -448,7 +451,8 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
 
 - Topic-manifest og deploy-steg (verifiser ACL og retention).
 - Kafka-producer- og status-consumer-oppsett (verifiser SSL/idempotence-config).
-- Meldingsmodell/DTO-speiling (verifiser at diskriminator og feltnavn matcher VALP eksakt).
+- Meldingsmodell/DTO-speiling — ✅ verifisert mot faktiske VALP-eksempler at diskriminator og
+  feltnavn matcher eksakt (`OebsBestillingMeldingContractTest`).
 - Flyway-migreringer for nummerserie- og status/feil-tabell (verifiser at de er trygge).
 - Revisjonsspor-tabeller (`oebs_sendt_melding`/`oebs_mottatt_status`) + skrive-hjelperne
   `loggSendtMelding`/`loggMottattStatus` (verifiser append-only og idempotens).

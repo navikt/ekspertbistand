@@ -141,8 +141,8 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 
 | Fil | Ansvar | Sone |
 |-----|--------|------|
-| [`OebsBestillingMelding.kt`](integration/OebsBestillingMelding.kt) | Lokalt speilet utgående meldingsmodell + verdityper + `Json`-instans | 🟢 (wire-parity ⚠️) |
-| [`OebsStatusMelding.kt`](integration/OebsStatusMelding.kt) | Lokalt speilte status-DTO-er fra VALP (`BestillingStatus`/`FakturaStatus` + enums, `OebsStatusMelding`) | 🟢 (wire-parity ⚠️) |
+| [`OebsBestillingMelding.kt`](integration/OebsBestillingMelding.kt) | Lokalt speilet utgående meldingsmodell + verdityper + `Json`-instans | 🟢 (wire-parity ✅) |
+| [`OebsStatusMelding.kt`](integration/OebsStatusMelding.kt) | Lokalt speilte status-DTO-er fra VALP (`BestillingStatus`/`FakturaStatus` + enums, `OebsStatusMelding`) | 🟢 (wire-parity ✅) |
 | [`TiltaksokonomiProducer.kt`](integration/TiltaksokonomiProducer.kt) | Idempotent Kafka-produsent (`acks=all`, SSL fra `KAFKA_*`) | 🟢 |
 | [`TiltaksokonomiConsumer.kt`](integration/TiltaksokonomiConsumer.kt) | Lytter på VALP sine status-topics, deserialiserer til typet modell, tolker status, lagrer siste status | 🟢 |
 
@@ -180,9 +180,11 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 `FAKTURA` og `GJOR_OPP_BESTILLING`. Modellen er **speilet lokalt** (ikke tatt inn som avhengighet,
 jf. spec-beslutning 8) med samme `@SerialName` og feltnavn som VALP.
 
-> ⚠️ **Kontrakt-parity:** Wire-formatet (feltnavn, `type`-diskriminator og serialisering av
-> verdityper som `Periode` og `Organisasjonsnummer`) må matche VALP eksakt. Dette er ikke fullt
-> verifisert ennå — se `OebsBestillingMeldingContractTest` (skjelett) og kanttilfellene i spec-en.
+> ✅ **Kontrakt-parity:** Wire-formatet (feltnavn, `type`-diskriminator og serialisering av
+> verdityper som `Periode` og `Organisasjonsnummer`) er verifisert mot faktiske VALP-eksempelmeldinger
+> i `OebsBestillingMeldingContractTest`. Merk at nestede sealed classes bruker VALP sine
+> **fullkvalifiserte** diskriminatorer (`no.nav.tiltak.okonomi.OkonomiPart.NavAnsatt`), og at
+> `OkonomiPart.part` serialiseres som eget felt ved siden av `navIdent`.
 
 ## 🔴 Rød sone — økonomikritisk logikk (nå implementert)
 
