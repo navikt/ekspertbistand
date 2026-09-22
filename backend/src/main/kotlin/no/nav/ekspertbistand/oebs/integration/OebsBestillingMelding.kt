@@ -76,7 +76,7 @@ data class OpprettBestilling(
         abstract val organisasjonsnummer: Organisasjonsnummer
 
         @Serializable
-        @SerialName("no.nav.tiltak.okonomi.OpprettBestilling.Arrangor.Utenlandsk")
+        @SerialName("UTENLANDSK")
         data class Utenlandsk(
             override val organisasjonsnummer: Organisasjonsnummer,
             val navn: String,
@@ -87,7 +87,7 @@ data class OpprettBestilling(
         ) : Arrangor()
 
         @Serializable
-        @SerialName("no.nav.tiltak.okonomi.OpprettBestilling.Arrangor.Norsk")
+        @SerialName("NORSK")
         data class Norsk(
             override val organisasjonsnummer: Organisasjonsnummer,
         ) : Arrangor()
@@ -130,14 +130,14 @@ data class OpprettFaktura(
     @Serializable
     sealed class Betalingsinformasjon {
         @Serializable
-        @SerialName("no.nav.tiltak.okonomi.OpprettFaktura.Betalingsinformasjon.BBan")
+        @SerialName("BBAN")
         data class BBan(
             val kontonummer: Kontonummer,
             val kid: Kid?,
         ) : Betalingsinformasjon()
 
         @Serializable
-        @SerialName("no.nav.tiltak.okonomi.OpprettFaktura.Betalingsinformasjon.IBan")
+        @SerialName("IBAN")
         data class IBan(
             val bic: String,
             val iban: String,
@@ -148,42 +148,39 @@ data class OpprettFaktura(
 }
 
 /**
- * `part` er en konstruktør-property på sealed-baseklassen og serialiseres derfor som eget felt ved
- * siden av subklassens felter — det er derfor VALP-meldinger har både `part` og `navIdent`. Vår
- * speiling ligger i en annen pakke enn VALP, så diskriminatorene må settes eksplisitt til VALP sine
- * fullkvalifiserte navn (`no.nav.tiltak.okonomi...`), som er default hos VALP (ingen `@SerialName`).
+ * VALP bruker navngitte diskriminatorer (`NAV_ANSATT`/`FAGSYSTEM`) etter overgangen fra
+ * fullkvalifiserte navn. `NavAnsatt` har kun `navIdent` på wire; det tidligere `part`-feltet er borte.
  */
 @Serializable
-sealed class OkonomiPart(val part: String) {
+sealed interface OkonomiPart {
 
     @Serializable
-    @SerialName("no.nav.tiltak.okonomi.OkonomiPart.NavAnsatt")
-    data class NavAnsatt(val navIdent: String) : OkonomiPart(navIdent)
+    @SerialName("NAV_ANSATT")
+    data class NavAnsatt(val navIdent: String) : OkonomiPart
 
     @Serializable
-    @SerialName("no.nav.tiltak.okonomi.OkonomiPart.System")
-    data class System(val kilde: OkonomiSystem) : OkonomiPart(kilde.name)
+    @SerialName("FAGSYSTEM")
+    data class Fagsystem(val kilde: OkonomiFagsystem) : OkonomiPart
 }
 
 /**
- * Kildesystem slik OeBS/VALP kjenner det. Ekspertbistand er et eget kildesystem; verdien må være
- * lagt inn hos Team VALP før meldinger godtas.
+ * Kildesystem slik OeBS/VALP kjenner det. Ekspertbistand er et eget kildesystem;
+ * [OkonomiFagsystem.EKSPERTBISTAND] er registrert hos Team VALP.
  */
-enum class OkonomiSystem {
+enum class OkonomiFagsystem {
     EKSPERTBISTAND,
 }
 
 /**
- * ⚠️ [TILTAK_EKSPERTBISTAND] finnes ikke hos VALP i dag og legges inn av Team VALP. Vi sender kun
- * denne verdien.
+ * ⚠️ VALP sin `Tilskuddstype` har ikke `TILTAK_EKSPERTBISTAND`; enumverdien vi sender må være en av
+ * VALP sine eksisterende verdier. Avklar hvilken ekspertbistand skal bruke (VALP sin
+ * ekspertbistand-test bruker `TILTAK_DRIFTSTILSKUDD`).
  */
 enum class Tilskuddstype {
     TILTAK_EKSPERTBISTAND,
 }
 
-/**
- * ⚠️ [EKSPERTBISTAND] finnes ikke i VALP sin `Tiltakskode`-enum i dag og legges inn av Team VALP.
- */
+/** [EKSPERTBISTAND] er registrert i VALP sin `Tiltakskode`-enum (validert av VALP mot vår melding). */
 enum class Tiltakskode {
     EKSPERTBISTAND,
 }

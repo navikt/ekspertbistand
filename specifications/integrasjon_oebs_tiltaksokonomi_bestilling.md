@@ -231,11 +231,11 @@ jf. beslutning 8), med `@SerialName`-diskriminatorer som matcher VALP eksakt: `B
 `FAKTURA`, `ANNULLERING`, `GJOR_OPP_BESTILLING`, og payload-klassene `OpprettBestilling`,
 `OpprettFaktura`, `AnnullerBestilling`, `GjorOppBestilling` med feltnavn/typer identisk med
 [VALP sin definisjon](https://github.com/navikt/mulighetsrommet/blob/main/common/tiltaksokonomi-client/src/main/kotlin/no/nav/tiltak/okonomi/OkonomiBestillingMelding.kt).
-Kilde-verdien (`OkonomiPart.System(kilde)`) settes til ekspertbistand-kilden (avventer OeBs,
+Kilde-verdien (`OkonomiPart.Fagsystem(kilde)`) settes til ekspertbistand-kilden (avventer OeBs,
 §4). `OebsBestillingMeldingContractTest` verifiserer mot faktiske VALP-eksempelmeldinger at vår
 serialiserte JSON matcher VALP sitt skjema — inkludert at nestede sealed classes bruker VALP sine
-fullkvalifiserte `type`-diskriminatorer (`no.nav.tiltak.okonomi.OkonomiPart.NavAnsatt` osv.) og at
-`OkonomiPart.part` serialiseres som eget felt.
+navngitte `type`-diskriminatorer (`NAV_ANSATT`, `NORSK`, `BBAN` osv.) og at `NavAnsatt` kun har
+`navIdent` på wire (VALP fjernet det tidligere `part`-feltet).
 
 ### 4. Nummerserie (bestilling + faktura)
 

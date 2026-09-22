@@ -11,7 +11,7 @@ import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.oebs.integration.AnnullerBestilling
 import no.nav.ekspertbistand.oebs.integration.OebsBestillingMelding
 import no.nav.ekspertbistand.oebs.integration.OkonomiPart
-import no.nav.ekspertbistand.oebs.integration.OkonomiSystem
+import no.nav.ekspertbistand.oebs.integration.OkonomiFagsystem
 import no.nav.ekspertbistand.oebs.integration.TiltaksokonomiProducer
 import no.nav.ekspertbistand.oebs.model.OebsOutbox
 import no.nav.ekspertbistand.oebs.model.OebsOutboxPoller
@@ -43,7 +43,7 @@ import kotlin.test.assertTrue
 class OutboxTest {
 
     private fun melding(bestillingsnummer: String): OebsBestillingMelding {
-        val part = OkonomiPart.System(OkonomiSystem.EKSPERTBISTAND)
+        val part = OkonomiPart.Fagsystem(OkonomiFagsystem.EKSPERTBISTAND)
         val naa = Clock.System.now()
         return OebsBestillingMelding.Annullering(
             AnnullerBestilling(

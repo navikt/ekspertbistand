@@ -182,9 +182,9 @@ jf. spec-beslutning 8) med samme `@SerialName` og feltnavn som VALP.
 
 > ✅ **Kontrakt-parity:** Wire-formatet (feltnavn, `type`-diskriminator og serialisering av
 > verdityper som `Periode` og `Organisasjonsnummer`) er verifisert mot faktiske VALP-eksempelmeldinger
-> i `OebsBestillingMeldingContractTest`. Merk at nestede sealed classes bruker VALP sine
-> **fullkvalifiserte** diskriminatorer (`no.nav.tiltak.okonomi.OkonomiPart.NavAnsatt`), og at
-> `OkonomiPart.part` serialiseres som eget felt ved siden av `navIdent`.
+> i `OebsBestillingMeldingContractTest`. Nestede sealed classes bruker VALP sine **navngitte**
+> diskriminatorer (`NAV_ANSATT`, `NORSK`, `BBAN` osv.), og `NavAnsatt` har kun `navIdent` på wire
+> (det tidligere `part`-feltet er fjernet av VALP).
 
 ## 🔴 Rød sone — økonomikritisk logikk (nå implementert)
 
