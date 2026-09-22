@@ -90,9 +90,9 @@ sequenceDiagram
     participant D as oebs_bestilling_status (DB)
     participant T as team-logs
 
-    V->>S: status-melding (alle kilder på topicen)
-    S->>S: gjelderOss(bestillingsnummer)? (prefiks = FAGSYSTEM_KILDE)
-    alt ikke vår kilde
+    V->>S: status-melding (alle fagsystemer på topicen)
+    S->>S: gjelderOss(record)? (fagsystem-header = EKSPERTBISTAND)
+    alt ikke vårt fagsystem
         S-->>S: hopp over (ingen tolkning)
     else vår bestilling
         S->>L: loggMottattStatus (append-only, idempotent på Kafka-koordinat)
@@ -104,9 +104,9 @@ sequenceDiagram
     end
 ```
 
-> Status-topicene deles av alle kilder i tiltaksøkonomi. Consumeren filtrerer tidlig på vår
-> fagsystembokstav (`FAGSYSTEM_KILDE`, første tegn i bestillingsnummeret) og ignorerer andres
-> meldinger før tolkningen kjører.
+> Status-topicene deles av alle fagsystemer i tiltaksøkonomi. VALP setter en `fagsystem`-header på
+> hver status-melding, og consumeren filtrerer tidlig på den (`fagsystem = EKSPERTBISTAND`) og
+> ignorerer andres meldinger før tolkningen kjører.
 
 ## Etterlevelse (varig revisjonsspor)
 
@@ -205,8 +205,8 @@ Disse delene er økonomikritiske og ble skrevet og forstått av teamet, ikke bli
 
 `NummerserieTest` (sekvens per sak/bestilling, samtidighet og lengdegrense), `OutboxTest`
 (publisering + `PUBLISHED` i én transaksjon, og at publiseringsfeil lar raden ligge `PENDING`) og
-`TiltaksokonomiConsumerTest` (tolkning, kilde-filtrering og at flagg ikke nullstilles) er skrevet og
-aktive; øvrige testskjeletter i
+`TiltaksokonomiConsumerTest` (tolkning, fagsystem-header-filtrering og at flagg ikke nullstilles) er
+skrevet og aktive; øvrige testskjeletter i
 [`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs) er `@Ignore` til de er
 implementert.
 

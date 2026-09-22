@@ -10,6 +10,7 @@ import no.nav.ekspertbistand.oebs.integration.BestillingStatus
 import no.nav.ekspertbistand.oebs.integration.BestillingStatusType
 import no.nav.ekspertbistand.oebs.integration.FakturaStatus
 import no.nav.ekspertbistand.oebs.integration.FakturaStatusType
+import no.nav.ekspertbistand.oebs.integration.OkonomiFagsystem
 import no.nav.ekspertbistand.oebs.integration.TiltaksokonomiConsumer
 import no.nav.ekspertbistand.oebs.model.OebsBestillingStatus
 import no.nav.ekspertbistand.oebs.model.OebsMottattStatus
@@ -29,16 +30,26 @@ import kotlin.test.assertTrue
 
 /**
  * 🔴 Rød sone — tester for statustolkningen ([TiltaksokonomiConsumer]). Kjører hele
- * `processRecord`-flyten (deserialiser → filtrer på vår kilde → tolk → upsert + revisjonsspor) mot
- * den lokale test-Postgres-en (`backend/docker-compose.yml`, port 5532).
+ * `processRecord`-flyten (filtrer på fagsystem-header → deserialiser → tolk → upsert + revisjonsspor)
+ * mot den lokale test-Postgres-en (`backend/docker-compose.yml`, port 5532).
  */
 class TiltaksokonomiConsumerTest {
 
     private val json = Json { ignoreUnknownKeys = true }
     private var offset = 0L
 
-    private fun record(topic: String, key: String, value: String): ConsumerRecord<String?, String?> =
-        ConsumerRecord(topic, 0, offset++, key, value)
+    private fun record(
+        topic: String,
+        key: String,
+        value: String,
+        fagsystem: String? = OkonomiFagsystem.EKSPERTBISTAND.name,
+    ): ConsumerRecord<String?, String?> {
+        val rec = ConsumerRecord<String?, String?>(topic, 0, offset++, key, value)
+        if (fagsystem != null) {
+            rec.headers().add(TiltaksokonomiConsumer.FAGSYSTEM_HEADER_NAME, fagsystem.toByteArray())
+        }
+        return rec
+    }
 
     private fun statusRad(database: Database, referanse: String) =
         transaction(database) {
@@ -130,22 +141,43 @@ class TiltaksokonomiConsumerTest {
         }
 
     @Test
-    fun `melding fra annen kilde ignoreres uten a lagre status eller revisjonsspor`() =
+    fun `melding for annet fagsystem ignoreres uten a lagre status eller revisjonsspor`() =
         testApplicationWithDatabase { db ->
             val database = db.config.jdbcDatabase
             val consumer = TiltaksokonomiConsumer(database)
-            val fremmed = "A-2026/99999-1"
+            val fremmed = "E-2026/99999-1"
             val value = json.encodeToString(BestillingStatus(fremmed, BestillingStatusType.FEILET))
 
-            runBlocking { consumer.processRecord(record(TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC, fremmed, value)) }
+            runBlocking {
+                consumer.processRecord(
+                    record(TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC, fremmed, value, fagsystem = "TILTAKSADMINISTRASJON")
+                )
+            }
 
-            assertNull(statusRad(database, fremmed), "andres meldinger skal ikke gi statusrad")
+            assertNull(statusRad(database, fremmed), "andre fagsystemers meldinger skal ikke gi statusrad")
             val revisjon = transaction(database) {
                 OebsMottattStatus
                     .selectAll()
                     .where { OebsMottattStatus.bestillingsnummer eq fremmed }
                     .count()
             }
-            assertEquals(0, revisjon, "andres meldinger skal ikke logges i revisjonssporet")
+            assertEquals(0, revisjon, "andre fagsystemers meldinger skal ikke logges i revisjonssporet")
+        }
+
+    @Test
+    fun `melding uten fagsystem-header ignoreres`() =
+        testApplicationWithDatabase { db ->
+            val database = db.config.jdbcDatabase
+            val consumer = TiltaksokonomiConsumer(database)
+            val nr = "E-2026/98000-1"
+            val value = json.encodeToString(BestillingStatus(nr, BestillingStatusType.FEILET))
+
+            runBlocking {
+                consumer.processRecord(
+                    record(TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC, nr, value, fagsystem = null)
+                )
+            }
+
+            assertNull(statusRad(database, nr), "melding uten header skal ikke gi statusrad")
         }
 }

@@ -8,7 +8,6 @@ import no.nav.ekspertbistand.infrastruktur.KafkaConsumerConfig
 import no.nav.ekspertbistand.infrastruktur.AutoOffsetReset
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.infrastruktur.teamLogger
-import no.nav.ekspertbistand.oebs.model.FAGSYSTEM_KILDE
 import no.nav.ekspertbistand.oebs.model.OebsBestillingStatus
 import no.nav.ekspertbistand.oebs.model.loggMottattStatus
 import org.apache.kafka.clients.consumer.ConsumerRecord
@@ -41,14 +40,14 @@ data class StatusOppdatering(
  * ([loggMottattStatus]).
  *
  * Topicene inneholder meldinger for **alle** kilder/fagsystemer i tiltaksøkonomi, ikke bare våre.
- * Vi filtrerer derfor tidlig på vår fagsystembokstav ([FAGSYSTEM_KILDE]) og ignorerer alt annet.
+ * VALP setter en `fagsystem`-header på hver status-melding, så vi filtrerer tidlig på den
+ * ([FAGSYSTEM_HEADER_NAME] = [OkonomiFagsystem.EKSPERTBISTAND]) og ignorerer alt annet.
  *
  * Tolkningen ([tolkStatus]) — avgjørelsen av hva som er en feilet/avvist operasjon og når det krever
  * manuell oppfølging — er 🔴 rød sone (økonomikritisk) og implementert her.
  *
  * ⚠️ Consumeren er ikke wiret inn i oppstart ennå: den forutsetter read-ACL fra VALP på
- * status-topicene og at VALP har lagt inn ekspertbistand-kilden. Koble den på i `main()` når den
- * eksterne koordineringen er på plass.
+ * status-topicene. Koble den på i `main()` når den eksterne koordineringen er på plass.
  */
 class TiltaksokonomiConsumer(
     private val database: Database,
@@ -65,17 +64,16 @@ class TiltaksokonomiConsumer(
             return
         }
 
+        if (!gjelderOss(record)) {
+            log.debug("Hopper over status på {} – ikke vårt fagsystem", record.topic())
+            return
+        }
+
         val raw = json.decodeFromString<JsonObject>(value)
 
         val melding = deserialiserStatus(record.topic(), value)
         if (melding == null) {
             teamLog.warn("Ukjent/ugyldig status-melding på {} – hopper over. record={}", record.topic(), record)
-            return
-        }
-
-        if (!gjelderOss(melding.referanse)) {
-            // Topicen inneholder meldinger for alle kilder; ignorer andres uten å tolke dem.
-            log.debug("Hopper over status for {} på {} – ikke vår kilde", melding.referanse, record.topic())
             return
         }
 
@@ -138,11 +136,14 @@ class TiltaksokonomiConsumer(
         }
 
     /**
-     * Status-topicene inneholder meldinger for alle kilder. Vår fagsystembokstav ([FAGSYSTEM_KILDE])
-     * er første tegn i bestillings-/fakturanummeret, så vi behandler kun meldinger med vårt prefiks.
+     * Status-topicene inneholder meldinger for alle fagsystemer. VALP setter en `fagsystem`-header
+     * med [OkonomiFagsystem]-navnet på hver melding, så vi behandler kun meldinger merket med vårt
+     * fagsystem. Mangler headeren, er meldingen ikke vår.
      */
-    private fun gjelderOss(referanse: String): Boolean =
-        referanse.startsWith(FAGSYSTEM_KILDE)
+    private fun gjelderOss(record: ConsumerRecord<String?, String?>): Boolean {
+        val fagsystem = record.headers().lastHeader(FAGSYSTEM_HEADER_NAME)?.value()?.let { String(it) }
+        return fagsystem == OkonomiFagsystem.EKSPERTBISTAND.name
+    }
 
     /**
      * 🔴 RØD SONE — feilhåndtering av avviste OeBS-operasjoner (økonomikritisk).
@@ -180,6 +181,10 @@ class TiltaksokonomiConsumer(
     }
 
     companion object {
+        // VALP setter fagsystem-navnet i denne headeren på hver status-melding; jf. VALP sin
+        // FAGSYSTEM_HEADER_NAME i tiltaksokonomi-client.
+        const val FAGSYSTEM_HEADER_NAME = "fagsystem"
+
         // VALP publiserer status på egne topics; samme navn i dev og prod.
         const val BESTILLING_STATUS_TOPIC = "team-mulighetsrommet.tiltaksokonomi.bestilling-status-v1"
         const val FAKTURA_STATUS_TOPIC = "team-mulighetsrommet.tiltaksokonomi.faktura-status-v1"

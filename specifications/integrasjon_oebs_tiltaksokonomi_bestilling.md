@@ -327,10 +327,10 @@ inngangen saksbehandlingsflyten kobles på senere.
 Ny consumer (gjenbruker `CoroutineKafkaConsumer`) på VALP sine status-topics
 `team-mulighetsrommet.tiltaksokonomi.bestilling-status-v1` og `…faktura-status-v1`.
 
-Status-topicene er **delt av alle kilder/fagsystemer** i tiltaksøkonomi. Consumeren må derfor
-filtrere tidlig på **vår fagsystembokstav** (`FAGSYSTEM_KILDE`, første tegn i bestillingsnummeret)
-og ignorere meldinger som ikke gjelder oss, før den tolker status. Filtreringen (ruting) er grønn
-sone; selve statustolkningen er rød sone.
+Status-topicene er **delt av alle kilder/fagsystemer** i tiltaksøkonomi. VALP setter en
+`fagsystem`-header på hver status-melding, så consumeren filtrerer tidlig på den
+(`fagsystem = EKSPERTBISTAND`) og ignorerer meldinger som ikke gjelder oss, før den tolker status.
+Filtreringen (ruting) er grønn sone; selve statustolkningen er rød sone.
 
 Status lagres på vår side og eksponeres via API-et. **Feilede bestillinger/utbetalinger må gi et
 tydelig, synlig signal** — implementert som tabellflagg (`trenger_manuell_oppfolging`, avledet av
