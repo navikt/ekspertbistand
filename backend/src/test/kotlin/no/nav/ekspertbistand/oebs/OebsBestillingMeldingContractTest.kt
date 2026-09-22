@@ -23,10 +23,11 @@ import kotlin.time.Instant
  * Vi **produserer** bestillingsmeldinger, så denne testen dekker encode-retningen. Deserialisering av
  * statusmeldinger (konsum-retningen) ligger i `OebsStatusMeldingTest`.
  *
- * Merk: `bestilling`-eksempelet fra VALP kommer fra en annen kilde og bruker enum-verdier
- * (`TILTAK_DRIFTSTILSKUDD`/`ARBEIDSMARKEDSOPPLAERING`) som vår restriktive modell ikke har. Vi sender
- * kun `TILTAK_EKSPERTBISTAND`/`EKSPERTBISTAND`, så eksempelet er justert til våre enum-verdier — resten
- * av wire-formatet (feltnavn, diskriminatorer, `periode`, `Instant`) er uendret fra VALP.
+ * Merk: `bestilling`-eksempelet fra VALP kommer fra en annen kilde og bruker tiltakskode
+ * (`ARBEIDSMARKEDSOPPLAERING`) som vår restriktive modell ikke har. Vi sender tilskuddstype
+ * `TILTAK_DRIFTSTILSKUDD` og tiltakskode `EKSPERTBISTAND`, så eksempelet er justert til våre
+ * enum-verdier — resten av wire-formatet (feltnavn, diskriminatorer, `periode`, `Instant`) er uendret
+ * fra VALP.
  */
 class OebsBestillingMeldingContractTest {
 
@@ -40,7 +41,7 @@ class OebsBestillingMeldingContractTest {
         val melding = OebsBestillingMelding.Bestilling(
             OpprettBestilling(
                 bestillingsnummer = "A-2026/10315-1",
-                tilskuddstype = Tilskuddstype.TILTAK_EKSPERTBISTAND,
+                tilskuddstype = Tilskuddstype.TILTAK_DRIFTSTILSKUDD,
                 tiltakskode = Tiltakskode.EKSPERTBISTAND,
                 arrangor = OpprettBestilling.Arrangor.Norsk(Organisasjonsnummer("925236594")),
                 kostnadssted = NavEnhetNummer("0315"),
@@ -60,7 +61,7 @@ class OebsBestillingMeldingContractTest {
               "type": "BESTILLING",
               "payload": {
                 "bestillingsnummer": "A-2026/10315-1",
-                "tilskuddstype": "TILTAK_EKSPERTBISTAND",
+                "tilskuddstype": "TILTAK_DRIFTSTILSKUDD",
                 "tiltakskode": "EKSPERTBISTAND",
                 "arrangor": {
                   "type": "NORSK",

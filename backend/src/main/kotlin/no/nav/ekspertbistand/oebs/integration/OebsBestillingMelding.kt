@@ -171,13 +171,9 @@ enum class OkonomiFagsystem {
     EKSPERTBISTAND,
 }
 
-/**
- * ⚠️ VALP sin `Tilskuddstype` har ikke `TILTAK_EKSPERTBISTAND`; enumverdien vi sender må være en av
- * VALP sine eksisterende verdier. Avklar hvilken ekspertbistand skal bruke (VALP sin
- * ekspertbistand-test bruker `TILTAK_DRIFTSTILSKUDD`).
- */
+/** Ekspertbistand sender [TILTAK_DRIFTSTILSKUDD], som finnes i VALP sin `Tilskuddstype`-enum. */
 enum class Tilskuddstype {
-    TILTAK_EKSPERTBISTAND,
+    TILTAK_DRIFTSTILSKUDD,
 }
 
 /** [EKSPERTBISTAND] er registrert i VALP sin `Tiltakskode`-enum (validert av VALP mot vår melding). */

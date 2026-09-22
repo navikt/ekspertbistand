@@ -90,23 +90,21 @@ sender dem videre til OeBS via HTTP/JSON, og publiserer status tilbake på egne 
   )
   ```
 
-- **Enum-verdiene finnes IKKE i dag** (verifisert mot main):
+- **Enum-verdier (status etter VALP-oppdatering):**
   - `Tilskuddstype` = `TILTAK_DRIFTSTILSKUDD`, `TILTAK_INVESTERINGER`, `TILTAK_OPPLAERING_TILSKUDD`.
-    **`TILTAK_EKSPERTBISTAND` mangler.**
-  - `Tiltakskode` (`common/domain/.../Tiltakskoder.kt`) inneholder ikke `EKSPERTBISTAND`.
-  - `OkonomiSystem` (kilde i `OkonomiPart.System`) har kun `TILTAKSADMINISTRASJON` — **ingen
-    kilde for ekspertbistand.**
+    Ekspertbistand sender **`TILTAK_DRIFTSTILSKUDD`** (avklart 2026-09-22) — ingen ny verdi trengs.
+  - `Tiltakskode` inneholder nå `EKSPERTBISTAND` (validert av VALP sin ekspertbistand-consumer).
+  - `OkonomiFagsystem` (kilde i `OkonomiPart.Fagsystem`) har nå `EKSPERTBISTAND`.
 
-  Dette bekrefter kortets punkt om at Team VALP «vil legge i sitt system» tiltakskode
-  `EKSPERTBISTAND`, tilskuddstype `TILTAK_EKSPERTBISTAND`, periode og kontoene. **Vi kan ikke
-  publisere en gyldig melding før VALP har lagt inn disse verdiene** — hard avhengighet.
+  Enum-avhengigheten mot VALP er dermed løst; gjenstående ekstern avhengighet er at VALP abonnerer
+  på vår bestillings-topic.
 
 ### Verdier som skal til Team VALP (fra kortet)
 
 ```json
 {
   "tiltakskode": "EKSPERTBISTAND",
-  "tilskuddstype": "TILTAK_EKSPERTBISTAND",
+  "tilskuddstype": "TILTAK_DRIFTSTILSKUDD",
   "periode": "[2026-11-01,2099-01-01)",
   "statlig_regnskapskonto": "265076100000",
   "statlig_artskonto": "874007734610"
@@ -129,8 +127,8 @@ Fra kortbeskrivelsen (1–4) og avklaringer 2026-09-11 (5–10):
    (f.eks. `A-2026/10000-1-1`). Fakturanummeret korrelerer til bestillingen ved prefiks (én faktura
    hører til én bestilling; forventet 1:1, men format støtter 1:N). Bestillingsnummer maks 20 tegn,
    fakturanummer maks 50 tegn, begge må være unike (se Endring §4).
-4. **VALP legger inn** tiltakskode `EKSPERTBISTAND`, tilskuddstype `TILTAK_EKSPERTBISTAND`,
-   periode og de statlige kontoene i sitt system.
+4. **VALP legger inn** tiltakskode `EKSPERTBISTAND` og periode i sitt system (registrert). Tilskuddstype
+   bruker eksisterende `TILTAK_DRIFTSTILSKUDD`, og de statlige kontoene håndteres av VALP/OeBS.
 5. **Fagsystembokstav = `E` midlertidig, som kodekonstant.** Endelig bokstav/kildenavn venter
    fortsatt på svar fra OeBs-teamet; vi bruker `E` inntil videre, definert som en konstant i
    koden (ikke ekstern config). Vi deployer hyppig, så en kodeendring er billigere enn å bære
@@ -389,9 +387,9 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
   detaljer) — aldri svelges stille.
 - **Duplikate bestillinger:** OeBS avviser duplikat-nummer. Nummerserie + publisering må være
   idempotent per tilsagn.
-- **VALP mangler enum-verdiene:** publisering før VALP har lagt inn `EKSPERTBISTAND` /
-  `TILTAK_EKSPERTBISTAND` / ekspertbistand-kilde vil bli avvist. Rekkefølge-avhengighet mellom
-  teamene — koordineres.
+- **VALP-abonnement:** publisering før VALP abonnerer på vår bestillings-topic vil ikke nå frem.
+  Enum-verdiene (`EKSPERTBISTAND`, `OkonomiFagsystem.EKSPERTBISTAND`, `TILTAK_DRIFTSTILSKUDD`)
+  finnes allerede hos VALP. Rekkefølge-avhengighet mellom teamene — koordineres.
 - **Melding må ikke inneholde PII i logg:** `bestillingsnummer`, orgnr og beløp kan logges;
   ikke fnr. `behandletAv`/`besluttetAv` kan være NavIdent og skal ikke logges utenfor teamLog,
   jf. eksisterende praksis for saksbehandlerident.
@@ -470,8 +468,8 @@ status-topics må `tiltaksokonomi`/VALP gi `ekspertbistand-backend` read-ACL på
 - Utgående meldinger og innkommende svar logges append-only (revisjonsspor) for etterlevelse.
 - Feilede operasjoner gir tydelig signal for manuell oppfølging.
 - Ingen PII i logg.
-- (Ekstern avhengighet: VALP har lagt inn `EKSPERTBISTAND` / `TILTAK_EKSPERTBISTAND` /
-  ekspertbistand-kilde og abonnerer på vår topic.)
+- (Ekstern avhengighet: VALP abonnerer på vår topic. Enum-verdiene `EKSPERTBISTAND` /
+  `OkonomiFagsystem.EKSPERTBISTAND` / `TILTAK_DRIFTSTILSKUDD` finnes allerede hos VALP.)
 
 ## Planlagt refaktorering: lettere å forstå og navigere
 

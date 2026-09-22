@@ -217,5 +217,6 @@ implementert.
 ## Gjenstående eksterne avhengigheter
 
 - **Fagsystembokstav/kilde**: bruker `E` midlertidig (`FAGSYSTEM_KILDE`), må bekreftes mot OeBS.
-- **VALP** må legge inn `EKSPERTBISTAND` / `TILTAK_EKSPERTBISTAND` / ekspertbistand-kilde i sine
-  enum-er og abonnere på `fager.ekspertbistand.bestillinger-v1` før meldinger godtas.
+- **VALP** må abonnere på `fager.ekspertbistand.bestillinger-v1` før meldinger godtas.
+  Enum-verdiene vi sender finnes allerede hos VALP (tiltakskode `EKSPERTBISTAND`,
+  `OkonomiFagsystem.EKSPERTBISTAND`, tilskuddstype `TILTAK_DRIFTSTILSKUDD`).
