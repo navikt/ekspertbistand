@@ -104,6 +104,117 @@ brukes av saksbehandlere. Videre sendes de til Joark (journalføring), til OEBS 
 Team VALP (utbetaling) og til Min side arbeidsgiver (beskjeder og
 statusoppdateringer). Kontonummer slås opp i kontoregisteret.
 
+## Systemlandskap
+
+Diagrammet over viser domenet og behandlingens livsløp. Diagrammet under viser det
+tekniske systemlandskapet — alle systemene løsningen integrerer mot når den er
+ferdig utviklet. Systemer som ennå ikke er bygget, er markert som *planlagt*
+(stiplet).
+
+```mermaid
+flowchart LR
+    SU["Sluttbruker<br/>(arbeidsgiver)"]
+    SB["Saksbehandler /<br/>beslutter"]
+
+    subgraph AUTH["Innlogging og tilgang"]
+        IDP["ID-porten"]
+        AAD["AzureAD / Entra"]
+        WW["Wonderwall<br/>(sidecar)"]
+        EPROXY["Entra-proxy"]
+        ALT["Altinn"]
+        ATPROXY["Altinn tilganger-proxy"]
+        TMASK["Tilgangsmaskin"]
+    end
+
+    subgraph FE["Frontend"]
+        FES["Søknadsfrontend"]
+        FESB["Saksbehandlingsfrontend"]
+    end
+
+    BE(("Backend"))
+    DB[("Database")]
+
+    subgraph OPPSLAG["Oppslag og registre"]
+        PDL["PDL"]
+        EREG["Nav Ereg-tjeneste"]
+        AAREG["Aa-reg"]
+        NORG["Norg"]
+        KONTO["Kontoregister"]
+    end
+
+    subgraph DOK["Dokumenter"]
+        DOKGEN["Dokgen"]
+        JOARK["Dokarkiv (Joark)"]
+    end
+
+    subgraph UT["Utsending og utbetaling"]
+        NOTIF["Notifikasjonsplattform"]
+        DDIST["Dokumentdistribusjon"]
+        VALP["VALP / OeBS"]
+    end
+
+    subgraph MELD["Statusmeldinger"]
+        KAFKA["Kafka status-topic"]
+        SF["SF"]
+        MODIA["Modia"]
+    end
+
+    subgraph OBS["Observability og data"]
+        TLOG[("Team logs")]
+        GRAF[("Grafana")]
+        BQ[("BigQuery")]
+        DMP[("Datamarkedsplassen")]
+    end
+
+    %% Innlogging arbeidsgiver
+    SU --> IDP --> WW --> FES
+    FES --> BE
+
+    %% Innlogging saksbehandler
+    SB --> AAD --> WW --> FESB
+    FESB --> BE
+
+    %% Tilgangsstyring
+    AAD --> EPROXY --> BE
+    ALT --> ATPROXY --> BE
+    BE --> TMASK
+
+    %% Backend-integrasjoner
+    BE <--> DB
+    BE <--> PDL
+    BE <--> EREG
+    BE <--> AAREG
+    BE <--> NORG
+    BE <--> KONTO
+    BE --> DOKGEN
+    BE --> JOARK
+    BE --> NOTIF
+    BE --> DDIST
+    BE --> VALP
+    BE --> KAFKA
+    KAFKA --> SF
+    KAFKA --> MODIA
+
+    %% Observability og datadeling
+    BE --> TLOG
+    BE --> GRAF
+    BE --> BQ
+    BE --> DMP
+
+    classDef planlagt stroke-dasharray: 5 5,stroke:#888,color:#555;
+    class DDIST,VALP,KAFKA,SF,MODIA,BQ,DMP planlagt;
+```
+
+Systemene grupperes i innlogging og tilgang (ID-porten og AzureAD/Entra via
+Wonderwall, roller fra Entra-proxy, virksomhetstilganger fra Altinn tilganger-proxy
+og persontilgang via Tilgangsmaskin), oppslagsregistre (PDL, Ereg, Aa-reg, Norg,
+Kontoregister), dokumentproduksjon og journalføring (Dokgen, Dokarkiv), utsending
+og utbetaling (Notifikasjonsplattform, Dokumentdistribusjon, VALP/OeBS),
+statusmeldinger på Kafka til SF og Modia, samt observability og datadeling (Team
+logs, Grafana, BigQuery, Datamarkedsplassen). Integrasjoner som ennå ikke er bygget
+(Dokumentdistribusjon, VALP/OeBS, Kafka status-topic med SF og Modia, BigQuery og
+Datamarkedsplassen) er markert som planlagt.
+
 ## Applikasjonene
 
 Den nye løsningen tar imot søknader direkte, uten å gå via Altinn 2.
