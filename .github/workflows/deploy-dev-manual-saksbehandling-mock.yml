@@ -1,12 +1,7 @@
 name: Manuell deploy dev saksbehandling mock
 
 on:
-  workflow_dispatch: { }
-  push:
-    paths:
-      - frontend/**
-    branches:
-      - main
+  workflow_dispatch: {}
 
 jobs:
   compile-test-and-build:
@@ -17,8 +12,6 @@ jobs:
       id-token: write
       packages: write
     env:
-      CDN_DESTINATION: /saksbehandling-mock/${{ github.sha }}
-      CDN_PUBLIC_BASE: https://cdn.nav.no/fager/saksbehandling-mock/${{ github.sha }}
       VITE_ENABLE_MOCKS: "true"
     outputs:
       image: ${{ steps.docker-build-push.outputs.image }}
@@ -41,32 +34,16 @@ jobs:
           registry-url: https://npm.pkg.github.com/
           cache: pnpm
 
-      - name: Install server production dependencies
-        run: pnpm --filter ./frontend/saksbehandling-server install --frozen-lockfile --prod
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.READER_TOKEN }}
-
       - name: Install dependencies
-        run: pnpm install  --frozen-lockfile
+        run: pnpm install --frozen-lockfile
         env:
           NODE_AUTH_TOKEN: ${{ secrets.READER_TOKEN }}
 
-      - name: Run tests
-        run: pnpm test
+      - name: Typecheck frontend
+        run: pnpm --filter ./frontend/saksbehandling typecheck
 
-      - name: Build workspace
-        run: pnpm run build
-        env:
-          VITE_BASE_PATH: ${{ env.CDN_PUBLIC_BASE }}
-          VITE_ENABLE_MOCKS: ${{ env.VITE_ENABLE_MOCKS }}
-
-      - name: Upload static assets to NAIS CDN
-        uses: nais/deploy/actions/cdn-upload/v2@master
-        with:
-          team: fager
-          source: ./frontend/saksbehandling/dist
-          destination: ${{ env.CDN_DESTINATION }}
-          source_keep_parent_name: false
+      - name: Typecheck server
+        run: pnpm --filter ./frontend/saksbehandling-server typecheck
 
       - name: Login to NAIS (sets registry and OIDC)
         id: login
@@ -84,10 +61,9 @@ jobs:
           image_suffix: saksbehandling-mock
           tag: ${{ github.sha }}
           docker_context: .
-          dockerfile: Dockerfile
+          dockerfile: frontend/saksbehandling-server/Dockerfile
           build_args: |
             NODE_AUTH_TOKEN=${{ secrets.READER_TOKEN }}
-            VITE_BASE_PATH=${{ env.CDN_PUBLIC_BASE }}
             VITE_ENABLE_MOCKS=${{ env.VITE_ENABLE_MOCKS }}
           salsa: true
 

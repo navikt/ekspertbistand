@@ -38,7 +38,7 @@ spec:
       memory: 512Mi
 
   liveness:
-    path: /ekspertbistand/internal/isAlive
+    path: /internal/isAlive
 
   readiness:
-    path: /ekspertbistand/internal/isAlive
+    path: /internal/isAlive

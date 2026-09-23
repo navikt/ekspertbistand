@@ -37,6 +37,7 @@ class EntraProxyClient(
 
         const val API_PATH = "/api/v1/enhet/ansatt"
         const val ANSATT_API_PATH = "/api/v1/ansatt"
+        const val GRUPPER_API_PATH = "/api/v1/ansatt/tilganger"
     }
 
     val httpClient = defaultHttpClient.config {
@@ -81,12 +82,32 @@ class EntraProxyClient(
                 )
             )
         }.body()
+
+    suspend fun hentGrupper(navIdent: String): List<EntraGruppe> =
+        httpClient.get {
+            url {
+                takeFrom(ingress)
+                path("$GRUPPER_API_PATH/$navIdent")
+            }
+            accept(ContentType.Application.Json)
+            bearerAuth(
+                tokenProvider.token(targetAudience).fold(
+                    { it.accessToken },
+                    { throw Exception("Failed to get token: ${it.error}") }
+                )
+            )
+        }.body()
 }
 
 @Serializable
 data class Enhet(
     val enhetnummer: String,
     val navn: String,
+)
+
+@Serializable
+data class EntraGruppe(
+    val rolle: String,
 )
 
 @Serializable

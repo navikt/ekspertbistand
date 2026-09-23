@@ -37,13 +37,34 @@ fun ApplicationTestBuilder.mockEntraProxyAnsatt(
     }
 }
 
-fun ApplicationTestBuilder.mockEntraProxyFull(
-    ansattProvider: (navIdent: String) -> String,
-    enheterProvider: (navIdent: String) -> String,
+fun ApplicationTestBuilder.mockEntraProxyGrupper(
+    responseProvider: (navIdent: String) -> String
 ) {
     externalServices {
         hosts(EntraProxyClient.ingress) {
             routing {
+                get("${EntraProxyClient.GRUPPER_API_PATH}/{navIdent}") {
+                    val navIdent = call.parameters["navIdent"]!!
+                    val response = responseProvider(navIdent)
+                    call.respondText(response, contentType = io.ktor.http.ContentType.Application.Json)
+                }
+            }
+        }
+    }
+}
+
+fun ApplicationTestBuilder.mockEntraProxyFull(
+    ansattProvider: (navIdent: String) -> String,
+    enheterProvider: (navIdent: String) -> String,
+    grupperProvider: (navIdent: String) -> String = { "[]" },
+) {
+    externalServices {
+        hosts(EntraProxyClient.ingress) {
+            routing {
+                get("${EntraProxyClient.GRUPPER_API_PATH}/{navIdent}") {
+                    val navIdent = call.parameters["navIdent"]!!
+                    call.respondText(grupperProvider(navIdent), contentType = io.ktor.http.ContentType.Application.Json)
+                }
                 get("${EntraProxyClient.ANSATT_API_PATH}/{navIdent}") {
                     val navIdent = call.parameters["navIdent"]!!
                     call.respondText(ansattProvider(navIdent), contentType = io.ktor.http.ContentType.Application.Json)
