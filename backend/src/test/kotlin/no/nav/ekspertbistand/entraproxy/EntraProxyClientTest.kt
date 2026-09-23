@@ -7,6 +7,7 @@ import no.nav.ekspertbistand.infrastruktur.TokenErrorResponse
 import no.nav.ekspertbistand.infrastruktur.TokenResponse
 import no.nav.ekspertbistand.mocks.mockEntraProxy
 import no.nav.ekspertbistand.mocks.mockEntraProxyAnsatt
+import no.nav.ekspertbistand.mocks.mockEntraProxyGrupper
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -206,6 +207,79 @@ class EntraProxyClientTest {
 
         val exception = org.junit.jupiter.api.assertThrows<Exception> {
             client.hentAnsatt("A123456")
+        }
+        assert(exception.message!!.contains("Failed to get token"))
+    }
+
+    @Test
+    fun `henter grupper for saksbehandler`() = testApplication {
+        val navIdent = "A123456"
+        mockEntraProxyGrupper { ident ->
+            assertEquals(navIdent, ident)
+            // language=JSON
+            """
+            [
+                { "rolle": "0000-CA-Ekspertbistand_Saksbehandler" },
+                { "rolle": "0000-CA-Ekspertbistand_Beslutter" }
+            ]
+            """
+        }
+
+        val client = EntraProxyClient(
+            tokenProvider = mockTokenProvider,
+            defaultHttpClient = client
+        )
+
+        val grupper = client.hentGrupper(navIdent)
+        assertEquals(2, grupper.size)
+        assertEquals("0000-CA-Ekspertbistand_Saksbehandler", grupper[0].rolle)
+        assertEquals("0000-CA-Ekspertbistand_Beslutter", grupper[1].rolle)
+    }
+
+    @Test
+    fun `haandterer ukjente felter i gruppe-respons`() = testApplication {
+        mockEntraProxyGrupper {
+            // language=JSON
+            """
+            [
+                { "rolle": "0000-CA-Ekspertbistand_Saksbehandler", "ekstraFelt": "ignoreres" }
+            ]
+            """
+        }
+
+        val client = EntraProxyClient(
+            tokenProvider = mockTokenProvider,
+            defaultHttpClient = client
+        )
+
+        val grupper = client.hentGrupper("A999999")
+        assertEquals(1, grupper.size)
+        assertEquals("0000-CA-Ekspertbistand_Saksbehandler", grupper[0].rolle)
+    }
+
+    @Test
+    fun `feiler ved ugyldig token for hentGrupper`() = testApplication {
+        mockEntraProxyGrupper {
+            // language=JSON
+            """[]"""
+        }
+
+        val failingTokenProvider = object : AzureAdTokenProvider {
+            override suspend fun token(target: String, additionalParameters: Map<String, String>): TokenResponse {
+                return TokenResponse.Error(
+                    TokenErrorResponse("unauthorized", "invalid token"),
+                    HttpStatusCode.Unauthorized
+                )
+            }
+        }
+
+        val client = EntraProxyClient(
+            tokenProvider = failingTokenProvider,
+            defaultHttpClient = client
+        )
+
+        val exception = org.junit.jupiter.api.assertThrows<Exception> {
+            client.hentGrupper("A123456")
         }
         assert(exception.message!!.contains("Failed to get token"))
     }
