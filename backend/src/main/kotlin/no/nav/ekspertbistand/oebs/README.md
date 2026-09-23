@@ -159,9 +159,9 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 
 | Fil | Ansvar | Sone |
 |-----|--------|------|
-| [`V12__oebs_tiltaksokonomi.sql`](../../../../../resources/db/migration/V12__oebs_tiltaksokonomi.sql) | Flyway: outbox-, løpenummer- og statustabeller | 🟢 |
-| [`V13__oebs_meldingslogg.sql`](../../../../../resources/db/migration/V13__oebs_meldingslogg.sql) | Flyway: revisjonsspor (sendt/mottatt melding) | 🟢 |
-| [`V14__oebs_faktura_lopenummer.sql`](../../../../../resources/db/migration/V14__oebs_faktura_lopenummer.sql) | Flyway: løpenummer-serie for fakturaer (per bestilling) | 🟢 |
+| [`V13__oebs_tiltaksokonomi.sql`](../../../../../resources/db/migration/V13__oebs_tiltaksokonomi.sql) | Flyway: outbox-, løpenummer- og statustabeller | 🟢 |
+| [`V14__oebs_meldingslogg.sql`](../../../../../resources/db/migration/V14__oebs_meldingslogg.sql) | Flyway: revisjonsspor (sendt/mottatt melding) | 🟢 |
+| [`V15__oebs_faktura_lopenummer.sql`](../../../../../resources/db/migration/V15__oebs_faktura_lopenummer.sql) | Flyway: løpenummer-serie for fakturaer (per bestilling) | 🟢 |
 | [`nais/{dev,prod}-gcp-topic-bestillinger.yaml`](../../../../../../../../nais) | Topic-manifest + ACL | 🟢 |
 
 ## Datamodell
