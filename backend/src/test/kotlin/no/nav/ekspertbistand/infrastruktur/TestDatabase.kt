@@ -47,11 +47,15 @@ class TestDatabase(
     }
 }
 
+/**
+ * Databasen lukkes først etter at testApplication er stoppet. Ellers kan bakgrunnsjobber i appen
+ * (f.eks. `slettGamleUtkast` i `configureSoknadApiV1`) kjøre spørringer mot en pool som er lukket.
+ */
 fun testApplicationWithDatabase(
     block: suspend ApplicationTestBuilder.(testDatabase: TestDatabase) -> Unit
-) = testApplication {
-    TestDatabase().use { testDatabase ->
-        testDatabase.cleanMigrate()
+) = TestDatabase().use { testDatabase ->
+    testDatabase.cleanMigrate()
+    testApplication {
         block(testDatabase)
     }
 }

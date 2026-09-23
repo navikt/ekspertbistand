@@ -13,6 +13,7 @@ import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
+import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 import kotlin.time.Duration.Companion.days
@@ -28,14 +29,24 @@ suspend fun Application.configureSoknadApiV1() {
 
     launch {
         while (isActiveAndNotTerminating) {
-            soknadApi.slettGamleUtkast()
+            try {
+                soknadApi.slettGamleUtkast()
+            } catch (e: Exception) {
+                e.rethrowIfCancellation()
+                log.error("Feil ved sletting av gamle utkast", e)
+            }
             delay(10.minutes)
         }
     }
 
     launch {
         while (isActiveAndNotTerminating) {
-            soknadApi.slettGamleInnsendteSoknader()
+            try {
+                soknadApi.slettGamleInnsendteSoknader()
+            } catch (e: Exception) {
+                e.rethrowIfCancellation()
+                log.error("Feil ved sletting av gamle innsendte søknader", e)
+            }
             delay(1.days)
         }
     }
