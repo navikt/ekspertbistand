@@ -4,7 +4,7 @@ Trello: https://trello.com/c/HY9i8MkL/602-hente-roller-for-innlogget-bruker-vha-
 
 ## Mål
 
-Tilgangsstyre saksbehandler/beslutter på Entra-roller uten å bruke `groups`-claimet i token. Fordi vi må sette `allowAllUsers: true` i Azure-oppsettet (multi-tenant-problem i dev gjør `groups`-claimet upålitelig), skal `bearer(AZURE_AD_PROVIDER)` i `Auth.kt` i stedet slå opp gruppene til den innloggede saksbehandleren via entra-proxy og legge de relevante gruppene i `AzureAdPrincipal`. Oppslaget skjer lazily per request, på samme måte som `AzureAdTokenIntrospector` allerede kalles per request.
+Tilgangsstyre saksbehandler/beslutter på Entra-roller uten å bruke `groups`-claimet i token. Fordi vi må sette `allowAllUsers: true` i Azure-oppsettet (multi-tenant-problem i dev gjør `groups`-claimet ikke kan brukes uten at det ødelegger for M2M kall), skal `bearer(AZURE_AD_PROVIDER)` i `Auth.kt` i stedet slå opp gruppene til den innloggede saksbehandleren via entra-proxy og legge de relevante gruppene i `AzureAdPrincipal`. Oppslaget skjer lazily per request, på samme måte som `AzureAdTokenIntrospector` allerede kalles per request.
 
 ## Bakgrunn
 
