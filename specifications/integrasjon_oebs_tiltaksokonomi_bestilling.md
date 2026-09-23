@@ -558,7 +558,7 @@ bestilling) flyttes hit fra consumeren, slik at alle Exposed-tabeller ligger i `
   `OkonomiBestillingMeldingContractTest` (omdøpes til `OebsBestillingMeldingContractTest`).
 - Testene under `test/.../oebs/` (`OutboxTest`, `NummerserieTest`, kontraktstest) oppdaterer kun
   `import`/pakke. Ingen testlogikk endres.
-- SQL-kommentar i `V12__oebs_tiltaksokonomi.sql` som nevner `OkonomiBestillingMelding` oppdateres
+- SQL-kommentar i `V13__oebs_tiltaksokonomi.sql` som nevner `OkonomiBestillingMelding` oppdateres
   (kommentar, ingen skjemaendring).
 
 ### Avgrensning
