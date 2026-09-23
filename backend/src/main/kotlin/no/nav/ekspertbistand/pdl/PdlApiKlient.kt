@@ -13,6 +13,8 @@ import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Person
 import java.net.URI
 
 // https://behandlingskatalog.intern.nav.no/process/purpose/SYFO/de1355ba-13b8-498d-8cdc-74463ba1a514
+// Opplysninger som slås opp mot PDL må de være definert i behandlingskatalogen. Dersom de mangler vil kallet feile
+
 private const val behandlingsNummer = "B591"
 
 class PdlApiKlient(

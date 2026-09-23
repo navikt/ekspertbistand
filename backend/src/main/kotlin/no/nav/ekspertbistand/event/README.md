@@ -6,6 +6,42 @@ Durable, at-least-once event processing using a relational database queue and lo
 - Use `EventQueue` to publish events and manage their lifecycle.
 - Use `EventManager` to process events from the queue, dispatching them to registered handlers.
 
+### Flytdiagram
+
+[`event-flow.md`](event-flow.md) viser hvilke kilden til events, hvilke handlere som lytter på hvilke events og hvilke events som en handler produserer. Diagrammet genereres ved
+statisk analyse av koden. Diagrammet genereses ved å kjøre 
+`main` i `backend/src/test/kotlin/no/nav/ekspertbistand/executables/EventFlowDiagram.kt`.
+
+### Navngiving av `EventData`
+
+En event beskriver noe som **har skjedd**. Derfor navngis `EventData`-implementasjoner i **fortid**,
+som et faktum og ikke som en kommando eller et ønske.
+
+Mønsteret er `<Hva/Hvem><Hva som skjedde>[<Kontekst>]`:
+
+| Navn | Betydning |
+|------|-----------|
+| `SoknadInnsendt` | Søknaden er sendt inn |
+| `InnsendtSoknadJournalfoert` | Den innsendte søknaden er journalført |
+| `TiltaksgjennomforingOpprettet` | Tiltaksgjennomføringen er opprettet i Arena |
+| `SoknadAvlystIArena` | Søknaden er avlyst i Arena |
+| `TilskuddsbrevMottattKildeAltinn` | Tilskuddsbrev er mottatt for en søknad fra Altinn |
+
+Retningslinjer:
+
+- **Bruk fortid.** Skriv `Journalfoert`, `Opprettet`, `Mottatt` og `Lagret`, ikke `Journalfoer`, `Opprett`
+  eller `LagreTilsagn`. Imperativ form er forbeholdt **handlere**, som beskriver hva de gjør
+  (f.eks. `JournalfoerInnsendtSoknad` lytter på `SoknadInnsendt` og publiserer `InnsendtSoknadJournalfoert`).
+- **Beskriv hva som skjedde i domenet, ikke hvem som skal reagere.** Skriv `SoknadInnsendt`, ikke
+  `VarsleSaksbehandler` eller `SoknadKlarForJournalfoering`. En event vet ikke hvem som lytter.
+- **Legg kontekst til som suffiks** når samme hendelse kan komme fra flere kilder eller systemer,
+  f.eks. `IArena` eller `KildeAltinn`.
+- **Bruk norske domenebegreper** uten æøå (`oe`, `aa`, `ae`), som i resten av koden.
+- **`@SerialName` er klassenavnet i lowerCamelCase** (f.eks. `@SerialName("soknadInnsendt")`).
+  `@SerialName` lagres i `event_json` i `event_queue` og `event_log`. Den skal derfor **aldri endres**
+  for eksisterende events, selv om klassen får nytt navn. Ellers kan ikke lagrede events leses lenger.
+  (`TilsagnsdataLagret` har av historiske grunner stor forbokstav.)
+
 ### Publisering — ett inngangspunkt: `publishEventQueue`
 
 Køen har nøyaktig én vei inn, og du skal aldri skrive til `event_queue`/`QueuedEvents` direkte:

@@ -1,4 +1,5 @@
 import { http, HttpResponse } from "msw";
+import type { SakDetaljer, Vilkår, Vilkårstatus } from "../hooks/useSak";
 import { mockInnloggetAnsatt } from "../mock/ansatt";
 import { SAKSBEHANDLING_OVERSIKT_URL, SESSION_URL } from "../utils/constants";
 
@@ -93,6 +94,103 @@ const oversikt = [
   },
 ] as const;
 
+const lagVilkår = (): Vilkår[] => [
+  {
+    id: "arbeidsforhold",
+    tittel: "Arbeidsforhold",
+    beskrivelse: "Deltaker må ha et arbeidsforhold hos arbeidsgiver i Aa-reg",
+    vurdering: {
+      automatisk: true,
+      status: "oppfylt",
+    },
+  },
+  {
+    id: "deltaker-enig",
+    tittel: "Deltaker er enig",
+    beskrivelse: "Arbeidsgiver har oppgitt at deltaker gitt samtykke til at søknaden sendtes.",
+    vurdering: {
+      automatisk: true,
+      status: "oppfylt",
+    },
+  },
+  {
+    id: "provd-tilrettelegging",
+    tittel: "Prøvd tilrettelegging",
+    beskrivelse: "Arbeidsgiver har beskrevet hvilke tiltak de prøvd eller vurdert.",
+    vurdering: {
+      automatisk: false,
+      status: "ikke_vurdert",
+    },
+  },
+  {
+    id: "sykefravarshistorikk",
+    tittel: "Sykefraværshistorikk",
+    beskrivelse: "Må ha legemeldt sykefravær som er hyppig eller gjentakerende.",
+    vurdering: {
+      automatisk: false,
+      status: "ikke_vurdert",
+    },
+  },
+  {
+    id: "ekspert-kompetanse",
+    tittel: "Ekspertens kompetanse og uavhengighet",
+    beskrivelse: "Må ha offentlig godkjent utdanning og relevant arbeidsrelatert kompentanse.",
+    vurdering: {
+      automatisk: false,
+      status: "ikke_vurdert",
+    },
+  },
+];
+
+const lagSakDetaljer = (sakId: string): SakDetaljer => ({
+  id: sakId,
+  deltaker: {
+    navn: "Moon Moonlight",
+    alder: 37,
+    fnr: "120184 34566",
+  },
+  arbeidsgiver: {
+    navn: "Bygg og Anlegg AS",
+    orgNr: "876 543 210",
+    beliggenhetssadresse: "Drammensveien 123\n120 33 Drammen",
+    kontaktperson: "Merte Ferrari",
+    epost: "merete@byggogfiks.as",
+    telefon: "94 34 21 12",
+  },
+  ekspert: {
+    navn: "Eivind Ekspertseen",
+    tilknyttetVirksomhet: "Eksperter AS",
+    kompetanse: "Arbeidsterpeuft",
+    orgNr: "409 231 445",
+  },
+  situasjon: {
+    arbeidssituasjon:
+      "Den ansatte har jobbet i virksomheten som salgsmedarbeidere (både dag- og kveldstid) de siste 3 årene i en 80% stilling. Oppgavene består i å …. Den ansatte har jobbet i virksomheten som salgsmedarbeidere (både dag- og kveldstid) de siste 3 årene i en 80% stilling.",
+    sykefravær:
+      "Her skal det stå informasjon om hva som er prøvd og hvordan det har gått, og har hatt hyppige sykefravær de siste året på opptil en uke. Fleksitid har vi prøvd, det men det var vanskelig med skjemaet og de øvrige ansatte.",
+  },
+  ekspertbistand: {
+    hvaHjelpeMed:
+      "Arbeidsevnevurdering og massa mer her får man skrive litt mer og forklare slikt at det er tydlig hva noen forventer seg.",
+    antallTimer: 8,
+    søknadssum: 22000,
+    startdato: "2026-11-22",
+    sendtInnTilNav: "2026-10-30",
+  },
+  vilkår: lagVilkår(),
+});
+
+const sakStore = new Map<string, SakDetaljer>();
+
+function hentSakDetaljer(sakId: string): SakDetaljer {
+  const eksisterende = sakStore.get(sakId);
+  if (eksisterende) return eksisterende;
+
+  const sak = lagSakDetaljer(sakId);
+  sakStore.set(sakId, sak);
+  return sak;
+}
+
 export const handlers = [
   http.get(SESSION_URL, () =>
     HttpResponse.json({
@@ -109,77 +207,41 @@ export const handlers = [
   ),
   http.get("/api/saksbehandling/v1/saker/:sakId", ({ params }) => {
     const { sakId } = params;
-    return HttpResponse.json({
-      id: sakId,
-      deltaker: {
-        navn: "Moon Moonlight",
-        alder: 37,
-        fnr: "120184 34566",
+    return HttpResponse.json(hentSakDetaljer(String(sakId)));
+  }),
+  http.put<
+    { sakId: string; vilkarId: string },
+    { status: Vilkårstatus; kommentar?: string },
+    Vilkår | { message: string }
+  >("/api/saksbehandling/v1/saker/:sakId/vilkar/:vilkarId", async ({ params, request }) => {
+    const { sakId, vilkarId } = params;
+    const body = await request.json();
+
+    if (body.status !== "oppfylt" && body.status !== "ikke_oppfylt") {
+      return HttpResponse.json({ message: "Ugyldig status på vilkårsvurdering." }, { status: 400 });
+    }
+
+    const sak = hentSakDetaljer(String(sakId));
+    const vilkår = sak.vilkår.find((v) => v.id === vilkarId);
+
+    if (!vilkår) {
+      return HttpResponse.json({ message: "Fant ikke vilkåret." }, { status: 404 });
+    }
+
+    const kommentar = body.kommentar?.trim();
+    const oppdatert: Vilkår = {
+      ...vilkår,
+      vurdering: {
+        ...(kommentar ? { kommentar } : {}),
+        status: body.status,
+        automatisk: false,
+        vurdertAv: mockInnloggetAnsatt.navn,
+        vurdertTidspunkt: new Date().toISOString(),
       },
-      arbeidsgiver: {
-        navn: "Bygg og Anlegg AS",
-        orgNr: "876 543 210",
-        beliggenhetssadresse: "Drammensveien 123\n120 33 Drammen",
-        kontaktperson: "Merte Ferrari",
-        epost: "merete@byggogfiks.as",
-        telefon: "94 34 21 12",
-      },
-      ekspert: {
-        navn: "Eivind Ekspertseen",
-        tilknyttetVirksomhet: "Eksperter AS",
-        kompetanse: "Arbeidsterpeuft",
-        orgNr: "409 231 445",
-      },
-      situasjon: {
-        arbeidssituasjon:
-          "Den ansatte har jobbet i virksomheten som salgsmedarbeidere (både dag- og kveldstid) de siste 3 årene i en 80% stilling. Oppgavene består i å …. Den ansatte har jobbet i virksomheten som salgsmedarbeidere (både dag- og kveldstid) de siste 3 årene i en 80% stilling.",
-        sykefravær:
-          "Her skal det stå informasjon om hva som er prøvd og hvordan det har gått, og har hatt hyppige sykefravær de siste året på opptil en uke. Fleksitid har vi prøvd, det men det var vanskelig med skjemaet og de øvrige ansatte.",
-      },
-      ekspertbistand: {
-        hvaHjelpeMed:
-          "Arbeidsevnevurdering og massa mer her får man skrive litt mer og forklare slikt at det er tydlig hva noen forventer seg.",
-        antallTimer: 8,
-        søknadssum: 22000,
-        startdato: "2026-11-22",
-        sendtInnTilNav: "2026-10-30",
-      },
-      vilkår: [
-        {
-          id: "arbeidsforhold",
-          tittel: "Arbeidsforhold",
-          beskrivelse: "Deltaker må ha et arbeidsforhold hos arbeidsgiver i Aa-reg",
-          status: "oppfylt",
-          automatisk: true,
-        },
-        {
-          id: "deltaker-enig",
-          tittel: "Deltaker er enig",
-          beskrivelse:
-            "Arbeidsgiver har oppgitt at deltaker gitt samtykke til at søknaden sendtes.",
-          status: "oppfylt",
-          automatisk: true,
-        },
-        {
-          id: "provd-tilrettelegging",
-          tittel: "Prøvd tilrettelegging",
-          beskrivelse: "Arbeidsgiver har beskrevet hvilke tiltak de prøvd eller vurdert.",
-          status: "manuell",
-        },
-        {
-          id: "sykefravarshistorikk",
-          tittel: "Sykefraværshistorikk",
-          beskrivelse: "Må ha legemeldt sykefravær som er hyppig eller gjentakerende.",
-          status: "manuell",
-        },
-        {
-          id: "ekspert-kompetanse",
-          tittel: "Ekspertens kompetanse og uavhengighet",
-          beskrivelse:
-            "Må ha offentlig godkjent utdanning og relevant arbeidsrelatert kompentanse.",
-          status: "manuell",
-        },
-      ],
-    });
+    };
+
+    sak.vilkår = sak.vilkår.map((v) => (v.id === vilkarId ? oppdatert : v));
+
+    return HttpResponse.json(oppdatert);
   }),
 ];

@@ -13,10 +13,16 @@ import io.ktor.server.plugins.di.*
 import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.json.*
+import no.nav.ekspertbistand.entraproxy.EntraProxyClient
+import no.nav.ekspertbistand.saksbehandling.Role
 
 /**
  * Lånt med modifikasjoner fra https://github.com/nais/wonderwalled
  */
+
+private object AuthLogging
+private val authLog = AuthLogging.logger()
+private val authTeamLog = AuthLogging.teamLogger()
 
 @Serializable
 enum class IdentityProvider(val alias: String) {
@@ -245,10 +251,22 @@ fun Application.configureAuthentication() {
                     val navIdent = other["NAVident"] as? String
                         ?: return@authenticate null
                     val name = other["name"] as? String
-                    val groups = (other["groups"] as? List<*>)
-                        ?.filterIsInstance<String>()
-                        ?: emptyList()
 
+                    /**
+                     * Grupper hentes fra entra-proxy per request (ikke fra token-claim).
+                     * Kun grupper som matcher en kjent [Role] beholdes.
+                     */
+                    val entraProxyClient = application.dependencies.resolve<EntraProxyClient>()
+                    val groups = try {
+                        entraProxyClient.hentGrupper(navIdent)
+                            .map { it.rolle }
+                            .filter { rolle -> Role.entries.any { it.groupId == rolle } }
+                    } catch (e: Exception) {
+                        e.rethrowIfCancellation()
+                        authLog.error("Feil ved henting av grupper fra entra-proxy ({}), avviser request", e.javaClass.simpleName)
+                        authTeamLog.error("Feil ved henting av grupper fra entra-proxy for navIdent=$navIdent", e)
+                        return@authenticate null
+                    }
 
                     AzureAdPrincipal(
                         navIdent = navIdent,

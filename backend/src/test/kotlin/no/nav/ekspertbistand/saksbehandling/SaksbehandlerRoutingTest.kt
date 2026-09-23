@@ -44,11 +44,19 @@ class SaksbehandlerRoutingTest {
         ]
     """.trimIndent()
 
+    private val grupperJson = """
+        [
+            { "rolle": "0000-CA-Ekspertbistand_Saksbehandler" },
+            { "rolle": "0000-CA-Ekspertbistand_Beslutter" }
+        ]
+    """.trimIndent()
+
     @Test
     fun `happy path - GET me returnerer saksbehandlerinfo`() = testApplicationWithDatabase { db ->
         mockEntraProxyFull(
             ansattProvider = { ansattJson },
             enheterProvider = { enheterJson },
+            grupperProvider = { grupperJson },
         )
 
         val client = createClient {
@@ -66,7 +74,6 @@ class SaksbehandlerRoutingTest {
                         if (it == "valid-azure-token") {
                             mockAzureAdIntrospectionResponse
                                 .withNavIdent("A123456")
-                                .withGroups(listOf("test-saksbehandler-group-id", "test-beslutter-group-id"))
                         } else null
                     }
                 }
@@ -180,7 +187,7 @@ class SaksbehandlerRoutingTest {
                         TokenIntrospectionResponse(
                             active = true,
                             error = null,
-                            other = mapOf("groups" to listOf("test-saksbehandler-group-id")),
+                            other = mapOf("name" to "Tore Tang"),
                         )
                     }
                 }
@@ -237,6 +244,46 @@ class SaksbehandlerRoutingTest {
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.body<InnloggetAnsattResponse>()
         assertEquals(emptySet(), body.roller)
+    }
+
+    @Test
+    fun `feil ved gruppeoppslag mot entra-proxy gir 401`() = testApplicationWithDatabase { db ->
+        mockEntraProxyFull(
+            ansattProvider = { ansattJson },
+            enheterProvider = { enheterJson },
+            grupperProvider = { "dette er ikke gyldig json" },
+        )
+
+        val client = createClient {
+            install(ContentNegotiation) { json() }
+        }
+
+        application {
+            dependencies {
+                provide<AzureAdTokenProvider> { successAzureAdTokenProvider }
+                provide<HttpClient> { client }
+                provide<Database> { db.config.jdbcDatabase }
+                provide(EntraProxyClient::class)
+                provide<AzureAdTokenIntrospector> {
+                    MockAzureAdIntrospector {
+                        if (it == "valid-azure-token") {
+                            mockAzureAdIntrospectionResponse
+                                .withNavIdent("A123456")
+                        } else null
+                    }
+                }
+            }
+
+            configureAuthentication()
+            configureSaksbehandlerApiV1()
+            configureServer()
+        }
+
+        val response = client.get("/api/saksbehandling/v1/meg") {
+            bearerAuth("valid-azure-token")
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
 
     @Test
@@ -312,7 +359,6 @@ class SaksbehandlerRoutingTest {
                         if (it == "valid-azure-token") {
                             mockAzureAdIntrospectionResponse
                                 .withNavIdent("A123456")
-                                .withGroups(listOf("test-saksbehandler-group-id"))
                         } else null
                     }
                 }
