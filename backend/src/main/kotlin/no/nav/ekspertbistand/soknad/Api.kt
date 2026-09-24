@@ -13,6 +13,7 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.logger
+import no.nav.ekspertbistand.infrastruktur.valider
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -129,7 +130,7 @@ class SoknadApi(
         }
 
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
-        val oppdatertUtkast = call.receive<DTO.Utkast>()
+        val oppdatertUtkast = call.receive<DTO.Utkast>().also { valider(it) }
 
         val orgnr = oppdatertUtkast.virksomhet?.virksomhetsnummer
             ?: eksisterende.virksomhet?.virksomhetsnummer
@@ -228,7 +229,7 @@ class SoknadApi(
         }
 
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
-        val soknad = call.receive<DTO.Soknad>()
+        val soknad = call.receive<DTO.Soknad>().also { valider(it) }
 
         if (!tilganger.harTilgang(soknad.virksomhet.virksomhetsnummer)) {
             call.respond(
