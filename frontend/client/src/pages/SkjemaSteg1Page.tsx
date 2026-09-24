@@ -182,17 +182,17 @@ export default function SkjemaSteg1Page() {
           <Fieldset legend="Ansatt" style={FORM_COLUMN_STYLE}>
             <VStack gap="space-16">
               <TextField
+                id="ansatt.navn"
+                label="Navn"
+                error={errors.ansatt?.navn?.message}
+                {...register("ansatt.navn")}
+              />
+              <TextField
                 id="ansatt.fnr"
                 label="Fødselsnummer"
                 htmlSize={11}
                 error={errors.ansatt?.fnr?.message}
                 {...register("ansatt.fnr")}
-              />
-              <TextField
-                id="ansatt.navn"
-                label="Navn"
-                error={errors.ansatt?.navn?.message}
-                {...register("ansatt.navn")}
               />
             </VStack>
           </Fieldset>
