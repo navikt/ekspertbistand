@@ -33,6 +33,25 @@ val IngenKontrolltegn = TekstSjekk { verdi ->
     else null
 }
 
+/** Øvre grense for lengden på et enkelt tekstfelt (vern mot oversized payloads). */
+const val MAKS_TEKST_LENGDE = 10_000
+
+/** Avviser tekst som er lengre enn [MAKS_TEKST_LENGDE]. */
+val IngenForLangTekst = TekstSjekk { verdi ->
+    if (verdi.length > MAKS_TEKST_LENGDE) "for lang (over $MAKS_TEKST_LENGDE tegn)" else null
+}
+
+/**
+ * Avviser usynlige Unicode-formattegn (kategori Cf): bidireksjonelle overstyringer/isolater
+ * (U+202A–202E, U+2066–2069), zero-width-tegn (U+200B–200F), BOM (U+FEFF) m.fl. Beskytter mot
+ * «Trojan Source»-angrep og homoglyf-/tekstspoofing. Vanlig norsk tekst inneholder ikke slike tegn.
+ */
+val IngenUsynligeFormatTegn = TekstSjekk { verdi ->
+    if (verdi.any { Character.getType(it) == Character.FORMAT.toInt() })
+        "inneholder usynlige formatkontrolltegn"
+    else null
+}
+
 /**
  * Startsettet av tekstsjekker. Bevisst enkelt; utvid ved å legge til flere [TekstSjekk]
  * her, så slår de automatisk inn på alle tekstfelt uten andre endringer.
@@ -40,7 +59,12 @@ val IngenKontrolltegn = TekstSjekk { verdi ->
 val standardTekstSjekker: List<TekstSjekk> = listOf(
     IngenVinkelparenteser,
     IngenKontrolltegn,
+    IngenForLangTekst,
+    IngenUsynligeFormatTegn,
 )
+
+/** Øvre grense for antall elementer i en samling (vern mot svært store arrays). */
+const val MAKS_LISTE_STORRELSE = 100
 
 /**
  * Validerer alle `String`- og `String`-samlingsfelt i [dto] rekursivt mot [sjekker].
@@ -68,6 +92,9 @@ private fun validerVerdi(
         }
 
         is Collection<*> -> {
+            if (verdi.size > MAKS_LISTE_STORRELSE) {
+                throw UgyldigInputException(sti)
+            }
             verdi.forEachIndexed { index, element ->
                 validerVerdi(element, "$sti[$index]", sjekker, besokt)
             }

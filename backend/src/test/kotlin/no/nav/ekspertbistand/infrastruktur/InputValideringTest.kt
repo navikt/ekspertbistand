@@ -157,6 +157,45 @@ class InputValideringTest {
     }
 
     @Test
+    fun `avviser for lang tekst men tillater tekst paa grensen`() {
+        valider(gyldigSoknad.copy(nav = DTO.Nav("a".repeat(MAKS_TEKST_LENGDE))))
+        val feil = assertFailsWith<UgyldigInputException> {
+            valider(gyldigSoknad.copy(nav = DTO.Nav("a".repeat(MAKS_TEKST_LENGDE + 1))))
+        }
+        assertEquals("nav.kontaktperson", feil.feltsti)
+    }
+
+    @Test
+    fun `avviser usynlige unicode-formattegn`() {
+        // U+202E RIGHT-TO-LEFT OVERRIDE (Trojan Source / spoofing)
+        val feil = assertFailsWith<UgyldigInputException> {
+            valider(gyldigSoknad.copy(nav = DTO.Nav("Nav\u202EtenoK")))
+        }
+        assertEquals("nav.kontaktperson", feil.feltsti)
+    }
+
+    @Test
+    fun `avviser lister som er for lange`() {
+        valider(
+            gyldigSoknad.copy(
+                ekspert = gyldigSoknad.ekspert.copy(
+                    relevantKompetanse = List(MAKS_LISTE_STORRELSE) { "Kompetanse" },
+                ),
+            ),
+        )
+        val feil = assertFailsWith<UgyldigInputException> {
+            valider(
+                gyldigSoknad.copy(
+                    ekspert = gyldigSoknad.ekspert.copy(
+                        relevantKompetanse = List(MAKS_LISTE_STORRELSE + 1) { "Kompetanse" },
+                    ),
+                ),
+            )
+        }
+        assertEquals("ekspert.relevantKompetanse", feil.feltsti)
+    }
+
+    @Test
     fun `tekstsjekkene slaar inn paa forventede verdier`() {
         assertNull(IngenVinkelparenteser.sjekk("helt vanlig tekst"))
         assertNull(IngenKontrolltegn.sjekk("tekst med\nlinjeskift"))

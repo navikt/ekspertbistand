@@ -85,13 +85,20 @@ fun interface TekstSjekk {
 }
 ```
 
-Sjekkene kjøres i rekkefølge; første som returnerer en grunn gir avvisning. Startsett (det
-enkle utgangspunktet):
+Sjekkene kjøres i rekkefølge; første som returnerer en grunn gir avvisning. Startsett:
 
 - `IngenVinkelparenteser` — **avvis** verdier som inneholder `<` eller `>` (blokkerer
   `<script>`, HTML/tag-injeksjon).
 - `IngenKontrolltegn` — **avvis** kontrolltegn, unntatt vanlig whitespace (mellomrom, tab,
   linjeskift).
+- `IngenForLangTekst` — **avvis** tekst over `MAKS_TEKST_LENGDE` (10 000 tegn); vern mot
+  oversized payloads / DoS.
+- `IngenUsynligeFormatTegn` — **avvis** usynlige Unicode-formattegn (kategori Cf): bidi-
+  overstyringer/isolater (U+202A–202E, U+2066–2069), zero-width-tegn, BOM m.fl. Beskytter mot
+  «Trojan Source» og tekstspoofing.
+
+I tillegg sjekker walkeren **samlingsstørrelse**: en `Collection` med flere enn
+`MAKS_LISTE_STORRELSE` (100) elementer avvises (vern mot svært store arrays).
 
 Alt annet **tillates**: norske tegn, tall, whitespace og vanlig tegnsetting som brukes i navn,
 adresser, e-post og fritekst (`. , - _ @ / ( ) : ; ' + &` osv.).
@@ -237,8 +244,9 @@ Plassering: `backend/src/test/kotlin/no/nav/ekspertbistand/infrastruktur/InputVa
 - [ ] `valider(...)` validerer rekursivt alle `String`- og `List<String>`-felt i DTO-grafen
 - [ ] Kalt etter `call.receive` i både `oppdaterUtkast` og `sendInnSoknad`
 - [ ] Brudd gir `400 Bad Request` med feltsti, uten å ekko verdien; logges som `warn` uten PII
-- [ ] `standardTekstSjekker` (liste av `TekstSjekk`) avviser `< >` og kontrolltegn, tillater
-      legitim norsk fritekst/e-post/adresse, og er lett å utvide med flere sjekker
+- [ ] `standardTekstSjekker` (liste av `TekstSjekk`) avviser `< >`, kontrolltegn, for lang tekst
+      (>10 000 tegn) og usynlige Unicode-formattegn; walkeren avviser lister med >100 elementer.
+      Tillater legitim norsk fritekst/e-post/adresse, og er lett å utvide med flere sjekker
 - [ ] Validatoren ligger i `infrastruktur/` og kan gjenbrukes av saksbehandling-API-et
 - [ ] Refleksjons-test verifiserer at hvert `String`/`List<String>`-felt i DTO-grafen dekkes,
       og feiler hvis et nytt udekket felt legges til
