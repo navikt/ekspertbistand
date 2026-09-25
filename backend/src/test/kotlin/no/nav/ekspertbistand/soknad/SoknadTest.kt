@@ -334,6 +334,50 @@ class SoknadTest {
             assertEquals(HttpStatusCode.BadRequest, status)
         }
 
+        // put med gift i tekstfelt gir 400 (backend-validering av input)
+        with(
+            client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
+                bearerAuth("faketoken")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    DTO.Soknad(
+                        virksomhet = DTO.Virksomhet(
+                            virksomhetsnummer = "1337",
+                            virksomhetsnavn = "foo bar AS",
+                            kontaktperson = DTO.Kontaktperson(
+                                navn = "<script>alert(1)</script>",
+                                epost = "donald@duck.co",
+                                telefonnummer = "12345678"
+                            )
+                        ),
+                        ansatt = DTO.Ansatt(
+                            fnr = "12345678910",
+                            navn = "Ole Olsen"
+                        ),
+                        ekspert = DTO.Ekspert(
+                            navn = "Egon Olsen",
+                            virksomhet = "Olsenbanden AS",
+                            kompetanse = "Bankran",
+                        ),
+                        behovForBistand = DTO.BehovForBistand(
+                            behov = "Tilrettelegging",
+                            begrunnelse = "Tilrettelegging på arbeidsplassen",
+                            estimertKostnad = "4200",
+                            timer = "16",
+                            tilrettelegging = "Spesialtilpasset kontor",
+                            startdato = LocalDate.parse("2024-11-15")
+                        ),
+                        nav = DTO.Nav(
+                            kontaktperson = "Navn Navnesen"
+                        ),
+                        status = SoknadStatus.innsendt,
+                    )
+                )
+            }
+        ) {
+            assertEquals(HttpStatusCode.BadRequest, status)
+        }
+
         // put med gyldig payload gir 200 og soknad i retur
         with(
             client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {

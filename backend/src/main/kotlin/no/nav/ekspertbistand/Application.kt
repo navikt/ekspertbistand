@@ -192,6 +192,14 @@ fun Application.configureServer() {
                     // no response, channel already closed
                 }
 
+                is UgyldigInputException -> {
+                    log.error("Avviste ugyldig input i felt '{}': {}", cause.feltsti, cause.aarsak)
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Ugyldig verdi i felt '${cause.feltsti}': ${cause.aarsak}",
+                    )
+                }
+
                 else -> {
                     log.error("Unexpected exception at ktor-toplevel: {}", cause.javaClass.canonicalName, cause)
                     call.response.status(HttpStatusCode.InternalServerError)
