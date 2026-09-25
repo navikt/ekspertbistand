@@ -7,11 +7,12 @@ import kotlin.reflect.full.memberProperties
 
 /**
  * Kastes når et tekstfelt i en innkommende DTO inneholder en verdi som ikke passerer
- * [standardTekstSjekker]. Bærer kun feltstien (f.eks. `behovForBistand.begrunnelse`),
- * aldri selve verdien, slik at angriperinput verken logges eller ekkoes tilbake i respons.
+ * [standardTekstSjekker]. Bærer feltstien (f.eks. `behovForBistand.begrunnelse`) og en
+ * generisk [aarsak] for hvilken sjekk som feilet, men aldri selve verdien, slik at
+ * angriperinput verken logges eller ekkoes tilbake i respons.
  */
-class UgyldigInputException(val feltsti: String) :
-    IllegalArgumentException("Ugyldig verdi i felt '$feltsti'")
+class UgyldigInputException(val feltsti: String, val aarsak: String) :
+    IllegalArgumentException("Ugyldig verdi i felt '$feltsti': $aarsak")
 
 /**
  * En enkelt sjekk som kan kjøres på en tekstverdi. Returner `null` når verdien er ok,
@@ -86,14 +87,15 @@ private fun validerVerdi(
         null -> return
 
         is String -> {
-            if (sjekker.any { it.sjekk(verdi) != null }) {
-                throw UgyldigInputException(sti)
+            for (sjekk in sjekker) {
+                val aarsak = sjekk.sjekk(verdi)
+                if (aarsak != null) throw UgyldigInputException(sti, aarsak)
             }
         }
 
         is Collection<*> -> {
             if (verdi.size > MAKS_LISTE_STORRELSE) {
-                throw UgyldigInputException(sti)
+                throw UgyldigInputException(sti, "for mange elementer (over $MAKS_LISTE_STORRELSE)")
             }
             verdi.forEachIndexed { index, element ->
                 validerVerdi(element, "$sti[$index]", sjekker, besokt)

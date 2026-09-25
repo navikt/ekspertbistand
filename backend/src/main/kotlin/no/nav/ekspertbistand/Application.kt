@@ -193,8 +193,11 @@ fun Application.configureServer() {
                 }
 
                 is UgyldigInputException -> {
-                    log.warn("Avviste ugyldig input i felt '{}'", cause.feltsti)
-                    call.respond(HttpStatusCode.BadRequest, "Ugyldig verdi i felt '${cause.feltsti}'")
+                    log.warn("Avviste ugyldig input i felt '{}': {}", cause.feltsti, cause.aarsak)
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Ugyldig verdi i felt '${cause.feltsti}': ${cause.aarsak}",
+                    )
                 }
 
                 else -> {

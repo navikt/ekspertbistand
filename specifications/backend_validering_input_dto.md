@@ -126,8 +126,9 @@ Plassering: `backend/src/main/kotlin/no/nav/ekspertbistand/infrastruktur/InputVa
 Den legges i `infrastruktur/` med en gang fordi den er generell og skal gjenbrukes av
 **saksbehandling-API-et** (Q4), ikke bare `soknad`.
 
-- `class UgyldigInputException(feltsti: String) : IllegalArgumentException(...)` — meldingen
-  inneholder **feltstien** (f.eks. `behovForBistand.begrunnelse`), **aldri selve verdien**.
+- `class UgyldigInputException(feltsti: String, aarsak: String) : IllegalArgumentException(...)` —
+  bærer **feltstien** (f.eks. `behovForBistand.begrunnelse`) og en **generisk årsak** for hvilken
+  sjekk som feilet (f.eks. «inneholder < eller >»), men **aldri selve verdien**.
 - `fun interface TekstSjekk { fun sjekk(verdi: String): String? }` + startsettet av sjekker
   (`IngenVinkelparenteser`, `IngenKontrolltegn`) i en `val standardTekstSjekker: List<TekstSjekk>`.
   Nye sjekker legges til i denne lista (Q2).
@@ -157,10 +158,11 @@ Plassering: `backend/src/main/kotlin/no/nav/ekspertbistand/Application.kt` (`ins
 
 Legg til en gren for `UgyldigInputException` **før** den generiske `else`-grenen:
 
-- Svar `400 Bad Request` med en generisk melding som kun oppgir **feltstien**, ikke verdien
-  (unngå å reflektere angriperinput tilbake i respons — output-siden av kriteriet).
-- Logg med `log.warn` (uten PII/verdien). Ikke `log.error` — ugyldig input er en forventet
-  klientfeil, ikke en applikasjonsfeil, og skal ikke trigge alerts.
+- Svar `400 Bad Request` med **feltstien og den generiske årsaken** (f.eks. «Ugyldig verdi i
+  felt 'nav.kontaktperson': inneholder < eller >»), men aldri selve verdien — så konsumenten
+  får vite *hva* som feilet uten at vi reflekterer angriperinput tilbake (output-siden av kriteriet).
+- Logg med `log.warn` (feltsti + årsak, uten PII/verdien). Ikke `log.error` — ugyldig input er en
+  forventet klientfeil, ikke en applikasjonsfeil, og skal ikke trigge alerts.
 
 ### 4. Tester
 
@@ -220,7 +222,7 @@ Plassering: `backend/src/test/kotlin/no/nav/ekspertbistand/infrastruktur/InputVa
 | Ny avhengighet | Nei (`kotlin-reflect` finnes) | Unngår `ktor-server-request-validation` |
 | HTTP-status | `400 Bad Request` | Ugyldig klientinput, ikke serverfeil |
 | Logging ved brudd | `log.warn`, kun feltsti | Forventet klientfeil; ingen PII/verdi, ingen alert |
-| Respons ved brudd | Generisk melding + feltsti, aldri verdien | Output-siden av kriteriet — ikke reflekter angriperinput |
+| Respons ved brudd | Feltsti + generisk årsak, aldri verdien | Konsumenten får vite hva som feilet uten at vi reflekterer angriperinput |
 | Refleksjons-test | Krav, ikke bare mulighet | Kommentarens intensjon; hindrer regresjon når DTO-er endres |
 | Sanitering | Nei — kun validering | Vi avviser, endrer ikke brukerens input |
 | Regelstruktur | Liste av `TekstSjekk` (komponerbar) | Lett å utvide med flere sjekker på samme string (Q2) |
@@ -243,7 +245,7 @@ Plassering: `backend/src/test/kotlin/no/nav/ekspertbistand/infrastruktur/InputVa
 
 - [ ] `valider(...)` validerer rekursivt alle `String`- og `List<String>`-felt i DTO-grafen
 - [ ] Kalt etter `call.receive` i både `oppdaterUtkast` og `sendInnSoknad`
-- [ ] Brudd gir `400 Bad Request` med feltsti, uten å ekko verdien; logges som `warn` uten PII
+- [ ] Brudd gir `400 Bad Request` med feltsti **og generisk årsak**, uten å ekko verdien; logges som `warn` uten PII
 - [ ] `standardTekstSjekker` (liste av `TekstSjekk`) avviser `< >`, kontrolltegn, for lang tekst
       (>10 000 tegn) og usynlige Unicode-formattegn; walkeren avviser lister med >100 elementer.
       Tillater legitim norsk fritekst/e-post/adresse, og er lett å utvide med flere sjekker

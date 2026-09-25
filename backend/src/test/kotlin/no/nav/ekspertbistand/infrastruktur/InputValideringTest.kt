@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class InputValideringTest {
 
@@ -52,6 +53,9 @@ class InputValideringTest {
             valider(gyldigSoknad.copy(nav = DTO.Nav("<script>alert(1)</script>")))
         }
         assertEquals("nav.kontaktperson", feil.feltsti)
+        assertEquals("inneholder < eller >", feil.aarsak)
+        assertTrue(feil.message!!.contains("nav.kontaktperson"))
+        assertTrue(feil.message!!.contains("inneholder < eller >"))
     }
 
     @Test
@@ -86,9 +90,10 @@ class InputValideringTest {
 
     @Test
     fun `avviser kontrolltegn men tillater vanlig whitespace`() {
-        assertFailsWith<UgyldigInputException> {
+        val feil = assertFailsWith<UgyldigInputException> {
             valider(gyldigSoknad.copy(nav = DTO.Nav("ugyldig\u0000tegn")))
         }
+        assertEquals("inneholder kontrolltegn", feil.aarsak)
         valider(gyldigSoknad.copy(nav = DTO.Nav("linje1\nlinje2\ttabbet")))
     }
 
@@ -163,6 +168,7 @@ class InputValideringTest {
             valider(gyldigSoknad.copy(nav = DTO.Nav("a".repeat(MAKS_TEKST_LENGDE + 1))))
         }
         assertEquals("nav.kontaktperson", feil.feltsti)
+        assertTrue(feil.aarsak.contains("for lang"))
     }
 
     @Test
@@ -172,6 +178,7 @@ class InputValideringTest {
             valider(gyldigSoknad.copy(nav = DTO.Nav("Nav\u202EtenoK")))
         }
         assertEquals("nav.kontaktperson", feil.feltsti)
+        assertEquals("inneholder usynlige formatkontrolltegn", feil.aarsak)
     }
 
     @Test
@@ -193,6 +200,7 @@ class InputValideringTest {
             )
         }
         assertEquals("ekspert.relevantKompetanse", feil.feltsti)
+        assertTrue(feil.aarsak.contains("for mange elementer"))
     }
 
     @Test
