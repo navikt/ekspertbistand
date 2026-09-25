@@ -1,5 +1,6 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -35,6 +36,45 @@ const azureEnabled = Boolean(AZURE_APP_CLIENT_ID);
 const app = express();
 const api = express.Router();
 const localSessionEnabled = NODE_ENV !== "production";
+const localHttpOrigins =
+  NODE_ENV === "production" ? [] : ["http://localhost:*", "http://127.0.0.1:*"];
+const localWebsocketOrigins =
+  NODE_ENV === "production" ? [] : ["ws://localhost:*", "ws://127.0.0.1:*"];
+
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'self'", "https://*.nav.no", ...localHttpOrigins],
+  styleSrc: ["'self'", "'unsafe-inline'", "https://*.nav.no", ...localHttpOrigins],
+  connectSrc: [
+    "'self'",
+    "https://*.nav.no",
+    "https://telemetry.nav.no",
+    "https://telemetry.ekstern.dev.nav.no",
+    ...localHttpOrigins,
+    ...localWebsocketOrigins,
+  ],
+  imgSrc: ["'self'", "data:", "https://*.nav.no"],
+  fontSrc: ["'self'", "https://*.nav.no", ...localHttpOrigins],
+  frameSrc: ["'self'", "https://*.nav.no"],
+  frameAncestors: ["'none'"],
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
+  formAction: ["'self'", "https://*.nav.no"],
+};
+
+app.disable("x-powered-by");
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: cspDirectives,
+      reportOnly: NODE_ENV !== "production",
+    },
+    referrerPolicy: {
+      policy: "strict-origin-when-cross-origin",
+    },
+  })
+);
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("base64");
 
