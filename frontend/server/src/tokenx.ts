@@ -1,4 +1,4 @@
-import { getToken, requestTokenxOboToken, validateTokenxToken } from "@navikt/oasis";
+import { getToken, requestTokenxOboToken, validateToken } from "@navikt/oasis";
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "@navikt/pino-logger";
 
@@ -32,7 +32,7 @@ export const tokenXMiddleware =
         return;
       }
 
-      const validation = await validateTokenxToken(subjectToken);
+      const validation = await validateToken(subjectToken);
       if (!validation.ok) {
         logger.warn(
           { errorType: validation.errorType, message: validation.error.message },
