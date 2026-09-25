@@ -1,4 +1,4 @@
-import { getToken, requestAzureOboToken } from "@navikt/oasis";
+import { getToken, requestAzureOboToken, validateAzureToken } from "@navikt/oasis";
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "@navikt/pino-logger";
 
@@ -29,6 +29,16 @@ export const azureOboMiddleware =
       const subjectToken = getToken(req);
       if (!subjectToken) {
         res.status(401).json({ message: "Mangler innloggings-token." });
+        return;
+      }
+
+      const validation = await validateAzureToken(subjectToken);
+      if (!validation.ok) {
+        logger.warn(
+          { errorType: validation.errorType, message: validation.error.message },
+          "Ugyldig Azure subject-token."
+        );
+        res.status(401).json({ message: "Ugyldig innloggings-token." });
         return;
       }
 

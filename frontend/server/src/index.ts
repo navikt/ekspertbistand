@@ -34,6 +34,9 @@ const port = Number(PORT);
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
 
 const tokenxEnabled = Boolean(TOKEN_X_ISSUER);
+if (NODE_ENV === "production" && !tokenxEnabled) {
+  throw new Error("TOKEN_X_ISSUER mangler i production. Avslutter for å unngå fail-open auth.");
+}
 if (tokenxEnabled && !EKSPERTBISTAND_API_AUDIENCE) {
   throw new Error("Mangler EKSPERTBISTAND_API_AUDIENCE for TokenX OBO.");
 }
@@ -60,6 +63,7 @@ const cspDirectives = {
   ],
   imgSrc: ["'self'", "data:", "https://*.nav.no"],
   fontSrc: ["'self'", "https://*.nav.no", ...localHttpOrigins],
+  manifestSrc: ["'self'", "https://*.nav.no", ...localHttpOrigins],
   frameSrc: ["'self'", "https://*.nav.no"],
   frameAncestors: ["'none'"],
   objectSrc: ["'none'"],
