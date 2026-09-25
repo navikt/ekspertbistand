@@ -32,6 +32,11 @@ const {
 const port = Number(PORT);
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
 const azureEnabled = Boolean(AZURE_APP_CLIENT_ID);
+if (NODE_ENV === "production" && !azureEnabled) {
+  throw new Error(
+    "AZURE_APP_CLIENT_ID mangler i production. Avslutter for å unngå fail-open auth."
+  );
+}
 
 const app = express();
 const api = express.Router();
@@ -55,6 +60,7 @@ const cspDirectives = {
   ],
   imgSrc: ["'self'", "data:", "https://*.nav.no"],
   fontSrc: ["'self'", "https://*.nav.no", ...localHttpOrigins],
+  manifestSrc: ["'self'", "https://*.nav.no", ...localHttpOrigins],
   frameSrc: ["'self'", "https://*.nav.no"],
   frameAncestors: ["'none'"],
   objectSrc: ["'none'"],
