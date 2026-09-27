@@ -11,7 +11,6 @@ val renderer = DokumentRenderer(resourcePrefix = "dokumentmaler")
 
 val pdfHtml: String  = renderer.renderHtml("soknad", data, Format.PDF)
 val htmlOnly: String = renderer.renderHtml("tilskuddsbrev", data, Format.HTML)
-val fonter: List<Asset> = renderer.assetsForPdf()
 ```
 
 `data` er en `kotlinx.serialization.json.JsonObject`. Adapteren serialiserer sin egen DTO til `JsonObject` før kall.
@@ -21,9 +20,9 @@ val fonter: List<Asset> = renderer.assetsForPdf()
 1. `TemplateRepository.loadTemplate` leser `template.hbs` fra classpath.
 2. `HandlebarsConfig.render` kompilerer og rendrer malen med data. `HtmlEscapingStrategy` HTML-escaper alle `{{verdi}}` og gjør linjeskift om til `<br/>`. Ingen Markdown.
 3. Innpakning i et komplett XHTML-dokument.
-   - `Format.PDF`: `formats/pdf/style.css`, `header.html` og `footer.html` i `<body>`, pluss et `@font-face`-sett som refererer fontene bare med filnavn.
+   - `Format.PDF`: `formats/pdf/style.css`, `header.html` og `footer.html` i `<body>`. Malene bruker DejaVu Sans, som ligger i Gotenberg-containeren.
    - `Format.HTML`: `formats/html/style.css`, uten header og footer.
-4. `GotenbergClient` sender HTML-en og fontene fra `assetsForPdf()` til Gotenberg, som gjør HTML → PDF/A-2b.
+4. `GotenbergClient` sender HTML-en til Gotenberg, som gjør HTML → PDF/A-2b.
 
 ## Escaping og strict mode
 
@@ -31,7 +30,10 @@ val fonter: List<Asset> = renderer.assetsForPdf()
 
 `HandlebarsConfig(strict = true)` kaster `PdfGenerationException` når en mal refererer et felt som mangler helt i dataene. `null`-verdier slipper gjennom. Produksjon kjører uten strict, så et uventet manglende felt gir tom tekst i stedet for en feilet journalføring. `DokumentmalTest` kjører strict og fanger feilene før de når produksjon.
 
+## Fonter
+
+Malene bruker DejaVu Sans via `* { font-family: "DejaVu Sans", … }` i `style.css`. Fonten ligger allerede i Gotenberg-containeren, så vi sender ingen font-filer. Gotenberg lager PDF/A gjennom LibreOffice, som legger om teksten og bytter til en systemfont hvis malfonten mangler. En slik substitusjon endrer tekstbredden og bryter høyremargen. DejaVu Sans finnes for både Chromium og LibreOffice, så begge motorene måler teksten likt.
+
 ## Krav
 
-- `.ttf`-filene ligger under `fonts/` og kopieres som binærressurser.
 - Standard NAV-helpers (`dateFormat`, `norwegian-date`, `add`, `eq`) er registrert.

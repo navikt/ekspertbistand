@@ -43,7 +43,7 @@ fun main() {
                 testdata.forEach { fil ->
                     val data = Json.parseToJsonElement(fil.readText()) as JsonObject
                     val html = renderer.renderHtml(mal.name, data, Format.PDF)
-                    val pdf = client.tilPdfA(html, renderer.assetsForPdf())
+                    val pdf = client.tilPdfA(html)
                     val ut = File(utDir, "${mal.name}-${fil.nameWithoutExtension}.pdf")
                     ut.writeBytes(pdf)
                     println("Skrev ${ut.relativeTo(backendDir)}")

@@ -63,7 +63,7 @@ class DokumentService(
 
     private suspend fun renderPdf(templateName: String, data: JsonObject): ByteArray {
         val html = renderer.renderHtml(templateName, data, Format.PDF)
-        val bytes = semaphore.withPermit { pdfKonverterer.tilPdfA(html, renderer.assetsForPdf()) }
+        val bytes = semaphore.withPermit { pdfKonverterer.tilPdfA(html) }
         check(bytes.hasPdfHeader()) { "Generert dokument for $templateName er ikke en gyldig PDF" }
         return bytes
     }

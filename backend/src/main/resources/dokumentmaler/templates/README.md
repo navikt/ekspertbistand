@@ -7,7 +7,7 @@ Malene her rendres med Handlebars til HTML. Gotenberg (Chromium) gjør HTML-en o
 - Bruk alltid `{{verdi}}`. Handlebars HTML-escaper verdien, og linjeskift blir `<br/>`.
 - Plasser verdier bare som tekstinnhold i elementer: `<td>{{navn}}</td>`, `<p>{{begrunnelse}}</p>`.
 - Skriv lenker som faste `https://`-URL-er direkte i malen.
-- Bruk fontene som finnes (Source Sans Pro) og CSS-en i `formats/pdf/style.css`. Legg justeringer i `formats/pdf/chromium.css`.
+- Bruk fonten som finnes i containeren (DejaVu Sans) og CSS-en i `formats/pdf/style.css`. Legg justeringer i `formats/pdf/chromium.css`.
 - Legg bilder og logoer inn som inline `<svg>` eller `data:`-URI.
 - Legg til eller oppdater `testdata/*.json` når du endrer en mal, med både utfylte og tomme valgfrie felt. Kjør `DokumentmalTest`.
 - Nye felt i malen må også finnes i payloaden fra `DokumentService`. Testen stopper deg ellers.

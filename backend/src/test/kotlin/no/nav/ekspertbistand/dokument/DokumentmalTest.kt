@@ -30,7 +30,6 @@ class DokumentmalTest {
 
     private val templatesDir = File("src/main/resources/dokumentmaler/templates")
     private val strictRenderer = DokumentRenderer(handlebars = HandlebarsConfig("dokumentmaler", strict = true))
-    private val fontFilnavn = strictRenderer.assetsForPdf().map { it.fileName }.toSet()
 
     private fun maler(): List<File> =
         templatesDir.listFiles { f -> f.isDirectory && File(f, "template.hbs").exists() }
@@ -75,9 +74,9 @@ class DokumentmalTest {
         var tilskuddPdfHtml: String? = null
         var arenaHtml: String? = null
 
-        val soknadService = DokumentService(StubPdfKonverterer(onConvert = { h, _ -> soknadHtml = h }), strictRenderer)
-        val tilskuddService = DokumentService(StubPdfKonverterer(onConvert = { h, _ -> tilskuddPdfHtml = h }), strictRenderer)
-        val arenaService = DokumentService(StubPdfKonverterer(onConvert = { h, _ -> arenaHtml = h }), strictRenderer)
+        val soknadService = DokumentService(StubPdfKonverterer(onConvert = { h -> soknadHtml = h }), strictRenderer)
+        val tilskuddService = DokumentService(StubPdfKonverterer(onConvert = { h -> tilskuddPdfHtml = h }), strictRenderer)
+        val arenaService = DokumentService(StubPdfKonverterer(onConvert = { h -> arenaHtml = h }), strictRenderer)
 
         kotlinx.coroutines.runBlocking {
             soknadService.genererSoknadPdf(sampleSoknad())
@@ -120,7 +119,6 @@ class DokumentmalTest {
 
         if (medHeaderFooter) {
             assertTrue(doc.selectFirst("svg#nav_logo") != null, "PDF-varianten skal ha NAV-logoen")
-            fontFaceRefererAssets(doc)
         }
     }
 
@@ -176,18 +174,8 @@ class DokumentmalTest {
         assertTrue(!css.contains("@import"), "CSS skal ikke bruke @import")
         Regex("url\\(\\s*['\"]?([^'\")]+)['\"]?\\s*\\)").findAll(css).forEach { m ->
             val ref = m.groupValues[1].trim()
-            val ok = ref.startsWith("data:") || ref in fontFilnavn
-            assertTrue(ok, "CSS url('$ref') må være data: eller et font-filnavn")
+            assertTrue(ref.startsWith("data:"), "CSS url('$ref') må være en data:-URI")
         }
-    }
-
-    private fun fontFaceRefererAssets(doc: Document) {
-        val css = doc.select("style").joinToString("\n") { it.data() }
-        val refererte = Regex("url\\(\\s*['\"]?([^'\")]+)['\"]?\\s*\\)").findAll(css)
-            .map { it.groupValues[1].trim() }
-            .filter { it in fontFilnavn }
-            .toSet()
-        assertTrue(refererte.containsAll(fontFilnavn), "alle fonter i assetsForPdf skal være referert i @font-face")
     }
 
     private fun ingenTekstErNull(doc: Document) {

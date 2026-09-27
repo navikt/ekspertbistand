@@ -47,7 +47,7 @@ class GotenbergIntegrationTest {
                     DynamicTest.dynamicTest("${mal.name} / ${fil.name}") {
                         val data = Json.parseToJsonElement(fil.readText()) as JsonObject
                         val html = renderer.renderHtml(mal.name, data, Format.PDF)
-                        val pdf = runBlocking { client.tilPdfA(html, renderer.assetsForPdf()) }
+                        val pdf = runBlocking { client.tilPdfA(html) }
 
                         assertTrue(erGyldigPdfA2b(pdf), "${mal.name}/${fil.name} skal være gyldig PDF/A-2b")
                         assertTrue(tekstFra(pdf).isNotBlank(), "${mal.name}/${fil.name} skal ha tekst")
@@ -73,7 +73,7 @@ class GotenbergIntegrationTest {
         """.trimIndent()
 
         try {
-            val pdf = runBlocking { client.tilPdfA(html, emptyList()) }
+            val pdf = runBlocking { client.tilPdfA(html) }
             assertTrue(!tekstFra(pdf).contains("root:"), "PDF-en skal ikke inneholde innhold fra /etc/passwd")
         } catch (_: PdfGenerationException) {
             // Forventet: failOnResourceLoadingFailed gjør at Gotenberg feiler på den eksterne ressursen.

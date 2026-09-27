@@ -51,7 +51,7 @@ ekspertbistand-backend                                   ekspertbistand-gotenber
 │ DokumentService                               │         │ gotenberg/gotenberg:8.37.0 (full)    │
 │   ├─ DTO → JsonObject                         │         │                                      │
 │   ├─ DokumentRenderer (templating-kjerne)     │         │ POST /forms/chromium/convert/html    │
-│   │    Handlebars (HTML) → XHTML-dokument     │ ──────▶ │   index.html + fonter (*.ttf)        │
+│   │    Handlebars (HTML) → XHTML-dokument     │ ──────▶ │   index.html                         │
 │   └─ GotenbergClient ─────────────────────────┤ multipart│   pdfa=PDF/A-2b                      │
 │        (HTML → PDF/A via HTTP)                │ ◀────── │ → application/pdf                    │
 └──────────────────────────────────────────────┘         └──────────────────────────────────────┘
@@ -155,7 +155,7 @@ Den skal være kort, handlingsrettet og skrevet på norsk. Den skal minst dekke 
 - Bruk alltid `{{verdi}}`. Handlebars HTML-escaper verdien, og linjeskift blir `<br/>`.
 - Plasser verdier bare som **tekstinnhold** i elementer (`<td>{{navn}}</td>`, `<p>{{begrunnelse}}</p>`).
 - Skriv lenker som faste `https://`-URL-er direkte i malen.
-- Bruk fontene som finnes (Source Sans Pro) og CSS-en i `formats/pdf/style.css`. Legg justeringer i `formats/pdf/chromium.css`.
+- Bruk fonten som finnes i containeren (DejaVu Sans) og CSS-en i `formats/pdf/style.css`. Legg justeringer i `formats/pdf/chromium.css`.
 - Bilder og logoer legges inn som inline `<svg>` eller `data:`-URI.
 - Legg til eller oppdater `testdata/*.json` når du endrer en mal, med både utfylte og tomme valgfrie felt. Kjør `DokumentmalTest`.
 - Nye felt i malen må også finnes i payloaden fra `DokumentService`. Testen stopper deg ellers.
@@ -196,9 +196,8 @@ I tillegg:
 - `renderHtml(templateName, data, format: Format)` der `Format` er `PDF` eller `HTML`. Returnerer et komplett XHTML-dokument.
   - Pipeline: `TemplateRepository.loadTemplate` → `HandlebarsConfig.render` → innpakning. Ingen Markdown.
   - For `PDF`: `formats/pdf/style.css`, `header.html` og `footer.html` pakkes inn i `<body>` som i dag (NAV-logoen er inline SVG i `#header`).
-    I tillegg kommer et `@font-face`-blokk som refererer fontene **bare med filnavn** (`src: url('SourceSansPro-Regular.ttf')`), ett per vekt og stil.
+    Malene bruker DejaVu Sans, en font som ligger i Gotenberg-containeren. Ingen `@font-face` og ingen medsendte font-filer.
   - For `HTML`: `formats/html/style.css`, uten header og footer.
-- `assetsForPdf(): List<Asset>` returnerer fontene fra `TemplateRepository.fonts` som `Asset(fileName, bytes, contentType = "font/ttf")`.
 
 ### 3. GotenbergClient
 
@@ -207,7 +206,6 @@ I tillegg:
 | Del | Verdi |
 |---|---|
 | fil `index.html` | XHTML fra `DokumentRenderer` |
-| filer `SourceSansPro-*.ttf` | fra `assetsForPdf()`. Refereres fra `@font-face` med filnavn. Gotenberg legger alle filer i samme katalog. |
 | `paperWidth` / `paperHeight` | `8.27in` / `11.69in` (A4) |
 | `marginTop` / `marginRight` / `marginBottom` / `marginLeft` | tilsvarende dagens `@page { margin: 64px 64px 74px 64px }`. Se §5 om enheter. |
 | `preferCssPageSize` | `false` (A4 styres av skjemafeltene, ikke av `@page`) |
@@ -274,7 +272,7 @@ Uten Markdown er HTML-escapingen i Handlebars det eneste som står mellom bruker
   Skjemamargene tilsvarer `@page`-margen (64 pt topp/sider, 74 pt bunn) omregnet til tommer (0.889in / 1.028in), og A4 settes via skjemafeltene med `preferCssPageSize=false`.
   `.td02`/`.td03` (etikettkolonnene i tabellene) trenger ingen egne bredder: en nøytral basisregel `td:not(:last-child) { padding-right: 16pt }` gir kolonne-gap, og `table-layout: auto` størrelser etikettkolonnen etter innholdet. Lange etiketter brytes naturlig.
   - Akseptkriteriet er visuell sammenligning med dagens dokgen-PDF for alle `testdata/*.json` (se §7.2). `RenderDokumentmaler` og `RenderDokumentmalerDokgenLokal` skriver PDF-er med like filnavn for diff.
-- **Fonter:** Chromium bruker bare fonter som er sendt med og referert i `@font-face`. `* { font-family: "Source Sans Pro" … !important }` i `style.css` står fast.
+- **Fonter:** Malene bruker DejaVu Sans, en font som ligger i Gotenberg-containeren for både Chromium og LibreOffice. Vi sender ingen font-filer og bruker ikke `@font-face`. Grunnen: PDF/A-konverteringen går gjennom LibreOffice, som legger om teksten og bytter til en systemfont hvis malfonten mangler. En substitusjon endrer tekstbredden og kan skyve teksten ut i høyremargen. Når begge motorene løser til samme systemfont, måler de teksten likt. `* { font-family: "DejaVu Sans", sans-serif !important }` i `style.css` står fast.
 - **PDF/A via LibreOffice:** LibreOffice rasteriserer tabellceller med bakgrunnsfarge. Sjekk at malene ikke har bakgrunnsfarge på celler, eller godta at de blir rasterisert.
 - **Header og footer:** Dagens `header.html` og `footer.html` er vanlig innhold i `<body>`, ikke Chromium-header og -footer. Send dem **ikke** som `header.html`/`footer.html`-filer til Gotenberg.
   Chromium-header og -footer kan bare bruke systemfonter og inline data.
@@ -384,9 +382,8 @@ Testen kaller **ikke** Gotenberg. Den validerer HTML-en fra `DokumentRenderer.re
   | Hva | Krav |
   |---|---|
   | `src` / `href` på `img`, `link`, `script`, `iframe`, `frame`, `embed`, `object`, `source`, `video`, `audio`, `input`, `use` | Ikke tillatt, med unntak av `data:`-URI-er. `<script>`, `<iframe>`, `<object>`, `<embed>` og `<link rel="stylesheet">` skal ikke finnes i det hele tatt. |
-  | CSS `url(…)` i `<style>` og `style`-attributter | Bare `data:`-URI-er eller filnavn som finnes i `DokumentRenderer.assetsForPdf()` (fontene). Relative stier, `/…`, `http(s):` og `file:` gir feil. |
+  | CSS `url(…)` i `<style>` og `style`-attributter | Bare `data:`-URI-er. Relative stier, `/…`, `http(s):` og `file:` gir feil. |
   | CSS `@import` | Ikke tillatt |
-  | `@font-face` | Hver `font-family`/`font-weight`/`font-style` som brukes, peker på et filnavn i `assetsForPdf()`, og hver font i `assetsForPdf()` er referert. |
   | `<a href>` | Bare absolutte `https://`-URL-er, og bare slike som står fast i malen. Ingen `javascript:`, `data:`, `file:` eller relative lenker. |
   | `id`-referanser (`href="#…"`, `xlink:href="#…"` i SVG) | Må peke på en `id` som finnes i dokumentet |
 

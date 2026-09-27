@@ -13,7 +13,6 @@ import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import no.nav.ekspertbistand.dokument.pdf.Asset
 import no.nav.ekspertbistand.dokument.pdf.PdfGenerationException
 import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
@@ -58,7 +57,7 @@ class GotenbergClient(
         }
     }
 
-    override suspend fun tilPdfA(html: String, assets: List<Asset>): ByteArray {
+    override suspend fun tilPdfA(html: String): ByteArray {
         val response: HttpResponse = httpClient.submitFormWithBinaryData(
             url = "$baseUrl/forms/chromium/convert/html",
             formData = formData {
@@ -70,16 +69,6 @@ class GotenbergClient(
                         append(HttpHeaders.ContentDisposition, "filename=\"index.html\"")
                     },
                 )
-                assets.forEach { asset ->
-                    append(
-                        "files",
-                        asset.bytes,
-                        Headers.build {
-                            append(HttpHeaders.ContentType, asset.contentType)
-                            append(HttpHeaders.ContentDisposition, "filename=\"${asset.fileName}\"")
-                        },
-                    )
-                }
                 append("paperWidth", "8.27in")
                 append("paperHeight", "11.69in")
                 // Malene bruker fysiske pt-enheter (dpi-uavhengig). Marginene tilsvarer @page-margin

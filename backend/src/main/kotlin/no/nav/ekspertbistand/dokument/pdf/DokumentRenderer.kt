@@ -12,9 +12,9 @@ enum class Format { PDF, HTML }
  * Pipeline: [TemplateRepository.loadTemplate] → [HandlebarsConfig.render] → innpakning. Ingen
  * Markdown. Malene er ren HTML med Handlebars-uttrykk.
  *
- * For [Format.PDF] pakkes `formats/pdf/style.css`, `header.html` og `footer.html` inn i `<body>`,
- * pluss et `@font-face`-sett som refererer fontene **bare med filnavn** slik at Gotenberg finner
- * dem i samme katalog. For [Format.HTML] brukes `formats/html/style.css` uten header/footer.
+ * For [Format.PDF] pakkes `formats/pdf/style.css`, `header.html` og `footer.html` inn i `<body>`.
+ * Malene bruker DejaVu Sans (systemfont i Gotenberg), så ingen fonter embeddes. For [Format.HTML]
+ * brukes `formats/html/style.css` uten header/footer.
  */
 class DokumentRenderer(
     resourcePrefix: String = "dokumentmaler",
@@ -26,29 +26,13 @@ class DokumentRenderer(
             val templateSource = templates.loadTemplate(templateName)
             val content = handlebars.render(templateName, templateSource, data)
             when (format) {
-                Format.PDF -> wrap(content, templates.pdfCss + "\n" + fontFaceCss(), templates.pdfHeader, templates.pdfFooter)
+                Format.PDF -> wrap(content, templates.pdfCss, templates.pdfHeader, templates.pdfFooter)
                 Format.HTML -> wrap(content, templates.htmlCss, header = "", footer = "")
             }
         } catch (e: PdfGenerationException) {
             throw e
         } catch (e: Exception) {
             throw PdfGenerationException("Klarte ikke å rendre mal '$templateName' til $format", e)
-        }
-
-    /** Fontene som må sendes med til PDF-konverteringen, referert fra `@font-face` med filnavn. */
-    fun assetsForPdf(): List<Asset> =
-        templates.fonts.map { Asset(fileName = it.fileName, bytes = it.bytes, contentType = "font/ttf") }
-
-    private fun fontFaceCss(): String =
-        templates.fonts.joinToString("\n") { font ->
-            """
-            @font-face {
-                font-family: "${font.family}";
-                src: url('${font.fileName}');
-                font-weight: ${font.weight};
-                font-style: ${if (font.italic) "italic" else "normal"};
-            }
-            """.trimIndent()
         }
 
     private fun wrap(content: String, css: String, header: String, footer: String): String =

@@ -15,7 +15,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.io.readByteArray
-import no.nav.ekspertbistand.dokument.pdf.Asset
 import no.nav.ekspertbistand.dokument.pdf.PdfGenerationException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
@@ -32,7 +31,7 @@ class GotenbergClientTest {
     private fun client(engine: MockEngine) = GotenbergClient(HttpClient(engine))
 
     @Test
-    fun `sender html og fonter som multipart med skjemafeltene fra spec`() = runTest {
+    fun `sender html som multipart med skjemafeltene fra spec`() = runTest {
         var body: String? = null
         val engine = MockEngine { request ->
             body = request.body.readAllBytes().toString(Charsets.ISO_8859_1)
@@ -40,15 +39,11 @@ class GotenbergClientTest {
             respond(content = pdfBytes, headers = pdfHeaders)
         }
 
-        val result = client(engine).tilPdfA(
-            html = "<html><body>hei</body></html>",
-            assets = listOf(Asset("SourceSansPro-Regular.ttf", byteArrayOf(1, 2, 3), "font/ttf")),
-        )
+        val result = client(engine).tilPdfA(html = "<html><body>hei</body></html>")
 
         assertContentEquals(pdfBytes, result)
         val multipart = requireNotNull(body)
         assertTrue(multipart.contains("filename=\"index.html\""), "HTML skal sendes som index.html")
-        assertTrue(multipart.contains("filename=\"SourceSansPro-Regular.ttf\""), "fonter skal sendes med")
         assertTrue(multipart.contains("PDF/A-2b"), "pdfa-feltet skal be om PDF/A-2b")
         assertTrue(multipart.contains("8.27in"), "paperWidth skal settes")
         assertTrue(multipart.contains("failOnResourceLoadingFailed"), "skal feile på ressurslasting")
@@ -65,7 +60,7 @@ class GotenbergClientTest {
             }
         }
 
-        val result = client(engine).tilPdfA("<html/>", emptyList())
+        val result = client(engine).tilPdfA("<html/>")
 
         assertContentEquals(pdfBytes, result)
         assertEquals(2, forsok.get(), "skal ha gjort ett nytt forsøk etter 503")
@@ -80,7 +75,7 @@ class GotenbergClientTest {
         }
 
         assertFailsWith<PdfGenerationException> {
-            client(engine).tilPdfA("<html/>", emptyList())
+            client(engine).tilPdfA("<html/>")
         }
         assertEquals(1, forsok.get(), "skal ikke gjøre nye forsøk på 400")
     }
@@ -92,7 +87,7 @@ class GotenbergClientTest {
         }
 
         assertFailsWith<PdfGenerationException> {
-            client(engine).tilPdfA("<html/>", emptyList())
+            client(engine).tilPdfA("<html/>")
         }
     }
 
@@ -106,7 +101,7 @@ class GotenbergClientTest {
         }
 
         assertFailsWith<PdfGenerationException> {
-            client(engine).tilPdfA("<html/>", emptyList())
+            client(engine).tilPdfA("<html/>")
         }
     }
 }
