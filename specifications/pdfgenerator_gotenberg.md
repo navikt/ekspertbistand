@@ -268,12 +268,12 @@ Uten Markdown er HTML-escapingen i Handlebars det eneste som står mellom bruker
 
 ### 5. Visuell likhet: kjente fallgruver
 
-- **Enheter:** `style.css` har `@page { size: 595px 842px }`. Det er A4 målt i **punkter**, fordi openhtmltopdf i dokgen tolker px omtrent som pt.
-  I Chromium er 1 px = 0,75 pt, så CSS-en ville gitt en for liten side. Derfor `preferCssPageSize=false` og A4 via skjemafeltene.
-  Tekst og marger i px blir da relativt mindre enn i dagens PDF-er.
-  - Start med `scale=1.333` (Gotenberg-feltet `scale`) og marger omregnet fra dagens verdier.
-  - Alternativt: en egen `formats/pdf/chromium.css` som overstyrer px-verdier. Ikke endre `style.css`, som deles med `dokgen/` til den er fjernet.
-  - Akseptkriteriet er visuell sammenligning med dagens dokgen-PDF for alle `testdata/*.json` (se §7.2).
+- **Enheter (løst):** `style.css` brukte `@page { size: 595px 842px }`, altså A4 målt i **punkter**, fordi openhtmltopdf i dokgen tolker px omtrent som pt.
+  Chromium tolker 1 px = 1/96 tomme, så px-verdiene ga for liten tekst og for mye luft.
+  Løsningen er nøytral: PDF-CSS-en (`formats/pdf/style.css`) og de to inline-stilene i malene bruker nå fysiske `pt`-enheter, som er dpi-uavhengige i Chromium. Ingen `scale`-triks.
+  Skjemamargene tilsvarer `@page`-margen (64 pt topp/sider, 74 pt bunn) omregnet til tommer (0.889in / 1.028in), og A4 settes via skjemafeltene med `preferCssPageSize=false`.
+  `.td02`/`.td03` (etikettkolonnene i tabellene) trenger ingen egne bredder: en nøytral basisregel `td:not(:last-child) { padding-right: 16pt }` gir kolonne-gap, og `table-layout: auto` størrelser etikettkolonnen etter innholdet. Lange etiketter brytes naturlig.
+  - Akseptkriteriet er visuell sammenligning med dagens dokgen-PDF for alle `testdata/*.json` (se §7.2). `RenderDokumentmaler` og `RenderDokumentmalerDokgenLokal` skriver PDF-er med like filnavn for diff.
 - **Fonter:** Chromium bruker bare fonter som er sendt med og referert i `@font-face`. `* { font-family: "Source Sans Pro" … !important }` i `style.css` står fast.
 - **PDF/A via LibreOffice:** LibreOffice rasteriserer tabellceller med bakgrunnsfarge. Sjekk at malene ikke har bakgrunnsfarge på celler, eller godta at de blir rasterisert.
 - **Header og footer:** Dagens `header.html` og `footer.html` er vanlig innhold i `<body>`, ikke Chromium-header og -footer. Send dem **ikke** som `header.html`/`footer.html`-filer til Gotenberg.

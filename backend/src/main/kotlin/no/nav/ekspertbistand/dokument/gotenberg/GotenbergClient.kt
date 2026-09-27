@@ -82,10 +82,12 @@ class GotenbergClient(
                 }
                 append("paperWidth", "8.27in")
                 append("paperHeight", "11.69in")
-                append("marginTop", "0.667in")
-                append("marginBottom", "0.771in")
-                append("marginLeft", "0.667in")
-                append("marginRight", "0.667in")
+                // Malene bruker fysiske pt-enheter (dpi-uavhengig). Marginene tilsvarer @page-margin
+                // i PDF-CSS-en (64pt topp/sider, 74pt bunn), omregnet til tommer.
+                append("marginTop", "0.889in")
+                append("marginBottom", "1.028in")
+                append("marginLeft", "0.889in")
+                append("marginRight", "0.889in")
                 append("preferCssPageSize", "false")
                 append("printBackground", "true")
                 append("pdfa", "PDF/A-2b")
