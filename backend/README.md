@@ -11,6 +11,34 @@ Backend applikasjonen består av et rest endepunkt, en database for lagring av s
 Løsningen er utviklet i kotlin med ktor og bruker postgresql for datalagring. Forretningslogikk er frakoblet fra rest endepunktet via en Event sourcing arkitektur, hvor rest endepunktet kun er ansvarlig for å motta og validere søknader, og deretter trigge hendelser som håndteres av separate event handlers som inneholder all forretningslogikk.
 se [egen README.md](src/main/kotlin/no/nav/ekspertbistand/event/README.md) for mer informasjon om denne arkitekturen.
 
+## Dokumentgenerering (PDF)
+
+Søknads-PDF, tilskuddsbrev og arena-notat rendres fra Handlebars-maler til HTML og konverteres til PDF/A-2b av `ekspertbistand-gotenberg` (Gotenberg/Chromium). `DokumentService` er domeneadapteren, `DokumentRenderer` er den domeneuavhengige templating-kjernen, og `GotenbergClient` gjør HTML → PDF.
+
+- Maler og regler for dem: [`dokumentmaler/templates/README.md`](src/main/resources/dokumentmaler/templates/README.md).
+- Templating-kjernen: [`dokument/pdf/README.md`](src/main/kotlin/no/nav/ekspertbistand/dokument/pdf/README.md).
+
+### Lokal kjøring og tester
+
+Start Postgres og Gotenberg før `mvn verify`, på samme måte som Postgres-testene:
+
+```bash
+docker compose -f backend/docker-compose.yml up -d
+mvn -f backend/pom.xml verify
+```
+
+Testene når Gotenberg på `http://localhost:3003`. I CI kjører Gotenberg som service-container i `cicd-backend.yaml`. Testcontainers brukes ikke.
+
+### Visuell sammenligning
+
+`no.nav.ekspertbistand.executables.RenderDokumentmaler` rendrer alle `testdata/*.json` via lokal Gotenberg til `backend/target/dokumentmaler-preview/gotenberg/`. Legg dagens dokgen-PDF-er (fra lokal dokgen på port 9000) i `backend/target/dokumentmaler-preview/dokgen/` ved siden av, så kan de sammenlignes manuelt.
+
+```bash
+docker compose -f backend/docker-compose.yml up -d gotenberg
+mvn -f backend/pom.xml -q exec:java -Dexec.mainClass=no.nav.ekspertbistand.executables.RenderDokumentmalerKt -Dexec.classpathScope=test
+```
+
+
 
 ## Ny løsning for Ekspertbistand
 

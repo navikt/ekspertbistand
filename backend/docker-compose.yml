@@ -16,3 +16,15 @@ services:
       - "9000:8080"
     environment:
       SPRING_PROFILES_ACTIVE: dev
+
+  gotenberg:
+    image: gotenberg/gotenberg:8.37.0
+    ports:
+      - "3003:3000"
+    environment:        # samme verdier som i nais (§4.2)
+      CHROMIUM_DISABLE_JAVASCRIPT: "true"
+      CHROMIUM_ALLOW_LIST: "^file:///tmp/.*"
+      API_DISABLE_DOWNLOAD_FROM: "true"
+      WEBHOOK_DISABLE: "true"
+      LIBREOFFICE_DISABLE_ROUTES: "true"
+      CHROMIUM_MAX_CONCURRENCY: "2"

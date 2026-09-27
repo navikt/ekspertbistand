@@ -5,7 +5,7 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
 import no.nav.ekspertbistand.dokarkiv.Sak
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -22,7 +22,7 @@ import no.nav.ekspertbistand.event.EventHandler
  * Denne handleren oppretter da et notat i gosys med hvilket saksnummer som er opprettet i Arena
  */
 class JournalfoerNotatArenaSakOpprettet(
-    private val dokgenClient: DokgenClient,
+    private val dokumentService: DokumentService,
     private val dokArkivClient: DokArkivClient,
     private val fagsakIdService: FagsakIdService,
 ) : EventHandler<EventData.TiltaksgjennomforingOpprettet> {
@@ -38,7 +38,7 @@ class JournalfoerNotatArenaSakOpprettet(
         }
 
         val notatPdf = try {
-            dokgenClient.genererArenaNotatPdf(event.data.saksnummer, event.data.tiltaksgjennomfoeringId.toString())
+            dokumentService.genererArenaNotatPdf(event.data.saksnummer, event.data.tiltaksgjennomfoeringId.toString())
         } catch (e: Exception) {
             return transientError("Klarte ikke generere notat-PDF", e)
         }

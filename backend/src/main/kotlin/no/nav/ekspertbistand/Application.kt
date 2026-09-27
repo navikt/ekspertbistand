@@ -33,7 +33,9 @@ import no.nav.ekspertbistand.arena.startKafkaConsumers
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
+import no.nav.ekspertbistand.dokument.gotenberg.GotenbergClient
+import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
@@ -86,7 +88,8 @@ fun main() {
 
             provide(AltinnTilgangerClient::class)
             provide(ClamAvClient::class)
-            provide(DokgenClient::class)
+            provide<PdfKonverterer>(GotenbergClient::class)
+            provide<DokumentService> { DokumentService(resolve()) }
             provide(DokArkivClient::class)
             provide(EregClient::class)
             provide(EregService::class)

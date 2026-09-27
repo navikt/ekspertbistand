@@ -14,7 +14,8 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.configureServer
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
+import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
@@ -32,6 +33,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class TilskuddsbrevHtmlApiTest {
     @Test
@@ -57,15 +59,7 @@ class TilskuddsbrevHtmlApiTest {
             defaultHttpClient = client,
             tokenExchanger = successTokenXTokenExchanger
         )
-        val dokgenClient = DokgenClient(
-            defaultHttpClient = HttpClient(MockEngine {
-                respond(
-                    content = ByteReadChannel("<html>Mock tilskuddsbrev</html>"),
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(HttpHeaders.ContentType, ContentType.Text.Html.toString())
-                )
-            }),
-        )
+        val dokumentService = DokumentService(StubPdfKonverterer())
         application {
             dependencies {
                 provide {
@@ -80,7 +74,7 @@ class TilskuddsbrevHtmlApiTest {
                     altinnTilgangerClient
                 }
                 provide {
-                    dokgenClient
+                    dokumentService
                 }
             }
 
@@ -103,7 +97,7 @@ class TilskuddsbrevHtmlApiTest {
             body<List<TilskuddsbrevHtml>>().also { htmlList ->
                 assertEquals(1, htmlList.size)
                 assertEquals("1337:42:43", htmlList.first().tilsagnNummer)
-                assertEquals("<html>Mock tilskuddsbrev</html>", htmlList.first().html)
+                assertTrue(htmlList.first().html.contains("Dere har fått innvilget tilskudd til ekspertbistand"))
             }
         }
 
@@ -114,7 +108,7 @@ class TilskuddsbrevHtmlApiTest {
             assertEquals(HttpStatusCode.OK, status)
             body<TilskuddsbrevHtml>().also { tilskuddsbrev ->
                 assertEquals("1337:42:43", tilskuddsbrev.tilsagnNummer)
-                assertEquals("<html>Mock tilskuddsbrev</html>", tilskuddsbrev.html)
+                assertTrue(tilskuddsbrev.html.contains("Dere har fått innvilget tilskudd til ekspertbistand"))
             }
         }
 

@@ -11,7 +11,8 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostDokument
 import no.nav.ekspertbistand.dokarkiv.OpprettJournalpostResponse
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
+import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -32,7 +33,6 @@ class JournalfoerTilskuddsbrevKildeAltinnTest {
     fun `handler journalforer og produserer TilskuddsbrevJournalfoertKildeAltinn-event`() =
         testApplicationWithDatabase {
             val database = it.config.jdbcDatabase
-            mockDokgen("%PDF-mock".toByteArray())
             mockDokArkiv {
                 OpprettJournalpostResponse(
                     dokumenter = listOf(OpprettJournalpostDokument("9876")),
@@ -69,7 +69,6 @@ class JournalfoerTilskuddsbrevKildeAltinnTest {
     @Test
     fun `idempotency guard hindrer duplikat ved retry`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
-        mockDokgen("%PDF-mock".toByteArray())
         mockDokArkiv {
             OpprettJournalpostResponse(
                 dokumenter = listOf(OpprettJournalpostDokument("9876")),
@@ -176,7 +175,7 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide<AzureAdTokenProvider> {
                 successAzureAdTokenProvider
             }
-            provide(DokgenClient::class)
+            provide { DokumentService(StubPdfKonverterer()) }
             provide(DokArkivClient::class)
             provide(JournalfoerTilskuddsbrevKildeAltinn::class)
             provide(FagsakIdService::class)
@@ -185,15 +184,3 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
 }
 
 
-private fun ApplicationTestBuilder.mockDokgen(pdf: ByteArray) {
-    externalServices {
-        hosts("http://localhost:9000") {
-            routing {
-                post("/template/tilskuddsbrev/create-pdf") {
-                    val contentType = ContentType.Application.Pdf
-                    call.respondBytes(pdf, contentType)
-                }
-            }
-        }
-    }
-}
