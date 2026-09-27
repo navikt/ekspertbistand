@@ -31,11 +31,12 @@ Testene når Gotenberg på `http://localhost:3003`. I CI kjører Gotenberg som s
 
 ### Visuell sammenligning
 
-`no.nav.ekspertbistand.executables.RenderDokumentmaler` rendrer alle `testdata/*.json` via lokal Gotenberg til `backend/target/dokumentmaler-preview/gotenberg/`. Legg dagens dokgen-PDF-er (fra lokal dokgen på port 9000) i `backend/target/dokumentmaler-preview/dokgen/` ved siden av, så kan de sammenlignes manuelt.
+`no.nav.ekspertbistand.executables.RenderDokumentmaler` rendrer alle `testdata/*.json` via lokal Gotenberg til `backend/target/dokumentmaler-preview/gotenberg/`. `RenderDokumentmalerDokgenLokal` henter de samme malene fra lokal dokgen (port 9000) til `backend/target/dokumentmaler-preview/dokgen/`. Filnavnene er like i begge mappene, så PDF-ene kan legges side om side eller diffes.
 
 ```bash
-docker compose -f backend/docker-compose.yml up -d gotenberg
+docker compose -f backend/docker-compose.yml up -d gotenberg dokgen
 mvn -f backend/pom.xml -q exec:java -Dexec.mainClass=no.nav.ekspertbistand.executables.RenderDokumentmalerKt -Dexec.classpathScope=test
+mvn -f backend/pom.xml -q exec:java -Dexec.mainClass=no.nav.ekspertbistand.executables.RenderDokumentmalerDokgenLokalKt -Dexec.classpathScope=test
 ```
 
 

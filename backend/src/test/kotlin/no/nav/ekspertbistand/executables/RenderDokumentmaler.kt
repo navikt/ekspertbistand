@@ -19,8 +19,8 @@ import java.io.File
  * ```
  * docker compose -f backend/docker-compose.yml up -d gotenberg
  * ```
- * Legg dagens dokgen-PDF-er (fra lokal dokgen på port 9000) i `dokumentmaler-preview/dokgen/` ved
- * siden av for å sammenligne. Kan kjøres fra repo-roten eller fra `backend/`.
+ * Legg dagens dokgen-PDF-er ved siden av ved å kjøre [RenderDokumentmalerDokgenLokal] (henter fra
+ * lokal dokgen på port 9000 til `dokumentmaler-preview/dokgen/`). Kan kjøres fra repo-roten eller fra `backend/`.
  */
 fun main() {
     val backendDir = listOf(File("backend"), File("."))
