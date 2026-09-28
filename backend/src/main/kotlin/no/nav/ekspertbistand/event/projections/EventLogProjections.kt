@@ -128,6 +128,7 @@ suspend fun Application.configureProjectionBuilders() {
         // register all projection builders here
         dependencies.create(TilskuddsbrevVistProjection::class),
         dependencies.create(SoknadBehandletForsinkelseProjection::class),
+        dependencies.create(SakProjection::class),
     )
 
     projectionBuilders.forEach { builder ->

@@ -49,6 +49,7 @@ flowchart TD
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
     h_VarsleArbeidsgiverSoknadMottatt["VarsleArbeidsgiverSoknadMottatt"]:::handler
+    p_SakProjection[["SakProjection"]]:::projection
     p_SoknadBehandletForsinkelseProjection[["SoknadBehandletForsinkelseProjection"]]:::projection
     p_TilskuddsbrevVistProjection[["TilskuddsbrevVistProjection"]]:::projection
 
@@ -78,6 +79,12 @@ flowchart TD
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn
     e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottatt
+    e_InnsendtSoknadJournalfoert -.-> p_SakProjection
+    e_SaksbehandlingStartetIArena -.-> p_SakProjection
+    e_SoknadAvlystIArena -.-> p_SakProjection
+    e_SoknadInnsendt -.-> p_SakProjection
+    e_TilskuddsbrevMottatt -.-> p_SakProjection
+    e_TiltaksgjennomforingOpprettet -.-> p_SakProjection
     e_SoknadAvlystIArena -.-> p_SoknadBehandletForsinkelseProjection
     e_SoknadInnsendt -.-> p_SoknadBehandletForsinkelseProjection
     e_TilskuddsbrevMottatt -.-> p_SoknadBehandletForsinkelseProjection
