@@ -1,21 +1,21 @@
-import { CheckmarkCircleFillIcon, ArrowLeftIcon } from "@navikt/aksel-icons";
+import { ArrowLeftIcon, CheckmarkCircleIcon, ChevronRightIcon } from "@navikt/aksel-icons";
 import {
+  Accordion,
   BodyLong,
   BodyShort,
-  Accordion,
   Box,
   CopyButton,
-  Detail,
   HGrid,
   HStack,
   Heading,
   Label,
   Link,
   Loader,
-  Page,
+  Tabs,
   Tag,
   VStack,
 } from "@navikt/ds-react";
+import { useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
 import { NavLink, useParams } from "react-router";
 import { DataRad, InfoKort } from "../components/InfoKort";
@@ -33,21 +33,31 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
+function Spørsmål({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <VStack gap="space-4">
+      <Label as="h3">{label}</Label>
+      {children}
+    </VStack>
+  );
+}
+
+type Fane = "vilkarsvurdering" | "forelopig-vedtak";
+
 export default function SakPage() {
   const { sakId } = useParams<{ sakId: string }>();
   const { sak, error, isLoading } = useSak(sakId ?? "");
   const { lagreVurdering, isSaving, error: lagreError } = useVilkårsvurdering(sakId ?? "");
+  const [fane, setFane] = useState<Fane>("vilkarsvurdering");
 
   if (isLoading) return <Loader size="large" title="Laster sak" />;
   if (error || !sak) return <Tag variant="error">Kunne ikke hente saken.</Tag>;
 
   const { deltaker, arbeidsgiver, ekspert, situasjon, ekspertbistand, vilkår } = sak;
-  const antallVurdert = vilkår.filter((v) => v.vurdering.status !== "ikke_vurdert").length;
 
   return (
     <>
-      {/* Navn-linje: grå bakgrunn */}
-      <Box background="soft" paddingBlock="space-12" paddingInline="space-32">
+      <Box background="soft" paddingBlock="space-8" paddingInline="space-24">
         <HStack gap="space-8" align="center">
           <BodyShort weight="semibold">
             {deltaker.navn} ({deltaker.alder} år)
@@ -59,37 +69,35 @@ export default function SakPage() {
         </HStack>
       </Box>
 
-      {/* Breadcrumb-linje: hvit bakgrunn */}
       <Box
         background="default"
-        paddingBlock="space-8"
-        paddingInline="space-32"
+        paddingBlock="space-12"
+        paddingInline="space-24"
         borderWidth="0 0 1 0"
         borderColor="neutral-subtle"
       >
-        <Link as={NavLink} to={OVERSIKT_PATH}>
-          <HStack gap="space-4" align="center">
-            <ArrowLeftIcon aria-hidden />
+        <Link as={NavLink} to={OVERSIKT_PATH} underline={false}>
+          <ArrowLeftIcon aria-hidden />
+          <BodyShort as="span" weight="semibold">
             Tilbake til liste av saker
-          </HStack>
+          </BodyShort>
         </Link>
       </Box>
 
-      {/* 3-kolonne layout med dragbare skillelinjer */}
-      <Page.Block gutters as="main">
-        <Box paddingBlock="space-24">
-          <Group orientation="horizontal" style={{ minHeight: "calc(100vh - 200px)" }}>
-            {/* Venstre kolonne */}
-            <Panel defaultSize={22} minSize={15}>
-              <VStack gap="space-16">
+      <main>
+        <Group orientation="horizontal" style={{ minHeight: "calc(100vh - 160px)" }}>
+          {/* Venstre kolonne */}
+          <Panel defaultSize={25} minSize={15}>
+            <Box padding="space-16" paddingBlock="space-32">
+              <VStack gap="space-32">
                 <InfoKort tittel="Arbeidsgiver">
-                  <HGrid columns="repeat(auto-fit, minmax(120px, 1fr))" gap="space-12">
+                  <HGrid columns="repeat(auto-fit, minmax(160px, 1fr))" gap="space-8 space-16">
                     <DataRad label="Navn" value={arbeidsgiver.navn} />
                     <DataRad label="Kontaktperson" value={arbeidsgiver.kontaktperson} />
                     <DataRad label="Org.nr" value={arbeidsgiver.orgNr} />
                     <DataRad label="E-post" value={arbeidsgiver.epost} />
                     <DataRad
-                      label="Beliggenhetssadresse"
+                      label="Beliggenhetsadresse"
                       value={arbeidsgiver.beliggenhetssadresse}
                     />
                     <DataRad label="Telefon" value={arbeidsgiver.telefon} />
@@ -97,9 +105,22 @@ export default function SakPage() {
                 </InfoKort>
 
                 <InfoKort tittel="Deltakere">
-                  <VStack gap="space-8">
-                    <DataRad label="Navn" value={deltaker.navn} />
-                    <HStack gap="space-8" wrap>
+                  <HGrid columns="repeat(auto-fit, minmax(160px, 1fr))" gap="space-8 space-16">
+                    <VStack gap="space-8">
+                      <DataRad label="Navn" value={deltaker.navn} />
+                      <DataRad label="Fødselsnummer" value={deltaker.fnr} />
+                      <VStack gap="space-2">
+                        <Label>Arbeidsforhold</Label>
+                        <Link href="#" target="_blank">
+                          <CheckmarkCircleIcon
+                            aria-hidden
+                            style={{ color: "var(--ax-text-success-decoration)" }}
+                          />
+                          Se Aa-registret
+                        </Link>
+                      </VStack>
+                    </VStack>
+                    <VStack gap="space-12">
                       <Link href={`${MODIA_URL}/sykefravær`} target="modia">
                         Sykefraværshistorikk
                       </Link>
@@ -107,118 +128,81 @@ export default function SakPage() {
                         Personoversikt - Modia
                       </Link>
                       <Link href={`${MODIA_URL}/aktivitetsplan`} target="modia">
-                        Aktivitesplan - Modia
+                        Aktivitetsplan - Modia
                       </Link>
                       <Link href={GOSYS_URL} target="gosys">
                         Gosys - personmappe
                       </Link>
-                    </HStack>
-                    <DataRad label="Fødselnummer" value={deltaker.fnr} />
-                    <VStack gap="space-2">
-                      <Label size="small">Arbeidsforhold</Label>
-                      <Link href="#" target="_blank">
-                        <HStack gap="space-4" align="center">
-                          <CheckmarkCircleFillIcon
-                            aria-hidden
-                            style={{ color: "var(--ax-color-success-icon)" }}
-                          />
-                          Se Aa-registret
-                        </HStack>
-                      </Link>
                     </VStack>
-                  </VStack>
+                  </HGrid>
                 </InfoKort>
 
                 <InfoKort tittel="Ekspert">
-                  <HGrid columns="repeat(auto-fit, minmax(120px, 1fr))" gap="space-12">
+                  <VStack gap="space-8">
                     <DataRad label="Navn" value={ekspert.navn} />
+                    <DataRad label="Godkjent utdanning/autorisasjon" value={ekspert.kompetanse} />
                     <DataRad label="Tilknyttet virksomhet" value={ekspert.tilknyttetVirksomhet} />
-                    <DataRad label="Kompetanse/authorisasjon" value={ekspert.kompetanse} />
-                    <DataRad label="Org.nr" value={ekspert.orgNr} />
-                  </HGrid>
+                    <DataRad label="Org.nr." value={ekspert.orgNr} />
+                  </VStack>
                 </InfoKort>
               </VStack>
-            </Panel>
+            </Box>
+          </Panel>
 
-            <KolonneSeparator />
+          <KolonneSeparator />
 
-            {/* Midtre kolonne */}
-            <Panel defaultSize={52} minSize={30}>
-              <Box background="soft" padding="space-24" borderRadius="8" style={{ height: "100%" }}>
-                <VStack gap="space-24">
-                  <VStack gap="space-16">
-                    <Heading level="2" size="medium">
-                      Situasjonen
-                    </Heading>
-                    <VStack gap="space-8">
-                      <Label>Beskriv den ansattes arbeidssituasjon</Label>
-                      <BodyLong size="small">{situasjon.arbeidssituasjon}</BodyLong>
-                    </VStack>
-                    <VStack gap="space-8">
-                      <Label>
-                        Beskriv ansatt sykefravær, og hvilken oppfølging og tilrettelegging dere
-                        allerede har tilbudt/prøvd ut?
-                      </Label>
-                      <BodyLong size="small">{situasjon.sykefravær}</BodyLong>
-                    </VStack>
-                  </VStack>
-
-                  <hr
-                    style={{
-                      margin: 0,
-                      border: "none",
-                      borderTop: "1px solid var(--ax-border-divider)",
-                    }}
-                  />
-
-                  <VStack gap="space-16">
-                    <Heading level="2" size="medium">
-                      Ekspertbistand
-                    </Heading>
-                    <VStack gap="space-8">
-                      <Label>Hva skal eksperten hjelpe dere med?</Label>
-                      <BodyLong size="small">{ekspertbistand.hvaHjelpeMed}</BodyLong>
-                    </VStack>
-                    <VStack gap="space-4">
-                      <Label>Hvor mange timer skal eksperten hjelpe dere?</Label>
-                      <BodyShort size="small">{ekspertbistand.antallTimer} timer</BodyShort>
-                    </VStack>
-                    <VStack gap="space-4">
-                      <Label>Søknadssum</Label>
-                      <BodyShort size="small">
-                        {ekspertbistand.søknadssum.toLocaleString("nb-NO")} kr
-                      </BodyShort>
-                    </VStack>
-                    <VStack gap="space-4">
-                      <Label>Startdato</Label>
-                      <BodyShort size="small">{formatDate(ekspertbistand.startdato)}</BodyShort>
-                    </VStack>
-                    <VStack gap="space-4">
-                      <Label>Sendt inn til Nav</Label>
-                      <BodyShort size="small">
-                        {formatDate(ekspertbistand.sendtInnTilNav)}
-                      </BodyShort>
-                    </VStack>
-                  </VStack>
+          {/* Midtre kolonne */}
+          <Panel defaultSize={45} minSize={30}>
+            <Box padding="space-16" paddingBlock="space-32">
+              <VStack gap="space-48">
+                <VStack as="section" gap="space-16">
+                  <Heading level="2" size="xsmall">
+                    Situasjonen
+                  </Heading>
+                  <Spørsmål label="Beskriv den ansattes arbeidssituasjon">
+                    <BodyLong>{situasjon.arbeidssituasjon}</BodyLong>
+                  </Spørsmål>
+                  <Spørsmål label="Beskriv ansatt sykefravær, og hvilken oppfølging og tilrettelegging dere allerede har tilbudt/prøvd ut?">
+                    <BodyLong>{situasjon.sykefravær}</BodyLong>
+                  </Spørsmål>
                 </VStack>
-              </Box>
-            </Panel>
 
-            <KolonneSeparator />
+                <VStack as="section" gap="space-16">
+                  <Heading level="2" size="xsmall">
+                    Ekspertbistand
+                  </Heading>
+                  <Spørsmål label="Hva skal eksperten hjelpe dere med?">
+                    <BodyLong>{ekspertbistand.hvaHjelpeMed}</BodyLong>
+                  </Spørsmål>
+                  <Spørsmål label="Hvor mange timer skal eksperten hjelpe dere?">
+                    <BodyShort>{ekspertbistand.antallTimer} timer</BodyShort>
+                  </Spørsmål>
+                  <Spørsmål label="Søknadssum">
+                    <BodyShort>{ekspertbistand.søknadssum.toLocaleString("nb-NO")} kr</BodyShort>
+                  </Spørsmål>
+                  <Spørsmål label="Startdato">
+                    <BodyShort>{formatDate(ekspertbistand.startdato)}</BodyShort>
+                  </Spørsmål>
+                  <Spørsmål label="Sendt inn til Nav">
+                    <BodyShort>{formatDate(ekspertbistand.sendtInnTilNav)}</BodyShort>
+                  </Spørsmål>
+                </VStack>
+              </VStack>
+            </Box>
+          </Panel>
 
-            {/* Høyre kolonne */}
-            <Panel defaultSize={26} minSize={18}>
-              <Box background="soft" padding="space-16" borderRadius="8" style={{ height: "100%" }}>
-                <VStack gap="space-16">
-                  <VStack gap="space-2">
-                    <Heading level="2" size="small">
-                      Vilkårsvurdering
-                    </Heading>
-                    <Detail>
-                      {antallVurdert} av {vilkår.length} vilkår vurdert
-                    </Detail>
-                  </VStack>
-                  <Accordion size="small">
+          <KolonneSeparator />
+
+          {/* Høyre kolonne */}
+          <Panel defaultSize={30} minSize={20}>
+            <Tabs value={fane} onChange={(value) => setFane(value as Fane)}>
+              <Tabs.List>
+                <Tabs.Tab value="vilkarsvurdering" label="Vilkårsvurdering" />
+                <Tabs.Tab value="forelopig-vedtak" label="Foreløpig vedtak" />
+              </Tabs.List>
+              <Tabs.Panel value="vilkarsvurdering">
+                <VStack gap="space-16" paddingBlock="space-8 space-32" paddingInline="space-8 space-16">
+                  <Accordion>
                     {vilkår.map((v) => (
                       <VilkårItem
                         key={v.id}
@@ -229,12 +213,27 @@ export default function SakPage() {
                       />
                     ))}
                   </Accordion>
+                  <Box paddingInline="space-16">
+                    <Link
+                      as="button"
+                      type="button"
+                      onClick={() => setFane("forelopig-vedtak")}
+                    >
+                      Fatte foreløpig vedtak
+                      <ChevronRightIcon aria-hidden />
+                    </Link>
+                  </Box>
                 </VStack>
-              </Box>
-            </Panel>
-          </Group>
-        </Box>
-      </Page.Block>
+              </Tabs.Panel>
+              <Tabs.Panel value="forelopig-vedtak">
+                <Box padding="space-16">
+                  <BodyShort>Foreløpig vedtak er ikke tilgjengelig ennå.</BodyShort>
+                </Box>
+              </Tabs.Panel>
+            </Tabs>
+          </Panel>
+        </Group>
+      </main>
     </>
   );
 }
