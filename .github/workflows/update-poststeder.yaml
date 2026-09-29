@@ -1,0 +1,51 @@
+name: Oppdater poststeder
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 12:00 UTC den 1. i hver måned
+    - cron: "0 12 1 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  update-poststeder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Oppdater poststeder fra Bring
+        run: backend/scripts/update-poststeder.sh
+
+      - name: Opprett PR ved endringer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Ingen endringer i poststeder."
+            exit 0
+          fi
+
+          branch="update-poststeder"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add backend/src/main/resources/poststeder.json
+          git commit -m "Oppdater poststeder fra Bring"
+          git push --force origin "$branch"
+
+          if gh pr view "$branch" >/dev/null 2>&1; then
+            echo "PR for $branch finnes allerede."
+          else
+            gh pr create \
+              --title "Oppdater poststeder fra Bring" \
+              --body "Automatisk oppdatering fra Posten/Brings postnummerregister." \
+              --base main \
+              --head "$branch"
+          fi
