@@ -2,6 +2,7 @@ package no.nav.ekspertbistand.event.projections
 
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.sak.KildeTilBehandling
 import no.nav.ekspertbistand.sak.SakTable
 import no.nav.ekspertbistand.sak.Saksstatus
@@ -27,17 +28,22 @@ import kotlin.time.Instant
  * - [EventData.SoknadInnsendt] oppretter saken (`OPPRETTET`, kilde `ARENA`), men kun hvis søknaden
  *   fortsatt finnes og det ikke allerede finnes en sak for søknaden. Ved replay kan søknaden være
  *   slettet, og da hoppes eventen over.
- * - [EventData.InnsendtSoknadJournalfoert] setter behandlende enhet.
+ * - [EventData.InnsendtSoknadJournalfoert] setter behandlende enhet. Eventen inneholder enhetsnummeret
+ *   som ble sendt til Arena, så det mappes tilbake til Norg-enhetsnummeret.
  * - [EventData.TiltaksgjennomforingOpprettet] setter Arena-saksnummer.
  * - [EventData.SaksbehandlingStartetIArena] gir `UNDER_BEHANDLING`, men kun fra `OPPRETTET`.
  * - [EventData.TilskuddsbrevMottatt] gir `INNVILGET` og [EventData.SoknadAvlystIArena] gir `AVSLATT`.
  *   Terminalstatus overskrives aldri.
+ *
+ * Re-kjøring: bump versjonen i [name]. Da starter projeksjonen på nytt fra posisjon 0.
+ * Projeksjonen er idempotent: eksisterende saker opprettes ikke på nytt, men feltene oppdateres.
  */
 @OptIn(ExperimentalTime::class)
 class SakProjection(
     database: Database,
 ) : EventLogProjectionBuilder(database) {
-    override val name = "Sak"
+    // v2: revers-mapping av behandlende enhet fra Arena- til Norg-enhetsnummer
+    override val name = "Sak-v2"
 
     override fun handle(event: Event<out EventData>, eventTimestamp: Instant) {
         when (val data = event.data) {
@@ -45,7 +51,7 @@ class SakProjection(
 
             is EventData.InnsendtSoknadJournalfoert ->
                 oppdaterSak(data.soknad, eventTimestamp) {
-                    it[SakTable.behandlendeEnhet] = data.behandlendeEnhetId
+                    it[SakTable.behandlendeEnhet] = BehandlendeEnhetService.arenaTilNorgEnhetNr(data.behandlendeEnhetId)
                 }
 
             is EventData.TiltaksgjennomforingOpprettet ->
