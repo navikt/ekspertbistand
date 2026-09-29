@@ -1,9 +1,12 @@
 import { envSwitch } from "./env";
 
 export const OVERSIKT_PATH = "/oversikt";
-export const SAK_PATH = "/oversikt/:sakId";
-export const SAKSBEHANDLING_OVERSIKT_URL = "/api/saksbehandling/v1/oversikt";
-export const SAKSBEHANDLING_SAK_URL = (sakId: string) => `/api/saksbehandling/v1/saker/${sakId}`;
+export const SAK_PATH = "/oversikt/:soknadId";
+export const SAKSBEHANDLING_SOKNADER_URL = "/api/saksbehandling/v1/soknader";
+export const SAKSBEHANDLING_SOKNAD_URL = (soknadId: string) =>
+  `/api/saksbehandling/v1/soknader/${soknadId}`;
+export const SAKSBEHANDLING_VILKAR_LISTE_URL = (sakId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/vilkar`;
 export const SAKSBEHANDLING_VILKAR_URL = (sakId: string, vilkårId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/vilkar/${vilkårId}`;
 export const SAKSBEHANDLING_KONTONUMMER_URL = (orgnr: string) =>
