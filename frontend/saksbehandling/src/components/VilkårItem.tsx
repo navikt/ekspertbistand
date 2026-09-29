@@ -79,21 +79,24 @@ function StatusTag({ status }: { status: Vilkårstatus }) {
     );
   }
 
-  return (
-    <Tag variant="warning" size="xsmall">
-      Ikke vurdert
-    </Tag>
-  );
+  // return (
+  //   <Tag variant="warning" size="xsmall">
+  //     Ikke vurdert
+  //   </Tag>
+  // );
+  return null
 }
 
 function formatTidspunkt(iso: string | undefined) {
-  return iso? new Intl.DateTimeFormat("nb-NO", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso)) : null;
+  return iso
+    ? new Intl.DateTimeFormat("nb-NO", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(iso))
+    : null;
 }
 
 export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props) {
@@ -140,20 +143,22 @@ export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props
             )}
           </HStack>
 
-          {!redigerer && !vilkår.vurdering.automatisk && vilkår.vurdering.status !== "ikke_vurdert" && (
-            <VStack gap="space-4">
-              {vilkår.vurdering.kommentar && (
-                <>
-                  <Label size="small">Kommentar</Label>
-                  <BodyLong size="small">{vilkår.vurdering.kommentar}</BodyLong>
-                </>
-              )}
-              <Detail>
-                Vurdert av {vilkår.vurdering.vurdertAv}{" "}
-                {formatTidspunkt(vilkår.vurdering.vurdertTidspunkt)}
-              </Detail>
-            </VStack>
-          )}
+          {!redigerer &&
+            !vilkår.vurdering.automatisk &&
+            vilkår.vurdering.status !== "ikke_vurdert" && (
+              <VStack gap="space-4">
+                {vilkår.vurdering.kommentar && (
+                  <>
+                    <Label size="small">Kommentar</Label>
+                    <BodyLong size="small">{vilkår.vurdering.kommentar}</BodyLong>
+                  </>
+                )}
+                <Detail>
+                  Vurdert av {vilkår.vurdering.vurdertAv}{" "}
+                  {formatTidspunkt(vilkår.vurdering.vurdertTidspunkt)}
+                </Detail>
+              </VStack>
+            )}
 
           {error && redigerer && (
             <Alert variant="error" size="small" inline>
@@ -201,9 +206,15 @@ export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props
             </VStack>
           ) : (
             <HStack>
-              <Button variant="primary" size="small" onClick={åpneRedigering}>
-                {erVurdert ? "Endre vurdering" : "Vurder manuelt"}
-              </Button>
+              {erVurdert ? (
+                <Button variant="tertiary" size="small" onClick={åpneRedigering}>
+                  Endre
+                </Button>
+              ) : (
+                <Button variant="primary" size="small" onClick={åpneRedigering}>
+                  {"Vurder"}
+                </Button>
+              )}
             </HStack>
           )}
         </VStack>
