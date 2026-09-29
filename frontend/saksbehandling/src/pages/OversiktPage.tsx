@@ -1,7 +1,7 @@
 import { MenuElipsisHorizontalCircleIcon } from "@navikt/aksel-icons";
 import { ActionMenu, Box, Button, Loader, Page, Table, Tabs, Tag, VStack } from "@navikt/ds-react";
 import { useNavigate } from "react-router";
-import { type Saksstatus, type SoknadListeElement, useSoknader } from "../hooks/useSoknader";
+import { type Saksstatus, type SakListeElement, useSaker } from "../hooks/useSaker";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";
 import { OVERSIKT_PATH } from "../utils/constants";
@@ -25,18 +25,12 @@ const saksstatusTekst: Record<Saksstatus, string> = {
 
 const ferdigeSaksstatuser: Saksstatus[] = ["INNVILGET", "AVSLATT", "AVSLUTTET"];
 
-function statusTekst(soknad: SoknadListeElement) {
-  if (soknad.sak) return saksstatusTekst[soknad.sak.status];
-  return soknad.soknadStatus === "avlyst" ? "Avlyst" : "Mottatt";
-}
-
-function erAvsluttet(soknad: SoknadListeElement) {
-  if (soknad.sak) return ferdigeSaksstatuser.includes(soknad.sak.status);
-  return soknad.soknadStatus === "avlyst";
+function erAvsluttet(sak: SakListeElement) {
+  return ferdigeSaksstatuser.includes(sak.status);
 }
 
 export default function OversiktPage() {
-  const { soknader, error, isLoading } = useSoknader();
+  const { saker, error, isLoading } = useSaker();
   const innloggetAnsatt = useInnloggetAnsatt();
   const navigate = useNavigate();
 
@@ -44,27 +38,25 @@ export default function OversiktPage() {
     {
       value: "til-godkjenning",
       label: "Til godkjenning",
-      filter: () => soknader.filter((s) => !s.sak?.saksbehandlerIdent && !erAvsluttet(s)),
+      filter: () => saker.filter((s) => !s.saksbehandlerIdent && !erAvsluttet(s)),
     },
     {
       value: "mine-saker",
       label: "Mine saker",
       filter: () =>
-        soknader.filter(
-          (s) => !!innloggetAnsatt && s.sak?.saksbehandlerIdent === innloggetAnsatt.id
-        ),
+        saker.filter((s) => !!innloggetAnsatt && s.saksbehandlerIdent === innloggetAnsatt.id),
     },
     {
       value: "pagaende",
       label: "Pågående",
-      filter: () => soknader.filter((s) => !erAvsluttet(s)),
+      filter: () => saker.filter((s) => !erAvsluttet(s)),
     },
     {
       value: "avsluttet",
       label: "Avsluttet",
-      filter: () => soknader.filter(erAvsluttet),
+      filter: () => saker.filter(erAvsluttet),
     },
-    { value: "alle", label: "Alle", filter: () => soknader },
+    { value: "alle", label: "Alle", filter: () => saker },
   ];
 
   if (isLoading) {
@@ -101,26 +93,28 @@ export default function OversiktPage() {
                       </Table.Row>
                     </Table.Header>
                     <Table.Body>
-                      {filter().map((soknad) => (
+                      {filter().map((sak) => (
                         <Table.Row
-                          key={soknad.soknadId}
+                          key={sak.sakId}
                           style={{ cursor: "pointer" }}
-                          onClick={() => navigate(`${OVERSIKT_PATH}/${soknad.soknadId}`)}
+                          onClick={() => navigate(`${OVERSIKT_PATH}/${sak.sakId}`)}
                         >
                           <Table.DataCell>
-                            {soknad.sak?.saksbehandlerIdent ? (
-                              soknad.sak.saksbehandlerIdent
+                            {sak.saksbehandlerIdent ? (
+                              sak.saksbehandlerIdent
                             ) : (
                               <Button variant="secondary" size="xsmall">
                                 Tildel meg
                               </Button>
                             )}
                           </Table.DataCell>
-                          <Table.DataCell>{statusTekst(soknad)}</Table.DataCell>
-                          <Table.DataCell>{soknad.virksomhet.virksomhetsnavn}</Table.DataCell>
-                          <Table.DataCell>{soknad.ansattNavn}</Table.DataCell>
-                          <Table.DataCell>{formatDate(soknad.startdato)}</Table.DataCell>
-                          <Table.DataCell>{formatDate(soknad.innsendtTidspunkt)}</Table.DataCell>
+                          <Table.DataCell>{saksstatusTekst[sak.status]}</Table.DataCell>
+                          <Table.DataCell>{sak.soknad.virksomhet.virksomhetsnavn}</Table.DataCell>
+                          <Table.DataCell>{sak.soknad.ansattNavn}</Table.DataCell>
+                          <Table.DataCell>{formatDate(sak.soknad.startdato)}</Table.DataCell>
+                          <Table.DataCell>
+                            {formatDate(sak.soknad.innsendtTidspunkt)}
+                          </Table.DataCell>
                           <Table.DataCell>
                             <ActionMenu>
                               <ActionMenu.Trigger>
@@ -132,7 +126,7 @@ export default function OversiktPage() {
                                 />
                               </ActionMenu.Trigger>
                               <ActionMenu.Content>
-                                <ActionMenu.Item>Åpne søknad</ActionMenu.Item>
+                                <ActionMenu.Item>Åpne sak</ActionMenu.Item>
                                 <ActionMenu.Item>Tildel saksbehandler</ActionMenu.Item>
                               </ActionMenu.Content>
                             </ActionMenu>

@@ -1,11 +1,15 @@
 import useSWR from "swr";
-import { SAKSBEHANDLING_SOKNAD_URL } from "../utils/constants";
+import { SAKSBEHANDLING_SAK_URL } from "../utils/constants";
 import { HttpError } from "../utils/http";
-import type { SakInfo, SoknadStatus } from "./useSoknader";
+import type { SakInfo, SoknadStatus } from "./useSaker";
+
+export type SakDetaljer = SakInfo & {
+  soknad: SoknadDetaljer;
+};
 
 export type SoknadDetaljer = {
   soknadId: string;
-  soknadStatus: SoknadStatus;
+  status: SoknadStatus;
   innsendtTidspunkt: string;
   virksomhet: {
     virksomhetsnummer: string;
@@ -41,16 +45,15 @@ export type SoknadDetaljer = {
   nav: {
     kontaktperson: string;
   };
-  sak: SakInfo | null;
 };
 
-export function useSoknad(soknadId: string) {
-  const { data, error, isLoading } = useSWR<SoknadDetaljer, HttpError>(
-    soknadId ? SAKSBEHANDLING_SOKNAD_URL(soknadId) : null,
+export function useSak(sakId: string) {
+  const { data, error, isLoading } = useSWR<SakDetaljer, HttpError>(
+    sakId ? SAKSBEHANDLING_SAK_URL(sakId) : null,
     {
       revalidateOnFocus: false,
     }
   );
 
-  return { soknad: data, error, isLoading };
+  return { sak: data, error, isLoading };
 }

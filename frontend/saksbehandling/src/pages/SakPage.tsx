@@ -21,7 +21,7 @@ import { NavLink, useParams } from "react-router";
 import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
 import VilkårItem from "../components/VilkårItem";
-import { useSoknad } from "../hooks/useSoknad";
+import { useSak } from "../hooks/useSak";
 import { useVilkår } from "../hooks/useVilkår";
 import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import type { HttpError } from "../utils/http";
@@ -54,26 +54,26 @@ type Fane = "vilkarsvurdering" | "forelopig-vedtak";
 function feilmelding(error: HttpError | undefined) {
   switch (error?.status) {
     case 403:
-      return "Du har ikke tilgang til denne søknaden.";
+      return "Du har ikke tilgang til denne saken.";
     case 404:
-      return "Fant ikke søknaden.";
+      return "Fant ikke saken.";
     case 503:
       return "Vi kunne ikke sjekke tilgangen din akkurat nå. Prøv igjen om litt.";
     default:
-      return "Kunne ikke hente søknaden.";
+      return "Kunne ikke hente saken.";
   }
 }
 
 export default function SakPage() {
-  const { soknadId } = useParams<{ soknadId: string }>();
-  const { soknad, error, isLoading } = useSoknad(soknadId ?? "");
-  const sakId = soknad?.sak?.sakId;
+  const { sakId: sakIdParam } = useParams<{ sakId: string }>();
+  const { sak, error, isLoading } = useSak(sakIdParam ?? "");
+  const sakId = sak?.sakId;
   const { vilkår, error: vilkårError, isLoading: vilkårLaster } = useVilkår(sakId);
   const { lagreVurdering, isSaving, error: lagreError } = useVilkårsvurdering(sakId ?? "");
   const [fane, setFane] = useState<Fane>("vilkarsvurdering");
 
-  if (isLoading) return <Loader size="large" title="Laster søknad" />;
-  if (error || !soknad) {
+  if (isLoading) return <Loader size="large" title="Laster sak" />;
+  if (error || !sak) {
     return (
       <Box padding="space-24">
         <Alert variant="error">{feilmelding(error)}</Alert>
@@ -81,6 +81,7 @@ export default function SakPage() {
     );
   }
 
+  const { soknad } = sak;
   const { ansatt, virksomhet, ekspert, behovForBistand } = soknad;
 
   return (
@@ -240,9 +241,7 @@ export default function SakPage() {
                   paddingBlock="space-8 space-32"
                   paddingInline="space-8 space-16"
                 >
-                  {!sakId ? (
-                    <BodyShort>Det er ikke opprettet sak for denne søknaden ennå.</BodyShort>
-                  ) : vilkårLaster ? (
+                  {vilkårLaster ? (
                     <Loader size="medium" title="Laster vilkår" />
                   ) : vilkårError ? (
                     <Alert variant="error" size="small">

@@ -50,7 +50,7 @@ import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
 import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
-import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSoknadApiV1
+import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
 import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
@@ -122,10 +122,10 @@ fun main() {
         configureTilsagnDataApiV1()
         configureEregApiV1()
         configureSaksbehandlerApiV1()
-        // Søknadsrutene for saksbehandling er ikke åpnet i prod ennå.
+        // Saksrutene for saksbehandling er ikke åpnet i prod ennå.
         basedOnEnvSuspending(
             prod = {},
-            other = { configureSaksbehandlingSoknadApiV1() },
+            other = { configureSaksbehandlingSakApiV1() },
         )
         basedOnEnvSuspending(
             dev = { configureKontoregisterApiV1() },

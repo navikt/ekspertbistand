@@ -33,10 +33,9 @@ import org.junit.jupiter.api.Test
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class SaksbehandlingSoknadApiTest {
+class SaksbehandlingSakApiTest {
 
     private val navIdent = "A123456"
     private val gyldigToken = "valid-azure-token"
@@ -65,7 +64,7 @@ class SaksbehandlingSoknadApiTest {
     fun `liste uten token gir 401`() = testApplicationWithDatabase { db ->
         val oppsett = oppsett(db)
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader")
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker")
 
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
@@ -74,43 +73,40 @@ class SaksbehandlingSoknadApiTest {
     fun `liste uten saksbehandlerrolle gir 403`() = testApplicationWithDatabase { db ->
         val oppsett = oppsett(db, grupper = ingenGrupper)
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader") { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.Forbidden, response.status)
     }
 
     @Test
-    fun `liste returnerer bare søknader med sak på egen enhet, uten fnr`() = testApplicationWithDatabase { db ->
-        val eldre = lagreSoknad(db, ansattNavn = "Eldre")
-        lagreSak(db, eldre)
-        val nyere = lagreSoknad(db, ansattNavn = "Nyere")
-        lagreSak(db, nyere, saksbehandlerIdent = "Z111111")
-        val annenEnhetSoknad = lagreSoknad(db, ansattNavn = "Annen Enhet")
-        lagreSak(db, annenEnhetSoknad, behandlendeEnhet = annenEnhet)
-        val sakUtenEnhet = lagreSoknad(db, ansattNavn = "Sak Uten Enhet")
-        lagreSak(db, sakUtenEnhet, behandlendeEnhet = null)
+    fun `liste returnerer bare saker på egen enhet, uten fnr`() = testApplicationWithDatabase { db ->
+        val eldre = lagreSak(db, lagreSoknad(db, ansattNavn = "Eldre"))
+        val nyereSoknad = lagreSoknad(db, ansattNavn = "Nyere")
+        val nyere = lagreSak(db, nyereSoknad, saksbehandlerIdent = "Z111111")
+        lagreSak(db, lagreSoknad(db, ansattNavn = "Annen Enhet"), behandlendeEnhet = annenEnhet)
+        lagreSak(db, lagreSoknad(db, ansattNavn = "Sak Uten Enhet"), behandlendeEnhet = null)
         lagreSoknad(db, ansattNavn = "Uten Sak")
         val oppsett = oppsett(db)
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader") { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.OK, response.status)
         val raw = response.bodyAsText()
         assertFalse(raw.contains(fnr), "listen skal ikke inneholde fnr")
         assertFalse(raw.contains(innsenderIdent), "listen skal ikke inneholde innsenders ident")
 
-        val soknader = response.body<SoknaderResponse>().soknader
-        assertEquals(listOf(nyere.toString(), eldre.toString()), soknader.map { it.soknadId })
+        val saker = response.body<SakerResponse>().saker
+        assertEquals(listOf(nyere.toString(), eldre.toString()), saker.map { it.sakId })
 
-        val element = soknader.first()
-        assertEquals("Nyere", element.ansattNavn)
-        assertEquals(SoknadStatus.innsendt, element.soknadStatus)
-        assertEquals("123456780", element.virksomhet.virksomhetsnummer)
-        val sak = assertNotNull(element.sak)
+        val sak = saker.first()
         assertEquals(Saksstatus.UNDER_BEHANDLING, sak.status)
         assertEquals(KildeTilBehandling.ARENA, sak.kildeTilBehandling)
         assertEquals("Z111111", sak.saksbehandlerIdent)
         assertEquals(egenEnhet, sak.behandlendeEnhet)
+        assertEquals(nyereSoknad.toString(), sak.soknad.soknadId)
+        assertEquals("Nyere", sak.soknad.ansattNavn)
+        assertEquals(SoknadStatus.innsendt, sak.soknad.status)
+        assertEquals("123456780", sak.soknad.virksomhet.virksomhetsnummer)
 
         assertTrue(oppsett.audit.meldinger.isEmpty(), "listen skal ikke sporingslogges")
     }
@@ -120,10 +116,10 @@ class SaksbehandlingSoknadApiTest {
         lagreSak(db, lagreSoknad(db))
         val oppsett = oppsett(db, enheter = { "[]" })
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader") { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.body<SoknaderResponse>().soknader.isEmpty())
+        assertTrue(response.body<SakerResponse>().saker.isEmpty())
     }
 
     @Test
@@ -131,27 +127,26 @@ class SaksbehandlingSoknadApiTest {
         lagreSak(db, lagreSoknad(db))
         val oppsett = oppsett(db, enheter = { error("entra-proxy nede") })
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader") { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
     }
 
     @Test
-    fun `detalj med ugyldig soknadId gir 400`() = testApplicationWithDatabase { db ->
+    fun `detalj med ugyldig sakId gir 400`() = testApplicationWithDatabase { db ->
         val oppsett = oppsett(db)
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader/ikke-en-uuid") { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker/ikke-en-uuid") { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 
     @Test
     fun `detalj uten saksbehandlerrolle gir 403 uten kall mot tilgangsmaskin`() = testApplicationWithDatabase { db ->
-        val soknadId = lagreSoknad(db)
-        lagreSak(db, soknadId)
+        val sakId = lagreSak(db, lagreSoknad(db))
         val oppsett = oppsett(db, grupper = ingenGrupper)
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader/$soknadId") { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.Forbidden, response.status)
         assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
@@ -159,10 +154,10 @@ class SaksbehandlingSoknadApiTest {
     }
 
     @Test
-    fun `detalj for ukjent søknad gir 404`() = testApplicationWithDatabase { db ->
+    fun `detalj for ukjent sak gir 404`() = testApplicationWithDatabase { db ->
         val oppsett = oppsett(db)
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader/${UUID.randomUUID()}") {
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker/${UUID.randomUUID()}") {
             bearerAuth(gyldigToken)
         }
 
@@ -173,11 +168,10 @@ class SaksbehandlingSoknadApiTest {
     @Test
     fun `detalj for sak på annen enhet gir 403 uten kall mot tilgangsmaskin og uten sporingslogg`() =
         testApplicationWithDatabase { db ->
-            val soknadId = lagreSoknad(db)
-            lagreSak(db, soknadId, behandlendeEnhet = annenEnhet)
+            val sakId = lagreSak(db, lagreSoknad(db), behandlendeEnhet = annenEnhet)
             val oppsett = oppsett(db)
 
-            val response = oppsett.client.get("/api/saksbehandling/v1/soknader/$soknadId") { bearerAuth(gyldigToken) }
+            val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }
 
             assertEquals(HttpStatusCode.Forbidden, response.status)
             assertFalse(response.bodyAsText().contains(fnr))
@@ -187,25 +181,11 @@ class SaksbehandlingSoknadApiTest {
         }
 
     @Test
-    fun `detalj for søknad uten sak gir 403 uten kall mot tilgangsmaskin`() = testApplicationWithDatabase { db ->
-        val soknadId = lagreSoknad(db)
-        val oppsett = oppsett(db)
-
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader/$soknadId") { bearerAuth(gyldigToken) }
-
-        assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals(IKKE_TILGANG_ENHET, response.body<TilgangAvvistResponse>().kode)
-        assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
-        assertTrue(oppsett.audit.meldinger.isEmpty())
-    }
-
-    @Test
     fun `detalj for sak uten enhet gir 403`() = testApplicationWithDatabase { db ->
-        val soknadId = lagreSoknad(db)
-        lagreSak(db, soknadId, behandlendeEnhet = null)
+        val sakId = lagreSak(db, lagreSoknad(db), behandlendeEnhet = null)
         val oppsett = oppsett(db)
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader/$soknadId") { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.Forbidden, response.status)
         assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
@@ -213,11 +193,10 @@ class SaksbehandlingSoknadApiTest {
 
     @Test
     fun `detalj gir 503 når entra-proxy feiler for enheter`() = testApplicationWithDatabase { db ->
-        val soknadId = lagreSoknad(db)
-        lagreSak(db, soknadId)
+        val sakId = lagreSak(db, lagreSoknad(db))
         val oppsett = oppsett(db, enheter = { error("entra-proxy nede") })
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader/$soknadId") { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
         assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
@@ -227,20 +206,22 @@ class SaksbehandlingSoknadApiTest {
     @Test
     fun `detalj med innvilget tilgang returnerer søknad og sporingslogger`() = testApplicationWithDatabase { db ->
         val soknadId = lagreSoknad(db)
-        lagreSak(db, soknadId)
+        val sakId = lagreSak(db, soknadId)
         val oppsett = oppsett(db, tilgangsmaskinSvar = { call -> call.respond(HttpStatusCode.NoContent) })
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader/$soknadId") { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.OK, response.status)
         val raw = response.bodyAsText()
         assertFalse(raw.contains(innsenderIdent), "innsenders ident skal ikke returneres")
 
-        val soknad = response.body<SoknadDetaljer>()
-        assertEquals(soknadId.toString(), soknad.soknadId)
-        assertEquals(fnr, soknad.ansatt.fnr)
-        assertEquals("Langvarig skulderplage", soknad.behovForBistand.begrunnelse)
-        assertNotNull(soknad.sak)
+        val sak = response.body<SakDetaljer>()
+        assertEquals(sakId.toString(), sak.sakId)
+        assertEquals(Saksstatus.UNDER_BEHANDLING, sak.status)
+        assertEquals(egenEnhet, sak.behandlendeEnhet)
+        assertEquals(soknadId.toString(), sak.soknad.soknadId)
+        assertEquals(fnr, sak.soknad.ansatt.fnr)
+        assertEquals("Langvarig skulderplage", sak.soknad.behovForBistand.begrunnelse)
 
         val kall = oppsett.tilgangsmaskinKall.single()
         assertEquals("\"$fnr\"", kall.body, "tilgangsmaskin skal sjekke fnr fra databasen")
@@ -256,8 +237,7 @@ class SaksbehandlingSoknadApiTest {
     @Test
     fun `detalj med avvist tilgang gir 403 uten personopplysninger og uten sporingslogg`() =
         testApplicationWithDatabase { db ->
-            val soknadId = lagreSoknad(db)
-            lagreSak(db, soknadId)
+            val sakId = lagreSak(db, lagreSoknad(db))
             val oppsett = oppsett(db, tilgangsmaskinSvar = { call ->
                 call.respondText(
                     """
@@ -275,7 +255,7 @@ class SaksbehandlingSoknadApiTest {
                 )
             })
 
-            val response = oppsett.client.get("/api/saksbehandling/v1/soknader/$soknadId") { bearerAuth(gyldigToken) }
+            val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }
 
             assertEquals(HttpStatusCode.Forbidden, response.status)
             val raw = response.bodyAsText()
@@ -287,11 +267,10 @@ class SaksbehandlingSoknadApiTest {
 
     @Test
     fun `detalj gir 503 når tilgangsmaskin feiler`() = testApplicationWithDatabase { db ->
-        val soknadId = lagreSoknad(db)
-        lagreSak(db, soknadId)
+        val sakId = lagreSak(db, lagreSoknad(db))
         val oppsett = oppsett(db, tilgangsmaskinSvar = { call -> call.respond(HttpStatusCode.InternalServerError) })
 
-        val response = oppsett.client.get("/api/saksbehandling/v1/soknader/$soknadId") { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
         assertFalse(response.bodyAsText().contains(fnr))
@@ -366,7 +345,7 @@ class SaksbehandlingSoknadApiTest {
             }
 
             configureAuthentication()
-            configureSaksbehandlingSoknadApiV1()
+            configureSaksbehandlingSakApiV1()
             configureServer()
         }
 
@@ -409,7 +388,7 @@ class SaksbehandlingSoknadApiTest {
         soknadId: UUID,
         saksbehandlerIdent: String? = null,
         behandlendeEnhet: String? = egenEnhet,
-    ) {
+    ): UUID =
         transaction(db.config.jdbcDatabase) {
             SakTable.insert {
                 it[this.soknadId] = soknadId
@@ -417,7 +396,6 @@ class SaksbehandlingSoknadApiTest {
                 it[kildeTilBehandling] = KildeTilBehandling.ARENA.name
                 it[this.behandlendeEnhet] = behandlendeEnhet
                 it[this.saksbehandlerIdent] = saksbehandlerIdent
-            }
+            }[SakTable.sakId]
         }
-    }
 }

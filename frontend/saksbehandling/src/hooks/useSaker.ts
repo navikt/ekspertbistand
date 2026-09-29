@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { SAKSBEHANDLING_SOKNADER_URL } from "../utils/constants";
+import { SAKSBEHANDLING_SAKER_URL } from "../utils/constants";
 import { HttpError } from "../utils/http";
 
 export type SoknadStatus = "innsendt" | "godkjent" | "avlyst";
@@ -19,33 +19,31 @@ export type SakInfo = {
   arenaSakId: string | null;
 };
 
-export type SoknadListeElement = {
-  soknadId: string;
-  soknadStatus: SoknadStatus;
-  innsendtTidspunkt: string;
-  virksomhet: {
-    virksomhetsnummer: string;
-    virksomhetsnavn: string;
+export type SakListeElement = SakInfo & {
+  soknad: {
+    soknadId: string;
+    status: SoknadStatus;
+    innsendtTidspunkt: string;
+    virksomhet: {
+      virksomhetsnummer: string;
+      virksomhetsnavn: string;
+    };
+    ansattNavn: string;
+    startdato: string;
   };
-  ansattNavn: string;
-  startdato: string;
-  sak: SakInfo | null;
 };
 
-export type SoknaderResponse = {
-  soknader: SoknadListeElement[];
+export type SakerResponse = {
+  saker: SakListeElement[];
 };
 
-export function useSoknader() {
-  const { data, error, isLoading } = useSWR<SoknaderResponse, HttpError>(
-    SAKSBEHANDLING_SOKNADER_URL,
-    {
-      revalidateOnFocus: false,
-    }
-  );
+export function useSaker() {
+  const { data, error, isLoading } = useSWR<SakerResponse, HttpError>(SAKSBEHANDLING_SAKER_URL, {
+    revalidateOnFocus: false,
+  });
 
   return {
-    soknader: data?.soknader ?? [],
+    saker: data?.saker ?? [],
     error,
     isLoading,
   };

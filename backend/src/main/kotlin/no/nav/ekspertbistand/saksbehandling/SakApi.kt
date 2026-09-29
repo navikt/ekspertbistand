@@ -24,7 +24,6 @@ import no.nav.ekspertbistand.tilgangsmaskin.Regelsett
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.tilgangsmaskin.Tilgangsresultat
 import org.jetbrains.exposed.v1.core.JoinType
-import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -36,57 +35,56 @@ import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.time.ExperimentalTime
 
-private val log = LoggerFactory.getLogger("SaksbehandlingSoknadApi")
+private val log = LoggerFactory.getLogger("SaksbehandlingSakApi")
 
 /**
- * GET /api/saksbehandling/v1/soknader => alle innsendte søknader (uten fnr)
- * GET /api/saksbehandling/v1/soknader/{soknadId} => én søknad med personopplysninger
+ * GET /api/saksbehandling/v1/saker => saker på saksbehandlers enheter (uten fnr)
+ * GET /api/saksbehandling/v1/saker/{sakId} => én sak med søknaden og personopplysninger
  *
- * Krever rolle [Role.SAKSBEHANDLER] eller [Role.BESLUTTER], og at søknaden har en sak med
- * behandlende enhet som saksbehandler har tilgang til (fra entra-proxy). Søknader uten sak eller
- * enhet er ikke synlige for noen. Enkeltoppslag sjekkes i tillegg mot Tilgangsmaskinen og
- * sporingslogges til ArcSight når søknaden vises. Alle eksterne tilgangssjekker er fail-closed (503).
+ * Krever rolle [Role.SAKSBEHANDLER] eller [Role.BESLUTTER], og at saken har en behandlende enhet
+ * som saksbehandler har tilgang til (fra entra-proxy). Saker uten enhet er ikke synlige for noen.
+ * Enkeltoppslag sjekkes i tillegg mot Tilgangsmaskinen og sporingslogges til ArcSight når saken
+ * vises. Alle eksterne tilgangssjekker er fail-closed (503).
  * Listen sporingslogges ikke, jf. krav til oppslagslogg på sikkerhet.nav.no.
  */
-suspend fun Application.configureSaksbehandlingSoknadApiV1() {
+suspend fun Application.configureSaksbehandlingSakApiV1() {
     val database = dependencies.resolve<Database>()
     val tilgangsmaskinClient = dependencies.resolve<TilgangsmaskinClient>()
     val auditClient = dependencies.resolve<ArcSightAuditClient>()
 
     routing {
         authenticate(AZURE_AD_PROVIDER) {
-            route("/api/saksbehandling/v1/soknader") {
+            route("/api/saksbehandling/v1/saker") {
                 get {
                     val principal = call.saksbehandlerMedRolle() ?: return@get
                     val enheter = call.enheterForSaksbehandler(principal) ?: return@get
 
-                    val soknader = transaction(database) { hentSoknaderForSaksbehandling(enheter) }
-                    call.respond(SoknaderResponse(soknader = soknader))
+                    val saker = transaction(database) { hentSakerForSaksbehandling(enheter) }
+                    call.respond(SakerResponse(saker = saker))
                 }
 
-                get("/{soknadId}") {
+                get("/{sakId}") {
                     val principal = call.saksbehandlerMedRolle() ?: return@get
 
-                    val soknadId = call.pathParameters.getRequired(
-                        name = "soknadId",
+                    val sakId = call.pathParameters.getRequired(
+                        name = "sakId",
                         transform = UUID::fromString,
                     ) {
-                        call.respond(HttpStatusCode.BadRequest, mapOf("message" to "ugyldig soknadId"))
+                        call.respond(HttpStatusCode.BadRequest, mapOf("message" to "ugyldig sakId"))
                         return@get
                     }
 
-                    val soknad = transaction(database) { hentSoknadForSaksbehandling(soknadId) }
-                        ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke søknad"))
+                    val sak = transaction(database) { hentSakForSaksbehandling(sakId) }
+                        ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
 
                     val enheter = call.enheterForSaksbehandler(principal) ?: return@get
-                    val behandlendeEnhet = soknad.sak?.behandlendeEnhet
-                    if (behandlendeEnhet == null || behandlendeEnhet !in enheter) {
-                        log.info("Tilgang avvist: saksbehandler mangler tilgang til enhet for soknadId={}", soknadId)
+                    if (sak.behandlendeEnhet == null || sak.behandlendeEnhet !in enheter) {
+                        log.info("Tilgang avvist: saksbehandler mangler tilgang til enhet for sakId={}", sakId)
                         return@get call.respond(
                             HttpStatusCode.Forbidden,
                             TilgangAvvistResponse(
                                 kode = IKKE_TILGANG_ENHET,
-                                begrunnelse = "Du har ikke tilgang til enheten som behandler søknaden",
+                                begrunnelse = "Du har ikke tilgang til enheten som behandler saken",
                             ),
                         )
                     }
@@ -94,12 +92,12 @@ suspend fun Application.configureSaksbehandlingSoknadApiV1() {
                     val tilgang = try {
                         tilgangsmaskinClient.evaluer(
                             userToken = principal.subjectToken,
-                            brukerIdent = soknad.ansatt.fnr,
+                            brukerIdent = sak.soknad.ansatt.fnr,
                             regelsett = Regelsett.KOMPLETT,
                         )
                     } catch (e: Exception) {
                         e.rethrowIfCancellation()
-                        log.error("Tilgangskontroll feilet for soknadId={}, avviser oppslag", soknadId, e)
+                        log.error("Tilgangskontroll feilet for sakId={}, avviser oppslag", sakId, e)
                         return@get call.respond(
                             HttpStatusCode.ServiceUnavailable,
                             mapOf("message" to "tilgangskontroll er ikke tilgjengelig"),
@@ -110,15 +108,15 @@ suspend fun Application.configureSaksbehandlingSoknadApiV1() {
                         Tilgangsresultat.Innvilget -> {
                             auditClient.loggOppslag(
                                 navIdent = principal.navIdent,
-                                fnr = soknad.ansatt.fnr,
+                                fnr = sak.soknad.ansatt.fnr,
                                 tillatt = true,
-                                melding = "Saksbehandler har sett søknad om ekspertbistand",
+                                melding = "Saksbehandler har sett sak om ekspertbistand",
                             )
-                            call.respond(soknad)
+                            call.respond(sak)
                         }
 
                         is Tilgangsresultat.Avvist -> {
-                            log.info("Tilgang avvist av Tilgangsmaskinen for soknadId={}", soknadId)
+                            log.info("Tilgang avvist av Tilgangsmaskinen for sakId={}", sakId)
                             call.respond(
                                 HttpStatusCode.Forbidden,
                                 TilgangAvvistResponse(kode = tilgang.kode, begrunnelse = tilgang.begrunnelse),
@@ -159,10 +157,10 @@ private suspend fun ApplicationCall.enheterForSaksbehandler(principal: AzureAdPr
     }
 
 @OptIn(ExperimentalTime::class)
-fun hentSoknaderForSaksbehandling(enheter: Set<String>): List<SoknadListeElement> {
+fun hentSakerForSaksbehandling(enheter: Set<String>): List<SakListeElement> {
     if (enheter.isEmpty()) return emptyList()
-    return SoknadTable
-        .join(SakTable, JoinType.INNER, SoknadTable.id, SakTable.soknadId)
+    return SakTable
+        .join(SoknadTable, JoinType.INNER, SakTable.soknadId, SoknadTable.id)
         .select(
             SoknadTable.id,
             SoknadTable.status,
@@ -176,94 +174,66 @@ fun hentSoknaderForSaksbehandling(enheter: Set<String>): List<SoknadListeElement
         .where { SakTable.behandlendeEnhet inList enheter }
         .orderBy(SoknadTable.opprettetTidspunkt, SortOrder.DESC)
         .map { row ->
-            SoknadListeElement(
-                soknadId = row[SoknadTable.id].toString(),
-                soknadStatus = SoknadStatus.valueOf(row[SoknadTable.status]),
-                innsendtTidspunkt = row[SoknadTable.opprettetTidspunkt].toString(),
-                virksomhet = SoknadListeElement.Virksomhet(
-                    virksomhetsnummer = row[SoknadTable.virksomhetsnummer],
-                    virksomhetsnavn = row[SoknadTable.virksomhetsnavn],
+            SakListeElement(
+                sakId = row[SakTable.sakId].toString(),
+                status = Saksstatus.valueOf(row[SakTable.status]),
+                kildeTilBehandling = KildeTilBehandling.valueOf(row[SakTable.kildeTilBehandling]),
+                behandlendeEnhet = row[SakTable.behandlendeEnhet],
+                saksbehandlerIdent = row[SakTable.saksbehandlerIdent],
+                beslutterIdent = row[SakTable.beslutterIdent],
+                arenaSakId = row[SakTable.arenaSakId],
+                soknad = SakListeElement.Soknad(
+                    soknadId = row[SoknadTable.id].toString(),
+                    status = SoknadStatus.valueOf(row[SoknadTable.status]),
+                    innsendtTidspunkt = row[SoknadTable.opprettetTidspunkt].toString(),
+                    virksomhet = SakListeElement.Virksomhet(
+                        virksomhetsnummer = row[SoknadTable.virksomhetsnummer],
+                        virksomhetsnavn = row[SoknadTable.virksomhetsnavn],
+                    ),
+                    ansattNavn = row[SoknadTable.ansattNavn],
+                    startdato = row[SoknadTable.behovForBistandStartdato],
                 ),
-                ansattNavn = row[SoknadTable.ansattNavn],
-                startdato = row[SoknadTable.behovForBistandStartdato],
-                sak = row.tilSakInfo(),
             )
         }
 }
 
-fun hentSoknadForSaksbehandling(soknadId: UUID): SoknadDetaljer? =
-    SoknadTable
-        .join(SakTable, JoinType.LEFT, SoknadTable.id, SakTable.soknadId)
+fun hentSakForSaksbehandling(sakId: UUID): SakDetaljer? =
+    SakTable
+        .join(SoknadTable, JoinType.INNER, SakTable.soknadId, SoknadTable.id)
         .selectAll()
-        .where { SoknadTable.id eq soknadId }
+        .where { SakTable.sakId eq sakId }
         .singleOrNull()
         ?.let { row ->
             val soknad = row.tilSoknadDTO()
-            SoknadDetaljer(
-                soknadId = soknadId.toString(),
-                soknadStatus = soknad.status,
-                innsendtTidspunkt = soknad.opprettetTidspunkt!!,
-                virksomhet = soknad.virksomhet,
-                ansatt = soknad.ansatt,
-                ekspert = soknad.ekspert,
-                behovForBistand = soknad.behovForBistand,
-                nav = soknad.nav,
-                sak = row.tilSakInfo(),
+            SakDetaljer(
+                sakId = sakId.toString(),
+                status = Saksstatus.valueOf(row[SakTable.status]),
+                kildeTilBehandling = KildeTilBehandling.valueOf(row[SakTable.kildeTilBehandling]),
+                behandlendeEnhet = row[SakTable.behandlendeEnhet],
+                saksbehandlerIdent = row[SakTable.saksbehandlerIdent],
+                beslutterIdent = row[SakTable.beslutterIdent],
+                arenaSakId = row[SakTable.arenaSakId],
+                soknad = SakDetaljer.Soknad(
+                    soknadId = row[SoknadTable.id].toString(),
+                    status = soknad.status,
+                    innsendtTidspunkt = soknad.opprettetTidspunkt!!,
+                    virksomhet = soknad.virksomhet,
+                    ansatt = soknad.ansatt,
+                    ekspert = soknad.ekspert,
+                    behovForBistand = soknad.behovForBistand,
+                    nav = soknad.nav,
+                ),
             )
         }
 
-private fun ResultRow.tilSakInfo(): SakInfo? =
-    getOrNull(SakTable.sakId)?.let { sakId ->
-        SakInfo(
-            sakId = sakId.toString(),
-            status = Saksstatus.valueOf(this[SakTable.status]),
-            kildeTilBehandling = KildeTilBehandling.valueOf(this[SakTable.kildeTilBehandling]),
-            behandlendeEnhet = this[SakTable.behandlendeEnhet],
-            saksbehandlerIdent = this[SakTable.saksbehandlerIdent],
-            beslutterIdent = this[SakTable.beslutterIdent],
-            arenaSakId = this[SakTable.arenaSakId],
-        )
-    }
-
 @Serializable
-data class SoknaderResponse(
-    val soknader: List<SoknadListeElement>,
+data class SakerResponse(
+    val saker: List<SakListeElement>,
 )
 
 /** Listeelement uten fødselsnummer. */
 @Serializable
-data class SoknadListeElement(
-    val soknadId: String,
-    val soknadStatus: SoknadStatus,
-    val innsendtTidspunkt: String,
-    val virksomhet: Virksomhet,
-    val ansattNavn: String,
-    val startdato: LocalDate,
-    val sak: SakInfo?,
-) {
-    @Serializable
-    data class Virksomhet(
-        val virksomhetsnummer: String,
-        val virksomhetsnavn: String,
-    )
-}
-
-/** Søknaden slik saksbehandler ser den. Innsenders ident (`opprettetAv`) er bevisst utelatt. */
-@Serializable
-data class SoknadDetaljer(
-    val soknadId: String,
-    val soknadStatus: SoknadStatus,
-    val innsendtTidspunkt: String,
-    val virksomhet: DTO.Virksomhet,
-    val ansatt: DTO.Ansatt,
-    val ekspert: DTO.Ekspert,
-    val behovForBistand: DTO.BehovForBistand,
-    val nav: DTO.Nav,
-    val sak: SakInfo?,
-)
-
-@Serializable
-data class SakInfo(
+data class SakListeElement(
     val sakId: String,
     val status: Saksstatus,
     val kildeTilBehandling: KildeTilBehandling,
@@ -271,7 +241,49 @@ data class SakInfo(
     val saksbehandlerIdent: String?,
     val beslutterIdent: String?,
     val arenaSakId: String?,
-)
+    val soknad: Soknad,
+) {
+    @Serializable
+    data class Soknad(
+        val soknadId: String,
+        val status: SoknadStatus,
+        val innsendtTidspunkt: String,
+        val virksomhet: Virksomhet,
+        val ansattNavn: String,
+        val startdato: LocalDate,
+    )
+
+    @Serializable
+    data class Virksomhet(
+        val virksomhetsnummer: String,
+        val virksomhetsnavn: String,
+    )
+}
+
+/** Saken slik saksbehandler ser den. Innsenders ident (`opprettetAv`) er bevisst utelatt. */
+@Serializable
+data class SakDetaljer(
+    val sakId: String,
+    val status: Saksstatus,
+    val kildeTilBehandling: KildeTilBehandling,
+    val behandlendeEnhet: String?,
+    val saksbehandlerIdent: String?,
+    val beslutterIdent: String?,
+    val arenaSakId: String?,
+    val soknad: Soknad,
+) {
+    @Serializable
+    data class Soknad(
+        val soknadId: String,
+        val status: SoknadStatus,
+        val innsendtTidspunkt: String,
+        val virksomhet: DTO.Virksomhet,
+        val ansatt: DTO.Ansatt,
+        val ekspert: DTO.Ekspert,
+        val behovForBistand: DTO.BehovForBistand,
+        val nav: DTO.Nav,
+    )
+}
 
 /** Svar ved avvist tilgang. Tilgangsmaskinens detaljer (inkl. brukerIdent) videresendes ikke. */
 @Serializable
