@@ -36,12 +36,12 @@ Uten dette vil `slettGamleInnsendteSoknader` feile med FK-brudd når det finnes 
 - Lagres som TEXT (spesifikasjonen: "TEXT i DB, håndhevet i Kotlin").
 
 ### 3. `event/projections/SakProjection.kt`
-`class SakProjection(database: Database) : EventLogProjectionBuilder(database)`, `name = "Sak"`.
+`class SakProjection(database: Database) : EventLogProjectionBuilder(database)`, `name = "Sak-v2"`.
 
 | Event | Handling |
 |-------|----------|
 | `SoknadInnsendt` | `insertIgnore` sak (`soknad_id`, `status=OPPRETTET`, `kilde=ARENA`, `opprettet=sist_endret=eventTimestamp`) – **kun hvis søknaden finnes** i `soknad` og **det ikke allerede finnes en sak** for søknaden (ellers logg info og hopp over) |
-| `InnsendtSoknadJournalfoert` | `behandlende_enhet = behandlendeEnhetId` |
+| `InnsendtSoknadJournalfoert` | `behandlende_enhet = BehandlendeEnhetService.arenaTilNorgEnhetNr(behandlendeEnhetId)`. Eventen inneholder enhetsnummeret som ble sendt til Arena (f.eks. 1891 → 1899), så mappingen reverseres |
 | `TiltaksgjennomforingOpprettet` | `arena_sak_id = saksnummer` |
 | `SaksbehandlingStartetIArena` | `status = UNDER_BEHANDLING` **WHERE status = OPPRETTET** |
 | `TilskuddsbrevMottatt` | `status = INNVILGET` **WHERE status NOT IN (INNVILGET, AVSLATT)** |
@@ -53,6 +53,9 @@ Uten dette vil `slettGamleInnsendteSoknader` feile med FK-brudd når det finnes 
 - Idempotent: eksplisitt sjekk på om saken finnes, pluss `insertIgnore` på UNIQUE `soknad_id` som vern mot
   samtidig opprettelse; oppdateringene gir samme resultat ved gjentakelse.
 - Replay fra posisjon 0 fyller saker for all historikk ved første oppstart.
+- **Re-kjøring:** bump versjonen i `name` (`Sak` → `Sak-v2` → …). Ny builder-rad i `projection_builder_state`
+  starter på posisjon 0. Vi nullstiller ikke posisjonen med en migrasjon, fordi en gammel pod under rolling deploy
+  da kan starte replay med gammel logikk. Den gamle raden (`Sak`) blir liggende og kan slettes manuelt.
 
 ### 4. Registrering
 Legg `dependencies.create(SakProjection::class)` til i `configureProjectionBuilders` (`EventLogProjections.kt`).
@@ -65,6 +68,8 @@ Legg `dependencies.create(SakProjection::class)` til i `configureProjectionBuild
 - Søknad som ikke finnes i `soknad` → ingen sak, projeksjonen går videre (ikke fast)
 - Idempotens: samme event to ganger gir én sak
 - FK cascade: sletting av søknad sletter saken
+- Behandlende enhet mappes tilbake fra Arena (1899) til Norg (1891)
+- Re-kjøring retter behandlende enhet på eksisterende sak uten å endre terminalstatus
 
 ### 6. Dokumentasjon
 - Kjør `executables/EventFlowDiagram.kt` for å oppdatere `event/event-flow.md` (ny projeksjon).
