@@ -5,6 +5,7 @@ import no.nav.ekspertbistand.event.EventQueue
 import no.nav.ekspertbistand.event.TestEventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
+import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.sak.KildeTilBehandling
 import no.nav.ekspertbistand.sak.SakTable
 import no.nav.ekspertbistand.sak.Saksstatus
@@ -25,9 +26,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalTime::class)
 class SakProjectionTest {
 
     private lateinit var testDb: TestDatabase
@@ -164,6 +163,41 @@ class SakProjectionTest {
         SoknadTable.deleteWhere { SoknadTable.id eq UUID.fromString(soknad.id) }
 
         assertTrue(SakTable.selectAll().where { SakTable.soknadId eq UUID.fromString(soknad.id) }.empty())
+    }
+
+    @Test
+    fun `behandlende enhet mappes tilbake fra Arena- til Norg-enhetsnummer`() = medDb {
+        val soknad = lagreSoknad()
+        publishAndFinalize(EventData.SoknadInnsendt(soknad))
+        publishAndFinalize(journalfoert(soknad, enhet = BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA))
+        pollAlt()
+
+        assertEquals(
+            BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_NORG,
+            hentSak(soknad)[SakTable.behandlendeEnhet],
+        )
+    }
+
+    @Test
+    fun `re-kjoring retter behandlende enhet paa eksisterende sak`() = medDb {
+        val soknad = lagreSoknad()
+        // Sak som ble opprettet av forrige versjon av projeksjonen, uten revers-mapping
+        SakTable.insert {
+            it[soknadId] = UUID.fromString(soknad.id)
+            it[status] = Saksstatus.INNVILGET.name
+            it[kildeTilBehandling] = KildeTilBehandling.ARENA.name
+            it[behandlendeEnhet] = BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA
+        }
+
+        publishAndFinalize(EventData.SoknadInnsendt(soknad))
+        publishAndFinalize(journalfoert(soknad, enhet = BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA))
+        publishAndFinalize(saksbehandlingStartet(soknad))
+        publishAndFinalize(tilskuddsbrevMottatt(soknad))
+        pollAlt()
+
+        val sak = hentSak(soknad)
+        assertEquals(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_NORG, sak[SakTable.behandlendeEnhet])
+        assertEquals(Saksstatus.INNVILGET.name, sak[SakTable.status])
     }
 
     private fun medDb(block: JdbcTransaction.() -> Unit) {
