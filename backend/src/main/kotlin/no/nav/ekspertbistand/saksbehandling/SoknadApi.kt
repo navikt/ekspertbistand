@@ -27,6 +27,7 @@ import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -41,8 +42,10 @@ private val log = LoggerFactory.getLogger("SaksbehandlingSoknadApi")
  * GET /api/saksbehandling/v1/soknader => alle innsendte søknader (uten fnr)
  * GET /api/saksbehandling/v1/soknader/{soknadId} => én søknad med personopplysninger
  *
- * Krever rolle [Role.SAKSBEHANDLER] eller [Role.BESLUTTER]. Enkeltoppslag sjekkes i tillegg mot
- * Tilgangsmaskinen (fail-closed) og sporingslogges til ArcSight når søknaden vises.
+ * Krever rolle [Role.SAKSBEHANDLER] eller [Role.BESLUTTER], og at søknaden har en sak med
+ * behandlende enhet som saksbehandler har tilgang til (fra entra-proxy). Søknader uten sak eller
+ * enhet er ikke synlige for noen. Enkeltoppslag sjekkes i tillegg mot Tilgangsmaskinen og
+ * sporingslogges til ArcSight når søknaden vises. Alle eksterne tilgangssjekker er fail-closed (503).
  * Listen sporingslogges ikke, jf. krav til oppslagslogg på sikkerhet.nav.no.
  */
 suspend fun Application.configureSaksbehandlingSoknadApiV1() {
@@ -54,9 +57,10 @@ suspend fun Application.configureSaksbehandlingSoknadApiV1() {
         authenticate(AZURE_AD_PROVIDER) {
             route("/api/saksbehandling/v1/soknader") {
                 get {
-                    call.saksbehandlerMedRolle() ?: return@get
+                    val principal = call.saksbehandlerMedRolle() ?: return@get
+                    val enheter = call.enheterForSaksbehandler(principal) ?: return@get
 
-                    val soknader = transaction(database) { hentSoknaderForSaksbehandling() }
+                    val soknader = transaction(database) { hentSoknaderForSaksbehandling(enheter) }
                     call.respond(SoknaderResponse(soknader = soknader))
                 }
 
@@ -73,6 +77,19 @@ suspend fun Application.configureSaksbehandlingSoknadApiV1() {
 
                     val soknad = transaction(database) { hentSoknadForSaksbehandling(soknadId) }
                         ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke søknad"))
+
+                    val enheter = call.enheterForSaksbehandler(principal) ?: return@get
+                    val behandlendeEnhet = soknad.sak?.behandlendeEnhet
+                    if (behandlendeEnhet == null || behandlendeEnhet !in enheter) {
+                        log.info("Tilgang avvist: saksbehandler mangler tilgang til enhet for soknadId={}", soknadId)
+                        return@get call.respond(
+                            HttpStatusCode.Forbidden,
+                            TilgangAvvistResponse(
+                                kode = IKKE_TILGANG_ENHET,
+                                begrunnelse = "Du har ikke tilgang til enheten som behandler søknaden",
+                            ),
+                        )
+                    }
 
                     val tilgang = try {
                         tilgangsmaskinClient.evaluer(
@@ -128,10 +145,24 @@ private suspend fun ApplicationCall.saksbehandlerMedRolle(): AzureAdPrincipal? {
     return principal
 }
 
+const val IKKE_TILGANG_ENHET = "IKKE_TILGANG_ENHET"
+
+/** Enhetsnumrene saksbehandler har tilgang til, eller null (og 503) hvis entra-proxy feiler. */
+private suspend fun ApplicationCall.enheterForSaksbehandler(principal: AzureAdPrincipal): Set<String>? =
+    try {
+        principal.enheter().map { it.enhetnummer }.toSet()
+    } catch (e: Exception) {
+        e.rethrowIfCancellation()
+        log.error("Henting av enheter fra entra-proxy feilet ({}), avviser oppslag", e.javaClass.simpleName)
+        respond(HttpStatusCode.ServiceUnavailable, mapOf("message" to "tilgangskontroll er ikke tilgjengelig"))
+        null
+    }
+
 @OptIn(ExperimentalTime::class)
-fun hentSoknaderForSaksbehandling(): List<SoknadListeElement> =
-    SoknadTable
-        .join(SakTable, JoinType.LEFT, SoknadTable.id, SakTable.soknadId)
+fun hentSoknaderForSaksbehandling(enheter: Set<String>): List<SoknadListeElement> {
+    if (enheter.isEmpty()) return emptyList()
+    return SoknadTable
+        .join(SakTable, JoinType.INNER, SoknadTable.id, SakTable.soknadId)
         .select(
             SoknadTable.id,
             SoknadTable.status,
@@ -142,6 +173,7 @@ fun hentSoknaderForSaksbehandling(): List<SoknadListeElement> =
             SoknadTable.behovForBistandStartdato,
             *SakTable.columns.toTypedArray(),
         )
+        .where { SakTable.behandlendeEnhet inList enheter }
         .orderBy(SoknadTable.opprettetTidspunkt, SortOrder.DESC)
         .map { row ->
             SoknadListeElement(
@@ -157,6 +189,7 @@ fun hentSoknaderForSaksbehandling(): List<SoknadListeElement> =
                 sak = row.tilSakInfo(),
             )
         }
+}
 
 fun hentSoknadForSaksbehandling(soknadId: UUID): SoknadDetaljer? =
     SoknadTable

@@ -37,7 +37,7 @@ suspend fun Application.configureSaksbehandlerApiV1() {
 
                     try {
                         val ansatt = entraProxyClient.hentAnsatt(navIdent)
-                        val enheter = entraProxyClient.hentEnheter(navIdent)
+                        val enheter = principal.enheter()
 
                         val response = InnloggetAnsattResponse(
                             id = ansatt.navIdent,
@@ -66,10 +66,6 @@ suspend fun Application.configureSaksbehandlerApiV1() {
                             mapOf("message" to "Kunne ikke hente ansattdata.")
                         )
                     }
-                }
-
-                post("/enhet") {
-                    call.respond(HttpStatusCode.NoContent)
                 }
 
                 get("/soknad/{soknadId}/arena-behandling") {

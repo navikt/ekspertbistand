@@ -59,6 +59,7 @@ const mockSoknader: MockSoknad[] = [
       sakId: "9c2f7a10-0000-4000-8000-000000002004",
       status: "UNDER_BEHANDLING",
       saksbehandlerIdent: "H654321",
+      behandlendeEnhet: "0301",
     },
   },
   {
@@ -137,7 +138,13 @@ const tilListeElement = (soknad: MockSoknad, index: number): SoknadListeElement 
   sak: soknad.sak ? tilSakInfo(soknad.sak) : null,
 });
 
-const soknadListe = (): SoknadListeElement[] => mockSoknader.map(tilListeElement);
+const alleSoknader = (): SoknadListeElement[] => mockSoknader.map(tilListeElement);
+
+const mineEnheter = new Set(mockInnloggetAnsatt.enheter.map((e) => e.nummer));
+
+// Speiler backend: søknader uten sak eller enhet, eller på enhet saksbehandler ikke har tilgang til, er skjult.
+const harTilgangTilEnhet = (soknad: SoknadListeElement) =>
+  !!soknad.sak?.behandlendeEnhet && mineEnheter.has(soknad.sak.behandlendeEnhet);
 
 const lagVilkår = (): Vilkår[] => [
   {
@@ -250,11 +257,22 @@ export const handlers = [
     })
   ),
   http.get("/api/saksbehandling/v1/meg", () => HttpResponse.json(mockInnloggetAnsatt)),
-  http.get(SAKSBEHANDLING_SOKNADER_URL, () => HttpResponse.json({ soknader: soknadListe() })),
+  http.get(SAKSBEHANDLING_SOKNADER_URL, () =>
+    HttpResponse.json({ soknader: alleSoknader().filter(harTilgangTilEnhet) })
+  ),
   http.get("/api/saksbehandling/v1/soknader/:soknadId", ({ params }) => {
-    const element = soknadListe().find((s) => s.soknadId === params.soknadId);
+    const element = alleSoknader().find((s) => s.soknadId === params.soknadId);
     if (!element) {
       return HttpResponse.json({ message: "Fant ikke søknaden." }, { status: 404 });
+    }
+    if (!harTilgangTilEnhet(element)) {
+      return HttpResponse.json(
+        {
+          kode: "IKKE_TILGANG_ENHET",
+          begrunnelse: "Du har ikke tilgang til enheten som behandler søknaden",
+        },
+        { status: 403 }
+      );
     }
     return HttpResponse.json(lagSoknadDetaljer(element));
   }),
