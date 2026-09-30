@@ -1,0 +1,57 @@
+apiVersion: "nais.io/v1alpha1"
+kind: "Application"
+metadata:
+  labels:
+    team: fager
+  name: ekspertbistand-gotenberg
+  namespace: fager
+spec:
+  image: {{ image }}
+  port: 3000
+  liveness:
+    path: /health
+  readiness:
+    path: /health
+  observability:
+    logging:
+      destinations:
+        - id: loki
+  replicas:
+    min: 1
+    max: 2
+  resources:
+    requests:
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+  env:
+    - name: HOME
+      value: /tmp
+    - name: CHROMIUM_DISABLE_JAVASCRIPT
+      value: "true"
+    - name: CHROMIUM_ALLOW_LIST
+      value: "^file:///tmp/.*"
+    - name: CHROMIUM_DENY_LIST
+      value: "^file:(?!//\\/tmp/).*"
+    - name: API_DISABLE_DOWNLOAD_FROM
+      value: "true"
+    - name: WEBHOOK_DISABLE
+      value: "true"
+    - name: LIBREOFFICE_DISABLE_ROUTES
+      value: "true"
+    - name: CHROMIUM_MAX_CONCURRENCY
+      value: "2"
+    - name: CHROMIUM_RESTART_AFTER
+      value: "100"
+    - name: LOG_STD_FORMAT
+      value: "json"
+    - name: API_DISABLE_HEALTH_CHECK_ROUTE_TELEMETRY
+      value: "true"
+  accessPolicy:
+    inbound:
+      rules:
+        - application: ekspertbistand-backend
+    outbound:
+      rules:
+        - application: logging
+          namespace: nais-system
