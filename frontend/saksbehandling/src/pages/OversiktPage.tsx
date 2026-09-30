@@ -1,5 +1,18 @@
 import { MenuElipsisHorizontalCircleIcon } from "@navikt/aksel-icons";
-import { ActionMenu, Box, Button, Loader, Page, Table, Tabs, Tag, VStack } from "@navikt/ds-react";
+import {
+  ActionMenu,
+  Alert,
+  BodyShort,
+  Box,
+  Button,
+  Heading,
+  Loader,
+  Page,
+  Table,
+  Tabs,
+  Tag,
+  VStack,
+} from "@navikt/ds-react";
 import { useNavigate } from "react-router";
 import { type Saksstatus, type SakListeElement, useSaker } from "../hooks/useSaker";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
@@ -65,6 +78,24 @@ export default function OversiktPage() {
 
   if (error) {
     return <Tag variant="error">Kunne ikke hente saksoversikten.</Tag>;
+  }
+
+  if (innloggetAnsatt && innloggetAnsatt.enheter.length === 0) {
+    return (
+      <Page.Block as="main">
+        <Box padding="space-24">
+          <Alert variant="warning">
+            <Heading spacing size="small" level="2">
+              Du er ikke knyttet til noen enheter
+            </Heading>
+            <BodyShort>
+              Derfor ser du ingen saker. Ta kontakt med lederen din eller den som styrer tilgang hos
+              dere, slik at du får tilgang til enheten du jobber i.
+            </BodyShort>
+          </Alert>
+        </Box>
+      </Page.Block>
+    );
   }
 
   return (
