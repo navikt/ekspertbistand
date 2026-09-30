@@ -143,7 +143,7 @@ flowchart LR
     end
 
     subgraph DOK["Dokumenter"]
-        DOKGEN["Dokgen"]
+        GOTENBERG["Gotenberg"]
         JOARK["Dokarkiv (Joark)"]
     end
 
@@ -186,7 +186,7 @@ flowchart LR
     BE <--> AAREG
     BE <--> NORG
     BE <--> KONTO
-    BE --> DOKGEN
+    BE --> GOTENBERG
     BE --> JOARK
     BE --> NOTIF
     BE --> DDIST
@@ -208,7 +208,7 @@ flowchart LR
 Systemene grupperes i innlogging og tilgang (ID-porten og AzureAD/Entra via
 Wonderwall, roller fra Entra-proxy, virksomhetstilganger fra Altinn tilganger-proxy
 og persontilgang via Tilgangsmaskin), oppslagsregistre (PDL, Ereg, Aa-reg, Norg,
-Kontoregister), dokumentproduksjon og journalføring (Dokgen, Dokarkiv), utsending
+Kontoregister), dokumentproduksjon og journalføring (Gotenberg, Dokarkiv), utsending
 og utbetaling (Notifikasjonsplattform, Dokumentdistribusjon, VALP/OeBS),
 statusmeldinger på Kafka til SF og Modia, samt observability og datadeling (Team
 logs, Grafana, BigQuery, Datamarkedsplassen). Integrasjoner som ennå ikke er bygget
