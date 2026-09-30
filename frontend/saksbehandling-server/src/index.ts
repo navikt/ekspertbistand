@@ -27,12 +27,15 @@ const {
   NODE_ENV,
   GIT_COMMIT,
   NAIS_APP_IMAGE,
+  VITE_ENABLE_MOCKS,
 } = process.env;
 
 const port = Number(PORT);
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
 const azureEnabled = Boolean(AZURE_APP_CLIENT_ID);
-if (NODE_ENV === "production" && !azureEnabled) {
+// Mock-imaget bygges med VITE_ENABLE_MOCKS=true og kjører uten Azure.
+const mockEnabled = VITE_ENABLE_MOCKS === "true";
+if (NODE_ENV === "production" && !azureEnabled && !mockEnabled) {
   throw new Error(
     "AZURE_APP_CLIENT_ID mangler i production. Avslutter for å unngå fail-open auth."
   );
