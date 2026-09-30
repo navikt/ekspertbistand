@@ -1,9 +1,4 @@
 import {
-  CheckmarkCircleFillIcon,
-  ClockDashedIcon,
-  XMarkOctagonFillIcon,
-} from "@navikt/aksel-icons";
-import {
   Accordion,
   Alert,
   BodyLong,
@@ -30,42 +25,10 @@ type Props = {
   }) => Promise<boolean>;
 };
 
-const iconStyle = (color: string) => ({ color, flexShrink: 0 }) as const;
-
-function StatusIkon({ status }: { status: Vilkårstatus }) {
-  if (status === "oppfylt") {
-    return (
-      <CheckmarkCircleFillIcon
-        aria-hidden
-        style={iconStyle("var(--ax-color-success-icon)")}
-        fontSize="1.25rem"
-      />
-    );
-  }
-
-  if (status === "ikke_oppfylt") {
-    return (
-      <XMarkOctagonFillIcon
-        aria-hidden
-        style={iconStyle("var(--ax-color-danger-icon)")}
-        fontSize="1.25rem"
-      />
-    );
-  }
-
-  return (
-    <ClockDashedIcon
-      aria-hidden
-      style={iconStyle("var(--ax-color-warning-icon)")}
-      fontSize="1.25rem"
-    />
-  );
-}
-
 function StatusTag({ status }: { status: Vilkårstatus }) {
   if (status === "oppfylt") {
     return (
-      <Tag variant="success" size="xsmall">
+      <Tag variant="success" size="small">
         Oppfylt
       </Tag>
     );
@@ -73,27 +36,23 @@ function StatusTag({ status }: { status: Vilkårstatus }) {
 
   if (status === "ikke_oppfylt") {
     return (
-      <Tag variant="error" size="xsmall">
+      <Tag variant="error" size="small">
         Ikke oppfylt
       </Tag>
     );
   }
-
-  return (
-    <Tag variant="warning" size="xsmall">
-      Ikke vurdert
-    </Tag>
-  );
 }
 
 function formatTidspunkt(iso: string | undefined) {
-  return iso? new Intl.DateTimeFormat("nb-NO", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso)) : null;
+  return iso
+    ? new Intl.DateTimeFormat("nb-NO", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(iso))
+    : null;
 }
 
 export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props) {
@@ -121,39 +80,33 @@ export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props
 
   return (
     <Accordion.Item defaultOpen>
-      <Accordion.Header>
-        <HStack gap="space-8" align="center">
-          <StatusIkon status={vilkår.vurdering?.status} />
-          {vilkår.tittel}
-        </HStack>
-      </Accordion.Header>
+      <Accordion.Header>{vilkår.tittel}</Accordion.Header>
       <Accordion.Content>
-        <VStack gap="space-12">
-          <BodyShort size="small">{vilkår.beskrivelse}</BodyShort>
+        <VStack gap="space-16">
+          <BodyShort>{vilkår.beskrivelse}</BodyShort>
 
-          <HStack gap="space-8" align="center" wrap>
-            <StatusTag status={vilkår.vurdering?.status} />
-            {vilkår.vurdering.automatisk && (
-              <Tag variant="neutral" size="xsmall">
-                Automatisk
-              </Tag>
-            )}
-          </HStack>
-
-          {!redigerer && !vilkår.vurdering.automatisk && vilkår.vurdering.status !== "ikke_vurdert" && (
-            <VStack gap="space-4">
-              {vilkår.vurdering.kommentar && (
-                <>
-                  <Label size="small">Kommentar</Label>
-                  <BodyLong size="small">{vilkår.vurdering.kommentar}</BodyLong>
-                </>
-              )}
-              <Detail>
-                Vurdert av {vilkår.vurdering.vurdertAv}{" "}
-                {formatTidspunkt(vilkår.vurdering.vurdertTidspunkt)}
-              </Detail>
-            </VStack>
+          {erVurdert && !redigerer && (
+            <HStack>
+              <StatusTag status={vilkår.vurdering.status} />
+            </HStack>
           )}
+
+          {!redigerer &&
+            !vilkår.vurdering.automatisk &&
+            vilkår.vurdering.status !== "ikke_vurdert" && (
+              <VStack gap="space-4">
+                {vilkår.vurdering.kommentar && (
+                  <>
+                    <Label size="small">Kommentar</Label>
+                    <BodyLong size="small">{vilkår.vurdering.kommentar}</BodyLong>
+                  </>
+                )}
+                <Detail>
+                  Vurdert av {vilkår.vurdering.vurdertAv}{" "}
+                  {formatTidspunkt(vilkår.vurdering.vurdertTidspunkt)}
+                </Detail>
+              </VStack>
+            )}
 
           {error && redigerer && (
             <Alert variant="error" size="small" inline>
@@ -165,8 +118,7 @@ export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props
             <VStack gap="space-12">
               <Textarea
                 label="Begrunnelse"
-                size="small"
-                minRows={3}
+                minRows={1}
                 value={kommentar}
                 onChange={(event) => setKommentar(event.target.value)}
               />
@@ -201,9 +153,15 @@ export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props
             </VStack>
           ) : (
             <HStack>
-              <Button variant="primary" size="small" onClick={åpneRedigering}>
-                {erVurdert ? "Endre vurdering" : "Vurder manuelt"}
-              </Button>
+              {erVurdert ? (
+                <Button variant="tertiary" size="small" onClick={åpneRedigering}>
+                  Endre
+                </Button>
+              ) : (
+                <Button variant="primary" size="small" onClick={åpneRedigering}>
+                  {"Vurder"}
+                </Button>
+              )}
             </HStack>
           )}
         </VStack>

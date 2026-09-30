@@ -36,6 +36,8 @@ RUN pnpm --filter ./frontend/server deploy --prod --legacy /deploy/server
 FROM ${RUNNER_IMAGE} AS runner
 ENV NODE_ENV=production
 ENV STATIC_DIR=/app/client/dist
+ARG VITE_ENABLE_MOCKS
+ENV VITE_ENABLE_MOCKS=${VITE_ENABLE_MOCKS}
 WORKDIR /app
 
 COPY --from=builder /deploy/server/ ./

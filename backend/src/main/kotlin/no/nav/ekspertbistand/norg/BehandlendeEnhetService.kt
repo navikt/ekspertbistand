@@ -5,10 +5,6 @@ import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGrade
 class BehandlendeEnhetService(
     private val norgKlient: NorgKlient
 ) {
-    private val norgTilArenaEnhetNrMap = mapOf(
-        NAV_ARBEIDSLIVSSENTER_NORDLAND_NORG to NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA,
-    )
-
     suspend fun hentBehandlendeEnhet(
         adressebeskyttelse: AdressebeskyttelseGradering,
         geografiskTilknytning: String
@@ -43,5 +39,17 @@ class BehandlendeEnhetService(
         const val NAV_ARBEIDSLIVSSENTER_NORDLAND_NORG = "1891"
         const val NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA = "1899"
         const val NAV_ARBEIDSLIVSSENTER_OSLO = "0391"
+
+        private val norgTilArenaEnhetNrMap = mapOf(
+            NAV_ARBEIDSLIVSSENTER_NORDLAND_NORG to NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA,
+        )
+
+        private val arenaTilNorgEnhetNrMap = norgTilArenaEnhetNrMap.entries.associate { (norg, arena) -> arena to norg }
+
+        /**
+         * Reverserer mappingen som gjøres før enhetsnummeret sendes til Arena,
+         * slik at vi får tilbake enhetsnummeret fra Norg.
+         */
+        fun arenaTilNorgEnhetNr(enhetNr: String): String = arenaTilNorgEnhetNrMap.getOrDefault(enhetNr, enhetNr)
     }
 }
