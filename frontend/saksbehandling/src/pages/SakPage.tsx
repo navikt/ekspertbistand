@@ -74,9 +74,15 @@ export default function SakPage() {
 
   if (isLoading) return <Loader size="large" title="Laster sak" />;
   if (error || !sak) {
+    const begrunnelse = error?.status === 403 ? error.begrunnelse : undefined;
     return (
       <Box padding="space-24">
-        <Alert variant="error">{feilmelding(error)}</Alert>
+        <Alert variant="error">
+          <VStack gap="space-8">
+            <BodyShort weight="semibold">{feilmelding(error)}</BodyShort>
+            {begrunnelse && <BodyShort>{begrunnelse}</BodyShort>}
+          </VStack>
+        </Alert>
       </Box>
     );
   }
