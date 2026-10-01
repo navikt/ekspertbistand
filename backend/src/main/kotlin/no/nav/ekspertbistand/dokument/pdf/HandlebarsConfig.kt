@@ -47,13 +47,15 @@ class HandlebarsConfig(
 
     private val cache = ConcurrentHashMap<String, Template>()
 
+    private val strictResolver = StrictMapValueResolver { handlebars.helper<Any>(it) != null }
+
     /** Kompilerer (og cacher) malen og rendrer den med [data]. */
     fun render(templateName: String, templateSource: String, data: JsonObject): String {
         val template = cache.getOrPut(templateName) { handlebars.compileInline(templateSource) }
         val model = jsonToJava(data)
         return if (strict) {
             val context = Context.newBuilder(model)
-                .resolver(StrictMapValueResolver)
+                .resolver(strictResolver)
                 .build()
             template.apply(context)
         } else {
@@ -116,10 +118,14 @@ class HandlebarsConfig(
  * gjennom. For ikke-Map-kontekster (for eksempel et list-element inne i `{{#each}}`) delegeres
  * til [MapValueResolver], som returnerer [ValueResolver.UNRESOLVED] slik at Handlebars kan gå
  * videre til foreldre-scope.
+ *
+ * Fra Handlebars 4.5 slår `Variable` opp navnet i konteksten også når det er en helper (for å
+ * støtte block params), så helper-navn ([isHelper]) må slippe gjennom uten å regnes som manglende.
  */
-private object StrictMapValueResolver : ValueResolver {
+private class StrictMapValueResolver(private val isHelper: (String) -> Boolean) : ValueResolver {
     override fun resolve(context: Any?, name: String): Any? {
         if (context is Map<*, *>) {
+            if (!context.containsKey(name) && isHelper(name)) return ValueResolver.UNRESOLVED
             if (!context.containsKey(name)) {
                 throw PdfGenerationException("Malen refererer feltet '$name' som mangler i dataene")
             }
