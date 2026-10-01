@@ -2,24 +2,10 @@ import { http, HttpResponse } from "msw";
 import type { SakDetaljer } from "../hooks/useSak";
 import type { SakInfo, SakListeElement, SoknadStatus } from "../hooks/useSaker";
 import type { Vilkår, Vilkårstatus } from "../hooks/useVilkår";
-import type { SakDetaljer, Vilkår, Vilkårstatus } from "../hooks/useSak";
 import type { SaksloggInnslag, SaksloggResponse } from "../hooks/useSakslogg";
 import { mockInnloggetAnsatt } from "../mock/ansatt";
 import { SAKSBEHANDLING_SAKER_URL, SESSION_URL } from "../utils/constants";
 
-type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent"> &
-  Partial<SakInfo> & {
-    soknad: {
-      soknadId: string;
-      virksomhetsnavn: string;
-      ansattNavn: string;
-      innsendtTidspunkt: string;
-      startdato: string;
-      status?: SoknadStatus;
-    };
-  };
-
-const mockSaker: MockSak[] = [
 const innslag = (
   id: string,
   tidspunkt: string,
@@ -47,7 +33,19 @@ const mockSakslogg: SaksloggInnslag[] = [
   innslag("1", "2026-03-30T10:00:00Z", "SYSTEM", "System", "Søknad mottatt fra arbeidsgiver (Bygg og Anlegg AS)"),
 ];
 
-const oversikt = [
+type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent"> &
+  Partial<SakInfo> & {
+    soknad: {
+      soknadId: string;
+      virksomhetsnavn: string;
+      ansattNavn: string;
+      innsendtTidspunkt: string;
+      startdato: string;
+      status?: SoknadStatus;
+    };
+  };
+
+const mockSaker: MockSak[] = [
   {
     sakId: "9c2f7a10-0000-4000-8000-000000002001",
     status: "OPPRETTET",
