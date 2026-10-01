@@ -8,7 +8,8 @@ import io.ktor.utils.io.*
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
+import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
@@ -58,30 +59,7 @@ fun main() {
         tokenExchanger = successTokenXTokenExchanger
     )
     val mockEregClient = EregClient(defaultHttpClient = mockEregServer)
-    val mockDokgenClient = DokgenClient(
-        defaultHttpClient = HttpClient(MockEngine { request ->
-            val isHtml = request.url.encodedPath.endsWith("/create-html")
-            if (isHtml) {
-                respond(
-                    content = "<p>Mock tilskuddsbrev HTML</p>",
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(
-                        HttpHeaders.ContentType,
-                        ContentType.Text.Html.toString()
-                    )
-                )
-            } else {
-                respond(
-                    content = "%PDF-mock".toByteArray(),
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(
-                        HttpHeaders.ContentType,
-                        ContentType.Application.Pdf.toString()
-                    )
-                )
-            }
-        }),
-    )
+    val mockDokumentService = DokumentService(StubPdfKonverterer())
     val mockDokArkivClient = DokArkivClient(
         azureAdTokenProvider = successAzureAdTokenProvider,
         defaultHttpClient = HttpClient(MockEngine {
@@ -281,7 +259,7 @@ fun main() {
                 mockEregClient
             }
             provide<EregService> { EregService(resolve()) }
-            provide { mockDokgenClient }
+            provide { mockDokumentService }
             provide { mockDokArkivClient }
             provide(NorgKlient::class)
             provide(BehandlendeEnhetService::class)

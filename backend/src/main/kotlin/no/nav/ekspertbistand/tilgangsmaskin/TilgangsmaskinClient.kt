@@ -55,6 +55,8 @@ class TilgangsmaskinClient(
     private val target = "${NaisEnvironment.clusterName}:tilgangsmaskin:populasjonstilgangskontroll"
 
     val httpClient = defaultHttpClient.config {
+        // 403 er et gyldig svar (Avvist) og håndteres eksplisitt i evaluer().
+        expectSuccess = false
         install(ContentNegotiation) {
             json(defaultJson)
         }

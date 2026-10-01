@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Arena Notat",
+  "type": "object",
+  "properties": {
+    "saksnummer": { "type": "string" },
+    "tiltaksgjennomfoeringId": { "type": "string" }
+  },
+  "required": ["saksnummer", "tiltaksgjennomfoeringId"],
+  "example": {
+    "saksnummer": "42",
+    "tiltaksgjennomfoeringId": "314"
+  }
+}

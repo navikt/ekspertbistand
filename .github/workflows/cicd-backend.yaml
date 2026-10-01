@@ -29,6 +29,22 @@ jobs:
           --health-retries 5
         ports:
           - 5532:5432
+      gotenberg:
+        image: gotenberg/gotenberg:8.37.0
+        env:
+          CHROMIUM_DISABLE_JAVASCRIPT: "true"
+          CHROMIUM_ALLOW_LIST: "^file:///tmp/.*"
+          API_DISABLE_DOWNLOAD_FROM: "true"
+          WEBHOOK_DISABLE: "true"
+          LIBREOFFICE_DISABLE_ROUTES: "true"
+          CHROMIUM_MAX_CONCURRENCY: "2"
+        options: >-
+          --health-cmd "curl -fsS http://localhost:3000/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 3003:3000
     steps:
       - uses: actions/checkout@v4
 

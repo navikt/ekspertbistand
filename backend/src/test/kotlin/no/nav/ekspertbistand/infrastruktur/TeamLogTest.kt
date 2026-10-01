@@ -1,6 +1,8 @@
 package no.nav.ekspertbistand.infrastruktur
 
+import no.nav.common.audit_log.log.AuditLoggerConstants.AUDIT_LOGGER_NAME
 import org.junit.jupiter.api.assertDoesNotThrow
+import org.slf4j.LoggerFactory
 import org.slf4j.MDC
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
@@ -55,6 +57,18 @@ class TeamLogTest {
         assertDoesNotThrow {
             teamLog.error("tester logging av object {}", mapOf("key" to "value"))
         }
+    }
+
+    /**
+     * Sporingslogg inneholder fødselsnummer (duid) og skal kun til ArcSight, aldri til stdout.
+     */
+    @Test
+    fun `sporingslogg havner ikke i stdout`() {
+        val stdout = captureStdout {
+            LoggerFactory.getLogger(AUDIT_LOGGER_NAME).info("CEF:0|ekspertbistand|AuditLogger|1.0|audit:access|Sporingslogg|INFO|duid=AUDITFNR")
+        }
+
+        assertFalse(stdout.contains("AUDITFNR"), "forventet at sporingslogg ikke skrives til stdout")
     }
 
 }

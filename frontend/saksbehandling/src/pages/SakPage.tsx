@@ -1,6 +1,7 @@
 import { ArrowLeftIcon, CheckmarkCircleIcon, ChevronRightIcon } from "@navikt/aksel-icons";
 import {
   Accordion,
+  Alert,
   BodyLong,
   BodyShort,
   Box,
@@ -12,7 +13,6 @@ import {
   Link,
   Loader,
   Tabs,
-  Tag,
   VStack,
 } from "@navikt/ds-react";
 import { useState } from "react";
@@ -23,7 +23,9 @@ import KolonneSeparator from "../components/KolonneSeparator";
 import Sakslogg from "../components/Sakslogg";
 import VilkårItem from "../components/VilkårItem";
 import { useSak } from "../hooks/useSak";
+import { useVilkår } from "../hooks/useVilkår";
 import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
+import type { HttpError } from "../utils/http";
 import { GOSYS_URL, MODIA_URL, OVERSIKT_PATH } from "../utils/constants";
 
 function formatDate(iso: string) {
@@ -32,6 +34,11 @@ function formatDate(iso: string) {
     month: "short",
     year: "numeric",
   }).format(new Date(iso));
+}
+
+function formatBeløp(beløp: string) {
+  const tall = Number(beløp);
+  return Number.isFinite(tall) ? `${tall.toLocaleString("nb-NO")} kr` : beløp;
 }
 
 function Spørsmål({ label, children }: { label: string; children: React.ReactNode }) {
@@ -45,28 +52,54 @@ function Spørsmål({ label, children }: { label: string; children: React.ReactN
 
 type Fane = "vilkarsvurdering" | "forelopig-vedtak";
 
+function feilmelding(error: HttpError | undefined) {
+  switch (error?.status) {
+    case 403:
+      return "Du har ikke tilgang til denne saken.";
+    case 404:
+      return "Fant ikke saken.";
+    case 503:
+      return "Vi kunne ikke sjekke tilgangen din akkurat nå. Prøv igjen om litt.";
+    default:
+      return "Kunne ikke hente saken.";
+  }
+}
+
 export default function SakPage() {
-  const { sakId } = useParams<{ sakId: string }>();
-  const { sak, error, isLoading } = useSak(sakId ?? "");
+  const { sakId: sakIdParam } = useParams<{ sakId: string }>();
+  const { sak, error, isLoading } = useSak(sakIdParam ?? "");
+  const sakId = sak?.sakId;
+  const { vilkår, error: vilkårError, isLoading: vilkårLaster } = useVilkår(sakId);
   const { lagreVurdering, isSaving, error: lagreError } = useVilkårsvurdering(sakId ?? "");
   const [fane, setFane] = useState<Fane>("vilkarsvurdering");
 
   if (isLoading) return <Loader size="large" title="Laster sak" />;
-  if (error || !sak) return <Tag variant="error">Kunne ikke hente saken.</Tag>;
+  if (error || !sak) {
+    const begrunnelse = error?.status === 403 ? error.begrunnelse : undefined;
+    return (
+      <Box padding="space-24">
+        <Alert variant="error">
+          <VStack gap="space-8">
+            <BodyShort weight="semibold">{feilmelding(error)}</BodyShort>
+            {begrunnelse && <BodyShort>{begrunnelse}</BodyShort>}
+          </VStack>
+        </Alert>
+      </Box>
+    );
+  }
 
-  const { deltaker, arbeidsgiver, ekspert, situasjon, ekspertbistand, vilkår } = sak;
+  const { soknad } = sak;
+  const { ansatt, virksomhet, ekspert, behovForBistand } = soknad;
 
   return (
     <>
       <Box background="soft" paddingBlock="space-8" paddingInline="space-24">
         <HStack gap="space-8" align="center">
-          <BodyShort weight="semibold">
-            {deltaker.navn} ({deltaker.alder} år)
-          </BodyShort>
-          <CopyButton copyText={deltaker.navn} size="xsmall" />
+          <BodyShort weight="semibold">{ansatt.navn}</BodyShort>
+          <CopyButton copyText={ansatt.navn} size="xsmall" />
           <BodyShort>/</BodyShort>
-          <BodyShort>{deltaker.fnr}</BodyShort>
-          <CopyButton copyText={deltaker.fnr.replace(/\s/g, "")} size="xsmall" />
+          <BodyShort>{ansatt.fnr}</BodyShort>
+          <CopyButton copyText={ansatt.fnr} size="xsmall" />
         </HStack>
       </Box>
 
@@ -96,23 +129,23 @@ export default function SakPage() {
               <VStack gap="space-32">
                 <InfoKort tittel="Arbeidsgiver">
                   <HGrid columns="repeat(auto-fit, minmax(160px, 1fr))" gap="space-8 space-16">
-                    <DataRad label="Navn" value={arbeidsgiver.navn} />
-                    <DataRad label="Kontaktperson" value={arbeidsgiver.kontaktperson} />
-                    <DataRad label="Org.nr" value={arbeidsgiver.orgNr} />
-                    <DataRad label="E-post" value={arbeidsgiver.epost} />
+                    <DataRad label="Navn" value={virksomhet.virksomhetsnavn} />
+                    <DataRad label="Kontaktperson" value={virksomhet.kontaktperson.navn} />
+                    <DataRad label="Org.nr" value={virksomhet.virksomhetsnummer} />
+                    <DataRad label="E-post" value={virksomhet.kontaktperson.epost} />
                     <DataRad
                       label="Beliggenhetsadresse"
-                      value={arbeidsgiver.beliggenhetssadresse}
+                      value={virksomhet.beliggenhetsadresse ?? "–"}
                     />
-                    <DataRad label="Telefon" value={arbeidsgiver.telefon} />
+                    <DataRad label="Telefon" value={virksomhet.kontaktperson.telefonnummer} />
                   </HGrid>
                 </InfoKort>
 
                 <InfoKort tittel="Deltakere">
                   <HGrid columns="repeat(auto-fit, minmax(160px, 1fr))" gap="space-8 space-16">
                     <VStack gap="space-8">
-                      <DataRad label="Navn" value={deltaker.navn} />
-                      <DataRad label="Fødselsnummer" value={deltaker.fnr} />
+                      <DataRad label="Navn" value={ansatt.navn} />
+                      <DataRad label="Fødselsnummer" value={ansatt.fnr} />
                       <VStack gap="space-2">
                         <Label>Arbeidsforhold</Label>
                         <Link href="#" target="_blank">
@@ -144,9 +177,17 @@ export default function SakPage() {
                 <InfoKort tittel="Ekspert">
                   <VStack gap="space-8">
                     <DataRad label="Navn" value={ekspert.navn} />
-                    <DataRad label="Godkjent utdanning/autorisasjon" value={ekspert.kompetanse} />
-                    <DataRad label="Tilknyttet virksomhet" value={ekspert.tilknyttetVirksomhet} />
-                    <DataRad label="Org.nr." value={ekspert.orgNr} />
+                    <DataRad
+                      label="Godkjent utdanning/autorisasjon"
+                      value={
+                        ekspert.godkjentUtdanningEllerAutorisasjon.join(", ") || ekspert.kompetanse
+                      }
+                    />
+                    <DataRad
+                      label="Tilknyttet virksomhet"
+                      value={ekspert.virksomhetNavn ?? ekspert.virksomhet}
+                    />
+                    <DataRad label="Org.nr." value={ekspert.virksomhetOrgnr ?? "–"} />
                   </VStack>
                 </InfoKort>
               </VStack>
@@ -164,10 +205,10 @@ export default function SakPage() {
                     Situasjonen
                   </Heading>
                   <Spørsmål label="Beskriv den ansattes arbeidssituasjon">
-                    <BodyLong>{situasjon.arbeidssituasjon}</BodyLong>
+                    <BodyLong>{behovForBistand.begrunnelse}</BodyLong>
                   </Spørsmål>
                   <Spørsmål label="Beskriv ansatt sykefravær, og hvilken oppfølging og tilrettelegging dere allerede har tilbudt/prøvd ut?">
-                    <BodyLong>{situasjon.sykefravær}</BodyLong>
+                    <BodyLong>{behovForBistand.tilrettelegging}</BodyLong>
                   </Spørsmål>
                 </VStack>
 
@@ -176,19 +217,19 @@ export default function SakPage() {
                     Ekspertbistand
                   </Heading>
                   <Spørsmål label="Hva skal eksperten hjelpe dere med?">
-                    <BodyLong>{ekspertbistand.hvaHjelpeMed}</BodyLong>
+                    <BodyLong>{behovForBistand.behov}</BodyLong>
                   </Spørsmål>
                   <Spørsmål label="Hvor mange timer skal eksperten hjelpe dere?">
-                    <BodyShort>{ekspertbistand.antallTimer} timer</BodyShort>
+                    <BodyShort>{behovForBistand.timer} timer</BodyShort>
                   </Spørsmål>
                   <Spørsmål label="Søknadssum">
-                    <BodyShort>{ekspertbistand.søknadssum.toLocaleString("nb-NO")} kr</BodyShort>
+                    <BodyShort>{formatBeløp(behovForBistand.estimertKostnad)}</BodyShort>
                   </Spørsmål>
                   <Spørsmål label="Startdato">
-                    <BodyShort>{formatDate(ekspertbistand.startdato)}</BodyShort>
+                    <BodyShort>{formatDate(behovForBistand.startdato)}</BodyShort>
                   </Spørsmål>
                   <Spørsmål label="Sendt inn til Nav">
-                    <BodyShort>{formatDate(ekspertbistand.sendtInnTilNav)}</BodyShort>
+                    <BodyShort>{formatDate(soknad.innsendtTidspunkt)}</BodyShort>
                   </Spørsmål>
                 </VStack>
               </VStack>
@@ -205,24 +246,32 @@ export default function SakPage() {
                 <Tabs.Tab value="forelopig-vedtak" label="Foreløpig vedtak" />
               </Tabs.List>
               <Tabs.Panel value="vilkarsvurdering">
-                <VStack gap="space-16" paddingBlock="space-8 space-32" paddingInline="space-8 space-16">
-                  <Accordion>
-                    {vilkår.map((v) => (
-                      <VilkårItem
-                        key={v.id}
-                        vilkår={v}
-                        isSaving={isSaving}
-                        error={lagreError}
-                        onLagre={lagreVurdering}
-                      />
-                    ))}
-                  </Accordion>
+                <VStack
+                  gap="space-16"
+                  paddingBlock="space-8 space-32"
+                  paddingInline="space-8 space-16"
+                >
+                  {vilkårLaster ? (
+                    <Loader size="medium" title="Laster vilkår" />
+                  ) : vilkårError ? (
+                    <Alert variant="error" size="small">
+                      Kunne ikke hente vilkårene.
+                    </Alert>
+                  ) : (
+                    <Accordion>
+                      {vilkår.map((v) => (
+                        <VilkårItem
+                          key={v.id}
+                          vilkår={v}
+                          isSaving={isSaving}
+                          error={lagreError}
+                          onLagre={lagreVurdering}
+                        />
+                      ))}
+                    </Accordion>
+                  )}
                   <Box paddingInline="space-16">
-                    <Link
-                      as="button"
-                      type="button"
-                      onClick={() => setFane("forelopig-vedtak")}
-                    >
+                    <Link as="button" type="button" onClick={() => setFane("forelopig-vedtak")}>
                       Fatte foreløpig vedtak
                       <ChevronRightIcon aria-hidden />
                     </Link>

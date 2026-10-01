@@ -143,7 +143,8 @@ class TilgangsmaskinClientTest {
         val engine = MockEngine { request -> handler(request) }
         return TilgangsmaskinClient(
             tokenExchanger = fakeExchanger,
-            defaultHttpClient = HttpClient(engine) {},
+            // Speiler defaultHttpClient() i prod, som har expectSuccess = true.
+            defaultHttpClient = HttpClient(engine) { expectSuccess = true },
         )
     }
 }

@@ -6,7 +6,7 @@ import io.ktor.server.response.respondBytes
 import io.ktor.server.routing.RoutingContext
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.soknad.findSoknadById
@@ -18,7 +18,7 @@ import java.util.UUID
 class TilsagnDataApi(
     private val database: Database,
     private val altinnTilgangerClient: AltinnTilgangerClient,
-    private val dokgenClient: DokgenClient,
+    private val dokumentService: DokumentService,
 ) {
 
     suspend fun RoutingContext.hentTilskuddsbrevHtmlForSoknad(soknadId: UUID) {
@@ -47,7 +47,7 @@ class TilsagnDataApi(
         val html = tilsagnData.map { tilsagn ->
             TilskuddsbrevHtml(
                 tilsagnNummer = tilsagn.tilsagnNummer.concat(),
-                html = dokgenClient.genererTilskuddsbrevHtml(tilsagn),
+                html = dokumentService.genererTilskuddsbrevHtml(tilsagn),
             )
         }
 
@@ -68,7 +68,7 @@ class TilsagnDataApi(
 
         val html = TilskuddsbrevHtml(
             tilsagnNummer = tilsagnData.tilsagnNummer.concat(),
-            html = dokgenClient.genererTilskuddsbrevHtml(tilsagnData),
+            html = dokumentService.genererTilskuddsbrevHtml(tilsagnData),
         )
 
         transaction(database) {
@@ -111,7 +111,7 @@ class TilsagnDataApi(
             )
         }
 
-        val pdf = dokgenClient.genererTilskuddsbrevPdf(tilsagn)
+        val pdf = dokumentService.genererTilskuddsbrevPdf(tilsagn)
         call.respondBytes(pdf, ContentType.Application.Pdf)
     }
 
@@ -136,7 +136,7 @@ class TilsagnDataApi(
             )
         }
 
-        val pdf = dokgenClient.genererTilskuddsbrevPdf(tilsagnData)
+        val pdf = dokumentService.genererTilskuddsbrevPdf(tilsagnData)
         call.respondBytes(pdf, ContentType.Application.Pdf)
     }
 }

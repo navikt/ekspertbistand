@@ -2,6 +2,7 @@ package no.nav.ekspertbistand.infrastruktur
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.LoggerContext
+import ch.qos.logback.classic.PatternLayout
 import ch.qos.logback.classic.spi.Configurator
 import ch.qos.logback.classic.spi.Configurator.ExecutionStatus
 import ch.qos.logback.classic.spi.ILoggingEvent
@@ -14,10 +15,13 @@ import ch.qos.logback.core.spi.ContextAware
 import ch.qos.logback.core.spi.ContextAwareBase
 import ch.qos.logback.core.spi.FilterReply
 import ch.qos.logback.core.spi.LifeCycle
+import com.papertrailapp.logback.Syslog4jAppender
 import net.logstash.logback.appender.LogstashTcpSocketAppender
 import net.logstash.logback.composite.loggingevent.LoggingEventPatternJsonProvider
 import net.logstash.logback.encoder.LogstashEncoder
+import no.nav.common.audit_log.log.AuditLoggerConstants.AUDIT_LOGGER_NAME
 import no.nav.ekspertbistand.infrastruktur.NaisEnvironment.clusterName
+import org.productivity.java.syslog4j.impl.net.tcp.TCPNetSyslogConfig
 import org.slf4j.Logger
 import org.slf4j.Logger.ROOT_LOGGER_NAME
 import org.slf4j.LoggerFactory
@@ -99,6 +103,27 @@ class LogConfig : ContextAwareBase(), Configurator {
             }
         }
 
+        // Sporingslogg (CEF) til ArcSight via naudit. Skal aldri havne i stdout eller team-logs,
+        // derfor additivity=false. Utenfor Nais forkastes meldingene.
+        lc.getLogger(AUDIT_LOGGER_NAME).apply {
+            level = Level.INFO
+            isAdditive = false
+
+            if (clusterName.isNotEmpty()) {
+                addAppender(Syslog4jAppender<ILoggingEvent>().setup(lc) {
+                    this.name = "AUDITLOG"
+                    this.layout = PatternLayout().setup(lc) {
+                        this.pattern = "%m%n%xEx"
+                    }
+                    this.syslogConfig = TCPNetSyslogConfig().apply {
+                        setHost("audit.nais")
+                        setPort(6514)
+                        setIdent(System.getenv("NAIS_APP_NAME") ?: "ekspertbistand-backend")
+                        setMaxMessageLength(128000)
+                    }
+                })
+            }
+        }
 
         return ExecutionStatus.DO_NOT_INVOKE_NEXT_IF_ANY
     }

@@ -248,6 +248,13 @@
             <version>${graphql-kotlin.version}</version>
         </dependency>
 
+        <!-- Dokumentgenerering: Handlebars-templating i backend, HTML -> PDF/A i Gotenberg. -->
+        <dependency>
+            <groupId>com.github.jknack</groupId>
+            <artifactId>handlebars</artifactId>
+            <version>4.5.2</version>
+        </dependency>
+
         <dependency>
             <groupId>io.ktor</groupId>
             <artifactId>ktor-server-test-host-jvm</artifactId>
@@ -282,6 +289,27 @@
             <groupId>org.skyscreamer</groupId>
             <artifactId>jsonassert</artifactId>
             <version>1.5.3</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- HTML-validering av rendret mal-output (DokumentmalTest). -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.21.2</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- PDF/A-2b-validering av Gotenberg-output (integrasjonstest). -->
+        <dependency>
+            <groupId>org.verapdf</groupId>
+            <artifactId>validation-model</artifactId>
+            <version>1.30.2</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Tekstuttrekk fra generert PDF (integrasjonstest). -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.5</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

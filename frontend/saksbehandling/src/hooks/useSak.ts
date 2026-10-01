@@ -1,63 +1,59 @@
 import useSWR from "swr";
 import { SAKSBEHANDLING_SAK_URL } from "../utils/constants";
 import { HttpError } from "../utils/http";
+import type { SakInfo, SoknadStatus } from "./useSaker";
 
-export type Vilkårstatus = "oppfylt" | "ikke_oppfylt" | "ikke_vurdert";
-
-export type Vilkårsvurdering = {
-  automatisk: boolean;
-  status: Vilkårstatus;
-  kommentar?: string;
-  vurdertAv?: string;
-  vurdertTidspunkt?: string;
+export type SakDetaljer = SakInfo & {
+  soknad: SoknadDetaljer;
 };
 
-export type Vilkår = {
-  id: string;
-  tittel: string;
-  beskrivelse: string;
-  vurdering: Vilkårsvurdering;
-};
-
-export type SakDetaljer = {
-  id: string;
-  deltaker: {
-    navn: string;
-    alder: number;
-    fnr: string;
+export type SoknadDetaljer = {
+  soknadId: string;
+  status: SoknadStatus;
+  innsendtTidspunkt: string;
+  virksomhet: {
+    virksomhetsnummer: string;
+    virksomhetsnavn: string;
+    kontaktperson: {
+      navn: string;
+      epost: string;
+      telefonnummer: string;
+    };
+    beliggenhetsadresse?: string | null;
   };
-  arbeidsgiver: {
+  ansatt: {
+    fnr: string;
     navn: string;
-    orgNr: string;
-    beliggenhetssadresse: string;
-    kontaktperson: string;
-    epost: string;
-    telefon: string;
   };
   ekspert: {
     navn: string;
-    tilknyttetVirksomhet: string;
+    virksomhet: string;
+    virksomhetNavn?: string | null;
+    virksomhetOrgnr?: string | null;
     kompetanse: string;
-    orgNr: string;
+    godkjentUtdanningEllerAutorisasjon: string[];
+    relevantKompetanse: string[];
   };
-  situasjon: {
-    arbeidssituasjon: string;
-    sykefravær: string;
-  };
-  ekspertbistand: {
-    hvaHjelpeMed: string;
-    antallTimer: number;
-    søknadssum: number;
+  behovForBistand: {
+    begrunnelse: string;
+    behov: string;
+    estimertKostnad: string;
+    timer: string;
+    tilrettelegging: string;
     startdato: string;
-    sendtInnTilNav: string;
   };
-  vilkår: Vilkår[];
+  nav: {
+    kontaktperson: string;
+  };
 };
 
 export function useSak(sakId: string) {
-  const { data, error, isLoading } = useSWR<SakDetaljer, HttpError>(SAKSBEHANDLING_SAK_URL(sakId), {
-    revalidateOnFocus: false,
-  });
+  const { data, error, isLoading } = useSWR<SakDetaljer, HttpError>(
+    sakId ? SAKSBEHANDLING_SAK_URL(sakId) : null,
+    {
+      revalidateOnFocus: false,
+    }
+  );
 
   return { sak: data, error, isLoading };
 }

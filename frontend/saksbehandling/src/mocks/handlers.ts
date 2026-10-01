@@ -1,9 +1,25 @@
 import { http, HttpResponse } from "msw";
+import type { SakDetaljer } from "../hooks/useSak";
+import type { SakInfo, SakListeElement, SoknadStatus } from "../hooks/useSaker";
+import type { Vilkår, Vilkårstatus } from "../hooks/useVilkår";
 import type { SakDetaljer, Vilkår, Vilkårstatus } from "../hooks/useSak";
 import type { SaksloggInnslag, SaksloggResponse } from "../hooks/useSakslogg";
 import { mockInnloggetAnsatt } from "../mock/ansatt";
-import { SAKSBEHANDLING_OVERSIKT_URL, SESSION_URL } from "../utils/constants";
+import { SAKSBEHANDLING_SAKER_URL, SESSION_URL } from "../utils/constants";
 
+type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent"> &
+  Partial<SakInfo> & {
+    soknad: {
+      soknadId: string;
+      virksomhetsnavn: string;
+      ansattNavn: string;
+      innsendtTidspunkt: string;
+      startdato: string;
+      status?: SoknadStatus;
+    };
+  };
+
+const mockSaker: MockSak[] = [
 const innslag = (
   id: string,
   tidspunkt: string,
@@ -33,94 +49,136 @@ const mockSakslogg: SaksloggInnslag[] = [
 
 const oversikt = [
   {
-    id: "sak-1001",
-    virksomhet: "Lomma kommune Måsen omsorgsbolig",
-    deltaker: "Mona Moonlight",
-    status: "Til behandling",
-    saksbehandler: null,
-    oppgavetype: "Søknad",
-    tiltaksperiodeFra: "2020-02-02",
-    tiltaksperiodeTil: "2020-02-02",
-    opprettetDato: "2020-02-02",
+    sakId: "9c2f7a10-0000-4000-8000-000000002001",
+    status: "OPPRETTET",
+    saksbehandlerIdent: null,
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001001",
+      virksomhetsnavn: "Lomma kommune Måsen omsorgsbolig",
+      ansattNavn: "Mona Moonlight",
+      innsendtTidspunkt: "2026-10-30T09:12:00Z",
+      startdato: "2026-11-22",
+    },
   },
   {
-    id: "sak-1002",
-    virksomhet: "Hallandsbro hotell AS",
-    deltaker: "Mari Currire",
-    status: "Til behandling",
-    saksbehandler: "Hanne Jensen",
-    oppgavetype: "Refusjon",
-    tiltaksperiodeFra: "2020-02-02",
-    tiltaksperiodeTil: "2020-02-02",
-    opprettetDato: "2020-02-02",
+    sakId: "9c2f7a10-0000-4000-8000-000000002002",
+    status: "UNDER_BEHANDLING",
+    saksbehandlerIdent: mockInnloggetAnsatt.id,
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001002",
+      virksomhetsnavn: "Hallandsbro hotell AS",
+      ansattNavn: "Mari Currire",
+      innsendtTidspunkt: "2026-10-28T13:40:00Z",
+      startdato: "2026-11-15",
+    },
   },
   {
-    id: "sak-1003",
-    virksomhet: "Mega Sales Dyypvik",
-    deltaker: "Erik Leverholdt",
-    status: "Avventer svar",
-    saksbehandler: "Hanne Jensen",
-    oppgavetype: "Søknad - beslutter",
-    tiltaksperiodeFra: "2020-02-02",
-    tiltaksperiodeTil: "2020-02-02",
-    opprettetDato: "2020-02-02",
+    sakId: "9c2f7a10-0000-4000-8000-000000002003",
+    status: "TIL_BESLUTNING",
+    saksbehandlerIdent: mockInnloggetAnsatt.id,
+    beslutterIdent: "B123456",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001003",
+      virksomhetsnavn: "Mega Sales Dyypvik",
+      ansattNavn: "Erik Leverholdt",
+      innsendtTidspunkt: "2026-10-27T08:05:00Z",
+      startdato: "2026-11-10",
+    },
   },
   {
-    id: "sak-1004",
-    virksomhet: "Bygg og Fix AS",
-    deltaker: "Jon Larson",
-    status: "Til behandling",
-    saksbehandler: "Hans Hansen",
-    oppgavetype: "Refusjon",
-    tiltaksperiodeFra: "2020-02-02",
-    tiltaksperiodeTil: "2020-02-02",
-    opprettetDato: "2020-02-02",
+    sakId: "9c2f7a10-0000-4000-8000-000000002004",
+    status: "UNDER_BEHANDLING",
+    saksbehandlerIdent: "H654321",
+    behandlendeEnhet: "0301",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001004",
+      virksomhetsnavn: "Bygg og Fix AS",
+      ansattNavn: "Jon Larson",
+      innsendtTidspunkt: "2026-10-25T11:30:00Z",
+      startdato: "2026-11-01",
+    },
   },
   {
-    id: "sak-1005",
-    virksomhet: "Solbakken barnehage",
-    deltaker: "Viktor Wilhelmsson",
-    status: "Til behandling",
-    saksbehandler: null,
-    oppgavetype: "Søknad",
-    tiltaksperiodeFra: "2020-02-02",
-    tiltaksperiodeTil: "2020-02-02",
-    opprettetDato: "2020-02-02",
+    sakId: "9c2f7a10-0000-4000-8000-000000002005",
+    status: "OPPRETTET",
+    saksbehandlerIdent: null,
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001005",
+      virksomhetsnavn: "Solbakken barnehage",
+      ansattNavn: "Viktor Wilhelmsson",
+      innsendtTidspunkt: "2026-10-24T07:55:00Z",
+      startdato: "2026-11-05",
+    },
   },
   {
-    id: "sak-1006",
-    virksomhet: "Flisfiksern AS",
-    deltaker: "Dorotea Danielssen",
-    status: "Ferdigstilt",
-    saksbehandler: null,
-    oppgavetype: "Refusjon",
-    tiltaksperiodeFra: "2020-02-02",
-    tiltaksperiodeTil: "2020-02-02",
-    opprettetDato: "2020-02-02",
+    sakId: "9c2f7a10-0000-4000-8000-000000002006",
+    status: "INNVILGET",
+    saksbehandlerIdent: "O111222",
+    beslutterIdent: "B123456",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001006",
+      virksomhetsnavn: "Flisfiksern AS",
+      ansattNavn: "Dorotea Danielssen",
+      innsendtTidspunkt: "2026-09-12T10:00:00Z",
+      startdato: "2026-10-01",
+      status: "godkjent",
+    },
   },
   {
-    id: "sak-1007",
-    virksomhet: "Ortopedisk avdeling",
-    deltaker: "Hanna Sødervik",
-    status: "Avventer svar",
-    saksbehandler: "Henrik Ripsen",
-    oppgavetype: "Søknad",
-    tiltaksperiodeFra: "2020-02-02",
-    tiltaksperiodeTil: "2020-02-02",
-    opprettetDato: "2020-02-02",
+    sakId: "9c2f7a10-0000-4000-8000-000000002007",
+    status: "AVSLATT",
+    saksbehandlerIdent: "H654321",
+    beslutterIdent: "B123456",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001007",
+      virksomhetsnavn: "Ortopedisk avdeling",
+      ansattNavn: "Hanna Sødervik",
+      innsendtTidspunkt: "2026-09-08T14:20:00Z",
+      startdato: "2026-09-20",
+    },
   },
   {
-    id: "sak-1008",
-    virksomhet: "Solbro swømlag",
-    deltaker: "Mons Malmberg",
-    status: "Ferdigstilt",
-    saksbehandler: "Ola Olavsen",
-    oppgavetype: "Søknad",
-    tiltaksperiodeFra: "2020-02-02",
-    tiltaksperiodeTil: "2020-02-02",
-    opprettetDato: "2020-02-02",
+    sakId: "9c2f7a10-0000-4000-8000-000000002008",
+    status: "AVSLUTTET",
+    kildeTilBehandling: "ARENA",
+    saksbehandlerIdent: null,
+    arenaSakId: "2026123456",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001008",
+      virksomhetsnavn: "Solbro swømlag",
+      ansattNavn: "Mons Malmberg",
+      innsendtTidspunkt: "2026-08-30T09:00:00Z",
+      startdato: "2026-09-15",
+    },
   },
-] as const;
+];
+
+const tilListeElement = ({ soknad, ...sak }: MockSak, index: number): SakListeElement => ({
+  kildeTilBehandling: "EKSPERTBISTAND",
+  behandlendeEnhet: "4710",
+  beslutterIdent: null,
+  arenaSakId: null,
+  ...sak,
+  soknad: {
+    soknadId: soknad.soknadId,
+    status: soknad.status ?? "innsendt",
+    innsendtTidspunkt: soknad.innsendtTidspunkt,
+    virksomhet: {
+      virksomhetsnummer: String(876543210 + index),
+      virksomhetsnavn: soknad.virksomhetsnavn,
+    },
+    ansattNavn: soknad.ansattNavn,
+    startdato: soknad.startdato,
+  },
+});
+
+const alleSaker = (): SakListeElement[] => mockSaker.map(tilListeElement);
+
+const mineEnheter = new Set(mockInnloggetAnsatt.enheter.map((e) => e.nummer));
+
+// Speiler backend: saker uten enhet, eller på enhet saksbehandler ikke har tilgang til, er skjult.
+const harTilgangTilEnhet = (sak: SakListeElement) =>
+  !!sak.behandlendeEnhet && mineEnheter.has(sak.behandlendeEnhet);
 
 const lagVilkår = (): Vilkår[] => [
   {
@@ -170,53 +228,60 @@ const lagVilkår = (): Vilkår[] => [
   },
 ];
 
-const lagSakDetaljer = (sakId: string): SakDetaljer => ({
-  id: sakId,
-  deltaker: {
-    navn: "Moon Moonlight",
-    alder: 37,
-    fnr: "120184 34566",
+const lagSakDetaljer = ({ soknad: element, ...sak }: SakListeElement): SakDetaljer => ({
+  ...sak,
+  soknad: {
+    soknadId: element.soknadId,
+    status: element.status,
+    innsendtTidspunkt: element.innsendtTidspunkt,
+    virksomhet: {
+      ...element.virksomhet,
+      kontaktperson: {
+        navn: "Merete Ferrari",
+        epost: "merete@byggogfiks.as",
+        telefonnummer: "94342112",
+      },
+      beliggenhetsadresse: "Drammensveien 123\n3033 Drammen",
+    },
+    ansatt: {
+      fnr: "12018434566",
+      navn: element.ansattNavn,
+    },
+    ekspert: {
+      navn: "Eivind Ekspertsen",
+      virksomhet: "Eksperter AS",
+      virksomhetNavn: "Eksperter AS",
+      virksomhetOrgnr: "409231445",
+      kompetanse: "Arbeidsterapeut",
+      godkjentUtdanningEllerAutorisasjon: ["Arbeidsterapeut"],
+      relevantKompetanse: ["Ergonomi"],
+    },
+    behovForBistand: {
+      begrunnelse:
+        "Den ansatte har jobbet i virksomheten som salgsmedarbeider (både dag- og kveldstid) de siste 3 årene i en 80 % stilling.",
+      tilrettelegging:
+        "Den ansatte har hatt hyppig sykefravær det siste året på opptil en uke. Vi har prøvd fleksitid, men det var vanskelig å få til med vaktplanen og de øvrige ansatte.",
+      behov:
+        "Arbeidsevnevurdering og råd om hvordan arbeidsplassen kan tilrettelegges slik at den ansatte kan stå i jobb.",
+      timer: "8",
+      estimertKostnad: "22000",
+      startdato: element.startdato,
+    },
+    nav: {
+      kontaktperson: "Nils Navesen",
+    },
   },
-  arbeidsgiver: {
-    navn: "Bygg og Anlegg AS",
-    orgNr: "876 543 210",
-    beliggenhetssadresse: "Drammensveien 123\n120 33 Drammen",
-    kontaktperson: "Merte Ferrari",
-    epost: "merete@byggogfiks.as",
-    telefon: "94 34 21 12",
-  },
-  ekspert: {
-    navn: "Eivind Ekspertseen",
-    tilknyttetVirksomhet: "Eksperter AS",
-    kompetanse: "Arbeidsterpeuft",
-    orgNr: "409 231 445",
-  },
-  situasjon: {
-    arbeidssituasjon:
-      "Den ansatte har jobbet i virksomheten som salgsmedarbeidere (både dag- og kveldstid) de siste 3 årene i en 80% stilling. Oppgavene består i å …. Den ansatte har jobbet i virksomheten som salgsmedarbeidere (både dag- og kveldstid) de siste 3 årene i en 80% stilling.",
-    sykefravær:
-      "Her skal det stå informasjon om hva som er prøvd og hvordan det har gått, og har hatt hyppige sykefravær de siste året på opptil en uke. Fleksitid har vi prøvd, det men det var vanskelig med skjemaet og de øvrige ansatte.",
-  },
-  ekspertbistand: {
-    hvaHjelpeMed:
-      "Arbeidsevnevurdering og massa mer her får man skrive litt mer og forklare slikt at det er tydlig hva noen forventer seg.",
-    antallTimer: 8,
-    søknadssum: 22000,
-    startdato: "2026-11-22",
-    sendtInnTilNav: "2026-10-30",
-  },
-  vilkår: lagVilkår(),
 });
 
-const sakStore = new Map<string, SakDetaljer>();
+const vilkårStore = new Map<string, Vilkår[]>();
 
-function hentSakDetaljer(sakId: string): SakDetaljer {
-  const eksisterende = sakStore.get(sakId);
+function hentVilkår(sakId: string): Vilkår[] {
+  const eksisterende = vilkårStore.get(sakId);
   if (eksisterende) return eksisterende;
 
-  const sak = lagSakDetaljer(sakId);
-  sakStore.set(sakId, sak);
-  return sak;
+  const vilkår = lagVilkår();
+  vilkårStore.set(sakId, vilkår);
+  return vilkår;
 }
 
 export const handlers = [
@@ -228,15 +293,28 @@ export const handlers = [
     })
   ),
   http.get("/api/saksbehandling/v1/meg", () => HttpResponse.json(mockInnloggetAnsatt)),
-  http.get(SAKSBEHANDLING_OVERSIKT_URL, () =>
-    HttpResponse.json({
-      saker: oversikt,
-    })
+  http.get(SAKSBEHANDLING_SAKER_URL, () =>
+    HttpResponse.json({ saker: alleSaker().filter(harTilgangTilEnhet) })
   ),
   http.get("/api/saksbehandling/v1/saker/:sakId", ({ params }) => {
-    const { sakId } = params;
-    return HttpResponse.json(hentSakDetaljer(String(sakId)));
+    const sak = alleSaker().find((s) => s.sakId === params.sakId);
+    if (!sak) {
+      return HttpResponse.json({ message: "Fant ikke saken." }, { status: 404 });
+    }
+    if (!harTilgangTilEnhet(sak)) {
+      return HttpResponse.json(
+        {
+          kode: "IKKE_TILGANG_ENHET",
+          begrunnelse: "Du har ikke tilgang til enheten som behandler saken",
+        },
+        { status: 403 }
+      );
+    }
+    return HttpResponse.json(lagSakDetaljer(sak));
   }),
+  http.get("/api/saksbehandling/v1/saker/:sakId/vilkar", ({ params }) =>
+    HttpResponse.json(hentVilkår(String(params.sakId)))
+  ),
   http.get("/api/saksbehandling/v1/saker/:sakId/logg", () =>
     HttpResponse.json<SaksloggResponse>({ innslag: mockSakslogg })
   ),
@@ -252,8 +330,8 @@ export const handlers = [
       return HttpResponse.json({ message: "Ugyldig status på vilkårsvurdering." }, { status: 400 });
     }
 
-    const sak = hentSakDetaljer(String(sakId));
-    const vilkår = sak.vilkår.find((v) => v.id === vilkarId);
+    const alleVilkår = hentVilkår(String(sakId));
+    const vilkår = alleVilkår.find((v) => v.id === vilkarId);
 
     if (!vilkår) {
       return HttpResponse.json({ message: "Fant ikke vilkåret." }, { status: 404 });
@@ -271,7 +349,10 @@ export const handlers = [
       },
     };
 
-    sak.vilkår = sak.vilkår.map((v) => (v.id === vilkarId ? oppdatert : v));
+    vilkårStore.set(
+      String(sakId),
+      alleVilkår.map((v) => (v.id === vilkarId ? oppdatert : v))
+    );
 
     return HttpResponse.json(oppdatert);
   }),

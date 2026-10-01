@@ -1,0 +1,196 @@
+* {
+    font-family: "DejaVu Sans", sans-serif !important;
+    color: #000000;
+}
+
+@page {
+    size: 595pt 842pt;
+    margin: 64pt 64pt 74pt 64pt;
+}
+
+html {
+    height:100%;
+}
+
+body{
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    position: relative;
+}
+
+body::after {
+    content: '';
+    display: block;
+}
+
+#content {
+    margin: 0;
+    padding: 0;
+}
+
+#header {
+    margin: 0;
+    padding: 0 0 48pt 0;
+}
+
+#footer {
+    position: absolute;
+    margin: 0;
+    bottom: 0;
+    width: 100%;
+    height: 96pt;
+    font-size: 9pt;
+    line-height: 16pt;
+    font-weight: 400;
+    padding: 0;
+}
+
+#nav_logo {
+    display: block;
+    width: auto;
+    height: 16pt;
+    margin: 0;
+    padding: 0;
+}
+
+.line_top {
+    border-top: 1pt black solid;
+}
+
+.line_bottom {
+    border-bottom: 1pt black solid;
+}
+
+.line_left {
+    border-left: 1pt black solid;
+}
+
+.line_right {
+    border-right: 1pt black solid;
+}
+
+.block {
+    width: 100%;
+    margin-top: 0;
+}
+
+.inline {
+    display: inline-block;
+}
+
+h1 {
+    font-size: 16pt;
+    line-height: 20pt;
+    font-weight: 700;
+    letter-spacing: 0.3pt;
+    margin: 0 0 32pt 0;
+}
+
+h2 {
+    font-size: 13pt;
+    line-height: 16pt;
+    font-weight: 700;
+    letter-spacing: 0.25pt;
+    margin: 0 0 16pt 0;
+}
+
+h3 {
+    font-size: 12pt;
+    line-height: 16pt;
+    font-weight: 700;
+    letter-spacing: 0.2pt;
+    margin: 0 0 16pt 0;
+}
+
+h4 {
+    font-size: 11pt;
+    line-height: 16pt;
+    font-weight: 700;
+    letter-spacing: 0.1pt;
+    margin: 0 0 16pt 0;
+}
+
+p {
+    font-size: 11pt;
+    line-height: 16pt;
+    font-weight: 400;
+    margin: 0;
+}
+
+tr {
+    font-size: 11pt;
+    line-height: 16pt;
+}
+
+td {
+    vertical-align: top;
+}
+
+td:not(:last-child) {
+    padding-right: 16pt;
+}
+
+p + h2,
+p + h3,
+p + h4,
+table + h2,
+table + h3,
+table + h4,
+h2 + h2,
+h3 + h3,
+h4 + h4 {
+    margin-top: 32pt;
+}
+
+.bold {
+    font-weight: 700;
+}
+
+.checkbox {
+    width: 3mm;
+    height: 3mm;
+    border: black 1pt solid;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 10pt;
+}
+
+.new_page {
+    page-break-before: always;
+}
+
+.checkbox_title_right {
+    margin-left: 5mm;
+    font-size: 12pt;
+    vertical-align: middle;
+}
+
+.titled_checkbox_block {
+    margin-left: 3mm;
+    margin-bottom: 5mm;
+}
+
+.titled_checkbox_inline {
+    display: inline;
+    margin-left: 3mm;
+}
+
+.signature_date_title {
+    font-size: 10pt;
+}
+
+.centered_text_title {
+    text-align: center;
+    font-size: 12pt;
+}
+
+.signature {
+    margin: 32pt 0 48pt 0;
+}
+
+#returadresse {
+    margin: 0;
+    font-size: 9pt;
+    line-height: 12pt;
+}
