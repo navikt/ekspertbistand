@@ -15,8 +15,8 @@ import java.util.*
 suspend fun Application.configureTilsagnDataApiV1() {
     val database = dependencies.resolve<Database>()
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
-    val dokgenClient = dependencies.resolve<no.nav.ekspertbistand.dokgen.DokgenClient>()
-    val tilsagnDataApi = TilsagnDataApi(database, altinnTilgangerClient, dokgenClient)
+    val dokumentService = dependencies.resolve<no.nav.ekspertbistand.dokument.DokumentService>()
+    val tilsagnDataApi = TilsagnDataApi(database, altinnTilgangerClient, dokumentService)
 
     routing {
         authenticate(TOKENX_PROVIDER) {

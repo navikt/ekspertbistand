@@ -1,122 +1,70 @@
-package no.nav.ekspertbistand.dokgen
+package no.nav.ekspertbistand.dokument
 
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
-import no.nav.ekspertbistand.arena.Saksnummer
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
 import no.nav.ekspertbistand.arena.TilsagnData
-import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
-import no.nav.ekspertbistand.infrastruktur.Metrics
-import no.nav.ekspertbistand.infrastruktur.basedOnEnv
+import no.nav.ekspertbistand.dokument.pdf.DokumentRenderer
+import no.nav.ekspertbistand.dokument.pdf.Format
+import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
 import no.nav.ekspertbistand.infrastruktur.defaultJson
 import no.nav.ekspertbistand.soknad.DTO
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-class DokgenClient(
-    defaultHttpClient: HttpClient,
+/**
+ * Domeneadapter for dokumentgenerering.
+ *
+ * Erstatter den tidligere HTTP-baserte `DokgenClient`. Rendrer maler til HTML in-process via
+ * [DokumentRenderer] og konverterer til PDF/A via [PdfKonverterer] (i praksis Gotenberg). De fire
+ * offentlige metodesignaturene er uendret fra `DokgenClient`.
+ *
+ * En [Semaphore] begrenser hvor mange samtidige kall som går til PDF-konverteringen.
+ */
+class DokumentService(
+    private val pdfKonverterer: PdfKonverterer,
+    private val renderer: DokumentRenderer = DokumentRenderer(),
+    private val samtidigeKonverteringer: Int = 4,
 ) {
-    companion object {
-        val baseUrl: String = basedOnEnv(
-            prod = "http://ekspertbistand-dokgen",
-            dev = "http://ekspertbistand-dokgen",
-            other = "http://localhost:9000",
-        )
-    }
-
-    private val httpClient = defaultHttpClient.config {
-        install(ContentNegotiation) {
-            json(defaultJson)
-        }
-        install(HttpClientMetricsFeature) {
-            registry = Metrics.meterRegistry
-            clientName = "dokgen.client"
-        }
-        install(HttpTimeout) {
-            requestTimeoutMillis = 10_000
-        }
-    }
+    private val semaphore = Semaphore(samtidigeKonverteringer)
 
     suspend fun genererSoknadPdf(soknad: DTO.Soknad): ByteArray {
-        val payload = SoknadRequest.from(soknad)
-
-        val bytes: ByteArray = httpClient.post {
-            url {
-                takeFrom(baseUrl)
-                path("template", "soknad", "create-pdf")
-            }
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Pdf)
-            setBody(payload)
-        }.body()
-
-        check(bytes.hasPdfHeader()) {
-            "Dokgen returnerte ikke en gyldig PDF for soknad/create-pdf"
-        }
-
-        return bytes
+        val data = defaultJson.encodeToJsonElement(SoknadRequest.from(soknad)).jsonObject
+        return renderPdf("soknad", data)
     }
 
     suspend fun genererTilskuddsbrevPdf(tilsagnData: TilsagnData): ByteArray {
-        val bytes: ByteArray = httpClient.post {
-            url {
-                takeFrom(baseUrl)
-                path("template", "tilskuddsbrev", "create-pdf")
-            }
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Pdf)
-            setBody(tilsagnData)
-        }.body()
-
-        check(bytes.hasPdfHeader()) {
-            "Dokgen returnerte ikke en gyldig PDF for tilskuddbrev/create-pdf"
-        }
-
-        return bytes
+        val data = defaultJson.encodeToJsonElement(tilsagnData).jsonObject
+        return renderPdf("tilskuddsbrev", data)
     }
 
     suspend fun genererTilskuddsbrevHtml(tilsagnData: TilsagnData): String {
-        return httpClient.post {
-            url {
-                takeFrom(baseUrl)
-                path("template", "tilskuddsbrev", "create-html")
-            }
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Text.Html)
-            setBody(tilsagnData)
-        }.body()
+        val data = defaultJson.encodeToJsonElement(tilsagnData).jsonObject
+        return renderer.renderHtml("tilskuddsbrev", data, Format.HTML)
     }
-
-
 
     suspend fun genererArenaNotatPdf(
         saksnummer: String,
-        tiltaksgjennomfoeringId: String
+        tiltaksgjennomfoeringId: String,
     ): ByteArray {
-        val bytes: ByteArray = httpClient.post {
-            url {
-                takeFrom(baseUrl)
-                path("template", "arenaNotat", "create-pdf")
-            }
-            contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Pdf)
-            setBody(mapOf(
-                "saksnummer" to saksnummer,
-                "tiltaksgjennomfoeringId" to tiltaksgjennomfoeringId,
-            ))
-        }.body()
-
-        check(bytes.hasPdfHeader()) {
-            "Dokgen returnerte ikke en gyldig PDF for arenaNotat/create-pdf"
+        val data: JsonObject = buildJsonObject {
+            put("saksnummer", saksnummer)
+            put("tiltaksgjennomfoeringId", tiltaksgjennomfoeringId)
         }
+        return renderPdf("arenaNotat", data)
+    }
 
+    private suspend fun renderPdf(templateName: String, data: JsonObject): ByteArray {
+        val html = renderer.renderHtml(templateName, data, Format.PDF)
+        val bytes = semaphore.withPermit { pdfKonverterer.tilPdfA(html) }
+        check(bytes.hasPdfHeader()) { "Generert dokument for $templateName er ikke en gyldig PDF" }
         return bytes
     }
 }
@@ -133,7 +81,7 @@ private data class SoknadRequest(
     val ekspert: Ekspert,
     val behovForBistand: BehovForBistand,
     val nav: Nav,
-    val opprettetTidspunkt: String,
+    val opprettetDato: String,
 ) {
     @Serializable
     data class Virksomhet(
@@ -214,7 +162,7 @@ private data class SoknadRequest(
             nav = Nav(
                 kontaktperson = dto.nav.kontaktperson,
             ),
-            opprettetTidspunkt = dto.opprettetTidspunkt ?: Clock.System.now()
+            opprettetDato = dto.opprettetTidspunkt ?: Clock.System.now()
                 .toLocalDateTime(TimeZone.of("Europe/Oslo")).date.toString(),
         )
     }

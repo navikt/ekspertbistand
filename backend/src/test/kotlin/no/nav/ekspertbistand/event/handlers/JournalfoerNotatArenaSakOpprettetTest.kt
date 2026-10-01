@@ -8,7 +8,8 @@ import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.dokarkiv.*
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
+import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -29,7 +30,6 @@ class JournalfoerNotatArenaSakOpprettetTest {
     @Test
     fun `handler journalforer notat om saksnummer`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
-        mockDokgen("%PDF-mock".toByteArray())
         val requestAssertions = mutableListOf<() -> Unit>()
         mockDokArkiv { request ->
             requestAssertions.add {
@@ -108,7 +108,7 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide<AzureAdTokenProvider> {
                 successAzureAdTokenProvider
             }
-            provide(DokgenClient::class)
+            provide { DokumentService(StubPdfKonverterer()) }
             provide(DokArkivClient::class)
             provide(FagsakIdService::class)
             provide(JournalfoerNotatArenaSakOpprettet::class)
@@ -117,15 +117,3 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
 }
 
 
-private fun ApplicationTestBuilder.mockDokgen(pdf: ByteArray) {
-    externalServices {
-        hosts("http://localhost:9000") {
-            routing {
-                post("/template/arenaNotat/create-pdf") {
-                    val contentType = ContentType.Application.Pdf
-                    call.respondBytes(pdf, contentType)
-                }
-            }
-        }
-    }
-}
