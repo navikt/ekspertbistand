@@ -20,6 +20,7 @@ import { Group, Panel } from "react-resizable-panels";
 import { NavLink, useParams } from "react-router";
 import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
+import Sakslogg from "../components/Sakslogg";
 import VilkårItem from "../components/VilkårItem";
 import { useSak } from "../hooks/useSak";
 import { useVilkår } from "../hooks/useVilkår";
@@ -109,12 +110,15 @@ export default function SakPage() {
         borderWidth="0 0 1 0"
         borderColor="neutral-subtle"
       >
-        <Link as={NavLink} to={OVERSIKT_PATH} underline={false}>
-          <ArrowLeftIcon aria-hidden />
-          <BodyShort as="span" weight="semibold">
-            Tilbake til liste av saker
-          </BodyShort>
-        </Link>
+        <HStack justify="space-between" align="center" gap="space-16">
+          <Link as={NavLink} to={OVERSIKT_PATH} underline={false}>
+            <ArrowLeftIcon aria-hidden />
+            <BodyShort as="span" weight="semibold">
+              Tilbake til liste av saker
+            </BodyShort>
+          </Link>
+          <Sakslogg sakId={sakId ?? ""} />
+        </HStack>
       </Box>
 
       <main>

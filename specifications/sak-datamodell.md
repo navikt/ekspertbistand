@@ -18,7 +18,7 @@ behandlingen — ikke innsendingen.
 | Saksvilkår | **1:1**, deler PK med sak | Ren utvidelse av sak uten egen teknisk nøkkel. |
 | Sakslogg | **1:N** fra sak | Hendelseslogg / audit trail. |
 | Enum-verdier | `TEXT` i DB, håndhevet i Kotlin | Nye verdier krever ingen DB-migrering (samme mønster som `soknad.status`). |
-| Aktør i logg | `utfort_av_type` = `BRUKER`/`SYSTEM` | Både saksbehandlere og systemet skriver til loggen. |
+| Aktør i logg | `utfort_av_rolle` = `SAKSBEHANDLER`/`BESLUTTER`/`SYSTEM` | Saksbehandlere, besluttere og systemet skriver til loggen. `utfort_av_type` er fjernet i V17. |
 | To-trinns kontroll | Egen `sak_retur`-tabell (1:N) + `foreslatt_utfall` på sak | Strukturert returårsak + full historikk; habilitet håndheves med CHECK + `sakslogg`-sjekk. |
 | Omtildeling | Logges i `sakslogg` (ingen egen tabell) | Gjeldende saksbehandler ligger på `sak.saksbehandler_ident`; historikk dekkes av loggen. |
 
@@ -81,18 +81,19 @@ nullbare og betyr «ikke vurdert ennå».
 
 ### `sakslogg`
 
-Hendelseslogg / audit trail for en sak (1:N). Både saksbehandlere (`BRUKER`) og systemet
-(`SYSTEM`) skriver til loggen.
+Hendelseslogg / audit trail for en sak (1:N). Både saksbehandlere, besluttere og systemet skriver
+til loggen. Se også [`sakslogg.md`](sakslogg.md).
 
 | Kolonne | Type | Constraints | Beskrivelse |
 |---------|------|-------------|-------------|
 | `sakslogg_id` | UUID | PK, default `gen_random_uuid()` | Teknisk id for loggposten. |
 | `sak_id` | UUID | NOT NULL, FK → `sak(sak_id)` ON DELETE CASCADE | Saken hendelsen gjelder. |
-| `utfort_av_type` | TEXT | NOT NULL | Om handlingen ble utført av en `BRUKER` eller `SYSTEM`. Se `AktorType`. |
-| `utfort_av_rolle` | TEXT | NULL | Rollen til den som utførte handlingen (`SAKSBEHANDLER` / `BESLUTTER`). Se `AktorRolle`. Null når `utfort_av_type = SYSTEM`. |
-| `utfort_av_ident` | TEXT | NULL | NAV-ident til den som utførte handlingen. Null når `utfort_av_type = SYSTEM`. |
-| `notat` | TEXT | NULL | Valgfri fritekst / saksbehandlernotat. |
+| `utfort_av_rolle` | TEXT | NOT NULL | Rollen til den som utførte handlingen (`SAKSBEHANDLER` / `BESLUTTER` / `SYSTEM`). Se `AktorRolle`. |
+| `utfort_av_ident` | TEXT | NULL | NAV-ident til den som utførte handlingen. Null når `utfort_av_rolle = SYSTEM`. |
+| `notat` | TEXT | NULL | Teksten som vises i saksloggen, eventuelt med fritekst. |
 | `utfort_at` | TIMESTAMPTZ | NOT NULL, default `now()` | Tidspunkt for hendelsen. |
+
+`utfort_av_type` fantes i V12, men er fjernet i V17. Rollen `SYSTEM` erstatter den.
 
 Indeks: `idx_sakslogg_sak_id(sak_id)`, `idx_sakslogg_sak_ident(sak_id, utfort_av_ident)`
 (sistnevnte for rask habilitetssjekk, se under).
@@ -100,18 +101,17 @@ Indeks: `idx_sakslogg_sak_id(sak_id)`, `idx_sakslogg_sak_ident(sak_id, utfort_av
 **Habilitet — saksbehandler kan ikke være beslutter i egen sak.** `sakslogg` er kilden for
 denne sjekken, siden den fanger *hele* historikken (også saksbehandlere som er byttet ut ved
 omtildeling). Derfor **skal alle saksbehandler-handlinger logges** med
-`utfort_av_type='BRUKER'`, `utfort_av_rolle='SAKSBEHANDLER'` og `utfort_av_ident` — ellers
-svikter sjekken.
+`utfort_av_rolle='SAKSBEHANDLER'` og `utfort_av_ident` — ellers svikter sjekken.
 
 Før en person kan settes som beslutter, verifiser at vedkommende aldri har utført en
-`BRUKER`-handling på saken:
+handling som saksbehandler på saken:
 
 ```sql
 SELECT EXISTS (
   SELECT 1 FROM sakslogg
   WHERE sak_id = :sakId
     AND utfort_av_ident = :kandidatBeslutterIdent
-    AND utfort_av_type = 'BRUKER'
+    AND utfort_av_rolle = 'SAKSBEHANDLER'
 ) AS er_inhabil;   -- true → blokker beslutning
 ```
 
@@ -190,21 +190,15 @@ Flyt: `OPPRETTET` → (saksbehandler tilordner seg) `UNDER_BEHANDLING` → (send
 | `EKSPERTBISTAND` | Vårt saksbehandlingssystem |
 | `ARENA` | Opprettet fra Arena-integrasjon. |
 
-### `AktorType` (`sakslogg.utfort_av_type`)
-
-| Verdi | Betydning |
-|-------|-----------|
-| `BRUKER` | Handling utført av en saksbehandler (har `utfort_av_ident`). |
-| `SYSTEM` | Handling utført automatisk av systemet (`utfort_av_ident` er null). |
-
 ### `AktorRolle` (`sakslogg.utfort_av_rolle`)
 
-Rollen aktøren hadde ved handlingen. Kun satt når `utfort_av_type = BRUKER`.
+Rollen aktøren hadde ved handlingen. Alltid satt.
 
 | Verdi | Betydning |
 |-------|-----------|
 | `SAKSBEHANDLER` | Saksbehandler som utreder saken. |
 | `BESLUTTER` | Beslutter som fatter/godkjenner vedtak. |
+| `SYSTEM` | Handling utført automatisk av systemet (`utfort_av_ident` er null). |
 
 ### `ReturArsak` (`sak_retur.aarsak`)
 

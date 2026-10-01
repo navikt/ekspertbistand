@@ -6,9 +6,9 @@ import no.nav.ekspertbistand.event.TestEventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
-import no.nav.ekspertbistand.sak.KildeTilBehandling
-import no.nav.ekspertbistand.sak.SakTable
-import no.nav.ekspertbistand.sak.Saksstatus
+import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
+import no.nav.ekspertbistand.saksbehandling.SakTable
+import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.ResultRow
