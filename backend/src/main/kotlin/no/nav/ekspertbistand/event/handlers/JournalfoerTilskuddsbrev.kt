@@ -5,7 +5,7 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
 import no.nav.ekspertbistand.dokarkiv.Sak
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
@@ -30,7 +30,7 @@ private const val tittel = "Tilskuddsbrev ekspertbistand"
  * som inneholder informasjon om journalpostId og dokumentId.
  */
 class JournalfoerTilskuddsbrev(
-    private val dokgenClient: DokgenClient,
+    private val dokumentService: DokumentService,
     private val dokArkivClient: DokArkivClient,
     private val fagsakIdService: FagsakIdService,
     private val database: Database,
@@ -52,7 +52,7 @@ class JournalfoerTilskuddsbrev(
         }
 
         val tilsagnPdf = try {
-            dokgenClient.genererTilskuddsbrevPdf(event.data.tilsagnData)
+            dokumentService.genererTilskuddsbrevPdf(event.data.tilsagnData)
         } catch (e: Exception) {
             return transientError("Klarte ikke generere søknad-PDF", e)
         }

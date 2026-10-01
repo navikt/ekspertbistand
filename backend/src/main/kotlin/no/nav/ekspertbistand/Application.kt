@@ -30,10 +30,13 @@ import no.nav.ekspertbistand.aareg.AaregClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.arena.startKafkaConsumers
+import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
+import no.nav.ekspertbistand.dokument.gotenberg.GotenbergClient
+import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
@@ -49,6 +52,7 @@ import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
 import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
+import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
 import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
@@ -86,7 +90,8 @@ fun main() {
 
             provide(AltinnTilgangerClient::class)
             provide(ClamAvClient::class)
-            provide(DokgenClient::class)
+            provide<PdfKonverterer>(GotenbergClient::class)
+            provide<DokumentService> { DokumentService(resolve()) }
             provide(DokArkivClient::class)
             provide(EregClient::class)
             provide(EregService::class)
@@ -98,6 +103,7 @@ fun main() {
             provide(AaregClient::class)
             provide(EntraProxyClient::class)
             provide(TilgangsmaskinClient::class)
+            provide<ArcSightAuditClient> { ArcSightAuditClient() }
             provide(FagsakIdService::class)
             basedOnEnv(
                 dev = { provide(KontoregisterClient::class) },
@@ -119,6 +125,11 @@ fun main() {
         configureTilsagnDataApiV1()
         configureEregApiV1()
         configureSaksbehandlerApiV1()
+        // Saksrutene for saksbehandling er ikke åpnet i prod ennå.
+        basedOnEnvSuspending(
+            prod = {},
+            other = { configureSaksbehandlingSakApiV1() },
+        )
         basedOnEnvSuspending(
             dev = { configureKontoregisterApiV1() },
             other = {}

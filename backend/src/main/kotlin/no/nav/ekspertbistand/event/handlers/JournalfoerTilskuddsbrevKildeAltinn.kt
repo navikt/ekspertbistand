@@ -5,7 +5,7 @@ import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
 import no.nav.ekspertbistand.dokarkiv.Sak
-import no.nav.ekspertbistand.dokgen.DokgenClient
+import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -31,7 +31,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  */
 class JournalfoerTilskuddsbrevKildeAltinn(
     private val fagsakIdService: FagsakIdService,
-    private val dokgenClient: DokgenClient,
+    private val dokumentService: DokumentService,
     private val dokArkivClient: DokArkivClient,
     private val database: Database,
 ) : EventHandler<EventData.TilskuddsbrevMottattKildeAltinn> {
@@ -47,7 +47,7 @@ class JournalfoerTilskuddsbrevKildeAltinn(
         }
 
         val tilsagnPdf = try {
-            dokgenClient.genererTilskuddsbrevPdf(event.data.tilsagnData)
+            dokumentService.genererTilskuddsbrevPdf(event.data.tilsagnData)
         } catch (e: Exception) {
             return transientError("Klarte ikke generere søknad-PDF: ${e.message}", e)
         }
