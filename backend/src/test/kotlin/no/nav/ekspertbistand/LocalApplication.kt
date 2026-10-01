@@ -27,6 +27,7 @@ import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.UtkastTable
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
+import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.datetime.CurrentDate
@@ -264,6 +265,15 @@ fun main() {
                 }
             }
             provide(EntraProxyClient::class)
+            provide<TilgangsmaskinClient> {
+                TilgangsmaskinClient(
+                    tokenExchanger = object : AzureAdTokenExchanger {
+                        override suspend fun exchange(target: String, userToken: String) =
+                            TokenResponse.Success(accessToken = "fake-token", expiresInSeconds = 3600)
+                    },
+                    defaultHttpClient = HttpClient(MockEngine { respond("", HttpStatusCode.NoContent) }),
+                )
+            }
             provide {
                 mockAltinnTilgangerClient
             }

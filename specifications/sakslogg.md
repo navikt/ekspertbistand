@@ -22,7 +22,8 @@ Trello-kort: ikke koblet, fordi Trello CLI mangler auth. Lenken legges til her f
 | Migrering | Ny Flyway-migrering fjerner `utfort_av_type` og gjør `utfort_av_rolle` NOT NULL. Tabellen er tom, så endringen er trygg. |
 | Navn på aktør | Backend slår opp navn med `EntraProxyClient.hentAnsatt(ident)`. Hvis oppslaget feiler, vises identen. `SYSTEM` vises som «System». |
 | `aggregateRootId` | `soknadId`, som for de andre eventene. Søknaden er fortsatt eneste aggregatrot. |
-| Utenfor scope | Publisering av `SakOppdatert`, tilgangskontroll per sak og habilitetssjekk mot `sakslogg` |
+| Tilgangskontroll | API-et sjekker med tilgangsmaskinen (regelsett `KOMPLETT`) at saksbehandleren har tilgang til den ansatte saken gjelder. Fødselsnummeret hentes fra søknaden til saken. |
+| Utenfor scope | Publisering av `SakOppdatert` og habilitetssjekk mot `sakslogg` |
 
 ## Tilnærming
 
@@ -78,11 +79,24 @@ data class SakOppdatert(
 ### 5. API – `GET /api/saksbehandling/v1/saker/{sakId}/logg`
 I `SaksbehandlerApi.kt`, bak `AZURE_AD_PROVIDER`.
 
-- `sakId` som ikke er en UUID gir 400.
-- Leser `sakslogg` for saken, sortert på `utfort_at` synkende. En sak uten loggposter, eller en sak som
-  ikke finnes, gir tom liste.
+| Situasjon | Svar |
+|-----------|------|
+| `sakId` er ikke en UUID | 400 |
+| Saken finnes ikke | 404, uten kall til tilgangsmaskinen |
+| Tilgangsmaskinen svarer `Avvist` | 403, uten logginnhold |
+| Tilgangsmaskinen feiler (nettverk, uventet status) | 500. Feilen logges uten fødselsnummer, og ingen data returneres. |
+| Tilgang innvilget | 200 med loggen, sortert på `utfort_at` synkende. En sak uten loggposter gir tom liste. |
+
+- Tilgangssjekken bruker `TilgangsmaskinClient.evaluer(principal.subjectToken, ansattFnr)`, der
+  `ansattFnr` hentes fra `soknad.ansatt_fnr` via `sak.soknad_id`.
 - Slår opp navn for hver unike ident parallelt med `EntraProxyClient.hentAnsatt`. Bruker `visningNavn`,
   ellers fornavn + etternavn. Feiler oppslaget, logges en advarsel (uten ident), og identen brukes som navn.
+- Ruten setter sammen extension-funksjoner, og tjenester sendes ikke inn som parametere
+  (`saksbehandling/Sakslogg.kt`):
+  - `Database.hentAnsattFnrForSak(sakId): String?`
+  - `Database.hentSakslogg(sakId): List<SaksloggRad>`
+  - `EntraProxyClient.slaaOppNavn(identer): Map<String, String>`
+  - `List<SaksloggRad>.tilSaksloggResponse(navn)`
 - Svar:
 
 ```kotlin
@@ -92,7 +106,7 @@ data class SaksloggResponse(val innslag: List<SaksloggInnslag>)
 @Serializable
 data class SaksloggInnslag(
     val id: String,
-    val tidspunkt: Instant,
+    val tidspunkt: String,      // ISO-8601, samme mønster som ArenaBehandlingStatus.observertAt
     val utfortAvRolle: AktorRolle,
     val utfortAvIdent: String?,
     val utfortAvNavn: String,   // «System» for SYSTEM
@@ -112,7 +126,8 @@ data class SaksloggInnslag(
     - navn (uthevet)
     - `Tag` for rolle: Saksbehandler, Beslutter eller System, med ulik farge per rolle
     - notat
-  - Laster: `Loader`. Feil: «Kunne ikke hente saksloggen.» Tom logg: «Ingen hendelser ennå.»
+  - Laster: `Loader`. Feil: `LocalAlert` med «Kunne ikke hente saksloggen.», eller «Du har ikke tilgang
+    til saksloggen.» ved 403. Tom logg: «Ingen hendelser ennå.»
   - Bare Aksel-komponenter, layout-primitiver og tokens, ingen hardkodede farger eller px.
   - Tilgjengelighet: knappen har `aria-expanded`, og tidslinjen er en ordnet liste (`<ol>`).
 - `SakPage.tsx`: Linja med «Tilbake til liste av saker» blir en `HStack justify="space-between"` med
@@ -127,7 +142,8 @@ data class SaksloggInnslag(
   - Ukjent `sakId` gir `unrecoverableError`
 - `SakOppdatert`: `init` avviser `SAKSBEHANDLER`/`BESLUTTER` uten ident og `SYSTEM` med ident.
 - API-test for `/saker/{sakId}/logg`: sortering, navneoppslag, fallback til ident, «System» for
-  `SYSTEM` og 400 ved ugyldig id.
+  `SYSTEM`, 400 ved ugyldig id, 404 ved ukjent sak, 403 når tilgangsmaskinen avviser, 500 når
+  tilgangsmaskinen feiler, og at tilgangsmaskinen får den ansattes fødselsnummer.
 - Frontend: `typecheck` og `lint` for `saksbehandling`.
 
 ### 8. Dokumentasjon

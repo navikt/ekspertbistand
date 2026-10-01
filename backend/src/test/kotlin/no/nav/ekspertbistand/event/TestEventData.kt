@@ -4,11 +4,26 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.sak.AktorRolle
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import java.util.UUID
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 object TestEventData {
+
+    @OptIn(ExperimentalTime::class)
+    val sakOppdatert by lazy {
+        EventData.SakOppdatert(
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            utfortAvRolle = AktorRolle.SAKSBEHANDLER,
+            utfortAvIdent = "Z123456",
+            notat = "Sak tildelt",
+            tidspunkt = Instant.parse("2026-04-02T08:00:00Z"),
+        )
+    }
 
 
     val sampleSoknad = DTO.Soknad(
@@ -191,5 +206,6 @@ object TestEventData {
             tilsagnNummer = "1337:42:43",
             soknad = null,
         ),
+        sakOppdatert,
     )
 }
