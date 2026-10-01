@@ -125,7 +125,14 @@ export default function Sakslogg({ sakId }: { sakId: string }) {
         placement="bottom-end"
       >
         <Popover.Content>
-          <Box maxWidth="28rem" maxHeight="70vh" overflowY="auto">
+          {/* Process.Event med prikk har negativ margin-top, så uten padding klippes første innslag av overflowY. */}
+          <Box
+            maxWidth="28rem"
+            maxHeight="70vh"
+            overflowY="auto"
+            paddingBlock="space-12 space-4"
+            paddingInline="space-4"
+          >
             {open && <SaksloggInnhold sakId={sakId} />}
           </Box>
         </Popover.Content>
