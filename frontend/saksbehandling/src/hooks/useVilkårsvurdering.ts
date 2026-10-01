@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useSWRConfig } from "swr";
-import { SAKSBEHANDLING_SAK_URL, SAKSBEHANDLING_VILKAR_URL } from "../utils/constants";
+import { SAKSBEHANDLING_VILKAR_LISTE_URL, SAKSBEHANDLING_VILKAR_URL } from "../utils/constants";
 import { fetchJson } from "../utils/api";
-import type { SakDetaljer, Vilkår, Vilkårstatus } from "./useSak";
+import type { Vilkår, Vilkårstatus } from "./useVilkår";
 
 export type VilkårsvurderingInput = {
   vilkårId: string;
@@ -30,13 +30,9 @@ export function useVilkårsvurdering(sakId: string) {
         throw new Error("Fikk ikke oppdatert vilkår fra serveren.");
       }
 
-      await mutate<SakDetaljer>(
-        SAKSBEHANDLING_SAK_URL(sakId),
-        (sak) =>
-          sak && {
-            ...sak,
-            vilkår: sak.vilkår.map((v) => (v.id === vilkårId ? oppdatert : v)),
-          },
+      await mutate<Vilkår[]>(
+        SAKSBEHANDLING_VILKAR_LISTE_URL(sakId),
+        (vilkår) => vilkår?.map((v) => (v.id === vilkårId ? oppdatert : v)),
         { revalidate: false }
       );
 

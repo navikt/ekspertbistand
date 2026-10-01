@@ -12,7 +12,7 @@ import {
   VStack,
 } from "@navikt/ds-react";
 import { useState } from "react";
-import type { Vilkår, Vilkårstatus } from "../hooks/useSak";
+import type { Vilkår, Vilkårstatus } from "../hooks/useVilkår";
 
 type Props = {
   vilkår: Vilkår;

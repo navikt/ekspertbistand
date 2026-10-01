@@ -1,9 +1,11 @@
 import { MenuElipsisHorizontalCircleIcon } from "@navikt/aksel-icons";
 import {
   ActionMenu,
+  Alert,
+  BodyShort,
   Box,
   Button,
-  HStack,
+  Heading,
   Loader,
   Page,
   Table,
@@ -12,9 +14,10 @@ import {
   VStack,
 } from "@navikt/ds-react";
 import { useNavigate } from "react-router";
-import { useOversikt } from "../hooks/useOversikt";
+import { type Saksstatus, type SakListeElement, useSaker } from "../hooks/useSaker";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";
+import { OVERSIKT_PATH } from "../utils/constants";
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("nb-NO", {
@@ -24,17 +27,23 @@ function formatDate(date: string) {
   }).format(new Date(date));
 }
 
-function OppgavetypeKode({ type }: { type: string }) {
-  const kode = type.startsWith("Søknad") ? "Sø" : "R";
-  return (
-    <Tag variant="neutral" size="small">
-      {kode}
-    </Tag>
-  );
+const saksstatusTekst: Record<Saksstatus, string> = {
+  OPPRETTET: "Opprettet",
+  UNDER_BEHANDLING: "Under behandling",
+  TIL_BESLUTNING: "Til beslutning",
+  INNVILGET: "Innvilget",
+  AVSLATT: "Avslått",
+  AVSLUTTET: "Avsluttet",
+};
+
+const ferdigeSaksstatuser: Saksstatus[] = ["INNVILGET", "AVSLATT", "AVSLUTTET"];
+
+function erAvsluttet(sak: SakListeElement) {
+  return ferdigeSaksstatuser.includes(sak.status);
 }
 
 export default function OversiktPage() {
-  const { saker, error, isLoading } = useOversikt();
+  const { saker, error, isLoading } = useSaker();
   const innloggetAnsatt = useInnloggetAnsatt();
   const navigate = useNavigate();
 
@@ -42,22 +51,23 @@ export default function OversiktPage() {
     {
       value: "til-godkjenning",
       label: "Til godkjenning",
-      filter: () => saker.filter((s) => s.saksbehandler === null),
+      filter: () => saker.filter((s) => !s.saksbehandlerIdent && !erAvsluttet(s)),
     },
     {
       value: "mine-saker",
       label: "Mine saker",
-      filter: () => saker.filter((s) => s.saksbehandler === innloggetAnsatt?.navn),
+      filter: () =>
+        saker.filter((s) => !!innloggetAnsatt && s.saksbehandlerIdent === innloggetAnsatt.id),
     },
     {
       value: "pagaende",
       label: "Pågående",
-      filter: () => saker.filter((s) => s.status !== "Ferdigstilt"),
+      filter: () => saker.filter((s) => !erAvsluttet(s)),
     },
     {
       value: "avsluttet",
       label: "Avsluttet",
-      filter: () => saker.filter((s) => s.status === "Ferdigstilt"),
+      filter: () => saker.filter(erAvsluttet),
     },
     { value: "alle", label: "Alle", filter: () => saker },
   ];
@@ -68,6 +78,24 @@ export default function OversiktPage() {
 
   if (error) {
     return <Tag variant="error">Kunne ikke hente saksoversikten.</Tag>;
+  }
+
+  if (innloggetAnsatt && innloggetAnsatt.enheter.length === 0) {
+    return (
+      <Page.Block as="main">
+        <Box padding="space-24">
+          <Alert variant="warning">
+            <Heading spacing size="small" level="2">
+              Du er ikke knyttet til noen enheter
+            </Heading>
+            <BodyShort>
+              Derfor ser du ingen saker. Ta kontakt med lederen din eller den som styrer tilgang hos
+              dere, slik at du får tilgang til enheten du jobber i.
+            </BodyShort>
+          </Alert>
+        </Box>
+      </Page.Block>
+    );
   }
 
   return (
@@ -87,10 +115,10 @@ export default function OversiktPage() {
                     <Table.Header>
                       <Table.Row>
                         <Table.ColumnHeader sortable>Saksbehandler</Table.ColumnHeader>
-                        <Table.ColumnHeader>Oppgavetype</Table.ColumnHeader>
+                        <Table.ColumnHeader>Status</Table.ColumnHeader>
                         <Table.ColumnHeader>Arbeidsgiver</Table.ColumnHeader>
-                        <Table.ColumnHeader>Deltakere</Table.ColumnHeader>
-                        <Table.ColumnHeader sortable>Tiltaksperiode</Table.ColumnHeader>
+                        <Table.ColumnHeader>Deltaker</Table.ColumnHeader>
+                        <Table.ColumnHeader sortable>Startdato</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Søknad mottatt</Table.ColumnHeader>
                         <Table.HeaderCell />
                       </Table.Row>
@@ -98,34 +126,26 @@ export default function OversiktPage() {
                     <Table.Body>
                       {filter().map((sak) => (
                         <Table.Row
-                          key={sak.id}
+                          key={sak.sakId}
                           style={{ cursor: "pointer" }}
-                          onClick={() => navigate(`/oversikt/${sak.id}`)}
+                          onClick={() => navigate(`${OVERSIKT_PATH}/${sak.sakId}`)}
                         >
                           <Table.DataCell>
-                            {sak.saksbehandler ? (
-                              sak.saksbehandler
+                            {sak.saksbehandlerIdent ? (
+                              sak.saksbehandlerIdent
                             ) : (
                               <Button variant="secondary" size="xsmall">
                                 Tildel meg
                               </Button>
                             )}
                           </Table.DataCell>
+                          <Table.DataCell>{saksstatusTekst[sak.status]}</Table.DataCell>
+                          <Table.DataCell>{sak.soknad.virksomhet.virksomhetsnavn}</Table.DataCell>
+                          <Table.DataCell>{sak.soknad.ansattNavn}</Table.DataCell>
+                          <Table.DataCell>{formatDate(sak.soknad.startdato)}</Table.DataCell>
                           <Table.DataCell>
-                            <HStack gap="space-8" align="center">
-                              <OppgavetypeKode type={sak.oppgavetype} />
-                              {sak.oppgavetype}
-                            </HStack>
+                            {formatDate(sak.soknad.innsendtTidspunkt)}
                           </Table.DataCell>
-                          <Table.DataCell>{sak.virksomhet}</Table.DataCell>
-                          <Table.DataCell>{sak.deltaker}</Table.DataCell>
-                          <Table.DataCell>
-                            <HStack gap="space-8">
-                              <span>{formatDate(sak.tiltaksperiodeFra)}</span>
-                              <span>{formatDate(sak.tiltaksperiodeTil)}</span>
-                            </HStack>
-                          </Table.DataCell>
-                          <Table.DataCell>{formatDate(sak.opprettetDato)}</Table.DataCell>
                           <Table.DataCell>
                             <ActionMenu>
                               <ActionMenu.Trigger>

@@ -13,6 +13,7 @@ import io.ktor.server.plugins.di.*
 import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.json.*
+import no.nav.ekspertbistand.entraproxy.Enhet
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.saksbehandling.Role
 
@@ -203,7 +204,14 @@ data class AzureAdPrincipal(
     val groups: List<String>,
     val name: String?,
     val subjectToken: String,
-)
+    private val hentEnheter: suspend (navIdent: String) -> List<Enhet>,
+) {
+    /**
+     * Enhetene saksbehandler har tilgang til, fra entra-proxy (som cacher selv).
+     * Hentes først når de trengs, og kaster ved feil slik at kallende rute kan avvise (fail-closed).
+     */
+    suspend fun enheter(): List<Enhet> = hentEnheter(navIdent)
+}
 
 const val AZURE_AD_PROVIDER = "AZURE_AD"
 
@@ -273,6 +281,7 @@ fun Application.configureAuthentication() {
                         groups = groups,
                         name = name,
                         subjectToken = credentials.token,
+                        hentEnheter = entraProxyClient::hentEnheter,
                     )
                 }
             }
