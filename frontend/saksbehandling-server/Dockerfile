@@ -29,6 +29,9 @@ FROM node:22-alpine AS runner
 
 ENV NODE_ENV=production
 ENV STATIC_DIR=/app/client/dist
+
+ARG VITE_ENABLE_MOCKS
+ENV VITE_ENABLE_MOCKS=${VITE_ENABLE_MOCKS}
 WORKDIR /app
 
 COPY --from=builder /deploy/server/ ./

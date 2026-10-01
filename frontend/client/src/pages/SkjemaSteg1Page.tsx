@@ -206,7 +206,7 @@ export default function SkjemaSteg1Page() {
               <TextField
                 id="ekspert.navn"
                 label="Navn"
-                description="Personen som skal utføre oppdraget"
+                description="Personen som skal utføre oppdraget."
                 error={errors.ekspert?.navn?.message}
                 {...register("ekspert.navn")}
               />
@@ -236,6 +236,7 @@ export default function SkjemaSteg1Page() {
                   <UNSAFE_Combobox
                     id="ekspert.godkjentUtdanningEllerAutorisasjon"
                     label="Offentlig godkjent utdanning eller autorisasjon"
+                    description={"Velg i listen eller skriv inn egen."}
                     options={GODKJENT_UTDANNING_ALTERNATIVER}
                     isMultiSelect
                     allowNewValues
@@ -258,6 +259,7 @@ export default function SkjemaSteg1Page() {
                   <UNSAFE_Combobox
                     id="ekspert.relevantKompetanse"
                     label="Relevant kompetanse for denne saken"
+                    description={"Velg i listen eller skriv inn egen."}
                     options={RELEVANT_KOMPETANSE_ALTERNATIVER}
                     isMultiSelect
                     allowNewValues

@@ -27,6 +27,7 @@ const {
   NODE_ENV,
   GIT_COMMIT,
   NAIS_APP_IMAGE,
+  VITE_ENABLE_MOCKS,
 } = process.env;
 
 const port = Number(PORT);
@@ -34,7 +35,9 @@ const port = Number(PORT);
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
 
 const tokenxEnabled = Boolean(TOKEN_X_ISSUER);
-if (NODE_ENV === "production" && !tokenxEnabled) {
+// Mock-imaget bygges med VITE_ENABLE_MOCKS=true og kjører uten TokenX.
+const mockEnabled = VITE_ENABLE_MOCKS === "true";
+if (NODE_ENV === "production" && !tokenxEnabled && !mockEnabled) {
   throw new Error("TOKEN_X_ISSUER mangler i production. Avslutter for å unngå fail-open auth.");
 }
 if (tokenxEnabled && !EKSPERTBISTAND_API_AUDIENCE) {
