@@ -5,7 +5,6 @@ import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.network.sockets.*
 import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.http.*
@@ -79,9 +78,8 @@ fun defaultHttpClient(
 /**
  * inspired by [io.ktor.server.metrics.micrometer.MicrometerMetrics], but for clients.
  * this feature/plugin generates the following metrics:
- * (x = ktor.http.client, but can be overridden)
- *
- * x.requests: a timer for measuring the time of each request. This metric provides a set of tags for monitoring request data, including http method, path, status
+ * ktor.http.client.requests: a timer for measuring the time of each request. This metric provides a set of tags for monitoring request data, including http method, path, status
+ * a custom name for the client can be provided via the [Config.clientName] property. This is useful when you have multiple clients and want to differentiate between them in your metrics.
  *
  */
 class HttpClientMetricsFeature internal constructor(
@@ -115,8 +113,9 @@ class HttpClientMetricsFeature internal constructor(
         val measure = call.attributes.getOrNull(measureKey) ?: return
 
         measure.timer.stop(
-            Timer.builder(requestTimeTimerName).tags(
+            Timer.builder("ktor.http.client.requests").tags(
                 listOf(
+                    Tag.of("name", clientName),
                     Tag.of("method", call.request.method.value),
                     Tag.of("url", measure.normalizedUrl(context.url)),
                     Tag.of("status", call.response.status.value.toString()),
@@ -130,9 +129,6 @@ class HttpClientMetricsFeature internal constructor(
      */
     companion object Feature : HttpClientPlugin<Config, HttpClientMetricsFeature> {
         private var clientName: String = "ktor.http.client"
-
-        val requestTimeTimerName: String
-            get() = "$clientName.requests"
 
         private val measureKey = AttributeKey<ClientCallMeasure>("HttpClientMetricsFeature")
         override val key: AttributeKey<HttpClientMetricsFeature> = AttributeKey("HttpClientMetricsFeature")
