@@ -58,6 +58,7 @@ spec:
         - host: dokarkiv.prod-fss-pub.nais.io
         - host: ereg-services.prod-fss-pub.nais.io
         - host: entraproxy.intern.nav.no
+        - host: sokos-kontoregister.prod-fss-pub.nais.io
       rules:
         - application: populasjonstilgangskontroll
           namespace: tilgangsmaskin
