@@ -1,8 +1,16 @@
 package no.nav.ekspertbistand.sak
 
+import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
+import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import java.util.UUID
 import kotlin.time.ExperimentalTime
 
 /**
@@ -28,6 +36,32 @@ object SakTable : Table("sak") {
 
     override val primaryKey = PrimaryKey(sakId)
 }
+
+fun JdbcTransaction.hentGodkjentSakIdForUpdate(soknadId: UUID): UUID {
+    val soknadStatus = SoknadTable
+        .select(SoknadTable.status)
+        .where { SoknadTable.id eq soknadId }
+        .forUpdate(ForUpdateOption.ForUpdate)
+        .singleOrNull()
+        ?.get(SoknadTable.status)
+        ?: throw SoknadIkkeFunnetException()
+
+    if (soknadStatus != SoknadStatus.godkjent.name) {
+        throw SoknadIkkeGodkjentException()
+    }
+
+    return SakTable
+        .selectAll()
+        .where { SakTable.soknadId eq soknadId }
+        .forUpdate(ForUpdateOption.ForUpdate)
+        .singleOrNull()
+        ?.get(SakTable.sakId)
+        ?: throw SakIkkeFunnetException()
+}
+
+class SoknadIkkeFunnetException : RuntimeException()
+class SoknadIkkeGodkjentException : RuntimeException()
+class SakIkkeFunnetException : RuntimeException()
 
 enum class Saksstatus {
     OPPRETTET,
