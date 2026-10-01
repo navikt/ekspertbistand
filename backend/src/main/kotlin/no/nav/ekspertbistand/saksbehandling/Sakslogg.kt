@@ -5,9 +5,6 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
-import no.nav.ekspertbistand.sak.AktorRolle
-import no.nav.ekspertbistand.sak.SakTable
-import no.nav.ekspertbistand.sak.SaksloggTable
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder

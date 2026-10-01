@@ -4,7 +4,7 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
-import no.nav.ekspertbistand.sak.AktorRolle
+import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import java.util.UUID

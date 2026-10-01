@@ -12,9 +12,6 @@ import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
-import no.nav.ekspertbistand.sak.KildeTilBehandling
-import no.nav.ekspertbistand.sak.SakTable
-import no.nav.ekspertbistand.sak.Saksstatus
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable

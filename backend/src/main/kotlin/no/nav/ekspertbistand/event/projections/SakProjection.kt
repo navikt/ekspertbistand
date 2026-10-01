@@ -3,9 +3,9 @@ package no.nav.ekspertbistand.event.projections
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
-import no.nav.ekspertbistand.sak.KildeTilBehandling
-import no.nav.ekspertbistand.sak.SakTable
-import no.nav.ekspertbistand.sak.Saksstatus
+import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
+import no.nav.ekspertbistand.saksbehandling.SakTable
+import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.and

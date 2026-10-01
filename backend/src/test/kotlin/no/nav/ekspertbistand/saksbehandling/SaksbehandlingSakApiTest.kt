@@ -20,9 +20,6 @@ import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
-import no.nav.ekspertbistand.sak.KildeTilBehandling
-import no.nav.ekspertbistand.sak.SakTable
-import no.nav.ekspertbistand.sak.Saksstatus
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient

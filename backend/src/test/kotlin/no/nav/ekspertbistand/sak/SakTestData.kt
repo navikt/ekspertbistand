@@ -1,5 +1,10 @@
 package no.nav.ekspertbistand.sak
 
+import no.nav.ekspertbistand.saksbehandling.AktorRolle
+import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
+import no.nav.ekspertbistand.saksbehandling.SakTable
+import no.nav.ekspertbistand.saksbehandling.SaksloggTable
+import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database

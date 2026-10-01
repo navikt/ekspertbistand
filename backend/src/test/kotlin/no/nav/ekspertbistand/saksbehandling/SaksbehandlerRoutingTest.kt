@@ -17,7 +17,6 @@ import no.nav.ekspertbistand.arena.markerArenaSakUnderBehandling
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
-import no.nav.ekspertbistand.sak.AktorRolle
 import no.nav.ekspertbistand.sak.TEST_ANSATT_FNR
 import no.nav.ekspertbistand.sak.lagreSaksloggInnslag
 import no.nav.ekspertbistand.sak.lagreSoknadOgSak

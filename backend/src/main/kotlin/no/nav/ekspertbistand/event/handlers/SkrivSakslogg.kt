@@ -8,8 +8,8 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
-import no.nav.ekspertbistand.sak.SakTable
-import no.nav.ekspertbistand.sak.SaksloggTable
+import no.nav.ekspertbistand.saksbehandling.SakTable
+import no.nav.ekspertbistand.saksbehandling.SaksloggTable
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert

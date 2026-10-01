@@ -4,8 +4,8 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
-import no.nav.ekspertbistand.sak.AktorRolle
-import no.nav.ekspertbistand.sak.SaksloggTable
+import no.nav.ekspertbistand.saksbehandling.AktorRolle
+import no.nav.ekspertbistand.saksbehandling.SaksloggTable
 import no.nav.ekspertbistand.sak.lagreSoknadOgSak
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction

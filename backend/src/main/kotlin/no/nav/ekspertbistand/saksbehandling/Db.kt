@@ -1,4 +1,4 @@
-package no.nav.ekspertbistand.sak
+package no.nav.ekspertbistand.saksbehandling
 
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.core.Table
