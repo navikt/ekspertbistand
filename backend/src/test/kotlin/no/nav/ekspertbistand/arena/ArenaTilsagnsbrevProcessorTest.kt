@@ -22,8 +22,8 @@ import org.junit.jupiter.api.assertDoesNotThrow
 import java.time.Instant
 import java.util.*
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class ArenaTilsagnsbrevProcessorTest {
     companion object {
@@ -310,29 +310,35 @@ class ArenaTilsagnsbrevProcessorTest {
         }
 
     @Test
-    fun `melding med manglende deltaker kaster exception`() = testApplicationWithDatabase { db ->
+    fun `melding med manglende deltaker behandles`() = testApplicationWithDatabase { db ->
+        transaction {
+            insertArenaSak("2019319383", 123, soknad)
+        }
         val meldingUtenDeltaker = Json.parseToJsonElement(eksempelMelding(EKSPERTBISTAND_TILTAKSKODE, 2019, 319383))
             .jsonObject
             .toMutableMap()
             .apply { put("deltaker", JsonNull) }
             .let { Json.encodeToString(JsonObject.serializer(), JsonObject(it)) }
 
-        val exception = assertFailsWith<Exception> {
-            ArenaTilsagnsbrevProcessor(
-                db.config.jdbcDatabase,
-                Instant.EPOCH,
-            ).processRecord(
-                createConsumerRecord(
-                    kafkaMelding(
-                        1,
-                        42,
-                        meldingUtenDeltaker
-                    )
+        ArenaTilsagnsbrevProcessor(
+            db.config.jdbcDatabase,
+            Instant.EPOCH,
+        ).processRecord(
+            createConsumerRecord(
+                kafkaMelding(
+                    1,
+                    42,
+                    meldingUtenDeltaker
                 )
             )
-        }
+        )
 
-        assertEquals("TilsagnsbrevKafkaMelding mangler deltaker. key: key", exception.message)
+        transaction(db.config.jdbcDatabase) {
+            val queuedEvents = QueuedEvents.selectAll().map { it.tilQueuedEvent() }
+            assertEquals(1, queuedEvents.count())
+            val eventData = queuedEvents.first().eventData as EventData.TilskuddsbrevMottatt
+            assertNull(eventData.tilsagnData.deltaker)
+        }
     }
 
     @Test

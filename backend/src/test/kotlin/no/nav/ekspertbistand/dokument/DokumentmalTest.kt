@@ -92,6 +92,22 @@ class DokumentmalTest {
     }
 
     @Test
+    fun `tilskuddsbrev uten deltaker rendrer gyldig HTML uten deltakerrad`() {
+        var pdfHtml: String? = null
+        val service = DokumentService(StubPdfKonverterer(onConvert = { h -> pdfHtml = h }), strictRenderer)
+        val tilsagnUtenDeltaker = sampleTilskuddsbrev().copy(deltaker = null)
+
+        val html = kotlinx.coroutines.runBlocking {
+            service.genererTilskuddsbrevPdf(tilsagnUtenDeltaker)
+            service.genererTilskuddsbrevHtml(tilsagnUtenDeltaker)
+        }
+
+        validerHtml(requireNotNull(pdfHtml), medHeaderFooter = true)
+        validerHtml(html, medHeaderFooter = false)
+        assertTrue("Deltakeren:" !in html)
+    }
+
+    @Test
     fun `ingen hbs bruker markdown eller triple-stash`() {
         val hbsFiler = templatesDir.walkTopDown().filter { it.isFile && it.extension == "hbs" }.toList()
         assertTrue(hbsFiler.isNotEmpty())
