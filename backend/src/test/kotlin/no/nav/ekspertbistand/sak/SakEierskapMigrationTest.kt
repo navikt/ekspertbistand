@@ -44,12 +44,12 @@ class SakEierskapMigrationTest {
         val legacyData = transaction(config.jdbcDatabase) {
             val soknadId = lagreSoknad()
             val sakId = lagreSak(soknadId)
-            val refusjonskravId = RefusjonskravTable.insertReturning {
-                it[RefusjonskravTable.soknadId] = soknadId
+            val refusjonskravId = LegacyRefusjonskravTable.insertReturning {
+                it[LegacyRefusjonskravTable.soknadId] = soknadId
                 it[belopOre] = 42_00
                 it[utgifter] = "Legacy-utgift"
                 it[status] = "MOTTATT"
-            }.single()[RefusjonskravTable.id].value
+            }.single()[LegacyRefusjonskravTable.id]
             val sluttrapportId = LegacySluttrapportTable.insertReturning {
                 it[status] = "MOTTATT"
             }.single()[LegacySluttrapportTable.id]
@@ -183,6 +183,16 @@ class SakEierskapMigrationTest {
 
 private object LegacySluttrapportTable : Table("sluttrapport") {
     val id = uuid("sluttrapport_id").databaseGenerated()
+    val status = text("status")
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+private object LegacyRefusjonskravTable : Table("refusjonskrav") {
+    val id = uuid("id").databaseGenerated()
+    val soknadId = uuid("soknad_id")
+    val belopOre = long("belop_ore")
+    val utgifter = text("utgifter")
     val status = text("status")
 
     override val primaryKey = PrimaryKey(id)

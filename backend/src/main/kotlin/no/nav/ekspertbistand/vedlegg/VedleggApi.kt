@@ -11,6 +11,10 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.logger
+import no.nav.ekspertbistand.sak.SakIkkeFunnetException
+import no.nav.ekspertbistand.sak.SoknadIkkeFunnetException
+import no.nav.ekspertbistand.sak.SoknadIkkeGodkjentException
+import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.subjectToken
 import kotlinx.serialization.Serializable
@@ -48,6 +52,11 @@ class VedleggApi(
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
         if (!tilganger.harTilgang(soknad.virksomhet.virksomhetsnummer)) {
             call.respond(HttpStatusCode.Forbidden, "bruker har ikke tilgang til organisasjon")
+            return
+        }
+
+        if (soknad.status != SoknadStatus.godkjent) {
+            call.respond(HttpStatusCode.Conflict, "Søknaden må være godkjent før du kan sende sluttrapport")
             return
         }
 
@@ -110,13 +119,22 @@ class VedleggApi(
             }
         }
 
-        for ((filnavn, bytes) in filer) {
-            vedleggDb.lagreVedlegg(
+        try {
+            val (filnavn, bytes) = filer.single()
+            vedleggDb.lagreSluttrapport(
                 soknadId = soknadId,
-                type = VedleggType.SLUTTRAPPORT,
                 filnavn = filnavn,
                 innhold = bytes,
             )
+        } catch (_: SoknadIkkeFunnetException) {
+            call.respond(HttpStatusCode.NotFound, "søknad ikke funnet")
+            return
+        } catch (_: SakIkkeFunnetException) {
+            call.respond(HttpStatusCode.NotFound, "sak ikke funnet")
+            return
+        } catch (_: SoknadIkkeGodkjentException) {
+            call.respond(HttpStatusCode.Conflict, "Søknaden må være godkjent før du kan sende sluttrapport")
+            return
         }
 
         log.info("Lastet opp {} vedlegg: soknadId={}", filer.size, soknadId)
