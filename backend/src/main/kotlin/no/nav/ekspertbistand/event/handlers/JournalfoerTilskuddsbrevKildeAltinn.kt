@@ -22,7 +22,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  * Når en søknad om ekspertbistand godkjennes i Arena blir det opprettet et tilsagn.
  * Dette tilsagnet blir lagt på kafka og plukkes opp i [no.nav.ekspertbistand.arena.ArenaTilsagnsbrevProcessor]
  * som produserer en [no.nav.ekspertbistand.event.EventData.TilskuddsbrevMottattKildeAltinn]-event dersom vi ikke har en
- * registrert søknad på tilsagnet. Dette vil kun skje i overgangsperioden, der noen søknader har vært sendt inn via Altinn men ikke godkjent enda.
+ * registrert søknad på tilsagnet. Det skjer kun for søknader sendt inn via Altinn 2 i starten etter prodsetting,
+ * se [no.nav.ekspertbistand.event.EventData.TilskuddsbrevMottattKildeAltinn].
  *
  * Denne handleren tar imot eventen, genererer et tilskuddsbrev i PDF-format og
  * journalfører dette i DokArkiv.

@@ -85,8 +85,8 @@ class ArenaTiltaksgjennomforingEndretProcessor(
         } else {
             log.info("søknad sendt inn via altinn er avlyst i arena, tiltaksgjennomfoeringId=${endring.tiltaksgjennomfoeringId}")
             teamLog.info("søknad sendt inn via altinn er avlyst i arena, endring=${endring}")
-            // søknad avslått på skjema sendt inn i altinn 2, håndtering av dette er ikke med i scope for nå
-            // dette kan skje i en overgangsperiode
+            // Mangler i arena_sak kun når søknaden kom via Altinn 2 i starten etter prodsetting.
+            // Ingen nye slike søknader, så avlysning av disse håndteres ikke.
         }
     }
 
