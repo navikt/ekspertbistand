@@ -74,9 +74,10 @@ class ArenaTilsagnsbrevProcessor(
             return
         }
 
+        // Arena tillater tilsagn uten deltaker. Vi behandler meldingen likevel, ellers blokkerer den topicen.
         if (tilskuddsbrevMelding.tilsagnData.deltaker == null) {
-            teamLog.error("TilsagnsbrevKafkaMelding mangler deltaker. record: {}", record)
-            throw Exception("TilsagnsbrevKafkaMelding mangler deltaker. key: ${record.key()}")
+            log.warn("TilsagnsbrevKafkaMelding mangler deltaker. tilsagnBrevId=${tilskuddsbrevMelding.tilsagnBrevId} key: ${record.key()}")
+            teamLog.warn("TilsagnsbrevKafkaMelding mangler deltaker. record: {}", record)
         }
 
         // sjekk at vi er kilde til tilsagn, tilsagnData.aar og tilsagnData.loepenrSak finnes i vårt system
@@ -99,8 +100,8 @@ class ArenaTilsagnsbrevProcessor(
                 tilsagnData = tilskuddsbrevMelding.tilsagnData
             )
         } else {
-            // søknad godkjent men sendt inn i gammel altinn 2 løsning
-            // dette vil skje i overgangsperioden
+            // Mangler i arena_sak kun når søknaden kom via Altinn 2 i starten etter prodsetting.
+            // Ingen nye slike søknader, se kdoc på TilskuddsbrevMottattKildeAltinn.
             EventData.TilskuddsbrevMottattKildeAltinn(
                 tilsagnbrevId = tilskuddsbrevMelding.tilsagnBrevId,
                 tilsagnData = tilskuddsbrevMelding.tilsagnData

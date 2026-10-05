@@ -2,10 +2,13 @@ package no.nav.ekspertbistand.refusjon
 
 import no.nav.ekspertbistand.vedlegg.VedleggTable
 import no.nav.ekspertbistand.vedlegg.VedleggType
+import no.nav.ekspertbistand.sak.SakTable
+import no.nav.ekspertbistand.sak.hentGodkjentSakIdForUpdate
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -19,6 +22,7 @@ import java.util.UUID
 @OptIn(kotlin.time.ExperimentalTime::class)
 object RefusjonskravTable : UUIDTable("refusjonskrav") {
     val soknadId = uuid("soknad_id")
+    val sakId = uuid("sak_id").nullable()
     val belopOre = long("belop_ore")
     val utgifter = text("utgifter")
     val status = text("status")
@@ -35,8 +39,10 @@ class RefusjonDb(private val database: Database) {
         utgifter: String,
         filer: List<RefusjonsfilInput>,
     ): UUID = transaction(database) {
+        val sakId = hentGodkjentSakIdForUpdate(soknadId)
         val refusjonskravId = RefusjonskravTable.insertReturning {
             it[RefusjonskravTable.soknadId] = soknadId
+            it[RefusjonskravTable.sakId] = sakId
             it[RefusjonskravTable.belopOre] = belopOre
             it[RefusjonskravTable.utgifter] = utgifter
             it[status] = "MOTTATT"
@@ -63,9 +69,26 @@ class RefusjonDb(private val database: Database) {
      */
     @OptIn(kotlin.time.ExperimentalTime::class)
     fun finnRefusjonskravStatus(soknadId: UUID): RefusjonskravStatus? = transaction(database) {
-        val krav = RefusjonskravTable
+        val sakId = SakTable
+            .select(SakTable.sakId)
+            .where { SakTable.soknadId eq soknadId }
+            .singleOrNull()
+            ?.get(SakTable.sakId)
+
+        val kravForSak = sakId?.let {
+            RefusjonskravTable
+                .selectAll()
+                .where { RefusjonskravTable.sakId eq it }
+                .orderBy(RefusjonskravTable.opprettet, SortOrder.DESC)
+                .firstOrNull()
+        }
+
+        val krav = kravForSak ?: RefusjonskravTable
             .selectAll()
-            .where { RefusjonskravTable.soknadId eq soknadId }
+            .where {
+                (RefusjonskravTable.soknadId eq soknadId) and
+                    RefusjonskravTable.sakId.isNull()
+            }
             .orderBy(RefusjonskravTable.opprettet, SortOrder.DESC)
             .firstOrNull()
             ?: return@transaction null
@@ -101,20 +124,44 @@ class RefusjonDb(private val database: Database) {
      */
     fun hentRefusjonsvedlegg(soknadId: UUID, vedleggId: UUID): RefusjonsvedleggInnhold? =
         transaction(database) {
-            VedleggTable
+            val sakId = SakTable
+                .select(SakTable.sakId)
+                .where { SakTable.soknadId eq soknadId }
+                .singleOrNull()
+                ?.get(SakTable.sakId)
+                ?: return@transaction null
+
+            val vedlegg = VedleggTable
                 .selectAll()
                 .where {
                     (VedleggTable.id eq vedleggId) and
-                        (VedleggTable.soknadId eq soknadId) and
                         (VedleggTable.type eq VedleggType.REFUSJONSDOKUMENTASJON.name)
                 }
                 .firstOrNull()
-                ?.let {
-                    RefusjonsvedleggInnhold(
-                        filnavn = it[VedleggTable.filnavn],
-                        innhold = it[VedleggTable.innhold],
-                    )
-                }
+                ?: return@transaction null
+
+            val refusjonskravId = vedlegg[VedleggTable.refusjonskravId]
+                ?: return@transaction null
+            val refusjonskrav = RefusjonskravTable
+                .select(RefusjonskravTable.sakId, RefusjonskravTable.soknadId)
+                .where { RefusjonskravTable.id eq refusjonskravId }
+                .singleOrNull()
+                ?: return@transaction null
+
+            val tilhorerSak = refusjonskrav[RefusjonskravTable.sakId] == sakId
+            val erLegacyForSoknad =
+                refusjonskrav[RefusjonskravTable.sakId] == null &&
+                    refusjonskrav[RefusjonskravTable.soknadId] == soknadId &&
+                    vedlegg[VedleggTable.soknadId] == soknadId
+
+            if (!tilhorerSak && !erLegacyForSoknad) {
+                return@transaction null
+            }
+
+            RefusjonsvedleggInnhold(
+                filnavn = vedlegg[VedleggTable.filnavn],
+                innhold = vedlegg[VedleggTable.innhold],
+            )
         }
 }
 

@@ -12,6 +12,9 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.logger
+import no.nav.ekspertbistand.sak.SakIkkeFunnetException
+import no.nav.ekspertbistand.sak.SoknadIkkeFunnetException
+import no.nav.ekspertbistand.sak.SoknadIkkeGodkjentException
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.subjectToken
@@ -145,12 +148,23 @@ class RefusjonApi(
             }
         }
 
-        refusjonDb.lagreRefusjonskrav(
-            soknadId = soknadId,
-            belopOre = belopOre,
-            utgifter = utgifterVerdi,
-            filer = filer.map { RefusjonsfilInput(it.filnavn, it.innhold) },
-        )
+        try {
+            refusjonDb.lagreRefusjonskrav(
+                soknadId = soknadId,
+                belopOre = belopOre,
+                utgifter = utgifterVerdi,
+                filer = filer.map { RefusjonsfilInput(it.filnavn, it.innhold) },
+            )
+        } catch (_: SoknadIkkeFunnetException) {
+            call.respond(HttpStatusCode.NotFound, "søknad ikke funnet")
+            return
+        } catch (_: SakIkkeFunnetException) {
+            call.respond(HttpStatusCode.NotFound, "sak ikke funnet")
+            return
+        } catch (_: SoknadIkkeGodkjentException) {
+            call.respond(HttpStatusCode.Conflict, "Søknaden må være godkjent før du kan sende refusjonskrav")
+            return
+        }
 
         log.info("Mottok refusjonskrav med {} vedlegg: soknadId={}, belopOre={}", filer.size, soknadId, belopOre)
         refusjonMottattCounter.increment()
