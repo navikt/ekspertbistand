@@ -75,8 +75,6 @@ spec:
           namespace: fager
         - application: arbeidsgiver-altinn-tilganger
           namespace: fager
-        - application: ekspertbistand-dokgen
-          namespace: fager
         - application: ekspertbistand-gotenberg
           namespace: fager
         - application: norg2
