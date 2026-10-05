@@ -36,8 +36,6 @@ import no.nav.ekspertbistand.infrastruktur.defaultJson
  *  - 204 No Content -> [Tilgangsresultat.Innvilget]
  *  - 403 Forbidden  -> [Tilgangsresultat.Avvist] (application/problem+json)
  *  - 404, 400, 5xx ... -> [TilgangsmaskinException]
- *
- * Klienten er foreløpig ikke koblet inn i noen rute.
  */
 class TilgangsmaskinClient(
     private val tokenExchanger: AzureAdTokenExchanger,
@@ -78,7 +76,7 @@ class TilgangsmaskinClient(
     suspend fun evaluer(
         userToken: String,
         brukerIdent: String,
-        regelsett: Regelsett = Regelsett.KOMPLETT,
+        regelsett: Regelsett,
     ): Tilgangsresultat {
         val response = httpClient.post {
             url {
@@ -122,7 +120,7 @@ class TilgangsmaskinClient(
     suspend fun evaluerBulk(
         userToken: String,
         brukerIdenter: Collection<String>,
-        regelsett: Regelsett = Regelsett.KOMPLETT,
+        regelsett: Regelsett,
     ): AggregertBulkRespons {
         val specs = brukerIdenter
             .distinct()

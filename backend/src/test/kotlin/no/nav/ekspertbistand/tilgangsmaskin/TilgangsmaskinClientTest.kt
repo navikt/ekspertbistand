@@ -82,7 +82,7 @@ class TilgangsmaskinClientTest {
             )
         }
 
-        val resultat = client.evaluer(userToken, brukerIdent)
+        val resultat = client.evaluer(userToken, brukerIdent, Regelsett.KJERNE)
 
         val avvist = assertIs<Tilgangsresultat.Avvist>(resultat)
         assertEquals("AVVIST_STRENGT_FORTROLIG_ADRESSE", avvist.kode)
@@ -101,7 +101,7 @@ class TilgangsmaskinClientTest {
         }
 
         assertFailsWith<TilgangsmaskinException> {
-            client.evaluer(userToken, brukerIdent)
+            client.evaluer(userToken, brukerIdent, Regelsett.KJERNE)
         }
     }
 
@@ -128,7 +128,7 @@ class TilgangsmaskinClientTest {
             )
         }
 
-        val respons = client.evaluerBulk(userToken, listOf("111", "222", "333"))
+        val respons = client.evaluerBulk(userToken, listOf("111", "222", "333"), Regelsett.KJERNE)
 
         assertEquals("/api/v1/bulk/obo", request?.url?.encodedPath)
         assertEquals(1, respons.godkjente.size)
