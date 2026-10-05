@@ -304,7 +304,7 @@ class SaksbehandlingSakApiTest {
         externalServices {
             hosts(TilgangsmaskinClient.ingress) {
                 routing {
-                    post("/api/v1/komplett") {
+                    post("/api/v1/kjerne") {
                         tilgangsmaskinKall.add(
                             TilgangsmaskinKall(
                                 body = call.receiveText(),
