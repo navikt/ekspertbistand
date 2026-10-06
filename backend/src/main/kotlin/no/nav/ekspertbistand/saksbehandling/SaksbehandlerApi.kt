@@ -14,6 +14,7 @@ import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.soknad.getRequired
+import no.nav.ekspertbistand.tilgangsmaskin.Regelsett
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.tilgangsmaskin.Tilgangsresultat
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -106,7 +107,7 @@ suspend fun Application.configureSaksbehandlerApiV1() {
                         ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
 
                     val tilgang = try {
-                        tilgangsmaskinClient.evaluer(userToken = principal.subjectToken, brukerIdent = fnr)
+                        tilgangsmaskinClient.evaluer(userToken = principal.subjectToken, brukerIdent = fnr, Regelsett.KJERNE)
                     } catch (e: Exception) {
                         logger.error("Klarte ikke sjekke tilgang til sak i tilgangsmaskin", e)
                         return@get call.respond(
@@ -126,7 +127,6 @@ suspend fun Application.configureSaksbehandlerApiV1() {
                     call.respond(rader.tilSaksloggResponse(navn))
                 }
             }
-
         }
     }
 }

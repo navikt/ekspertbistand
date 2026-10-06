@@ -27,7 +27,7 @@ Trello-kort: ikke koblet, fordi Trello CLI mangler auth. Lenken legges til her f
 
 ## Tilnærming
 
-### 1. Migrering `V17__sakslogg_fjern_utfort_av_type.sql`
+### 1. Migrering `V18__sakslogg_fjern_utfort_av_type.sql`
 ```sql
 ALTER TABLE sakslogg DROP COLUMN utfort_av_type;
 ALTER TABLE sakslogg ALTER COLUMN utfort_av_rolle SET NOT NULL;

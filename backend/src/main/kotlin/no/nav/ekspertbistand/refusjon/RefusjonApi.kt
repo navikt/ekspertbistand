@@ -12,9 +12,9 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.logger
-import no.nav.ekspertbistand.sak.SakIkkeFunnetException
-import no.nav.ekspertbistand.sak.SoknadIkkeFunnetException
-import no.nav.ekspertbistand.sak.SoknadIkkeGodkjentException
+import no.nav.ekspertbistand.saksbehandling.SakIkkeFunnetException
+import no.nav.ekspertbistand.saksbehandling.SoknadIkkeFunnetException
+import no.nav.ekspertbistand.saksbehandling.SoknadIkkeGodkjentException
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.subjectToken

@@ -408,7 +408,7 @@ class SaksbehandlerRoutingTest {
 
         assertEquals(HttpStatusCode.OK, response.status)
         val request = assertNotNull(tilgangsrequest)
-        assertEquals("/api/v1/komplett", request.url.encodedPath)
+        assertEquals("/api/v1/kjerne", request.url.encodedPath)
         assertEquals("\"$TEST_ANSATT_FNR\"", (request.body as TextContent).text)
     }
 

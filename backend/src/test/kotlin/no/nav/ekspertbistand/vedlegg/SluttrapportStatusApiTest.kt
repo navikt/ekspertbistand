@@ -15,9 +15,9 @@ import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
-import no.nav.ekspertbistand.sak.KildeTilBehandling
-import no.nav.ekspertbistand.sak.SakTable
-import no.nav.ekspertbistand.sak.Saksstatus
+import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
+import no.nav.ekspertbistand.saksbehandling.SakTable
+import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.datetime.CurrentDate
