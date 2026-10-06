@@ -65,6 +65,7 @@ spec:
         - host: ereg-services.dev-fss-pub.nais.io
         - host: aareg-services.intern.dev.nav.no
         - host: entraproxy.intern.dev.nav.no
+        - host: sokos-kontoregister-q2.dev-fss-pub.nais.io
       rules:
         - application: populasjonstilgangskontroll
           namespace: tilgangsmaskin
@@ -73,8 +74,6 @@ spec:
         - application: notifikasjon-produsent-api
           namespace: fager
         - application: arbeidsgiver-altinn-tilganger
-          namespace: fager
-        - application: ekspertbistand-dokgen
           namespace: fager
         - application: ekspertbistand-gotenberg
           namespace: fager

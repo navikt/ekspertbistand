@@ -41,7 +41,9 @@ private val log = LoggerFactory.getLogger("SaksbehandlingSakApi")
  * Krever rolle [Role.SAKSBEHANDLER] eller [Role.BESLUTTER], og at saken har en behandlende enhet
  * som saksbehandler har tilgang til (fra entra-proxy). Saker uten enhet er ikke synlige for noen.
  * Enkeltoppslag sjekkes i tillegg mot Tilgangsmaskinen og sporingslogges til ArcSight når saken
- * vises. Alle eksterne tilgangssjekker er fail-closed (503).
+ * vises. Tilgangsmaskinen sjekker kun kjerneregler: geografisk tilgang styres av sakens
+ * behandlende enhet, ikke av den ansattes geografiske tilknytning.
+ * Alle eksterne tilgangssjekker er fail-closed (503).
  * Listen sporingslogges ikke, jf. krav til oppslagslogg på sikkerhet.nav.no.
  */
 suspend fun Application.configureSaksbehandlingSakApiV1() {
@@ -90,7 +92,7 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
                         tilgangsmaskinClient.evaluer(
                             userToken = principal.subjectToken,
                             brukerIdent = sak.soknad.ansatt.fnr,
-                            regelsett = Regelsett.KOMPLETT,
+                            regelsett = Regelsett.KJERNE,
                         )
                     } catch (e: Exception) {
                         e.rethrowIfCancellation()

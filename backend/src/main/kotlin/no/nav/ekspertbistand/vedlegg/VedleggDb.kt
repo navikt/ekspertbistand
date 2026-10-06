@@ -1,6 +1,9 @@
 package no.nav.ekspertbistand.vedlegg
 
+import no.nav.ekspertbistand.sak.hentGodkjentSakIdForUpdate
+import no.nav.ekspertbistand.sak.SakTable
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
@@ -21,22 +24,39 @@ object VedleggTable : UUIDTable("vedlegg") {
     val storrelse = integer("storrelse")
     val lastetOpp = timestamp("lastet_opp").defaultExpression(CurrentTimestamp)
     val refusjonskravId = uuid("refusjonskrav_id").nullable()
+    val sluttrapportId = uuid("sluttrapport_id").nullable()
+}
+
+@OptIn(kotlin.time.ExperimentalTime::class)
+object SluttrapportTable : Table("sluttrapport") {
+    val id = uuid("sluttrapport_id").databaseGenerated()
+    val sakId = uuid("sak_id").nullable()
+    val status = text("status")
+    val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
+
+    override val primaryKey = PrimaryKey(id)
 }
 
 class VedleggDb(private val database: Database) {
 
-    fun lagreVedlegg(
+    fun lagreSluttrapport(
         soknadId: UUID,
-        type: VedleggType,
         filnavn: String,
         innhold: ByteArray,
     ): UUID = transaction(database) {
+        val sakId = hentGodkjentSakIdForUpdate(soknadId)
+        val sluttrapportId = SluttrapportTable.insertReturning {
+            it[SluttrapportTable.sakId] = sakId
+            it[status] = "MOTTATT"
+        }.single()[SluttrapportTable.id]
+
         VedleggTable.insertReturning {
             it[VedleggTable.soknadId] = soknadId
-            it[VedleggTable.type] = type.name
+            it[VedleggTable.type] = VedleggType.SLUTTRAPPORT.name
             it[VedleggTable.filnavn] = filnavn
             it[VedleggTable.innhold] = innhold
             it[VedleggTable.storrelse] = innhold.size
+            it[VedleggTable.sluttrapportId] = sluttrapportId
         }.single()[VedleggTable.id].value
     }
 
@@ -46,7 +66,30 @@ class VedleggDb(private val database: Database) {
      */
     @OptIn(kotlin.time.ExperimentalTime::class)
     fun finnSluttrapportMetadata(soknadId: UUID): SluttrapportMetadata? = transaction(database) {
-        VedleggTable
+        val sakId = SakTable
+            .select(SakTable.sakId)
+            .where { SakTable.soknadId eq soknadId }
+            .singleOrNull()
+            ?.get(SakTable.sakId)
+
+        val sluttrapportId = sakId?.let {
+            SluttrapportTable
+                .select(SluttrapportTable.id)
+                .where { SluttrapportTable.sakId eq it }
+                .orderBy(SluttrapportTable.opprettet, SortOrder.DESC)
+                .limit(1)
+                .singleOrNull()
+                ?.get(SluttrapportTable.id)
+        }
+
+        val metadata = sluttrapportId?.let {
+            VedleggTable
+                .select(VedleggTable.filnavn, VedleggTable.lastetOpp)
+                .where { VedleggTable.sluttrapportId eq it }
+                .singleOrNull()
+        }
+
+        (metadata ?: VedleggTable
             .select(VedleggTable.filnavn, VedleggTable.lastetOpp)
             .where {
                 (VedleggTable.soknadId eq soknadId) and
@@ -54,7 +97,7 @@ class VedleggDb(private val database: Database) {
             }
             .orderBy(VedleggTable.lastetOpp, SortOrder.DESC)
             .limit(1)
-            .firstOrNull()
+            .firstOrNull())
             ?.let {
                 SluttrapportMetadata(
                     filnavn = it[VedleggTable.filnavn],
@@ -70,4 +113,3 @@ data class SluttrapportMetadata(
 )
 
 enum class VedleggType { SLUTTRAPPORT, REFUSJONSDOKUMENTASJON }
-

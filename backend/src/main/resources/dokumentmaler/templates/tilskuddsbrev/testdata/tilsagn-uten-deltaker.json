@@ -4,15 +4,6 @@
     "etternavn": "Strømmen",
     "fornavn": "Evy"
   },
-  "deltaker": {
-    "etternavn": "Nilsen",
-    "fornavn": "Nils",
-    "fodselsnr": "05055599999",
-    "landKode": "NO",
-    "postAdresse": "Waldemar Thranesgt 89",
-    "postNummer": "0223",
-    "postSted": "Oslo"
-  },
   "kommentar": "Ingen kommentar",
   "navEnhet": {
     "faks": "52048361",
@@ -59,10 +50,11 @@
     "postNummer": "4014",
     "postSted": "Oslo"
   },
-  "tiltakKode": "EKSP",
+  "tiltakKode": "EKSPEBIST",
   "tiltakNavn": "Ekspertbistand",
   "totaltTilskuddbelop": "28400",
   "valutaKode": "NOK",
   "tilskuddsProsent": "60 %",
-  "refusjonfristDato": "02 februar 2020"
+  "refusjonfristDato": "02 februar 2020",
+  "deltaker": null
 }

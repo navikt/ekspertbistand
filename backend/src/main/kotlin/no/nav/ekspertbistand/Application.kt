@@ -49,7 +49,6 @@ import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
-import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
 import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
@@ -119,8 +118,14 @@ fun main() {
 
         // configure application modules and endpoints
         configureSoknadApiV1()
-        configureVedleggApiV1()
-        configureRefusjonApiV1()
+        // Sluttrapport og refusjonskrav er ikke åpnet i prod ennå.
+        basedOnEnvSuspending(
+            prod = {},
+            other = {
+                configureVedleggApiV1()
+                configureRefusjonApiV1()
+            },
+        )
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()
         configureEregApiV1()

@@ -78,7 +78,7 @@ class TilgangsmaskinClient(
     suspend fun evaluer(
         userToken: String,
         brukerIdent: String,
-        regelsett: Regelsett = Regelsett.KOMPLETT,
+        regelsett: Regelsett,
     ): Tilgangsresultat {
         val response = httpClient.post {
             url {
@@ -122,7 +122,7 @@ class TilgangsmaskinClient(
     suspend fun evaluerBulk(
         userToken: String,
         brukerIdenter: Collection<String>,
-        regelsett: Regelsett = Regelsett.KOMPLETT,
+        regelsett: Regelsett,
     ): AggregertBulkRespons {
         val specs = brukerIdenter
             .distinct()

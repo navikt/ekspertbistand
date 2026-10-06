@@ -128,9 +128,12 @@ sealed interface EventData {
      * Arena har sendt tilsagnsbrev for en sak vi *ikke* er kilde til.
      *
      * Samme kafka-melding som [TilskuddsbrevMottatt], men tilsagnsnummeret finnes ikke i
-     * arena_sak. Da er søknaden sendt inn via den gamle Altinn 2-løsningen, noe som kan skje
-     * i overgangsperioden. Vi har derfor ingen [DTO.Soknad] å henge hendelsen på, og
-     * aggregatroten utledes fra tilsagnsdataene i stedet.
+     * arena_sak. Eneste grunn til det er at søknaden ble sendt inn via det gamle Altinn 2-skjemaet
+     * og rutet rett til Arena, noe som bare skjedde i starten etter at vi gikk i produksjon.
+     * Det kommer ikke nye slike søknader, så dette er en legacy-løype. Den skal ikke tilpasses
+     * for nye feilsituasjoner i tilsagnsmeldinger, og saker opprettet direkte i Arena finnes ikke.
+     * Vi har ingen [DTO.Soknad] å henge hendelsen på, og aggregatroten utledes fra
+     * tilsagnsdataene i stedet.
      *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrevKildeAltinn] og
      * [no.nav.ekspertbistand.event.projections.TilskuddsbrevVistProjection].
@@ -191,7 +194,7 @@ sealed interface EventData {
      * Publiseres av [no.nav.ekspertbistand.arena.ArenaTiltaksgjennomforingEndretProcessor] når
      * en endringsmelding med status AVLYST treffer en tiltaksgjennomføring vi er kilde til.
      * Publiseringen er idempotent per tiltaksgjennomfoeringId. Avlysning av søknader sendt inn
-     * via Altinn 2 håndteres foreløpig ikke.
+     * via Altinn 2 håndteres ikke, se [TilskuddsbrevMottattKildeAltinn].
      *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.SettAvlystSoknadStatus],
      * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst] og
