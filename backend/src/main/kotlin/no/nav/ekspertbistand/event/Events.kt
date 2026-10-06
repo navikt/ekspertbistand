@@ -10,10 +10,12 @@ import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.handlers.*
+import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.aggregateRootId
 import no.nav.ekspertbistand.tilsagndata.aggregateRootId
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 
 data class Event<T : EventData>(
@@ -268,6 +270,43 @@ sealed interface EventData {
     ) : EventData {
         override val aggregateRootId: String get() = soknad?.aggregateRootId ?: tilsagnNummer
     }
+
+    /**
+     * Noe har skjedd i en sak som skal vises i saksloggen.
+     *
+     * Ingen publiserer eventen ennå. Den tas i bruk når saksbehandlingshandlingene bygges
+     * (tildeling, vurdering, vedtak, refusjon). Se `specifications/sakslogg.md`.
+     *
+     * [notat] er teksten som vises i saksloggen, for eksempel «Sak tildelt».
+     * [utfortAvIdent] er NAV-identen til saksbehandler eller beslutter, og er null når
+     * [utfortAvRolle] er [AktorRolle.SYSTEM]. Identen skal ikke logges utenfor teamLog.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [no.nav.ekspertbistand.event.handlers.SkrivSakslogg].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("sakOppdatert")
+    data class SakOppdatert(
+        val sakId: String,
+        val soknadId: String,
+        val utfortAvRolle: AktorRolle,
+        val utfortAvIdent: String?,
+        val notat: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        init {
+            require(notat.isNotBlank()) { "notat kan ikke være blank" }
+            if (utfortAvRolle == AktorRolle.SYSTEM) {
+                require(utfortAvIdent == null) { "SYSTEM kan ikke ha ident" }
+            } else {
+                require(!utfortAvIdent.isNullOrBlank()) { "$utfortAvRolle krever ident" }
+            }
+        }
+
+        override val aggregateRootId: String get() = soknadId
+    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -288,6 +327,7 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(MarkerSakUnderBehandlingIArena::class))
         register(dependencies.create(LagreTilsagnsData::class))
         register(dependencies.create(LagreTilsagnsDataKildeAltinn::class))
+        register(dependencies.create(SkrivSakslogg::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
             EventHandledResult.Success()

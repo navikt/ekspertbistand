@@ -2,8 +2,36 @@ import { http, HttpResponse } from "msw";
 import type { SakDetaljer } from "../hooks/useSak";
 import type { SakInfo, SakListeElement, SoknadStatus } from "../hooks/useSaker";
 import type { Vilkår, Vilkårstatus } from "../hooks/useVilkår";
+import type { SaksloggInnslag, SaksloggResponse } from "../hooks/useSakslogg";
 import { mockInnloggetAnsatt } from "../mock/ansatt";
 import { SAKSBEHANDLING_SAKER_URL, SESSION_URL } from "../utils/constants";
+
+const innslag = (
+  id: string,
+  tidspunkt: string,
+  utfortAvRolle: SaksloggInnslag["utfortAvRolle"],
+  utfortAvNavn: string,
+  notat: string
+): SaksloggInnslag => ({
+  id,
+  tidspunkt,
+  utfortAvRolle,
+  utfortAvIdent: utfortAvRolle === "SYSTEM" ? null : "Z999999",
+  utfortAvNavn,
+  notat,
+});
+
+const mockSakslogg: SaksloggInnslag[] = [
+  innslag("9", "2026-06-17T07:01:00Z", "SAKSBEHANDLER", "Mina Minnloo", "Refusjonskrav sendt til utbetaling"),
+  innslag("8", "2026-06-17T06:34:00Z", "SAKSBEHANDLER", "Mina Minnloo", "Sluttrapport er registrert som mottatt"),
+  innslag("7", "2026-06-14T08:41:00Z", "SYSTEM", "System", "Refusjonskrav mottatt fra arbeidsgiver"),
+  innslag("6", "2026-06-14T08:32:00Z", "SYSTEM", "System", "Sluttrapport mottatt fra arbeidsgiver"),
+  innslag("5", "2026-04-06T12:15:00Z", "BESLUTTER", "Bea Beslutter", "Vedtak fattet: Søknad innvilget (22 000 kr)"),
+  innslag("4", "2026-04-06T07:45:00Z", "BESLUTTER", "Bea Beslutter", "Sak tildelt"),
+  innslag("3", "2026-04-05T07:32:00Z", "SAKSBEHANDLER", "Sara Saksbehandler", "Vurdering: Innvilge"),
+  innslag("2", "2026-04-02T06:00:00Z", "SAKSBEHANDLER", "Sara Saksbehandler", "Sak tildelt"),
+  innslag("1", "2026-03-30T10:00:00Z", "SYSTEM", "System", "Søknad mottatt fra arbeidsgiver (Bygg og Anlegg AS)"),
+];
 
 type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent"> &
   Partial<SakInfo> & {
@@ -284,6 +312,9 @@ export const handlers = [
   }),
   http.get("/api/saksbehandling/v1/saker/:sakId/vilkar", ({ params }) =>
     HttpResponse.json(hentVilkår(String(params.sakId)))
+  ),
+  http.get("/api/saksbehandling/v1/saker/:sakId/logg", () =>
+    HttpResponse.json<SaksloggResponse>({ innslag: mockSakslogg })
   ),
   http.put<
     { sakId: string; vilkarId: string },

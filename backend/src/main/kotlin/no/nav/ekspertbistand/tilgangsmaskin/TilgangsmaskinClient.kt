@@ -36,6 +36,8 @@ import no.nav.ekspertbistand.infrastruktur.defaultJson
  *  - 204 No Content -> [Tilgangsresultat.Innvilget]
  *  - 403 Forbidden  -> [Tilgangsresultat.Avvist] (application/problem+json)
  *  - 404, 400, 5xx ... -> [TilgangsmaskinException]
+ *
+ * Brukes av `GET /api/saksbehandling/v1/saker/{sakId}/logg`.
  */
 class TilgangsmaskinClient(
     private val tokenExchanger: AzureAdTokenExchanger,

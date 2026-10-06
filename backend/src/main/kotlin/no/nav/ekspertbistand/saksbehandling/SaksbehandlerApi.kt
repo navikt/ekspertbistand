@@ -4,7 +4,6 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.plugins.di.*
-import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
@@ -14,6 +13,9 @@ import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.soknad.getRequired
+import no.nav.ekspertbistand.tilgangsmaskin.Regelsett
+import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
+import no.nav.ekspertbistand.tilgangsmaskin.Tilgangsresultat
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.slf4j.LoggerFactory
@@ -23,6 +25,7 @@ private val logger = LoggerFactory.getLogger("SaksbehandlerApi")
 
 suspend fun Application.configureSaksbehandlerApiV1() {
     val entraProxyClient = dependencies.resolve<EntraProxyClient>()
+    val tilgangsmaskinClient = dependencies.resolve<TilgangsmaskinClient>()
     val database = dependencies.resolve<Database>()
 
     routing {
@@ -86,8 +89,43 @@ suspend fun Application.configureSaksbehandlerApiV1() {
 
                     call.respond(status)
                 }
-            }
 
+                get("/saker/{sakId}/logg") {
+                    val principal = call.principal<AzureAdPrincipal>()
+                        ?: return@get call.respond(HttpStatusCode.Unauthorized)
+
+                    val sakId = call.parameters.getRequired(
+                        name = "sakId",
+                        transform = UUID::fromString,
+                    ) {
+                        call.respond(HttpStatusCode.BadRequest, mapOf("message" to "ugyldig sakId"))
+                        return@get
+                    }
+
+                    val fnr = database.hentAnsattFnrForSak(sakId)
+                        ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
+
+                    val tilgang = try {
+                        tilgangsmaskinClient.evaluer(userToken = principal.subjectToken, brukerIdent = fnr, Regelsett.KJERNE)
+                    } catch (e: Exception) {
+                        logger.error("Klarte ikke sjekke tilgang til sak i tilgangsmaskin", e)
+                        return@get call.respond(
+                            HttpStatusCode.InternalServerError,
+                            mapOf("message" to "Kunne ikke sjekke tilgang til saken."),
+                        )
+                    }
+                    if (tilgang is Tilgangsresultat.Avvist) {
+                        return@get call.respond(
+                            HttpStatusCode.Forbidden,
+                            mapOf("message" to "Du har ikke tilgang til saken."),
+                        )
+                    }
+
+                    val rader = database.hentSakslogg(sakId)
+                    val navn = entraProxyClient.slaaOppNavn(rader.mapNotNull { it.ident }.toSet())
+                    call.respond(rader.tilSaksloggResponse(navn))
+                }
+            }
         }
     }
 }

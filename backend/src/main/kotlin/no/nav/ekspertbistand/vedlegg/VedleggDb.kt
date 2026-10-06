@@ -1,7 +1,7 @@
 package no.nav.ekspertbistand.vedlegg
 
-import no.nav.ekspertbistand.sak.hentGodkjentSakIdForUpdate
-import no.nav.ekspertbistand.sak.SakTable
+import no.nav.ekspertbistand.saksbehandling.hentGodkjentSakIdForUpdate
+import no.nav.ekspertbistand.saksbehandling.SakTable
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and

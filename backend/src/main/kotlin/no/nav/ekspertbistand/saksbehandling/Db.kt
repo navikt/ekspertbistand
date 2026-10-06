@@ -1,5 +1,6 @@
-package no.nav.ekspertbistand.sak
+package no.nav.ekspertbistand.saksbehandling
 
+import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.Table
@@ -63,6 +64,23 @@ class SoknadIkkeFunnetException : RuntimeException()
 class SoknadIkkeGodkjentException : RuntimeException()
 class SakIkkeFunnetException : RuntimeException()
 
+/**
+ * Hendelseslogg for en sak. Se `specifications/sakslogg.md`.
+ *
+ * Speiler `sakslogg` fra V12, med `utfort_av_type` fjernet i V17.
+ */
+@OptIn(ExperimentalTime::class)
+object SaksloggTable : Table("sakslogg") {
+    val saksloggId = uuid("sakslogg_id").databaseGenerated()
+    val sakId = uuid("sak_id")
+    val utfortAvRolle = text("utfort_av_rolle")
+    val utfortAvIdent = text("utfort_av_ident").nullable()
+    val notat = text("notat").nullable()
+    val utfortAt = timestamp("utfort_at").defaultExpression(CurrentTimestamp)
+
+    override val primaryKey = PrimaryKey(saksloggId)
+}
+
 enum class Saksstatus {
     OPPRETTET,
     UNDER_BEHANDLING,
@@ -75,4 +93,12 @@ enum class Saksstatus {
 enum class KildeTilBehandling {
     EKSPERTBISTAND,
     ARENA,
+}
+
+/** Rollen aktøren hadde da handlingen i saksloggen ble utført. `SYSTEM` har ingen ident. */
+@Serializable
+enum class AktorRolle {
+    SAKSBEHANDLER,
+    BESLUTTER,
+    SYSTEM,
 }

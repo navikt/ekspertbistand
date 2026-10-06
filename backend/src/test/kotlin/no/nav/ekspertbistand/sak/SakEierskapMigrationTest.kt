@@ -2,6 +2,9 @@ package no.nav.ekspertbistand.sak
 
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.refusjon.RefusjonskravTable
+import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
+import no.nav.ekspertbistand.saksbehandling.SakTable
+import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.flywaydb.core.api.MigrationVersion
 import org.jetbrains.exposed.v1.core.Table
