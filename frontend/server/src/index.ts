@@ -1,11 +1,12 @@
 import express from "express";
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { tokenXMiddleware } from "./tokenx.js";
+import { isBackendPathAllowed } from "./backend-path.js";
 import { logger } from "@navikt/pino-logger";
 import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import type { Socket } from "net";
@@ -162,7 +163,18 @@ const tokenX = tokenXMiddleware({
   localSubjectToken: LOCAL_SUBJECT_TOKEN,
 });
 
-api.use("/ekspertbistand-backend", tokenX, ekspertbistandBackendProxy);
+const restrictToAllowedBackendPaths = (req: Request, res: Response, next: NextFunction) => {
+  if (isBackendPathAllowed(req.url)) return next();
+  logger.warn({ method: req.method }, "Avviste kall utenfor tillatte backend-namespaces");
+  res.status(403).json({ message: "Ingen tilgang." });
+};
+
+api.use(
+  "/ekspertbistand-backend",
+  restrictToAllowedBackendPaths,
+  tokenX,
+  ekspertbistandBackendProxy
+);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
