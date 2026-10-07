@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
@@ -58,6 +59,44 @@ fun JdbcTransaction.hentGodkjentSakIdForUpdate(soknadId: UUID): UUID {
         .singleOrNull()
         ?.get(SakTable.sakId)
         ?: throw SakIkkeFunnetException()
+}
+
+/**
+ * Vilkårsvurderingen for en sak, én rad per [Vilkar]. Se `specifications/sak-datamodell.md`.
+ *
+ * Speiler `saksvilkar` fra V19. `godkjent = null` betyr «ikke vurdert ennå».
+ */
+@OptIn(ExperimentalTime::class)
+object SaksvilkarTable : Table("saksvilkar") {
+    val sakId = uuid("sak_id")
+    val vilkarId = text("vilkar_id")
+    val godkjent = bool("godkjent").nullable()
+    val notat = text("notat").nullable()
+    val vurdertTidspunkt = timestamp("vurdert_tidspunkt").nullable()
+    val vurdertAvIdent = text("vurdert_av_ident").nullable()
+
+    override val primaryKey = PrimaryKey(sakId, vilkarId)
+}
+
+/** Lagres i `saksvilkar.vilkar_id` med [name]. Nye verdier krever re-kjøring av SakProjection for eksisterende saker. */
+@Serializable
+enum class Vilkar {
+    DELTAKER_HAR_ARBEIDSFORHOLD,
+    FYLLES_UT_I_SAMRAD_GODKJENT,
+    ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING,
+    DELTAKER_HAR_SYKEFRAVAERSHISTORIKK,
+    EKSPERT_HAR_KOMPETANSE,
+}
+
+/**
+ * Oppretter alle vilkår for saken som ikke vurdert. Idempotent: eksisterende rader beholdes.
+ * Må kalles i en pågående transaksjon.
+ */
+fun opprettVilkarForSak(sakId: UUID) {
+    SaksvilkarTable.batchInsert(Vilkar.entries, ignore = true, shouldReturnGeneratedValues = false) { vilkar ->
+        this[SaksvilkarTable.sakId] = sakId
+        this[SaksvilkarTable.vilkarId] = vilkar.name
+    }
 }
 
 class SoknadIkkeFunnetException : RuntimeException()

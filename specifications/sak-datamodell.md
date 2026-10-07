@@ -15,7 +15,7 @@ behandlingen — ikke innsendingen.
 | Kardinalitet sak ↔ søknad | **1:1** (`sak.soknad_id` UNIQUE) | Én sak per innvilget/behandlet søknad. |
 | Refusjon | **1:1**, kun på sak (`sak.refusjon_id`) | Refusjon hører til behandlingen, ikke søknaden. `refusjonskrav.soknad_id` fjernes senere (expand/contract, se Migrasjon). |
 | Sluttrapport | Ny tabell, **1:1** på sak (`sak.sluttrapport_id`) | Kan ha flere vedlegg; egen tabell samler metadata. |
-| Saksvilkår | **1:1**, deler PK med sak | Ren utvidelse av sak uten egen teknisk nøkkel. |
+| Saksvilkår | **1:N**, én rad per vilkår, PK `(sak_id, vilkar_id)` | Hvert vilkår har sin egen vurdering, sitt eget notat og sitt eget vurdert-av/tidspunkt. Nye vilkår krever ikke nye kolonner. |
 | Sakslogg | **1:N** fra sak | Hendelseslogg / audit trail. |
 | Enum-verdier | `TEXT` i DB, håndhevet i Kotlin | Nye verdier krever ingen DB-migrering (samme mønster som `soknad.status`). |
 | Aktør i logg | `utfort_av_rolle` = `SAKSBEHANDLER`/`BESLUTTER`/`SYSTEM` | Saksbehandlere, besluttere og systemet skriver til loggen. `utfort_av_type` er fjernet i V17. |
@@ -64,20 +64,18 @@ Håndheves også i Kotlin med tydelig feilmelding — CHECK er siste skanse.
 
 ### `saksvilkar`
 
-Vilkårsvurderingen for en sak (1:1, deler primærnøkkel med `sak`). Alle vurderingsfelter er
-nullbare og betyr «ikke vurdert ennå».
+Vilkårsvurderingen for en sak (1:N, én rad per vilkår). Alle vilkår opprettes som ikke vurdert
+når saken opprettes (`opprettVilkarForSak`). Vurderingsfeltene er nullbare til vilkåret er vurdert.
+Tabellen hadde én kolonne per vilkår i V12, og ble bygget om til én rad per vilkår i V19.
 
 | Kolonne | Type | Constraints | Beskrivelse |
 |---------|------|-------------|-------------|
-| `sak_id` | UUID | PK, FK → `sak(sak_id)` ON DELETE CASCADE | Deler nøkkel med `sak`. Slettes med saken. |
-| `har_arbeidsforhold` | BOOLEAN | NULL | Om den ansatte har aktivt arbeidsforhold. |
-| `fylles_ut_i_samrad_godkjent` | BOOLEAN | NULL | Om vilkåret «fylt ut i samråd» er bekreftet/godkjent. |
-| `provd_tilrettelegging` | BOOLEAN | NULL | Om ordinær tilrettelegging er prøvd før ekspertbistand. |
-| `provd_tilrettelegging_notat` | TEXT | NULL | Saksbehandlers begrunnelse til vurderingen over. |
-| `har_sykefravaershistorikk` | BOOLEAN | NULL | Om det finnes relevant sykefraværshistorikk. |
-| `har_sykefravaershistorikk_notat` | TEXT | NULL | Notat til sykefraværsvurderingen. |
-| `ekspert_har_kompetanse` | BOOLEAN | NULL | Om eksperten har nødvendig/relevant kompetanse. |
-| `ekspert_har_kompetanse_notat` | TEXT | NULL | Notat til kompetansevurderingen. |
+| `sak_id` | UUID | PK, FK → `sak(sak_id)` ON DELETE CASCADE | Saken vilkåret gjelder. Slettes med saken. |
+| `vilkar_id` | TEXT | PK | Vilkåret, se `Vilkar`. |
+| `godkjent` | BOOLEAN | NULL | Om vilkåret er oppfylt. `NULL` betyr «ikke vurdert ennå». |
+| `notat` | TEXT | NULL | Saksbehandlers begrunnelse for vurderingen. |
+| `vurdert_tidspunkt` | TIMESTAMPTZ | NULL | Når vilkåret sist ble vurdert. |
+| `vurdert_av_ident` | TEXT | NULL | NAV-identen til den som vurderte vilkåret. Null når systemet vurderte det eller vilkåret ikke er vurdert. |
 
 ### `sakslogg`
 
@@ -200,6 +198,18 @@ Rollen aktøren hadde ved handlingen. Alltid satt.
 | `BESLUTTER` | Beslutter som fatter/godkjenner vedtak. |
 | `SYSTEM` | Handling utført automatisk av systemet (`utfort_av_ident` er null). |
 
+### `Vilkar` (`saksvilkar.vilkar_id`)
+
+Nye verdier krever at `SakProjection` kjøres på nytt (bump versjonen), slik at eksisterende saker får rader for dem.
+
+| Verdi | Betydning |
+|-------|-----------|
+| `HAR_ARBEIDSFORHOLD` | Den ansatte har aktivt arbeidsforhold hos arbeidsgiveren. |
+| `FYLLES_UT_I_SAMRAD_GODKJENT` | Søknaden er fylt ut i samråd med den ansatte. |
+| `HAR_PROVD_TILRETTELEGGING` | Ordinær tilrettelegging er prøvd før ekspertbistand. |
+| `HAR_SYKEFRAVAERSHISTORIKK` | Det finnes relevant sykefraværshistorikk. |
+| `EKSPERT_HAR_KOMPETANSE` | Eksperten har nødvendig og relevant kompetanse. |
+
 ### `ReturArsak` (`sak_retur.aarsak`)
 
 | Verdi | Betydning |
@@ -219,7 +229,7 @@ Default `MOTTATT`.
 ## ER-oversikt
 
 ```
-soknad 1 ──── 1 sak 1 ──── 1 saksvilkar
+soknad 1 ──── 1 sak 1 ──── N saksvilkar
                  │ 1
                  ├──── N sakslogg
                  │ 1
@@ -240,6 +250,9 @@ soknad 1 ──── 1 sak 1 ──── 1 saksvilkar
   eksisterende data endres eller slettes, ingen kolonner droppes — trygt i prod.
 - **Utsatt (contract-steg):** `refusjonskrav.soknad_id` droppes IKKE i `V12` (se `refusjonskrav`
   over). Krever kodeomlegging i `RefusjonDb` først, deretter egen contract-migrasjon.
+- `V19__saksvilkar_rad_per_vilkar.sql` sletter `saksvilkar` og oppretter den på nytt med én rad
+  per vilkår. Tabellen var tom fordi ingen kode skrev til den. Vilkårsradene opprettes av
+  `SakProjection` (`Sak-v3`), som kjøres på nytt og også gir vilkår til eksisterende saker.
 
 ### Rollback
 
