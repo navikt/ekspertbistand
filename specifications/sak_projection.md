@@ -15,7 +15,8 @@ aldri en sak for en søknad som allerede har en.
 | Arena-saksnummer | `arena_sak_id` fra `TiltaksgjennomforingOpprettet.saksnummer` |
 | Rekkefølge | Terminalstatus (`INNVILGET`/`AVSLATT`) overskrives aldri; `UNDER_BEHANDLING` settes kun fra `OPPRETTET` |
 | FK mot søknad | Ny migrering: `sak.soknad_id` → `ON DELETE CASCADE`. Projeksjonen hopper over events der søknaden ikke finnes lenger |
-| Utenfor scope | `sakslogg`, `saksvilkar`, saksbehandler/beslutter, refusjon/sluttrapport |
+| Saksvilkår | Alle `Vilkar` opprettes som ikke vurdert når saken opprettes (fra `Sak-v3`, også for eksisterende saker) |
+| Utenfor scope | `sakslogg`, saksbehandler/beslutter, refusjon/sluttrapport |
 
 ## Tilnærming
 
@@ -36,7 +37,7 @@ Uten dette vil `slettGamleInnsendteSoknader` feile med FK-brudd når det finnes 
 - Lagres som TEXT (spesifikasjonen: "TEXT i DB, håndhevet i Kotlin").
 
 ### 3. `event/projections/SakProjection.kt`
-`class SakProjection(database: Database) : EventLogProjectionBuilder(database)`, `name = "Sak-v2"`.
+`class SakProjection(database: Database) : EventLogProjectionBuilder(database)`, `name = "Sak-v3"`.
 
 | Event | Handling |
 |-------|----------|
