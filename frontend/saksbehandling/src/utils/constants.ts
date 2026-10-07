@@ -29,9 +29,10 @@ const isLocalHost = () => {
 };
 
 export const isMockEnabled = () => {
+  const flag = import.meta.env.VITE_ENABLE_MOCKS?.toLowerCase();
+  if (flag === 'false') return false;
   if (isLocalHost()) return true;
   if (import.meta.env.DEV) return true;
-  const flag = import.meta.env.VITE_ENABLE_MOCKS?.toLowerCase();
   return flag === "true";
 };
 
