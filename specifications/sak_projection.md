@@ -16,7 +16,7 @@ aldri en sak for en søknad som allerede har en.
 | Rekkefølge | Terminalstatus (`INNVILGET`/`AVSLATT`) overskrives aldri; `UNDER_BEHANDLING` settes kun fra `OPPRETTET` |
 | FK mot søknad | Ny migrering: `sak.soknad_id` → `ON DELETE CASCADE`. Projeksjonen hopper over events der søknaden ikke finnes lenger |
 | Saksvilkår | Alle `Vilkar` opprettes som ikke vurdert når saken opprettes (fra `Sak-v3`, også for eksisterende saker) |
-| Utenfor scope | `sakslogg`, saksbehandler/beslutter, refusjon/sluttrapport |
+| Utenfor scope | `sakslogg`, beslutter, refusjon/sluttrapport. Tildeling av saksbehandler kom med [`tildel_meg_sak.md`](tildel_meg_sak.md) |
 
 ## Tilnærming
 
@@ -47,6 +47,8 @@ Uten dette vil `slettGamleInnsendteSoknader` feile med FK-brudd når det finnes 
 | `SaksbehandlingStartetIArena` | `status = UNDER_BEHANDLING` **WHERE status = OPPRETTET** |
 | `TilskuddsbrevMottatt` | `status = INNVILGET` **WHERE status NOT IN (INNVILGET, AVSLATT)** |
 | `SoknadAvlystIArena` | `status = AVSLATT` **WHERE status NOT IN (INNVILGET, AVSLATT)** |
+| `SakTildeltSaksbehandler` | `tildelSak`: `saksbehandler_ident`, `saksbehandler_navn`, `tildeling_event_id = event.id`, og `status = UNDER_BEHANDLING` når status er `OPPRETTET` – **WHERE `tildeling_event_id` IS NULL OR < event.id**. Alle saker uansett kilde. Se [`tildel_meg_sak.md`](tildel_meg_sak.md) |
+| `SakFrigjort` | `frigjoerSak`: nuller `saksbehandler_ident` og `saksbehandler_navn`, `tildeling_event_id = event.id` – **WHERE `saksbehandler_ident` = eventens ident AND (`tildeling_event_id` IS NULL OR < event.id)**. Status endres ikke |
 | øvrige | ignoreres (inkl. `*KildeAltinn` – de har ingen søknad i vårt system) |
 
 - Alle oppdateringer: `WHERE soknad_id = … AND kilde_til_behandling = 'ARENA'`, og setter `sist_endret = eventTimestamp`.

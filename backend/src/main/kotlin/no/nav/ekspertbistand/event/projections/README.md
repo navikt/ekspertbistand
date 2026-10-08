@@ -41,8 +41,14 @@ sequenceDiagram
 | `SaksbehandlingStartetIArena` | `UNDER_BEHANDLING`, kun fra `OPPRETTET` |
 | `TilskuddsbrevMottatt` | `INNVILGET`, med mindre saken allerede er `INNVILGET`/`AVSLATT` |
 | `SoknadAvlystIArena` | `AVSLATT`, med mindre saken allerede er `INNVILGET`/`AVSLATT` |
+| `SakTildeltSaksbehandler` | Setter `saksbehandler_ident`, `saksbehandler_navn` og `tildeling_event_id`, og `OPPRETTET` → `UNDER_BEHANDLING`. Gjelder alle saker uansett kilde. Hopper over eventen når `tildeling_event_id` er nyere |
+| `SakFrigjort` | Nuller `saksbehandler_ident` og `saksbehandler_navn` hvis identen fortsatt har saken. Status endres ikke |
 
 `opprettet` og `sist_endret` settes fra eventens tidspunkt, slik at replay gir riktige tidspunkter.
+
+Tildeling og frigjøring bruker `tildelSak` og `frigjoerSak` i `saksbehandling/Db.kt`, de samme funksjonene som
+handlerne `TildelSaksbehandler` og `FrigjoerSak`. Live har handleren allerede brukt eventen, og projeksjonen endrer
+ingenting. Projeksjonen publiserer ikke `SakOppdatert`, så saksloggen bygges ikke på nytt ved replay.
 
 For å kjøre hele projeksjonen på nytt, bump versjonen i `name` (for eksempel `Sak-v2` → `Sak-v3`). Den nye
 builderen starter på posisjon 0. Eksisterende saker opprettes ikke på nytt, men feltene deres oppdateres.
