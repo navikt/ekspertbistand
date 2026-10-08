@@ -11,6 +11,7 @@ import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.handlers.*
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
+import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.aggregateRootId
 import no.nav.ekspertbistand.tilsagndata.aggregateRootId
@@ -307,6 +308,31 @@ sealed interface EventData {
 
         override val aggregateRootId: String get() = soknadId
     }
+
+    /**
+     * Saksbehandler har vurdert ett vilkår i en sak.
+     *
+     * Publiseres av `PATCH /api/saksbehandling/v1/saker/{sakId}/vilkarsvurdering` i samme
+     * transaksjon som raden i `saksvilkar` oppdateres. Payload er vurderingen slik den ble lagret.
+     * [godkjent] er null når vurderingen er nullstilt. [vurdertAvIdent] er NAV-identen til
+     * saksbehandleren og skal ikke logges utenfor teamLog.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: ingen ennå (no-op-handler i [configureEventHandlers]).
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("vilkarsvurderingOppdatert")
+    data class VilkarsvurderingOppdatert(
+        val sakId: String,
+        val soknadId: String,
+        val vurdering: VilkarsvurderingRequest,
+        val vurdertAvIdent: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -330,6 +356,10 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(SkrivSakslogg::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
+            EventHandledResult.Success()
+        }
+        register<EventData.VilkarsvurderingOppdatert>("VilkarsvurderingOppdatertNoop") { _ ->
+            // Ingen konsumenter ennå. Eventen er sporbarhet for vilkårsvurderingen.
             EventHandledResult.Success()
         }
 

@@ -34,6 +34,7 @@ import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.saksbehandling.Role
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
+import no.nav.ekspertbistand.saksbehandling.configureVilkarsvurderingApiV1
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.UtkastTable
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
@@ -381,6 +382,7 @@ fun main() {
         configureEregApiV1()
         configureSaksbehandlerApiV1()
         configureSaksbehandlingSakApiV1()
+        configureVilkarsvurderingApiV1()
         //configureKontoregisterApiV1()
 
         // event manager and event handlers

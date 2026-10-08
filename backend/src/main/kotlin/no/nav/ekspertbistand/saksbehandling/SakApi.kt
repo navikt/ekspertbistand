@@ -10,16 +10,12 @@ import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
-import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
-import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
+import no.nav.ekspertbistand.saksbehandling.SakTilgangsgrunnlag.Companion.tilTilgangsgrunnlag
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.getRequired
 import no.nav.ekspertbistand.soknad.tilSoknadDTO
-import no.nav.ekspertbistand.tilgangsmaskin.Regelsett
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
-import no.nav.ekspertbistand.tilgangsmaskin.Tilgangsresultat
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
@@ -28,11 +24,8 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.time.ExperimentalTime
-
-private val log = LoggerFactory.getLogger("SaksbehandlingSakApi")
 
 /**
  * GET /api/saksbehandling/v1/saker => saker på saksbehandlers enheter (uten fnr)
@@ -55,105 +48,36 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
         authenticate(AZURE_AD_PROVIDER) {
             route("/api/saksbehandling/v1/saker") {
                 get {
-                    val principal = call.saksbehandlerMedRolle() ?: return@get
-                    val enheter = call.enheterForSaksbehandler(principal) ?: return@get
+                    val principal = call.principalMedRolle(Role.SAKSBEHANDLER, Role.BESLUTTER) ?: return@get
+                    val enheter = call.hentEnheterForPrincipal(principal) ?: return@get
 
                     val saker = transaction(database) { hentSakerForSaksbehandling(enheter) }
                     call.respond(SakerResponse(saker = saker))
                 }
 
                 get("/{sakId}") {
-                    val principal = call.saksbehandlerMedRolle() ?: return@get
-
-                    val sakId = call.pathParameters.getRequired(
-                        name = "sakId",
-                        transform = UUID::fromString,
-                    ) {
-                        call.respond(HttpStatusCode.BadRequest, mapOf("message" to "ugyldig sakId"))
-                        return@get
-                    }
+                    val principal = call.principalMedRolle(Role.SAKSBEHANDLER, Role.BESLUTTER) ?: return@get
+                    val sakId = call.sakIdParameter() ?: return@get
 
                     val sak = transaction(database) { hentSakForSaksbehandling(sakId) }
                         ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
 
-                    val enheter = call.enheterForSaksbehandler(principal) ?: return@get
-                    if (sak.behandlendeEnhet == null || sak.behandlendeEnhet !in enheter) {
-                        log.info("Tilgang avvist: saksbehandler mangler tilgang til enhet for sakId={}", sakId)
-                        return@get call.respond(
-                            HttpStatusCode.Forbidden,
-                            TilgangAvvistResponse(
-                                kode = IKKE_TILGANG_ENHET,
-                                begrunnelse = "Du har ikke tilgang til enheten som behandler saken",
-                            ),
-                        )
-                    }
+                    val tilgangsgrunnlag = sak.tilTilgangsgrunnlag()
+                    if (!call.sjekkTilgangTilEnhet(principal, tilgangsgrunnlag)) return@get
+                    if (!call.sjekkTilgangsmaskin(principal, tilgangsgrunnlag, tilgangsmaskinClient)) return@get
 
-                    val tilgang = try {
-                        tilgangsmaskinClient.evaluer(
-                            userToken = principal.subjectToken,
-                            brukerIdent = sak.soknad.ansatt.fnr,
-                            regelsett = Regelsett.KJERNE,
-                        )
-                    } catch (e: Exception) {
-                        e.rethrowIfCancellation()
-                        log.error("Tilgangskontroll feilet for sakId={}, avviser oppslag", sakId, e)
-                        return@get call.respond(
-                            HttpStatusCode.ServiceUnavailable,
-                            mapOf("message" to "tilgangskontroll er ikke tilgjengelig"),
-                        )
-                    }
-
-                    when (tilgang) {
-                        Tilgangsresultat.Innvilget -> {
-                            auditClient.loggOppslag(
-                                navIdent = principal.navIdent,
-                                fnr = sak.soknad.ansatt.fnr,
-                                tillatt = true,
-                                melding = "Saksbehandler har sett sak om ekspertbistand",
-                            )
-                            call.respond(sak)
-                        }
-
-                        is Tilgangsresultat.Avvist -> {
-                            log.info("Tilgang avvist av Tilgangsmaskinen for sakId={}", sakId)
-                            call.respond(
-                                HttpStatusCode.Forbidden,
-                                TilgangAvvistResponse(kode = tilgang.kode, begrunnelse = tilgang.begrunnelse),
-                            )
-                        }
-                    }
+                    auditClient.loggOppslag(
+                        navIdent = principal.navIdent,
+                        fnr = sak.soknad.ansatt.fnr,
+                        tillatt = true,
+                        melding = "Saksbehandler har sett sak om ekspertbistand",
+                    )
+                    call.respond(sak)
                 }
             }
         }
     }
 }
-
-private suspend fun ApplicationCall.saksbehandlerMedRolle(): AzureAdPrincipal? {
-    val principal = principal<AzureAdPrincipal>()
-    if (principal == null) {
-        respond(HttpStatusCode.Unauthorized)
-        return null
-    }
-    val roller = Role.fromGroups(principal.groups)
-    if (Role.SAKSBEHANDLER !in roller && Role.BESLUTTER !in roller) {
-        respond(HttpStatusCode.Forbidden, mapOf("message" to "krever rolle saksbehandler eller beslutter"))
-        return null
-    }
-    return principal
-}
-
-const val IKKE_TILGANG_ENHET = "IKKE_TILGANG_ENHET"
-
-/** Enhetsnumrene saksbehandler har tilgang til, eller null (og 503) hvis entra-proxy feiler. */
-private suspend fun ApplicationCall.enheterForSaksbehandler(principal: AzureAdPrincipal): Set<String>? =
-    try {
-        principal.enheter().map { it.enhetnummer }.toSet()
-    } catch (e: Exception) {
-        e.rethrowIfCancellation()
-        log.error("Henting av enheter fra entra-proxy feilet ({}), avviser oppslag", e.javaClass.simpleName)
-        respond(HttpStatusCode.ServiceUnavailable, mapOf("message" to "tilgangskontroll er ikke tilgjengelig"))
-        null
-    }
 
 @OptIn(ExperimentalTime::class)
 fun hentSakerForSaksbehandling(enheter: Set<String>): List<SakListeElement> {
