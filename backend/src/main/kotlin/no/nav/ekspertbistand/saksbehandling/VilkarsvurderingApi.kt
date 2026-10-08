@@ -63,24 +63,19 @@ suspend fun Application.configureVilkarsvurderingApiV1() {
         authenticate(AZURE_AD_PROVIDER) {
             route("/api/saksbehandling/v1/saker/{sakId}/vilkarsvurdering") {
                 get {
-                    val principal = call.principal<AzureAdPrincipal>()
-                        ?: return@get call.respond(HttpStatusCode.Unauthorized)
-                    if (!principal.harRolle(Role.SAKSBEHANDLER) && !principal.harRolle(Role.BESLUTTER)) {
-                        return@get call.respond(HttpStatusCode.Forbidden, KREVER_SAKSBEHANDLER_ELLER_BESLUTTER)
-                    }
+                    val principal = call.principalMedRolle(Role.SAKSBEHANDLER, Role.BESLUTTER) ?: return@get
                     val sakId = call.sakIdParameter() ?: return@get
 
-                    val sak = transaction(database) { hentSakTilgangsgrunnlag(sakId) }
+                    val sakTilgangsgrunnlag = transaction(database) { hentSakTilgangsgrunnlag(sakId) }
                         ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
 
-                    if (!call.sjekkTilgangTilEnhet(principal, sak)) return@get
-
-                    if (!call.sjekkTilgangsmaskin(principal, sak, tilgangsmaskinClient)) return@get
+                    if (!call.sjekkTilgangTilEnhet(principal, sakTilgangsgrunnlag)) return@get
+                    if (!call.sjekkTilgangsmaskin(principal, sakTilgangsgrunnlag, tilgangsmaskinClient)) return@get
 
                     val vurderinger = transaction(database) { hentVilkarsvurdering(sakId) }
                     auditClient.loggOppslag(
                         navIdent = principal.navIdent,
-                        fnr = sak.fnr,
+                        fnr = sakTilgangsgrunnlag.ansattFnr,
                         tillatt = true,
                         melding = "Saksbehandler har sett vilkårsvurdering i sak om ekspertbistand",
                     )
@@ -88,15 +83,15 @@ suspend fun Application.configureVilkarsvurderingApiV1() {
                 }
 
                 patch {
-                    val principal = call.principal<AzureAdPrincipal>()
-                        ?: return@patch call.respond(HttpStatusCode.Unauthorized)
-                    if (!principal.harRolle(Role.SAKSBEHANDLER)) {
-                        return@patch call.respond(
-                            HttpStatusCode.Forbidden,
-                            mapOf("message" to "krever rolle saksbehandler"),
-                        )
-                    }
+                    val principal = call.principalMedRolle(Role.SAKSBEHANDLER) ?: return@patch
                     val sakId = call.sakIdParameter() ?: return@patch
+
+                    val sak = transaction(database) { hentSakTilgangsgrunnlag(sakId) }
+                        ?: return@patch call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
+
+                    if (!call.sjekkTilgangTilEnhet(principal, sak)) return@patch
+                    if (!call.sjekkTilgangsmaskin(principal, sak, tilgangsmaskinClient)) return@patch
+                    if (!call.sjekkErSaksbehandlerPåSak(principal, sak)) return@patch
 
                     val request = try {
                         call.receive<VilkarsvurderingRequest>()
@@ -108,13 +103,6 @@ suspend fun Application.configureVilkarsvurderingApiV1() {
                         )
                     }
                     valider(request)
-
-                    val sak = transaction(database) { hentSakTilgangsgrunnlag(sakId) }
-                        ?: return@patch call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
-
-                    if (!call.sjekkTilgangTilEnhet(principal, sak)) return@patch
-                    if (!call.sjekkTilgangsmaskin(principal, sak, tilgangsmaskinClient)) return@patch
-                    if (!call.sjekkErSaksbehandlerPåSak(principal, sak)) return@patch
 
                     val resultat = transaction(database) {
                         oppdaterVilkarsvurdering(
@@ -129,7 +117,7 @@ suspend fun Application.configureVilkarsvurderingApiV1() {
                         is OppdaterVilkarResultat.Oppdatert -> {
                             auditClient.loggOppslag(
                                 navIdent = principal.navIdent,
-                                fnr = sak.fnr,
+                                fnr = sak.ansattFnr,
                                 tillatt = true,
                                 melding = "Saksbehandler har vurdert vilkår i sak om ekspertbistand",
                                 event = CefMessageEvent.UPDATE,
@@ -257,14 +245,3 @@ data class VilkarsvurderingDTO(
     val vurdertAvIdent: String? = null,
     val vurdertTidspunkt: Instant? = null,
 )
-
-/** Leser `sakId` fra stien. Svarer 400 og returnerer null hvis den ikke er en gyldig UUID. */
-private suspend fun ApplicationCall.sakIdParameter(): UUID? {
-    val sakId = parameters["sakId"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
-    if (sakId == null) {
-        respond(HttpStatusCode.BadRequest, mapOf("message" to "ugyldig sakId"))
-    }
-    return sakId
-}
-
-private val KREVER_SAKSBEHANDLER_ELLER_BESLUTTER = mapOf("message" to "krever rolle saksbehandler eller beslutter")

@@ -2,6 +2,7 @@ package no.nav.ekspertbistand.saksbehandling
 
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.response.*
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
@@ -11,25 +12,66 @@ import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.tilgangsmaskin.Tilgangsresultat
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.select
 import org.slf4j.LoggerFactory
 import java.util.*
 
 private val log = LoggerFactory.getLogger("SaksbehandlingTilgangsjekker")
 
+const val IKKE_TILGANG_ENHET = "IKKE_TILGANG_ENHET"
 const val IKKE_TILDELT_SAK = "IKKE_TILDELT_SAK"
+
+/**
+ * Henter innlogget bruker og sjekker at den har minst én av [roller]. Svarer 401 uten innlogget
+ * bruker og 403 uten rolle, og returnerer da null.
+ */
+internal suspend fun ApplicationCall.principalMedRolle(vararg roller: Role): AzureAdPrincipal? {
+    val principal = principal<AzureAdPrincipal>()
+    if (principal == null) {
+        respond(HttpStatusCode.Unauthorized)
+        return null
+    }
+    if (roller.none { principal.harRolle(it) }) {
+        val rolletekst = roller.joinToString(" eller ") { it.name.lowercase() }
+        respond(HttpStatusCode.Forbidden, mapOf("message" to "krever rolle $rolletekst"))
+        return null
+    }
+    return principal
+}
+
+/** Enhetsnumrene saksbehandler har tilgang til, eller null (og 503) hvis entra-proxy feiler. */
+internal suspend fun ApplicationCall.hentEnheterForPrincipal(principal: AzureAdPrincipal): Set<String>? =
+    try {
+        principal.enheter().map { it.enhetnummer }.toSet()
+    } catch (e: Exception) {
+        e.rethrowIfCancellation()
+        log.error("Henting av enheter fra entra-proxy feilet ({}), avviser oppslag", e.javaClass.simpleName)
+        respond(HttpStatusCode.ServiceUnavailable, mapOf("message" to "tilgangskontroll er ikke tilgjengelig"))
+        null
+    }
 
 /** Det tilgangssjekkene trenger å vite om en sak. */
 internal data class SakTilgangsgrunnlag(
     val sakId: UUID,
     val behandlendeEnhet: String?,
-    val fnr: String,
+    val ansattFnr: String,
     val saksbehandlerIdent: String?,
     val beslutterIdent: String?,
-)
+) {
+    companion object {
+        fun SakDetaljer.tilTilgangsgrunnlag() = SakTilgangsgrunnlag(
+            sakId = UUID.fromString(sakId),
+            behandlendeEnhet = behandlendeEnhet,
+            ansattFnr = soknad.ansatt.fnr,
+            saksbehandlerIdent = saksbehandlerIdent,
+            beslutterIdent = saksbehandlerIdent,
+        )
+    }
+}
 
 /** Må kalles i en transaksjon. Returnerer null hvis saken ikke finnes. */
-internal fun hentSakTilgangsgrunnlag(sakId: UUID): SakTilgangsgrunnlag? =
+internal fun JdbcTransaction.hentSakTilgangsgrunnlag(sakId: UUID): SakTilgangsgrunnlag? =
     SakTable
         .join(SoknadTable, JoinType.INNER, SakTable.soknadId, SoknadTable.id)
         .select(
@@ -44,7 +86,7 @@ internal fun hentSakTilgangsgrunnlag(sakId: UUID): SakTilgangsgrunnlag? =
             SakTilgangsgrunnlag(
                 sakId = sakId,
                 behandlendeEnhet = it[SakTable.behandlendeEnhet],
-                fnr = it[SoknadTable.ansattFnr],
+                ansattFnr = it[SoknadTable.ansattFnr],
                 saksbehandlerIdent = it[SakTable.saksbehandlerIdent],
                 beslutterIdent = it[SakTable.beslutterIdent],
             )
@@ -92,7 +134,7 @@ internal suspend fun ApplicationCall.sjekkTilgangsmaskin(
     val tilgang = try {
         tilgangsmaskinClient.evaluer(
             userToken = principal.subjectToken,
-            brukerIdent = sak.fnr,
+            brukerIdent = sak.ansattFnr,
             regelsett = Regelsett.KJERNE,
         )
     } catch (e: Exception) {
