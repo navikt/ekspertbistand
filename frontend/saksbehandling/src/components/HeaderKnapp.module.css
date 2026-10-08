@@ -1,0 +1,29 @@
+.knapp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ax-space-8);
+  min-width: var(--ax-space-128);
+  padding: var(--ax-space-16);
+  border: 1px solid var(--ax-border-neutral-subtleA);
+  background-color: var(--ax-bg-default);
+  color: var(--ax-text-neutral);
+  cursor: pointer;
+}
+
+.knapp:hover {
+  background-color: var(--ax-bg-neutral-moderate-hoverA);
+}
+
+.knapp[aria-expanded="true"] {
+  background-color: var(--ax-bg-neutral-moderateA);
+}
+
+.knapp:focus-visible {
+  outline: 3px solid var(--ax-border-focus);
+  outline-offset: -3px;
+}
+
+.knapp:disabled {
+  cursor: progress;
+}

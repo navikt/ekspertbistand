@@ -1,10 +1,4 @@
-import {
-  ArrowLeftIcon,
-  CheckmarkCircleIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ChevronUpIcon,
-} from "@navikt/aksel-icons";
+import { ArrowLeftIcon, CheckmarkCircleIcon, ChevronRightIcon } from "@navikt/aksel-icons";
 import {
   Accordion,
   ActionMenu,
@@ -26,6 +20,7 @@ import {
 import { useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
 import { NavLink, useNavigate, useParams } from "react-router";
+import HeaderKnapp from "../components/HeaderKnapp";
 import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
 import Sakslogg from "../components/Sakslogg";
@@ -78,16 +73,13 @@ function Tildeling({ sak, tildelMeg, frigjoer, isSaving }: TildelingProps) {
 
   if (innloggetAnsatt && sak.saksbehandlerIdent === innloggetAnsatt.id) {
     return (
-      <HStack gap="space-16" align="center">
-        <BodyShort>Saken er tildelt meg</BodyShort>
+      <HStack gap="space-16" align="stretch">
+        <HStack align="center">
+          <BodyShort>Saken er tildelt meg</BodyShort>
+        </HStack>
         <ActionMenu open={menyÅpen} onOpenChange={setMenyÅpen}>
           <ActionMenu.Trigger>
-            <Button size="small" loading={isSaving}>
-              <HStack as="span" gap="space-4" align="center">
-                Meny
-                {menyÅpen ? <ChevronUpIcon aria-hidden /> : <ChevronDownIcon aria-hidden />}
-              </HStack>
-            </Button>
+            <HeaderKnapp tekst="Meny" åpen={menyÅpen} loading={isSaving} />
           </ActionMenu.Trigger>
           <ActionMenu.Content>
             <ActionMenu.Group label="Legg behandlingen tilbake">
@@ -174,25 +166,26 @@ export default function SakPage() {
 
       <Box
         background="default"
-        paddingBlock="space-12"
-        paddingInline="space-24"
+        paddingInline="space-24 space-0"
         borderWidth="0 0 1 0"
         borderColor="neutral-subtle"
       >
-        <HStack justify="space-between" align="center" gap="space-16">
-          <Link as={NavLink} to={OVERSIKT_PATH} underline={false}>
-            <ArrowLeftIcon aria-hidden />
-            <BodyShort as="span" weight="semibold">
-              Tilbake til liste av saker
-            </BodyShort>
-          </Link>
-          <HStack gap="space-16" align="center">
+        <HStack justify="space-between" align="stretch" gap="space-16">
+          <HStack align="center">
+            <Link as={NavLink} to={OVERSIKT_PATH} underline={false}>
+              <ArrowLeftIcon aria-hidden />
+              <BodyShort as="span" weight="semibold">
+                Tilbake til liste av saker
+              </BodyShort>
+            </Link>
+          </HStack>
+          <HStack gap="space-16" align="stretch">
             <Tildeling sak={sak} {...tildeling} />
             <Sakslogg sakId={sakId ?? ""} />
           </HStack>
         </HStack>
         {tildelingError && (
-          <Box paddingBlock="space-8 space-0">
+          <Box paddingBlock="space-8" paddingInline="space-0 space-24">
             <Alert variant="error" size="small">
               {tildelingError.message}
             </Alert>
