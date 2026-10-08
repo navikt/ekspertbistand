@@ -211,6 +211,15 @@ data class AzureAdPrincipal(
      * Hentes først når de trengs, og kaster ved feil slik at kallende rute kan avvise (fail-closed).
      */
     suspend fun enheter(): List<Enhet> = hentEnheter(navIdent)
+
+    /** True dersom principal er medlem av gruppen til [role]. */
+    fun harRolle(role: Role): Boolean = role in Role.fromGroups(groups)
+
+    /**
+     * True dersom saksbehandler har tilgang til [enhet] (enhetsnummer) ifølge entra-proxy.
+     * Kaster ved feil mot entra-proxy, slik at kallende rute kan avvise (fail-closed).
+     */
+    suspend fun harTilgangTilEnhet(enhet: String): Boolean = enheter().any { it.enhetnummer == enhet }
 }
 
 const val AZURE_AD_PROVIDER = "AZURE_AD"

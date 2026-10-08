@@ -12,20 +12,17 @@ import {
   VStack,
 } from "@navikt/ds-react";
 import { useState } from "react";
-import type { Vilkår, Vilkårstatus } from "../hooks/useVilkår";
+import type { Vilkår } from "../hooks/useVilkår";
+import type { VilkårsvurderingInput } from "../hooks/useVilkårsvurdering";
 
 type Props = {
   vilkår: Vilkår;
   isSaving: boolean;
   error: Error | null;
-  onLagre: (input: {
-    vilkårId: string;
-    status: Exclude<Vilkårstatus, "ikke_vurdert">;
-    kommentar?: string;
-  }) => Promise<boolean>;
+  onLagre: (input: VilkårsvurderingInput) => Promise<boolean>;
 };
 
-function StatusTag({ status }: { status: Vilkårstatus }) {
+function StatusTag({ status }: { status: Vilkår["vurdering"]["status"] }) {
   if (status === "oppfylt") {
     return (
       <Tag variant="success" size="small">
@@ -57,20 +54,20 @@ function formatTidspunkt(iso: string | undefined) {
 
 export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props) {
   const [redigerer, setRedigerer] = useState(false);
-  const [kommentar, setKommentar] = useState(vilkår.vurdering?.kommentar ?? "");
+  const [notat, setNotat] = useState(vilkår.vurdering.notat ?? "");
 
-  const erVurdert = vilkår.vurdering?.status !== "ikke_vurdert";
+  const erVurdert = vilkår.vurdering.status !== "ikke_vurdert";
 
   const åpneRedigering = () => {
-    setKommentar(vilkår.vurdering?.kommentar ?? "");
+    setNotat(vilkår.vurdering.notat ?? "");
     setRedigerer(true);
   };
 
-  const lagre = async (status: Exclude<Vilkårstatus, "ikke_vurdert">) => {
+  const lagre = async (status: VilkårsvurderingInput["status"]) => {
     const lagret = await onLagre({
       vilkårId: vilkår.id,
       status,
-      kommentar: kommentar.trim() || undefined,
+      notat: notat.trim() || undefined,
     });
 
     if (lagret) {
@@ -91,22 +88,20 @@ export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props
             </HStack>
           )}
 
-          {!redigerer &&
-            !vilkår.vurdering.automatisk &&
-            vilkår.vurdering.status !== "ikke_vurdert" && (
-              <VStack gap="space-4">
-                {vilkår.vurdering.kommentar && (
-                  <>
-                    <Label size="small">Kommentar</Label>
-                    <BodyLong size="small">{vilkår.vurdering.kommentar}</BodyLong>
-                  </>
-                )}
-                <Detail>
-                  Vurdert av {vilkår.vurdering.vurdertAv}{" "}
-                  {formatTidspunkt(vilkår.vurdering.vurdertTidspunkt)}
-                </Detail>
-              </VStack>
-            )}
+          {!redigerer && erVurdert && (
+            <VStack gap="space-4">
+              {vilkår.vurdering.notat && (
+                <>
+                  <Label size="small">Kommentar</Label>
+                  <BodyLong size="small">{vilkår.vurdering.notat}</BodyLong>
+                </>
+              )}
+              <Detail>
+                Vurdert av {vilkår.vurdering.vurdertAvIdent}{" "}
+                {formatTidspunkt(vilkår.vurdering.vurdertTidspunkt)}
+              </Detail>
+            </VStack>
+          )}
 
           {error && redigerer && (
             <Alert variant="error" size="small" inline>
@@ -119,8 +114,8 @@ export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props
               <Textarea
                 label="Begrunnelse"
                 minRows={1}
-                value={kommentar}
-                onChange={(event) => setKommentar(event.target.value)}
+                value={notat}
+                onChange={(event) => setNotat(event.target.value)}
               />
               <HStack gap="space-8" wrap>
                 <Button

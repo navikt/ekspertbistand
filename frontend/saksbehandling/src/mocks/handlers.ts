@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import type { SakDetaljer } from "../hooks/useSak";
 import type { SakInfo, SakListeElement, SoknadStatus } from "../hooks/useSaker";
-import type { Vilkår, Vilkårstatus } from "../hooks/useVilkår";
+import { VILKAR_TEKSTER, type VilkarId, type VilkarsvurderingDTO } from "../hooks/useVilkår";
 import type { SaksloggInnslag, SaksloggResponse } from "../hooks/useSakslogg";
 import { mockInnloggetAnsatt } from "../mock/ansatt";
 import { SAKSBEHANDLING_SAKER_URL, SESSION_URL } from "../utils/constants";
@@ -178,53 +178,8 @@ const mineEnheter = new Set(mockInnloggetAnsatt.enheter.map((e) => e.nummer));
 const harTilgangTilEnhet = (sak: SakListeElement) =>
   !!sak.behandlendeEnhet && mineEnheter.has(sak.behandlendeEnhet);
 
-const lagVilkår = (): Vilkår[] => [
-  {
-    id: "arbeidsforhold",
-    tittel: "Arbeidsforhold",
-    beskrivelse: "Deltaker må ha et arbeidsforhold hos arbeidsgiver i Aa-reg",
-    vurdering: {
-      automatisk: true,
-      status: "oppfylt",
-    },
-  },
-  {
-    id: "deltaker-enig",
-    tittel: "Deltaker er enig",
-    beskrivelse: "Arbeidsgiver har oppgitt at deltaker gitt samtykke til at søknaden sendtes.",
-    vurdering: {
-      automatisk: true,
-      status: "oppfylt",
-    },
-  },
-  {
-    id: "provd-tilrettelegging",
-    tittel: "Prøvd tilrettelegging",
-    beskrivelse: "Arbeidsgiver har beskrevet hvilke tiltak de prøvd eller vurdert.",
-    vurdering: {
-      automatisk: false,
-      status: "ikke_vurdert",
-    },
-  },
-  {
-    id: "sykefravarshistorikk",
-    tittel: "Sykefraværshistorikk",
-    beskrivelse: "Må ha legemeldt sykefravær som er hyppig eller gjentakerende.",
-    vurdering: {
-      automatisk: false,
-      status: "ikke_vurdert",
-    },
-  },
-  {
-    id: "ekspert-kompetanse",
-    tittel: "Ekspertens kompetanse og uavhengighet",
-    beskrivelse: "Må ha offentlig godkjent utdanning og relevant arbeidsrelatert kompentanse.",
-    vurdering: {
-      automatisk: false,
-      status: "ikke_vurdert",
-    },
-  },
-];
+const lagVilkårsvurdering = (): VilkarsvurderingDTO[] =>
+  (Object.keys(VILKAR_TEKSTER) as VilkarId[]).map((vilkar) => ({ vilkar, godkjent: null }));
 
 const lagSakDetaljer = ({ soknad: element, ...sak }: SakListeElement): SakDetaljer => ({
   ...sak,
@@ -271,16 +226,36 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: SakListeElement): SakDetalj
   },
 });
 
-const vilkårStore = new Map<string, Vilkår[]>();
+const vilkårStore = new Map<string, VilkarsvurderingDTO[]>();
 
-function hentVilkår(sakId: string): Vilkår[] {
+function hentVilkårsvurdering(sakId: string): VilkarsvurderingDTO[] {
   const eksisterende = vilkårStore.get(sakId);
   if (eksisterende) return eksisterende;
 
-  const vilkår = lagVilkår();
-  vilkårStore.set(sakId, vilkår);
-  return vilkår;
+  const vurderinger = lagVilkårsvurdering();
+  vilkårStore.set(sakId, vurderinger);
+  return vurderinger;
 }
+
+// Speiler backend: 404 når saken ikke finnes, 403 når saksbehandler mangler tilgang til enheten.
+function finnSakMedTilgang(sakId: string): SakListeElement | Response {
+  const sak = alleSaker().find((s) => s.sakId === sakId);
+  if (!sak) {
+    return HttpResponse.json({ message: "fant ikke sak" }, { status: 404 });
+  }
+  if (!harTilgangTilEnhet(sak)) {
+    return HttpResponse.json(
+      {
+        kode: "IKKE_TILGANG_ENHET",
+        begrunnelse: "Du har ikke tilgang til enheten som behandler saken",
+      },
+      { status: 403 }
+    );
+  }
+  return sak;
+}
+
+const VILKAR_IDER = new Set<string>(Object.keys(VILKAR_TEKSTER));
 
 export const handlers = [
   http.get(SESSION_URL, () =>
@@ -310,46 +285,54 @@ export const handlers = [
     }
     return HttpResponse.json(lagSakDetaljer(sak));
   }),
-  http.get("/api/saksbehandling/v1/saker/:sakId/vilkar", ({ params }) =>
-    HttpResponse.json(hentVilkår(String(params.sakId)))
-  ),
+  http.get("/api/saksbehandling/v1/saker/:sakId/vilkarsvurdering", ({ params }) => {
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
+    return HttpResponse.json(hentVilkårsvurdering(sak.sakId));
+  }),
   http.get("/api/saksbehandling/v1/saker/:sakId/logg", () =>
     HttpResponse.json<SaksloggResponse>({ innslag: mockSakslogg })
   ),
-  http.put<
-    { sakId: string; vilkarId: string },
-    { status: Vilkårstatus; kommentar?: string },
-    Vilkår | { message: string }
-  >("/api/saksbehandling/v1/saker/:sakId/vilkar/:vilkarId", async ({ params, request }) => {
-    const { sakId, vilkarId } = params;
-    const body = await request.json();
+  http.patch<
+    { sakId: string },
+    { vilkar?: string; godkjent?: boolean | null; notat?: string | null }
+  >("/api/saksbehandling/v1/saker/:sakId/vilkarsvurdering", async ({ params, request }) => {
+    const body = await request.json().catch(() => null);
+    const vilkar = body?.vilkar;
+    const godkjent = body?.godkjent;
 
-    if (body.status !== "oppfylt" && body.status !== "ikke_oppfylt") {
-      return HttpResponse.json({ message: "Ugyldig status på vilkårsvurdering." }, { status: 400 });
+    if (
+      !vilkar ||
+      !VILKAR_IDER.has(vilkar) ||
+      !(godkjent === null || typeof godkjent === "boolean")
+    ) {
+      return HttpResponse.json({ message: "ugyldig vilkårsvurdering" }, { status: 400 });
     }
 
-    const alleVilkår = hentVilkår(String(sakId));
-    const vilkår = alleVilkår.find((v) => v.id === vilkarId);
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
 
-    if (!vilkår) {
-      return HttpResponse.json({ message: "Fant ikke vilkåret." }, { status: 404 });
+    if (sak.saksbehandlerIdent !== mockInnloggetAnsatt.id) {
+      return HttpResponse.json(
+        { kode: "IKKE_TILDELT_SAK", begrunnelse: "Du er ikke tildelt saken" },
+        { status: 403 }
+      );
+    }
+    if (sak.status !== "UNDER_BEHANDLING") {
+      return HttpResponse.json({ message: "Saken er ikke under behandling" }, { status: 409 });
     }
 
-    const kommentar = body.kommentar?.trim();
-    const oppdatert: Vilkår = {
-      ...vilkår,
-      vurdering: {
-        ...(kommentar ? { kommentar } : {}),
-        status: body.status,
-        automatisk: false,
-        vurdertAv: mockInnloggetAnsatt.navn,
-        vurdertTidspunkt: new Date().toISOString(),
-      },
+    const oppdatert: VilkarsvurderingDTO = {
+      vilkar: vilkar as VilkarId,
+      godkjent,
+      notat: body?.notat?.trim() || null,
+      vurdertAvIdent: mockInnloggetAnsatt.id,
+      vurdertTidspunkt: new Date().toISOString(),
     };
 
     vilkårStore.set(
-      String(sakId),
-      alleVilkår.map((v) => (v.id === vilkarId ? oppdatert : v))
+      sak.sakId,
+      hentVilkårsvurdering(sak.sakId).map((v) => (v.vilkar === oppdatert.vilkar ? oppdatert : v))
     );
 
     return HttpResponse.json(oppdatert);

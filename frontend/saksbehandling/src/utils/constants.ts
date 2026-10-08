@@ -4,12 +4,10 @@ export const OVERSIKT_PATH = "/oversikt";
 export const SAK_PATH = "/oversikt/:sakId";
 export const SAKSBEHANDLING_SAKER_URL = "/api/saksbehandling/v1/saker";
 export const SAKSBEHANDLING_SAK_URL = (sakId: string) => `/api/saksbehandling/v1/saker/${sakId}`;
-export const SAKSBEHANDLING_VILKAR_LISTE_URL = (sakId: string) =>
-  `/api/saksbehandling/v1/saker/${sakId}/vilkar`;
+export const SAKSBEHANDLING_VILKARSVURDERING_URL = (sakId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/vilkarsvurdering`;
 export const SAKSBEHANDLING_SAKSLOGG_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/logg`;
-export const SAKSBEHANDLING_VILKAR_URL = (sakId: string, vilkårId: string) =>
-  `/api/saksbehandling/v1/saker/${sakId}/vilkar/${vilkårId}`;
 export const SAKSBEHANDLING_KONTONUMMER_URL = (orgnr: string) =>
   `/api/saksbehandling/v1/virksomhet/${orgnr}/kontonummer`;
 export const SESSION_URL = "/oauth2/session";

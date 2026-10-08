@@ -23,7 +23,9 @@ flowchart TD
     s_ArenaTiltakssakEndretProcessor[/"ArenaTiltakssakEndretProcessor"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
+    s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
+    e_SakOppdatert(["SakOppdatert"]):::orphan
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
@@ -34,6 +36,7 @@ flowchart TD
     e_TilskuddsbrevMottattKildeAltinn(["TilskuddsbrevMottattKildeAltinn"]):::event
     e_TilskuddsbrevVist(["TilskuddsbrevVist"]):::event
     e_TiltaksgjennomforingOpprettet(["TiltaksgjennomforingOpprettet"]):::event
+    e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
     h_JournalfoerInnsendtSoknad["JournalfoerInnsendtSoknad"]:::handler
     h_JournalfoerNotatArenaSakOpprettet["JournalfoerNotatArenaSakOpprettet"]:::handler
     h_JournalfoerTilskuddsbrev["JournalfoerTilskuddsbrev"]:::handler
@@ -44,11 +47,13 @@ flowchart TD
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad["OpprettTiltaksgjennomfoeringForInnsendtSoknad"]:::handler
     h_SettAvlystSoknadStatus["SettAvlystSoknadStatus"]:::handler
     h_SettGodkjentSoknadStatus["SettGodkjentSoknadStatus"]:::handler
+    h_SkrivSakslogg["SkrivSakslogg"]:::handler
     h_TilskuddsbrevVistNoop["TilskuddsbrevVistNoop"]:::handler
     h_VarsleArbeidsgiverSoknadAvlyst["VarsleArbeidsgiverSoknadAvlyst"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
     h_VarsleArbeidsgiverSoknadMottatt["VarsleArbeidsgiverSoknadMottatt"]:::handler
+    h_VilkarsvurderingOppdatertNoop["VilkarsvurderingOppdatertNoop"]:::handler
     p_SakProjection[["SakProjection"]]:::projection
     p_SoknadBehandletForsinkelseProjection[["SoknadBehandletForsinkelseProjection"]]:::projection
     p_TilskuddsbrevVistProjection[["TilskuddsbrevVistProjection"]]:::projection
@@ -64,6 +69,7 @@ flowchart TD
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
     s_SoknadApi --> e_SoknadInnsendt
     s_TilsagnDataApi --> e_TilskuddsbrevVist
+    s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
     e_SoknadInnsendt --> h_JournalfoerInnsendtSoknad
     e_TiltaksgjennomforingOpprettet --> h_JournalfoerNotatArenaSakOpprettet
     e_TilskuddsbrevMottatt --> h_JournalfoerTilskuddsbrev
@@ -74,11 +80,13 @@ flowchart TD
     e_InnsendtSoknadJournalfoert --> h_OpprettTiltaksgjennomfoeringForInnsendtSoknad
     e_SoknadAvlystIArena --> h_SettAvlystSoknadStatus
     e_TilskuddsbrevJournalfoert --> h_SettGodkjentSoknadStatus
+    e_SakOppdatert --> h_SkrivSakslogg
     e_TilskuddsbrevVist --> h_TilskuddsbrevVistNoop
     e_SoknadAvlystIArena --> h_VarsleArbeidsgiverSoknadAvlyst
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn
     e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottatt
+    e_VilkarsvurderingOppdatert --> h_VilkarsvurderingOppdatertNoop
     e_InnsendtSoknadJournalfoert -.-> p_SakProjection
     e_SaksbehandlingStartetIArena -.-> p_SakProjection
     e_SoknadAvlystIArena -.-> p_SakProjection
@@ -93,3 +101,7 @@ flowchart TD
     e_TilskuddsbrevVist -.-> p_TilskuddsbrevVistProjection
     linkStyle default stroke:#555,stroke-width:2px
 ```
+
+Events markert i rødt mangler enten publiserer eller konsument:
+
+- `SakOppdatert` – mangler publiserer
