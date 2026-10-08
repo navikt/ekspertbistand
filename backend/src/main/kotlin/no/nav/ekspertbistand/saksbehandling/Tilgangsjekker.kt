@@ -40,20 +40,11 @@ internal suspend fun ApplicationCall.principalMedRolle(vararg roller: Role): Azu
     return principal
 }
 
-/** Enhetsnumrene saksbehandler har tilgang til, eller null (og 503) hvis entra-proxy feiler. */
-internal suspend fun ApplicationCall.hentEnheterForPrincipal(principal: AzureAdPrincipal): Set<String>? =
-    try {
-        principal.enheter().map { it.enhetnummer }.toSet()
-    } catch (e: Exception) {
-        e.rethrowIfCancellation()
-        log.error("Henting av enheter fra entra-proxy feilet ({}), avviser oppslag", e.javaClass.simpleName)
-        respond(HttpStatusCode.ServiceUnavailable, mapOf("message" to "tilgangskontroll er ikke tilgjengelig"))
-        null
-    }
-
 /** Det tilgangssjekkene trenger å vite om en sak. */
 internal data class SakTilgangsgrunnlag(
     val sakId: UUID,
+    val soknadId: UUID,
+    val status: Saksstatus,
     val behandlendeEnhet: String?,
     val ansattFnr: String,
     val saksbehandlerIdent: String?,
@@ -62,10 +53,12 @@ internal data class SakTilgangsgrunnlag(
     companion object {
         fun SakDetaljer.tilTilgangsgrunnlag() = SakTilgangsgrunnlag(
             sakId = UUID.fromString(sakId),
+            soknadId = UUID.fromString(soknad.soknadId),
+            status = status,
             behandlendeEnhet = behandlendeEnhet,
             ansattFnr = soknad.ansatt.fnr,
             saksbehandlerIdent = saksbehandlerIdent,
-            beslutterIdent = saksbehandlerIdent,
+            beslutterIdent = beslutterIdent,
         )
     }
 }
@@ -75,6 +68,8 @@ internal fun JdbcTransaction.hentSakTilgangsgrunnlag(sakId: UUID): SakTilgangsgr
     SakTable
         .join(SoknadTable, JoinType.INNER, SakTable.soknadId, SoknadTable.id)
         .select(
+            SakTable.soknadId,
+            SakTable.status,
             SakTable.behandlendeEnhet,
             SakTable.saksbehandlerIdent,
             SakTable.beslutterIdent,
@@ -85,6 +80,8 @@ internal fun JdbcTransaction.hentSakTilgangsgrunnlag(sakId: UUID): SakTilgangsgr
         ?.let {
             SakTilgangsgrunnlag(
                 sakId = sakId,
+                soknadId = it[SakTable.soknadId],
+                status = Saksstatus.valueOf(it[SakTable.status]),
                 behandlendeEnhet = it[SakTable.behandlendeEnhet],
                 ansattFnr = it[SoknadTable.ansattFnr],
                 saksbehandlerIdent = it[SakTable.saksbehandlerIdent],
@@ -95,20 +92,13 @@ internal fun JdbcTransaction.hentSakTilgangsgrunnlag(sakId: UUID): SakTilgangsgr
 /**
  * Sjekker med [AzureAdPrincipal.harTilgangTilEnhet] at saksbehandler har tilgang til sakens
  * behandlende enhet. Saker uten enhet er ikke tilgjengelige for noen. Svarer 403 og returnerer
- * false ved avslag. Fail-closed: feil mot entra-proxy gir 503.
+ * false ved avslag. Enhetene er hentet fra entra-proxy i `AZURE_AD_PROVIDER`, som svarer 503 ved feil.
  */
 internal suspend fun ApplicationCall.sjekkTilgangTilEnhet(
     principal: AzureAdPrincipal,
     sak: SakTilgangsgrunnlag,
 ): Boolean {
-    val harTilgangTilEnhet = try {
-        sak.behandlendeEnhet != null && principal.harTilgangTilEnhet(sak.behandlendeEnhet)
-    } catch (e: Exception) {
-        e.rethrowIfCancellation()
-        log.error("Henting av enheter fra entra-proxy feilet ({}), avviser oppslag", e.javaClass.simpleName)
-        respond(HttpStatusCode.ServiceUnavailable, mapOf("message" to "tilgangskontroll er ikke tilgjengelig"))
-        return false
-    }
+    val harTilgangTilEnhet = sak.behandlendeEnhet != null && principal.harTilgangTilEnhet(sak.behandlendeEnhet)
     if (!harTilgangTilEnhet) {
         log.info("Tilgang avvist: saksbehandler mangler tilgang til enhet for sakId={}", sak.sakId)
         respond(

@@ -157,7 +157,7 @@ class SakEierskapMigrationTest {
     }
 
     private fun JdbcTransaction.lagreSak(soknadId: UUID): UUID =
-        SakTable.insertReturning {
+        SakTable.insertReturning(listOf(SakTable.sakId)) {
             it[SakTable.soknadId] = soknadId
             it[status] = Saksstatus.OPPRETTET.name
             it[kildeTilBehandling] = KildeTilBehandling.EKSPERTBISTAND.name

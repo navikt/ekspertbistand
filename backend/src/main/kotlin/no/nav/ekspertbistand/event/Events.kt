@@ -275,8 +275,9 @@ sealed interface EventData {
     /**
      * Noe har skjedd i en sak som skal vises i saksloggen.
      *
-     * Ingen publiserer eventen ennå. Den tas i bruk når saksbehandlingshandlingene bygges
-     * (tildeling, vurdering, vedtak, refusjon). Se `specifications/sakslogg.md`.
+     * Publiseres av handlerne for saksbehandlingshandlinger, foreløpig
+     * [no.nav.ekspertbistand.event.handlers.TildelSaksbehandler] og
+     * [no.nav.ekspertbistand.event.handlers.FrigjoerSak]. Se `specifications/sakslogg.md`.
      *
      * [notat] er teksten som vises i saksloggen, for eksempel «Sak tildelt».
      * [utfortAvIdent] er NAV-identen til saksbehandler eller beslutter, og er null når
@@ -306,6 +307,58 @@ sealed interface EventData {
             }
         }
 
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Saksbehandler har tildelt seg en sak, enten en ledig sak eller ved å overta den fra en kollega.
+     *
+     * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/tildeling`. [saksbehandlerNavn]
+     * kommer fra entra-proxy via `AzureAdPrincipal`. [tidspunkt] er da saksbehandleren klikket.
+     * Identen og navnet gjelder en Nav-ansatt og skal ikke logges utenfor teamLog.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.TildelSaksbehandler] og
+     * [no.nav.ekspertbistand.event.projections.SakProjection].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("sakTildeltSaksbehandler")
+    data class SakTildeltSaksbehandler(
+        val sakId: String,
+        val soknadId: String,
+        val saksbehandlerIdent: String,
+        val saksbehandlerNavn: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        init {
+            require(saksbehandlerNavn.isNotBlank()) { "saksbehandlerNavn kan ikke være blank" }
+        }
+
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Saksbehandler har frigjort en sak hen hadde.
+     *
+     * Publiseres av `DELETE /api/saksbehandling/v1/saker/{sakId}/tildeling`. Identen skal ikke
+     * logges utenfor teamLog.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.FrigjoerSak] og
+     * [no.nav.ekspertbistand.event.projections.SakProjection].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("sakFrigjort")
+    data class SakFrigjort(
+        val sakId: String,
+        val soknadId: String,
+        val saksbehandlerIdent: String,
+        val tidspunkt: Instant,
+    ) : EventData {
         override val aggregateRootId: String get() = soknadId
     }
 
@@ -354,6 +407,8 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(LagreTilsagnsData::class))
         register(dependencies.create(LagreTilsagnsDataKildeAltinn::class))
         register(dependencies.create(SkrivSakslogg::class))
+        register(dependencies.create(TildelSaksbehandler::class))
+        register(dependencies.create(FrigjoerSak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
             EventHandledResult.Success()
