@@ -204,10 +204,10 @@ Nye verdier krever at `SakProjection` kjøres på nytt (bump versjonen), slik at
 
 | Verdi | Betydning |
 |-------|-----------|
-| `HAR_ARBEIDSFORHOLD` | Den ansatte har aktivt arbeidsforhold hos arbeidsgiveren. |
+| `DELTAKER_HAR_ARBEIDSFORHOLD` | Den ansatte har aktivt arbeidsforhold hos arbeidsgiveren. |
 | `FYLLES_UT_I_SAMRAD_GODKJENT` | Søknaden er fylt ut i samråd med den ansatte. |
-| `HAR_PROVD_TILRETTELEGGING` | Ordinær tilrettelegging er prøvd før ekspertbistand. |
-| `HAR_SYKEFRAVAERSHISTORIKK` | Det finnes relevant sykefraværshistorikk. |
+| `ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING` | Ordinær tilrettelegging er prøvd før ekspertbistand. |
+| `DELTAKER_HAR_SYKEFRAVAERSHISTORIKK` | Det finnes relevant sykefraværshistorikk. |
 | `EKSPERT_HAR_KOMPETANSE` | Eksperten har nødvendig og relevant kompetanse. |
 
 ### `ReturArsak` (`sak_retur.aarsak`)

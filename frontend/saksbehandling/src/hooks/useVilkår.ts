@@ -4,10 +4,10 @@ import { SAKSBEHANDLING_VILKARSVURDERING_URL } from "../utils/constants";
 import { HttpError } from "../utils/http";
 
 export type VilkarId =
-  | "HAR_ARBEIDSFORHOLD"
+  | "DELTAKER_HAR_ARBEIDSFORHOLD"
   | "FYLLES_UT_I_SAMRAD_GODKJENT"
-  | "HAR_PROVD_TILRETTELEGGING"
-  | "HAR_SYKEFRAVAERSHISTORIKK"
+  | "ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING"
+  | "DELTAKER_HAR_SYKEFRAVAERSHISTORIKK"
   | "EKSPERT_HAR_KOMPETANSE";
 
 /** Speiler `VilkarsvurderingDTO` i backend. `godkjent = null` betyr ikke vurdert. */
@@ -36,7 +36,7 @@ export type Vilkår = {
 };
 
 export const VILKAR_TEKSTER: Record<VilkarId, { tittel: string; beskrivelse: string }> = {
-  HAR_ARBEIDSFORHOLD: {
+  DELTAKER_HAR_ARBEIDSFORHOLD: {
     tittel: "Arbeidsforhold",
     beskrivelse: "Deltaker må ha et arbeidsforhold hos arbeidsgiver i Aa-reg",
   },
@@ -44,11 +44,11 @@ export const VILKAR_TEKSTER: Record<VilkarId, { tittel: string; beskrivelse: str
     tittel: "Deltaker er enig",
     beskrivelse: "Arbeidsgiver har oppgitt at deltaker gitt samtykke til at søknaden sendtes.",
   },
-  HAR_PROVD_TILRETTELEGGING: {
+  ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING: {
     tittel: "Prøvd tilrettelegging",
     beskrivelse: "Arbeidsgiver har beskrevet hvilke tiltak de prøvd eller vurdert.",
   },
-  HAR_SYKEFRAVAERSHISTORIKK: {
+  DELTAKER_HAR_SYKEFRAVAERSHISTORIKK: {
     tittel: "Sykefraværshistorikk",
     beskrivelse: "Må ha legemeldt sykefravær som er hyppig eller gjentakerende.",
   },
