@@ -63,6 +63,7 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
                         ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
 
                     val tilgangsgrunnlag = sak.tilTilgangsgrunnlag()
+                    if (!call.sjekkTilgangTilEnhet(principal, tilgangsgrunnlag)) return@get
                     if (!call.sjekkTilgangsmaskin(principal, tilgangsgrunnlag, tilgangsmaskinClient)) return@get
 
                     auditClient.loggOppslag(

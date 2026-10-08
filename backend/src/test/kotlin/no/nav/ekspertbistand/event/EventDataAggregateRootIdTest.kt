@@ -30,6 +30,7 @@ class EventDataAggregateRootIdTest {
             EventData.TilskuddsbrevVist("1337:42:43", TestEventData.sampleSoknad) to soknadRoot,
             EventData.TilskuddsbrevVist("1337:42:43", null) to tilsagnRoot,
             TestEventData.sakOppdatert to soknadRoot,
+            TestEventData.vilkarsvurderingOppdatert to soknadRoot,
         )
 
         forventet.forEach { (event, expected) ->

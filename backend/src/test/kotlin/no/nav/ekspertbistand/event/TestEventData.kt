@@ -5,6 +5,8 @@ import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
+import no.nav.ekspertbistand.saksbehandling.Vilkar
+import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import java.util.UUID
@@ -22,6 +24,21 @@ object TestEventData {
             utfortAvIdent = "Z123456",
             notat = "Sak tildelt",
             tidspunkt = Instant.parse("2026-04-02T08:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val vilkarsvurderingOppdatert by lazy {
+        EventData.VilkarsvurderingOppdatert(
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            vurdering = VilkarsvurderingRequest(
+                vilkar = Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD,
+                godkjent = true,
+                notat = "Bekreftet i Aa-registeret",
+            ),
+            vurdertAvIdent = "Z123456",
+            tidspunkt = Instant.parse("2026-04-02T09:00:00Z"),
         )
     }
 
@@ -207,5 +224,6 @@ object TestEventData {
             soknad = null,
         ),
         sakOppdatert,
+        vilkarsvurderingOppdatert,
     )
 }
