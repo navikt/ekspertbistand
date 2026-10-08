@@ -39,6 +39,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -371,7 +372,9 @@ class VilkarsvurderingApiTest {
         assertEquals(true, rad.godkjent)
         assertEquals("Bekreftet", rad.notat)
         assertEquals(navIdent, rad.vurdertAvIdent)
-        assertEquals(dto.vurdertTidspunkt, rad.vurdertTidspunkt)
+        // Postgres lagrer med mikrosekundpresisjon, mens svaret har full presisjon fra klokka.
+        val diff = (dto.vurdertTidspunkt!! - rad.vurdertTidspunkt!!).absoluteValue
+        assertTrue(diff < 1.milliseconds, "vurdertTidspunkt i svar og database skal være likt, var $diff fra hverandre")
         assertTrue(
             Vilkar.entries.filter { it != Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD }
                 .all { hentVilkarRad(db, sakId, it).vurdertAvIdent == null },
