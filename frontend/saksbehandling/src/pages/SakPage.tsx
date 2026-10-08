@@ -93,20 +93,24 @@ function Tildeling({ sak, tildelMeg, frigjoer, isSaving }: TildelingProps) {
     );
   }
 
+  if (!sak.saksbehandlerNavn && !sak.kanTildeleMeg) return null;
+
   return (
-    <HStack gap="space-16" align="center">
-      {sak.saksbehandlerNavn && <BodyShort>Saken er tildelt {sak.saksbehandlerNavn}</BodyShort>}
-      {sak.kanTildeleMeg && (
-        <Button
-          size="small"
-          variant="secondary"
-          loading={isSaving}
-          onClick={() => void tildelMeg()}
-        >
-          Tildel meg
-        </Button>
-      )}
-    </HStack>
+    <Box paddingInline="space-0 space-16" asChild>
+      <HStack gap="space-16" align="center">
+        {sak.saksbehandlerNavn && <BodyShort>Saken er tildelt {sak.saksbehandlerNavn}</BodyShort>}
+        {sak.kanTildeleMeg && (
+          <Button
+            size="small"
+            variant="secondary"
+            loading={isSaving}
+            onClick={() => void tildelMeg()}
+          >
+            Tildel meg
+          </Button>
+        )}
+      </HStack>
+    </Box>
   );
 }
 
@@ -179,7 +183,7 @@ export default function SakPage() {
               </BodyShort>
             </Link>
           </HStack>
-          <HStack gap="space-16" align="stretch">
+          <HStack align="stretch">
             <Tildeling sak={sak} {...tildeling} />
             <Sakslogg sakId={sakId ?? ""} />
           </HStack>
