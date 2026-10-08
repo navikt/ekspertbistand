@@ -16,11 +16,7 @@ import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import no.nav.ekspertbistand.infrastruktur.valider
-import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.tilgangsmaskin.Regelsett
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
-import no.nav.ekspertbistand.tilgangsmaskin.Tilgangsresultat
-import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -38,8 +34,6 @@ import kotlin.time.Instant
 
 private val log = LoggerFactory.getLogger("VilkarsvurderingApi")
 
-const val IKKE_TILDELT_SAK = "IKKE_TILDELT_SAK"
-
 /**
  * GET   /api/saksbehandling/v1/saker/{sakId}/vilkarsvurdering => alle vilkår for saken med vurdering
  * PATCH /api/saksbehandling/v1/saker/{sakId}/vilkarsvurdering => vurderer ett vilkår
@@ -51,11 +45,11 @@ const val IKKE_TILDELT_SAK = "IKKE_TILDELT_SAK"
  * PATCH krever:
  * - rollen [Role.SAKSBEHANDLER]
  * - tilgang til sakens behandlende enhet ([AzureAdPrincipal.harTilgangTilEnhet])
- * - at innlogget bruker er saksbehandler på saken ([erSaksbehandlerPåSak])
+ * - at innlogget bruker er saksbehandler på saken ([sjekkErSaksbehandlerPåSak])
  * - at saken er [Saksstatus.UNDER_BEHANDLING]
  *
  * Begge sjekker i tillegg Tilgangsmaskinen (kjerneregler) og sporingslogger til ArcSight.
- * Eksterne tilgangssjekker er fail-closed (503). Saksbehandler og status sjekkes på den låste
+ * Eksterne tilgangssjekker er fail-closed (503). Status sjekkes på den låste
  * sakraden i samme transaksjon som vurderingen lagres og [EventData.VilkarsvurderingOppdatert]
  * publiseres.
  */
@@ -79,9 +73,9 @@ suspend fun Application.configureVilkarsvurderingApiV1() {
                     val sak = transaction(database) { hentSakTilgangsgrunnlag(sakId) }
                         ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
 
-                    if (!call.sjekkTilgangTilEnhet(principal, sakId, sak.behandlendeEnhet)) return@get
+                    if (!call.sjekkTilgangTilEnhet(principal, sak)) return@get
 
-                    if (!call.sjekkTilgangsmaskin(principal, sakId, sak.fnr, tilgangsmaskinClient)) return@get
+                    if (!call.sjekkTilgangsmaskin(principal, sak, tilgangsmaskinClient)) return@get
 
                     val vurderinger = transaction(database) { hentVilkarsvurdering(sakId) }
                     auditClient.loggOppslag(
@@ -118,8 +112,9 @@ suspend fun Application.configureVilkarsvurderingApiV1() {
                     val sak = transaction(database) { hentSakTilgangsgrunnlag(sakId) }
                         ?: return@patch call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
 
-                    if (!call.sjekkTilgangTilEnhet(principal, sakId, sak.behandlendeEnhet)) return@patch
-                    if (!call.sjekkTilgangsmaskin(principal, sakId, sak.fnr, tilgangsmaskinClient)) return@patch
+                    if (!call.sjekkTilgangTilEnhet(principal, sak)) return@patch
+                    if (!call.sjekkTilgangsmaskin(principal, sak, tilgangsmaskinClient)) return@patch
+                    if (!call.sjekkErSaksbehandlerPåSak(principal, sak)) return@patch
 
                     val resultat = transaction(database) {
                         oppdaterVilkarsvurdering(
@@ -145,17 +140,6 @@ suspend fun Application.configureVilkarsvurderingApiV1() {
                         OppdaterVilkarResultat.SakIkkeFunnet ->
                             call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
 
-                        OppdaterVilkarResultat.IkkeTildelt -> {
-                            log.info("Vilkårsvurdering avvist: saksbehandler er ikke tildelt sakId={}", sakId)
-                            call.respond(
-                                HttpStatusCode.Forbidden,
-                                TilgangAvvistResponse(
-                                    kode = IKKE_TILDELT_SAK,
-                                    begrunnelse = "Du er ikke tildelt saken",
-                                ),
-                            )
-                        }
-
                         OppdaterVilkarResultat.IkkeUnderBehandling ->
                             call.respond(
                                 HttpStatusCode.Conflict,
@@ -167,28 +151,6 @@ suspend fun Application.configureVilkarsvurderingApiV1() {
         }
     }
 }
-
-private data class SakTilgangsgrunnlag(
-    val behandlendeEnhet: String?,
-    val fnr: String,
-    val saksbehandlerIndent: String?,
-    val beslutterIndent: String?
-)
-
-private fun hentSakTilgangsgrunnlag(sakId: UUID): SakTilgangsgrunnlag? =
-    SakTable
-        .join(SoknadTable, JoinType.INNER, SakTable.soknadId, SoknadTable.id)
-        .select(SakTable.behandlendeEnhet, SoknadTable.ansattFnr)
-        .where { SakTable.sakId eq sakId }
-        .singleOrNull()
-        ?.let {
-            SakTilgangsgrunnlag(
-                behandlendeEnhet = it[SakTable.behandlendeEnhet],
-                fnr = it[SoknadTable.ansattFnr],
-                saksbehandlerIndent = it[SakTable.saksbehandlerIdent],
-                beslutterIndent = it[SakTable.beslutterIdent],
-            )
-        }
 
 /**
  * Alle vilkår i [Vilkar]-rekkefølge. Vilkår uten rad (saken er ikke projisert med `Sak-v3` ennå)
@@ -216,12 +178,11 @@ fun hentVilkarsvurdering(sakId: UUID): List<VilkarsvurderingDTO> {
 sealed interface OppdaterVilkarResultat {
     data class Oppdatert(val vurdering: VilkarsvurderingDTO) : OppdaterVilkarResultat
     data object SakIkkeFunnet : OppdaterVilkarResultat
-    data object IkkeTildelt : OppdaterVilkarResultat
     data object IkkeUnderBehandling : OppdaterVilkarResultat
 }
 
 /**
- * Låser saken, sjekker tildeling og status, lagrer vurderingen og publiserer
+ * Låser saken, sjekker status, lagrer vurderingen og publiserer
  * [EventData.VilkarsvurderingOppdatert] i kallerens transaksjon.
  */
 @OptIn(ExperimentalTime::class)
@@ -239,10 +200,6 @@ fun JdbcTransaction.oppdaterVilkarsvurdering(
         .singleOrNull()
         ?: return OppdaterVilkarResultat.SakIkkeFunnet
 
-    // Sakraden er låst over, så tildelingen kan ikke endres før vurderingen er lagret.
-    if (!erSaksbehandlerPåSak(principal, sakId)) {
-        return OppdaterVilkarResultat.IkkeTildelt
-    }
     if (sak[SakTable.status] != Saksstatus.UNDER_BEHANDLING.name) {
         return OppdaterVilkarResultat.IkkeUnderBehandling
     }
@@ -308,76 +265,6 @@ private suspend fun ApplicationCall.sakIdParameter(): UUID? {
         respond(HttpStatusCode.BadRequest, mapOf("message" to "ugyldig sakId"))
     }
     return sakId
-}
-
-/**
- * Sjekker med [AzureAdPrincipal.harTilgangTilEnhet] at saksbehandler har tilgang til sakens
- * behandlende enhet. Saker uten enhet er ikke tilgjengelige for noen. Svarer 403 og returnerer
- * false ved avslag. Fail-closed: feil mot entra-proxy gir 503.
- */
-private suspend fun ApplicationCall.sjekkTilgangTilEnhet(
-    principal: AzureAdPrincipal,
-    sakId: UUID,
-    behandlendeEnhet: String?,
-): Boolean {
-    val harTilgangTilEnhet = try {
-        behandlendeEnhet != null && principal.harTilgangTilEnhet(behandlendeEnhet)
-    } catch (e: Exception) {
-        e.rethrowIfCancellation()
-        log.error("Henting av enheter fra entra-proxy feilet ({}), avviser oppslag", e.javaClass.simpleName)
-        respond(HttpStatusCode.ServiceUnavailable, mapOf("message" to "tilgangskontroll er ikke tilgjengelig"))
-        return false
-    }
-    if (!harTilgangTilEnhet) {
-        log.info("Tilgang avvist: saksbehandler mangler tilgang til enhet for sakId={}", sakId)
-        respond(
-            HttpStatusCode.Forbidden,
-            TilgangAvvistResponse(
-                kode = IKKE_TILGANG_ENHET,
-                begrunnelse = "Du har ikke tilgang til enheten som behandler saken",
-            ),
-        )
-    }
-    return harTilgangTilEnhet
-}
-
-/**
- * Sjekker at Tilgangsmaskinen (kjerneregler) godtar oppslag på den ansatte. Svarer 403 og
- * returnerer false ved avslag. Fail-closed: feil mot Tilgangsmaskinen gir 503.
- */
-private suspend fun ApplicationCall.sjekkTilgangsmaskin(
-    principal: AzureAdPrincipal,
-    sakId: UUID,
-    fnr: String,
-    tilgangsmaskinClient: TilgangsmaskinClient,
-): Boolean {
-    val tilgang = try {
-        tilgangsmaskinClient.evaluer(
-            userToken = principal.subjectToken,
-            brukerIdent = fnr,
-            regelsett = Regelsett.KJERNE,
-        )
-    } catch (e: Exception) {
-        e.rethrowIfCancellation()
-        log.error("Tilgangskontroll feilet for sakId={}, avviser oppslag", sakId, e)
-        respond(
-            HttpStatusCode.ServiceUnavailable,
-            mapOf("message" to "tilgangskontroll er ikke tilgjengelig"),
-        )
-        return false
-    }
-
-    return when (tilgang) {
-        Tilgangsresultat.Innvilget -> true
-        is Tilgangsresultat.Avvist -> {
-            log.info("Tilgang avvist av Tilgangsmaskinen for sakId={}", sakId)
-            respond(
-                HttpStatusCode.Forbidden,
-                TilgangAvvistResponse(kode = tilgang.kode, begrunnelse = tilgang.begrunnelse),
-            )
-            false
-        }
-    }
 }
 
 private val KREVER_SAKSBEHANDLER_ELLER_BESLUTTER = mapOf("message" to "krever rolle saksbehandler eller beslutter")
