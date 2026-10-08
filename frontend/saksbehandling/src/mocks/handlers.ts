@@ -255,8 +255,6 @@ function finnSakMedTilgang(sakId: string): SakListeElement | Response {
   return sak;
 }
 
-const VILKAR_IDER = new Set<string>(Object.keys(VILKAR_TEKSTER));
-
 export const handlers = [
   http.get(SESSION_URL, () =>
     HttpResponse.json({
@@ -297,18 +295,6 @@ export const handlers = [
     { sakId: string },
     { vilkar?: string; godkjent?: boolean | null; notat?: string | null }
   >("/api/saksbehandling/v1/saker/:sakId/vilkarsvurdering", async ({ params, request }) => {
-    const body = await request.json().catch(() => null);
-    const vilkar = body?.vilkar;
-    const godkjent = body?.godkjent;
-
-    if (
-      !vilkar ||
-      !VILKAR_IDER.has(vilkar) ||
-      !(godkjent === null || typeof godkjent === "boolean")
-    ) {
-      return HttpResponse.json({ message: "ugyldig vilkårsvurdering" }, { status: 400 });
-    }
-
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;
 
@@ -317,6 +303,13 @@ export const handlers = [
         { kode: "IKKE_TILDELT_SAK", begrunnelse: "Du er ikke tildelt saken" },
         { status: 403 }
       );
+    }
+
+    const body = await request.json().catch(() => null);
+    const vilkar = body?.vilkar;
+    const godkjent = body?.godkjent;
+    if (typeof vilkar !== "string" || !(godkjent === null || typeof godkjent === "boolean")) {
+      return HttpResponse.json({ message: "ugyldig vilkårsvurdering" }, { status: 400 });
     }
     if (sak.status !== "UNDER_BEHANDLING") {
       return HttpResponse.json({ message: "Saken er ikke under behandling" }, { status: 409 });

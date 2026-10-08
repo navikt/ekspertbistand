@@ -11,7 +11,7 @@ import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.handlers.*
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
-import no.nav.ekspertbistand.saksbehandling.Vilkar
+import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.aggregateRootId
 import no.nav.ekspertbistand.tilsagndata.aggregateRootId
@@ -327,9 +327,7 @@ sealed interface EventData {
     data class VilkarsvurderingOppdatert(
         val sakId: String,
         val soknadId: String,
-        val vilkar: Vilkar,
-        val godkjent: Boolean?,
-        val notat: String?,
+        val vurdering: VilkarsvurderingRequest,
         val vurdertAvIdent: String,
         val tidspunkt: Instant,
     ) : EventData {

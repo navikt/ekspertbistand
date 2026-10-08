@@ -17,6 +17,7 @@ import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import no.nav.ekspertbistand.infrastruktur.valider
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -25,7 +26,6 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
-import org.jetbrains.exposed.v1.jdbc.upsert
 import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.time.Clock
@@ -128,6 +128,9 @@ suspend fun Application.configureVilkarsvurderingApiV1() {
                         OppdaterVilkarResultat.SakIkkeFunnet ->
                             call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
 
+                        OppdaterVilkarResultat.VilkarIkkeFunnet ->
+                            call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke vilkår på saken"))
+
                         OppdaterVilkarResultat.IkkeUnderBehandling ->
                             call.respond(
                                 HttpStatusCode.Conflict,
@@ -166,12 +169,14 @@ fun hentVilkarsvurdering(sakId: UUID): List<VilkarsvurderingDTO> {
 sealed interface OppdaterVilkarResultat {
     data class Oppdatert(val vurdering: VilkarsvurderingDTO) : OppdaterVilkarResultat
     data object SakIkkeFunnet : OppdaterVilkarResultat
+    data object VilkarIkkeFunnet : OppdaterVilkarResultat
     data object IkkeUnderBehandling : OppdaterVilkarResultat
 }
 
 /**
- * Låser saken, sjekker status, lagrer vurderingen og publiserer
- * [EventData.VilkarsvurderingOppdatert] i kallerens transaksjon.
+ * Låser saken, sjekker status, oppdaterer vurderingen og publiserer
+ * [EventData.VilkarsvurderingOppdatert] i kallerens transaksjon. Oppdaterer kun en eksisterende
+ * vilkårsrad (opprettet av [opprettVilkarForSak]); finnes ikke raden, legges den ikke til.
  */
 @OptIn(ExperimentalTime::class)
 fun JdbcTransaction.oppdaterVilkarsvurdering(
@@ -194,13 +199,16 @@ fun JdbcTransaction.oppdaterVilkarsvurdering(
 
     val notat = request.notat?.trim()?.ifEmpty { null }
 
-    SaksvilkarTable.upsert {
-        it[SaksvilkarTable.sakId] = sakId
-        it[vilkarId] = request.vilkar.name
+    val oppdatert = SaksvilkarTable.update({
+        (SaksvilkarTable.sakId eq sakId) and (SaksvilkarTable.vilkarId eq request.vilkar.name)
+    }) {
         it[godkjent] = request.godkjent
         it[SaksvilkarTable.notat] = notat
         it[vurdertTidspunkt] = tidspunkt
         it[vurdertAvIdent] = navIdent
+    }
+    if (oppdatert == 0) {
+        return OppdaterVilkarResultat.VilkarIkkeFunnet
     }
     SakTable.update({ SakTable.sakId eq sakId }) {
         it[sistEndret] = tidspunkt
@@ -209,9 +217,7 @@ fun JdbcTransaction.oppdaterVilkarsvurdering(
         EventData.VilkarsvurderingOppdatert(
             sakId = sakId.toString(),
             soknadId = sak[SakTable.soknadId].toString(),
-            vilkar = request.vilkar,
-            godkjent = request.godkjent,
-            notat = notat,
+            vurdering = request.copy(notat = notat),
             vurdertAvIdent = navIdent,
             tidspunkt = tidspunkt,
         )
