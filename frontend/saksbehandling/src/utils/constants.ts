@@ -6,6 +6,8 @@ export const SAKSBEHANDLING_SAKER_URL = "/api/saksbehandling/v1/saker";
 export const SAKSBEHANDLING_SAK_URL = (sakId: string) => `/api/saksbehandling/v1/saker/${sakId}`;
 export const SAKSBEHANDLING_VILKARSVURDERING_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/vilkarsvurdering`;
+export const SAKSBEHANDLING_TILDELING_URL = (sakId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/tildeling`;
 export const SAKSBEHANDLING_SAKSLOGG_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/logg`;
 export const SAKSBEHANDLING_KONTONUMMER_URL = (orgnr: string) =>

@@ -1,10 +1,18 @@
-import { ArrowLeftIcon, CheckmarkCircleIcon, ChevronRightIcon } from "@navikt/aksel-icons";
+import {
+  ArrowLeftIcon,
+  CheckmarkCircleIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+} from "@navikt/aksel-icons";
 import {
   Accordion,
+  ActionMenu,
   Alert,
   BodyLong,
   BodyShort,
   Box,
+  Button,
   CopyButton,
   HGrid,
   HStack,
@@ -17,14 +25,16 @@ import {
 } from "@navikt/ds-react";
 import { useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
-import { NavLink, useParams } from "react-router";
+import { NavLink, useNavigate, useParams } from "react-router";
 import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
 import Sakslogg from "../components/Sakslogg";
 import VilkårItem from "../components/VilkårItem";
-import { useSak } from "../hooks/useSak";
+import { type SakDetaljer, useSak } from "../hooks/useSak";
+import { useTildeling } from "../hooks/useTildeling";
 import { useVilkår } from "../hooks/useVilkår";
 import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
+import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import type { HttpError } from "../utils/http";
 import { GOSYS_URL, MODIA_URL, OVERSIKT_PATH } from "../utils/constants";
 
@@ -50,6 +60,64 @@ function Spørsmål({ label, children }: { label: string; children: React.ReactN
   );
 }
 
+type TildelingProps = {
+  sak: SakDetaljer;
+  tildelMeg: () => Promise<boolean>;
+  frigjoer: () => Promise<boolean>;
+  isSaving: boolean;
+};
+
+function Tildeling({ sak, tildelMeg, frigjoer, isSaving }: TildelingProps) {
+  const innloggetAnsatt = useInnloggetAnsatt();
+  const navigate = useNavigate();
+  const [menyÅpen, setMenyÅpen] = useState(false);
+
+  const frigjoerOgGåTilOversikten = async () => {
+    if (await frigjoer()) navigate(OVERSIKT_PATH);
+  };
+
+  if (innloggetAnsatt && sak.saksbehandlerIdent === innloggetAnsatt.id) {
+    return (
+      <HStack gap="space-16" align="center">
+        <BodyShort>Saken er tildelt meg</BodyShort>
+        <ActionMenu open={menyÅpen} onOpenChange={setMenyÅpen}>
+          <ActionMenu.Trigger>
+            <Button size="small" loading={isSaving}>
+              <HStack as="span" gap="space-4" align="center">
+                Meny
+                {menyÅpen ? <ChevronUpIcon aria-hidden /> : <ChevronDownIcon aria-hidden />}
+              </HStack>
+            </Button>
+          </ActionMenu.Trigger>
+          <ActionMenu.Content>
+            <ActionMenu.Group label="Legg behandlingen tilbake">
+              <ActionMenu.Item onSelect={() => void frigjoerOgGåTilOversikten()}>
+                Frigjør oppgave
+              </ActionMenu.Item>
+            </ActionMenu.Group>
+          </ActionMenu.Content>
+        </ActionMenu>
+      </HStack>
+    );
+  }
+
+  return (
+    <HStack gap="space-16" align="center">
+      {sak.saksbehandlerNavn && <BodyShort>Saken er tildelt {sak.saksbehandlerNavn}</BodyShort>}
+      {sak.kanTildeleMeg && (
+        <Button
+          size="small"
+          variant="secondary"
+          loading={isSaving}
+          onClick={() => void tildelMeg()}
+        >
+          Tildel meg
+        </Button>
+      )}
+    </HStack>
+  );
+}
+
 type Fane = "vilkarsvurdering" | "forelopig-vedtak";
 
 function feilmelding(error: HttpError | undefined) {
@@ -71,6 +139,7 @@ export default function SakPage() {
   const sakId = sak?.sakId;
   const { vilkår, error: vilkårError, isLoading: vilkårLaster } = useVilkår(sakId);
   const { lagreVurdering, isSaving, error: lagreError } = useVilkårsvurdering(sakId ?? "");
+  const { error: tildelingError, ...tildeling } = useTildeling(sakId ?? "");
   const [fane, setFane] = useState<Fane>("vilkarsvurdering");
 
   if (isLoading) return <Loader size="large" title="Laster sak" />;
@@ -117,8 +186,18 @@ export default function SakPage() {
               Tilbake til liste av saker
             </BodyShort>
           </Link>
-          <Sakslogg sakId={sakId ?? ""} />
+          <HStack gap="space-16" align="center">
+            <Tildeling sak={sak} {...tildeling} />
+            <Sakslogg sakId={sakId ?? ""} />
+          </HStack>
         </HStack>
+        {tildelingError && (
+          <Box paddingBlock="space-8 space-0">
+            <Alert variant="error" size="small">
+              {tildelingError.message}
+            </Alert>
+          </Box>
+        )}
       </Box>
 
       <main>
