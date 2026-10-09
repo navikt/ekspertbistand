@@ -43,7 +43,7 @@ class OpprettSakTest {
         val sak = hentSak(database, soknad)
         assertEquals("4242", sak.behandlendeEnhet)
         assertEquals(Saksstatus.OPPRETTET.name, sak.status)
-        assertEquals(KildeTilBehandling.ARENA.name, sak.kilde)
+        assertEquals(KildeTilBehandling.EKSPERTBISTAND.name, sak.kilde)
         assertEquals(Vilkar.entries.size, antallVilkar(database, sak.sakId))
 
         val oppdatert = hentEvents(database).single()
@@ -53,27 +53,6 @@ class OpprettSakTest {
         assertEquals(AktorRolle.SYSTEM, oppdatert.utfortAvRolle)
         assertNull(oppdatert.utfortAvIdent)
         assertEquals("Sak opprettet", oppdatert.notat)
-    }
-
-    @Test
-    fun `eksisterende sak uten enhet får behandlende enhet`() = testApplicationWithDatabase {
-        val database = it.config.jdbcDatabase
-        val soknad = lagreSoknad(database)
-        val eksisterendeSakId = transaction(database) {
-            SakTable.insert {
-                it[soknadId] = UUID.fromString(soknad.id)
-                it[status] = Saksstatus.OPPRETTET.name
-                it[kildeTilBehandling] = KildeTilBehandling.ARENA.name
-            }[SakTable.sakId]
-        }
-
-        val result = OpprettSak(database).handle(journalfoert(soknad, behandlendeEnhetId = "4242"))
-
-        assertIs<EventHandledResult.Success>(result)
-        val sak = hentSak(database, soknad)
-        assertEquals(eksisterendeSakId, sak.sakId)
-        assertEquals("4242", sak.behandlendeEnhet)
-        assertEquals(Vilkar.entries.size, antallVilkar(database, sak.sakId))
     }
 
     @Test

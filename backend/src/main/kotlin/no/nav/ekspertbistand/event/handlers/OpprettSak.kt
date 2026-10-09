@@ -95,7 +95,7 @@ class OpprettSak(
             SakTable.insertIgnore {
                 it[SakTable.soknadId] = soknadId
                 it[status] = Saksstatus.OPPRETTET.name
-                it[kildeTilBehandling] = KildeTilBehandling.ARENA.name
+                it[kildeTilBehandling] = KildeTilBehandling.EKSPERTBISTAND.name
                 it[SakTable.behandlendeEnhet] = behandlendeEnhet
                 it[opprettet] = tidspunkt
                 it[sistEndret] = tidspunkt

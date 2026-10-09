@@ -10,6 +10,7 @@ import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.handlers.*
+import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.soknad.DTO
@@ -89,7 +90,7 @@ sealed interface EventData {
      * på at vi er kilde til saken.
      *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerNotatArenaSakOpprettet] og
-     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottatt].
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIAltinn].
      */
     @Serializable
     @SerialName("tiltaksgjennomforingOpprettet")
@@ -394,10 +395,17 @@ suspend fun Application.configureEventHandlers() {
     val eventManager = EventManager {
         // Registrer all event handlers here
         register(dependencies.create(JournalfoerInnsendtSoknad::class))
-        register(dependencies.create(OpprettSak::class))
-        register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))
-        register(dependencies.create(JournalfoerNotatArenaSakOpprettet::class))
-        register(dependencies.create(VarsleArbeidsgiverSoknadMottatt::class))
+        basedOnEnvSuspending(
+            prod = {
+                register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))
+                register(dependencies.create(JournalfoerNotatArenaSakOpprettet::class))
+                register(dependencies.create(VarsleArbeidsgiverSoknadMottattBehandlesIAltinn::class))
+            },
+            other = {
+                register(dependencies.create(OpprettSak::class))
+            }
+        )
+
         register(dependencies.create(JournalfoerTilskuddsbrev::class))
         register(dependencies.create(JournalfoerTilskuddsbrevKildeAltinn::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadGodkjent::class))

@@ -10,6 +10,8 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventLog
 import no.nav.ekspertbistand.event.LoggedEvent.Companion.tilLoggedEvent
 import no.nav.ekspertbistand.event.ProcessingStatus.COMPLETED
+import no.nav.ekspertbistand.infrastruktur.basedOnEnv
+import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -124,12 +126,23 @@ object ProjectionBuilderState : Table("projection_builder_state") {
 }
 
 suspend fun Application.configureProjectionBuilders() {
-    val projectionBuilders = listOf(
-        // register all projection builders here
-        dependencies.create(TilskuddsbrevVistProjection::class),
-        dependencies.create(SoknadBehandletForsinkelseProjection::class),
-        dependencies.create(SakProjection::class),
-    )
+    // register all projection builders here
+    val projectionBuilders =
+        basedOnEnvSuspending(
+            prod = {
+                listOf(
+                    dependencies.create(TilskuddsbrevVistProjection::class),
+                    dependencies.create(SoknadBehandletForsinkelseProjection::class),
+                    dependencies.create(SakProjection::class)
+                )
+            },
+            other = {
+                listOf(
+                    dependencies.create(TilskuddsbrevVistProjection::class),
+                    dependencies.create(SoknadBehandletForsinkelseProjection::class),
+                )
+            }
+        )
 
     projectionBuilders.forEach { builder ->
         launch {
