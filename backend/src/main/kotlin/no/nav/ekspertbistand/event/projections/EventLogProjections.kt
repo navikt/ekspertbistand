@@ -1,8 +1,7 @@
 package no.nav.ekspertbistand.event.projections
 
-import io.ktor.server.application.Application
-import io.ktor.server.plugins.di.create
-import io.ktor.server.plugins.di.dependencies
+import io.ktor.server.application.*
+import io.ktor.server.plugins.di.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import no.nav.ekspertbistand.event.Event
@@ -10,7 +9,6 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventLog
 import no.nav.ekspertbistand.event.LoggedEvent.Companion.tilLoggedEvent
 import no.nav.ekspertbistand.event.ProcessingStatus.COMPLETED
-import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
@@ -21,7 +19,6 @@ import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.ForUpdate
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption.PostgreSQL.MODE.SKIP_LOCKED
 import org.jetbrains.exposed.v1.jdbc.*
-import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime

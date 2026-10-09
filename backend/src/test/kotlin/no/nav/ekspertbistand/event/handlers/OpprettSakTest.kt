@@ -5,13 +5,7 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
-import no.nav.ekspertbistand.norg.BehandlendeEnhetService
-import no.nav.ekspertbistand.saksbehandling.AktorRolle
-import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
-import no.nav.ekspertbistand.saksbehandling.SakTable
-import no.nav.ekspertbistand.saksbehandling.Saksstatus
-import no.nav.ekspertbistand.saksbehandling.SaksvilkarTable
-import no.nav.ekspertbistand.saksbehandling.Vilkar
+import no.nav.ekspertbistand.saksbehandling.*
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
@@ -19,16 +13,11 @@ import no.nav.ekspertbistand.soknad.tilSoknadDTO
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class OpprettSakTest {
 
