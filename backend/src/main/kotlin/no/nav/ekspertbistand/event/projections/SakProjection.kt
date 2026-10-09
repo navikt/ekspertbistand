@@ -6,9 +6,9 @@ import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
+import no.nav.ekspertbistand.event.handlers.OpprettSak.Companion.opprettVilkarForSak
 import no.nav.ekspertbistand.saksbehandling.frigjoerSak
 import no.nav.ekspertbistand.saksbehandling.tildelSak
-import no.nav.ekspertbistand.saksbehandling.opprettVilkarForSak
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.and
@@ -27,7 +27,9 @@ import kotlin.time.Instant
 
 /**
  * Backfiller `sak`-tabellen fra event-loggen for søknader som behandles i Arena.
- * Saker kan også opprettes utenfor projeksjonen. Se `specifications/sak_projection.md`.
+ * Nye saker opprettes av [no.nav.ekspertbistand.event.handlers.OpprettSak], som også setter behandlende
+ * enhet. Projeksjonen beholdes for eldre søknader og status-overganger, og skal på sikt erstattes.
+ * Se `specifications/sak_projection.md`.
  *
  * - [EventData.SoknadInnsendt] oppretter saken (`OPPRETTET`, kilde `ARENA`), men kun hvis søknaden
  *   fortsatt finnes og det ikke allerede finnes en sak for søknaden. Ved replay kan søknaden være

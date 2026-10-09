@@ -32,7 +32,9 @@ behandlingen — ikke innsendingen.
 
 ### `sak`
 
-Saksbehandlingsdomenet for en behandlet søknad.
+Saksbehandlingsdomenet for en behandlet søknad. Saken opprettes av handleren `OpprettSak` når søknaden er
+journalført (`InnsendtSoknadJournalfoert`), sammen med alle vilkår.
+`SakProjection` backfiller saker for eldre søknader.
 
 | Kolonne | Type | Constraints | Beskrivelse |
 |---------|------|-------------|-------------|
@@ -40,6 +42,8 @@ Saksbehandlingsdomenet for en behandlet søknad.
 | `soknad_id` | UUID | NOT NULL, UNIQUE, FK → `soknad(id)` | Søknaden saken behandler. UNIQUE håndhever én sak per søknad. |
 | `status` | TEXT | NOT NULL, default `OPPRETTET` | Sakens tilstand i livsløpet. Se `Saksstatus`. |
 | `kilde_til_behandling` | TEXT | NOT NULL | Hva som utløste behandlingen. Se `KildeTilBehandling`. Default ARENA |
+| `behandlende_enhet` | TEXT | NULL | NAV-enheten som behandler saken — NORG-enhetsnummer (4 siffer, ledende nuller bevart). Null til enhet er satt. Settes av `OpprettSak` når saken opprettes. |
+| `saksbehandler_ident` | TEXT | NULL | NAV-ident til saksbehandler som utreder. Null før tildeling. |
 | `behandlende_enhet` | TEXT | NULL | NAV-enheten som behandler saken — NORG-enhetsnummer (4 siffer, ledende nuller bevart). Null til enhet er satt. |
 | `saksbehandler_ident` | TEXT | NULL | NAV-ident til saksbehandler som utreder. Null før tildeling og etter frigjøring. |
 | `saksbehandler_navn` | TEXT | NULL | Navnet til saksbehandleren fra entra-proxy da saken ble tildelt. Satt når og bare når `saksbehandler_ident` er satt (CHECK `chk_saksbehandler_navn_med_ident`). |
@@ -243,7 +247,8 @@ soknad 1 ──── 1 sak 1 ──── N saksvilkar
   over). Krever kodeomlegging i `RefusjonDb` først, deretter egen contract-migrasjon.
 - `V19__saksvilkar_rad_per_vilkar.sql` sletter `saksvilkar` og oppretter den på nytt med én rad
   per vilkår. Tabellen var tom fordi ingen kode skrev til den. Vilkårsradene opprettes av
-  `SakProjection` (`Sak-v3`), som kjøres på nytt og også gir vilkår til eksisterende saker.
+  `OpprettSak` for nye saker og av `SakProjection` (`Sak-v3`), som kjøres på nytt og også gir vilkår
+  til eksisterende saker.
 
 ### Rollback
 

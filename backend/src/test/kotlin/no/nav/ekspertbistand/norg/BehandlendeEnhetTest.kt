@@ -89,7 +89,7 @@ class BehandlendeEnhetTest {
     }
 
     @Test
-    fun `Behandlende enhet for ugradert arbeidstaker der enhet har ulik id i arena og norg`() = testApplication {
+    fun `Behandlende enhet returneres med Norg-nummer også når Arena bruker et annet`() = testApplication {
         setNorgApiRespons(
             ugradertResponse = {
                 listOf(
@@ -113,7 +113,20 @@ class BehandlendeEnhetTest {
         )
 
         val enhet = service.hentBehandlendeEnhet(AdressebeskyttelseGradering.UGRADERT, "42")
-        assertEquals(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA, enhet)
+        assertEquals(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_NORG, enhet)
+    }
+
+    @Test
+    fun `Norg-nummer mappes til Arena-nummer og tilbake`() {
+        assertEquals(
+            BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA,
+            BehandlendeEnhetService.norgTilArenaEnhetNr(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_NORG),
+        )
+        assertEquals("1337", BehandlendeEnhetService.norgTilArenaEnhetNr("1337"))
+        assertEquals(
+            BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_NORG,
+            BehandlendeEnhetService.arenaTilNorgEnhetNr(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_ARENA),
+        )
     }
 
 }

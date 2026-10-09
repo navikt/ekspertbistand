@@ -53,7 +53,7 @@ class VarsleArbeidsgiverSoknadMottattTest {
         )
         startApplication()
 
-        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
 
         val event = Event(
             id = 1L,
@@ -74,7 +74,7 @@ class VarsleArbeidsgiverSoknadMottattTest {
             mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") })
         )
         startApplication()
-        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
 
         val event = Event(
             id = 1L,
@@ -96,7 +96,7 @@ class VarsleArbeidsgiverSoknadMottattTest {
                 mutableListOf({ throw Exception("Test feil") }, { NyBeskjedVellykket(id = "beskjed-456") })
             )
             startApplication()
-            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
 
             val event = Event(
                 id = 1L,
@@ -161,7 +161,7 @@ private fun ApplicationTestBuilder.setupTestApplication(db: TestDatabase) {
                 successAzureAdTokenProvider
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
-            provide(VarsleArbeidsgiverSoknadMottatt::class)
+            provide(VarsleArbeidsgiverSoknadMottattBehandlesIAltinn::class)
         }
         configureAuthentication()
     }

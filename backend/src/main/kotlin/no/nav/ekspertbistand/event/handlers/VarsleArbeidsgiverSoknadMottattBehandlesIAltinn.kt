@@ -19,7 +19,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
  *
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen om at søknad er mottatt og under behandling.
  */
-class VarsleArbeidsgiverSoknadMottatt(
+class VarsleArbeidsgiverSoknadMottattBehandlesIAltinn(
     private val produsentApiKlient: ProdusentApiKlient,
     database: Database
 ) : EventHandler<EventData.TiltaksgjennomforingOpprettet> {

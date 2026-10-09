@@ -16,7 +16,6 @@ import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
-import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -153,17 +152,6 @@ enum class Vilkar {
     ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING,
     DELTAKER_HAR_SYKEFRAVAERSHISTORIKK,
     EKSPERT_HAR_KOMPETANSE,
-}
-
-/**
- * Oppretter alle vilkår for saken som ikke vurdert. Idempotent: eksisterende rader beholdes.
- * Må kalles i en pågående transaksjon.
- */
-fun opprettVilkarForSak(sakId: UUID) {
-    SaksvilkarTable.batchInsert(Vilkar.entries, ignore = true, shouldReturnGeneratedValues = false) { vilkar ->
-        this[SaksvilkarTable.sakId] = sakId
-        this[SaksvilkarTable.vilkarId] = vilkar.name
-    }
 }
 
 class SoknadIkkeFunnetException : RuntimeException()

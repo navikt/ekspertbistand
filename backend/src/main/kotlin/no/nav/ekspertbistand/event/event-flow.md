@@ -48,6 +48,7 @@ flowchart TD
     h_LagreTilsagnsData["LagreTilsagnsData"]:::handler
     h_LagreTilsagnsDataKildeAltinn["LagreTilsagnsDataKildeAltinn"]:::handler
     h_MarkerSakUnderBehandlingIArena["MarkerSakUnderBehandlingIArena"]:::handler
+    h_OpprettSak["OpprettSak"]:::handler
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad["OpprettTiltaksgjennomfoeringForInnsendtSoknad"]:::handler
     h_SettAvlystSoknadStatus["SettAvlystSoknadStatus"]:::handler
     h_SettGodkjentSoknadStatus["SettGodkjentSoknadStatus"]:::handler
@@ -57,7 +58,7 @@ flowchart TD
     h_VarsleArbeidsgiverSoknadAvlyst["VarsleArbeidsgiverSoknadAvlyst"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
-    h_VarsleArbeidsgiverSoknadMottatt["VarsleArbeidsgiverSoknadMottatt"]:::handler
+    h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn["VarsleArbeidsgiverSoknadMottattBehandlesIAltinn"]:::handler
     h_VilkarsvurderingOppdatertNoop["VilkarsvurderingOppdatertNoop"]:::handler
     p_SakProjection[["SakProjection"]]:::projection
     p_SoknadBehandletForsinkelseProjection[["SoknadBehandletForsinkelseProjection"]]:::projection
@@ -72,6 +73,7 @@ flowchart TD
     h_JournalfoerTilskuddsbrev --> e_TilskuddsbrevJournalfoert
     h_JournalfoerTilskuddsbrevKildeAltinn --> e_TilskuddsbrevJournalfoertKildeAltinn
     h_LagreTilsagnsData --> e_TilsagnsdataLagret
+    h_OpprettSak --> e_SakOppdatert
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
     s_SakApi --> e_SakFrigjort
     s_SakApi --> e_SakTildeltSaksbehandler
@@ -87,6 +89,7 @@ flowchart TD
     e_TilskuddsbrevJournalfoert --> h_LagreTilsagnsData
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_LagreTilsagnsDataKildeAltinn
     e_SaksbehandlingStartetIArena --> h_MarkerSakUnderBehandlingIArena
+    e_InnsendtSoknadJournalfoert --> h_OpprettSak
     e_InnsendtSoknadJournalfoert --> h_OpprettTiltaksgjennomfoeringForInnsendtSoknad
     e_SoknadAvlystIArena --> h_SettAvlystSoknadStatus
     e_TilskuddsbrevJournalfoert --> h_SettGodkjentSoknadStatus
@@ -96,7 +99,7 @@ flowchart TD
     e_SoknadAvlystIArena --> h_VarsleArbeidsgiverSoknadAvlyst
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn
-    e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottatt
+    e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn
     e_VilkarsvurderingOppdatert --> h_VilkarsvurderingOppdatertNoop
     e_InnsendtSoknadJournalfoert -.-> p_SakProjection
     e_SakFrigjort -.-> p_SakProjection
