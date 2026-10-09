@@ -4,7 +4,7 @@
 Tabellen `sak` (V12, spesifisert i `specifications/sak-datamodell.md`) finnes, men ingenting skriver til den.
 Vi lager en `EventLogProjectionBuilder` som bygger `sak` fra event-loggen for søknader som behandles i Arena.
 Projeksjonen er kun for backfilling. Nye saker opprettes av handleren `OpprettSak` (på
-`InnsendtSoknadJournalfoert`), som setter behandlende enhet med en gang. Projeksjonen oppretter derfor aldri
+`InnsendtSoknadJournalfoert`, se `specifications/opprett_sak.md`), som setter behandlende enhet med en gang. Projeksjonen oppretter derfor aldri
 en sak for en søknad som allerede har en. Den beholdes for eldre søknader og for status-overganger, og skal
 på sikt erstattes. Projeksjonen kan ha opprettet saken fra `SoknadInnsendt` før `OpprettSak` kjører, så
 `OpprettSak` setter behandlende enhet også på en eksisterende sak uten enhet. Begge mapper Arena-nummeret i

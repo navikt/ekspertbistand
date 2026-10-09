@@ -12,6 +12,9 @@ eller leser fra den. Vi bygger infrastrukturen for å vise saksloggen til saksbe
 **Ingen kode publiserer `SakOppdatert` ennå.** Det kommer når saksbehandlingshandlingene (tildeling,
 vurdering, vedtak, refusjon) bygges.
 
+> Oppdatering: `OpprettSak` publiserer nå `SakOppdatert(SYSTEM, null, "Sak opprettet")` når en sak opprettes.
+> Se `specifications/opprett_sak.md`.
+
 Trello-kort: ikke koblet, fordi Trello CLI mangler auth. Lenken legges til her før commit.
 
 ## Avklarte beslutninger
