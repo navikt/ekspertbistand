@@ -8,7 +8,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
-import no.nav.common.audit_log.cef.CefMessageEvent
 import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
@@ -25,7 +24,6 @@ import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.jetbrains.exposed.v1.jdbc.update
 import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.time.Clock
@@ -48,10 +46,13 @@ private val log = LoggerFactory.getLogger("VilkarsvurderingApi")
  * - at innlogget bruker er saksbehandler på saken ([sjekkErSaksbehandlerPåSak])
  * - at saken er [Saksstatus.UNDER_BEHANDLING]
  *
- * Begge sjekker i tillegg Tilgangsmaskinen (kjerneregler) og sporingslogger til ArcSight.
- * Eksterne tilgangssjekker er fail-closed (503). Status sjekkes på den låste
- * sakraden i samme transaksjon som vurderingen lagres og [EventData.VilkarsvurderingOppdatert]
- * publiseres.
+ * Begge sjekker i tillegg Tilgangsmaskinen (kjerneregler). GET sporingslogger til ArcSight.
+ * Eksterne tilgangssjekker er fail-closed (503). Status og vilkårsrad sjekkes på den låste
+ * sakraden før [EventData.VilkarsvurderingOppdatert] publiseres.
+ *
+ * PATCH svarer 202 Accepted: selve lagringen gjøres asynkront av
+ * [no.nav.ekspertbistand.event.handlers.OppdaterVilkarsvurdering]. Tidspunktet for vurderingen
+ * settes her og ligger på eventen, og er det som lagres i databasen.
  */
 @OptIn(ExperimentalTime::class)
 suspend fun Application.configureVilkarsvurderingApiV1() {
@@ -105,33 +106,27 @@ suspend fun Application.configureVilkarsvurderingApiV1() {
                     valider(request)
 
                     val resultat = transaction(database) {
-                        oppdaterVilkarsvurdering(
+                        publiserVilkarsvurdering(
                             sakId = sakId,
                             request = request,
-                            principal = principal,
+                            navIdent = principal.navIdent,
                             tidspunkt = Clock.System.now(),
                         )
                     }
 
                     when (resultat) {
-                        is OppdaterVilkarResultat.Oppdatert -> {
-                            auditClient.loggOppslag(
-                                navIdent = principal.navIdent,
-                                fnr = sak.ansattFnr,
-                                tillatt = true,
-                                melding = "Saksbehandler har vurdert vilkår i sak om ekspertbistand",
-                                event = CefMessageEvent.UPDATE,
-                            )
-                            call.respond(resultat.vurdering)
+                        PubliserVilkarResultat.Publisert -> {
+                            log.info("Vilkårsvurdering publisert for sakId={}", sakId)
+                            call.respond(HttpStatusCode.Accepted)
                         }
 
-                        OppdaterVilkarResultat.SakIkkeFunnet ->
+                        PubliserVilkarResultat.SakIkkeFunnet ->
                             call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke sak"))
 
-                        OppdaterVilkarResultat.VilkarIkkeFunnet ->
+                        PubliserVilkarResultat.VilkarIkkeFunnet ->
                             call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke vilkår på saken"))
 
-                        OppdaterVilkarResultat.IkkeUnderBehandling ->
+                        PubliserVilkarResultat.IkkeUnderBehandling ->
                             call.respond(
                                 HttpStatusCode.Conflict,
                                 mapOf("message" to "Saken er ikke under behandling"),
@@ -166,72 +161,51 @@ fun hentVilkarsvurdering(sakId: UUID): List<VilkarsvurderingDTO> {
     }
 }
 
-sealed interface OppdaterVilkarResultat {
-    data class Oppdatert(val vurdering: VilkarsvurderingDTO) : OppdaterVilkarResultat
-    data object SakIkkeFunnet : OppdaterVilkarResultat
-    data object VilkarIkkeFunnet : OppdaterVilkarResultat
-    data object IkkeUnderBehandling : OppdaterVilkarResultat
+sealed interface PubliserVilkarResultat {
+    data object Publisert : PubliserVilkarResultat
+    data object SakIkkeFunnet : PubliserVilkarResultat
+    data object VilkarIkkeFunnet : PubliserVilkarResultat
+    data object IkkeUnderBehandling : PubliserVilkarResultat
 }
 
 /**
- * Låser saken, sjekker status, oppdaterer vurderingen og publiserer
- * [EventData.VilkarsvurderingOppdatert] i kallerens transaksjon. Oppdaterer kun en eksisterende
- * vilkårsrad (opprettet av [no.nav.ekspertbistand.event.handlers.OpprettSak.opprettVilkarForSak]); finnes ikke raden, legges den ikke til.
+ * Låser saken, sjekker status og at vilkårsraden finnes, og publiserer
+ * [EventData.VilkarsvurderingOppdatert] i kallerens transaksjon. Selve lagringen gjøres av
+ * [no.nav.ekspertbistand.event.handlers.OppdaterVilkarsvurdering].
+ * [tidspunkt] settes av endepunktet og er det som lagres i databasen.
  */
 @OptIn(ExperimentalTime::class)
-fun JdbcTransaction.oppdaterVilkarsvurdering(
+fun JdbcTransaction.publiserVilkarsvurdering(
     sakId: UUID,
     request: VilkarsvurderingRequest,
-    principal: AzureAdPrincipal,
+    navIdent: String,
     tidspunkt: Instant,
-): OppdaterVilkarResultat {
-    val navIdent = principal.navIdent
+): PubliserVilkarResultat {
     val sak = SakTable
         .select(SakTable.soknadId, SakTable.status)
         .where { SakTable.sakId eq sakId }
         .forUpdate(ForUpdateOption.ForUpdate)
         .singleOrNull()
-        ?: return OppdaterVilkarResultat.SakIkkeFunnet
+        ?: return PubliserVilkarResultat.SakIkkeFunnet
 
     if (sak[SakTable.status] != Saksstatus.UNDER_BEHANDLING.name) {
-        return OppdaterVilkarResultat.IkkeUnderBehandling
+        return PubliserVilkarResultat.IkkeUnderBehandling
     }
 
-    val notat = request.notat?.trim()?.ifEmpty { null }
+    if (!vilkarFinnes(sakId, request.vilkar)) {
+        return PubliserVilkarResultat.VilkarIkkeFunnet
+    }
 
-    val oppdatert = SaksvilkarTable.update({
-        (SaksvilkarTable.sakId eq sakId) and (SaksvilkarTable.vilkarId eq request.vilkar.name)
-    }) {
-        it[godkjent] = request.godkjent
-        it[SaksvilkarTable.notat] = notat
-        it[vurdertTidspunkt] = tidspunkt
-        it[vurdertAvIdent] = navIdent
-    }
-    if (oppdatert == 0) {
-        return OppdaterVilkarResultat.VilkarIkkeFunnet
-    }
-    SakTable.update({ SakTable.sakId eq sakId }) {
-        it[sistEndret] = tidspunkt
-    }
     publishEventQueue(
         EventData.VilkarsvurderingOppdatert(
             sakId = sakId.toString(),
             soknadId = sak[SakTable.soknadId].toString(),
-            vurdering = request.copy(notat = notat),
+            vurdering = request.copy(notat = request.notat?.trim()?.ifEmpty { null }),
             vurdertAvIdent = navIdent,
             tidspunkt = tidspunkt,
         )
     )
-
-    return OppdaterVilkarResultat.Oppdatert(
-        VilkarsvurderingDTO(
-            vilkar = request.vilkar,
-            godkjent = request.godkjent,
-            notat = notat,
-            vurdertAvIdent = navIdent,
-            vurdertTidspunkt = tidspunkt,
-        )
-    )
+    return PubliserVilkarResultat.Publisert
 }
 
 /** `godkjent = null` nullstiller vurderingen. */
