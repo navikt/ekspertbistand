@@ -3,8 +3,15 @@ package no.nav.ekspertbistand.saksbehandling
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.core.stringLiteral
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
@@ -12,13 +19,16 @@ import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
 import java.util.UUID
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 /**
  * Navs behandling av en søknad. Se `specifications/sak-datamodell.md`.
  *
- * Speiler `sak` fra V12. Fremmednøkler og CHECK-constraints håndheves av databasen.
+ * Speiler `sak` fra V12, med tildelingskolonnene fra V20. Fremmednøkler og CHECK-constraints
+ * håndheves av databasen.
  */
 @OptIn(ExperimentalTime::class)
 object SakTable : Table("sak") {
@@ -28,11 +38,13 @@ object SakTable : Table("sak") {
     val kildeTilBehandling = text("kilde_til_behandling")
     val behandlendeEnhet = text("behandlende_enhet").nullable()
     val saksbehandlerIdent = text("saksbehandler_ident").nullable()
+    val saksbehandlerNavn = text("saksbehandler_navn").nullable()
     val beslutterIdent = text("beslutter_ident").nullable()
     val foreslattUtfall = text("foreslatt_utfall").nullable()
     val arenaSakId = text("arena_sak_id").nullable()
     val refusjonId = uuid("refusjon_id").nullable()
     val sluttrapportId = uuid("sluttrapport_id").nullable()
+    val tildelingEventId = long("tildeling_event_id").nullable()
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
     val sistEndret = timestamp("sist_endret").defaultExpression(CurrentTimestamp)
 
@@ -60,6 +72,61 @@ fun JdbcTransaction.hentGodkjentSakIdForUpdate(soknadId: UUID): UUID {
         ?.get(SakTable.sakId)
         ?: throw SakIkkeFunnetException()
 }
+
+/** Må kalles i en transaksjon. Returnerer null hvis søknaden ikke har sak. */
+fun hentSakIdForSoknad(soknadId: UUID): UUID? =
+    SakTable.select(SakTable.sakId)
+        .where { SakTable.soknadId eq soknadId }
+        .singleOrNull()
+        ?.get(SakTable.sakId)
+
+/**
+ * Tildeler saken til saksbehandleren. Brukes av både handleren og [no.nav.ekspertbistand.event.projections.SakProjection],
+ * så live og replay gir samme resultat. Må kalles i en pågående transaksjon.
+ *
+ * Saken finnes via `soknad_id`, fordi `sak_id` genereres av databasen og blir ny ved replay.
+ * [eventId] lagres i `tildeling_event_id`, og en eldre event skriver aldri over en nyere.
+ * Status går bare fra `OPPRETTET` til `UNDER_BEHANDLING`. Returnerer true når saken ble oppdatert.
+ */
+@OptIn(ExperimentalTime::class)
+fun tildelSak(soknadId: UUID, ident: String, navn: String, eventId: Long, tidspunkt: Instant): Boolean =
+    SakTable.update(
+        where = { (SakTable.soknadId eq soknadId) and nyereTildelingEnn(eventId) }
+    ) {
+        it[saksbehandlerIdent] = ident
+        it[saksbehandlerNavn] = navn
+        it[status] = case()
+            .When(status eq Saksstatus.OPPRETTET.name, stringLiteral(Saksstatus.UNDER_BEHANDLING.name))
+            .Else(status)
+        it[tildelingEventId] = eventId
+        it[sistEndret] = tidspunkt
+    } > 0
+
+/**
+ * Frigjør saken, men bare hvis [ident] fortsatt har den. Har en kollega tatt saken i mellomtiden,
+ * står kollegaens tildeling. Må kalles i en pågående transaksjon. Returnerer true når saken ble
+ * oppdatert. Se [tildelSak] for `soknad_id` og [eventId].
+ *
+ * Status endres ikke: behandlingen er startet, så en frigjort sak blir stående som
+ * `UNDER_BEHANDLING` uten saksbehandler. Vi går ikke tilbake til `OPPRETTET`.
+ */
+@OptIn(ExperimentalTime::class)
+fun frigjoerSak(soknadId: UUID, ident: String, eventId: Long, tidspunkt: Instant): Boolean =
+    SakTable.update(
+        where = {
+            (SakTable.soknadId eq soknadId) and
+                    (SakTable.saksbehandlerIdent eq ident) and
+                    nyereTildelingEnn(eventId)
+        }
+    ) {
+        it[saksbehandlerIdent] = null
+        it[saksbehandlerNavn] = null
+        it[tildelingEventId] = eventId
+        it[sistEndret] = tidspunkt
+    } > 0
+
+private fun nyereTildelingEnn(eventId: Long): Op<Boolean> =
+    SakTable.tildelingEventId.isNull() or (SakTable.tildelingEventId less eventId)
 
 /**
  * Vilkårsvurderingen for en sak, én rad per [Vilkar]. Se `specifications/sak-datamodell.md`.

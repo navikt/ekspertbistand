@@ -121,3 +121,7 @@ data class UtvidetAnsatt(
     val tIdent: String,
 )
 
+fun UtvidetAnsatt.visningsnavn(): String? =
+    visningNavn?.takeIf { it.isNotBlank() }
+        ?: listOfNotNull(fornavn, etternavn).joinToString(" ").trim().ifBlank { null }
+

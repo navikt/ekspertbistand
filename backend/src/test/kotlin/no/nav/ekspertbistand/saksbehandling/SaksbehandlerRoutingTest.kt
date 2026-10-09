@@ -14,6 +14,7 @@ import io.ktor.server.testing.*
 import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.arena.ArenaBehandlingStatus
 import no.nav.ekspertbistand.arena.markerArenaSakUnderBehandling
+import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
@@ -29,9 +30,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
+@OptIn(ExperimentalTime::class)
 class SaksbehandlerRoutingTest {
 
     private val ansattJson = """
@@ -78,6 +82,7 @@ class SaksbehandlerRoutingTest {
                 provide<HttpClient> { client }
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<TilgangsmaskinClient> { tilgangsmaskinClient() }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
@@ -104,13 +109,14 @@ class SaksbehandlerRoutingTest {
         assertEquals("Tore Tang", body.navn)
         assertEquals("tore.tang@nav.no", body.epost)
         assertEquals(2, body.enheter.size)
+        assertEquals("1234", body.gjeldendeEnhet.nummer)
         assertEquals(setOf(Role.SAKSBEHANDLER, Role.BESLUTTER), body.roller)
+        assertTrue(body.updatedAt <= Clock.System.now())
     }
 
     @Test
     fun `uautentisert request gir 401`() = testApplicationWithDatabase { db ->
         mockEntraProxyFull(
-            ansattProvider = { "{}" },
             enheterProvider = { "[]" },
         )
 
@@ -124,6 +130,7 @@ class SaksbehandlerRoutingTest {
                 provide<HttpClient> { client }
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<TilgangsmaskinClient> { tilgangsmaskinClient() }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector { null }
@@ -143,7 +150,6 @@ class SaksbehandlerRoutingTest {
     @Test
     fun `inaktivt token gir 401`() = testApplicationWithDatabase { db ->
         mockEntraProxyFull(
-            ansattProvider = { "{}" },
             enheterProvider = { "[]" },
         )
 
@@ -157,6 +163,7 @@ class SaksbehandlerRoutingTest {
                 provide<HttpClient> { client }
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<TilgangsmaskinClient> { tilgangsmaskinClient() }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
@@ -180,7 +187,6 @@ class SaksbehandlerRoutingTest {
     @Test
     fun `token uten NAVident gir 401`() = testApplicationWithDatabase { db ->
         mockEntraProxyFull(
-            ansattProvider = { "{}" },
             enheterProvider = { "[]" },
         )
 
@@ -194,6 +200,7 @@ class SaksbehandlerRoutingTest {
                 provide<HttpClient> { client }
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<TilgangsmaskinClient> { tilgangsmaskinClient() }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
@@ -235,6 +242,7 @@ class SaksbehandlerRoutingTest {
                 provide<HttpClient> { client }
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<TilgangsmaskinClient> { tilgangsmaskinClient() }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
@@ -261,7 +269,7 @@ class SaksbehandlerRoutingTest {
     }
 
     @Test
-    fun `feil ved gruppeoppslag mot entra-proxy gir 401`() = testApplicationWithDatabase { db ->
+    fun `feil ved gruppeoppslag mot entra-proxy gir 503`() = testApplicationWithDatabase { db ->
         mockEntraProxyFull(
             ansattProvider = { ansattJson },
             enheterProvider = { enheterJson },
@@ -278,6 +286,7 @@ class SaksbehandlerRoutingTest {
                 provide<HttpClient> { client }
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<TilgangsmaskinClient> { tilgangsmaskinClient() }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
@@ -298,7 +307,64 @@ class SaksbehandlerRoutingTest {
             bearerAuth("valid-azure-token")
         }
 
-        assertEquals(HttpStatusCode.Unauthorized, response.status)
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+    }
+
+    @Test
+    fun `principal faar navn fra fornavn og etternavn naar visningNavn mangler`() = testApplicationWithDatabase { db ->
+        val response = megRequest(db, ansattProvider = {
+            """{ "navIdent": "A123456", "fornavn": "Tore", "etternavn": "Tang",
+                 "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" }, "tIdent": "T123456" }"""
+        })
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("Tore Tang", response.body<InnloggetAnsattResponse>().navn)
+    }
+
+    @Test
+    fun `name-claimet i tokenet brukes ikke`() = testApplicationWithDatabase { db ->
+        val response = megRequest(db, introspection = {
+            mockAzureAdIntrospectionResponse.withNavIdent("A123456")
+                .let { it.copy(other = it.other + ("name" to "Navn Fra Token")) }
+        })
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("Tore Tang", response.body<InnloggetAnsattResponse>().navn)
+    }
+
+    @Test
+    fun `entra-proxy kalles en gang per token, ogsaa over flere requester`() = testApplicationWithDatabase { db ->
+        var ansattKall = 0
+        val response = megRequest(db, antallRequester = 3, ansattProvider = {
+            ansattKall++
+            ansattJson
+        })
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(1, ansattKall)
+    }
+
+    @Test
+    fun `feil ved ansattoppslag mot entra-proxy gir 503`() = testApplicationWithDatabase { db ->
+        val response = megRequest(db, ansattProvider = { "dette er ikke gyldig json" })
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+    }
+
+    @Test
+    fun `feil ved enhetsoppslag mot entra-proxy gir 503`() = testApplicationWithDatabase { db ->
+        val response = megRequest(db, enheterProvider = { "dette er ikke gyldig json" })
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+    }
+
+    @Test
+    fun `ansatt uten navn fra entra-proxy gir 500`() = testApplicationWithDatabase { db ->
+        val response = megRequest(db, ansattProvider = {
+            """{ "navIdent": "A123456", "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" }, "tIdent": "T123456" }"""
+        })
+
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
     }
 
     @Test
@@ -481,6 +547,48 @@ class SaksbehandlerRoutingTest {
         handler: MockRequestHandler = { respond("", HttpStatusCode.NoContent) },
     ) = TilgangsmaskinClient(fakeTokenExchanger, HttpClient(MockEngine(handler)))
 
+    private suspend fun ApplicationTestBuilder.megRequest(
+        db: TestDatabase,
+        antallRequester: Int = 1,
+        ansattProvider: (String) -> String = { ansattJson },
+        enheterProvider: (String) -> String = { enheterJson },
+        introspection: () -> TokenIntrospectionResponse = {
+            mockAzureAdIntrospectionResponse.withNavIdent("A123456")
+        },
+    ): HttpResponse {
+        mockEntraProxyFull(
+            ansattProvider = ansattProvider,
+            enheterProvider = enheterProvider,
+            grupperProvider = { grupperJson },
+        )
+
+        val client = createClient {
+            install(ContentNegotiation) { json() }
+        }
+
+        application {
+            dependencies {
+                provide<AzureAdTokenProvider> { successAzureAdTokenProvider }
+                provide<HttpClient> { client }
+                provide<Database> { db.config.jdbcDatabase }
+                provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
+                provide<TilgangsmaskinClient> { tilgangsmaskinClient() }
+                provide<AzureAdTokenIntrospector> {
+                    MockAzureAdIntrospector { if (it == "valid-azure-token") introspection() else null }
+                }
+            }
+
+            configureAuthentication()
+            configureSaksbehandlerApiV1()
+            configureServer()
+        }
+
+        return (1..antallRequester).map {
+            client.get("/api/saksbehandling/v1/meg") { bearerAuth("valid-azure-token") }
+        }.last()
+    }
+
     private suspend fun ApplicationTestBuilder.saksloggRequest(
         db: TestDatabase,
         sakId: String,
@@ -503,6 +611,7 @@ class SaksbehandlerRoutingTest {
                 provide<HttpClient> { client }
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<TilgangsmaskinClient> { tilgangsmaskinClient(tilgangsmaskin) }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
@@ -544,6 +653,7 @@ class SaksbehandlerRoutingTest {
                 provide<HttpClient> { client }
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<TilgangsmaskinClient> { tilgangsmaskinClient() }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {

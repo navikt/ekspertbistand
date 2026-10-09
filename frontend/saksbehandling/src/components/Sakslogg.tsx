@@ -1,8 +1,7 @@
-import { ChevronDownIcon, ChevronUpIcon, ClockDashedIcon } from "@navikt/aksel-icons";
+import { ClockDashedIcon } from "@navikt/aksel-icons";
 import {
   BodyShort,
   Box,
-  Button,
   HStack,
   Loader,
   LocalAlert,
@@ -13,6 +12,7 @@ import {
 } from "@navikt/ds-react";
 import { useId, useState } from "react";
 import { type AktorRolle, type SaksloggInnslag, useSakslogg } from "../hooks/useSakslogg";
+import HeaderKnapp from "./HeaderKnapp";
 
 const rolleTag: Record<
   AktorRolle,
@@ -104,19 +104,14 @@ export default function Sakslogg({ sakId }: { sakId: string }) {
 
   return (
     <>
-      <Button
+      <HeaderKnapp
         ref={setAnchorEl}
-        size="small"
-        icon={<ClockDashedIcon aria-hidden />}
+        tekst="Logg"
+        ikon={<ClockDashedIcon aria-hidden fontSize="1.5rem" />}
+        åpen={open}
         onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
         aria-controls={open ? popoverId : undefined}
-      >
-        <HStack as="span" gap="space-4" align="center">
-          Logg
-          {open ? <ChevronUpIcon aria-hidden /> : <ChevronDownIcon aria-hidden />}
-        </HStack>
-      </Button>
+      />
       <Popover
         id={popoverId}
         open={open}

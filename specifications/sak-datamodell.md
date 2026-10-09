@@ -19,8 +19,8 @@ behandlingen — ikke innsendingen.
 | Sakslogg | **1:N** fra sak | Hendelseslogg / audit trail. |
 | Enum-verdier | `TEXT` i DB, håndhevet i Kotlin | Nye verdier krever ingen DB-migrering (samme mønster som `soknad.status`). |
 | Aktør i logg | `utfort_av_rolle` = `SAKSBEHANDLER`/`BESLUTTER`/`SYSTEM` | Saksbehandlere, besluttere og systemet skriver til loggen. `utfort_av_type` er fjernet i V17. |
-| To-trinns kontroll | Egen `sak_retur`-tabell (1:N) + `foreslatt_utfall` på sak | Strukturert returårsak + full historikk; habilitet håndheves med CHECK + `sakslogg`-sjekk. |
-| Omtildeling | Logges i `sakslogg` (ingen egen tabell) | Gjeldende saksbehandler ligger på `sak.saksbehandler_ident`; historikk dekkes av loggen. |
+| To-trinns kontroll | Egen `sak_retur`-tabell (1:N) + `foreslatt_utfall` på sak | Strukturert returårsak + full historikk. Habilitet gjelder vedtaket: beslutter kan ikke være den som sendte saken til `TIL_BESLUTNING`. |
+| Omtildeling | Logges i `sakslogg` (ingen egen tabell) | Gjeldende saksbehandler ligger på `sak.saksbehandler_ident` og `sak.saksbehandler_navn`; historikk dekkes av loggen. Se [`tildel_meg_sak.md`](tildel_meg_sak.md). |
 
 ## Personvern
 
@@ -41,26 +41,29 @@ Saksbehandlingsdomenet for en behandlet søknad.
 | `status` | TEXT | NOT NULL, default `OPPRETTET` | Sakens tilstand i livsløpet. Se `Saksstatus`. |
 | `kilde_til_behandling` | TEXT | NOT NULL | Hva som utløste behandlingen. Se `KildeTilBehandling`. Default ARENA |
 | `behandlende_enhet` | TEXT | NULL | NAV-enheten som behandler saken — NORG-enhetsnummer (4 siffer, ledende nuller bevart). Null til enhet er satt. |
-| `saksbehandler_ident` | TEXT | NULL | NAV-ident til saksbehandler som utreder. Null før tildeling. |
+| `saksbehandler_ident` | TEXT | NULL | NAV-ident til saksbehandler som utreder. Null før tildeling og etter frigjøring. |
+| `saksbehandler_navn` | TEXT | NULL | Navnet til saksbehandleren fra entra-proxy da saken ble tildelt. Satt når og bare når `saksbehandler_ident` er satt (CHECK `chk_saksbehandler_navn_med_ident`). |
 | `beslutter_ident` | TEXT | NULL | NAV-ident til beslutter (to-trinns kontroll). Null før beslutning. |
 | `foreslatt_utfall` | TEXT | NULL | Saksbehandlers foreløpige vedtak sendt til beslutning (`INNVILGET`/`AVSLATT`). Se `Saksstatus`. Null før innsending. |
 | `arena_sak_id` | TEXT | NULL | Saksnummer i Arena når saken er speilet dit. Null hvis ikke i Arena. |
 | `refusjon_id` | UUID | UNIQUE, FK → `refusjonskrav(id)` | Refusjonskravet for saken (1:1). Null til krav mottas. |
 | `sluttrapport_id` | UUID | UNIQUE, FK → `sluttrapport(sluttrapport_id)` | Sluttrapporten for saken (1:1). Null til rapport mottas. |
+| `tildeling_event_id` | BIGINT | NULL | Id-en til eventen som sist tildelte eller frigjorde saken. En eldre event skriver aldri over en nyere. Null før første tildeling. |
 | `opprettet` | TIMESTAMPTZ | NOT NULL, default `now()` | Når saken ble opprettet. |
 | `sist_endret` | TIMESTAMPTZ | NOT NULL, default `now()` | Sist endret. Oppdateres av applikasjonen ved skriv. |
 
 Indekser: `idx_sak_status(status)`, `idx_sak_saksbehandler_ident(saksbehandler_ident)`,
 `idx_sak_behandlende_enhet(behandlende_enhet)` (saker listes per enhet).
 
-Constraint — habilitet ved to-trinns kontroll (saksbehandler kan ikke være beslutter i samme sak):
+Constraint — en tildelt sak har alltid navn (V20):
 
 ```sql
-ALTER TABLE sak ADD CONSTRAINT chk_saksbehandler_ulik_beslutter
-  CHECK (beslutter_ident IS NULL OR beslutter_ident <> saksbehandler_ident);
+ALTER TABLE sak ADD CONSTRAINT chk_saksbehandler_navn_med_ident
+  CHECK ((saksbehandler_ident IS NULL) = (saksbehandler_navn IS NULL));
 ```
 
-Håndheves også i Kotlin med tydelig feilmelding — CHECK er siste skanse.
+`chk_saksbehandler_ulik_beslutter` fantes fra V12, men er fjernet i V20. En beslutter kan tildele
+seg saken. Habiliteten sjekkes ved vedtak, se `sakslogg` under.
 
 ### `saksvilkar`
 
@@ -93,29 +96,17 @@ til loggen. Se også [`sakslogg.md`](sakslogg.md).
 
 `utfort_av_type` fantes i V12, men er fjernet i V17. Rollen `SYSTEM` erstatter den.
 
-Indeks: `idx_sakslogg_sak_id(sak_id)`, `idx_sakslogg_sak_ident(sak_id, utfort_av_ident)`
-(sistnevnte for rask habilitetssjekk, se under).
+Indeks: `idx_sakslogg_sak_id(sak_id)`, `idx_sakslogg_sak_ident(sak_id, utfort_av_ident)`.
 
-**Habilitet — saksbehandler kan ikke være beslutter i egen sak.** `sakslogg` er kilden for
-denne sjekken, siden den fanger *hele* historikken (også saksbehandlere som er byttet ut ved
-omtildeling). Derfor **skal alle saksbehandler-handlinger logges** med
-`utfort_av_rolle='SAKSBEHANDLER'` og `utfort_av_ident` — ellers svikter sjekken.
+**Habilitet — beslutter kan ikke fatte vedtak på et foreløpig vedtak hen selv sendte til
+beslutning.** Regelen gjelder vedtaket, ikke saken. Den som sendte saken til `TIL_BESLUTNING`, kan
+ikke beslutte den. Andre som har vært saksbehandler på saken, kan. Slik blir ikke en sak stående
+fordi den eneste beslutteren på jobb har vært innom den, og ingen kan omgå topartskontrollen ved å
+få saken tildelt fram og tilbake. Regelen bygges sammen med vedtak, og implementeres i Kotlin
+(sikkerhetskritisk).
 
-Før en person kan settes som beslutter, verifiser at vedkommende aldri har utført en
-handling som saksbehandler på saken:
-
-```sql
-SELECT EXISTS (
-  SELECT 1 FROM sakslogg
-  WHERE sak_id = :sakId
-    AND utfort_av_ident = :kandidatBeslutterIdent
-    AND utfort_av_rolle = 'SAKSBEHANDLER'
-) AS er_inhabil;   -- true → blokker beslutning
-```
-
-To lag utfyller hverandre: CHECK `chk_saksbehandler_ulik_beslutter` på `sak` fanger *nåværende*
-saksbehandler, mens spørringen over fanger *tidligere* saksbehandlere. Habilitetslogikken
-implementeres i Kotlin (sikkerhetskritisk).
+**Alle saksbehandler-handlinger skal logges** med `utfort_av_rolle='SAKSBEHANDLER'` og
+`utfort_av_ident`, fordi loggen er sporet for saken og viser hvem som sendte saken til beslutning.
 
 ### `sluttrapport`
 
