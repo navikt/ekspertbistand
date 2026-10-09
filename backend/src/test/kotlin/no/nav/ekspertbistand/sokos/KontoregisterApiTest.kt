@@ -16,12 +16,15 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.plugins.di.*
 import io.ktor.server.testing.*
 import no.nav.ekspertbistand.configureServer
+import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.infrastruktur.*
-import no.nav.ekspertbistand.mocks.mockEntraProxyGrupper
+import no.nav.ekspertbistand.mocks.mockEntraProxyFull
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 class KontoregisterApiTest {
     private val orgnr = "910825226"
 
@@ -60,7 +63,7 @@ class KontoregisterApiTest {
             install(ContentNegotiation) { json() }
         }
 
-        mockEntraProxyGrupper { """[{ "rolle": "0000-CA-Ekspertbistand_Saksbehandler" }]""" }
+        mockEntraProxyFull(grupperProvider = { """[{ "rolle": "0000-CA-Ekspertbistand_Saksbehandler" }]""" })
 
         application {
             dependencies {
@@ -68,6 +71,7 @@ class KontoregisterApiTest {
                 provide<AzureAdTokenProvider> { successAzureAdTokenProvider }
                 provide<HttpClient> { client }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
                         if (it == "valid-azure-token") {
@@ -101,7 +105,7 @@ class KontoregisterApiTest {
             install(ContentNegotiation) { json() }
         }
 
-        mockEntraProxyGrupper { """[{ "rolle": "0000-CA-Ekspertbistand_Beslutter" }]""" }
+        mockEntraProxyFull(grupperProvider = { """[{ "rolle": "0000-CA-Ekspertbistand_Beslutter" }]""" })
 
         application {
             dependencies {
@@ -109,6 +113,7 @@ class KontoregisterApiTest {
                 provide<AzureAdTokenProvider> { successAzureAdTokenProvider }
                 provide<HttpClient> { client }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
                         if (it == "valid-azure-token") {
@@ -142,7 +147,7 @@ class KontoregisterApiTest {
             install(ContentNegotiation) { json() }
         }
 
-        mockEntraProxyGrupper { "[]" }
+        mockEntraProxyFull(grupperProvider = { "[]" })
 
         application {
             dependencies {
@@ -150,6 +155,7 @@ class KontoregisterApiTest {
                 provide<AzureAdTokenProvider> { successAzureAdTokenProvider }
                 provide<HttpClient> { client }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
                         if (it == "valid-azure-token") {
@@ -208,7 +214,7 @@ class KontoregisterApiTest {
             install(ContentNegotiation) { json() }
         }
 
-        mockEntraProxyGrupper { """[{ "rolle": "0000-CA-Ekspertbistand_Saksbehandler" }]""" }
+        mockEntraProxyFull(grupperProvider = { """[{ "rolle": "0000-CA-Ekspertbistand_Saksbehandler" }]""" })
 
         application {
             dependencies {
@@ -216,6 +222,7 @@ class KontoregisterApiTest {
                 provide<AzureAdTokenProvider> { successAzureAdTokenProvider }
                 provide<HttpClient> { client }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
                         if (it == "valid-azure-token") {
@@ -248,7 +255,7 @@ class KontoregisterApiTest {
             install(ContentNegotiation) { json() }
         }
 
-        mockEntraProxyGrupper { """[{ "rolle": "0000-CA-Ekspertbistand_Saksbehandler" }]""" }
+        mockEntraProxyFull(grupperProvider = { """[{ "rolle": "0000-CA-Ekspertbistand_Saksbehandler" }]""" })
 
         application {
             dependencies {
@@ -256,6 +263,7 @@ class KontoregisterApiTest {
                 provide<AzureAdTokenProvider> { successAzureAdTokenProvider }
                 provide<HttpClient> { client }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
                         if (it == "valid-azure-token") {

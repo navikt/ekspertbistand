@@ -5,6 +5,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
+import no.nav.ekspertbistand.entraproxy.visningsnavn
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -79,9 +80,7 @@ suspend fun EntraProxyClient.slaaOppNavn(identer: Set<String>): Map<String, Stri
     identer.map { ident ->
         async {
             val navn = try {
-                val ansatt = hentAnsatt(ident)
-                ansatt.visningNavn
-                    ?: listOfNotNull(ansatt.fornavn, ansatt.etternavn).joinToString(" ").ifBlank { null }
+                hentAnsatt(ident).visningsnavn()
             } catch (e: Exception) {
                 logger.warn("Klarte ikke slå opp navn for aktør i sakslogg", e)
                 null

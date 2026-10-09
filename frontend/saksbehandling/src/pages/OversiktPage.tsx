@@ -13,8 +13,10 @@ import {
   Tag,
   VStack,
 } from "@navikt/ds-react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { type Saksstatus, type SakListeElement, useSaker } from "../hooks/useSaker";
+import { useTildeling } from "../hooks/useTildeling";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";
 import { OVERSIKT_PATH } from "../utils/constants";
@@ -42,8 +44,27 @@ function erAvsluttet(sak: SakListeElement) {
   return ferdigeSaksstatuser.includes(sak.status);
 }
 
+function TildelMegKnapp({ sakId, onError }: { sakId: string; onError: (e: Error) => void }) {
+  const { tildelMeg, isSaving } = useTildeling(sakId, { onError });
+
+  return (
+    <Button
+      variant="secondary"
+      size="xsmall"
+      loading={isSaving}
+      onClick={(e) => {
+        e.stopPropagation();
+        void tildelMeg();
+      }}
+    >
+      Tildel meg
+    </Button>
+  );
+}
+
 export default function OversiktPage() {
   const { saker, error, isLoading } = useSaker();
+  const [tildelingsfeil, setTildelingsfeil] = useState<Error | null>(null);
   const innloggetAnsatt = useInnloggetAnsatt();
   const navigate = useNavigate();
 
@@ -101,7 +122,12 @@ export default function OversiktPage() {
   return (
     <Page.Block as="main">
       <Box paddingInline="space-24">
-        <VStack gap="space-0">
+        <VStack gap="space-16">
+          {tildelingsfeil && (
+            <Alert variant="error" size="small" closeButton onClose={() => setTildelingsfeil(null)}>
+              {tildelingsfeil.message}
+            </Alert>
+          )}
           <Tabs defaultValue="alle">
             <Tabs.List>
               {faner.map(({ value, label, filter }) => (
@@ -131,12 +157,10 @@ export default function OversiktPage() {
                           onClick={() => navigate(`${OVERSIKT_PATH}/${sak.sakId}`)}
                         >
                           <Table.DataCell>
-                            {sak.saksbehandlerIdent ? (
-                              sak.saksbehandlerIdent
+                            {sak.kanTildeleMeg ? (
+                              <TildelMegKnapp sakId={sak.sakId} onError={setTildelingsfeil} />
                             ) : (
-                              <Button variant="secondary" size="xsmall">
-                                Tildel meg
-                              </Button>
+                              (sak.saksbehandlerNavn ?? "–")
                             )}
                           </Table.DataCell>
                           <Table.DataCell>{saksstatusTekst[sak.status]}</Table.DataCell>

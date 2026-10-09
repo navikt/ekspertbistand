@@ -37,7 +37,9 @@ import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.dokument.gotenberg.GotenbergClient
 import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
+import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
+import no.nav.ekspertbistand.entraproxy.EntraProxyUtilgjengeligException
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
@@ -64,11 +66,13 @@ import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
 import java.util.*
+import kotlin.time.ExperimentalTime
 
 
 const val altinn3Ressursid = "nav_tiltak_ekspertbistand"
 
 
+@OptIn(ExperimentalTime::class)
 fun main() {
     val dbConfig = DbConfig.nais()
 
@@ -104,6 +108,7 @@ fun main() {
             provide(ArenaClient::class)
             provide(AaregClient::class)
             provide(EntraProxyClient::class)
+            provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
             provide(TilgangsmaskinClient::class)
             provide<ArcSightAuditClient> { ArcSightAuditClient() }
             provide(FagsakIdService::class)
@@ -219,6 +224,14 @@ fun Application.configureServer() {
                     call.respond(
                         HttpStatusCode.BadRequest,
                         "Ugyldig verdi i felt '${cause.feltsti}': ${cause.aarsak}",
+                    )
+                }
+
+                is EntraProxyUtilgjengeligException -> {
+                    // Logget i AZURE_AD_PROVIDER, med ident bare i teamLog.
+                    call.respond(
+                        HttpStatusCode.ServiceUnavailable,
+                        mapOf("message" to "tilgangskontroll er ikke tilgjengelig"),
                     )
                 }
 

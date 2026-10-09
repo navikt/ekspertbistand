@@ -9,6 +9,7 @@ import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.arena.ArenaBehandlingStatus
 import no.nav.ekspertbistand.arena.erArenaSakUnderBehandling
+import no.nav.ekspertbistand.entraproxy.Enhet
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
@@ -20,9 +21,12 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.slf4j.LoggerFactory
 import java.util.*
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 private val logger = LoggerFactory.getLogger("SaksbehandlerApi")
 
+@OptIn(ExperimentalTime::class)
 suspend fun Application.configureSaksbehandlerApiV1() {
     val entraProxyClient = dependencies.resolve<EntraProxyClient>()
     val tilgangsmaskinClient = dependencies.resolve<TilgangsmaskinClient>()
@@ -35,40 +39,17 @@ suspend fun Application.configureSaksbehandlerApiV1() {
                     val principal = call.principal<AzureAdPrincipal>()
                         ?: return@get call.respond(HttpStatusCode.Unauthorized)
 
-                    val navIdent = principal.navIdent
-                    val roller = Role.fromGroups(principal.groups)
-
-                    try {
-                        val ansatt = entraProxyClient.hentAnsatt(navIdent)
-                        val enheter = principal.enheter()
-
-                        val response = InnloggetAnsattResponse(
-                            id = ansatt.navIdent,
-                            navn = ansatt.visningNavn ?: "${ansatt.fornavn ?: ""} ${ansatt.etternavn ?: ""}".trim(),
-                            epost = ansatt.epost ?: "",
-                            enheter = enheter.map { enhet ->
-                                AnsattEnhetResponse(
-                                    id = enhet.enhetnummer,
-                                    nummer = enhet.enhetnummer,
-                                    navn = enhet.navn,
-                                )
-                            },
-                            gjeldendeEnhet = AnsattEnhetResponse(
-                                id = ansatt.enhet.enhetnummer,
-                                nummer = ansatt.enhet.enhetnummer,
-                                navn = ansatt.enhet.navn,
-                            ),
-                            roller = roller,
+                    call.respond(
+                        InnloggetAnsattResponse(
+                            id = principal.navIdent,
+                            navn = principal.navn,
+                            epost = principal.epost ?: "",
+                            enheter = principal.enheter.map { it.tilResponse() },
+                            gjeldendeEnhet = principal.gjeldendeEnhet.tilResponse(),
+                            roller = Role.fromGroups(principal.groups),
+                            updatedAt = principal.berikelseUpdatedAt,
                         )
-
-                        call.respond(response)
-                    } catch (e: Exception) {
-                        logger.error("Feil ved henting av ansattdata for navIdent", e)
-                        call.respond(
-                            HttpStatusCode.InternalServerError,
-                            mapOf("message" to "Kunne ikke hente ansattdata.")
-                        )
-                    }
+                    )
                 }
 
                 get("/soknad/{soknadId}/arena-behandling") {
@@ -130,6 +111,7 @@ suspend fun Application.configureSaksbehandlerApiV1() {
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Serializable
 data class InnloggetAnsattResponse(
     val id: String,
@@ -138,6 +120,8 @@ data class InnloggetAnsattResponse(
     val enheter: List<AnsattEnhetResponse>,
     val gjeldendeEnhet: AnsattEnhetResponse,
     val roller: Set<Role>,
+    /** Når dataene ble hentet fra entra-proxy. Til feilsøking av cachen i `AZURE_AD_PROVIDER`. */
+    val updatedAt: Instant,
 )
 
 @Serializable
@@ -147,3 +131,4 @@ data class AnsattEnhetResponse(
     val navn: String,
 )
 
+private fun Enhet.tilResponse() = AnsattEnhetResponse(id = enhetnummer, nummer = enhetnummer, navn = navn)

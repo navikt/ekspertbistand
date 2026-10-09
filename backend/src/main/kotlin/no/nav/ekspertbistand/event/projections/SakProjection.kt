@@ -7,6 +7,9 @@ import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.event.handlers.OpprettSak.Companion.opprettVilkarForSak
+import no.nav.ekspertbistand.saksbehandling.frigjoerSak
+import no.nav.ekspertbistand.saksbehandling.tildelSak
+import no.nav.ekspertbistand.saksbehandling.opprettVilkarForSak
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.and
@@ -39,6 +42,10 @@ import kotlin.time.Instant
  * - [EventData.SaksbehandlingStartetIArena] gir `UNDER_BEHANDLING`, men kun fra `OPPRETTET`.
  * - [EventData.TilskuddsbrevMottatt] gir `INNVILGET` og [EventData.SoknadAvlystIArena] gir `AVSLATT`.
  *   Terminalstatus overskrives aldri.
+ * - [EventData.SakTildeltSaksbehandler] og [EventData.SakFrigjort] gjør samme endring som handlerne,
+ *   med [tildelSak] og [frigjoerSak], for alle saker uansett kilde. Live har handleren allerede brukt
+ *   eventen, og `tildeling_event_id` gjør at projeksjonen ikke endrer noe. Ved replay brukes eventene
+ *   i rekkefølge. Projeksjonen publiserer ikke [EventData.SakOppdatert].
  *
  * Re-kjøring: bump versjonen i [name]. Da starter projeksjonen på nytt fra posisjon 0.
  * Projeksjonen er idempotent: eksisterende saker opprettes ikke på nytt, men feltene oppdateres.
@@ -79,6 +86,23 @@ class SakProjection(
                 oppdaterSak(data.soknad, eventTimestamp, notFinalized) {
                     it[SakTable.status] = Saksstatus.AVSLATT.name
                 }
+
+            is EventData.SakTildeltSaksbehandler ->
+                tildelSak(
+                    soknadId = UUID.fromString(data.soknadId),
+                    ident = data.saksbehandlerIdent,
+                    navn = data.saksbehandlerNavn,
+                    eventId = event.id,
+                    tidspunkt = data.tidspunkt,
+                )
+
+            is EventData.SakFrigjort ->
+                frigjoerSak(
+                    soknadId = UUID.fromString(data.soknadId),
+                    ident = data.saksbehandlerIdent,
+                    eventId = event.id,
+                    tidspunkt = data.tidspunkt,
+                )
 
             else -> Unit
         }

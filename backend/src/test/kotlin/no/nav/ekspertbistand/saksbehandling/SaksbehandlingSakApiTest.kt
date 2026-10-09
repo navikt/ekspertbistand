@@ -17,6 +17,7 @@ import no.nav.common.audit_log.cef.CefMessage
 import no.nav.common.audit_log.log.AuditLogger
 import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.configureServer
+import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
@@ -31,7 +32,17 @@ import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.ExperimentalTime
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
+import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.mocks.testAnsattJson
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import kotlin.test.assertIs
+import kotlin.test.assertNull
 
+@OptIn(ExperimentalTime::class)
 class SaksbehandlingSakApiTest {
 
     private val navIdent = "A123456"
@@ -40,6 +51,7 @@ class SaksbehandlingSakApiTest {
     private val innsenderIdent = "98765432109"
 
     private val saksbehandlerGrupper = """[{ "rolle": "0000-CA-Ekspertbistand_Saksbehandler" }]"""
+    private val beslutterGrupper = """[{ "rolle": "0000-CA-Ekspertbistand_Beslutter" }]"""
     private val ingenGrupper = "[]"
 
     private val egenEnhet = "1234"
@@ -274,11 +286,229 @@ class SaksbehandlingSakApiTest {
         assertTrue(oppsett.audit.meldinger.isEmpty())
     }
 
+    @Test
+    fun `POST tildeling publiserer SakTildeltSaksbehandler med ident og navn fra entra-proxy`() =
+        testApplicationWithDatabase { db ->
+            val soknadId = lagreSoknad(db)
+            val sakId = lagreSak(db, soknadId)
+            val oppsett = oppsett(db)
+
+            val response = oppsett.tildel(sakId)
+
+            assertEquals(HttpStatusCode.Accepted, response.status)
+            val event = assertIs<EventData.SakTildeltSaksbehandler>(hentEvents(db).single())
+            assertEquals(sakId.toString(), event.sakId)
+            assertEquals(soknadId.toString(), event.soknadId)
+            assertEquals(navIdent, event.saksbehandlerIdent)
+            assertEquals("Innlogget Saksbehandler", event.saksbehandlerNavn)
+            assertNull(hentSakRad(db, sakId)[SakTable.saksbehandlerIdent], "API-et skal ikke skrive til sak")
+        }
+
+    @Test
+    fun `POST tildeling på sak tildelt en annen publiserer (overtakelse)`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999")
+        val oppsett = oppsett(db)
+
+        assertEquals(HttpStatusCode.Accepted, oppsett.tildel(sakId).status)
+        assertIs<EventData.SakTildeltSaksbehandler>(hentEvents(db).single())
+    }
+
+    @Test
+    fun `POST tildeling på sak innlogget allerede har gir 202 uten event`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = navIdent)
+        val oppsett = oppsett(db)
+
+        assertEquals(HttpStatusCode.Accepted, oppsett.tildel(sakId).status)
+        assertTrue(hentEvents(db).isEmpty())
+    }
+
+    @Test
+    fun `POST tildeling på INNVILGET sak tildelt en annen publiserer`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999", status = Saksstatus.INNVILGET)
+        val oppsett = oppsett(db)
+
+        assertEquals(HttpStatusCode.Accepted, oppsett.tildel(sakId).status)
+        assertIs<EventData.SakTildeltSaksbehandler>(hentEvents(db).single())
+    }
+
+    @Test
+    fun `POST tildeling når innlogget er beslutter på saken publiserer`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db), beslutterIdent = navIdent)
+        val oppsett = oppsett(db)
+
+        assertEquals(HttpStatusCode.Accepted, oppsett.tildel(sakId).status)
+        assertIs<EventData.SakTildeltSaksbehandler>(hentEvents(db).single())
+    }
+
+    @Test
+    fun `POST tildeling på AVSLATT eller AVSLUTTET sak gir 409 SAK_UGYLDIG_STATUS`() =
+        testApplicationWithDatabase { db ->
+            val avslatt = lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLATT)
+            val avsluttet = lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLUTTET)
+            val oppsett = oppsett(db)
+
+            listOf(avslatt, avsluttet).forEach { sakId ->
+                val response = oppsett.tildel(sakId)
+                assertEquals(HttpStatusCode.Conflict, response.status)
+                assertTrue(response.bodyAsText().contains(SAK_UGYLDIG_STATUS))
+            }
+            assertTrue(hentEvents(db).isEmpty())
+        }
+
+    @Test
+    fun `POST tildeling med bare beslutterrolle gir 403`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db))
+        val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+        assertEquals(HttpStatusCode.Forbidden, oppsett.tildel(sakId).status)
+        assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
+        assertTrue(hentEvents(db).isEmpty())
+    }
+
+    @Test
+    fun `POST tildeling på sak på annen enhet gir 403 uten kall mot tilgangsmaskin`() =
+        testApplicationWithDatabase { db ->
+            val sakId = lagreSak(db, lagreSoknad(db), behandlendeEnhet = annenEnhet)
+            val oppsett = oppsett(db)
+
+            assertEquals(HttpStatusCode.Forbidden, oppsett.tildel(sakId).status)
+            assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
+            assertTrue(hentEvents(db).isEmpty())
+        }
+
+    @Test
+    fun `POST tildeling når tilgangsmaskin avviser gir 403 uten event`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db))
+        val oppsett = oppsett(db, tilgangsmaskinSvar = { call ->
+            call.respondText(
+                """{ "title": "AVVIST_STRENGT_FORTROLIG_ADRESSE", "status": 403, "begrunnelse": "x", "kanOverstyres": false }""",
+                ContentType.parse("application/problem+json"),
+                HttpStatusCode.Forbidden,
+            )
+        })
+
+        assertEquals(HttpStatusCode.Forbidden, oppsett.tildel(sakId).status)
+        assertTrue(hentEvents(db).isEmpty())
+    }
+
+    @Test
+    fun `POST tildeling når tilgangsmaskin feiler gir 503 uten event`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db))
+        val oppsett = oppsett(db, tilgangsmaskinSvar = { call -> call.respond(HttpStatusCode.InternalServerError) })
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, oppsett.tildel(sakId).status)
+        assertTrue(hentEvents(db).isEmpty())
+    }
+
+    @Test
+    fun `DELETE tildeling på egen sak publiserer SakFrigjort`() = testApplicationWithDatabase { db ->
+        val soknadId = lagreSoknad(db)
+        val sakId = lagreSak(db, soknadId, saksbehandlerIdent = navIdent)
+        val oppsett = oppsett(db)
+
+        assertEquals(HttpStatusCode.Accepted, oppsett.frigjoer(sakId).status)
+        val event = assertIs<EventData.SakFrigjort>(hentEvents(db).single())
+        assertEquals(sakId.toString(), event.sakId)
+        assertEquals(soknadId.toString(), event.soknadId)
+        assertEquals(navIdent, event.saksbehandlerIdent)
+        assertEquals(navIdent, hentSakRad(db, sakId)[SakTable.saksbehandlerIdent], "API-et skal ikke skrive til sak")
+    }
+
+    @Test
+    fun `DELETE tildeling på sak tildelt en annen gir 403 IKKE_TILDELT_SAK`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999")
+        val oppsett = oppsett(db)
+
+        val response = oppsett.frigjoer(sakId)
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals(IKKE_TILDELT_SAK, response.body<TilgangAvvistResponse>().kode)
+        assertTrue(hentEvents(db).isEmpty())
+    }
+
+    @Test
+    fun `liste og detalj gir saksbehandlerNavn fra saken uten navneoppslag i entra-proxy`() =
+        testApplicationWithDatabase { db ->
+            val sakId = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999")
+            val oppsett = oppsett(db)
+
+            val liste = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
+                .body<SakerResponse>().saker
+            val detalj = oppsett.hentDetalj(sakId)
+
+            assertEquals("Navn Z999999", liste.single().saksbehandlerNavn)
+            assertEquals("Navn Z999999", detalj.saksbehandlerNavn)
+            assertEquals(listOf(navIdent), oppsett.ansattOppslag, "bare innlogget skal slås opp, og bare én gang")
+        }
+
+    @Test
+    fun `kanTildeleMeg i detalj`() = testApplicationWithDatabase { db ->
+        val ledig = lagreSak(db, lagreSoknad(db))
+        val annen = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999")
+        val innvilget = lagreSak(db, lagreSoknad(db), status = Saksstatus.INNVILGET)
+        val beslutter = lagreSak(db, lagreSoknad(db), beslutterIdent = navIdent)
+        val avslatt = lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLATT)
+        val avsluttet = lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLUTTET)
+        val egen = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = navIdent)
+        val oppsett = oppsett(db)
+
+        listOf(ledig, annen, innvilget, beslutter).forEach {
+            assertTrue(oppsett.hentDetalj(it).kanTildeleMeg, "forventet kanTildeleMeg for $it")
+        }
+        listOf(avslatt, avsluttet, egen).forEach {
+            assertFalse(oppsett.hentDetalj(it).kanTildeleMeg, "forventet ikke kanTildeleMeg for $it")
+        }
+    }
+
+    @Test
+    fun `kanTildeleMeg er false i detalj uten saksbehandlerrolle`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db))
+        val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+        assertFalse(oppsett.hentDetalj(sakId).kanTildeleMeg)
+    }
+
+    @Test
+    fun `kanTildeleMeg i listen er false for saker tildelt en annen, og listen kaller ikke tilgangsmaskin`() =
+        testApplicationWithDatabase { db ->
+            val ledig = lagreSak(db, lagreSoknad(db))
+            val annen = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999")
+            val egen = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = navIdent)
+            val avslatt = lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLATT)
+            val oppsett = oppsett(db)
+
+            val saker = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
+                .body<SakerResponse>().saker.associate { it.sakId to it.kanTildeleMeg }
+
+            assertEquals(
+                mapOf(
+                    ledig.toString() to true,
+                    annen.toString() to false,
+                    egen.toString() to false,
+                    avslatt.toString() to false,
+                ),
+                saker,
+            )
+            assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
+        }
+
+    @Test
+    fun `tilTilgangsgrunnlag gir beslutterIdent fra saken`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z111111", beslutterIdent = "Z222222")
+        val oppsett = oppsett(db)
+
+        val grunnlag = with(SakTilgangsgrunnlag) { oppsett.hentDetalj(sakId).tilTilgangsgrunnlag() }
+
+        assertEquals("Z111111", grunnlag.saksbehandlerIdent)
+        assertEquals("Z222222", grunnlag.beslutterIdent)
+    }
+
     private class Oppsett(
         val client: HttpClient,
         val audit: RecordingAuditLogger,
         val tilgangsmaskinKall: List<TilgangsmaskinKall>,
         val veksledeTokens: List<String>,
+        val ansattOppslag: List<String>,
     )
 
     private fun ApplicationTestBuilder.oppsett(
@@ -292,9 +522,13 @@ class SaksbehandlingSakApiTest {
         val audit = RecordingAuditLogger()
         val tilgangsmaskinKall = mutableListOf<TilgangsmaskinKall>()
         val veksledeTokens = mutableListOf<String>()
+        val ansattOppslag = mutableListOf<String>()
 
         mockEntraProxyFull(
-            ansattProvider = { "{}" },
+            ansattProvider = { ident ->
+                ansattOppslag.add(ident)
+                testAnsattJson(ident, navn = "Innlogget Saksbehandler")
+            },
             enheterProvider = enheter,
             grupperProvider = { grupper },
         )
@@ -332,6 +566,7 @@ class SaksbehandlingSakApiTest {
                 provide<HttpClient> { client }
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide(TilgangsmaskinClient::class)
                 provide<ArcSightAuditClient> { ArcSightAuditClient(auditLogger = audit) }
                 provide<AzureAdTokenIntrospector> {
@@ -346,7 +581,7 @@ class SaksbehandlingSakApiTest {
             configureServer()
         }
 
-        return Oppsett(client, audit, tilgangsmaskinKall, veksledeTokens)
+        return Oppsett(client, audit, tilgangsmaskinKall, veksledeTokens, ansattOppslag)
     }
 
     private fun lagreSoknad(db: TestDatabase, ansattNavn: String = "Ansatt NN"): UUID {
@@ -385,14 +620,36 @@ class SaksbehandlingSakApiTest {
         soknadId: UUID,
         saksbehandlerIdent: String? = null,
         behandlendeEnhet: String? = egenEnhet,
+        status: Saksstatus = Saksstatus.UNDER_BEHANDLING,
+        beslutterIdent: String? = null,
     ): UUID =
         transaction(db.config.jdbcDatabase) {
             SakTable.insert {
                 it[this.soknadId] = soknadId
-                it[status] = Saksstatus.UNDER_BEHANDLING.name
+                it[this.status] = status.name
+                it[this.beslutterIdent] = beslutterIdent
                 it[kildeTilBehandling] = KildeTilBehandling.ARENA.name
                 it[this.behandlendeEnhet] = behandlendeEnhet
                 it[this.saksbehandlerIdent] = saksbehandlerIdent
+                it[saksbehandlerNavn] = saksbehandlerIdent?.let { "Navn $it" }
             }[SakTable.sakId]
         }
+
+    private fun hentSakRad(db: TestDatabase, sakId: UUID) = transaction(db.config.jdbcDatabase) {
+        SakTable.selectAll().where { SakTable.sakId eq sakId }.single()
+    }
+
+    private fun hentEvents(db: TestDatabase): List<EventData> =
+        transaction(db.config.jdbcDatabase) {
+            QueuedEvents.selectAll().map { it.tilQueuedEvent().eventData }
+        }
+
+    private suspend fun Oppsett.tildel(sakId: UUID) =
+        client.post("/api/saksbehandling/v1/saker/$sakId/tildeling") { bearerAuth(gyldigToken) }
+
+    private suspend fun Oppsett.frigjoer(sakId: UUID) =
+        client.delete("/api/saksbehandling/v1/saker/$sakId/tildeling") { bearerAuth(gyldigToken) }
+
+    private suspend fun Oppsett.hentDetalj(sakId: UUID) =
+        client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }.body<SakDetaljer>()
 }

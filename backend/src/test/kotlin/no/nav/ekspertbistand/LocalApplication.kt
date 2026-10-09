@@ -16,6 +16,7 @@ import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokument.DokumentService
+import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
@@ -170,6 +171,7 @@ fun main() {
                     if (it == "faketoken") mockAzureAdIntrospectionResponse.withNavIdent("A123456") else null
                 }
             }
+            provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
             provide<EntraProxyClient> {
                 EntraProxyClient(
                     tokenProvider = successAzureAdTokenProvider,

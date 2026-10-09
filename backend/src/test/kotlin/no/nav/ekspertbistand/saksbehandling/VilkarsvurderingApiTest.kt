@@ -16,6 +16,7 @@ import no.nav.common.audit_log.cef.CefMessage
 import no.nav.common.audit_log.log.AuditLogger
 import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.configureServer
+import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
@@ -457,7 +458,6 @@ class VilkarsvurderingApiTest {
         var tilgangsmaskinKall = 0
 
         mockEntraProxyFull(
-            ansattProvider = { "{}" },
             enheterProvider = { egneEnheter },
             grupperProvider = { grupper },
         )
@@ -488,6 +488,7 @@ class VilkarsvurderingApiTest {
                 provide<HttpClient> { client }
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
+                provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide(TilgangsmaskinClient::class)
                 provide<ArcSightAuditClient> { ArcSightAuditClient(auditLogger = audit) }
                 provide<AzureAdTokenIntrospector> {
@@ -549,6 +550,7 @@ class VilkarsvurderingApiTest {
                 it[kildeTilBehandling] = KildeTilBehandling.ARENA.name
                 it[this.behandlendeEnhet] = behandlendeEnhet
                 it[this.saksbehandlerIdent] = saksbehandlerIdent
+                it[saksbehandlerNavn] = saksbehandlerIdent?.let { "Navn $it" }
             }[SakTable.sakId]
             opprettVilkarForSak(sakId)
             sakId

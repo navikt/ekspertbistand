@@ -53,9 +53,23 @@ fun ApplicationTestBuilder.mockEntraProxyGrupper(
     }
 }
 
+fun testAnsattJson(
+    navIdent: String,
+    navn: String = "Tore Tang",
+    enhetnummer: String = "1234",
+) = """
+    {
+        "navIdent": "$navIdent",
+        "visningNavn": "$navn",
+        "epost": "${navIdent.lowercase()}@nav.no",
+        "enhet": { "enhetnummer": "$enhetnummer", "navn": "Nav Avdeling Sydpolen" },
+        "tIdent": "T${navIdent.drop(1)}"
+    }
+""".trimIndent()
+
 fun ApplicationTestBuilder.mockEntraProxyFull(
-    ansattProvider: (navIdent: String) -> String,
-    enheterProvider: (navIdent: String) -> String,
+    ansattProvider: (navIdent: String) -> String = { testAnsattJson(it) },
+    enheterProvider: (navIdent: String) -> String = { """[{ "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" }]""" },
     grupperProvider: (navIdent: String) -> String = { "[]" },
 ) {
     externalServices {

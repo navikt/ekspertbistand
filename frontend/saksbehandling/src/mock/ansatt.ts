@@ -10,6 +10,7 @@ export type InnloggetAnsatt = {
   epost: string;
   enheter: ReadonlyArray<AnsattEnhet>;
   gjeldendeEnhet: AnsattEnhet;
+  updatedAt: string;
 };
 
 const enheter: AnsattEnhet[] = [
@@ -42,4 +43,5 @@ export const mockInnloggetAnsatt: InnloggetAnsatt = {
   epost: "silje.saksbehandler@nav.no",
   enheter,
   gjeldendeEnhet: enheter[0],
+  updatedAt: new Date().toISOString(),
 };

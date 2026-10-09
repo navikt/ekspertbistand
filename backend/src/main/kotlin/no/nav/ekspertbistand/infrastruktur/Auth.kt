@@ -14,8 +14,11 @@ import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.json.*
 import no.nav.ekspertbistand.entraproxy.Enhet
-import no.nav.ekspertbistand.entraproxy.EntraProxyClient
+import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
+import no.nav.ekspertbistand.entraproxy.EntraProxyUtilgjengeligException
 import no.nav.ekspertbistand.saksbehandling.Role
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 /**
  * Lånt med modifikasjoner fra https://github.com/nais/wonderwalled
@@ -199,31 +202,28 @@ data class TokenXPrincipal(
 
 const val TOKENX_PROVIDER = "TOKEN_X"
 
+@OptIn(ExperimentalTime::class)
 data class AzureAdPrincipal(
     val navIdent: String,
+    val navn: String,
+    val epost: String?,
+    val gjeldendeEnhet: Enhet,
     val groups: List<String>,
-    val name: String?,
+    val enheter: List<Enhet>,
+    /** Når grupper, ansattdata og enheter ble hentet fra entra-proxy. Til feilsøking av cachen. */
+    val berikelseUpdatedAt: Instant,
     val subjectToken: String,
-    private val hentEnheter: suspend (navIdent: String) -> List<Enhet>,
 ) {
-    /**
-     * Enhetene saksbehandler har tilgang til, fra entra-proxy (som cacher selv).
-     * Hentes først når de trengs, og kaster ved feil slik at kallende rute kan avvise (fail-closed).
-     */
-    suspend fun enheter(): List<Enhet> = hentEnheter(navIdent)
-
     /** True dersom principal er medlem av gruppen til [role]. */
     fun harRolle(role: Role): Boolean = role in Role.fromGroups(groups)
 
-    /**
-     * True dersom saksbehandler har tilgang til [enhet] (enhetsnummer) ifølge entra-proxy.
-     * Kaster ved feil mot entra-proxy, slik at kallende rute kan avvise (fail-closed).
-     */
-    suspend fun harTilgangTilEnhet(enhet: String): Boolean = enheter().any { it.enhetnummer == enhet }
+    /** True dersom saksbehandler har tilgang til [enhet] (enhetsnummer) ifølge entra-proxy. */
+    fun harTilgangTilEnhet(enhet: String): Boolean = enheter.any { it.enhetnummer == enhet }
 }
 
 const val AZURE_AD_PROVIDER = "AZURE_AD"
 
+@OptIn(ExperimentalTime::class)
 fun Application.configureAuthentication() {
     install(Authentication) {
         bearer(TOKENX_PROVIDER) {
@@ -267,30 +267,29 @@ fun Application.configureAuthentication() {
 
                     val navIdent = other["NAVident"] as? String
                         ?: return@authenticate null
-                    val name = other["name"] as? String
 
                     /**
-                     * Grupper hentes fra entra-proxy per request (ikke fra token-claim).
-                     * Kun grupper som matcher en kjent [Role] beholdes.
+                     * Grupper, navn og enheter hentes fra entra-proxy, ikke fra token-claims, og caches
+                     * per token. Feil hos entra-proxy gir 503 (via StatusPages), ikke 401, slik at
+                     * brukeren ikke sendes inn i en innloggingsløkke.
                      */
-                    val entraProxyClient = application.dependencies.resolve<EntraProxyClient>()
-                    val groups = try {
-                        entraProxyClient.hentGrupper(navIdent)
-                            .map { it.rolle }
-                            .filter { rolle -> Role.entries.any { it.groupId == rolle } }
-                    } catch (e: Exception) {
-                        e.rethrowIfCancellation()
-                        authLog.error("Feil ved henting av grupper fra entra-proxy ({}), avviser request", e.javaClass.simpleName)
-                        authTeamLog.error("Feil ved henting av grupper fra entra-proxy for navIdent=$navIdent", e)
-                        return@authenticate null
+                    val berikelse = try {
+                        application.dependencies.resolve<EntraBerikelseCache>().hent(credentials.token, navIdent)
+                    } catch (e: EntraProxyUtilgjengeligException) {
+                        authLog.error("Feil ved oppslag mot entra-proxy ({}), avviser request", e.cause?.javaClass?.simpleName)
+                        authTeamLog.error("Feil ved oppslag mot entra-proxy for navIdent=$navIdent", e)
+                        throw e
                     }
 
                     AzureAdPrincipal(
                         navIdent = navIdent,
-                        groups = groups,
-                        name = name,
+                        navn = berikelse.navn,
+                        epost = berikelse.epost,
+                        gjeldendeEnhet = berikelse.gjeldendeEnhet,
+                        groups = berikelse.groups,
+                        enheter = berikelse.enheter,
+                        berikelseUpdatedAt = berikelse.updatedAt,
                         subjectToken = credentials.token,
-                        hentEnheter = entraProxyClient::hentEnheter,
                     )
                 }
             }

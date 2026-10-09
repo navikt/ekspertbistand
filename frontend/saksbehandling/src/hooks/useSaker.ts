@@ -15,6 +15,8 @@ export type SakInfo = {
   kildeTilBehandling: KildeTilBehandling;
   behandlendeEnhet: string | null;
   saksbehandlerIdent: string | null;
+  saksbehandlerNavn: string | null;
+  kanTildeleMeg: boolean;
   beslutterIdent: string | null;
   arenaSakId: string | null;
 };
