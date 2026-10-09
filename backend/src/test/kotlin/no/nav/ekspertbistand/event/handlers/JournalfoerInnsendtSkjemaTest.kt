@@ -28,6 +28,7 @@ import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.mocks.mockDokArkiv
 import no.nav.ekspertbistand.mocks.mockEreg
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
+import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
 import no.nav.ekspertbistand.norg.Norg2Enhet
 import no.nav.ekspertbistand.norg.Norg2Request
 import no.nav.ekspertbistand.norg.NorgKlient
@@ -241,6 +242,7 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide(NorgKlient::class)
             provide(BehandlendeEnhetService::class)
             provide(PdlApiKlient::class)
+            provide(BehandlendeEnhetUtleder::class)
             provide { DokumentService(StubPdfKonverterer()) }
             provide(DokArkivClient::class)
             provide(JournalfoerInnsendtSoknad::class)

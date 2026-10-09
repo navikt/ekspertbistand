@@ -176,7 +176,7 @@ sealed interface OppdaterVilkarResultat {
 /**
  * Låser saken, sjekker status, oppdaterer vurderingen og publiserer
  * [EventData.VilkarsvurderingOppdatert] i kallerens transaksjon. Oppdaterer kun en eksisterende
- * vilkårsrad (opprettet av [opprettVilkarForSak]); finnes ikke raden, legges den ikke til.
+ * vilkårsrad (opprettet av [no.nav.ekspertbistand.event.handlers.OpprettSak.opprettVilkarForSak]); finnes ikke raden, legges den ikke til.
  */
 @OptIn(ExperimentalTime::class)
 fun JdbcTransaction.oppdaterVilkarsvurdering(

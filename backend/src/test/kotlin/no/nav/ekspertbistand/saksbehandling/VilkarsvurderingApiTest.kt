@@ -11,6 +11,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
 import kotlinx.datetime.LocalDate
+import no.nav.ekspertbistand.event.handlers.OpprettSak.Companion.opprettVilkarForSak
 import no.nav.common.audit_log.cef.CefMessage
 import no.nav.common.audit_log.log.AuditLogger
 import no.nav.ekspertbistand.audit.ArcSightAuditClient

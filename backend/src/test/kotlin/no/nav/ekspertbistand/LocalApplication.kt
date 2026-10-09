@@ -28,6 +28,7 @@ import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
+import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
@@ -272,6 +273,7 @@ fun main() {
                 }))
             }
             provide(BehandlendeEnhetService::class)
+            provide(BehandlendeEnhetUtleder::class)
             provide<PdlApiKlient> {
 
                 PdlApiKlient(

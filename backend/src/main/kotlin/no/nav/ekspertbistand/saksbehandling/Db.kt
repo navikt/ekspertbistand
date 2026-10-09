@@ -3,13 +3,14 @@ package no.nav.ekspertbistand.saksbehandling
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.tilSoknadDTO
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
-import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
@@ -88,20 +89,33 @@ enum class Vilkar {
     EKSPERT_HAR_KOMPETANSE,
 }
 
-/**
- * Oppretter alle vilkår for saken som ikke vurdert. Idempotent: eksisterende rader beholdes.
- * Må kalles i en pågående transaksjon.
- */
-fun opprettVilkarForSak(sakId: UUID) {
-    SaksvilkarTable.batchInsert(Vilkar.entries, ignore = true, shouldReturnGeneratedValues = false) { vilkar ->
-        this[SaksvilkarTable.sakId] = sakId
-        this[SaksvilkarTable.vilkarId] = vilkar.name
-    }
-}
-
 class SoknadIkkeFunnetException : RuntimeException()
 class SoknadIkkeGodkjentException : RuntimeException()
 class SakIkkeFunnetException : RuntimeException()
+
+/** Mapper en rad fra `sak` joinet med `soknad` til [SakDetaljer]. */
+fun ResultRow.tilSakDetaljer(): SakDetaljer {
+    val soknad = tilSoknadDTO()
+    return SakDetaljer(
+        sakId = this[SakTable.sakId].toString(),
+        status = Saksstatus.valueOf(this[SakTable.status]),
+        kildeTilBehandling = KildeTilBehandling.valueOf(this[SakTable.kildeTilBehandling]),
+        behandlendeEnhet = this[SakTable.behandlendeEnhet],
+        saksbehandlerIdent = this[SakTable.saksbehandlerIdent],
+        beslutterIdent = this[SakTable.beslutterIdent],
+        arenaSakId = this[SakTable.arenaSakId],
+        soknad = SakDetaljer.Soknad(
+            soknadId = this[SoknadTable.id].toString(),
+            status = soknad.status,
+            innsendtTidspunkt = soknad.opprettetTidspunkt!!,
+            virksomhet = soknad.virksomhet,
+            ansatt = soknad.ansatt,
+            ekspert = soknad.ekspert,
+            behovForBistand = soknad.behovForBistand,
+            nav = soknad.nav,
+        ),
+    )
+}
 
 /**
  * Hendelseslogg for en sak. Se `specifications/sakslogg.md`.

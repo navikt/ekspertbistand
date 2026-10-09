@@ -6,19 +6,14 @@ import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
 import no.nav.ekspertbistand.dokarkiv.Sak
 import no.nav.ekspertbistand.dokument.DokumentService
-import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
-import no.nav.ekspertbistand.pdl.NotFound
-import no.nav.ekspertbistand.pdl.PdlApiKlient
-import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
-import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
-import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
+import no.nav.ekspertbistand.norg.ManglerDataForBehandlendeEnhetException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.reflect.KClass
@@ -29,18 +24,16 @@ private const val tittel = "Søknad om ekspertbistand"
 /**
  * Når en søknad om ekspertbistand er innsendt, genereres en PDF og så journalføres dette i DokArkiv.
  *
- * Før journalføring hentes behandlende enhet basert på søker sin adressebeskyttelse og geografisk tilknytning.
- * Logikken for ruting til behandlende enhet er definert i [JournalfoerInnsendtSoknad.hentBehandlendeEnhet].
+ * Før journalføring utledes behandlende enhet med [BehandlendeEnhetUtleder], basert på søkers
+ * adressebeskyttelse og geografiske tilknytning.
  *
- * Etter journalføring publiseres en ny event [no.nav.ekspertbistand.event.EventData.InnsendtSoknadJournalfoert]
- * som inneholder informasjon om journalpostId og dokumentId samt behandlendeEnhetId.
+ * Etter journalføring publiseres [EventData.InnsendtSoknadJournalfoert] med journalpostId, dokumentId og
+ * behandlende enhet mappet til Arena-enhetsnummer.
  */
 class JournalfoerInnsendtSoknad(
     private val dokumentService: DokumentService,
     private val dokArkivClient: DokArkivClient,
-    private val pdlApiKlient: PdlApiKlient,
-    private val behandlendeEnhetService: BehandlendeEnhetService,
-    private val eregClient: EregClient,
+    private val behandlendeEnhetUtleder: BehandlendeEnhetUtleder,
     private val fagsakIdService: FagsakIdService,
     private val database: Database,
 ) : EventHandler<EventData.SoknadInnsendt> {
@@ -57,16 +50,13 @@ class JournalfoerInnsendtSoknad(
         val soknad = event.data.soknad
         val soknadId = soknad.id ?: return unrecoverableError("Søknad mangler id")
 
-        val behandlendeEnhet = runCatching { hentBehandlendeEnhet(soknad) }
-            .getOrElse { e ->
-                return when (e) {
-                    is MissingDataException -> transientError(
-                        "Mangler data for å hente behandlende enhet", e
-                    )
-
-                    else -> transientError("Feil ved henting av behandlende enhet", e)
-                }
-            }
+        val behandlendeEnhet = try {
+            behandlendeEnhetUtleder.utled(soknad)
+        } catch (e: ManglerDataForBehandlendeEnhetException) {
+            return transientError("Mangler data for å hente behandlende enhet", e)
+        } catch (e: Exception) {
+            return transientError("Feil ved henting av behandlende enhet", e)
+        }
 
         val soknadPdf = runCatching { dokumentService.genererSoknadPdf(soknad) }
             .getOrElse { e ->
@@ -77,7 +67,7 @@ class JournalfoerInnsendtSoknad(
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = tittel,
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
-                sak = Sak.FagSak(fagsakId = fagsakIdService.opprettEllerHentFagsakId(soknadId = soknad.id)),
+                sak = Sak.FagSak(fagsakId = fagsakIdService.opprettEllerHentFagsakId(soknadId = soknadId)),
                 eksternReferanseId = soknadId,
                 dokumentPdfAsBytes = soknadPdf,
                 journalposttype = JournalpostType.INNGAAENDE,
@@ -102,7 +92,7 @@ class JournalfoerInnsendtSoknad(
                     soknad = soknad,
                     dokumentId = dokumentInfoId,
                     journaldpostId = journalpostId,
-                    behandlendeEnhetId = behandlendeEnhet
+                    behandlendeEnhetId = behandlendeEnhet,
                 ),
             )
         }
@@ -111,77 +101,4 @@ class JournalfoerInnsendtSoknad(
 
         return success()
     }
-
-    private suspend fun hentBehandlendeEnhet(soknad: DTO.Soknad): String =
-        pdlApiKlient.hentAdressebeskyttelse(soknad.ansatt.fnr).fold(
-            onSuccess = { person ->
-                val gradering = person.adressebeskyttelse.map { it.gradering }.hoyesteGradering()
-                val geografiskTilknytning = when (gradering) {
-                    AdressebeskyttelseGradering.STRENGT_FORTROLIG,
-                    AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND -> {
-                        pdlApiKlient.hentGeografiskTilknytning(soknad.ansatt.fnr)
-                            .fold(
-                                onSuccess = {
-                                    it.geografiskTilknytning() ?: BehandlendeEnhetService.NAV_VIKAFOSSEN
-                                },
-                                onFailure = { throw it }
-
-                            )
-                    }
-
-                    AdressebeskyttelseGradering.FORTROLIG,
-                    AdressebeskyttelseGradering.UGRADERT,
-                    AdressebeskyttelseGradering.__UNKNOWN_VALUE -> {
-                        val organisasjon = eregClient.hentOrganisasjon(soknad.virksomhet.virksomhetsnummer)
-                        organisasjon.organisasjonDetaljer
-                            ?.forretningsadresser
-                            ?.firstNotNullOfOrNull { it.kommunenummer }
-                            ?: throw MissingDataException("Fant ikke kommunenummer for virksomhet ${soknad.virksomhet.virksomhetsnummer}")
-                    }
-                }
-
-                behandlendeEnhetService.hentBehandlendeEnhet(gradering, geografiskTilknytning)
-            },
-
-            onFailure = { error ->
-                when (error) {
-                    is NotFound -> {
-                        val organisasjon = eregClient.hentOrganisasjon(soknad.virksomhet.virksomhetsnummer)
-                        val geografiskTilknytning = organisasjon.organisasjonDetaljer
-                            ?.forretningsadresser
-                            ?.firstNotNullOfOrNull { it.kommunenummer }
-                            ?: throw MissingDataException("Fant ikke kommunenummer for virksomhet ${soknad.virksomhet.virksomhetsnummer}")
-                        behandlendeEnhetService.hentBehandlendeEnhet(
-                            AdressebeskyttelseGradering.__UNKNOWN_VALUE,
-                            geografiskTilknytning
-                        )
-                    }
-
-                    else -> throw error
-                }
-            }
-        )
-
-    private fun List<AdressebeskyttelseGradering>.hoyesteGradering(): AdressebeskyttelseGradering {
-        return this.maxByOrNull { gradering ->
-            when (gradering) {
-                AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND -> 3
-                AdressebeskyttelseGradering.STRENGT_FORTROLIG -> 2
-                AdressebeskyttelseGradering.FORTROLIG -> 1
-                AdressebeskyttelseGradering.UGRADERT -> 0
-                AdressebeskyttelseGradering.__UNKNOWN_VALUE -> -1
-            }
-        } ?: AdressebeskyttelseGradering.UGRADERT
-    }
-
-    private fun GeografiskTilknytning.geografiskTilknytning(): String? {
-        return when (gtType) {
-            GtType.KOMMUNE -> gtKommune
-            GtType.BYDEL -> gtBydel ?: gtKommune
-            GtType.UTLAND -> gtLand
-            GtType.UDEFINERT, GtType.__UNKNOWN_VALUE -> null
-        }
-    }
-
-    private class MissingDataException(message: String) : Exception(message)
 }

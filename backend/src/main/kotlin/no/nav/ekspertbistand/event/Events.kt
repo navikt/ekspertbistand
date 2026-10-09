@@ -62,11 +62,12 @@ sealed interface EventData {
      * Den innsendte søknaden er journalført i Dokarkiv.
      *
      * Publiseres av [no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSoknad] etter at
-     * PDF er generert og journalpost opprettet. [behandlendeEnhetId] er enheten som ble utledet
-     * fra søkers adressebeskyttelse og geografiske tilknytning, og bæres videre fordi Arena
-     * trenger den ved opprettelse av sak.
+     * PDF er generert og journalpost opprettet. [behandlendeEnhetId] er Arena-enhetsnummeret til enheten
+     * som ble utledet fra søkers adressebeskyttelse og geografiske tilknytning, og bæres videre fordi
+     * Arena trenger det ved opprettelse av sak.
      *
-     * Konsument: [no.nav.ekspertbistand.event.handlers.OpprettTiltaksgjennomfoeringForInnsendtSoknad].
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.OpprettSak] (mapper enheten tilbake til
+     * Norg-enhetsnummer) og [no.nav.ekspertbistand.event.handlers.OpprettTiltaksgjennomfoeringForInnsendtSoknad].
      */
     @Serializable
     @SerialName("innsendtSoknadJournalfoert")
@@ -340,6 +341,7 @@ suspend fun Application.configureEventHandlers() {
     val eventManager = EventManager {
         // Registrer all event handlers here
         register(dependencies.create(JournalfoerInnsendtSoknad::class))
+        register(dependencies.create(OpprettSak::class))
         register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))
         register(dependencies.create(JournalfoerNotatArenaSakOpprettet::class))
         register(dependencies.create(VarsleArbeidsgiverSoknadMottatt::class))

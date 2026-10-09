@@ -5,6 +5,7 @@ import no.nav.ekspertbistand.arena.OpprettEkspertbistand
 import no.nav.ekspertbistand.arena.insertArenaSak
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
+import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
@@ -20,7 +21,7 @@ class OpprettTiltaksgjennomfoeringForInnsendtSoknad(
         val opprettetResponse = try {
             arenaClient.opprettTiltaksgjennomfoering(
                 OpprettEkspertbistand(
-                    behandlendeEnhetId = event.data.behandlendeEnhetId,
+                    behandlendeEnhetId = BehandlendeEnhetService.norgTilArenaEnhetNr(event.data.behandlendeEnhetId),
                     virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
                     ansattFnr = soknad.ansatt.fnr,
                     periodeFom = soknad.behovForBistand.startdato,

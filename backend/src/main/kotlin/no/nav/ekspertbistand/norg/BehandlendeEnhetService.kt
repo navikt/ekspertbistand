@@ -2,6 +2,10 @@ package no.nav.ekspertbistand.norg
 
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 
+/**
+ * Finner behandlende enhet i Norg. Returnerer Norg-enhetsnummeret; bruk [norgTilArenaEnhetNr] før
+ * enhetsnummeret sendes til Arena.
+ */
 class BehandlendeEnhetService(
     private val norgKlient: NorgKlient
 ) {
@@ -17,7 +21,7 @@ class BehandlendeEnhetService(
                 if (it == null)
                     NAV_VIKAFOSSEN
                 else
-                    norgTilArenaEnhetNrMap.getOrDefault(it.enhetNr, it.enhetNr)
+                    it.enhetNr
             }
 
             AdressebeskyttelseGradering.FORTROLIG,
@@ -29,7 +33,7 @@ class BehandlendeEnhetService(
                     if (it == null)
                         NAV_ARBEIDSLIVSSENTER_OSLO //TODO: hva skal være fallback her?
                     else
-                        norgTilArenaEnhetNrMap.getOrDefault(it.enhetNr, it.enhetNr)
+                        it.enhetNr
                 }
         }
     }
@@ -46,9 +50,11 @@ class BehandlendeEnhetService(
 
         private val arenaTilNorgEnhetNrMap = norgTilArenaEnhetNrMap.entries.associate { (norg, arena) -> arena to norg }
 
+        /** Enhetsnummeret Arena bruker for Norg-enheten [enhetNr]. */
+        fun norgTilArenaEnhetNr(enhetNr: String): String = norgTilArenaEnhetNrMap.getOrDefault(enhetNr, enhetNr)
+
         /**
-         * Reverserer mappingen som gjøres før enhetsnummeret sendes til Arena,
-         * slik at vi får tilbake enhetsnummeret fra Norg.
+         * Reverserer [norgTilArenaEnhetNr], slik at vi får tilbake enhetsnummeret fra Norg.
          */
         fun arenaTilNorgEnhetNr(enhetNr: String): String = arenaTilNorgEnhetNrMap.getOrDefault(enhetNr, enhetNr)
     }

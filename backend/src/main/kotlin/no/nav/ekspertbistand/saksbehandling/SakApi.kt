@@ -14,7 +14,6 @@ import no.nav.ekspertbistand.saksbehandling.SakTilgangsgrunnlag.Companion.tilTil
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.tilSoknadDTO
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -126,28 +125,7 @@ fun hentSakForSaksbehandling(sakId: UUID): SakDetaljer? =
         .selectAll()
         .where { SakTable.sakId eq sakId }
         .singleOrNull()
-        ?.let { row ->
-            val soknad = row.tilSoknadDTO()
-            SakDetaljer(
-                sakId = sakId.toString(),
-                status = Saksstatus.valueOf(row[SakTable.status]),
-                kildeTilBehandling = KildeTilBehandling.valueOf(row[SakTable.kildeTilBehandling]),
-                behandlendeEnhet = row[SakTable.behandlendeEnhet],
-                saksbehandlerIdent = row[SakTable.saksbehandlerIdent],
-                beslutterIdent = row[SakTable.beslutterIdent],
-                arenaSakId = row[SakTable.arenaSakId],
-                soknad = SakDetaljer.Soknad(
-                    soknadId = row[SoknadTable.id].toString(),
-                    status = soknad.status,
-                    innsendtTidspunkt = soknad.opprettetTidspunkt!!,
-                    virksomhet = soknad.virksomhet,
-                    ansatt = soknad.ansatt,
-                    ekspert = soknad.ekspert,
-                    behovForBistand = soknad.behovForBistand,
-                    nav = soknad.nav,
-                ),
-            )
-        }
+        ?.tilSakDetaljer()
 
 @Serializable
 data class SakerResponse(

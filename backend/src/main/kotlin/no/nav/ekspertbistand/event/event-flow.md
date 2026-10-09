@@ -25,7 +25,7 @@ flowchart TD
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
-    e_SakOppdatert(["SakOppdatert"]):::orphan
+    e_SakOppdatert(["SakOppdatert"]):::event
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
@@ -44,6 +44,7 @@ flowchart TD
     h_LagreTilsagnsData["LagreTilsagnsData"]:::handler
     h_LagreTilsagnsDataKildeAltinn["LagreTilsagnsDataKildeAltinn"]:::handler
     h_MarkerSakUnderBehandlingIArena["MarkerSakUnderBehandlingIArena"]:::handler
+    h_OpprettSak["OpprettSak"]:::handler
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad["OpprettTiltaksgjennomfoeringForInnsendtSoknad"]:::handler
     h_SettAvlystSoknadStatus["SettAvlystSoknadStatus"]:::handler
     h_SettGodkjentSoknadStatus["SettGodkjentSoknadStatus"]:::handler
@@ -66,6 +67,7 @@ flowchart TD
     h_JournalfoerTilskuddsbrev --> e_TilskuddsbrevJournalfoert
     h_JournalfoerTilskuddsbrevKildeAltinn --> e_TilskuddsbrevJournalfoertKildeAltinn
     h_LagreTilsagnsData --> e_TilsagnsdataLagret
+    h_OpprettSak --> e_SakOppdatert
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
     s_SoknadApi --> e_SoknadInnsendt
     s_TilsagnDataApi --> e_TilskuddsbrevVist
@@ -77,6 +79,7 @@ flowchart TD
     e_TilskuddsbrevJournalfoert --> h_LagreTilsagnsData
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_LagreTilsagnsDataKildeAltinn
     e_SaksbehandlingStartetIArena --> h_MarkerSakUnderBehandlingIArena
+    e_InnsendtSoknadJournalfoert --> h_OpprettSak
     e_InnsendtSoknadJournalfoert --> h_OpprettTiltaksgjennomfoeringForInnsendtSoknad
     e_SoknadAvlystIArena --> h_SettAvlystSoknadStatus
     e_TilskuddsbrevJournalfoert --> h_SettGodkjentSoknadStatus
@@ -101,7 +104,3 @@ flowchart TD
     e_TilskuddsbrevVist -.-> p_TilskuddsbrevVistProjection
     linkStyle default stroke:#555,stroke-width:2px
 ```
-
-Events markert i rødt mangler enten publiserer eller konsument:
-
-- `SakOppdatert` – mangler publiserer
