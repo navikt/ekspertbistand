@@ -3,8 +3,6 @@ package no.nav.ekspertbistand.saksbehandling
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.tilSoknadDTO
-import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
@@ -20,6 +18,7 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
 import java.util.UUID
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -158,30 +157,6 @@ enum class Vilkar {
 class SoknadIkkeFunnetException : RuntimeException()
 class SoknadIkkeGodkjentException : RuntimeException()
 class SakIkkeFunnetException : RuntimeException()
-
-/** Mapper en rad fra `sak` joinet med `soknad` til [SakDetaljer]. */
-fun ResultRow.tilSakDetaljer(): SakDetaljer {
-    val soknad = tilSoknadDTO()
-    return SakDetaljer(
-        sakId = this[SakTable.sakId].toString(),
-        status = Saksstatus.valueOf(this[SakTable.status]),
-        kildeTilBehandling = KildeTilBehandling.valueOf(this[SakTable.kildeTilBehandling]),
-        behandlendeEnhet = this[SakTable.behandlendeEnhet],
-        saksbehandlerIdent = this[SakTable.saksbehandlerIdent],
-        beslutterIdent = this[SakTable.beslutterIdent],
-        arenaSakId = this[SakTable.arenaSakId],
-        soknad = SakDetaljer.Soknad(
-            soknadId = this[SoknadTable.id].toString(),
-            status = soknad.status,
-            innsendtTidspunkt = soknad.opprettetTidspunkt!!,
-            virksomhet = soknad.virksomhet,
-            ansatt = soknad.ansatt,
-            ekspert = soknad.ekspert,
-            behovForBistand = soknad.behovForBistand,
-            nav = soknad.nav,
-        ),
-    )
-}
 
 /**
  * Hendelseslogg for en sak. Se `specifications/sakslogg.md`.
