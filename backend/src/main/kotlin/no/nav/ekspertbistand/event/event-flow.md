@@ -48,6 +48,7 @@ flowchart TD
     h_LagreTilsagnsData["LagreTilsagnsData"]:::handler
     h_LagreTilsagnsDataKildeAltinn["LagreTilsagnsDataKildeAltinn"]:::handler
     h_MarkerSakUnderBehandlingIArena["MarkerSakUnderBehandlingIArena"]:::handler
+    h_OppdaterVilkarsvurdering["OppdaterVilkarsvurdering"]:::handler
     h_OpprettSak["OpprettSak"]:::handler
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad["OpprettTiltaksgjennomfoeringForInnsendtSoknad"]:::handler
     h_SettAvlystSoknadStatus["SettAvlystSoknadStatus"]:::handler
@@ -59,7 +60,6 @@ flowchart TD
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
     h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn["VarsleArbeidsgiverSoknadMottattBehandlesIAltinn"]:::handler
-    h_VilkarsvurderingOppdatertNoop["VilkarsvurderingOppdatertNoop"]:::handler
     p_SakProjection[["SakProjection"]]:::projection
     p_SoknadBehandletForsinkelseProjection[["SoknadBehandletForsinkelseProjection"]]:::projection
     p_TilskuddsbrevVistProjection[["TilskuddsbrevVistProjection"]]:::projection
@@ -89,6 +89,7 @@ flowchart TD
     e_TilskuddsbrevJournalfoert --> h_LagreTilsagnsData
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_LagreTilsagnsDataKildeAltinn
     e_SaksbehandlingStartetIArena --> h_MarkerSakUnderBehandlingIArena
+    e_VilkarsvurderingOppdatert --> h_OppdaterVilkarsvurdering
     e_InnsendtSoknadJournalfoert --> h_OpprettSak
     e_InnsendtSoknadJournalfoert --> h_OpprettTiltaksgjennomfoeringForInnsendtSoknad
     e_SoknadAvlystIArena --> h_SettAvlystSoknadStatus
@@ -100,7 +101,6 @@ flowchart TD
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn
     e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn
-    e_VilkarsvurderingOppdatert --> h_VilkarsvurderingOppdatertNoop
     e_InnsendtSoknadJournalfoert -.-> p_SakProjection
     e_SakFrigjort -.-> p_SakProjection
     e_SakTildeltSaksbehandler -.-> p_SakProjection

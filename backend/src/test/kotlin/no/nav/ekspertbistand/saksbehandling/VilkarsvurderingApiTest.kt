@@ -38,10 +38,7 @@ import org.junit.jupiter.api.Test
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -352,7 +349,7 @@ class VilkarsvurderingApiTest {
     }
 
     @Test
-    fun `oppdater lagrer vurderingen, publiserer event og sporingslogger`() = testApplicationWithDatabase { db ->
+    fun `oppdater publiserer event, sporingslogger ikke og svarer 202`() = testApplicationWithDatabase { db ->
         val soknadId = lagreSoknad(db)
         val sakId = lagreSak(db, soknadId = soknadId, saksbehandlerIdent = navIdent)
         val oppsett = oppsett(db)
@@ -362,26 +359,7 @@ class VilkarsvurderingApiTest {
             jsonBody("""{ "vilkar": "DELTAKER_HAR_ARBEIDSFORHOLD", "godkjent": true, "notat": "  Bekreftet  " }""")
         }
 
-        assertEquals(HttpStatusCode.OK, response.status)
-        val dto = response.body<VilkarsvurderingDTO>()
-        assertEquals(Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD, dto.vilkar)
-        assertEquals(true, dto.godkjent)
-        assertEquals("Bekreftet", dto.notat)
-        assertEquals(navIdent, dto.vurdertAvIdent)
-        assertNotNull(dto.vurdertTidspunkt)
-
-        val rad = hentVilkarRad(db, sakId, Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD)
-        assertEquals(true, rad.godkjent)
-        assertEquals("Bekreftet", rad.notat)
-        assertEquals(navIdent, rad.vurdertAvIdent)
-        // Postgres lagrer med mikrosekundpresisjon, mens svaret har full presisjon fra klokka.
-        val diff = (dto.vurdertTidspunkt!! - rad.vurdertTidspunkt!!).absoluteValue
-        assertTrue(diff < 1.milliseconds, "vurdertTidspunkt i svar og database skal være likt, var $diff fra hverandre")
-        assertTrue(
-            Vilkar.entries.filter { it != Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD }
-                .all { hentVilkarRad(db, sakId, it).vurdertAvIdent == null },
-            "andre vilkår skal ikke endres",
-        )
+        assertEquals(HttpStatusCode.Accepted, response.status)
 
         val event = assertIs<EventData.VilkarsvurderingOppdatert>(hentEvents(db).single())
         assertEquals(sakId.toString(), event.sakId)
@@ -389,30 +367,27 @@ class VilkarsvurderingApiTest {
         assertEquals(VilkarsvurderingRequest(Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD, true, "Bekreftet"), event.vurdering)
         assertEquals(navIdent, event.vurdertAvIdent)
 
-        val cef = oppsett.audit.meldinger.single().toString()
-        assertTrue(cef.contains("suid=$navIdent"), cef)
-        assertTrue(cef.contains("duid=$fnr"), cef)
+        assertTrue(
+            Vilkar.entries.all { hentVilkarRad(db, sakId, it).vurdertAvIdent == null },
+            "lagringen gjøres av handleren, ikke endepunktet",
+        )
+
+        assertTrue(oppsett.audit.meldinger.isEmpty(), "endring av vilkårsvurdering skal ikke sporingslogges")
     }
 
     @Test
-    fun `oppdater med godkjent null nullstiller vurderingen`() = testApplicationWithDatabase { db ->
+    fun `oppdater med godkjent null publiserer nullstilling uten notat`() = testApplicationWithDatabase { db ->
         val sakId = lagreSak(db, saksbehandlerIdent = navIdent)
         val oppsett = oppsett(db)
 
-        oppsett.client.patch(url(sakId)) {
-            bearerAuth(gyldigToken)
-            jsonBody(godkjentRequest)
-        }
         val response = oppsett.client.patch(url(sakId)) {
             bearerAuth(gyldigToken)
-            jsonBody("""{ "vilkar": "DELTAKER_HAR_ARBEIDSFORHOLD", "godkjent": null, "notat": "" }""")
+            jsonBody("""{ "vilkar": "DELTAKER_HAR_ARBEIDSFORHOLD", "godkjent": null, "notat": "  " }""")
         }
 
-        assertEquals(HttpStatusCode.OK, response.status)
-        val rad = hentVilkarRad(db, sakId, Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD)
-        assertNull(rad.godkjent)
-        assertNull(rad.notat)
-        assertEquals(2, hentEvents(db).size)
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        val event = assertIs<EventData.VilkarsvurderingOppdatert>(hentEvents(db).single())
+        assertEquals(VilkarsvurderingRequest(Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD, null, null), event.vurdering)
     }
 
     private val godkjentRequest = """{ "vilkar": "DELTAKER_HAR_ARBEIDSFORHOLD", "godkjent": true }"""

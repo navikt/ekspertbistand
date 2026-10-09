@@ -367,14 +367,15 @@ sealed interface EventData {
     /**
      * Saksbehandler har vurdert ett vilkår i en sak.
      *
-     * Publiseres av `PATCH /api/saksbehandling/v1/saker/{sakId}/vilkarsvurdering` i samme
-     * transaksjon som raden i `saksvilkar` oppdateres. Payload er vurderingen slik den ble lagret.
-     * [godkjent] er null når vurderingen er nullstilt. [vurdertAvIdent] er NAV-identen til
-     * saksbehandleren og skal ikke logges utenfor teamLog.
+     * Publiseres av `PATCH /api/saksbehandling/v1/saker/{sakId}/vilkarsvurdering` etter at
+     * tilgang, status og vilkårsrad er sjekket. Payload er vurderingen som skal lagres (notat trimmet).
+     * `vurdering.godkjent` er null når vurderingen nullstilles. [vurdertAvIdent] er NAV-identen til
+     * saksbehandleren og skal ikke logges utenfor teamLog. [tidspunkt] er da endepunktet tok imot
+     * vurderingen, og er det som lagres i databasen.
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
      *
-     * Konsument: ingen ennå (no-op-handler i [configureEventHandlers]).
+     * Konsument: [no.nav.ekspertbistand.event.handlers.OppdaterVilkarsvurdering].
      */
     @OptIn(ExperimentalTime::class)
     @Serializable
@@ -419,12 +420,9 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(SkrivSakslogg::class))
         register(dependencies.create(TildelSaksbehandler::class))
         register(dependencies.create(FrigjoerSak::class))
+        register(dependencies.create(OppdaterVilkarsvurdering::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
-            EventHandledResult.Success()
-        }
-        register<EventData.VilkarsvurderingOppdatert>("VilkarsvurderingOppdatertNoop") { _ ->
-            // Ingen konsumenter ennå. Eventen er sporbarhet for vilkårsvurderingen.
             EventHandledResult.Success()
         }
 

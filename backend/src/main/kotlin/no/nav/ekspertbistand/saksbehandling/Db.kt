@@ -144,6 +144,12 @@ object SaksvilkarTable : Table("saksvilkar") {
     override val primaryKey = PrimaryKey(sakId, vilkarId)
 }
 
+/** Om saken har en rad for [vilkar] i `saksvilkar`. Må kalles i en pågående transaksjon. */
+fun vilkarFinnes(sakId: UUID, vilkar: Vilkar): Boolean =
+    !SaksvilkarTable.select(SaksvilkarTable.vilkarId)
+        .where { (SaksvilkarTable.sakId eq sakId) and (SaksvilkarTable.vilkarId eq vilkar.name) }
+        .empty()
+
 /** Lagres i `saksvilkar.vilkar_id` med [name]. Nye verdier krever re-kjøring av SakProjection for eksisterende saker. */
 @Serializable
 enum class Vilkar {

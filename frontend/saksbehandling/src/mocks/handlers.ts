@@ -357,7 +357,7 @@ export const handlers = [
       hentVilkårsvurdering(sak.sakId).map((v) => (v.vilkar === oppdatert.vilkar ? oppdatert : v))
     );
 
-    return HttpResponse.json(oppdatert);
+    return new HttpResponse(null, { status: 202 });
   }),
   http.post("/api/saksbehandling/v1/saker/:sakId/tildeling", ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
