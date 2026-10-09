@@ -6,10 +6,6 @@ import { fetchJson } from "../utils/api";
 import { HttpError } from "../utils/http";
 import type { VilkarId, VilkarsvurderingDTO, Vilkårstatus } from "./useVilkår";
 
-// API-et svarer 202 før handleren har lagret vurderingen (EventManager poller hvert 100. ms).
-// Revaliderer vi med en gang, kan svaret overskrive den optimistiske tilstanden med den gamle.
-const REVALIDER_ETTER_MS = 500;
-
 export type VilkårsvurderingInput = {
   vilkårId: VilkarId;
   status: Exclude<Vilkårstatus, "ikke_vurdert">;
@@ -29,7 +25,7 @@ function feilmelding(e: unknown): Error {
 }
 
 export function useVilkårsvurdering(sakId: string) {
-  const { mutate, cache } = useSWRConfig();
+  const { mutate } = useSWRConfig();
   const innloggetAnsatt = useInnloggetAnsatt();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -40,31 +36,29 @@ export function useVilkårsvurdering(sakId: string) {
     setIsSaving(true);
     setError(null);
 
-    const foer = cache.get(url)?.data as VilkarsvurderingDTO[] | undefined;
-    const oppdatert: VilkarsvurderingDTO = {
-      vilkar: vilkårId,
-      godkjent: status === "oppfylt",
-      notat: notat?.trim() || null,
-      vurdertAvIdent: innloggetAnsatt?.id ?? null,
-      vurdertTidspunkt: new Date().toISOString(),
-    };
-    await mutate<VilkarsvurderingDTO[]>(
-      url,
-      (vurderinger) => vurderinger?.map((v) => (v.vilkar === vilkårId ? oppdatert : v)),
-      { revalidate: false }
-    );
-
     try {
       await fetchJson(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vilkar: vilkårId, godkjent: status === "oppfylt", notat }),
       });
-      setTimeout(() => void mutate(url), REVALIDER_ETTER_MS);
+
+      // 202: eventen er publisert og lagres snart av handleren. Vis vurderingen som lagret
+      // uten å revalidere, så vi ikke henter den gamle før handleren har kjørt.
+      const oppdatert: VilkarsvurderingDTO = {
+        vilkar: vilkårId,
+        godkjent: status === "oppfylt",
+        notat: notat?.trim() || null,
+        vurdertAvIdent: innloggetAnsatt?.id ?? null,
+        vurdertTidspunkt: new Date().toISOString(),
+      };
+      await mutate<VilkarsvurderingDTO[]>(
+        url,
+        (vurderinger) => vurderinger?.map((v) => (v.vilkar === vilkårId ? oppdatert : v)),
+        { revalidate: false }
+      );
       return true;
     } catch (e) {
-      await mutate(url, foer, { revalidate: false });
-      void mutate(url);
       setError(feilmelding(e));
       return false;
     } finally {
