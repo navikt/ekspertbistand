@@ -5,6 +5,7 @@ import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
+import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.Vilkar
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.soknad.DTO
@@ -63,6 +64,22 @@ object TestEventData {
         )
     }
 
+
+    @OptIn(ExperimentalTime::class)
+    val forelopigVedtakSendtTilBeslutter by lazy {
+        EventData.ForelopigVedtakSendtTilBeslutter(
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            utfall = ForelopigUtfall.INNVILGE,
+            innvilgetBelop = 12000,
+            tiltaksperiodeFra = LocalDate(2026, 4, 1),
+            tiltaksperiodeTil = LocalDate(2026, 6, 30),
+            begrunnelseDeltaker = "Vilkårene er oppfylt",
+            begrunnelseArbeidsgiver = null,
+            innstiltAvIdent = "Z123456",
+            tidspunkt = Instant.parse("2026-04-03T09:00:00Z"),
+        )
+    }
 
     val sampleSoknad = DTO.Soknad(
         id = UUID.randomUUID().toString(),
@@ -248,5 +265,6 @@ object TestEventData {
         sakTildeltSaksbehandler,
         sakFrigjort,
         vilkarsvurderingOppdatert,
+        forelopigVedtakSendtTilBeslutter,
     )
 }
