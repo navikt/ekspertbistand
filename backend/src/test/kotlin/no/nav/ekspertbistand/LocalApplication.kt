@@ -12,6 +12,7 @@ import no.nav.common.audit_log.log.AuditLogger
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
@@ -21,8 +22,10 @@ import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
+import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.configureEventHandlers
+import no.nav.ekspertbistand.event.projections.SakProjection
 import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.*
@@ -34,6 +37,7 @@ import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.saksbehandling.Role
+import no.nav.ekspertbistand.saksbehandling.configureForelopigVedtakApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
 import no.nav.ekspertbistand.saksbehandling.configureVilkarsvurderingApiV1
@@ -387,6 +391,7 @@ fun main() {
         configureSaksbehandlerApiV1()
         configureSaksbehandlingSakApiV1()
         configureVilkarsvurderingApiV1()
+        configureForelopigVedtakApiV1()
         //configureKontoregisterApiV1()
 
         // event manager and event handlers
@@ -404,6 +409,7 @@ fun main() {
     }
 }
 
+@OptIn(ExperimentalTime::class)
 private fun initTestData(testDb: TestDatabase) {
     val godkjentTilsagnData = TilsagnData(
         tilsagnNummer = TilsagnData.TilsagnNummer(
@@ -542,6 +548,41 @@ private fun initTestData(testDb: TestDatabase) {
             //EventData.SaksbehandlingStartetIArena
             //EventData.TilskuddsbrevMottatt
             //EventData.SoknadAvlystIArena
+        }
+        // Arena-sak: SakProjection kjører ikke lokalt, så eventene den ville fått i prod gis direkte.
+        SoknadTable.insertReturning {
+            it[id] = UUID.fromString("7c1e4b2a-3d5f-4e6a-8b9c-0d1e2f3a4b5c")
+            it[virksomhetsnummer] = "123456780"
+            it[virksomhetsnavn] = "Eksempel Bedrift AS Avd. Oslo"
+            it[opprettetAv] = "42"
+            it[beliggenhetsadresse] = "Testveien 1, 0557 Oslo"
+
+            it[kontaktpersonNavn] = "Kontaktperson NN"
+            it[kontaktpersonEpost] = "kontaktperson@bedrift.no"
+            it[kontaktpersonTelefon] = "415199999"
+            it[ansattFnr] = "12058512345"
+            it[ansattNavn] = "Arena Asnatt NN"
+            it[ekspertNavn] = "Ekspert NN"
+            it[ekspertVirksomhet] = "ErgoConsult AS"
+            it[ekspertKompetanse] = "Ergoterapeut, autorisasjon HPR 1337"
+            it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
+            it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
+            it[behovForBistandEstimertKostnad] = "12000"
+            it[behovForBistandTimer] = "16"
+            it[behovForBistandTilrettelegging] = "Høydejustert bord testet, noe bedring"
+            it[behovForBistandStartdato] = CurrentDate
+
+            it[navKontaktPerson] = "Navkontaktperson NN"
+            it[status] = "innsendt"
+        }.single().tilSoknadDTO().also { soknad ->
+            val sakProjection = SakProjection(testDb.config.jdbcDatabase)
+            val tiltakssak = TiltakssakEndret(sakId = 4242, aar = 2026, lopenrsak = 4242)
+            listOf(
+                EventData.SoknadInnsendt(soknad),
+                EventData.InnsendtSoknadJournalfoert(soknad, 3, 3, "1234"),
+                EventData.TiltaksgjennomforingOpprettet(soknad, tiltakssak.saksnummer, 4242),
+                EventData.SaksbehandlingStartetIArena(soknad, tiltakssak),
+            ).forEach { sakProjection.handle(Event(id = 0, data = it), now()) }
         }
         UtkastTable.insert {
             it[id] = UUID.randomUUID()
