@@ -510,12 +510,6 @@ private fun initTestData(testDb: TestDatabase) {
             it[status] = "godkjent"
         }.single().tilSoknadDTO().also {
             publishEventQueue(EventData.SoknadInnsendt(it))
-            publishEventQueue(EventData.InnsendtSoknadJournalfoert(it, 1, 1, "1234"))
-            //EventData.TiltaksgjennomforingOpprettet
-            //EventData.SaksbehandlingStartetIArena
-            //EventData.TilskuddsbrevMottatt
-            //EventData.SoknadAvlystIArena
-
         }
         SoknadTable.insertReturning {
             it[id] = UUID.fromString("2f3f8f6d-4f7e-4a6b-bb32-7b44c0b3f589")
@@ -543,11 +537,6 @@ private fun initTestData(testDb: TestDatabase) {
             it[status] = "avlyst"
         }.single().tilSoknadDTO().also {
             publishEventQueue(EventData.SoknadInnsendt(it))
-            publishEventQueue(EventData.InnsendtSoknadJournalfoert(it, 2, 2, "5678"))
-            //EventData.TiltaksgjennomforingOpprettet
-            //EventData.SaksbehandlingStartetIArena
-            //EventData.TilskuddsbrevMottatt
-            //EventData.SoknadAvlystIArena
         }
         // Arena-sak: SakProjection kjører ikke lokalt, så eventene den ville fått i prod gis direkte.
         SoknadTable.insertReturning {
