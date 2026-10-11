@@ -40,7 +40,9 @@ import no.nav.ekspertbistand.mocks.testAnsattJson
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 class SaksbehandlingSakApiTest {
@@ -466,6 +468,40 @@ class SaksbehandlingSakApiTest {
         val oppsett = oppsett(db, grupper = beslutterGrupper)
 
         assertFalse(oppsett.hentDetalj(sakId).kanTildeleMeg)
+    }
+
+    @Test
+    fun `detalj gir siste versjon av foreløpig vedtak, eller null`() = testApplicationWithDatabase { db ->
+        val utenVedtak = lagreSak(db, lagreSoknad(db))
+        val medVedtak = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+        transaction(db.config.jdbcDatabase) {
+            listOf(1 to ForelopigUtfall.AVSLAA, 2 to ForelopigUtfall.INNVILGE).forEach { (versjon, utfall) ->
+                ForelopigVedtakTable.insert {
+                    it[sakId] = medVedtak
+                    it[this.versjon] = versjon
+                    it[eventId] = versjon.toLong()
+                    it[this.utfall] = utfall.name
+                    it[innvilgetBelop] = if (utfall == ForelopigUtfall.INNVILGE) 9999 else null
+                    it[tiltaksperiodeFra] = if (utfall == ForelopigUtfall.INNVILGE) LocalDate(2026, 11, 22) else null
+                    it[tiltaksperiodeTil] = if (utfall == ForelopigUtfall.INNVILGE) LocalDate(2026, 12, 31) else null
+                    it[begrunnelseDeltaker] = "Til deltaker $versjon"
+                    it[begrunnelseArbeidsgiver] = if (utfall == ForelopigUtfall.AVSLAA) "Til arbeidsgiver" else null
+                    it[innstiltAvIdent] = navIdent
+                    it[sendtTidspunkt] = Instant.parse("2026-11-0${versjon}T10:00:00Z")
+                }
+            }
+        }
+        val oppsett = oppsett(db)
+
+        assertNull(oppsett.hentDetalj(utenVedtak).forelopigVedtak)
+        val vedtak = assertNotNull(oppsett.hentDetalj(medVedtak).forelopigVedtak)
+        assertEquals(2, vedtak.versjon)
+        assertEquals(ForelopigUtfall.INNVILGE, vedtak.utfall)
+        assertEquals(9999, vedtak.innvilgetBelop)
+        assertEquals(LocalDate(2026, 11, 22), vedtak.tiltaksperiodeFra)
+        assertEquals("Til deltaker 2", vedtak.begrunnelseDeltaker)
+        assertNull(vedtak.begrunnelseArbeidsgiver)
+        assertEquals(navIdent, vedtak.innstiltAvIdent)
     }
 
     @Test
