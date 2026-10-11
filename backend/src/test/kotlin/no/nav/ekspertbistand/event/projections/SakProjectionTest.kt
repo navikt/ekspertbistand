@@ -9,6 +9,7 @@ import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
+import no.nav.ekspertbistand.saksbehandling.SaksvilkarTable
 import no.nav.ekspertbistand.saksbehandling.frigjoerSak
 import no.nav.ekspertbistand.saksbehandling.tildelSak
 import no.nav.ekspertbistand.soknad.DTO
@@ -61,6 +62,7 @@ class SakProjectionTest {
         assertEquals(KildeTilBehandling.ARENA.name, sak[SakTable.kildeTilBehandling])
         assertNull(sak[SakTable.behandlendeEnhet])
         assertNull(sak[SakTable.arenaSakId])
+        assertTrue(SaksvilkarTable.selectAll().where { SaksvilkarTable.sakId eq sak[SakTable.sakId] }.empty())
     }
 
     @Test
