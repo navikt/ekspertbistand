@@ -30,7 +30,7 @@ class TilskuddsbrevVistProjectionTest {
 
     @BeforeTest
     fun setup() {
-        testDb = TestDatabase().cleanMigrate()
+        testDb = TestDatabase.isolert()
         projection = TilskuddsbrevVistProjection(testDb.config.jdbcDatabase)
     }
 

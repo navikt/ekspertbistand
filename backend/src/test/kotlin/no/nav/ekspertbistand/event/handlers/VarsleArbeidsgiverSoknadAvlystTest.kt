@@ -45,8 +45,8 @@ class VarsleArbeidsgiverSoknadAvlystTest {
     private val tidspunkt = "2026-01-01T10:15:30+01:00"
 
     @Test
-    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplicationWithDatabase {
-        setupTestApplication()
+    fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplicationWithDatabase { db ->
+        setupTestApplication(db)
         setProdusentApiResultat(
             mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),
             mutableListOf({
@@ -77,8 +77,8 @@ class VarsleArbeidsgiverSoknadAvlystTest {
 
     @Test
     fun `Idempotens sjekk`() =
-        testApplication {
-            setupTestApplication()
+        testApplicationWithDatabase { db ->
+            setupTestApplication(db)
             setProdusentApiResultat(
                 mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }),
                 mutableListOf({ throw Exception("Test feil") }, {
@@ -144,9 +144,8 @@ private val soknad1 = DTO.Soknad(
 )
 
 
-private fun ApplicationTestBuilder.setupTestApplication() {
+private fun ApplicationTestBuilder.setupTestApplication(db: TestDatabase) {
     val client = createClient { }
-    val db = TestDatabase().cleanMigrate()
     application {
         dependencies {
             provide { db.config.jdbcDatabase }
