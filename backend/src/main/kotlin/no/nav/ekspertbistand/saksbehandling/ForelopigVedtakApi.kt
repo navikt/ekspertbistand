@@ -269,8 +269,9 @@ fun JdbcTransaction.publiserForelopigVedtak(
 }
 
 /**
- * Leser standardtekstene og sjekker at alle utfall og parter med fritekst har en tekst som ikke
- * er blank. Kaster ved feil, så appen ikke starter.
+ * Leser standardtekstene og sjekker at hvert utfall med begrunnelse til arbeidsgiver har en tekst
+ * som ikke er blank, og at ingen andre utfall har tekst. Kaster ved feil, så appen ikke starter.
+ * Begrunnelsen til deltaker har ingen standardtekst, fordi den skal skrives for hver enkelt.
  */
 internal fun lastStandardtekster(ressurs: String = STANDARDTEKSTER_RESSURS): Map<ForelopigUtfall, Standardtekst> {
     val innhold = requireNotNull(ForelopigVedtakOppsett::class.java.getResource(ressurs)) {
@@ -278,12 +279,12 @@ internal fun lastStandardtekster(ressurs: String = STANDARDTEKSTER_RESSURS): Map
     }.readText()
     val tekster = Json.decodeFromString<Map<ForelopigUtfall, Standardtekst>>(innhold)
 
-    ForelopigUtfall.entries.forEach { utfall ->
-        val tekst = requireNotNull(tekster[utfall]) { "Mangler standardtekst for $utfall" }
-        require(tekst.deltaker.isNotBlank()) { "Mangler standardtekst til deltaker for $utfall" }
-        if (utfall.harBegrunnelseTilArbeidsgiver) {
-            require(!tekst.arbeidsgiver.isNullOrBlank()) { "Mangler standardtekst til arbeidsgiver for $utfall" }
-        }
+    val utfallMedTekst = ForelopigUtfall.entries.filter { it.harBegrunnelseTilArbeidsgiver }.toSet()
+    require(tekster.keys == utfallMedTekst) {
+        "Standardtekster skal finnes for $utfallMedTekst, fant ${tekster.keys}"
+    }
+    tekster.forEach { (utfall, tekst) ->
+        require(tekst.arbeidsgiver.isNotBlank()) { "Mangler standardtekst til arbeidsgiver for $utfall" }
     }
     return tekster
 }
@@ -304,8 +305,7 @@ data class ForelopigVedtakRequest(
 /** Tekstene kan inneholde `{soknadssum}` og `{innvilgetBelop}`, som frontend fletter inn. */
 @Serializable
 data class Standardtekst(
-    val deltaker: String,
-    val arbeidsgiver: String? = null,
+    val arbeidsgiver: String,
 )
 
 @Serializable

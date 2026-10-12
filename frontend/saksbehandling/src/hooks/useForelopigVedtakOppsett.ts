@@ -4,13 +4,13 @@ import type { HttpError } from "../utils/http";
 import type { MaksSats } from "../utils/maksSats";
 import type { ForelopigUtfall } from "./useSak";
 
+/** Bare til arbeidsgiver. Begrunnelsen til deltaker skrives for hver enkelt. */
 export type Standardtekst = {
-  deltaker: string;
-  arbeidsgiver?: string | null;
+  arbeidsgiver: string;
 };
 
 export type ForelopigVedtakOppsett = {
-  standardtekster: Record<ForelopigUtfall, Standardtekst>;
+  standardtekster: Partial<Record<ForelopigUtfall, Standardtekst>>;
   maksSatser: MaksSats[];
 };
 

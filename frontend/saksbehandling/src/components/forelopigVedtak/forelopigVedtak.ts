@@ -117,17 +117,21 @@ export function flettStandardtekst(
   return tekst;
 }
 
-/** Teksten saksbehandler har skrevet, eller standardteksten flettet med dagens beløp. */
+/**
+ * Teksten saksbehandler har skrevet. Ellers standardteksten flettet med dagens beløp for
+ * arbeidsgiver, og tom tekst for deltaker.
+ */
 export function begrunnelse(
   tilstand: ForelopigVedtakSkjemaTilstand,
   utfall: ForelopigUtfall,
   mottaker: Mottaker,
-  standardtekster: Record<ForelopigUtfall, Standardtekst>,
+  standardtekster: Partial<Record<ForelopigUtfall, Standardtekst>>,
   soknadssum: number | null
 ) {
   const redigert = tilstand.redigerteBegrunnelser[utfall]?.[mottaker];
   if (redigert !== undefined) return redigert;
-  const mal = standardtekster[utfall]?.[mottaker] ?? "";
+  if (mottaker === "deltaker") return "";
+  const mal = standardtekster[utfall]?.arbeidsgiver ?? "";
   const innvilgetBelop = utfall === "INNVILGE_REDUSERT" ? tolkNyttBelop(tilstand.nyttBelop) : null;
   return flettStandardtekst(mal, soknadssum, innvilgetBelop);
 }

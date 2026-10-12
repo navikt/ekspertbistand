@@ -101,6 +101,9 @@ Avvik mellom kort og skisse:
   (Ken, 2026-10-09).
 - **Sluttdato.** Skissen forhåndsutfyller 31.12. Vi bruker startdato + 3 måneder,
   begrenset til 31.12 (Ken, 2026-10-09).
+- **Begrunnelse til deltaker.** Skissen forhåndsutfyller feltet med en
+  standardtekst. Vi har ingen standardtekst til deltaker, fordi begrunnelsen må
+  skrives for hver enkelt. Feltet er tomt og påkrevd (Ken, 2026-10-12).
 - **Forhåndsvisningslenker.** Skissen har lenker. De bygges ikke, se *Avgrensning*.
 - **Stavefeil i skissen.** «oppfyllt», «Forhåndvis», «Forhandvis». Vi skriver
   «oppfylt» og «Forhåndsvis».
@@ -113,7 +116,7 @@ Avvik mellom kort og skisse:
 | Ken, 2026-10-09 | Innvilgelse krever ikke at alle vilkår er oppfylt, bare at alle er vurdert. |
 | Ken, 2026-10-09 (svar på kortkommentar fra Hanna, 2026-10-07) | Tiltaksperioden kan ikke gå over årsskiftet, fordi satsen kan endres med nytt statsbudsjett. Frontend og backend validerer at start og slutt er i samme år. Sluttdato forhåndsutfylles med startdato + 3 måneder, men aldri senere enn 31.12 samme år. Ingen regel for startdato i fortiden eller før søknadens startdato. |
 | Ken, 2026-10-09 og 2026-10-10 | Redusert beløp må være mindre enn søknadssummen, og innvilget beløp kan aldri være høyere enn maks sats. Satsen er 24 000 kr fra 2026 og kommer fra MD-brev eller fag. Vi støtter flere satser nå: hver sats har en gyldig fra-dato, slik at en ny sats kan deployes i god tid. Satsene ligger i koden, og en hjelpefunksjon gir gjeldende sats for en dato. Se *2b*. |
-| Ken, 2026-10-09 og 2026-10-10 | Begrunnelse til arbeidsgiver kreves bare ved redusert beløp og avslag. Standardtekstene kommer fra backend, sammen med brevmalene, og står ordrett som i skissene, også «Hjelp kan hjelpe med …» og «mer en dere». PR-beskrivelsen flagger ordlyden til gjennomgang. |
+| Ken, 2026-10-09, 2026-10-10 og 2026-10-12 | Begrunnelse til arbeidsgiver kreves bare ved redusert beløp og avslag. Begrunnelse til deltaker kreves for alle utfall, men har ingen standardtekst, fordi den må skrives for hver enkelt. Standardtekstene til arbeidsgiver kommer fra backend, sammen med brevmalene, og står ordrett som i skissene, også «mer en dere». PR-beskrivelsen flagger ordlyden til gjennomgang. |
 | Ken, 2026-10-09 | Forhåndsvisning av brevene er ikke med. Hanna lager et forslag med forhåndsvisnings-«pills» i stedet for lenker. |
 | Ken, 2026-10-10 | Visning av tilsagnsbrev i saksbildet er en egen oppgave. |
 | Ken, 2026-10-09 og 2026-10-10 | Saker med `kilde_til_behandling = ARENA` vises i en nedstrippet versjon, men saksbehandles ikke hos oss. De har bare søknad og tilsagnsbrev, ingen vilkårsvurdering, refusjon eller sluttrapport, og behandles ferdig i Arena. De kan tildeles, fordi det viser hvem som har saken i Arena. Se *2c*. |
@@ -359,20 +362,17 @@ tidligere år.
 
 Standardtekstene ligger i
 `backend/src/main/resources/dokumentmaler/standardtekster/forelopig_vedtak.json`,
-ved siden av brevmalene. Første versjon er tekstene fra skissene
-(`723:25524`, `414:18714`, `38:1255`):
+ved siden av brevmalene. Bare arbeidsgiver har standardtekst, og bare for
+utfallene med begrunnelse til arbeidsgiver. Begrunnelsen til deltaker skrives
+for hver enkelt (Ken, 2026-10-12). Første versjon er tekstene fra skissene
+(`414:18714`, `38:1255`):
 
 ```json
 {
-  "INNVILGE": {
-    "deltaker": "Nav har vurdert at tilskudd til ekspertbistand kan være til god hjelp for å gjøre en arbeidsplassvurdering. Hjelp kan hjelpe med å avdekke hvilke arbeidsgiveroppgaver du sliter med og hva som kan gjøres annerledes framover."
-  },
   "INNVILGE_REDUSERT": {
-    "deltaker": "Dere søkte om {soknadssum} kr, Nav har innvilget {innvilgetBelop} kr i tilskudd til ekspertbistand.",
     "arbeidsgiver": "Dere søkte om {soknadssum} kr, Nav har innvilget {innvilgetBelop} kr i tilskudd til ekspertbistand."
   },
   "AVSLAA": {
-    "deltaker": "Nav har vurdert at andre trenger tilskudd til ekspertbistand mer en dere.",
     "arbeidsgiver": "Nav har vurdert at andre trenger tilskudd til ekspertbistand mer en dere."
   }
 }
@@ -394,7 +394,7 @@ brevkortet lager vedtaksbrevmalene, kan tekstene flyttes inn til dem.
 
 ```json
 {
-  "standardtekster": { "INNVILGE": { "deltaker": "…" }, "…": {} },
+  "standardtekster": { "INNVILGE_REDUSERT": { "arbeidsgiver": "…" }, "AVSLAA": { "arbeidsgiver": "…" } },
   "maksSatser": [{ "gyldigFra": "2026-01-01", "belop": 24000 }]
 }
 ```
@@ -402,8 +402,9 @@ brevkortet lager vedtaksbrevmalene, kan tekstene flyttes inn til dem.
 Frontend velger satsen for valgt startdato med samme regel som
 `gjeldendeMaksSats`. Backend sjekker igjen ved innsending.
 
-Filen leses og valideres ved oppstart: alle utfall og parter som har fritekst,
-må ha en tekst som ikke er blank. Mangler noe, starter ikke appen.
+Filen leses og valideres ved oppstart: hvert utfall med begrunnelse til
+arbeidsgiver må ha en tekst som ikke er blank, og andre utfall skal ikke ha
+tekst. Er noe feil, starter ikke appen.
 
 ### 2c. Arena-saker: bare visning
 
@@ -522,9 +523,10 @@ Forhåndsutfylling:
   endret den selv.
 - `DatePicker` for sluttdato har `toDate` 31.12 i startdatoens år. Klientvalidering
   gir feil hvis datoene er i ulike år.
-- Begrunnelser: standardtekstene fra `useForelopigVedtakOppsett`, per utfall,
-  med `{soknadssum}` og `{innvilgetBelop}` flettet inn (se *2b*). Bytter
-  saksbehandler utfall, beholdes tekst hen har endret.
+- Begrunnelse til deltaker: tomt felt, påkrevd for alle utfall.
+- Begrunnelse til arbeidsgiver: standardteksten fra `useForelopigVedtakOppsett`,
+  per utfall, med `{soknadssum}` og `{innvilgetBelop}` flettet inn (se *2b*).
+- Bytter saksbehandler utfall, beholdes tekst hen har skrevet eller endret.
 - Antall oppfylte vilkår i etiketten «Innvilge (n av 5 vilkår oppfylt)» fra
   `useVilkår`. Etiketten er informasjon, ikke en sperre.
 
@@ -638,7 +640,7 @@ Backend følger testoppsettet som finnes i appen, uten ny teknologi (Ken,
   - 409 `SAK_UGYLDIG_KILDE` for `ARENA`.
   - 409 `BELOP_OVER_SATS` for innvilgelse med søknadssum over satsen.
   - Ingen endring i `sak` eller `forelopig_vedtak` før handleren har kjørt.
-- `ForelopigVedtakOppsettTest`: alle utfall og parter med fritekst har tekst.
+- `ForelopigVedtakOppsettTest`: redusert beløp og avslag har tekst til arbeidsgiver, og ingen andre utfall har tekst.
   `maksSatser` er `MAKS_SATSER`. 403 uten rolle.
 - `SatsTest` (ren enhetstest): `gjeldendeMaksSats` gir satsen på og etter
   `gyldigFra`, den forrige satsen dagen før en ny sats gjelder (med en lokal

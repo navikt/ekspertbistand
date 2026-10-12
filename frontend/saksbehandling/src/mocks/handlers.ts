@@ -215,18 +215,11 @@ const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];
 // Ordrett som `forelopig_vedtak.json` i backend, også skrivefeilene som skal gjennomgås.
 const mockOppsett: ForelopigVedtakOppsett = {
   standardtekster: {
-    INNVILGE: {
-      deltaker:
-        "Nav har vurdert at tilskudd til ekspertbistand kan være til god hjelp for å gjøre en arbeidsplassvurdering. Hjelp kan hjelpe med å avdekke hvilke arbeidsgiveroppgaver du sliter med og hva som kan gjøres annerledes framover.",
-    },
     INNVILGE_REDUSERT: {
-      deltaker:
-        "Dere søkte om {soknadssum} kr, Nav har innvilget {innvilgetBelop} kr i tilskudd til ekspertbistand.",
       arbeidsgiver:
         "Dere søkte om {soknadssum} kr, Nav har innvilget {innvilgetBelop} kr i tilskudd til ekspertbistand.",
     },
     AVSLAA: {
-      deltaker: "Nav har vurdert at andre trenger tilskudd til ekspertbistand mer en dere.",
       arbeidsgiver: "Nav har vurdert at andre trenger tilskudd til ekspertbistand mer en dere.",
     },
   },
