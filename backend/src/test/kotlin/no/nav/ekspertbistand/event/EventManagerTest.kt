@@ -25,7 +25,7 @@ class EventManagerTest {
 
     @BeforeTest
     fun setup() {
-        testDb = TestDatabase().cleanMigrate()
+        testDb = TestDatabase.isolert()
     }
 
     @AfterTest

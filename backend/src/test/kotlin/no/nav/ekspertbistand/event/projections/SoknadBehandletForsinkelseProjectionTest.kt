@@ -32,7 +32,7 @@ class SoknadBehandletForsinkelseProjectionTest {
 
     @BeforeTest
     fun setup() {
-        testDb = TestDatabase().cleanMigrate()
+        testDb = TestDatabase.isolert()
         projection = SoknadBehandletForsinkelseProjection(testDb.config.jdbcDatabase)
     }
 

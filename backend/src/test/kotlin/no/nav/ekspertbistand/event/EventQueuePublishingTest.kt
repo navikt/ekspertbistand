@@ -26,7 +26,7 @@ class EventQueuePublishingTest {
 
     @BeforeTest
     fun setup() {
-        testDb = TestDatabase().cleanMigrate()
+        testDb = TestDatabase.isolert()
     }
 
     @AfterTest
