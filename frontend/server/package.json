@@ -7,7 +7,6 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -b",
     "start": "node dist/index.js",
-    "test": "vitest run",
     "lint": "eslint ../../frontend/server",
     "lint:fix": "eslint ../../frontend/server --fix",
     "typecheck": "tsc --noEmit"
@@ -24,7 +23,6 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "tsx": "^4.23.9",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.11"
+    "typescript": "^5.9.3"
   }
 }
