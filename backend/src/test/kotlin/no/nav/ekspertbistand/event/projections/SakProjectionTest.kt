@@ -42,7 +42,7 @@ class SakProjectionTest {
 
     @BeforeTest
     fun setup() {
-        testDb = TestDatabase().cleanMigrate()
+        testDb = TestDatabase.isolert()
         projection = SakProjection(testDb.config.jdbcDatabase)
     }
 

@@ -34,7 +34,7 @@ class AppMetricsTest {
 
     @Test
     fun `eventQueueSizeGauge reflects database rows`() = runTest {
-        TestDatabase().cleanMigrate().use {
+        TestDatabase.isolert().use {
             val dispatcher = UnconfinedTestDispatcher(testScheduler)
             transaction {
                 QueuedEvents.insert {
@@ -84,7 +84,7 @@ class AppMetricsTest {
 
     @Test
     fun `eventLogSizeGauge reflects database rows`() = runTest {
-        TestDatabase().cleanMigrate().use {
+        TestDatabase.isolert().use {
             val dispatcher = UnconfinedTestDispatcher(testScheduler)
             transaction {
                 EventLog.insert {
@@ -138,7 +138,7 @@ class AppMetricsTest {
 
     @Test
     fun `processingEventsAgeGauge reflects correct age buckets`() = runTest {
-        TestDatabase().cleanMigrate().use {
+        TestDatabase.isolert().use {
             val dispatcher = UnconfinedTestDispatcher(testScheduler)
             val now = Clock.System.now()
             transaction {
@@ -210,7 +210,7 @@ class AppMetricsTest {
 
     @Test
     fun `eventHandlerStateGauge reflects EventHandlerStates rows grouped by handlerId and result`() = runTest {
-        TestDatabase().cleanMigrate().use {
+        TestDatabase.isolert().use {
             val dispatcher = UnconfinedTestDispatcher(testScheduler)
             transaction {
                 EventHandlerStates.insert {
@@ -267,7 +267,7 @@ class AppMetricsTest {
 
     @Test
     fun `eventQueueRetriesPerEventId reflects retries for each event id`() = runTest {
-        TestDatabase().cleanMigrate().use {
+        TestDatabase.isolert().use {
             val dispatcher = UnconfinedTestDispatcher(testScheduler)
             transaction {
                 QueuedEvents.insert {
@@ -324,7 +324,7 @@ class AppMetricsTest {
 
     @Test
     fun `soknadBehandletForsinkelseGauge shows buckets for age per status`() = runTest {
-        TestDatabase().cleanMigrate().use {
+        TestDatabase.isolert().use {
             val dispatcher = UnconfinedTestDispatcher(testScheduler)
             val now = Clock.System.now()
             val mockClock = object : Clock {
@@ -382,7 +382,7 @@ class AppMetricsTest {
 
     @Test
     fun `tilskuddsbrevVistProsentGauge shows percentage of brev vist`() = runTest {
-        TestDatabase().cleanMigrate().use {
+        TestDatabase.isolert().use {
             val dispatcher = UnconfinedTestDispatcher(testScheduler)
             transaction {
                 TilskuddsbrevVistState.insert {
@@ -417,7 +417,7 @@ class AppMetricsTest {
 
     @Test
     fun `tilskuddsbrevVistAgeGauge shows age per status bucketed`() = runTest {
-        TestDatabase().cleanMigrate().use {
+        TestDatabase.isolert().use {
             val dispatcher = UnconfinedTestDispatcher(testScheduler)
             val now = Clock.System.now()
             transaction {
@@ -455,7 +455,7 @@ class AppMetricsTest {
 
     @Test
     fun `MetricsStatementInterceptor records database query execution times`() = runTest {
-        TestDatabase().cleanMigrate().use {
+        TestDatabase.isolert().use {
             val now = Clock.System.now()
 
             // Create some test data

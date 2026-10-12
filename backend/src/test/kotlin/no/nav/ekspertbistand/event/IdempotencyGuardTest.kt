@@ -11,7 +11,7 @@ class IdempotencyGuardTest {
 
     @Test
     fun `Event med en subtask som ikke er guarded`() {
-        TestDatabase().cleanMigrate().use {
+        TestDatabase.isolert().use {
             val idempotencyGuard = idempotencyGuard(it.config.jdbcDatabase)
 
             val event = Event(1L, TestEventData.soknadInnsendt)
@@ -24,7 +24,7 @@ class IdempotencyGuardTest {
     @Test
     fun `Event med to subtasks der den første er guarded`() {
         runBlocking {
-            TestDatabase().cleanMigrate().use {
+            TestDatabase.isolert().use {
                 val idempotencyGuard = idempotencyGuard(it.config.jdbcDatabase)
 
                 val event1 = Event(1L, TestEventData.soknadInnsendt)
