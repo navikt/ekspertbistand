@@ -301,7 +301,10 @@ class SakProjectionTest {
         val soknad = lagreSoknad()
         publishAndFinalize(EventData.SoknadInnsendt(soknad))
         pollAlt()
-        SakTable.update({ SakTable.soknadId eq UUID.fromString(soknad.id) }) { it[beslutterIdent] = "Z111111" }
+        SakTable.update({ SakTable.soknadId eq UUID.fromString(soknad.id) }) {
+            it[beslutterIdent] = "Z111111"
+            it[beslutterNavn] = "Beslutter NN"
+        }
         publishAndFinalize(tildelt(soknad, "Z111111"))
         pollAlt()
 

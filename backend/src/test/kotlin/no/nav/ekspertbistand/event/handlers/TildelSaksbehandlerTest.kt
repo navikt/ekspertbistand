@@ -137,7 +137,10 @@ class TildelSaksbehandlerTest {
         val database = it.config.jdbcDatabase
         val sak = lagreSoknadOgSak(database)
         transaction(database) {
-            SakTable.update({ SakTable.sakId eq sak.sakId }) { it[beslutterIdent] = "Z123456" }
+            SakTable.update({ SakTable.sakId eq sak.sakId }) {
+                it[beslutterIdent] = "Z123456"
+                it[beslutterNavn] = "Beslutter NN"
+            }
         }
 
         assertIs<EventHandledResult.Success>(TildelSaksbehandler(database).handle(Event(1L, tildelt(sak))))

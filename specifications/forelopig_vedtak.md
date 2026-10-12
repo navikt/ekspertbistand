@@ -148,10 +148,9 @@ Ikke i dette kortet:
   2026-10-10).
 - For Arena-saker: refusjon. Refusjonssøknad og sluttrapport er ikke relevant for Arena-saker,
   og eventuell refusjonsinformasjon fra Arena tas senere (Ken, 2026-10-09).
-- Hvordan beslutter plukker saker. I tabellvisningen skal kolonnen oppgavetype
-  vise «Søknad - beslutter» når et foreløpig vedtak er fattet. Hvordan
-  beslutter finner og tar disse sakene, er ikke avklart. Det tas opp med
-  teamet (Ken, 2026-10-10). Statuskolonnen viser allerede «Til beslutning».
+- Hvordan beslutter plukker saker. Det er beskrevet i
+  [`listevisning.md`](listevisning.md): oppgavetypen «Søknad - beslutter» og
+  «Tildel meg» som beslutter.
 
 ## Tilnærming
 

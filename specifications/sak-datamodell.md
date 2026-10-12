@@ -47,12 +47,14 @@ journalført (`InnsendtSoknadJournalfoert`), sammen med alle vilkår.
 | `behandlende_enhet` | TEXT | NULL | NAV-enheten som behandler saken — NORG-enhetsnummer (4 siffer, ledende nuller bevart). Null til enhet er satt. |
 | `saksbehandler_ident` | TEXT | NULL | NAV-ident til saksbehandler som utreder. Null før tildeling og etter frigjøring. |
 | `saksbehandler_navn` | TEXT | NULL | Navnet til saksbehandleren fra entra-proxy da saken ble tildelt. Satt når og bare når `saksbehandler_ident` er satt (CHECK `chk_saksbehandler_navn_med_ident`). |
-| `beslutter_ident` | TEXT | NULL | NAV-ident til beslutter (to-trinns kontroll). Null før beslutning. |
+| `beslutter_ident` | TEXT | NULL | NAV-ident til beslutter (to-trinns kontroll). Null til en beslutter tildeler seg saken. |
+| `beslutter_navn` | TEXT | NULL | Navnet til beslutteren fra entra-proxy da hen tildelte seg saken (V23). Satt når og bare når `beslutter_ident` er satt (CHECK `chk_beslutter_navn_med_ident`). |
 | `foreslatt_utfall` | TEXT | NULL | Saksbehandlers foreløpige vedtak sendt til beslutning (`INNVILGET`/`AVSLATT`). Se `Saksstatus`. Null før innsending. Detaljene ligger i `forelopig_vedtak`. |
 | `arena_sak_id` | TEXT | NULL | Saksnummer i Arena når saken er speilet dit. Null hvis ikke i Arena. |
 | `refusjon_id` | UUID | UNIQUE, FK → `refusjonskrav(id)` | Refusjonskravet for saken (1:1). Null til krav mottas. |
 | `sluttrapport_id` | UUID | UNIQUE, FK → `sluttrapport(sluttrapport_id)` | Sluttrapporten for saken (1:1). Null til rapport mottas. |
 | `tildeling_event_id` | BIGINT | NULL | Id-en til eventen som sist tildelte eller frigjorde saken. En eldre event skriver aldri over en nyere. Null før første tildeling. |
+| `beslutter_tildeling_event_id` | BIGINT | NULL | Id-en til eventen som sist tildelte beslutter (V23). Egen kolonne, fordi tildeling av saksbehandler og beslutter er uavhengige. Null før første beslutter-tildeling. |
 | `opprettet` | TIMESTAMPTZ | NOT NULL, default `now()` | Når saken ble opprettet. |
 | `sist_endret` | TIMESTAMPTZ | NOT NULL, default `now()` | Sist endret. Oppdateres av applikasjonen ved skriv. |
 
@@ -64,6 +66,13 @@ Constraint — en tildelt sak har alltid navn (V20):
 ```sql
 ALTER TABLE sak ADD CONSTRAINT chk_saksbehandler_navn_med_ident
   CHECK ((saksbehandler_ident IS NULL) = (saksbehandler_navn IS NULL));
+```
+
+Tilsvarende for beslutter (V23):
+
+```sql
+ALTER TABLE sak ADD CONSTRAINT chk_beslutter_navn_med_ident
+  CHECK ((beslutter_ident IS NULL) = (beslutter_navn IS NULL));
 ```
 
 `chk_saksbehandler_ulik_beslutter` fantes fra V12, men er fjernet i V20. En beslutter kan tildele
@@ -201,6 +210,19 @@ Flyt: `OPPRETTET` → (saksbehandler tilordner seg) `UNDER_BEHANDLING` → (send
 
 Bygd: `UNDER_BEHANDLING` → `TIL_BESLUTNING` (foreløpig vedtak, se
 [`forelopig_vedtak.md`](forelopig_vedtak.md)). Beslutters godkjenning og retur er ikke bygd ennå.
+
+### Oppgavetype
+
+Oppgavetypen lagres ikke. Backend utleder den av `sak.status` (`oppgavetype` i
+`saksbehandling/Oppgavetype.kt`):
+
+| Status | Oppgavetype |
+|--------|-------------|
+| `OPPRETTET`, `UNDER_BEHANDLING` | `SOKNAD` |
+| `TIL_BESLUTNING` | `SOKNAD_BESLUTTER` |
+| `INNVILGET`, `AVSLATT`, `AVSLUTTET` | Ingen |
+
+Se [`listevisning.md`](listevisning.md).
 
 ### `ForelopigUtfall` (`forelopig_vedtak.utfall`)
 

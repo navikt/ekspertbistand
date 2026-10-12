@@ -3,6 +3,7 @@ import { useSWRConfig } from "swr";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import { fetchJson } from "../utils/api";
 import {
+  SAKSBEHANDLING_BESLUTTER_TILDELING_URL,
   SAKSBEHANDLING_SAKER_URL,
   SAKSBEHANDLING_SAKSLOGG_URL,
   SAKSBEHANDLING_SAK_URL,
@@ -18,9 +19,11 @@ const REVALIDER_ETTER_MS = 500;
 
 type Handling = "tildel" | "frigjoer";
 
+export type Tildelingsrolle = "saksbehandler" | "beslutter";
+
 type Oppdatering = <T extends SakInfo>(sak: T) => T;
 
-function feilmelding(e: unknown, handling: Handling): Error {
+function feilmelding(e: unknown, handling: Handling, rolle: Tildelingsrolle): Error {
   if (e instanceof HttpError) {
     switch (e.status) {
       case 403:
@@ -31,7 +34,11 @@ function feilmelding(e: unknown, handling: Handling): Error {
               : "Saken er ikke tildelt deg, og du kan ikke frigjøre den.")
         );
       case 409:
-        return new Error("Saken kan ikke tildeles med den statusen den har nå.");
+        return new Error(
+          rolle === "beslutter"
+            ? "Saken venter ikke på beslutter."
+            : "Saken kan ikke tildeles med den statusen den har nå."
+        );
       case 503:
         return new Error("Vi kunne ikke sjekke tilgangen din akkurat nå. Prøv igjen om litt.");
     }
@@ -42,10 +49,12 @@ function feilmelding(e: unknown, handling: Handling): Error {
 }
 
 type Valg = {
+  /** Beslutter kan bare tildele seg, ikke frigjøre. */
+  rolle?: Tildelingsrolle;
   onError?: (error: Error) => void;
 };
 
-export function useTildeling(sakId: string, { onError }: Valg = {}) {
+export function useTildeling(sakId: string, { rolle = "saksbehandler", onError }: Valg = {}) {
   const { mutate, cache } = useSWRConfig();
   const innloggetAnsatt = useInnloggetAnsatt();
   const [isSaving, setIsSaving] = useState(false);
@@ -82,7 +91,11 @@ export function useTildeling(sakId: string, { onError }: Valg = {}) {
     await oppdaterCache(oppdater);
 
     try {
-      await fetchJson(SAKSBEHANDLING_TILDELING_URL(sakId), {
+      const url =
+        rolle === "beslutter"
+          ? SAKSBEHANDLING_BESLUTTER_TILDELING_URL(sakId)
+          : SAKSBEHANDLING_TILDELING_URL(sakId);
+      await fetchJson(url, {
         method: handling === "tildel" ? "POST" : "DELETE",
       });
       setTimeout(revalider, REVALIDER_ETTER_MS);
@@ -91,7 +104,7 @@ export function useTildeling(sakId: string, { onError }: Valg = {}) {
       await mutate(SAKSBEHANDLING_SAKER_URL, listeFoer, { revalidate: false });
       await mutate(sakUrl, sakFoer, { revalidate: false });
       void revalider();
-      const feil = feilmelding(e, handling);
+      const feil = feilmelding(e, handling, rolle);
       setError(feil);
       onError?.(feil);
       return false;
@@ -101,17 +114,24 @@ export function useTildeling(sakId: string, { onError }: Valg = {}) {
   };
 
   const tildelMeg = () =>
-    utfoer("tildel", (sak) =>
-      innloggetAnsatt
-        ? {
-            ...sak,
-            saksbehandlerIdent: innloggetAnsatt.id,
-            saksbehandlerNavn: innloggetAnsatt.navn,
-            kanTildeleMeg: false,
-            status: sak.status === "OPPRETTET" ? "UNDER_BEHANDLING" : sak.status,
-          }
-        : sak
-    );
+    utfoer("tildel", (sak) => {
+      if (!innloggetAnsatt) return sak;
+      if (rolle === "beslutter") {
+        return {
+          ...sak,
+          beslutterIdent: innloggetAnsatt.id,
+          beslutterNavn: innloggetAnsatt.navn,
+          kanTildeleMegSomBeslutter: false,
+        };
+      }
+      return {
+        ...sak,
+        saksbehandlerIdent: innloggetAnsatt.id,
+        saksbehandlerNavn: innloggetAnsatt.navn,
+        kanTildeleMeg: false,
+        status: sak.status === "OPPRETTET" ? "UNDER_BEHANDLING" : sak.status,
+      };
+    });
 
   const frigjoer = () =>
     utfoer("frigjoer", (sak) => ({ ...sak, saksbehandlerIdent: null, saksbehandlerNavn: null }));
