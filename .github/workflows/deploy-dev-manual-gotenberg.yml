@@ -26,7 +26,7 @@ jobs:
           tag: ${{ github.sha }}
           dockerfile: gotenberg/Dockerfile
           docker_context: gotenberg
-          salsa: false
+          salsa: true
 
   deploy-to-dev-gcp:
     name: Deploy to dev-gcp
