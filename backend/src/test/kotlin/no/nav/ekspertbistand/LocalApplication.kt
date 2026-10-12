@@ -62,7 +62,7 @@ import kotlin.time.ExperimentalTime
 
 /**
  * Saksbehandlere som kan logge inn lokalt. Begge har begge rollene, slik at topartskontrollen kan testes.
- * `faketoken` gir den første. Saksbehandling-BFF-en sender `faketoken:<navIdent>` når brukeren er byttet
+ * `faketoken` gir den første. Saksbehandling-BFF-en sender `faketoken-<navIdent>` når brukeren er byttet
  * i klienten, se frontend/saksbehandling-server/src/lokal-bruker.ts.
  */
 private data class LokalAnsatt(val navIdent: String, val fornavn: String, val etternavn: String)
@@ -74,7 +74,7 @@ private val lokaleAnsatte = listOf(
 
 private fun lokalAnsattForToken(token: String): LokalAnsatt? = when {
     token == "faketoken" -> lokaleAnsatte.first()
-    token.startsWith("faketoken:") -> lokaleAnsatte.find { it.navIdent == token.removePrefix("faketoken:") }
+    token.startsWith("faketoken-") -> lokaleAnsatte.find { it.navIdent == token.removePrefix("faketoken-") }
     else -> null
 }
 

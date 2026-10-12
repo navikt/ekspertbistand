@@ -22,7 +22,7 @@ saksbehandler og beslutter, og tilgang til samme enheter:
    åpne http://localhost:4001.
 3. Bytt bruker under «Bytt bruker (lokalt)» i brukermenyen øverst til høyre.
 
-Valget lagres i cookien `lokal-bruker`. BFF-en sender da `faketoken:<ident>`
+Valget lagres i cookien `lokal-bruker`. BFF-en sender da `faketoken-<ident>`
 til backend i stedet for `faketoken`. Uten cookie er du Ola. Velgeren og
 cookien virker bare når BFF-en kjører uten Azure og med `NODE_ENV` ulik
 `production`. Nye brukere legges inn både i `lokaleAnsatte` i

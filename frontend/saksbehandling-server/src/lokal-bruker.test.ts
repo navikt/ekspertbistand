@@ -26,6 +26,6 @@ describe("lokaltSubjectToken", () => {
   });
 
   it("legger valgt ident til tokenet", () => {
-    expect(lokaltSubjectToken("faketoken", "B654321")).toBe("faketoken:B654321");
+    expect(lokaltSubjectToken("faketoken", "B654321")).toBe("faketoken-B654321");
   });
 });

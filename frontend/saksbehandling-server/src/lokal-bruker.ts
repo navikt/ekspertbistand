@@ -23,5 +23,5 @@ export function lesLokalBruker(cookieHeader: string | undefined): string | undef
 }
 
 export function lokaltSubjectToken(token: string, navIdent: string | undefined): string {
-  return navIdent ? `${token}:${navIdent}` : token;
+  return navIdent ? `${token}-${navIdent}` : token;
 }
