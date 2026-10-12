@@ -12,6 +12,10 @@ export const SAKSBEHANDLING_BESLUTTER_TILDELING_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/tildeling/beslutter`;
 export const SAKSBEHANDLING_FORELOPIG_VEDTAK_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/forelopig-vedtak`;
+export const SAKSBEHANDLING_REFUSJON_URL = (sakId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/refusjon`;
+export const SAKSBEHANDLING_REFUSJON_VEDLEGG_URL = (sakId: string, vedleggId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/refusjon/vedlegg/${vedleggId}`;
 export const SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL =
   "/api/saksbehandling/v1/forelopig-vedtak/oppsett";
 export const SAKSBEHANDLING_SAKSLOGG_URL = (sakId: string) =>

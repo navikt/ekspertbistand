@@ -117,6 +117,84 @@ class RefusjonDb(private val database: Database) {
         )
     }
 
+    /** Henter status og vedleggmetadata for nyeste refusjonskrav knyttet til saken. */
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    fun finnRefusjonskravStatusForSak(sakId: UUID): RefusjonskravStatus? = transaction(database) {
+        val krav = RefusjonskravTable
+            .selectAll()
+            .where { RefusjonskravTable.sakId eq sakId }
+            .orderBy(
+                RefusjonskravTable.opprettet to SortOrder.DESC,
+                RefusjonskravTable.id to SortOrder.DESC,
+            )
+            .limit(1)
+            .singleOrNull()
+            ?: return@transaction null
+
+        val refusjonskravId = krav[RefusjonskravTable.id].value
+        val vedlegg = VedleggTable
+            .select(VedleggTable.id, VedleggTable.filnavn, VedleggTable.storrelse)
+            .where {
+                (VedleggTable.refusjonskravId eq refusjonskravId) and
+                    (VedleggTable.type eq VedleggType.REFUSJONSDOKUMENTASJON.name)
+            }
+            .orderBy(
+                VedleggTable.lastetOpp to SortOrder.ASC,
+                VedleggTable.id to SortOrder.ASC,
+            )
+            .map {
+                RefusjonsvedleggMeta(
+                    id = it[VedleggTable.id].value.toString(),
+                    filnavn = it[VedleggTable.filnavn],
+                    storrelse = it[VedleggTable.storrelse],
+                )
+            }
+
+        RefusjonskravStatus(
+            belopKroner = krav[RefusjonskravTable.belopOre] / 100,
+            utgifter = krav[RefusjonskravTable.utgifter],
+            opprettet = krav[RefusjonskravTable.opprettet].toString(),
+            // TODO: hent kontonummer fra SOKOS. Lagres ikke lokalt.
+            kontonummer = null,
+            vedlegg = vedlegg,
+        )
+    }
+
+    /** Henter bare oppgitt vedlegg hvis det tilhører nyeste refusjonskrav for saken. */
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    fun hentNyesteRefusjonsvedleggForSak(
+        sakId: UUID,
+        vedleggId: UUID,
+    ): RefusjonsvedleggInnhold? = transaction(database) {
+        val refusjonskravId = RefusjonskravTable
+            .select(RefusjonskravTable.id)
+            .where { RefusjonskravTable.sakId eq sakId }
+            .orderBy(
+                RefusjonskravTable.opprettet to SortOrder.DESC,
+                RefusjonskravTable.id to SortOrder.DESC,
+            )
+            .limit(1)
+            .singleOrNull()
+            ?.get(RefusjonskravTable.id)
+            ?.value
+            ?: return@transaction null
+
+        VedleggTable
+            .select(VedleggTable.filnavn, VedleggTable.innhold)
+            .where {
+                (VedleggTable.id eq vedleggId) and
+                    (VedleggTable.refusjonskravId eq refusjonskravId) and
+                    (VedleggTable.type eq VedleggType.REFUSJONSDOKUMENTASJON.name)
+            }
+            .singleOrNull()
+            ?.let {
+                RefusjonsvedleggInnhold(
+                    filnavn = it[VedleggTable.filnavn],
+                    innhold = it[VedleggTable.innhold],
+                )
+            }
+    }
+
     /**
      * Henter filinnholdet for ett refusjonsvedlegg. Slår kun opp vedlegg som tilhører
      * den oppgitte søknadens refusjonskrav – hindrer at man laster ned vedlegg på tvers
