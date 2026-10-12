@@ -33,7 +33,7 @@ jobs:
           tag: ${{ github.sha }}
           dockerfile: gotenberg/Dockerfile
           docker_context: gotenberg
-          salsa: false
+          salsa: true
 
   deploy-dev:
     if: github.ref == 'refs/heads/main'
