@@ -30,8 +30,8 @@ class OpprettTiltaksgjennomfoeringForInnsendtSoknadTest {
     private val saksnummer = "202542"
 
     @Test
-    fun `Event prosesseres og sak blir opprettet i Arena`() = testApplicationWithDatabase {
-        setupTestApplication()
+    fun `Event prosesseres og sak blir opprettet i Arena`() = testApplicationWithDatabase { db ->
+        setupTestApplication(db)
         mockTiltaksgjennomfoering {
             // language=JSON
             """
@@ -65,8 +65,8 @@ class OpprettTiltaksgjennomfoeringForInnsendtSoknadTest {
     }
 
     @Test
-    fun `Event prosesseres, men kall mot arena feiler`() = testApplicationWithDatabase {
-        setupTestApplication()
+    fun `Event prosesseres, men kall mot arena feiler`() = testApplicationWithDatabase { db ->
+        setupTestApplication(db)
         mockTiltaksgjennomfoering {
             throw RuntimeException("Feil ved oppretting av Arena")
         }
@@ -117,13 +117,12 @@ private val soknad1 = DTO.Soknad(
 )
 
 
-private fun ApplicationTestBuilder.setupTestApplication() {
+private fun ApplicationTestBuilder.setupTestApplication(db: TestDatabase) {
     val client = createClient {
         install(ClientContentNegotiation) {
             json()
         }
     }
-    val db = TestDatabase().cleanMigrate()
     application {
         dependencies {
             provide { db.config.jdbcDatabase }

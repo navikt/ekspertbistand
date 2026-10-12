@@ -19,7 +19,7 @@ class EventQueueTest {
 
     @BeforeTest
     fun setup() {
-        testDb = TestDatabase().cleanMigrate()
+        testDb = TestDatabase.isolert()
         queue = EventQueue
     }
 
