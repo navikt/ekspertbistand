@@ -34,6 +34,7 @@ jobs:
           dockerfile: gotenberg/Dockerfile
           docker_context: gotenberg
           salsa: true
+          no_cache: true
 
   deploy-dev:
     if: github.ref == 'refs/heads/main'
