@@ -60,6 +60,24 @@ import kotlin.time.ExperimentalTime
 
 
 
+/**
+ * Saksbehandlere som kan logge inn lokalt. Begge har begge rollene, slik at topartskontrollen kan testes.
+ * `faketoken` gir den første. Saksbehandling-BFF-en sender `faketoken:<navIdent>` når brukeren er byttet
+ * i klienten, se frontend/saksbehandling-server/src/lokal-bruker.ts.
+ */
+private data class LokalAnsatt(val navIdent: String, val fornavn: String, val etternavn: String)
+
+private val lokaleAnsatte = listOf(
+    LokalAnsatt(navIdent = "A123456", fornavn = "Ola", etternavn = "Nordmann"),
+    LokalAnsatt(navIdent = "B654321", fornavn = "Kari", etternavn = "Beslutter"),
+)
+
+private fun lokalAnsattForToken(token: String): LokalAnsatt? = when {
+    token == "faketoken" -> lokaleAnsatte.first()
+    token.startsWith("faketoken:") -> lokaleAnsatte.find { it.navIdent == token.removePrefix("faketoken:") }
+    else -> null
+}
+
 @OptIn(ExperimentalTime::class)
 fun main() {
     val mockAltinnTilgangerServer = HttpClient(MockEngine {
@@ -172,7 +190,8 @@ fun main() {
             }
             provide<AzureAdTokenIntrospector> {
                 MockAzureAdIntrospector {
-                    if (it == "faketoken") mockAzureAdIntrospectionResponse.withNavIdent("A123456") else null
+                    lokalAnsattForToken(it)
+                        ?.let { ansatt -> mockAzureAdIntrospectionResponse.withNavIdent(ansatt.navIdent) }
                 }
             }
             provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
@@ -180,8 +199,11 @@ fun main() {
                 EntraProxyClient(
                     tokenProvider = successAzureAdTokenProvider,
                     defaultHttpClient = HttpClient(MockEngine { request ->
-                        when (request.url.encodedPath) {
-                            "${EntraProxyClient.API_PATH}/A123456" -> respond(
+                        val path = request.url.encodedPath
+                        val ansatt = lokaleAnsatte.find { path.endsWith("/${it.navIdent}") }
+                            ?: error("Unhandled ${request.url}")
+                        when (path) {
+                            "${EntraProxyClient.API_PATH}/${ansatt.navIdent}" -> respond(
                                 // language=JSON
                                 """
                             [
@@ -192,14 +214,14 @@ fun main() {
                                 HttpStatusCode.OK,
                                 headersOf(HttpHeaders.ContentType, "application/json")
                             )
-                            "${EntraProxyClient.ANSATT_API_PATH}/A123456" -> respond(
+                            "${EntraProxyClient.ANSATT_API_PATH}/${ansatt.navIdent}" -> respond(
                                 // language=JSON
                                 """
                             {
-                                "navIdent": "A123456",
-                                "tIdent": "T123456",
-                                "fornavn": "Ola",
-                                "etternavn": "Nordmann",
+                                "navIdent": "${ansatt.navIdent}",
+                                "tIdent": "T${ansatt.navIdent.drop(1)}",
+                                "fornavn": "${ansatt.fornavn}",
+                                "etternavn": "${ansatt.etternavn}",
                                 "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
                                 "enheter": [
                                     { "enhetsnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
@@ -210,7 +232,7 @@ fun main() {
                                 HttpStatusCode.OK,
                                 headersOf(HttpHeaders.ContentType, "application/json")
                             )
-                            "${EntraProxyClient.GRUPPER_API_PATH}/A123456" -> respond(
+                            "${EntraProxyClient.GRUPPER_API_PATH}/${ansatt.navIdent}" -> respond(
                                 // language=JSON
                                 """
                             [

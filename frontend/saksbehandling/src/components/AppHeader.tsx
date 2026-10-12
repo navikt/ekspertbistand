@@ -1,6 +1,7 @@
 import { MenuGridIcon, ThemeIcon } from "@navikt/aksel-icons";
 import { ActionMenu, HStack, InternalHeader } from "@navikt/ds-react";
 import { NavLink } from "react-router";
+import { useLokalBrukerbytte } from "../hooks/useLokalBrukerbytte";
 import { useTilgangContext } from "../tilgang/useTilgang";
 import { GOSYS_URL, LOGOUT_URL, MODIA_URL, OVERSIKT_PATH } from "../utils/constants";
 import { useAppTheme } from "./AppThemeProvider";
@@ -8,6 +9,7 @@ import { useAppTheme } from "./AppThemeProvider";
 export default function AppHeader() {
   const { theme, toggleTheme } = useAppTheme();
   const { innloggetAnsatt } = useTilgangContext();
+  const { lokaleBrukere, byttBruker } = useLokalBrukerbytte();
   const nextTheme = theme === "light" ? "dark" : "light";
 
   return (
@@ -45,6 +47,22 @@ export default function AppHeader() {
             <InternalHeader.UserButton name={innloggetAnsatt?.navn ?? ""} />
           </ActionMenu.Trigger>
           <ActionMenu.Content>
+            {lokaleBrukere && (
+              <>
+                <ActionMenu.RadioGroup
+                  label="Bytt bruker (lokalt)"
+                  value={lokaleBrukere.valgt ?? lokaleBrukere.brukere[0]?.navIdent}
+                  onValueChange={byttBruker}
+                >
+                  {lokaleBrukere.brukere.map((bruker) => (
+                    <ActionMenu.RadioItem key={bruker.navIdent} value={bruker.navIdent}>
+                      {`${bruker.navn} (${bruker.navIdent})`}
+                    </ActionMenu.RadioItem>
+                  ))}
+                </ActionMenu.RadioGroup>
+                <ActionMenu.Divider />
+              </>
+            )}
             <ActionMenu.Item as="a" href={LOGOUT_URL}>
               Logg ut
             </ActionMenu.Item>

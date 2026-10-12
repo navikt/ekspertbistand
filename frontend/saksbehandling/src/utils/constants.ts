@@ -42,4 +42,8 @@ export const isMockEnabled = () => {
   return flag === "true";
 };
 
+export const isLokalBrukerbytteMulig = () => isLocalHost() && !isMockEnabled();
+export const LOKALE_BRUKERE_URL = "/lokal/brukere";
+export const LOKAL_BRUKER_COOKIE = "lokal-bruker";
+
 export const LOGIN_URL = `/oauth2/login?redirect=${OVERSIKT_PATH}`;

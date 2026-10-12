@@ -1,21 +1,28 @@
 import { getToken, requestAzureOboToken, validateAzureToken } from "@navikt/oasis";
 import type { NextFunction, Request, Response } from "express";
 import { logger } from "@navikt/pino-logger";
+import { lesLokalBruker, lokaltSubjectToken } from "./lokal-bruker.js";
 
 type AzureOboMiddlewareOptions = {
   audience?: string;
   enabled: boolean;
   localSubjectToken?: string;
+  /** Lar cookien `lokal-bruker` velge bruker når Azure er av. Bare for lokal kjøring. */
+  lokalBrukerbytte?: boolean;
 };
 
 export const azureOboMiddleware =
-  ({ audience, enabled, localSubjectToken }: AzureOboMiddlewareOptions) =>
+  ({ audience, enabled, localSubjectToken, lokalBrukerbytte = false }: AzureOboMiddlewareOptions) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const cookie = req.headers.cookie;
       delete req.headers.cookie;
 
       if (!enabled) {
-        const token = localSubjectToken ?? process.env.LOCAL_SUBJECT_TOKEN ?? "faketoken";
+        const token = lokaltSubjectToken(
+          localSubjectToken ?? process.env.LOCAL_SUBJECT_TOKEN ?? "faketoken",
+          lokalBrukerbytte ? lesLokalBruker(cookie) : undefined
+        );
         req.headers.authorization = `Bearer ${token}`;
         return next();
       }
