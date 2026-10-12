@@ -9,6 +9,8 @@ import { mockInnloggetAnsatt } from "../mock/ansatt";
 import { tolkSoknadssum } from "../utils/belop";
 import {
   SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL,
+  SAKSBEHANDLING_REFUSJON_URL,
+  SAKSBEHANDLING_REFUSJON_VEDLEGG_URL,
   SAKSBEHANDLING_SAKER_URL,
   SESSION_URL,
 } from "../utils/constants";
@@ -30,15 +32,51 @@ const innslag = (
 });
 
 const mockSakslogg: SaksloggInnslag[] = [
-  innslag("9", "2026-06-17T07:01:00Z", "SAKSBEHANDLER", "Mina Minnloo", "Refusjonskrav sendt til utbetaling"),
-  innslag("8", "2026-06-17T06:34:00Z", "SAKSBEHANDLER", "Mina Minnloo", "Sluttrapport er registrert som mottatt"),
-  innslag("7", "2026-06-14T08:41:00Z", "SYSTEM", "System", "Refusjonskrav mottatt fra arbeidsgiver"),
+  innslag(
+    "9",
+    "2026-06-17T07:01:00Z",
+    "SAKSBEHANDLER",
+    "Mina Minnloo",
+    "Refusjonskrav sendt til utbetaling"
+  ),
+  innslag(
+    "8",
+    "2026-06-17T06:34:00Z",
+    "SAKSBEHANDLER",
+    "Mina Minnloo",
+    "Sluttrapport er registrert som mottatt"
+  ),
+  innslag(
+    "7",
+    "2026-06-14T08:41:00Z",
+    "SYSTEM",
+    "System",
+    "Refusjonskrav mottatt fra arbeidsgiver"
+  ),
   innslag("6", "2026-06-14T08:32:00Z", "SYSTEM", "System", "Sluttrapport mottatt fra arbeidsgiver"),
-  innslag("5", "2026-04-06T12:15:00Z", "BESLUTTER", "Bea Beslutter", "Vedtak fattet: Søknad innvilget (22 000 kr)"),
+  innslag(
+    "5",
+    "2026-04-06T12:15:00Z",
+    "BESLUTTER",
+    "Bea Beslutter",
+    "Vedtak fattet: Søknad innvilget (22 000 kr)"
+  ),
   innslag("4", "2026-04-06T07:45:00Z", "BESLUTTER", "Bea Beslutter", "Sak tildelt"),
-  innslag("3", "2026-04-05T07:32:00Z", "SAKSBEHANDLER", "Sara Saksbehandler", "Vurdering: Innvilge"),
+  innslag(
+    "3",
+    "2026-04-05T07:32:00Z",
+    "SAKSBEHANDLER",
+    "Sara Saksbehandler",
+    "Vurdering: Innvilge"
+  ),
   innslag("2", "2026-04-02T06:00:00Z", "SAKSBEHANDLER", "Sara Saksbehandler", "Sak tildelt"),
-  innslag("1", "2026-03-30T10:00:00Z", "SYSTEM", "System", "Søknad mottatt fra arbeidsgiver (Bygg og Anlegg AS)"),
+  innslag(
+    "1",
+    "2026-03-30T10:00:00Z",
+    "SYSTEM",
+    "System",
+    "Søknad mottatt fra arbeidsgiver (Bygg og Anlegg AS)"
+  ),
 ];
 
 type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent" | "saksbehandlerNavn"> &
@@ -248,6 +286,42 @@ const kanTildeles = (sak: Pick<SakInfo, "status" | "saksbehandlerIdent">) =>
   !statuserSomIkkeKanTildeles.includes(sak.status) &&
   sak.saksbehandlerIdent !== mockInnloggetAnsatt.id;
 
+const mockRefusjonSakId = "9c2f7a10-0000-4000-8000-000000002010";
+const mockRefusjonsvedleggId = "b7fa1e19-6adc-4444-b592-1567343686f6";
+const mockPdfBytes = (() => {
+  const objekter = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> >>\nendobj\n",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsetter = [0];
+  for (const objekt of objekter) {
+    offsetter.push(pdf.length);
+    pdf += objekt;
+  }
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${offsetter.length}\n0000000000 65535 f \n`;
+  pdf += offsetter
+    .slice(1)
+    .map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
+    .join("");
+  pdf += `trailer\n<< /Size ${offsetter.length} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  return new TextEncoder().encode(pdf);
+})();
+const mockRefusjon = {
+  belopKroner: 18400,
+  utgifter: "Kostnader for rådgivning og tilrettelegging på arbeidsplassen.",
+  opprettet: "2026-10-30T13:25:00Z",
+  vedlegg: [
+    {
+      id: mockRefusjonsvedleggId,
+      filnavn: "kvittering-arbeidsterapeut.pdf",
+      storrelse: mockPdfBytes.length,
+    },
+  ],
+};
+
 const tilListeElement = ({ soknad, ...sak }: MockSak, index: number): SakListeElement => ({
   kildeTilBehandling: "EKSPERTBISTAND",
   behandlendeEnhet: "4710",
@@ -395,6 +469,27 @@ export const handlers = [
       );
     }
     return HttpResponse.json(lagSakDetaljer(sak));
+  }),
+  http.get(SAKSBEHANDLING_REFUSJON_URL(":sakId"), ({ params }) => {
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
+    if (sak.sakId !== mockRefusjonSakId || sak.kildeTilBehandling === "ARENA") {
+      return new HttpResponse(null, { status: 204 });
+    }
+    return HttpResponse.json(mockRefusjon);
+  }),
+  http.get(SAKSBEHANDLING_REFUSJON_VEDLEGG_URL(":sakId", ":vedleggId"), ({ params }) => {
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
+    if (sak.sakId !== mockRefusjonSakId || String(params.vedleggId) !== mockRefusjonsvedleggId) {
+      return HttpResponse.json({ message: "Fant ikke vedlegget." }, { status: 404 });
+    }
+    return new HttpResponse(mockPdfBytes, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="kvittering-arbeidsterapeut.pdf"',
+      },
+    });
   }),
   http.get("/api/saksbehandling/v1/saker/:sakId/vilkarsvurdering", ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
