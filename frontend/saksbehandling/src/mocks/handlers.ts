@@ -212,15 +212,12 @@ const mockSaker: MockSak[] = [
 
 const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];
 
-// Ordrett som `forelopig_vedtak.json` i backend, også skrivefeilene som skal gjennomgås.
+// Ordrett som `forelopig_vedtak.json` i backend.
 const mockOppsett: ForelopigVedtakOppsett = {
   standardtekster: {
     INNVILGE_REDUSERT: {
       arbeidsgiver:
         "Dere søkte om {soknadssum} kr, Nav har innvilget {innvilgetBelop} kr i tilskudd til ekspertbistand.",
-    },
-    AVSLAA: {
-      arbeidsgiver: "Nav har vurdert at andre trenger tilskudd til ekspertbistand mer en dere.",
     },
   },
   maksSatser: MOCK_MAKS_SATSER,

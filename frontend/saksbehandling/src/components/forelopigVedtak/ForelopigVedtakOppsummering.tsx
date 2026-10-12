@@ -3,7 +3,7 @@ import type { ForelopigVedtakInput } from "../../hooks/useForelopigVedtak";
 import type { SakDetaljer } from "../../hooks/useSak";
 import { tolkSoknadssum } from "../../utils/belop";
 import VurderingKort from "./VurderingKort";
-import { formatPeriode, vurderingRader } from "./forelopigVedtak";
+import { begrunnelseLabel, formatPeriode, vurderingRader } from "./forelopigVedtak";
 
 type Props = {
   sak: SakDetaljer;
@@ -44,7 +44,7 @@ export default function ForelopigVedtakOppsummering(props: Props) {
       />
 
       <Textarea
-        label="Deltaker - tilpass begrunnelse"
+        label={begrunnelseLabel(vedtak.utfall, "deltaker")}
         description="Teksten blir synlig i vedtaksbrevet til deltaker."
         value={vedtak.begrunnelseDeltaker}
         readOnly
@@ -52,7 +52,7 @@ export default function ForelopigVedtakOppsummering(props: Props) {
       />
       {vedtak.begrunnelseArbeidsgiver !== null && (
         <Textarea
-          label="Arbeidsgiver - tilpass begrunnelse"
+          label={begrunnelseLabel(vedtak.utfall, "arbeidsgiver")}
           description="Teksten blir synlig i vedtaksbrevet til arbeidsgiver."
           value={vedtak.begrunnelseArbeidsgiver}
           readOnly
