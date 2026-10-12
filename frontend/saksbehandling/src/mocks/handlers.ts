@@ -1,10 +1,18 @@
 import { http, HttpResponse } from "msw";
-import type { SakDetaljer } from "../hooks/useSak";
+import type { ForelopigVedtakInput } from "../hooks/useForelopigVedtak";
+import type { ForelopigVedtakOppsett } from "../hooks/useForelopigVedtakOppsett";
+import type { ForelopigUtfall, ForelopigVedtak, SakDetaljer } from "../hooks/useSak";
 import type { SakInfo, SakListeElement, Saksstatus, SoknadStatus } from "../hooks/useSaker";
 import { VILKAR_TEKSTER, type VilkarId, type VilkarsvurderingDTO } from "../hooks/useVilkår";
 import type { SaksloggInnslag, SaksloggResponse } from "../hooks/useSakslogg";
 import { mockInnloggetAnsatt } from "../mock/ansatt";
-import { SAKSBEHANDLING_SAKER_URL, SESSION_URL } from "../utils/constants";
+import { tolkSoknadssum } from "../utils/belop";
+import {
+  SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL,
+  SAKSBEHANDLING_SAKER_URL,
+  SESSION_URL,
+} from "../utils/constants";
+import { gjeldendeMaksSats } from "../utils/maksSats";
 
 const innslag = (
   id: string,
@@ -42,6 +50,7 @@ type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent" | "saksbe
       innsendtTidspunkt: string;
       startdato: string;
       status?: SoknadStatus;
+      estimertKostnad?: string;
     };
   };
 
@@ -170,7 +179,71 @@ const mockSaker: MockSak[] = [
       startdato: "2026-11-03",
     },
   },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002010",
+    status: "UNDER_BEHANDLING",
+    saksbehandlerIdent: mockInnloggetAnsatt.id,
+    saksbehandlerNavn: mockInnloggetAnsatt.navn,
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001010",
+      virksomhetsnavn: "Nordlys transport AS",
+      ansattNavn: "Kari Kalkun",
+      innsendtTidspunkt: "2026-10-29T10:45:00Z",
+      startdato: "2026-11-22",
+      estimertKostnad: "30000",
+    },
+  },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002011",
+    status: "OPPRETTET",
+    kildeTilBehandling: "ARENA",
+    saksbehandlerIdent: null,
+    saksbehandlerNavn: null,
+    arenaSakId: "2026654321",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001011",
+      virksomhetsnavn: "Elvebredden snekkerverksted",
+      ansattNavn: "Trond Trestamme",
+      innsendtTidspunkt: "2026-10-18T12:00:00Z",
+      startdato: "2026-11-08",
+    },
+  },
 ];
+
+const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];
+
+// Ordrett som `forelopig_vedtak.json` i backend, også skrivefeilene som skal gjennomgås.
+const mockOppsett: ForelopigVedtakOppsett = {
+  standardtekster: {
+    INNVILGE_REDUSERT: {
+      arbeidsgiver:
+        "Dere søkte om {soknadssum} kr, Nav har innvilget {innvilgetBelop} kr i tilskudd til ekspertbistand.",
+    },
+    AVSLAA: {
+      arbeidsgiver: "Nav har vurdert at andre trenger tilskudd til ekspertbistand mer en dere.",
+    },
+  },
+  maksSatser: MOCK_MAKS_SATSER,
+};
+
+const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
+  [
+    "9c2f7a10-0000-4000-8000-000000002003",
+    {
+      versjon: 1,
+      utfall: "INNVILGE_REDUSERT",
+      innvilgetBelop: 17000,
+      tiltaksperiodeFra: "2026-11-10",
+      tiltaksperiodeTil: "2026-12-31",
+      begrunnelseDeltaker:
+        "Dere søkte om 22 000 kr, Nav har innvilget 17 000 kr i tilskudd til ekspertbistand.",
+      begrunnelseArbeidsgiver:
+        "Dere søkte om 22 000 kr, Nav har innvilget 17 000 kr i tilskudd til ekspertbistand.",
+      innstiltAvIdent: mockInnloggetAnsatt.id,
+      sendtTidspunkt: "2026-10-31T09:30:00Z",
+    },
+  ],
+]);
 
 // Speiler tildelingHindring i backend.
 const statuserSomIkkeKanTildeles: Saksstatus[] = ["AVSLATT", "AVSLUTTET"];
@@ -209,9 +282,13 @@ const harTilgangTilEnhet = (sak: SakListeElement) =>
 const lagVilkårsvurdering = (): VilkarsvurderingDTO[] =>
   (Object.keys(VILKAR_TEKSTER) as VilkarId[]).map((vilkar) => ({ vilkar, godkjent: null }));
 
+const estimertKostnad = (sakId: string) =>
+  mockSaker.find((s) => s.sakId === sakId)?.soknad.estimertKostnad ?? "22000";
+
 const lagSakDetaljer = ({ soknad: element, ...sak }: SakListeElement): SakDetaljer => ({
   ...sak,
   kanTildeleMeg: kanTildeles(sak),
+  forelopigVedtak: forelopigVedtakStore.get(sak.sakId) ?? null,
   soknad: {
     soknadId: element.soknadId,
     status: element.status,
@@ -246,7 +323,7 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: SakListeElement): SakDetalj
       behov:
         "Arbeidsevnevurdering og råd om hvordan arbeidsplassen kan tilrettelegges slik at den ansatte kan stå i jobb.",
       timer: "8",
-      estimertKostnad: "22000",
+      estimertKostnad: estimertKostnad(sak.sakId),
       startdato: element.startdato,
     },
     nav: {
@@ -255,7 +332,17 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: SakListeElement): SakDetalj
   },
 });
 
-const vilkårStore = new Map<string, VilkarsvurderingDTO[]>();
+const vilkårStore = new Map<string, VilkarsvurderingDTO[]>([
+  [
+    "9c2f7a10-0000-4000-8000-000000002010",
+    lagVilkårsvurdering().map((v) => ({
+      ...v,
+      godkjent: v.vilkar !== "DELTAKER_HAR_SYKEFRAVAERSHISTORIKK",
+      vurdertAvIdent: mockInnloggetAnsatt.id,
+      vurdertTidspunkt: "2026-10-30T12:00:00Z",
+    })),
+  ],
+]);
 
 function hentVilkårsvurdering(sakId: string): VilkarsvurderingDTO[] {
   const eksisterende = vilkårStore.get(sakId);
@@ -315,6 +402,8 @@ export const handlers = [
   http.get("/api/saksbehandling/v1/saker/:sakId/vilkarsvurdering", ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;
+    // Arena-saker har ingen vilkår (spec 2c).
+    if (sak.kildeTilBehandling === "ARENA") return HttpResponse.json([]);
     return HttpResponse.json(hentVilkårsvurdering(sak.sakId));
   }),
   http.get("/api/saksbehandling/v1/saker/:sakId/logg", () =>
@@ -340,6 +429,9 @@ export const handlers = [
     if (typeof vilkar !== "string" || !(godkjent === null || typeof godkjent === "boolean")) {
       return HttpResponse.json({ message: "ugyldig vilkårsvurdering" }, { status: 400 });
     }
+    if (sak.kildeTilBehandling === "ARENA") {
+      return HttpResponse.json({ message: "fant ikke vilkår på saken" }, { status: 404 });
+    }
     if (sak.status !== "UNDER_BEHANDLING") {
       return HttpResponse.json({ message: "Saken er ikke under behandling" }, { status: 409 });
     }
@@ -359,6 +451,113 @@ export const handlers = [
 
     return new HttpResponse(null, { status: 202 });
   }),
+  http.get(SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL, () =>
+    HttpResponse.json<ForelopigVedtakOppsett>(mockOppsett)
+  ),
+  http.post<{ sakId: string }, Partial<ForelopigVedtakInput>>(
+    "/api/saksbehandling/v1/saker/:sakId/forelopig-vedtak",
+    async ({ params, request }) => {
+      const sak = finnSakMedTilgang(String(params.sakId));
+      if (sak instanceof Response) return sak;
+      if (sak.kildeTilBehandling === "ARENA") {
+        return HttpResponse.json(
+          { kode: "SAK_UGYLDIG_KILDE", message: "Saken behandles i Arena" },
+          { status: 409 }
+        );
+      }
+      if (sak.saksbehandlerIdent !== mockInnloggetAnsatt.id) {
+        return HttpResponse.json(
+          { kode: "IKKE_TILDELT_SAK", begrunnelse: "Du er ikke tildelt saken" },
+          { status: 403 }
+        );
+      }
+
+      const body = await request.json().catch(() => null);
+      const ugyldig = () => HttpResponse.json({ message: "ugyldig input" }, { status: 400 });
+      const utfall = body?.utfall;
+      if (
+        !body ||
+        !utfall ||
+        !(["INNVILGE", "INNVILGE_REDUSERT", "AVSLAA"] as ForelopigUtfall[]).includes(utfall) ||
+        !body.begrunnelseDeltaker?.trim()
+      ) {
+        return ugyldig();
+      }
+      const fra = body.tiltaksperiodeFra ?? null;
+      const til = body.tiltaksperiodeTil ?? null;
+      const sats = fra ? gjeldendeMaksSats(MOCK_MAKS_SATSER, fra) : undefined;
+      if (utfall === "AVSLAA") {
+        if (fra || til || body.innvilgetBelop != null || !body.begrunnelseArbeidsgiver?.trim()) {
+          return ugyldig();
+        }
+      } else {
+        if (!fra || !til || fra > til || fra.slice(0, 4) !== til.slice(0, 4) || !sats) {
+          return ugyldig();
+        }
+        const belop = body.innvilgetBelop;
+        if (utfall === "INNVILGE" && (belop != null || body.begrunnelseArbeidsgiver != null)) {
+          return ugyldig();
+        }
+        if (
+          utfall === "INNVILGE_REDUSERT" &&
+          (typeof belop !== "number" ||
+            belop <= 0 ||
+            belop > sats.belop ||
+            !body.begrunnelseArbeidsgiver?.trim())
+        ) {
+          return ugyldig();
+        }
+      }
+
+      if (sak.status !== "UNDER_BEHANDLING") {
+        return HttpResponse.json(
+          { kode: "SAK_UGYLDIG_STATUS", message: "Saken er ikke under behandling" },
+          { status: 409 }
+        );
+      }
+      if (hentVilkårsvurdering(sak.sakId).some((v) => v.godkjent == null)) {
+        return HttpResponse.json(
+          { kode: "VILKAR_IKKE_VURDERT", message: "Alle vilkår må være vurdert" },
+          { status: 409 }
+        );
+      }
+      const soknadssum = tolkSoknadssum(estimertKostnad(sak.sakId));
+      if (utfall !== "AVSLAA" && soknadssum === null) {
+        return HttpResponse.json(
+          { kode: "UGYLDIG_SOKNADSSUM", message: "Søknadssummen er ikke et gyldig beløp" },
+          { status: 409 }
+        );
+      }
+      if (utfall === "INNVILGE" && sats && soknadssum !== null && soknadssum > sats.belop) {
+        return HttpResponse.json(
+          { kode: "BELOP_OVER_SATS", message: "Søknadssummen er høyere enn maks sats" },
+          { status: 409 }
+        );
+      }
+      if (
+        utfall === "INNVILGE_REDUSERT" &&
+        soknadssum !== null &&
+        (body.innvilgetBelop ?? 0) >= soknadssum
+      ) {
+        return ugyldig();
+      }
+
+      const mockSak = mockSaker.find((s) => s.sakId === sak.sakId)!;
+      mockSak.status = "TIL_BESLUTNING";
+      forelopigVedtakStore.set(sak.sakId, {
+        versjon: (forelopigVedtakStore.get(sak.sakId)?.versjon ?? 0) + 1,
+        utfall,
+        innvilgetBelop: utfall === "INNVILGE" ? soknadssum : (body.innvilgetBelop ?? null),
+        tiltaksperiodeFra: fra,
+        tiltaksperiodeTil: til,
+        begrunnelseDeltaker: body.begrunnelseDeltaker.trim(),
+        begrunnelseArbeidsgiver: body.begrunnelseArbeidsgiver?.trim() ?? null,
+        innstiltAvIdent: mockInnloggetAnsatt.id,
+        sendtTidspunkt: new Date().toISOString(),
+      });
+      return new HttpResponse(null, { status: 202 });
+    }
+  ),
   http.post("/api/saksbehandling/v1/saker/:sakId/tildeling", ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;

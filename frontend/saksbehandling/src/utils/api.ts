@@ -17,14 +17,15 @@ async function handleResponse<T>(response: Response): Promise<T | null> {
       redirectToLogin();
     }
 
-    const { message, begrunnelse } = isUnauthorized
-      ? { message: "Du er logget ut. Vennligst logg inn igjen.", begrunnelse: null }
+    const { message, begrunnelse, kode } = isUnauthorized
+      ? { message: "Du er logget ut. Vennligst logg inn igjen.", begrunnelse: null, kode: null }
       : await parseErrorPayload(response);
 
     throw new HttpError(message ?? `Kunne ikke hente data (${response.status}).`, {
       status: response.status,
       statusText: response.statusText,
       begrunnelse,
+      kode,
     });
   }
 

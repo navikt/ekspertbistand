@@ -1,21 +1,27 @@
 package no.nav.ekspertbistand.saksbehandling
 
+import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.max
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.stringLiteral
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
+import org.jetbrains.exposed.v1.datetime.date
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
+import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
@@ -126,6 +132,117 @@ fun frigjoerSak(soknadId: UUID, ident: String, eventId: Long, tidspunkt: Instant
 
 private fun nyereTildelingEnn(eventId: Long): Op<Boolean> =
     SakTable.tildelingEventId.isNull() or (SakTable.tildelingEventId less eventId)
+
+/** Lagres i `forelopig_vedtak.utfall` med [name]. */
+@Serializable
+enum class ForelopigUtfall {
+    INNVILGE,
+    INNVILGE_REDUSERT,
+    AVSLAA,
+}
+
+/**
+ * Saksbehandlers foreløpige vedtak til beslutter, én rad per innsending. Speiler `forelopig_vedtak`
+ * fra V21. Se `specifications/forelopig_vedtak.md`.
+ */
+@OptIn(ExperimentalTime::class)
+object ForelopigVedtakTable : Table("forelopig_vedtak") {
+    val id = long("id").autoIncrement()
+    val sakId = uuid("sak_id")
+    val versjon = integer("versjon")
+    val eventId = long("event_id")
+    val utfall = text("utfall")
+    val innvilgetBelop = integer("innvilget_belop").nullable()
+    val tiltaksperiodeFra = date("tiltaksperiode_fra").nullable()
+    val tiltaksperiodeTil = date("tiltaksperiode_til").nullable()
+    val begrunnelseDeltaker = text("begrunnelse_deltaker")
+    val begrunnelseArbeidsgiver = text("begrunnelse_arbeidsgiver").nullable()
+    val innstiltAvIdent = text("innstilt_av_ident")
+    val sendtTidspunkt = timestamp("sendt_tidspunkt")
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+/**
+ * Setter saken til `TIL_BESLUTNING` med `foreslatt_utfall`, og lagrer det foreløpige vedtaket som
+ * neste versjon. Gjør ingenting hvis saken ikke er `UNDER_BEHANDLING`. `event_id UNIQUE` stopper
+ * duplikater. Brukes bare av [no.nav.ekspertbistand.event.handlers.LagreForelopigVedtak].
+ * Må kalles i en pågående transaksjon. Returnerer true når saken ble oppdatert.
+ */
+@OptIn(ExperimentalTime::class)
+fun lagreForelopigVedtak(data: EventData.ForelopigVedtakSendtTilBeslutter, eventId: Long): Boolean {
+    val soknadId = UUID.fromString(data.soknadId)
+    val oppdatert = SakTable.update(
+        where = { (SakTable.soknadId eq soknadId) and (SakTable.status eq Saksstatus.UNDER_BEHANDLING.name) }
+    ) {
+        it[status] = Saksstatus.TIL_BESLUTNING.name
+        it[foreslattUtfall] = when (data.utfall) {
+            ForelopigUtfall.INNVILGE, ForelopigUtfall.INNVILGE_REDUSERT -> Saksstatus.INNVILGET.name
+            ForelopigUtfall.AVSLAA -> Saksstatus.AVSLATT.name
+        }
+        it[sistEndret] = data.tidspunkt
+    } > 0
+    if (!oppdatert) return false
+
+    val sakId = hentSakIdForSoknad(soknadId) ?: return false
+    val forrigeVersjon = ForelopigVedtakTable
+        .select(ForelopigVedtakTable.versjon.max())
+        .where { ForelopigVedtakTable.sakId eq sakId }
+        .singleOrNull()
+        ?.get(ForelopigVedtakTable.versjon.max())
+        ?: 0
+
+    ForelopigVedtakTable.insertIgnore {
+        it[ForelopigVedtakTable.sakId] = sakId
+        it[versjon] = forrigeVersjon + 1
+        it[ForelopigVedtakTable.eventId] = eventId
+        it[utfall] = data.utfall.name
+        it[innvilgetBelop] = data.innvilgetBelop
+        it[tiltaksperiodeFra] = data.tiltaksperiodeFra
+        it[tiltaksperiodeTil] = data.tiltaksperiodeTil
+        it[begrunnelseDeltaker] = data.begrunnelseDeltaker
+        it[begrunnelseArbeidsgiver] = data.begrunnelseArbeidsgiver
+        it[innstiltAvIdent] = data.innstiltAvIdent
+        it[sendtTidspunkt] = data.tidspunkt
+    }
+    return true
+}
+
+/** Siste versjon av det foreløpige vedtaket, eller null. Må kalles i en pågående transaksjon. */
+@OptIn(ExperimentalTime::class)
+fun hentSisteForelopigVedtak(sakId: UUID): ForelopigVedtakDTO? =
+    ForelopigVedtakTable.selectAll()
+        .where { ForelopigVedtakTable.sakId eq sakId }
+        .orderBy(ForelopigVedtakTable.versjon, SortOrder.DESC)
+        .limit(1)
+        .singleOrNull()
+        ?.let {
+            ForelopigVedtakDTO(
+                versjon = it[ForelopigVedtakTable.versjon],
+                utfall = ForelopigUtfall.valueOf(it[ForelopigVedtakTable.utfall]),
+                innvilgetBelop = it[ForelopigVedtakTable.innvilgetBelop],
+                tiltaksperiodeFra = it[ForelopigVedtakTable.tiltaksperiodeFra],
+                tiltaksperiodeTil = it[ForelopigVedtakTable.tiltaksperiodeTil],
+                begrunnelseDeltaker = it[ForelopigVedtakTable.begrunnelseDeltaker],
+                begrunnelseArbeidsgiver = it[ForelopigVedtakTable.begrunnelseArbeidsgiver],
+                innstiltAvIdent = it[ForelopigVedtakTable.innstiltAvIdent],
+                sendtTidspunkt = it[ForelopigVedtakTable.sendtTidspunkt],
+            )
+        }
+
+@OptIn(ExperimentalTime::class)
+@Serializable
+data class ForelopigVedtakDTO(
+    val versjon: Int,
+    val utfall: ForelopigUtfall,
+    val innvilgetBelop: Int?,
+    val tiltaksperiodeFra: LocalDate?,
+    val tiltaksperiodeTil: LocalDate?,
+    val begrunnelseDeltaker: String,
+    val begrunnelseArbeidsgiver: String?,
+    val innstiltAvIdent: String,
+    val sendtTidspunkt: Instant,
+)
 
 /**
  * Vilkårsvurderingen for en sak, én rad per [Vilkar]. Se `specifications/sak-datamodell.md`.

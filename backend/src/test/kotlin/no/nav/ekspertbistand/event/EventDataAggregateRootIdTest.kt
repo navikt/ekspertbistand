@@ -33,6 +33,7 @@ class EventDataAggregateRootIdTest {
             TestEventData.sakTildeltSaksbehandler to soknadRoot,
             TestEventData.sakFrigjort to soknadRoot,
             TestEventData.vilkarsvurderingOppdatert to soknadRoot,
+            TestEventData.forelopigVedtakSendtTilBeslutter to soknadRoot,
         )
 
         forventet.forEach { (event, expected) ->

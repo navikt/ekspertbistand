@@ -1,0 +1,8 @@
+{
+  "INNVILGE_REDUSERT": {
+    "arbeidsgiver": "Dere søkte om {soknadssum} kr, Nav har innvilget {innvilgetBelop} kr i tilskudd til ekspertbistand."
+  },
+  "AVSLAA": {
+    "arbeidsgiver": "Nav har vurdert at andre trenger tilskudd til ekspertbistand mer en dere."
+  }
+}

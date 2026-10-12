@@ -17,7 +17,7 @@ import {
   Tabs,
   VStack,
 } from "@navikt/ds-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
 import { NavLink, useNavigate, useParams } from "react-router";
 import HeaderKnapp from "../components/HeaderKnapp";
@@ -25,9 +25,19 @@ import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
 import Sakslogg from "../components/Sakslogg";
 import VilkårItem from "../components/VilkårItem";
+import ForelopigVedtakKvittering from "../components/forelopigVedtak/ForelopigVedtakKvittering";
+import ForelopigVedtakOppsummering from "../components/forelopigVedtak/ForelopigVedtakOppsummering";
+import ForelopigVedtakSkjema, {
+  type OppdaterSkjema,
+} from "../components/forelopigVedtak/ForelopigVedtakSkjema";
+import {
+  type ForelopigVedtakSkjemaTilstand,
+  startTilstand,
+} from "../components/forelopigVedtak/forelopigVedtak";
+import { useForelopigVedtak } from "../hooks/useForelopigVedtak";
 import { type SakDetaljer, useSak } from "../hooks/useSak";
 import { useTildeling } from "../hooks/useTildeling";
-import { useVilkår } from "../hooks/useVilkår";
+import { type Vilkår, useVilkår } from "../hooks/useVilkår";
 import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import type { HttpError } from "../utils/http";
@@ -116,6 +126,84 @@ function Tildeling({ sak, tildelMeg, frigjoer, isSaving }: TildelingProps) {
 
 type Fane = "vilkarsvurdering" | "forelopig-vedtak";
 
+type ForelopigVedtakFaneProps = {
+  sak: SakDetaljer;
+  vilkår: Vilkår[];
+  vilkårLaster: boolean;
+  vilkårFeilet: boolean;
+  tilstand: ForelopigVedtakSkjemaTilstand;
+  oppdater: OppdaterSkjema;
+  sendTilBeslutter: (input: NonNullable<ForelopigVedtakSkjemaTilstand["forhandsvisning"]>) => void;
+  isSaving: boolean;
+  sendError: Error | null;
+};
+
+function ForelopigVedtakFane({
+  sak,
+  vilkår,
+  vilkårLaster,
+  vilkårFeilet,
+  tilstand,
+  oppdater,
+  sendTilBeslutter,
+  isSaving,
+  sendError,
+}: ForelopigVedtakFaneProps) {
+  const innloggetAnsatt = useInnloggetAnsatt();
+  const erTildeltMeg = !!innloggetAnsatt && sak.saksbehandlerIdent === innloggetAnsatt.id;
+
+  if (sak.forelopigVedtak && sak.status === "TIL_BESLUTNING") {
+    return <ForelopigVedtakOppsummering modus="sendt" sak={sak} vedtak={sak.forelopigVedtak} />;
+  }
+
+  if (sak.status === "UNDER_BEHANDLING" && erTildeltMeg) {
+    if (vilkårLaster) return <Loader size="medium" title="Laster vilkår" />;
+    if (vilkårFeilet) {
+      return (
+        <Alert variant="error" size="small">
+          Kunne ikke hente vilkårene.
+        </Alert>
+      );
+    }
+    const alleVurdert =
+      vilkår.length > 0 && vilkår.every((v) => v.vurdering.status !== "ikke_vurdert");
+    if (!alleVurdert) {
+      return (
+        <Alert variant="info" size="small">
+          Alle vilkår må vurderes før du kan fatte foreløpig vedtak.
+        </Alert>
+      );
+    }
+    if (tilstand.forhandsvisning) {
+      const input = tilstand.forhandsvisning;
+      return (
+        <ForelopigVedtakOppsummering
+          modus="forhandsvisning"
+          sak={sak}
+          vedtak={input}
+          onForrige={() => oppdater({ forhandsvisning: null })}
+          onSend={() => sendTilBeslutter(input)}
+          isSaving={isSaving}
+          error={sendError}
+        />
+      );
+    }
+    return (
+      <ForelopigVedtakSkjema sak={sak} vilkår={vilkår} tilstand={tilstand} oppdater={oppdater} />
+    );
+  }
+
+  if (!erTildeltMeg && (sak.status === "OPPRETTET" || sak.status === "UNDER_BEHANDLING")) {
+    return (
+      <Alert variant="info" size="small">
+        Du må ha saken for å fatte foreløpig vedtak.
+      </Alert>
+    );
+  }
+
+  return <BodyShort>Foreløpig vedtak er ikke tilgjengelig ennå.</BodyShort>;
+}
+
 function feilmelding(error: HttpError | undefined) {
   switch (error?.status) {
     case 403:
@@ -133,10 +221,32 @@ export default function SakPage() {
   const { sakId: sakIdParam } = useParams<{ sakId: string }>();
   const { sak, error, isLoading } = useSak(sakIdParam ?? "");
   const sakId = sak?.sakId;
-  const { vilkår, error: vilkårError, isLoading: vilkårLaster } = useVilkår(sakId);
+  const erArenaSak = sak?.kildeTilBehandling === "ARENA";
+  const {
+    vilkår,
+    error: vilkårError,
+    isLoading: vilkårLaster,
+  } = useVilkår(erArenaSak ? undefined : sakId);
   const { lagreVurdering, isSaving, error: lagreError } = useVilkårsvurdering(sakId ?? "");
   const { error: tildelingError, ...tildeling } = useTildeling(sakId ?? "");
+  const forelopigVedtak = useForelopigVedtak(sakId ?? "");
   const [fane, setFane] = useState<Fane>("vilkarsvurdering");
+  // Holdes her, fordi fanepanelene avmonteres når de ikke vises.
+  const [skjema, setSkjema] = useState<ForelopigVedtakSkjemaTilstand | null>(null);
+  const [kvitteringForSak, setKvitteringForSak] = useState<string | null>(null);
+
+  const startdato = sak?.soknad.behovForBistand.startdato ?? "";
+  const oppdaterSkjema: OppdaterSkjema = useCallback(
+    (endring) => {
+      if (!sakId) return;
+      setSkjema((forrige) => {
+        const gjeldende = forrige?.sakId === sakId ? forrige : startTilstand(sakId, startdato);
+        const delvis = typeof endring === "function" ? endring(gjeldende) : endring;
+        return { ...gjeldende, ...delvis };
+      });
+    },
+    [sakId, startdato]
+  );
 
   if (isLoading) return <Loader size="large" title="Laster sak" />;
   if (error || !sak) {
@@ -155,6 +265,18 @@ export default function SakPage() {
 
   const { soknad } = sak;
   const { ansatt, virksomhet, ekspert, behovForBistand } = soknad;
+  const skjemaTilstand =
+    skjema?.sakId === sak.sakId ? skjema : startTilstand(sak.sakId, behovForBistand.startdato);
+  const visKvittering = kvitteringForSak === sak.sakId && sak.forelopigVedtak !== null;
+
+  const sendTilBeslutter = async (
+    input: NonNullable<ForelopigVedtakSkjemaTilstand["forhandsvisning"]>
+  ) => {
+    if (await forelopigVedtak.sendTilBeslutter(input)) {
+      setKvitteringForSak(sak.sakId);
+      setSkjema(null);
+    }
+  };
 
   return (
     <>
@@ -183,12 +305,14 @@ export default function SakPage() {
               </BodyShort>
             </Link>
           </HStack>
-          <HStack align="stretch">
-            <Tildeling sak={sak} {...tildeling} />
-            <Sakslogg sakId={sakId ?? ""} />
-          </HStack>
+          {!visKvittering && (
+            <HStack align="stretch">
+              <Tildeling sak={sak} {...tildeling} />
+              <Sakslogg sakId={sakId ?? ""} />
+            </HStack>
+          )}
         </HStack>
-        {tildelingError && (
+        {tildelingError && !visKvittering && (
           <Box paddingBlock="space-8" paddingInline="space-0 space-24">
             <Alert variant="error" size="small">
               {tildelingError.message}
@@ -197,172 +321,197 @@ export default function SakPage() {
         )}
       </Box>
 
-      <main>
-        <Group orientation="horizontal" style={{ minHeight: "calc(100vh - 160px)" }}>
-          {/* Venstre kolonne */}
-          <Panel defaultSize={25} minSize={15}>
-            <Box padding="space-16" paddingBlock="space-32">
-              <VStack gap="space-32">
-                <InfoKort tittel="Arbeidsgiver">
-                  <HGrid columns="repeat(auto-fit, minmax(160px, 1fr))" gap="space-8 space-16">
-                    <DataRad label="Navn" value={virksomhet.virksomhetsnavn} />
-                    <DataRad label="Kontaktperson" value={virksomhet.kontaktperson.navn} />
-                    <DataRad label="Org.nr" value={virksomhet.virksomhetsnummer} />
-                    <DataRad label="E-post" value={virksomhet.kontaktperson.epost} />
-                    <DataRad
-                      label="Beliggenhetsadresse"
-                      value={virksomhet.beliggenhetsadresse ?? "–"}
-                    />
-                    <DataRad label="Telefon" value={virksomhet.kontaktperson.telefonnummer} />
-                  </HGrid>
-                </InfoKort>
+      {visKvittering && sak.forelopigVedtak ? (
+        <main>
+          <ForelopigVedtakKvittering sak={sak} vedtak={sak.forelopigVedtak} />
+        </main>
+      ) : (
+        <main>
+          <Group orientation="horizontal" style={{ minHeight: "calc(100vh - 160px)" }}>
+            {/* Venstre kolonne */}
+            <Panel defaultSize={25} minSize={15}>
+              <Box padding="space-16" paddingBlock="space-32">
+                <VStack gap="space-32">
+                  <InfoKort tittel="Arbeidsgiver">
+                    <HGrid columns="repeat(auto-fit, minmax(160px, 1fr))" gap="space-8 space-16">
+                      <DataRad label="Navn" value={virksomhet.virksomhetsnavn} />
+                      <DataRad label="Kontaktperson" value={virksomhet.kontaktperson.navn} />
+                      <DataRad label="Org.nr" value={virksomhet.virksomhetsnummer} />
+                      <DataRad label="E-post" value={virksomhet.kontaktperson.epost} />
+                      <DataRad
+                        label="Beliggenhetsadresse"
+                        value={virksomhet.beliggenhetsadresse ?? "–"}
+                      />
+                      <DataRad label="Telefon" value={virksomhet.kontaktperson.telefonnummer} />
+                    </HGrid>
+                  </InfoKort>
 
-                <InfoKort tittel="Deltakere">
-                  <HGrid columns="repeat(auto-fit, minmax(160px, 1fr))" gap="space-8 space-16">
-                    <VStack gap="space-8">
-                      <DataRad label="Navn" value={ansatt.navn} />
-                      <DataRad label="Fødselsnummer" value={ansatt.fnr} />
-                      <VStack gap="space-2">
-                        <Label>Arbeidsforhold</Label>
-                        <Link href="#" target="_blank">
-                          <CheckmarkCircleIcon
-                            aria-hidden
-                            style={{ color: "var(--ax-text-success-decoration)" }}
-                          />
-                          Se Aa-registret
+                  <InfoKort tittel="Deltakere">
+                    <HGrid columns="repeat(auto-fit, minmax(160px, 1fr))" gap="space-8 space-16">
+                      <VStack gap="space-8">
+                        <DataRad label="Navn" value={ansatt.navn} />
+                        <DataRad label="Fødselsnummer" value={ansatt.fnr} />
+                        <VStack gap="space-2">
+                          <Label>Arbeidsforhold</Label>
+                          <Link href="#" target="_blank">
+                            <CheckmarkCircleIcon
+                              aria-hidden
+                              style={{ color: "var(--ax-text-success-decoration)" }}
+                            />
+                            Se Aa-registret
+                          </Link>
+                        </VStack>
+                      </VStack>
+                      <VStack gap="space-12">
+                        <Link href={`${MODIA_URL}/sykefravær`} target="modia">
+                          Sykefraværshistorikk
+                        </Link>
+                        <Link href={`${MODIA_URL}/person`} target="modia">
+                          Personoversikt - Modia
+                        </Link>
+                        <Link href={`${MODIA_URL}/aktivitetsplan`} target="modia">
+                          Aktivitetsplan - Modia
+                        </Link>
+                        <Link href={GOSYS_URL} target="gosys">
+                          Gosys - personmappe
                         </Link>
                       </VStack>
-                    </VStack>
-                    <VStack gap="space-12">
-                      <Link href={`${MODIA_URL}/sykefravær`} target="modia">
-                        Sykefraværshistorikk
-                      </Link>
-                      <Link href={`${MODIA_URL}/person`} target="modia">
-                        Personoversikt - Modia
-                      </Link>
-                      <Link href={`${MODIA_URL}/aktivitetsplan`} target="modia">
-                        Aktivitetsplan - Modia
-                      </Link>
-                      <Link href={GOSYS_URL} target="gosys">
-                        Gosys - personmappe
-                      </Link>
-                    </VStack>
-                  </HGrid>
-                </InfoKort>
+                    </HGrid>
+                  </InfoKort>
 
-                <InfoKort tittel="Ekspert">
-                  <VStack gap="space-8">
-                    <DataRad label="Navn" value={ekspert.navn} />
-                    <DataRad
-                      label="Godkjent utdanning/autorisasjon"
-                      value={
-                        ekspert.godkjentUtdanningEllerAutorisasjon.join(", ") || ekspert.kompetanse
-                      }
-                    />
-                    <DataRad
-                      label="Tilknyttet virksomhet"
-                      value={ekspert.virksomhetNavn ?? ekspert.virksomhet}
-                    />
-                    <DataRad label="Org.nr." value={ekspert.virksomhetOrgnr ?? "–"} />
+                  <InfoKort tittel="Ekspert">
+                    <VStack gap="space-8">
+                      <DataRad label="Navn" value={ekspert.navn} />
+                      <DataRad
+                        label="Godkjent utdanning/autorisasjon"
+                        value={
+                          ekspert.godkjentUtdanningEllerAutorisasjon.join(", ") ||
+                          ekspert.kompetanse
+                        }
+                      />
+                      <DataRad
+                        label="Tilknyttet virksomhet"
+                        value={ekspert.virksomhetNavn ?? ekspert.virksomhet}
+                      />
+                      <DataRad label="Org.nr." value={ekspert.virksomhetOrgnr ?? "–"} />
+                    </VStack>
+                  </InfoKort>
+                </VStack>
+              </Box>
+            </Panel>
+
+            <KolonneSeparator />
+
+            {/* Midtre kolonne */}
+            <Panel defaultSize={45} minSize={30}>
+              <Box padding="space-16" paddingBlock="space-32">
+                <VStack gap="space-48">
+                  <VStack as="section" gap="space-16">
+                    <Heading level="2" size="xsmall">
+                      Situasjonen
+                    </Heading>
+                    <Spørsmål label="Beskriv den ansattes arbeidssituasjon">
+                      <BodyLong>{behovForBistand.begrunnelse}</BodyLong>
+                    </Spørsmål>
+                    <Spørsmål label="Beskriv ansatt sykefravær, og hvilken oppfølging og tilrettelegging dere allerede har tilbudt/prøvd ut?">
+                      <BodyLong>{behovForBistand.tilrettelegging}</BodyLong>
+                    </Spørsmål>
                   </VStack>
-                </InfoKort>
-              </VStack>
-            </Box>
-          </Panel>
 
-          <KolonneSeparator />
-
-          {/* Midtre kolonne */}
-          <Panel defaultSize={45} minSize={30}>
-            <Box padding="space-16" paddingBlock="space-32">
-              <VStack gap="space-48">
-                <VStack as="section" gap="space-16">
-                  <Heading level="2" size="xsmall">
-                    Situasjonen
-                  </Heading>
-                  <Spørsmål label="Beskriv den ansattes arbeidssituasjon">
-                    <BodyLong>{behovForBistand.begrunnelse}</BodyLong>
-                  </Spørsmål>
-                  <Spørsmål label="Beskriv ansatt sykefravær, og hvilken oppfølging og tilrettelegging dere allerede har tilbudt/prøvd ut?">
-                    <BodyLong>{behovForBistand.tilrettelegging}</BodyLong>
-                  </Spørsmål>
+                  <VStack as="section" gap="space-16">
+                    <Heading level="2" size="xsmall">
+                      Ekspertbistand
+                    </Heading>
+                    <Spørsmål label="Hva skal eksperten hjelpe dere med?">
+                      <BodyLong>{behovForBistand.behov}</BodyLong>
+                    </Spørsmål>
+                    <Spørsmål label="Hvor mange timer skal eksperten hjelpe dere?">
+                      <BodyShort>{behovForBistand.timer} timer</BodyShort>
+                    </Spørsmål>
+                    <Spørsmål label="Søknadssum">
+                      <BodyShort>{formatBeløp(behovForBistand.estimertKostnad)}</BodyShort>
+                    </Spørsmål>
+                    <Spørsmål label="Startdato">
+                      <BodyShort>{formatDate(behovForBistand.startdato)}</BodyShort>
+                    </Spørsmål>
+                    <Spørsmål label="Sendt inn til Nav">
+                      <BodyShort>{formatDate(soknad.innsendtTidspunkt)}</BodyShort>
+                    </Spørsmål>
+                  </VStack>
                 </VStack>
+              </Box>
+            </Panel>
 
-                <VStack as="section" gap="space-16">
-                  <Heading level="2" size="xsmall">
-                    Ekspertbistand
-                  </Heading>
-                  <Spørsmål label="Hva skal eksperten hjelpe dere med?">
-                    <BodyLong>{behovForBistand.behov}</BodyLong>
-                  </Spørsmål>
-                  <Spørsmål label="Hvor mange timer skal eksperten hjelpe dere?">
-                    <BodyShort>{behovForBistand.timer} timer</BodyShort>
-                  </Spørsmål>
-                  <Spørsmål label="Søknadssum">
-                    <BodyShort>{formatBeløp(behovForBistand.estimertKostnad)}</BodyShort>
-                  </Spørsmål>
-                  <Spørsmål label="Startdato">
-                    <BodyShort>{formatDate(behovForBistand.startdato)}</BodyShort>
-                  </Spørsmål>
-                  <Spørsmål label="Sendt inn til Nav">
-                    <BodyShort>{formatDate(soknad.innsendtTidspunkt)}</BodyShort>
-                  </Spørsmål>
-                </VStack>
-              </VStack>
-            </Box>
-          </Panel>
+            <KolonneSeparator />
 
-          <KolonneSeparator />
-
-          {/* Høyre kolonne */}
-          <Panel defaultSize={30} minSize={20}>
-            <Tabs value={fane} onChange={(value) => setFane(value as Fane)}>
-              <Tabs.List>
-                <Tabs.Tab value="vilkarsvurdering" label="Vilkårsvurdering" />
-                <Tabs.Tab value="forelopig-vedtak" label="Foreløpig vedtak" />
-              </Tabs.List>
-              <Tabs.Panel value="vilkarsvurdering">
-                <VStack
-                  gap="space-16"
-                  paddingBlock="space-8 space-32"
-                  paddingInline="space-8 space-16"
-                >
-                  {vilkårLaster ? (
-                    <Loader size="medium" title="Laster vilkår" />
-                  ) : vilkårError ? (
-                    <Alert variant="error" size="small">
-                      Kunne ikke hente vilkårene.
-                    </Alert>
-                  ) : (
-                    <Accordion>
-                      {vilkår.map((v) => (
-                        <VilkårItem
-                          key={v.id}
-                          vilkår={v}
-                          isSaving={isSaving}
-                          error={lagreError}
-                          onLagre={lagreVurdering}
-                        />
-                      ))}
-                    </Accordion>
-                  )}
-                  <Box paddingInline="space-16">
-                    <Link as="button" type="button" onClick={() => setFane("forelopig-vedtak")}>
-                      Fatte foreløpig vedtak
-                      <ChevronRightIcon aria-hidden />
-                    </Link>
-                  </Box>
-                </VStack>
-              </Tabs.Panel>
-              <Tabs.Panel value="forelopig-vedtak">
+            {/* Høyre kolonne */}
+            <Panel defaultSize={30} minSize={20}>
+              {erArenaSak ? (
                 <Box padding="space-16">
-                  <BodyShort>Foreløpig vedtak er ikke tilgjengelig ennå.</BodyShort>
+                  <Alert variant="info" size="small">
+                    Saken behandles i Arena. Vilkårsvurdering, vedtak og utbetaling gjøres der.
+                  </Alert>
                 </Box>
-              </Tabs.Panel>
-            </Tabs>
-          </Panel>
-        </Group>
-      </main>
+              ) : (
+                <Tabs value={fane} onChange={(value) => setFane(value as Fane)}>
+                  <Tabs.List>
+                    <Tabs.Tab value="vilkarsvurdering" label="Vilkårsvurdering" />
+                    <Tabs.Tab value="forelopig-vedtak" label="Foreløpig vedtak" />
+                  </Tabs.List>
+                  <Tabs.Panel value="vilkarsvurdering">
+                    <VStack
+                      gap="space-16"
+                      paddingBlock="space-8 space-32"
+                      paddingInline="space-8 space-16"
+                    >
+                      {vilkårLaster ? (
+                        <Loader size="medium" title="Laster vilkår" />
+                      ) : vilkårError ? (
+                        <Alert variant="error" size="small">
+                          Kunne ikke hente vilkårene.
+                        </Alert>
+                      ) : (
+                        <Accordion>
+                          {vilkår.map((v) => (
+                            <VilkårItem
+                              key={v.id}
+                              vilkår={v}
+                              isSaving={isSaving}
+                              error={lagreError}
+                              onLagre={lagreVurdering}
+                            />
+                          ))}
+                        </Accordion>
+                      )}
+                      <Box paddingInline="space-16">
+                        <Link as="button" type="button" onClick={() => setFane("forelopig-vedtak")}>
+                          Fatte foreløpig vedtak
+                          <ChevronRightIcon aria-hidden />
+                        </Link>
+                      </Box>
+                    </VStack>
+                  </Tabs.Panel>
+                  <Tabs.Panel value="forelopig-vedtak">
+                    <Box padding="space-16" paddingBlock="space-24 space-32">
+                      <ForelopigVedtakFane
+                        sak={sak}
+                        vilkår={vilkår}
+                        vilkårLaster={vilkårLaster}
+                        vilkårFeilet={!!vilkårError}
+                        tilstand={skjemaTilstand}
+                        oppdater={oppdaterSkjema}
+                        sendTilBeslutter={(input) => void sendTilBeslutter(input)}
+                        isSaving={forelopigVedtak.isSaving}
+                        sendError={forelopigVedtak.error}
+                      />
+                    </Box>
+                  </Tabs.Panel>
+                </Tabs>
+              )}
+            </Panel>
+          </Group>
+        </main>
+      )}
     </>
   );
 }

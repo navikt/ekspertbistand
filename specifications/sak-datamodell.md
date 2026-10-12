@@ -48,7 +48,7 @@ journalført (`InnsendtSoknadJournalfoert`), sammen med alle vilkår.
 | `saksbehandler_ident` | TEXT | NULL | NAV-ident til saksbehandler som utreder. Null før tildeling og etter frigjøring. |
 | `saksbehandler_navn` | TEXT | NULL | Navnet til saksbehandleren fra entra-proxy da saken ble tildelt. Satt når og bare når `saksbehandler_ident` er satt (CHECK `chk_saksbehandler_navn_med_ident`). |
 | `beslutter_ident` | TEXT | NULL | NAV-ident til beslutter (to-trinns kontroll). Null før beslutning. |
-| `foreslatt_utfall` | TEXT | NULL | Saksbehandlers foreløpige vedtak sendt til beslutning (`INNVILGET`/`AVSLATT`). Se `Saksstatus`. Null før innsending. |
+| `foreslatt_utfall` | TEXT | NULL | Saksbehandlers foreløpige vedtak sendt til beslutning (`INNVILGET`/`AVSLATT`). Se `Saksstatus`. Null før innsending. Detaljene ligger i `forelopig_vedtak`. |
 | `arena_sak_id` | TEXT | NULL | Saksnummer i Arena når saken er speilet dit. Null hvis ikke i Arena. |
 | `refusjon_id` | UUID | UNIQUE, FK → `refusjonskrav(id)` | Refusjonskravet for saken (1:1). Null til krav mottas. |
 | `sluttrapport_id` | UUID | UNIQUE, FK → `sluttrapport(sluttrapport_id)` | Sluttrapporten for saken (1:1). Null til rapport mottas. |
@@ -140,6 +140,29 @@ ganger — hver retur er en egen rad, slik at hele historikken bevares.
 
 Indeks: `idx_sak_retur_sak_id(sak_id)`.
 
+### `forelopig_vedtak`
+
+Saksbehandlers foreløpige vedtak (innstilling) til beslutter (1:N). Hver innsending gir en ny
+versjon, slik at innstillingen før en retur bevares. Skrives bare av handleren
+`LagreForelopigVedtak`. Se [`forelopig_vedtak.md`](forelopig_vedtak.md).
+
+| Kolonne | Type | Constraints | Beskrivelse |
+|---------|------|-------------|-------------|
+| `id` | BIGSERIAL | PK | Teknisk id. |
+| `sak_id` | UUID | NOT NULL, FK → `sak(sak_id)` | Saken innstillingen gjelder. |
+| `versjon` | INT | NOT NULL, UNIQUE med `sak_id` | 1 for første innsending, +1 per ny innsending etter retur. |
+| `event_id` | BIGINT | NOT NULL, UNIQUE | Eventet som skrev raden. Gjør handleren idempotent. |
+| `utfall` | TEXT | NOT NULL, CHECK | Se `ForelopigUtfall`. |
+| `innvilget_belop` | INT | NULL, CHECK | Beløp i kroner. Påkrevd og > 0 ved innvilgelse, null ved avslag. |
+| `tiltaksperiode_fra` | DATE | NULL, CHECK | Påkrevd ved innvilgelse, null ved avslag. |
+| `tiltaksperiode_til` | DATE | NULL, CHECK | Påkrevd ved innvilgelse. Samme år som `tiltaksperiode_fra`, ikke før den. |
+| `begrunnelse_deltaker` | TEXT | NOT NULL | Begrunnelse til deltaker. |
+| `begrunnelse_arbeidsgiver` | TEXT | NULL, CHECK | Påkrevd ved `INNVILGE_REDUSERT` og `AVSLAA`. |
+| `innstilt_av_ident` | TEXT | NOT NULL | NAV-ident til saksbehandler som sendte til beslutter. |
+| `sendt_tidspunkt` | TIMESTAMPTZ | NOT NULL | Tidspunktet fra eventet. |
+
+Indeks: `idx_forelopig_vedtak_sak_id(sak_id)`. Siste versjon er gjeldende innstilling.
+
 ## Endringer i eksisterende tabeller
 
 ### `refusjonskrav`
@@ -176,6 +199,17 @@ Flyt: `OPPRETTET` → (saksbehandler tilordner seg) `UNDER_BEHANDLING` → (send
 `TIL_BESLUTNING` → beslutter godkjenner → `INNVILGET`/`AVSLATT`, **eller** beslutter returnerer →
 `UNDER_BEHANDLING` (+ rad i `sak_retur`). `INNVILGET`/`AVSLATT` → `AVSLUTTET`.
 
+Bygd: `UNDER_BEHANDLING` → `TIL_BESLUTNING` (foreløpig vedtak, se
+[`forelopig_vedtak.md`](forelopig_vedtak.md)). Beslutters godkjenning og retur er ikke bygd ennå.
+
+### `ForelopigUtfall` (`forelopig_vedtak.utfall`)
+
+| Verdi | Betydning | `foreslatt_utfall` |
+|-------|-----------|--------------------|
+| `INNVILGE` | Innvilge søknadssummen. | `INNVILGET` |
+| `INNVILGE_REDUSERT` | Innvilge et lavere beløp enn søknadssummen. | `INNVILGET` |
+| `AVSLAA` | Avslå søknaden. | `AVSLATT` |
+
 ### `KildeTilBehandling` (`sak.kilde_til_behandling`)
 
 | Verdi | Betydning |
@@ -195,7 +229,7 @@ Rollen aktøren hadde ved handlingen. Alltid satt.
 
 ### `Vilkar` (`saksvilkar.vilkar_id`)
 
-Nye verdier krever at `SakProjection` kjøres på nytt (bump versjonen), slik at eksisterende saker får rader for dem.
+`OpprettSak` lager én rad per vilkår når en sak med kilde `EKSPERTBISTAND` opprettes. Saker med kilde `ARENA` har ingen vilkårsrader (vilkårene vurderes i Arena). Nye verdier krever at eksisterende `EKSPERTBISTAND`-saker får rader for dem, for eksempel med en migrering.
 
 | Verdi | Betydning |
 |-------|-----------|
@@ -229,6 +263,8 @@ soknad 1 ──── 1 sak 1 ──── N saksvilkar
                  ├──── N sakslogg
                  │ 1
                  ├──── N sak_retur              (via sak_retur.sak_id)
+                 │ 1
+                 ├──── N forelopig_vedtak       (via forelopig_vedtak.sak_id)
                  │ 1
                  ├──── 0..1 refusjonskrav      (via sak.refusjon_id)
                  │ 1

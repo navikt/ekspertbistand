@@ -6,7 +6,6 @@ import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
-import no.nav.ekspertbistand.event.handlers.OpprettSak.Companion.opprettVilkarForSak
 import no.nav.ekspertbistand.saksbehandling.frigjoerSak
 import no.nav.ekspertbistand.saksbehandling.tildelSak
 import no.nav.ekspertbistand.soknad.DTO
@@ -18,7 +17,6 @@ import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
-import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import java.util.*
@@ -33,8 +31,8 @@ import kotlin.time.Instant
  *
  * - [EventData.SoknadInnsendt] oppretter saken (`OPPRETTET`, kilde `ARENA`), men kun hvis søknaden
  *   fortsatt finnes og det ikke allerede finnes en sak for søknaden. Ved replay kan søknaden være
- *   slettet, og da hoppes eventen over. Alle [no.nav.ekspertbistand.saksbehandling.Vilkar] opprettes
- *   samtidig som ikke vurdert.
+ *   slettet, og da hoppes eventen over. Arena-saker får ikke vilkår, fordi de behandles ferdig i
+ *   Arena. Se `specifications/forelopig_vedtak.md` (2c).
  * - [EventData.InnsendtSoknadJournalfoert] setter behandlende enhet. Eventen inneholder enhetsnummeret
  *   som ble sendt til Arena, så det mappes tilbake til Norg-enhetsnummeret.
  * - [EventData.TiltaksgjennomforingOpprettet] setter Arena-saksnummer.
@@ -117,23 +115,17 @@ class SakProjection(
         val sakFinnes = !SakTable.selectAll().where { SakTable.soknadId eq soknadId }.empty()
         if (sakFinnes) {
             log.info("Sak for søknad {} finnes allerede, oppretter ikke ny", soknadId)
-        } else {
-            // insertIgnore i tillegg til sjekken over, i tilfelle saken opprettes samtidig et annet sted.
-            SakTable.insertIgnore {
-                it[SakTable.soknadId] = soknadId
-                it[status] = Saksstatus.OPPRETTET.name
-                it[kildeTilBehandling] = KildeTilBehandling.ARENA.name
-                it[opprettet] = eventTimestamp
-                it[sistEndret] = eventTimestamp
-            }
+            return
         }
 
-        // Også for eksisterende saker, slik at re-kjøring gir vilkår til saker opprettet før V19.
-        SakTable.select(SakTable.sakId)
-            .where { SakTable.soknadId eq soknadId }
-            .singleOrNull()
-            ?.get(SakTable.sakId)
-            ?.let { opprettVilkarForSak(it) }
+        // insertIgnore i tillegg til sjekken over, i tilfelle saken opprettes samtidig et annet sted.
+        SakTable.insertIgnore {
+            it[SakTable.soknadId] = soknadId
+            it[status] = Saksstatus.OPPRETTET.name
+            it[kildeTilBehandling] = KildeTilBehandling.ARENA.name
+            it[opprettet] = eventTimestamp
+            it[sistEndret] = eventTimestamp
+        }
     }
 
     private fun oppdaterSak(

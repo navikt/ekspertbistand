@@ -276,6 +276,7 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                     behovForBistand = soknad.behovForBistand,
                     nav = soknad.nav,
                 ),
+                forelopigVedtak = hentSisteForelopigVedtak(sakId),
             )
         }
 
@@ -328,6 +329,7 @@ data class SakDetaljer(
     val arenaSakId: String?,
     val kanTildeleMeg: Boolean,
     val soknad: Soknad,
+    val forelopigVedtak: ForelopigVedtakDTO?,
 ) {
     @Serializable
     data class Soknad(

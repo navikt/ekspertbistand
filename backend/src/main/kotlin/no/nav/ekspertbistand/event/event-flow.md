@@ -21,10 +21,12 @@ flowchart TD
     s_ArenaTilsagnsbrevProcessor[/"ArenaTilsagnsbrevProcessor"/]:::source
     s_ArenaTiltaksgjennomforingEndretProcessor[/"ArenaTiltaksgjennomforingEndretProcessor"/]:::source
     s_ArenaTiltakssakEndretProcessor[/"ArenaTiltakssakEndretProcessor"/]:::source
+    s_ForelopigVedtakApi[/"ForelopigVedtakApi"/]:::source
     s_SakApi[/"SakApi"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
+    e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
     e_SakFrigjort(["SakFrigjort"]):::event
     e_SakOppdatert(["SakOppdatert"]):::event
@@ -45,6 +47,7 @@ flowchart TD
     h_JournalfoerNotatArenaSakOpprettet["JournalfoerNotatArenaSakOpprettet"]:::handler
     h_JournalfoerTilskuddsbrev["JournalfoerTilskuddsbrev"]:::handler
     h_JournalfoerTilskuddsbrevKildeAltinn["JournalfoerTilskuddsbrevKildeAltinn"]:::handler
+    h_LagreForelopigVedtak["LagreForelopigVedtak"]:::handler
     h_LagreTilsagnsData["LagreTilsagnsData"]:::handler
     h_LagreTilsagnsDataKildeAltinn["LagreTilsagnsDataKildeAltinn"]:::handler
     h_MarkerSakUnderBehandlingIArena["MarkerSakUnderBehandlingIArena"]:::handler
@@ -68,10 +71,12 @@ flowchart TD
     s_ArenaTilsagnsbrevProcessor --> e_TilskuddsbrevMottattKildeAltinn
     s_ArenaTiltaksgjennomforingEndretProcessor --> e_SoknadAvlystIArena
     s_ArenaTiltakssakEndretProcessor --> e_SaksbehandlingStartetIArena
+    s_ForelopigVedtakApi --> e_ForelopigVedtakSendtTilBeslutter
     h_FrigjoerSak --> e_SakOppdatert
     h_JournalfoerInnsendtSoknad --> e_InnsendtSoknadJournalfoert
     h_JournalfoerTilskuddsbrev --> e_TilskuddsbrevJournalfoert
     h_JournalfoerTilskuddsbrevKildeAltinn --> e_TilskuddsbrevJournalfoertKildeAltinn
+    h_LagreForelopigVedtak --> e_SakOppdatert
     h_LagreTilsagnsData --> e_TilsagnsdataLagret
     h_OpprettSak --> e_SakOppdatert
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
@@ -86,6 +91,7 @@ flowchart TD
     e_TiltaksgjennomforingOpprettet --> h_JournalfoerNotatArenaSakOpprettet
     e_TilskuddsbrevMottatt --> h_JournalfoerTilskuddsbrev
     e_TilskuddsbrevMottattKildeAltinn --> h_JournalfoerTilskuddsbrevKildeAltinn
+    e_ForelopigVedtakSendtTilBeslutter --> h_LagreForelopigVedtak
     e_TilskuddsbrevJournalfoert --> h_LagreTilsagnsData
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_LagreTilsagnsDataKildeAltinn
     e_SaksbehandlingStartetIArena --> h_MarkerSakUnderBehandlingIArena

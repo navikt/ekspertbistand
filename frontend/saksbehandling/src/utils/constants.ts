@@ -8,6 +8,10 @@ export const SAKSBEHANDLING_VILKARSVURDERING_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/vilkarsvurdering`;
 export const SAKSBEHANDLING_TILDELING_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/tildeling`;
+export const SAKSBEHANDLING_FORELOPIG_VEDTAK_URL = (sakId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/forelopig-vedtak`;
+export const SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL =
+  "/api/saksbehandling/v1/forelopig-vedtak/oppsett";
 export const SAKSBEHANDLING_SAKSLOGG_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/logg`;
 export const SAKSBEHANDLING_KONTONUMMER_URL = (orgnr: string) =>
@@ -30,7 +34,7 @@ const isLocalHost = () => {
 
 export const isMockEnabled = () => {
   const flag = import.meta.env.VITE_ENABLE_MOCKS?.toLowerCase();
-  if (flag === 'false') return false;
+  if (flag === "false") return false;
   if (isLocalHost()) return true;
   if (import.meta.env.DEV) return true;
   return flag === "true";

@@ -11,7 +11,9 @@ import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.handlers.*
 import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
+import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
+import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.aggregateRootId
@@ -389,6 +391,36 @@ sealed interface EventData {
     ) : EventData {
         override val aggregateRootId: String get() = soknadId
     }
+
+    /**
+     * Saksbehandler har fattet et foreløpig vedtak og sendt saken til beslutter.
+     *
+     * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/forelopig-vedtak` etter at tilgang,
+     * kilde, status, vilkår og beløp er sjekket. [innvilgetBelop] og periodefeltene er null ved
+     * [ForelopigUtfall.AVSLAA]. [innstiltAvIdent] er NAV-identen til saksbehandleren og skal ikke
+     * logges utenfor teamLog. Begrunnelsene skal ikke logges. Se `specifications/forelopig_vedtak.md`.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [no.nav.ekspertbistand.event.handlers.LagreForelopigVedtak].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("forelopigVedtakSendtTilBeslutter")
+    data class ForelopigVedtakSendtTilBeslutter(
+        val sakId: String,
+        val soknadId: String,
+        val utfall: ForelopigUtfall,
+        val innvilgetBelop: Int?,
+        val tiltaksperiodeFra: LocalDate?,
+        val tiltaksperiodeTil: LocalDate?,
+        val begrunnelseDeltaker: String,
+        val begrunnelseArbeidsgiver: String?,
+        val innstiltAvIdent: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -421,6 +453,7 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(TildelSaksbehandler::class))
         register(dependencies.create(FrigjoerSak::class))
         register(dependencies.create(OppdaterVilkarsvurdering::class))
+        register(dependencies.create(LagreForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
             EventHandledResult.Success()
