@@ -77,10 +77,14 @@ Ikke i dette kortet:
 
 ### 1. Avhengighet
 
-`pnpm --filter saksbehandling add react-pdf`. Det henter med seg `pdfjs-dist`.
+`pnpm --filter saksbehandling add react-pdf pdfjs-dist@<samme versjon som react-pdf>`.
+`pdfjs-dist` legges til som direkte avhengighet, fordi pnpm ellers ikke lar Vite
+løse opp `pdfjs-dist/build/pdf.worker.min.mjs` fra appen. Versjonen må holdes lik
+den `react-pdf` bruker.
 
 `src/components/pdf/pdfjs.ts` setter workeren slik at Vite bundler den fra samme
-opphav:
+opphav, og eksporterer `Document` og `Page` videre. Alle komponentene importerer
+fra denne modulen, slik at workeren alltid er satt:
 
 ```ts
 import { pdfjs } from "react-pdf";
@@ -113,7 +117,8 @@ export type PdfFil = {
 | `PdfForhandsvisning` | Offentlig API for én fil. Miniatyr, filnavn og størrelse, og modalen. |
 | `PdfForhandsvisningListe` | Offentlig API for flere filer. `HStack` med `wrap`, én `PdfForhandsvisning` per fil. Tom liste gir `BodyShort` «–», som i `client`. |
 | `PdfMiniatyr` | `Document` + `Page pageNumber={1}` med fast bredde. Ligger i en `<button>`. |
-| `PdfModal` | Aksel `Modal` med alle sider. |
+| `PdfModal` | Aksel `Modal`. Laster `PdfSider` lazy når den åpnes. |
+| `PdfSider` | `Document` med alle sider i målt bredde. |
 
 `PdfMiniatyr`:
 
@@ -150,8 +155,12 @@ Hjelpefunksjonen `formatBytes` legges i `src/utils/` med samme oppførsel som i
   `src/mocks/`.
 - `http.get("/api/saksbehandling/v1/demo/vedlegg/:id", …)` returnerer filen med
   `Content-Type: application/pdf`, og `id = "feil"` gir 404.
+- Eksempel-PDF-en importeres med `?inline` og dekodes i handleren, slik at det
+  virker likt i dev og i mock-bygget.
 - `SakPage` viser `PdfForhandsvisningListe` med to vedlegg og én feilfil bak
-  `import.meta.env.DEV`, under søknaden i midtkolonnen. Demoen fjernes når den
+  `isMockEnabled()`, under søknaden i midtkolonnen. Vi bruker ikke
+  `import.meta.env.DEV`, fordi demo-endepunktet bare finnes i MSW, og demoen da
+  også vises i mock-deployet i dev. Demoen fjernes når den
   ekte datakilden kobles på.
 
 ### 4. CSP
@@ -180,10 +189,12 @@ og manuelt i dev med MSW:
 
 | Fil | Endring |
 |-----|---------|
-| `frontend/saksbehandling/package.json`, `pnpm-lock.yaml` | `react-pdf` |
+| `frontend/saksbehandling/package.json`, `pnpm-lock.yaml` | `react-pdf`, `pdfjs-dist` |
 | `frontend/saksbehandling/src/components/pdf/pdfjs.ts` | Ny: oppsett av worker |
 | `frontend/saksbehandling/src/components/pdf/PdfMiniatyr.tsx` | Ny |
 | `frontend/saksbehandling/src/components/pdf/PdfModal.tsx` | Ny |
+| `frontend/saksbehandling/src/components/pdf/PdfSider.tsx` | Ny |
+| `frontend/saksbehandling/src/components/pdf/types.ts` | Ny: `PdfFil`, A4-forhold |
 | `frontend/saksbehandling/src/components/pdf/PdfForhandsvisning.tsx` | Ny |
 | `frontend/saksbehandling/src/components/pdf/PdfForhandsvisningListe.tsx` | Ny |
 | `frontend/saksbehandling/src/components/pdf/index.ts` | Ny: eksporter `PdfForhandsvisning`, `PdfForhandsvisningListe` og `PdfFil`, lazy |
@@ -191,7 +202,7 @@ og manuelt i dev med MSW:
 | `frontend/saksbehandling/src/utils/formatBytes.ts` | Ny |
 | `frontend/saksbehandling/src/mocks/handlers.ts` | Demo-endepunkt for PDF |
 | `frontend/saksbehandling/src/mocks/eksempel.pdf` | Ny: syntetisk PDF |
-| `frontend/saksbehandling/src/pages/SakPage.tsx` | Demo bak `import.meta.env.DEV` |
+| `frontend/saksbehandling/src/pages/SakPage.tsx` | Demo bak `isMockEnabled()` |
 | `frontend/saksbehandling-server/src/index.ts` | Bare ved CSP-brudd |
 
 ## Kanttilfeller og feilmodus
