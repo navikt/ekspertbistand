@@ -1,9 +1,7 @@
-import { FilePdfIcon } from "@navikt/aksel-icons";
 import {
   BodyLong,
   BodyShort,
   Box,
-  Button,
   Heading,
   HGrid,
   LocalAlert,
@@ -11,9 +9,10 @@ import {
   VStack,
 } from "@navikt/ds-react";
 import type { RefusjonStatusDto } from "../hooks/useRefusjon";
-import { useRefusjonsvedleggNedlasting } from "../hooks/useRefusjonsvedleggNedlasting";
 import { formatKroner } from "../utils/belop";
+import { SAKSBEHANDLING_REFUSJON_VEDLEGG_URL } from "../utils/constants";
 import type { HttpError } from "../utils/http";
+import { PdfForhandsvisningListe } from "./pdf";
 
 type RefusjonskravVisningProps = {
   sakId: string;
@@ -42,18 +41,12 @@ function formatDato(opprettet: string) {
   }).format(new Date(opprettet));
 }
 
-function formatStorrelse(storrelse: number) {
-  return `${(storrelse / 1024).toLocaleString("nb-NO", { maximumFractionDigits: 1 })} kB`;
-}
-
 export default function RefusjonskravVisning({
   sakId,
   refusjon,
   error,
   isLoading,
 }: RefusjonskravVisningProps) {
-  const { lastNed, lastesNedId, nedlastingFeil } = useRefusjonsvedleggNedlasting(sakId);
-
   if (isLoading) return <Loader size="medium" title="Laster refusjonskrav" />;
   if (error) {
     return (
@@ -66,6 +59,12 @@ export default function RefusjonskravVisning({
     );
   }
   if (!refusjon) return <BodyLong>Arbeidsgiver har ikke sendt inn refusjonskrav ennå.</BodyLong>;
+
+  const vedlegg = refusjon.vedlegg.map((fil) => ({
+    url: `${SAKSBEHANDLING_REFUSJON_VEDLEGG_URL(sakId, fil.id)}?visning=forhandsvisning`,
+    filnavn: fil.filnavn,
+    storrelse: fil.storrelse,
+  }));
 
   return (
     <Box padding="space-16">
@@ -97,40 +96,7 @@ export default function RefusjonskravVisning({
           {refusjon.vedlegg.length === 0 ? (
             <BodyShort>Ingen vedlegg.</BodyShort>
           ) : (
-            <ul role="list" style={{ margin: 0, padding: 0, listStyle: "none" }}>
-              {refusjon.vedlegg.map((vedlegg) => (
-                <li key={vedlegg.id}>
-                  <Box paddingBlock="space-12" borderWidth="0 0 1 0" borderColor="neutral-subtle">
-                    <HGrid columns="minmax(0, 1fr) auto" gap="space-16" align="center">
-                      <VStack gap="space-4">
-                        <BodyShort>
-                          <FilePdfIcon aria-hidden /> {vedlegg.filnavn}
-                        </BodyShort>
-                        <BodyShort size="small">{formatStorrelse(vedlegg.storrelse)}</BodyShort>
-                      </VStack>
-                      <Button
-                        size="small"
-                        variant="secondary"
-                        loading={lastesNedId === vedlegg.id}
-                        disabled={lastesNedId !== null && lastesNedId !== vedlegg.id}
-                        aria-label={`Last ned ${vedlegg.filnavn}`}
-                        onClick={() => void lastNed(vedlegg.id)}
-                      >
-                        Last ned
-                      </Button>
-                    </HGrid>
-                  </Box>
-                </li>
-              ))}
-            </ul>
-          )}
-          {nedlastingFeil && (
-            <LocalAlert status="error">
-              <LocalAlert.Header>
-                <LocalAlert.Title>Kunne ikke laste ned vedlegget</LocalAlert.Title>
-              </LocalAlert.Header>
-              <LocalAlert.Content>{nedlastingFeil}</LocalAlert.Content>
-            </LocalAlert>
+            <PdfForhandsvisningListe filer={vedlegg} />
           )}
         </VStack>
       </VStack>

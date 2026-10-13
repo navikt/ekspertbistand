@@ -54,6 +54,7 @@ const localWebsocketOrigins =
 const cspDirectives = {
   defaultSrc: ["'self'"],
   scriptSrc: ["'self'", "https://*.nav.no", ...localHttpOrigins],
+  workerSrc: ["'self'", "blob:"],
   styleSrc: ["'self'", "'unsafe-inline'", "https://*.nav.no", ...localHttpOrigins],
   connectSrc: [
     "'self'",
