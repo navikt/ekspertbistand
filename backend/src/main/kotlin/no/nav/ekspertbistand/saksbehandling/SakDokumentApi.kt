@@ -43,7 +43,13 @@ suspend fun Application.configureSakDokumentApiV1() {
 
                     call.utenMellomlagring()
                     dokumentHentet("sluttrapport", "metadata")
-                    call.respond(SluttrapportStatusDto(metadata.filnavn, metadata.lastetOpp))
+                    call.respond(
+                        SluttrapportStatusDto(
+                            filnavn = metadata.filnavn,
+                            opprettet = metadata.lastetOpp,
+                            storrelse = metadata.storrelse,
+                        )
+                    )
                 }
 
                 get("/sluttrapport/fil") {

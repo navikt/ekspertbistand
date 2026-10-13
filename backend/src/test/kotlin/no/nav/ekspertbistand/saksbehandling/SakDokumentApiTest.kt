@@ -206,7 +206,8 @@ class SakDokumentApiTest {
             assertNoStoreAndNosniff(sluttrapportMetadata)
             val sluttrapportStatus = sluttrapportMetadata.body<SluttrapportStatusDto>()
             assertEquals("nyeste-sluttrapport.pdf", sluttrapportStatus.filnavn)
-            assertNotNull(sluttrapportStatus.lastetOpp)
+            assertEquals(refusjonPdf.size, sluttrapportStatus.storrelse)
+            assertNotNull(sluttrapportStatus.opprettet)
 
             val refusjonMetadata =
                 oppsett.client.get("/api/saksbehandling/v1/saker/${sak.sakId}/refusjon") {
@@ -346,7 +347,10 @@ class SakDokumentApiTest {
             }
         assertEquals(HttpStatusCode.OK, sluttrapportMetadata.status)
         assertNoStoreAndNosniff(sluttrapportMetadata)
-        assertEquals("sluttrapport.pdf", sluttrapportMetadata.body<SluttrapportStatusDto>().filnavn)
+        with(sluttrapportMetadata.body<SluttrapportStatusDto>()) {
+            assertEquals("sluttrapport.pdf", filnavn)
+            assertEquals(sluttrapportPdf.size, storrelse)
+        }
 
         val sluttrapportFil =
             oppsett.client.get("/api/saksbehandling/v1/saker/${sak.sakId}/sluttrapport/fil") {

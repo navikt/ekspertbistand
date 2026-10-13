@@ -142,7 +142,7 @@ export default function SluttrapportPage() {
                 <FileTextIcon aria-hidden fontSize="1.5rem" />
                 <ExpansionCard.Title size="small">Sluttrapport sendt inn</ExpansionCard.Title>
                 <ExpansionCard.Description>
-                  {formatDate(sluttrapport.lastetOpp)}
+                  {formatDate(sluttrapport.opprettet)}
                 </ExpansionCard.Description>
               </VStack>
             </ExpansionCard.Header>
@@ -154,7 +154,7 @@ export default function SluttrapportPage() {
                 </VStack>
                 <VStack gap="space-2">
                   <Label>Sendt inn til Nav</Label>
-                  <BodyShort>{formatDate(sluttrapport.lastetOpp)}</BodyShort>
+                  <BodyShort>{formatDate(sluttrapport.opprettet)}</BodyShort>
                 </VStack>
               </VStack>
             </ExpansionCard.Content>

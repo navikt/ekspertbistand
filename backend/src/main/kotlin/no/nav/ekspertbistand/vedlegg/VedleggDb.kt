@@ -61,7 +61,7 @@ class VedleggDb(private val database: Database) {
     }
 
     /**
-     * Henter kun metadata for sluttrapporten (filnavn + tidspunkt) – aldri selve
+     * Henter kun metadata for sluttrapporten (filnavn, størrelse og tidspunkt) – aldri selve
      * filinnholdet, som kan være personsensitivt. `innhold`-kolonnen leses bevisst ikke.
      */
     @OptIn(kotlin.time.ExperimentalTime::class)
@@ -84,13 +84,13 @@ class VedleggDb(private val database: Database) {
 
         val metadata = sluttrapportId?.let {
             VedleggTable
-                .select(VedleggTable.filnavn, VedleggTable.lastetOpp)
+                .select(VedleggTable.filnavn, VedleggTable.storrelse, VedleggTable.lastetOpp)
                 .where { VedleggTable.sluttrapportId eq it }
                 .singleOrNull()
         }
 
         (metadata ?: VedleggTable
-            .select(VedleggTable.filnavn, VedleggTable.lastetOpp)
+            .select(VedleggTable.filnavn, VedleggTable.storrelse, VedleggTable.lastetOpp)
             .where {
                 (VedleggTable.soknadId eq soknadId) and
                     (VedleggTable.type eq VedleggType.SLUTTRAPPORT.name)
@@ -101,6 +101,7 @@ class VedleggDb(private val database: Database) {
             ?.let {
                 SluttrapportMetadata(
                     filnavn = it[VedleggTable.filnavn],
+                    storrelse = it[VedleggTable.storrelse],
                     lastetOpp = it[VedleggTable.lastetOpp].toString(),
                 )
             }
@@ -122,7 +123,7 @@ class VedleggDb(private val database: Database) {
             ?: return@transaction null
 
         VedleggTable
-            .select(VedleggTable.filnavn, VedleggTable.lastetOpp)
+            .select(VedleggTable.filnavn, VedleggTable.storrelse, VedleggTable.lastetOpp)
             .where {
                 (VedleggTable.sluttrapportId eq sluttrapportId) and
                     (VedleggTable.type eq VedleggType.SLUTTRAPPORT.name)
@@ -136,6 +137,7 @@ class VedleggDb(private val database: Database) {
             ?.let {
                 SluttrapportMetadata(
                     filnavn = it[VedleggTable.filnavn],
+                    storrelse = it[VedleggTable.storrelse],
                     lastetOpp = it[VedleggTable.lastetOpp].toString(),
                 )
             }
@@ -179,6 +181,7 @@ class VedleggDb(private val database: Database) {
 
 data class SluttrapportMetadata(
     val filnavn: String,
+    val storrelse: Int,
     val lastetOpp: String,
 )
 
