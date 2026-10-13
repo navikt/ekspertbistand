@@ -7,7 +7,6 @@ import { fileURLToPath } from "url";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { azureOboMiddleware } from "./azure-obo.js";
 import { lesLokalBruker, lokaleBrukere } from "./lokal-bruker.js";
-import { isApiRequest, isBackendPathAllowed } from "./backend-path.js";
 import { logger } from "@navikt/pino-logger";
 import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import type { Socket } from "net";
@@ -170,12 +169,7 @@ const backendProxy = createProxyMiddleware({
 });
 
 api.use((req: Request, res: Response, next: NextFunction) => {
-  if (!isApiRequest(req.path)) return next();
-  if (!isBackendPathAllowed(req.url)) {
-    logger.warn({ method: req.method }, "Avviste kall utenfor tillatte backend-namespaces");
-    res.status(403).json({ message: "Ingen tilgang." });
-    return;
-  }
+  if (!req.path.startsWith("/api/saksbehandling")) return next();
   azureObo(req, res, (err?: unknown) => {
     if (err) return next(err as Error);
     backendProxy(req, res, next);
