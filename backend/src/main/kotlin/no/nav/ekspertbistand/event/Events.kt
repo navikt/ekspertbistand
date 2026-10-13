@@ -279,9 +279,10 @@ sealed interface EventData {
     /**
      * Noe har skjedd i en sak som skal vises i saksloggen.
      *
-     * Publiseres av handlerne for saksbehandlingshandlinger, foreløpig
-     * [no.nav.ekspertbistand.event.handlers.TildelSaksbehandler] og
-     * [no.nav.ekspertbistand.event.handlers.FrigjoerSak]. Se `specifications/sakslogg.md`.
+     * Publiseres av handlerne for saksbehandlingshandlinger, blant annet
+     * [no.nav.ekspertbistand.event.handlers.TildelSaksbehandler],
+     * [no.nav.ekspertbistand.event.handlers.FrigjoerSak] og
+     * [no.nav.ekspertbistand.event.handlers.TildelBeslutter]. Se `specifications/sakslogg.md`.
      *
      * [notat] er teksten som vises i saksloggen, for eksempel «Sak tildelt».
      * [utfortAvIdent] er NAV-identen til saksbehandler eller beslutter, og er null når
@@ -338,6 +339,36 @@ sealed interface EventData {
     ) : EventData {
         init {
             require(saksbehandlerNavn.isNotBlank()) { "saksbehandlerNavn kan ikke være blank" }
+        }
+
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Beslutter har tildelt seg en sak som venter på beslutning, enten en ledig sak eller ved å
+     * overta den fra en annen beslutter.
+     *
+     * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/tildeling/beslutter` etter at
+     * tilgang, status og habilitet er sjekket. [beslutterNavn] kommer fra entra-proxy via
+     * `AzureAdPrincipal`. Identen og navnet gjelder en Nav-ansatt og skal ikke logges utenfor
+     * teamLog. Se `specifications/listevisning.md`.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [no.nav.ekspertbistand.event.handlers.TildelBeslutter].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("sakTildeltBeslutter")
+    data class SakTildeltBeslutter(
+        val sakId: String,
+        val soknadId: String,
+        val beslutterIdent: String,
+        val beslutterNavn: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        init {
+            require(beslutterNavn.isNotBlank()) { "beslutterNavn kan ikke være blank" }
         }
 
         override val aggregateRootId: String get() = soknadId
@@ -452,6 +483,7 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(SkrivSakslogg::class))
         register(dependencies.create(TildelSaksbehandler::class))
         register(dependencies.create(FrigjoerSak::class))
+        register(dependencies.create(TildelBeslutter::class))
         register(dependencies.create(OppdaterVilkarsvurdering::class))
         register(dependencies.create(LagreForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->

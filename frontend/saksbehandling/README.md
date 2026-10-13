@@ -7,6 +7,31 @@ Separat frontend-app for saksbehandling.
 - Kjør `pnpm install` fra rotmappen
 - Start appen med `pnpm dev:saksbehandling`
 
+## Kjøre mot LocalApplication med to brukere
+
+`LocalApplication.kt` i backend har to saksbehandlere. Begge har rollene
+saksbehandler og beslutter, og tilgang til samme enheter:
+
+| Ident | Navn |
+|-------|------|
+| `A123456` | Ola Nordmann |
+| `B654321` | Kari Beslutter |
+
+1. Start `LocalApplication.kt`.
+2. Kjør `VITE_ENABLE_MOCKS=false pnpm serve:saksbehandling` fra rotmappen og
+   åpne http://localhost:4001.
+3. Bytt bruker under «Bytt bruker (lokalt)» i brukermenyen øverst til høyre.
+
+Valget lagres i cookien `lokal-bruker`. BFF-en sender da `faketoken-<ident>`
+til backend i stedet for `faketoken`. Uten cookie er du Ola. Velgeren og
+cookien virker bare når BFF-en kjører uten Azure og med `NODE_ENV` ulik
+`production`. Nye brukere legges inn både i `lokaleAnsatte` i
+`LocalApplication.kt` og i `src/lokal-bruker.ts` i saksbehandling-server.
+
+Slik tester du topartskontrollen: Ola tildeler seg saken og sender foreløpig
+vedtak. Bytt til Kari, som tildeler seg saken som beslutter. Ola får ikke
+«Tildel meg» som beslutter på saken.
+
 ## Videre arbeid
 
 - Legg inn routes i `src/App.tsx`

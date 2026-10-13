@@ -32,6 +32,7 @@ class EventDataAggregateRootIdTest {
             TestEventData.sakOppdatert to soknadRoot,
             TestEventData.sakTildeltSaksbehandler to soknadRoot,
             TestEventData.sakFrigjort to soknadRoot,
+            TestEventData.sakTildeltBeslutter to soknadRoot,
             TestEventData.vilkarsvurderingOppdatert to soknadRoot,
             TestEventData.forelopigVedtakSendtTilBeslutter to soknadRoot,
         )

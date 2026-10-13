@@ -40,6 +40,17 @@ object TestEventData {
     }
 
     @OptIn(ExperimentalTime::class)
+    val sakTildeltBeslutter by lazy {
+        EventData.SakTildeltBeslutter(
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            beslutterIdent = "Z654321",
+            beslutterNavn = "Berit Beslutter",
+            tidspunkt = Instant.parse("2026-04-02T09:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
     val sakFrigjort by lazy {
         EventData.SakFrigjort(
             sakId = UUID.randomUUID().toString(),
@@ -264,6 +275,7 @@ object TestEventData {
         sakOppdatert,
         sakTildeltSaksbehandler,
         sakFrigjort,
+        sakTildeltBeslutter,
         vilkarsvurderingOppdatert,
         forelopigVedtakSendtTilBeslutter,
     )

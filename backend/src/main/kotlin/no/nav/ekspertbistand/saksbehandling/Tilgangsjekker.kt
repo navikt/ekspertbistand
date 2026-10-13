@@ -21,6 +21,7 @@ private val log = LoggerFactory.getLogger("SaksbehandlingTilgangsjekker")
 
 const val IKKE_TILGANG_ENHET = "IKKE_TILGANG_ENHET"
 const val IKKE_TILDELT_SAK = "IKKE_TILDELT_SAK"
+const val BESLUTTER_INHABIL = "BESLUTTER_INHABIL"
 
 /**
  * Henter innlogget bruker og sjekker at den har minst én av [roller]. Svarer 401 uten innlogget
@@ -50,6 +51,8 @@ internal data class SakTilgangsgrunnlag(
     val ansattFnr: String,
     val saksbehandlerIdent: String?,
     val beslutterIdent: String?,
+    /** Saksbehandleren som sendte siste foreløpige vedtak, eller null uten vedtak. */
+    val innstiltAvIdent: String?,
 ) {
     companion object {
         fun SakDetaljer.tilTilgangsgrunnlag() = SakTilgangsgrunnlag(
@@ -61,6 +64,7 @@ internal data class SakTilgangsgrunnlag(
             ansattFnr = soknad.ansatt.fnr,
             saksbehandlerIdent = saksbehandlerIdent,
             beslutterIdent = beslutterIdent,
+            innstiltAvIdent = forelopigVedtak?.innstiltAvIdent,
         )
     }
 }
@@ -90,6 +94,7 @@ internal fun JdbcTransaction.hentSakTilgangsgrunnlag(sakId: UUID): SakTilgangsgr
                 ansattFnr = it[SoknadTable.ansattFnr],
                 saksbehandlerIdent = it[SakTable.saksbehandlerIdent],
                 beslutterIdent = it[SakTable.beslutterIdent],
+                innstiltAvIdent = hentSisteForelopigVedtakSammendrag(listOf(sakId))[sakId]?.innstiltAvIdent,
             )
         }
 

@@ -37,6 +37,7 @@ import kotlin.time.ExperimentalTime
  * GET /api/saksbehandling/v1/saker/{sakId} => én sak med søknaden og personopplysninger
  * POST /api/saksbehandling/v1/saker/{sakId}/tildeling => innlogget tildeler seg saken (202)
  * DELETE /api/saksbehandling/v1/saker/{sakId}/tildeling => innlogget frigjør saken (202)
+ * POST /api/saksbehandling/v1/saker/{sakId}/tildeling/beslutter => innlogget tildeler seg saken som beslutter (202)
  *
  * Krever rolle [Role.SAKSBEHANDLER] eller [Role.BESLUTTER], og at saken har en behandlende enhet
  * som saksbehandler har tilgang til (fra entra-proxy). Saker uten enhet er ikke synlige for noen.
@@ -48,6 +49,8 @@ import kotlin.time.ExperimentalTime
  *
  * Tildeling krever [Role.SAKSBEHANDLER] og de samme tilgangssjekkene som enkeltoppslaget. Rutene
  * publiserer bare en event. Handlerne gjør endringen, se `specifications/tildel_meg_sak.md`.
+ * Tildeling som beslutter krever [Role.BESLUTTER], de samme tilgangssjekkene og at innlogget ikke
+ * sendte det foreløpige vedtaket, se `specifications/listevisning.md`.
  */
 @OptIn(ExperimentalTime::class)
 suspend fun Application.configureSaksbehandlingSakApiV1() {
@@ -147,6 +150,59 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
                         log.info("Frigjøring publisert for sakId={}", sak.sakId)
                         call.respond(HttpStatusCode.Accepted)
                     }
+
+                    post("/beslutter") {
+                        val principal = call.principalMedRolle(Role.BESLUTTER) ?: return@post
+                        val sak = call.hentSakForTildeling(database, tilgangsmaskinClient, principal) ?: return@post
+
+                        when (beslutterTildelingHindring(sak.status, sak.beslutterIdent, sak.innstiltAvIdent, principal)) {
+                            null -> {
+                                transaction(database) {
+                                    publishEventQueue(
+                                        EventData.SakTildeltBeslutter(
+                                            sakId = sak.sakId.toString(),
+                                            soknadId = sak.soknadId.toString(),
+                                            beslutterIdent = principal.navIdent,
+                                            beslutterNavn = principal.navn,
+                                            tidspunkt = Clock.System.now(),
+                                        )
+                                    )
+                                }
+                                log.info("Tildeling av beslutter publisert for sakId={}", sak.sakId)
+                                call.respond(HttpStatusCode.Accepted)
+                            }
+
+                            BeslutterTildelingHindring.HAR_SAKEN_ALLEREDE -> {
+                                log.info("Tildeling av beslutter for sakId={}: innlogget har saken allerede", sak.sakId)
+                                call.respond(HttpStatusCode.Accepted)
+                            }
+
+                            BeslutterTildelingHindring.UGYLDIG_STATUS -> {
+                                log.info("Tildeling av beslutter for sakId={} avvist: ugyldig status", sak.sakId)
+                                call.respond(
+                                    HttpStatusCode.Conflict,
+                                    mapOf(
+                                        "kode" to SAK_UGYLDIG_STATUS,
+                                        "message" to "Saken kan ikke tildeles beslutter med status ${sak.status}",
+                                    ),
+                                )
+                            }
+
+                            BeslutterTildelingHindring.INHABIL -> {
+                                log.info("Tildeling av beslutter for sakId={} avvist: inhabil", sak.sakId)
+                                call.respond(
+                                    HttpStatusCode.Forbidden,
+                                    TilgangAvvistResponse(
+                                        kode = BESLUTTER_INHABIL,
+                                        begrunnelse = "Du sendte det foreløpige vedtaket og kan ikke være beslutter på saken",
+                                    ),
+                                )
+                            }
+
+                            BeslutterTildelingHindring.MANGLER_ROLLE ->
+                                call.respond(HttpStatusCode.Forbidden, mapOf("message" to "krever rolle beslutter"))
+                        }
+                    }
                 }
             }
         }
@@ -182,6 +238,32 @@ fun tildelingHindring(
     else -> null
 }
 
+enum class BeslutterTildelingHindring {
+    MANGLER_ROLLE,
+    UGYLDIG_STATUS,
+    INHABIL,
+    HAR_SAKEN_ALLEREDE,
+}
+
+/**
+ * Den ene regelen for om innlogget kan tildele seg en sak som beslutter. Brukes av
+ * `POST …/tildeling/beslutter` og til `kanTildeleMegSomBeslutter`, slik at knappen og API-et
+ * svarer likt. [innstiltAvIdent] er fra siste foreløpige vedtak. Mangler den, avviser vi
+ * (fail-closed). Returnerer null når innlogget kan tildele seg saken, ellers første hindring.
+ */
+fun beslutterTildelingHindring(
+    status: Saksstatus,
+    beslutterIdent: String?,
+    innstiltAvIdent: String?,
+    principal: AzureAdPrincipal,
+): BeslutterTildelingHindring? = when {
+    !principal.harRolle(Role.BESLUTTER) -> BeslutterTildelingHindring.MANGLER_ROLLE
+    status != Saksstatus.TIL_BESLUTNING -> BeslutterTildelingHindring.UGYLDIG_STATUS
+    innstiltAvIdent == null || innstiltAvIdent == principal.navIdent -> BeslutterTildelingHindring.INHABIL
+    beslutterIdent == principal.navIdent -> BeslutterTildelingHindring.HAR_SAKEN_ALLEREDE
+    else -> null
+}
+
 /** Samme tilgangssjekker som enkeltoppslaget. Svarer selv og returnerer null ved avslag. */
 private suspend fun ApplicationCall.hentSakForTildeling(
     database: Database,
@@ -202,7 +284,7 @@ private suspend fun ApplicationCall.hentSakForTildeling(
 @OptIn(ExperimentalTime::class)
 fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal): List<SakListeElement> {
     if (enheter.isEmpty()) return emptyList()
-    return SakTable
+    val rader = SakTable
         .join(SoknadTable, JoinType.INNER, SakTable.soknadId, SoknadTable.id)
         .select(
             SoknadTable.id,
@@ -216,34 +298,48 @@ fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal
         )
         .where { SakTable.behandlendeEnhet inList enheter }
         .orderBy(SoknadTable.opprettetTidspunkt, SortOrder.DESC)
-        .map { row ->
-            val status = Saksstatus.valueOf(row[SakTable.status])
-            val saksbehandlerIdent = row[SakTable.saksbehandlerIdent]
-            SakListeElement(
-                sakId = row[SakTable.sakId].toString(),
-                status = status,
-                kildeTilBehandling = KildeTilBehandling.valueOf(row[SakTable.kildeTilBehandling]),
-                behandlendeEnhet = row[SakTable.behandlendeEnhet],
-                saksbehandlerIdent = saksbehandlerIdent,
-                saksbehandlerNavn = row[SakTable.saksbehandlerNavn],
-                beslutterIdent = row[SakTable.beslutterIdent],
-                arenaSakId = row[SakTable.arenaSakId],
-                // Listen viser ikke «Tildel meg» på saker tildelt en annen. Overtakelse gjøres fra saksdetaljen.
-                kanTildeleMeg = saksbehandlerIdent == null &&
-                        tildelingHindring(status, saksbehandlerIdent, principal) == null,
-                soknad = SakListeElement.Soknad(
-                    soknadId = row[SoknadTable.id].toString(),
-                    status = SoknadStatus.valueOf(row[SoknadTable.status]),
-                    innsendtTidspunkt = row[SoknadTable.opprettetTidspunkt].toString(),
-                    virksomhet = SakListeElement.Virksomhet(
-                        virksomhetsnummer = row[SoknadTable.virksomhetsnummer],
-                        virksomhetsnavn = row[SoknadTable.virksomhetsnavn],
-                    ),
-                    ansattNavn = row[SoknadTable.ansattNavn],
-                    startdato = row[SoknadTable.behovForBistandStartdato],
+        .toList()
+    val vedtak = hentSisteForelopigVedtakSammendrag(rader.map { it[SakTable.sakId] })
+
+    return rader.map { row ->
+        val status = Saksstatus.valueOf(row[SakTable.status])
+        val saksbehandlerIdent = row[SakTable.saksbehandlerIdent]
+        val beslutterIdent = row[SakTable.beslutterIdent]
+        val sisteVedtak = vedtak[row[SakTable.sakId]]
+        val oppgavetype = oppgavetype(status)
+        SakListeElement(
+            sakId = row[SakTable.sakId].toString(),
+            status = status,
+            kildeTilBehandling = KildeTilBehandling.valueOf(row[SakTable.kildeTilBehandling]),
+            behandlendeEnhet = row[SakTable.behandlendeEnhet],
+            saksbehandlerIdent = saksbehandlerIdent,
+            saksbehandlerNavn = row[SakTable.saksbehandlerNavn],
+            beslutterIdent = beslutterIdent,
+            beslutterNavn = row[SakTable.beslutterNavn],
+            arenaSakId = row[SakTable.arenaSakId],
+            oppgavetype = oppgavetype,
+            harOppgaveForMeg = harOppgaveFor(oppgavetype, principal),
+            // Listen viser ikke «Tildel meg» på saker tildelt en annen. Overtakelse gjøres fra saksdetaljen.
+            kanTildeleMeg = saksbehandlerIdent == null &&
+                    tildelingHindring(status, saksbehandlerIdent, principal) == null,
+            // Unntaket er en beslutter som selv har sendt siste foreløpige vedtak, og dermed er inhabil.
+            kanTildeleMegSomBeslutter = (beslutterIdent == null || beslutterIdent == sisteVedtak?.innstiltAvIdent) &&
+                    beslutterTildelingHindring(status, beslutterIdent, sisteVedtak?.innstiltAvIdent, principal) == null,
+            tiltaksperiodeFra = sisteVedtak?.tiltaksperiodeFra,
+            tiltaksperiodeTil = sisteVedtak?.tiltaksperiodeTil,
+            soknad = SakListeElement.Soknad(
+                soknadId = row[SoknadTable.id].toString(),
+                status = SoknadStatus.valueOf(row[SoknadTable.status]),
+                innsendtTidspunkt = row[SoknadTable.opprettetTidspunkt].toString(),
+                virksomhet = SakListeElement.Virksomhet(
+                    virksomhetsnummer = row[SoknadTable.virksomhetsnummer],
+                    virksomhetsnavn = row[SoknadTable.virksomhetsnavn],
                 ),
-            )
-        }
+                ansattNavn = row[SoknadTable.ansattNavn],
+                startdato = row[SoknadTable.behovForBistandStartdato],
+            ),
+        )
+    }
 }
 
 fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetaljer? =
@@ -256,6 +352,8 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
             val soknad = row.tilSoknadDTO()
             val status = Saksstatus.valueOf(row[SakTable.status])
             val saksbehandlerIdent = row[SakTable.saksbehandlerIdent]
+            val beslutterIdent = row[SakTable.beslutterIdent]
+            val forelopigVedtak = hentSisteForelopigVedtak(sakId)
             SakDetaljer(
                 sakId = sakId.toString(),
                 status = status,
@@ -263,9 +361,14 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                 behandlendeEnhet = row[SakTable.behandlendeEnhet],
                 saksbehandlerIdent = saksbehandlerIdent,
                 saksbehandlerNavn = row[SakTable.saksbehandlerNavn],
-                beslutterIdent = row[SakTable.beslutterIdent],
+                beslutterIdent = beslutterIdent,
+                beslutterNavn = row[SakTable.beslutterNavn],
                 arenaSakId = row[SakTable.arenaSakId],
+                oppgavetype = oppgavetype(status),
                 kanTildeleMeg = tildelingHindring(status, saksbehandlerIdent, principal) == null,
+                kanTildeleMegSomBeslutter = beslutterTildelingHindring(
+                    status, beslutterIdent, forelopigVedtak?.innstiltAvIdent, principal,
+                ) == null,
                 soknad = SakDetaljer.Soknad(
                     soknadId = row[SoknadTable.id].toString(),
                     status = soknad.status,
@@ -276,7 +379,7 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                     behovForBistand = soknad.behovForBistand,
                     nav = soknad.nav,
                 ),
-                forelopigVedtak = hentSisteForelopigVedtak(sakId),
+                forelopigVedtak = forelopigVedtak,
             )
         }
 
@@ -295,8 +398,16 @@ data class SakListeElement(
     val saksbehandlerIdent: String?,
     val saksbehandlerNavn: String?,
     val beslutterIdent: String?,
+    val beslutterNavn: String?,
     val arenaSakId: String?,
+    /** Null når saken ikke har noen oppgave. Frontend viser da saksstatusen. */
+    val oppgavetype: Oppgavetype?,
+    val harOppgaveForMeg: Boolean,
     val kanTildeleMeg: Boolean,
+    val kanTildeleMegSomBeslutter: Boolean,
+    /** Fra siste foreløpige vedtak. Null uten vedtak og ved avslag. */
+    val tiltaksperiodeFra: LocalDate?,
+    val tiltaksperiodeTil: LocalDate?,
     val soknad: Soknad,
 ) {
     @Serializable
@@ -326,8 +437,11 @@ data class SakDetaljer(
     val saksbehandlerIdent: String?,
     val saksbehandlerNavn: String?,
     val beslutterIdent: String?,
+    val beslutterNavn: String?,
     val arenaSakId: String?,
+    val oppgavetype: Oppgavetype?,
     val kanTildeleMeg: Boolean,
+    val kanTildeleMegSomBeslutter: Boolean,
     val soknad: Soknad,
     val forelopigVedtak: ForelopigVedtakDTO?,
 ) {
