@@ -39,6 +39,17 @@ class OppgavetypeTest {
     }
 
     @Test
+    fun `rolle per oppgavetype`() {
+        assertEquals(
+            mapOf(
+                Oppgavetype.SOKNAD to Role.SAKSBEHANDLER,
+                Oppgavetype.SOKNAD_BESLUTTER to Role.BESLUTTER,
+            ),
+            Oppgavetype.entries.associateWith { it.rolle },
+        )
+    }
+
+    @Test
     fun `harOppgaveFor følger rollen`() {
         val saksbehandler = principal("A1", Role.SAKSBEHANDLER)
         val beslutter = principal("A2", Role.BESLUTTER)

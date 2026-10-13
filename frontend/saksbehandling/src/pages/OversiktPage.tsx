@@ -20,9 +20,10 @@ import {
   type Oppgavetype,
   type Saksstatus,
   type SakListeElement,
+  type Tildelingsrolle,
   useSaker,
 } from "../hooks/useSaker";
-import { type Tildelingsrolle, useTildeling } from "../hooks/useTildeling";
+import { useTildeling } from "../hooks/useTildeling";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";
 import { OVERSIKT_PATH } from "../utils/constants";

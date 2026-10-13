@@ -11,15 +11,13 @@ import {
 } from "../utils/constants";
 import { HttpError } from "../utils/http";
 import type { SakDetaljer } from "./useSak";
-import type { SakInfo, SakerResponse } from "./useSaker";
+import type { SakInfo, SakerResponse, Tildelingsrolle } from "./useSaker";
 
 // API-et svarer 202 før handleren har oppdatert saken (EventManager poller hvert 100. ms).
 // Revaliderer vi med en gang, kan svaret overskrive den optimistiske tilstanden med den gamle.
 const REVALIDER_ETTER_MS = 500;
 
 type Handling = "tildel" | "frigjoer";
-
-export type Tildelingsrolle = "saksbehandler" | "beslutter";
 
 type Oppdatering = <T extends SakInfo>(sak: T) => T;
 

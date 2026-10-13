@@ -328,15 +328,6 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
-    fun `POST tildeling på INNVILGET sak tildelt en annen publiserer`() = testApplicationWithDatabase { db ->
-        val sakId = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999", status = Saksstatus.INNVILGET)
-        val oppsett = oppsett(db)
-
-        assertEquals(HttpStatusCode.Accepted, oppsett.tildel(sakId).status)
-        assertIs<EventData.SakTildeltSaksbehandler>(hentEvents(db).single())
-    }
-
-    @Test
     fun `POST tildeling når innlogget er beslutter på saken publiserer`() = testApplicationWithDatabase { db ->
         val sakId = lagreSak(db, lagreSoknad(db), beslutterIdent = navIdent)
         val oppsett = oppsett(db)
@@ -346,13 +337,17 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
-    fun `POST tildeling på AVSLATT eller AVSLUTTET sak gir 409 SAK_UGYLDIG_STATUS`() =
+    fun `POST tildeling på sak som ikke venter på saksbehandler gir 409 SAK_UGYLDIG_STATUS`() =
         testApplicationWithDatabase { db ->
-            val avslatt = lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLATT)
-            val avsluttet = lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLUTTET)
             val oppsett = oppsett(db)
+            val saker = listOf(
+                Saksstatus.TIL_BESLUTNING,
+                Saksstatus.INNVILGET,
+                Saksstatus.AVSLATT,
+                Saksstatus.AVSLUTTET,
+            ).map { lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999", status = it) }
 
-            listOf(avslatt, avsluttet).forEach { sakId ->
+            saker.forEach { sakId ->
                 val response = oppsett.tildel(sakId)
                 assertEquals(HttpStatusCode.Conflict, response.status)
                 assertTrue(response.bodyAsText().contains(SAK_UGYLDIG_STATUS))
@@ -450,17 +445,18 @@ class SaksbehandlingSakApiTest {
     fun `kanTildeleMeg i detalj`() = testApplicationWithDatabase { db ->
         val ledig = lagreSak(db, lagreSoknad(db))
         val annen = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999")
-        val innvilget = lagreSak(db, lagreSoknad(db), status = Saksstatus.INNVILGET)
         val beslutter = lagreSak(db, lagreSoknad(db), beslutterIdent = navIdent)
+        val tilBeslutning = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+        val innvilget = lagreSak(db, lagreSoknad(db), status = Saksstatus.INNVILGET)
         val avslatt = lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLATT)
         val avsluttet = lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLUTTET)
         val egen = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = navIdent)
         val oppsett = oppsett(db)
 
-        listOf(ledig, annen, innvilget, beslutter).forEach {
+        listOf(ledig, annen, beslutter).forEach {
             assertTrue(oppsett.hentDetalj(it).kanTildeleMeg, "forventet kanTildeleMeg for $it")
         }
-        listOf(avslatt, avsluttet, egen).forEach {
+        listOf(tilBeslutning, innvilget, avslatt, avsluttet, egen).forEach {
             assertFalse(oppsett.hentDetalj(it).kanTildeleMeg, "forventet ikke kanTildeleMeg for $it")
         }
     }
@@ -514,6 +510,8 @@ class SaksbehandlingSakApiTest {
             val annen = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999")
             val egen = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = navIdent)
             val avslatt = lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLATT)
+            val tilBeslutning = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+            val innvilget = lagreSak(db, lagreSoknad(db), status = Saksstatus.INNVILGET)
             val oppsett = oppsett(db)
 
             val saker = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
@@ -525,6 +523,8 @@ class SaksbehandlingSakApiTest {
                     annen.toString() to false,
                     egen.toString() to false,
                     avslatt.toString() to false,
+                    tilBeslutning.toString() to false,
+                    innvilget.toString() to false,
                 ),
                 saker,
             )

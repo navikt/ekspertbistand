@@ -214,15 +214,20 @@ Bygd: `UNDER_BEHANDLING` → `TIL_BESLUTNING` (foreløpig vedtak, se
 ### Oppgavetype
 
 Oppgavetypen lagres ikke. Backend utleder den av `sak.status` (`oppgavetype` i
-`saksbehandling/Oppgavetype.kt`):
+`saksbehandling/Oppgavetype.kt`). Rollen er den som kan ta oppgaven
+(`Oppgavetype.rolle`, speilet i `rolleForOppgave` i frontend):
 
-| Status | Oppgavetype |
-|--------|-------------|
-| `OPPRETTET`, `UNDER_BEHANDLING` | `SOKNAD` |
-| `TIL_BESLUTNING` | `SOKNAD_BESLUTTER` |
-| `INNVILGET`, `AVSLATT`, `AVSLUTTET` | Ingen |
+| Status | Oppgavetype | Rolle |
+|--------|-------------|-------|
+| `OPPRETTET`, `UNDER_BEHANDLING` | `SOKNAD` | `SAKSBEHANDLER` |
+| `TIL_BESLUTNING` | `SOKNAD_BESLUTTER` | `BESLUTTER` |
+| `INNVILGET`, `AVSLATT`, `AVSLUTTET` | Ingen | Ingen |
 
-Se [`listevisning.md`](listevisning.md).
+Saksbehandler kan bare tildeles saker med oppgavetype som har rollen
+`SAKSBEHANDLER`. Andre statuser gir 409 `SAK_UGYLDIG_STATUS`.
+
+Se [`listevisning.md`](listevisning.md) og
+[`tildeling_detaljvisning.md`](tildeling_detaljvisning.md).
 
 ### `ForelopigUtfall` (`forelopig_vedtak.utfall`)
 

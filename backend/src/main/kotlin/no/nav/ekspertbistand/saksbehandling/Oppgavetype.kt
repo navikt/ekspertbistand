@@ -13,6 +13,16 @@ enum class Oppgavetype {
     SOKNAD_BESLUTTER,
 }
 
+/**
+ * Rollen som utfører oppgaven. Styrer hvem som kan tildeles saken, og hvem saksdetaljen viser.
+ * Speiles av `rolleForOppgave` i frontend.
+ */
+val Oppgavetype.rolle: Role
+    get() = when (this) {
+        Oppgavetype.SOKNAD -> Role.SAKSBEHANDLER
+        Oppgavetype.SOKNAD_BESLUTTER -> Role.BESLUTTER
+    }
+
 /** Null betyr at saken ikke har noen oppgave. */
 fun oppgavetype(status: Saksstatus): Oppgavetype? = when (status) {
     Saksstatus.OPPRETTET, Saksstatus.UNDER_BEHANDLING -> Oppgavetype.SOKNAD
@@ -25,8 +35,4 @@ fun oppgavetype(status: Saksstatus): Oppgavetype? = when (status) {
  * Kolleger skal kunne se og overta hverandres saker.
  */
 fun harOppgaveFor(oppgavetype: Oppgavetype?, principal: AzureAdPrincipal): Boolean =
-    when (oppgavetype) {
-        Oppgavetype.SOKNAD -> principal.harRolle(Role.SAKSBEHANDLER)
-        Oppgavetype.SOKNAD_BESLUTTER -> principal.harRolle(Role.BESLUTTER)
-        null -> false
-    }
+    oppgavetype != null && principal.harRolle(oppgavetype.rolle)
