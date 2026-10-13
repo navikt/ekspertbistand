@@ -99,6 +99,7 @@ Avvik mellom kort og skisse:
 | Ken, 2026-10-12 | «Tildel meg» som beslutter er med i dette kortet. |
 | Ken, 2026-10-12 | «Tiltaksperiode» viser perioden fra det foreløpige vedtaket, ellers søknadens startdato. |
 | Ken, 2026-10-12 | «Oppgavetype» viser saksstatusen («Innvilget», «Avslått», «Avsluttet») når saken ikke har noen oppgave. |
+| Ken, 2026-10-13 | «Tildel meg» i listen åpner saksdetaljen når tildelingen får et OK-svar. |
 
 Valg i spec-en:
 
@@ -313,6 +314,8 @@ tildeles (kort 621). En beslutter ser også saker hen selv sendte, men får ikke
 - Tiltaksperiode viser `tiltaksperiodeFra` og `tiltaksperiodeTil`. Uten periode
   vises søknadens startdato og «–».
 - `TildelMegKnapp` får rollen som prop. Klikk stopper som før at raden åpnes.
+- Når tildelingen får et OK-svar, går listen til saksdetaljen. Feiler den, blir
+  listen stående og viser feilmeldingen.
 
 ### 7. MSW-mock
 
@@ -419,6 +422,7 @@ tiltaksperiode og saksstatus i «Oppgavetype» 2026-10-12. Svarene står under
 - [ ] «Mine saker» viser saker der innlogget er saksbehandler eller beslutter
 - [ ] Kolonnen «Oppgavetype» viser oppgavetypen fra backend, eller saksstatusen når saken ikke har noen oppgave
 - [ ] Kolonnen «Beslutter» viser navnet, eller «Tildel meg» når `kanTildeleMegSomBeslutter` er true
+- [ ] «Tildel meg» i listen åpner saksdetaljen etter et OK-svar og blir stående i listen ved feil
 - [ ] Kolonnen «Tiltaksperiode» erstatter «Startdato»
 - [ ] API-et publiserer `SakTildeltBeslutter` og skriver ikke selv til `sak` eller `sakslogg`
 - [ ] Tildeling som beslutter krever rolle `BESLUTTER`, enhet, Tilgangsmaskinen `KJERNE` og `TIL_BESLUTNING`

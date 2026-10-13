@@ -84,15 +84,16 @@ function TildelMegKnapp({
   onError: (e: Error) => void;
 }) {
   const { tildelMeg, isSaving } = useTildeling(sakId, { rolle, onError });
+  const navigate = useNavigate();
 
   return (
     <Button
       variant="secondary"
       size="xsmall"
       loading={isSaving}
-      onClick={(e) => {
+      onClick={async (e) => {
         e.stopPropagation();
-        void tildelMeg();
+        if (await tildelMeg()) navigate(`${OVERSIKT_PATH}/${sakId}`);
       }}
     >
       Tildel meg
