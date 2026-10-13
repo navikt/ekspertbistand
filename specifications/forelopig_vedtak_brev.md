@@ -219,9 +219,8 @@ endelig HTML.
 > *Felles avslutning til deltaker*
 
 *Felles avslutning til deltaker* (fra kortet) legges som partial
-`templates/vedtakDeltakerAvslutning.hbs` og tas inn med
-`{{> vedtakDeltakerAvslutning}}`. `HandlebarsConfig` støtter partials fra
-`templates/`:
+`templates/felles/vedtakDeltakerAvslutning.hbs` og tas inn med
+`{{> felles/vedtakDeltakerAvslutning}}`:
 
 > **Du har rett til å klage**
 > Hvis du mener vedtaket er feil, kan du klage innen seks uker fra den datoen
@@ -234,6 +233,16 @@ endelig HTML.
 >
 > **Har du spørsmål?**
 > Du kan kontakte oss på nav.no/kontakt eller på telefon 55 55 33 36.
+
+Mappen `felles/` har ingen `template.hbs` og regnes ikke som mal. Brevhode,
+hjemmel, utbetaling, klage og hilsen til arbeidsgiver er også partials i
+`felles/`, slik at de seks malene deler teksten.
+
+Strict-modus i `HandlebarsConfig` (brukt i test) kastet for alle Map-kontekster
+når en partial ble tatt inn, fordi Handlebars slår opp `size` og `empty` i
+konteksten. Modellen pakkes nå i en egen `Datamodell`-type, og bare den
+sjekkes strengt. Mapper Handlebars lager selv, og oppslagene `size` og
+`empty`, slipper gjennom.
 
 **`vedtakArbeidsgiverInnvilget`** (fra `tilskuddsbrev`):
 
@@ -449,9 +458,12 @@ Valget: `Blob` på `PdfFil` i stedet for `blob:`-URL til pdf.js. Vi slipper å
   nøkkel `[url, mottaker, JSON.stringify(input)]` og uten revalidering. Svaret
   blir en `Blob` og en object URL. Object URL-ene frigjøres med
   `URL.revokeObjectURL` når input endres eller komponenten forsvinner.
-- `vedtaksbrevUrl(sakId, mottaker)` gir URL-en til `GET …/brev/{mottaker}`
-  med `?visning=forhandsvisning`. Etter innsending holder det med URL-en, fordi
-  pdf.js henter den selv.
+- `useLagredeVedtaksbrev(sakId, versjon)` henter `GET …/brev/{mottaker}` med
+  `?visning=forhandsvisning` som `Blob` på samme måte. `versjon` er med i
+  SWR-nøkkelen. Innsendingen svarer 202 før `LagreForelopigVedtak` har lagret
+  vedtaket, og fanen bytter til `sendt` med en gang. GET kan derfor gi 404 de
+  første hundre millisekundene. Hooken prøver på nytt ved 404, opptil fem
+  ganger med dobbel ventetid fra 300 ms, før den gir opp.
 
 Nye konstanter i `utils/constants.ts`:
 `SAKSBEHANDLING_FORELOPIG_VEDTAK_FORHANDSVISNING_URL` og
@@ -464,13 +476,13 @@ hverandre i en `VStack`, deltaker først:
 
 | Filnavn (lenketekst) | Kilde |
 |----------------------|-------|
-| «Foreløpig vedtak - deltaker.pdf» | `forhandsvisning`: hooken. `sendt`: `vedtaksbrevUrl(…, "deltaker")` |
+| «Foreløpig vedtak - deltaker.pdf» | `forhandsvisning`: `useVedtaksbrevForhandsvisning`. `sendt`: `useLagredeVedtaksbrev` |
 | «Foreløpig vedtak - arbeidsgiver.pdf» | Som over, med `arbeidsgiver` |
 
 - Bredde 360 px. Skissen har cirka 465 px i en kolonne på 586 px. Vi går ned
   for å få plass på smalere skjermer.
-- Mens `POST` pågår, vises `Skeleton` i samme størrelse.
-- Feiler `POST`, vises `Alert variant="warning" size="small"` «Kunne ikke lage
+- Mens brevene hentes, vises `Skeleton` i samme størrelse.
+- Feiler henting av brevene, vises `Alert variant="warning" size="small"` «Kunne ikke lage
   forhåndsvisning av brevene.» «Send til beslutter» virker fortsatt, slik at
   Gotenberg-feil ikke stopper saksbehandlingen.
 
@@ -538,6 +550,8 @@ steg 2 og etter innsending.
 | Fil | Endring |
 |-----|---------|
 | `backend/src/main/resources/dokumentmaler/templates/vedtak*/` | Seks nye maler med `schema.json` og `testdata/` |
+| `backend/src/main/resources/dokumentmaler/templates/felles/` | Ny: partials som malene deler |
+| `backend/src/main/kotlin/no/nav/ekspertbistand/dokument/pdf/HandlebarsConfig.kt` | Strict-modus tåler partials (`Datamodell`) |
 | `backend/src/main/kotlin/no/nav/ekspertbistand/refusjon/Refusjonsfrist.kt` | Ny: `REFUSJONSFRIST_ETTER_SLUTTDATO`, `refusjonsfrist` |
 | `backend/src/test/kotlin/no/nav/ekspertbistand/refusjon/RefusjonsfristTest.kt` | Ny |
 | `backend/src/main/kotlin/no/nav/ekspertbistand/saksbehandling/Vedtaksbrev.kt` | Ny: `Mottaker`, `VedtaksbrevData`, `vedtaksbrevMal`, `vedtaksbrevData` |
@@ -547,7 +561,7 @@ steg 2 og etter innsending.
 | `backend/src/test/kotlin/no/nav/ekspertbistand/dokument/DokumentmalTest.kt` | Nye maler |
 | `backend/src/test/kotlin/no/nav/ekspertbistand/saksbehandling/VedtaksbrevTest.kt` | Ny |
 | `backend/src/test/kotlin/no/nav/ekspertbistand/saksbehandling/SakDokumentApiTest.kt` | Nye ruter |
-| `frontend/saksbehandling/src/components/pdf/types.ts`, `PdfMiniatyr.tsx`, `PdfSider.tsx` | `innhold?: Blob` |
+| `frontend/saksbehandling/src/components/pdf/types.ts`, `PdfMiniatyr.tsx`, `PdfSider.tsx`, `PdfForhandsvisning.tsx` | `innhold?: Blob`. `PdfMiniatyr` tar `fil` i stedet for `url` |
 | `frontend/saksbehandling/src/hooks/useVedtaksbrev.ts` | Ny |
 | `frontend/saksbehandling/src/utils/constants.ts` | To nye URL-er |
 | `frontend/saksbehandling/src/components/forelopigVedtak/Vedtaksbrev.tsx` | Ny |
@@ -597,16 +611,16 @@ prodsetting, sammen med de andre forslagene til brevtekst.
 ## Ferdig når
 
 - [ ] Steg 2 i fanen «Foreløpig vedtak» viser brevet til deltaker og brevet til arbeidsgiver med `PdfForhandsvisning`, og knappene står under brevene
-- [ ] Brevene lages fra skjemaet med `POST …/forhandsvisning` uten at noe lagres eller publiseres
+- [x] Brevene lages fra skjemaet med `POST …/forhandsvisning` uten at noe lagres eller publiseres
 - [ ] Etter innsending viser fanen brevene fra det lagrede vedtaket for saksbehandler og beslutter
-- [ ] Seks maler finnes, én per utfall og mottaker, og deltaker ved innvilgelse har teksten fra kortet
-- [ ] Brevet til en mottaker har bare begrunnelsen til den mottakeren, og ingen brev har fødselsnummer
-- [ ] Tilgang følger `SakDokumentApi` for `GET` og innsendingen for `POST`
-- [ ] Gotenberg-feil stopper ikke «Send til beslutter»
-- [ ] CSP-en er uendret
-- [ ] `tilskuddsbrev` og Arena-journalføringen er uendret
-- [ ] Brevene til arbeidsgiver ved innvilgelse og redusert beløp har refusjonsfrist seks måneder etter sluttdato, fra én konstant
-- [ ] Forhåndsvisningen har ingen utkast-merking
+- [x] Seks maler finnes, én per utfall og mottaker, og deltaker ved innvilgelse har teksten fra kortet
+- [x] Brevet til en mottaker har bare begrunnelsen til den mottakeren, og ingen brev har fødselsnummer
+- [x] Tilgang følger `SakDokumentApi` for `GET` og innsendingen for `POST`
+- [x] Gotenberg-feil stopper ikke «Send til beslutter»
+- [x] CSP-en er uendret
+- [x] `tilskuddsbrev` og Arena-journalføringen er uendret
+- [x] Brevene til arbeidsgiver ved innvilgelse og redusert beløp har refusjonsfrist seks måneder etter sluttdato, fra én konstant
+- [x] Forhåndsvisningen har ingen utkast-merking
 - [ ] PR-beskrivelsen ber fag gå gjennom forslagene til brevtekst, og klagerett for arbeidsgiver, før prodsetting
-- [ ] `mvn -B package` er grønn
-- [ ] `pnpm typecheck` og `pnpm lint` i `frontend/saksbehandling` er grønne
+- [x] `mvn -B package` er grønn
+- [x] `pnpm typecheck` og `pnpm lint` i `frontend/saksbehandling` er grønne
