@@ -38,6 +38,7 @@ import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.saksbehandling.Role
 import no.nav.ekspertbistand.saksbehandling.configureForelopigVedtakApiV1
+import no.nav.ekspertbistand.saksbehandling.configureSakDokumentApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
 import no.nav.ekspertbistand.saksbehandling.configureVilkarsvurderingApiV1
@@ -414,6 +415,7 @@ fun main() {
         configureSaksbehandlingSakApiV1()
         configureVilkarsvurderingApiV1()
         configureForelopigVedtakApiV1()
+        configureSakDokumentApiV1()
         //configureKontoregisterApiV1()
 
         // event manager and event handlers

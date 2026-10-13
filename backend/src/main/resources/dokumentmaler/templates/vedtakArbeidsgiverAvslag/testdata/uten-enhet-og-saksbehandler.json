@@ -1,0 +1,17 @@
+{
+  "dato": "13. oktober 2026",
+  "deltaker": {
+    "navn": "Ola Testdeltaker"
+  },
+  "arbeidsgiver": {
+    "navn": "Eksempel Bedrift AS",
+    "orgnr": "123456780"
+  },
+  "soknadssum": "22 000",
+  "innvilgetBelop": null,
+  "tiltaksperiode": null,
+  "refusjonsfrist": null,
+  "begrunnelse": "Vilkårene for tilskudd er ikke oppfylt.",
+  "navEnhet": null,
+  "saksbehandler": null
+}
