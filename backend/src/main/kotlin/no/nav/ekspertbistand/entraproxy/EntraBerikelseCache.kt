@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.AsyncCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Ticker
 import io.micrometer.core.instrument.binder.cache.CaffeineCacheMetrics
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,6 +54,7 @@ class EntraBerikelseCache(
     ttl: Duration = ENTRA_PROXY_CACHE_TTL,
     ticker: Ticker = Ticker.systemTicker(),
     private val clock: Clock = Clock.System,
+    dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val cache: AsyncCache<String, EntraBerikelse> = Caffeine.newBuilder()
         .expireAfterWrite(ttl.toJavaDuration())
@@ -62,7 +64,7 @@ class EntraBerikelseCache(
         .buildAsync()
 
     // Oppslaget skal ikke avbrytes om requesten som startet det avbrytes, fordi andre venter på det.
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
 
     init {
         CaffeineCacheMetrics.monitor(Metrics.meterRegistry, cache, "entra_berikelse")

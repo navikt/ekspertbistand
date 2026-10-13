@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Heading,
+  HStack,
   Loader,
   Page,
   Table,
@@ -15,8 +16,13 @@ import {
 } from "@navikt/ds-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { type Saksstatus, type SakListeElement, useSaker } from "../hooks/useSaker";
-import { useTildeling } from "../hooks/useTildeling";
+import {
+  type Oppgavetype,
+  type Saksstatus,
+  type SakListeElement,
+  useSaker,
+} from "../hooks/useSaker";
+import { type Tildelingsrolle, useTildeling } from "../hooks/useTildeling";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";
 import { OVERSIKT_PATH } from "../utils/constants";
@@ -38,23 +44,56 @@ const saksstatusTekst: Record<Saksstatus, string> = {
   AVSLUTTET: "Avsluttet",
 };
 
+const oppgavetypeTekst: Record<Oppgavetype, string> = {
+  SOKNAD: "Søknad",
+  SOKNAD_BESLUTTER: "Søknad - beslutter",
+};
+
+function OppgavetypeCelle({ sak }: { sak: SakListeElement }) {
+  if (!sak.oppgavetype) return saksstatusTekst[sak.status];
+  return (
+    <HStack gap="space-8" align="center" wrap={false}>
+      <Tag size="xsmall" variant="outline" data-color="warning" aria-hidden>
+        SØ
+      </Tag>
+      {oppgavetypeTekst[sak.oppgavetype]}
+    </HStack>
+  );
+}
+
+function tiltaksperiode(sak: SakListeElement) {
+  if (sak.tiltaksperiodeFra && sak.tiltaksperiodeTil) {
+    return `${formatDate(sak.tiltaksperiodeFra)} – ${formatDate(sak.tiltaksperiodeTil)}`;
+  }
+  return `${formatDate(sak.soknad.startdato)} –`;
+}
+
 const ferdigeSaksstatuser: Saksstatus[] = ["INNVILGET", "AVSLATT", "AVSLUTTET"];
 
 function erAvsluttet(sak: SakListeElement) {
   return ferdigeSaksstatuser.includes(sak.status);
 }
 
-function TildelMegKnapp({ sakId, onError }: { sakId: string; onError: (e: Error) => void }) {
-  const { tildelMeg, isSaving } = useTildeling(sakId, { onError });
+function TildelMegKnapp({
+  sakId,
+  rolle,
+  onError,
+}: {
+  sakId: string;
+  rolle: Tildelingsrolle;
+  onError: (e: Error) => void;
+}) {
+  const { tildelMeg, isSaving } = useTildeling(sakId, { rolle, onError });
+  const navigate = useNavigate();
 
   return (
     <Button
       variant="secondary"
       size="xsmall"
       loading={isSaving}
-      onClick={(e) => {
+      onClick={async (e) => {
         e.stopPropagation();
-        void tildelMeg();
+        if (await tildelMeg()) navigate(`${OVERSIKT_PATH}/${sakId}`);
       }}
     >
       Tildel meg
@@ -70,15 +109,19 @@ export default function OversiktPage() {
 
   const faner = [
     {
-      value: "til-godkjenning",
-      label: "Til godkjenning",
-      filter: () => saker.filter((s) => !s.saksbehandlerIdent && !erAvsluttet(s)),
+      value: "oppgaver-som-venter",
+      label: "Oppgaver som venter",
+      filter: () => saker.filter((s) => s.harOppgaveForMeg),
     },
     {
       value: "mine-saker",
       label: "Mine saker",
       filter: () =>
-        saker.filter((s) => !!innloggetAnsatt && s.saksbehandlerIdent === innloggetAnsatt.id),
+        saker.filter(
+          (s) =>
+            !!innloggetAnsatt &&
+            (s.saksbehandlerIdent === innloggetAnsatt.id || s.beslutterIdent === innloggetAnsatt.id)
+        ),
     },
     {
       value: "pagaende",
@@ -128,7 +171,7 @@ export default function OversiktPage() {
               {tildelingsfeil.message}
             </Alert>
           )}
-          <Tabs defaultValue="alle">
+          <Tabs defaultValue="oppgaver-som-venter">
             <Tabs.List>
               {faner.map(({ value, label, filter }) => (
                 <Tabs.Tab key={value} value={value} label={`${label} (${filter().length})`} />
@@ -141,10 +184,11 @@ export default function OversiktPage() {
                     <Table.Header>
                       <Table.Row>
                         <Table.ColumnHeader sortable>Saksbehandler</Table.ColumnHeader>
-                        <Table.ColumnHeader>Status</Table.ColumnHeader>
+                        <Table.ColumnHeader>Beslutter</Table.ColumnHeader>
+                        <Table.ColumnHeader>Oppgavetype</Table.ColumnHeader>
                         <Table.ColumnHeader>Arbeidsgiver</Table.ColumnHeader>
                         <Table.ColumnHeader>Deltaker</Table.ColumnHeader>
-                        <Table.ColumnHeader sortable>Startdato</Table.ColumnHeader>
+                        <Table.ColumnHeader sortable>Tiltaksperiode</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Søknad mottatt</Table.ColumnHeader>
                         <Table.HeaderCell />
                       </Table.Row>
@@ -158,15 +202,34 @@ export default function OversiktPage() {
                         >
                           <Table.DataCell>
                             {sak.kanTildeleMeg ? (
-                              <TildelMegKnapp sakId={sak.sakId} onError={setTildelingsfeil} />
+                              <TildelMegKnapp
+                                sakId={sak.sakId}
+                                rolle="saksbehandler"
+                                onError={setTildelingsfeil}
+                              />
                             ) : (
                               (sak.saksbehandlerNavn ?? "–")
                             )}
                           </Table.DataCell>
-                          <Table.DataCell>{saksstatusTekst[sak.status]}</Table.DataCell>
+                          <Table.DataCell>
+                            {sak.kanTildeleMegSomBeslutter ? (
+                              <TildelMegKnapp
+                                sakId={sak.sakId}
+                                rolle="beslutter"
+                                onError={setTildelingsfeil}
+                              />
+                            ) : (
+                              (sak.beslutterNavn ?? "–")
+                            )}
+                          </Table.DataCell>
+                          <Table.DataCell>
+                            <OppgavetypeCelle sak={sak} />
+                          </Table.DataCell>
                           <Table.DataCell>{sak.soknad.virksomhet.virksomhetsnavn}</Table.DataCell>
                           <Table.DataCell>{sak.soknad.ansattNavn}</Table.DataCell>
-                          <Table.DataCell>{formatDate(sak.soknad.startdato)}</Table.DataCell>
+                          <Table.DataCell style={{ whiteSpace: "nowrap" }}>
+                            {tiltaksperiode(sak)}
+                          </Table.DataCell>
                           <Table.DataCell>
                             {formatDate(sak.soknad.innsendtTidspunkt)}
                           </Table.DataCell>

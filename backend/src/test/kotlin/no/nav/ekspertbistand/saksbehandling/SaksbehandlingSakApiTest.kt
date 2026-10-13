@@ -54,7 +54,10 @@ class SaksbehandlingSakApiTest {
 
     private val saksbehandlerGrupper = """[{ "rolle": "0000-CA-Ekspertbistand_Saksbehandler" }]"""
     private val beslutterGrupper = """[{ "rolle": "0000-CA-Ekspertbistand_Beslutter" }]"""
+    private val beggeRollerGrupper =
+        """[{ "rolle": "0000-CA-Ekspertbistand_Saksbehandler" }, { "rolle": "0000-CA-Ekspertbistand_Beslutter" }]"""
     private val ingenGrupper = "[]"
+    private val kollega = "Z999999"
 
     private val egenEnhet = "1234"
     private val annenEnhet = "5678"
@@ -539,6 +542,255 @@ class SaksbehandlingSakApiTest {
         assertEquals("Z222222", grunnlag.beslutterIdent)
     }
 
+    @Test
+    fun `POST tildeling beslutter publiserer SakTildeltBeslutter med ident og navn fra entra-proxy`() =
+        testApplicationWithDatabase { db ->
+            val soknadId = lagreSoknad(db)
+            val sakId = lagreSak(db, soknadId, status = Saksstatus.TIL_BESLUTNING)
+            lagreForelopigVedtak(db, sakId, innstiltAvIdent = kollega)
+            val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+            val response = oppsett.tildelBeslutter(sakId)
+
+            assertEquals(HttpStatusCode.Accepted, response.status)
+            val event = assertIs<EventData.SakTildeltBeslutter>(hentEvents(db).single())
+            assertEquals(sakId.toString(), event.sakId)
+            assertEquals(soknadId.toString(), event.soknadId)
+            assertEquals(navIdent, event.beslutterIdent)
+            assertEquals("Innlogget Saksbehandler", event.beslutterNavn)
+            assertNull(hentSakRad(db, sakId)[SakTable.beslutterIdent], "API-et skal ikke skrive til sak")
+        }
+
+    @Test
+    fun `POST tildeling beslutter på sak med annen beslutter publiserer (overtakelse)`() =
+        testApplicationWithDatabase { db ->
+            val sakId = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING, beslutterIdent = "Z888888")
+            lagreForelopigVedtak(db, sakId, innstiltAvIdent = kollega)
+            val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+            assertEquals(HttpStatusCode.Accepted, oppsett.tildelBeslutter(sakId).status)
+            assertIs<EventData.SakTildeltBeslutter>(hentEvents(db).single())
+        }
+
+    @Test
+    fun `POST tildeling beslutter på sak innlogget allerede har gir 202 uten event`() =
+        testApplicationWithDatabase { db ->
+            val sakId = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING, beslutterIdent = navIdent)
+            lagreForelopigVedtak(db, sakId, innstiltAvIdent = kollega)
+            val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+            assertEquals(HttpStatusCode.Accepted, oppsett.tildelBeslutter(sakId).status)
+            assertTrue(hentEvents(db).isEmpty())
+        }
+
+    @Test
+    fun `POST tildeling beslutter når innlogget sendte vedtaket gir 403 BESLUTTER_INHABIL`() =
+        testApplicationWithDatabase { db ->
+            val sakId = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+            lagreForelopigVedtak(db, sakId, innstiltAvIdent = navIdent)
+            val oppsett = oppsett(db, grupper = beggeRollerGrupper)
+
+            val response = oppsett.tildelBeslutter(sakId)
+
+            assertEquals(HttpStatusCode.Forbidden, response.status)
+            assertEquals(BESLUTTER_INHABIL, response.body<TilgangAvvistResponse>().kode)
+            assertTrue(hentEvents(db).isEmpty())
+        }
+
+    @Test
+    fun `POST tildeling beslutter uten foreløpig vedtak gir 403 BESLUTTER_INHABIL`() =
+        testApplicationWithDatabase { db ->
+            val sakId = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+            val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+            val response = oppsett.tildelBeslutter(sakId)
+
+            assertEquals(HttpStatusCode.Forbidden, response.status)
+            assertEquals(BESLUTTER_INHABIL, response.body<TilgangAvvistResponse>().kode)
+            assertTrue(hentEvents(db).isEmpty())
+        }
+
+    @Test
+    fun `POST tildeling beslutter på sak som ikke er TIL_BESLUTNING gir 409 SAK_UGYLDIG_STATUS`() =
+        testApplicationWithDatabase { db ->
+            val saker = (Saksstatus.entries - Saksstatus.TIL_BESLUTNING).map { status ->
+                lagreSak(db, lagreSoknad(db), status = status).also {
+                    lagreForelopigVedtak(db, it, innstiltAvIdent = kollega)
+                }
+            }
+            val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+            saker.forEach { sakId ->
+                val response = oppsett.tildelBeslutter(sakId)
+                assertEquals(HttpStatusCode.Conflict, response.status)
+                assertTrue(response.bodyAsText().contains(SAK_UGYLDIG_STATUS))
+            }
+            assertTrue(hentEvents(db).isEmpty())
+        }
+
+    @Test
+    fun `POST tildeling beslutter med bare saksbehandlerrolle gir 403`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+        lagreForelopigVedtak(db, sakId, innstiltAvIdent = kollega)
+        val oppsett = oppsett(db)
+
+        assertEquals(HttpStatusCode.Forbidden, oppsett.tildelBeslutter(sakId).status)
+        assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
+        assertTrue(hentEvents(db).isEmpty())
+    }
+
+    @Test
+    fun `POST tildeling beslutter på sak på annen enhet gir 403 uten kall mot tilgangsmaskin`() =
+        testApplicationWithDatabase { db ->
+            val sakId = lagreSak(
+                db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING, behandlendeEnhet = annenEnhet,
+            )
+            lagreForelopigVedtak(db, sakId, innstiltAvIdent = kollega)
+            val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+            assertEquals(HttpStatusCode.Forbidden, oppsett.tildelBeslutter(sakId).status)
+            assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
+            assertTrue(hentEvents(db).isEmpty())
+        }
+
+    @Test
+    fun `POST tildeling beslutter når tilgangsmaskin avviser gir 403 uten event`() =
+        testApplicationWithDatabase { db ->
+            val sakId = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+            lagreForelopigVedtak(db, sakId, innstiltAvIdent = kollega)
+            val oppsett = oppsett(db, grupper = beslutterGrupper, tilgangsmaskinSvar = { call ->
+                call.respondText(
+                    """{ "title": "AVVIST_STRENGT_FORTROLIG_ADRESSE", "status": 403, "begrunnelse": "x", "kanOverstyres": false }""",
+                    ContentType.parse("application/problem+json"),
+                    HttpStatusCode.Forbidden,
+                )
+            })
+
+            assertEquals(HttpStatusCode.Forbidden, oppsett.tildelBeslutter(sakId).status)
+            assertTrue(hentEvents(db).isEmpty())
+        }
+
+    @Test
+    fun `POST tildeling beslutter når tilgangsmaskin feiler gir 503 uten event`() =
+        testApplicationWithDatabase { db ->
+            val sakId = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+            lagreForelopigVedtak(db, sakId, innstiltAvIdent = kollega)
+            val oppsett = oppsett(
+                db,
+                grupper = beslutterGrupper,
+                tilgangsmaskinSvar = { call -> call.respond(HttpStatusCode.InternalServerError) },
+            )
+
+            assertEquals(HttpStatusCode.ServiceUnavailable, oppsett.tildelBeslutter(sakId).status)
+            assertTrue(hentEvents(db).isEmpty())
+        }
+
+    @Test
+    fun `POST tildeling beslutter på ukjent sak gir 404`() = testApplicationWithDatabase { db ->
+        val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+        assertEquals(HttpStatusCode.NotFound, oppsett.tildelBeslutter(UUID.randomUUID()).status)
+    }
+
+    @Test
+    fun `listen gir oppgavetype, beslutterNavn og tiltaksperiode`() = testApplicationWithDatabase { db ->
+        val opprettet = lagreSak(db, lagreSoknad(db), status = Saksstatus.OPPRETTET)
+        val tilBeslutning = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING, beslutterIdent = "Z888888")
+        lagreForelopigVedtak(
+            db, tilBeslutning, innstiltAvIdent = kollega, versjon = 1,
+            tiltaksperiodeFra = LocalDate(2026, 1, 1), tiltaksperiodeTil = LocalDate(2026, 2, 1),
+        )
+        lagreForelopigVedtak(
+            db, tilBeslutning, innstiltAvIdent = kollega, versjon = 2,
+            tiltaksperiodeFra = LocalDate(2026, 11, 22), tiltaksperiodeTil = LocalDate(2026, 12, 31),
+        )
+        val innvilget = lagreSak(db, lagreSoknad(db), status = Saksstatus.INNVILGET)
+        val oppsett = oppsett(db)
+
+        val saker = oppsett.hentListe().associateBy { it.sakId }
+
+        assertEquals(Oppgavetype.SOKNAD, saker.getValue(opprettet.toString()).oppgavetype)
+        assertNull(saker.getValue(opprettet.toString()).tiltaksperiodeFra)
+        with(saker.getValue(tilBeslutning.toString())) {
+            assertEquals(Oppgavetype.SOKNAD_BESLUTTER, oppgavetype)
+            assertEquals("Navn Z888888", beslutterNavn)
+            assertEquals(LocalDate(2026, 11, 22), tiltaksperiodeFra)
+            assertEquals(LocalDate(2026, 12, 31), tiltaksperiodeTil)
+        }
+        assertNull(saker.getValue(innvilget.toString()).oppgavetype)
+    }
+
+    @Test
+    fun `kanTildeleMegSomBeslutter i listen`() = testApplicationWithDatabase { db ->
+        val ledig = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+        lagreForelopigVedtak(db, ledig, innstiltAvIdent = kollega)
+        val sendtAvMeg = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+        lagreForelopigVedtak(db, sendtAvMeg, innstiltAvIdent = navIdent)
+        val tildeltAnnen = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING, beslutterIdent = "Z888888")
+        lagreForelopigVedtak(db, tildeltAnnen, innstiltAvIdent = kollega)
+        val tildeltInhabil = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING, beslutterIdent = kollega)
+        lagreForelopigVedtak(db, tildeltInhabil, innstiltAvIdent = kollega)
+        val underBehandling = lagreSak(db, lagreSoknad(db))
+        val oppsett = oppsett(db, grupper = beggeRollerGrupper)
+
+        val saker = oppsett.hentListe().associate { it.sakId to it.kanTildeleMegSomBeslutter }
+
+        assertEquals(
+            mapOf(
+                ledig.toString() to true,
+                sendtAvMeg.toString() to false,
+                tildeltAnnen.toString() to false,
+                tildeltInhabil.toString() to true,
+                underBehandling.toString() to false,
+            ),
+            saker,
+        )
+    }
+
+    @Test
+    fun `kanTildeleMegSomBeslutter i detalj`() = testApplicationWithDatabase { db ->
+        val tildeltAnnen = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING, beslutterIdent = "Z888888")
+        lagreForelopigVedtak(db, tildeltAnnen, innstiltAvIdent = kollega)
+        val sendtAvMeg = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+        lagreForelopigVedtak(db, sendtAvMeg, innstiltAvIdent = navIdent)
+        val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+        with(oppsett.hentDetalj(tildeltAnnen)) {
+            assertTrue(kanTildeleMegSomBeslutter, "detaljen tillater overtakelse")
+            assertEquals("Navn Z888888", beslutterNavn)
+            assertEquals(Oppgavetype.SOKNAD_BESLUTTER, oppgavetype)
+        }
+        assertFalse(oppsett.hentDetalj(sendtAvMeg).kanTildeleMegSomBeslutter)
+    }
+
+    @Test
+    fun `harOppgaveForMeg for saksbehandler gjelder søknader, også når en kollega har saken`() =
+        assertHarOppgaveForMeg(saksbehandlerGrupper, Oppgavetype.SOKNAD)
+
+    @Test
+    fun `harOppgaveForMeg for beslutter gjelder saker til beslutning, også når en annen beslutter har saken`() =
+        assertHarOppgaveForMeg(beslutterGrupper, Oppgavetype.SOKNAD_BESLUTTER)
+
+    @Test
+    fun `harOppgaveForMeg med begge rollene gjelder begge oppgavetypene`() =
+        assertHarOppgaveForMeg(beggeRollerGrupper, Oppgavetype.SOKNAD, Oppgavetype.SOKNAD_BESLUTTER)
+
+    private fun assertHarOppgaveForMeg(grupper: String, vararg forventet: Oppgavetype) =
+        testApplicationWithDatabase { db ->
+            val soknad = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = kollega)
+            val beslutning = lagreSak(
+                db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING, beslutterIdent = "Z888888",
+            )
+            lagreForelopigVedtak(db, beslutning, innstiltAvIdent = kollega)
+            lagreSak(db, lagreSoknad(db), status = Saksstatus.AVSLUTTET)
+            val sakPerOppgavetype = mapOf(Oppgavetype.SOKNAD to soknad, Oppgavetype.SOKNAD_BESLUTTER to beslutning)
+            val oppsett = oppsett(db, grupper = grupper)
+
+            val faktisk = oppsett.hentListe().filter { it.harOppgaveForMeg }.map { UUID.fromString(it.sakId) }.toSet()
+
+            assertEquals(forventet.map { sakPerOppgavetype.getValue(it) }.toSet(), faktisk)
+        }
+
     private class Oppsett(
         val client: HttpClient,
         val audit: RecordingAuditLogger,
@@ -668,8 +920,31 @@ class SaksbehandlingSakApiTest {
                 it[this.behandlendeEnhet] = behandlendeEnhet
                 it[this.saksbehandlerIdent] = saksbehandlerIdent
                 it[saksbehandlerNavn] = saksbehandlerIdent?.let { "Navn $it" }
+                it[beslutterNavn] = beslutterIdent?.let { "Navn $it" }
             }[SakTable.sakId]
         }
+
+    private fun lagreForelopigVedtak(
+        db: TestDatabase,
+        sakId: UUID,
+        innstiltAvIdent: String,
+        versjon: Int = 1,
+        tiltaksperiodeFra: LocalDate? = LocalDate(2026, 11, 22),
+        tiltaksperiodeTil: LocalDate? = LocalDate(2026, 12, 31),
+    ) = transaction(db.config.jdbcDatabase) {
+        ForelopigVedtakTable.insert {
+            it[this.sakId] = sakId
+            it[this.versjon] = versjon
+            it[eventId] = Random().nextLong(1, Long.MAX_VALUE)
+            it[utfall] = ForelopigUtfall.INNVILGE.name
+            it[innvilgetBelop] = 9999
+            it[this.tiltaksperiodeFra] = tiltaksperiodeFra
+            it[this.tiltaksperiodeTil] = tiltaksperiodeTil
+            it[begrunnelseDeltaker] = "Til deltaker"
+            it[this.innstiltAvIdent] = innstiltAvIdent
+            it[sendtTidspunkt] = Instant.parse("2026-11-01T10:00:00Z")
+        }
+    }
 
     private fun hentSakRad(db: TestDatabase, sakId: UUID) = transaction(db.config.jdbcDatabase) {
         SakTable.selectAll().where { SakTable.sakId eq sakId }.single()
@@ -682,6 +957,12 @@ class SaksbehandlingSakApiTest {
 
     private suspend fun Oppsett.tildel(sakId: UUID) =
         client.post("/api/saksbehandling/v1/saker/$sakId/tildeling") { bearerAuth(gyldigToken) }
+
+    private suspend fun Oppsett.tildelBeslutter(sakId: UUID) =
+        client.post("/api/saksbehandling/v1/saker/$sakId/tildeling/beslutter") { bearerAuth(gyldigToken) }
+
+    private suspend fun Oppsett.hentListe() =
+        client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }.body<SakerResponse>().saker
 
     private suspend fun Oppsett.frigjoer(sakId: UUID) =
         client.delete("/api/saksbehandling/v1/saker/$sakId/tildeling") { bearerAuth(gyldigToken) }

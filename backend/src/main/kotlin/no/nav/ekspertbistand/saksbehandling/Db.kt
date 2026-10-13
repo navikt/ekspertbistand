@@ -11,6 +11,7 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.max
@@ -32,7 +33,7 @@ import kotlin.time.Instant
 /**
  * Navs behandling av en søknad. Se `specifications/sak-datamodell.md`.
  *
- * Speiler `sak` fra V12, med tildelingskolonnene fra V20. Fremmednøkler og CHECK-constraints
+ * Speiler `sak` fra V12, med tildelingskolonnene fra V20 og V23. Fremmednøkler og CHECK-constraints
  * håndheves av databasen.
  */
 @OptIn(ExperimentalTime::class)
@@ -45,11 +46,13 @@ object SakTable : Table("sak") {
     val saksbehandlerIdent = text("saksbehandler_ident").nullable()
     val saksbehandlerNavn = text("saksbehandler_navn").nullable()
     val beslutterIdent = text("beslutter_ident").nullable()
+    val beslutterNavn = text("beslutter_navn").nullable()
     val foreslattUtfall = text("foreslatt_utfall").nullable()
     val arenaSakId = text("arena_sak_id").nullable()
     val refusjonId = uuid("refusjon_id").nullable()
     val sluttrapportId = uuid("sluttrapport_id").nullable()
     val tildelingEventId = long("tildeling_event_id").nullable()
+    val beslutterTildelingEventId = long("beslutter_tildeling_event_id").nullable()
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
     val sistEndret = timestamp("sist_endret").defaultExpression(CurrentTimestamp)
 
@@ -132,6 +135,34 @@ fun frigjoerSak(soknadId: UUID, ident: String, eventId: Long, tidspunkt: Instant
 
 private fun nyereTildelingEnn(eventId: Long): Op<Boolean> =
     SakTable.tildelingEventId.isNull() or (SakTable.tildelingEventId less eventId)
+
+/**
+ * Tildeler saken til beslutteren. Brukes bare av [no.nav.ekspertbistand.event.handlers.TildelBeslutter].
+ * Må kalles i en pågående transaksjon. Returnerer true når saken ble oppdatert.
+ *
+ * Oppdaterer bare når saken er `TIL_BESLUTNING`, eventen er nyere enn `beslutter_tildeling_event_id`
+ * og [ident] ikke sendte siste foreløpige vedtak. Habiliteten sjekkes her også, fordi handleren ikke
+ * skal stole på at API-et har sjekket den. Se `specifications/listevisning.md`.
+ */
+@OptIn(ExperimentalTime::class)
+fun tildelBeslutter(soknadId: UUID, ident: String, navn: String, eventId: Long, tidspunkt: Instant): Boolean {
+    val sakId = hentSakIdForSoknad(soknadId) ?: return false
+    val innstiltAv = hentSisteForelopigVedtakSammendrag(listOf(sakId))[sakId]?.innstiltAvIdent
+    if (innstiltAv == null || innstiltAv == ident) return false
+
+    return SakTable.update(
+        where = {
+            (SakTable.sakId eq sakId) and
+                    (SakTable.status eq Saksstatus.TIL_BESLUTNING.name) and
+                    (SakTable.beslutterTildelingEventId.isNull() or (SakTable.beslutterTildelingEventId less eventId))
+        }
+    ) {
+        it[beslutterIdent] = ident
+        it[beslutterNavn] = navn
+        it[beslutterTildelingEventId] = eventId
+        it[sistEndret] = tidspunkt
+    } > 0
+}
 
 /** Lagres i `forelopig_vedtak.utfall` med [name]. */
 @Serializable
@@ -229,6 +260,40 @@ fun hentSisteForelopigVedtak(sakId: UUID): ForelopigVedtakDTO? =
                 sendtTidspunkt = it[ForelopigVedtakTable.sendtTidspunkt],
             )
         }
+
+/** Det listen og habilitetssjekken trenger fra siste foreløpige vedtak. */
+data class ForelopigVedtakSammendrag(
+    val innstiltAvIdent: String,
+    val tiltaksperiodeFra: LocalDate?,
+    val tiltaksperiodeTil: LocalDate?,
+)
+
+/**
+ * Siste versjon av det foreløpige vedtaket for hver av [sakIder], med én spørring. Saker uten
+ * foreløpig vedtak er ikke med. Må kalles i en pågående transaksjon.
+ */
+fun hentSisteForelopigVedtakSammendrag(sakIder: Collection<UUID>): Map<UUID, ForelopigVedtakSammendrag> {
+    if (sakIder.isEmpty()) return emptyMap()
+    return ForelopigVedtakTable
+        .select(
+            ForelopigVedtakTable.sakId,
+            ForelopigVedtakTable.versjon,
+            ForelopigVedtakTable.innstiltAvIdent,
+            ForelopigVedtakTable.tiltaksperiodeFra,
+            ForelopigVedtakTable.tiltaksperiodeTil,
+        )
+        .where { ForelopigVedtakTable.sakId inList sakIder }
+        .groupBy { it[ForelopigVedtakTable.sakId] }
+        .mapValues { (_, rader) ->
+            rader.maxBy { it[ForelopigVedtakTable.versjon] }.let {
+                ForelopigVedtakSammendrag(
+                    innstiltAvIdent = it[ForelopigVedtakTable.innstiltAvIdent],
+                    tiltaksperiodeFra = it[ForelopigVedtakTable.tiltaksperiodeFra],
+                    tiltaksperiodeTil = it[ForelopigVedtakTable.tiltaksperiodeTil],
+                )
+            }
+        }
+}
 
 @OptIn(ExperimentalTime::class)
 @Serializable
