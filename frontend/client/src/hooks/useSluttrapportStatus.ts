@@ -4,7 +4,8 @@ import { EKSPERTBISTAND_SLUTTRAPPORT_PATH } from "../utils/constants";
 
 export type SluttrapportStatus = {
   filnavn: string;
-  lastetOpp: string;
+  opprettet: string;
+  storrelse: number;
 };
 
 export function useSluttrapportStatus(id: string | undefined) {

@@ -172,7 +172,8 @@ class VedleggApi(
         call.respond(
             SluttrapportStatusDto(
                 filnavn = metadata.filnavn,
-                lastetOpp = metadata.lastetOpp,
+                opprettet = metadata.lastetOpp,
+                storrelse = metadata.storrelse,
             )
         )
     }
@@ -181,7 +182,8 @@ class VedleggApi(
 @Serializable
 data class SluttrapportStatusDto(
     val filnavn: String,
-    val lastetOpp: String,
+    val opprettet: String,
+    val storrelse: Int,
 )
 
 fun erGyldigPdf(bytes: ByteArray): Boolean =

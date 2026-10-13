@@ -16,7 +16,7 @@ import {
 const MOCK_MAKS_ANTALL_VEDLEGG = 5;
 const MOCK_MAKS_VEDLEGG_STORRELSE_BYTES = 10 * 1024 * 1024;
 
-const sluttrapportStore = new Map<string, { filnavn: string; lastetOpp: string }>();
+const sluttrapportStore = new Map<string, { filnavn: string; opprettet: string }>();
 
 type MockRefusjonVedlegg = { id: string; filnavn: string; storrelse: number; innhold: Uint8Array };
 const refusjonStore = new Map<
@@ -454,9 +454,7 @@ export const handlers = [
       return HttpResponse.json({ message: "ugyldig orgnr" }, { status: 400 });
     }
 
-    const treff = eregOrganisasjoner.filter((org) =>
-      org.organisasjonsnummer == orgnr
-    );
+    const treff = eregOrganisasjoner.filter((org) => org.organisasjonsnummer == orgnr);
     return HttpResponse.json(treff);
   }),
   http.get(EKSPERTBISTAND_EREG_ORGANISASJONER_PATH, ({ request }) => {
@@ -552,7 +550,7 @@ export const handlers = [
 
     sluttrapportStore.set(id, {
       filnavn: filer[0]?.name ?? "vedlegg.pdf",
-      lastetOpp: new Date().toISOString(),
+      opprettet: new Date().toISOString(),
     });
 
     return new HttpResponse(null, { status: 201 });
