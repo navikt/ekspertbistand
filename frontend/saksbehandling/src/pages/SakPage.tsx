@@ -23,6 +23,7 @@ import { NavLink, useNavigate, useParams } from "react-router";
 import HeaderKnapp from "../components/HeaderKnapp";
 import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
+import Refusjonskontroll from "../components/Refusjonskontroll";
 import RefusjonskravVisning from "../components/RefusjonskravVisning";
 import Sakslogg from "../components/Sakslogg";
 import VilkårItem from "../components/VilkårItem";
@@ -36,6 +37,7 @@ import {
   startTilstand,
 } from "../components/forelopigVedtak/forelopigVedtak";
 import { useForelopigVedtak } from "../hooks/useForelopigVedtak";
+import { useRefusjon } from "../hooks/useRefusjon";
 import { type SakDetaljer, useSak } from "../hooks/useSak";
 import { useTildeling } from "../hooks/useTildeling";
 import { type Vilkår, useVilkår } from "../hooks/useVilkår";
@@ -305,6 +307,11 @@ export default function SakPage() {
   const forelopigVedtak = useForelopigVedtak(sakId ?? "");
   const [fane, setFane] = useState<Fane>("vilkarsvurdering");
   const [saksFane, setSaksFane] = useState<SaksFane>("soknad");
+  const {
+    refusjon,
+    error: refusjonError,
+    isLoading: refusjonLaster,
+  } = useRefusjon(sakId ?? "", !!sak && !erArenaSak && saksFane === "refusjon");
   // Holdes her, fordi fanepanelene avmonteres når de ikke vises.
   const [skjema, setSkjema] = useState<ForelopigVedtakSkjemaTilstand | null>(null);
   const [kvitteringForSak, setKvitteringForSak] = useState<string | null>(null);
@@ -530,16 +537,35 @@ export default function SakPage() {
             </Tabs.Panel>
             {!erArenaSak && (
               <Tabs.Panel value="refusjon">
-                <Group orientation="horizontal" style={{ minHeight: "calc(100vh - 160px)" }}>
+                <Group
+                  key={`${sak.sakId}:${refusjon && !refusjonError ? "med-krav" : "uten-krav"}`}
+                  orientation="horizontal"
+                  style={{ minHeight: "calc(100vh - 160px)" }}
+                >
                   <VenstrePanel soknad={soknad} />
                   <KolonneSeparator />
-                  <Panel defaultSize={75} minSize={40}>
+                  <Panel defaultSize={refusjon && !refusjonError ? 45 : 75} minSize={30}>
                     <RefusjonskravVisning
-                      key={sak.sakId}
+                      key={`${sak.sakId}:${refusjon?.opprettet ?? "ingen"}`}
                       sakId={sak.sakId}
-                      enabled={saksFane === "refusjon" && !erArenaSak}
+                      refusjon={refusjon}
+                      error={refusjonError}
+                      isLoading={refusjonLaster}
                     />
                   </Panel>
+                  {refusjon && !refusjonError && (
+                    <>
+                      <KolonneSeparator />
+                      <Panel defaultSize={30} minSize={20}>
+                        <Refusjonskontroll
+                          key={`${sak.sakId}:${refusjon.opprettet}`}
+                          refusjon={refusjon}
+                          deltaker={soknad.ansatt.navn}
+                          arbeidsgiver={soknad.virksomhet.virksomhetsnavn}
+                        />
+                      </Panel>
+                    </>
+                  )}
                 </Group>
               </Tabs.Panel>
             )}
