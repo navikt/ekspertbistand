@@ -16,7 +16,10 @@ import {
 const MOCK_MAKS_ANTALL_VEDLEGG = 5;
 const MOCK_MAKS_VEDLEGG_STORRELSE_BYTES = 10 * 1024 * 1024;
 
-const sluttrapportStore = new Map<string, { filnavn: string; opprettet: string }>();
+const sluttrapportStore = new Map<
+  string,
+  { filnavn: string; opprettet: string; storrelse: number }
+>();
 
 type MockRefusjonVedlegg = { id: string; filnavn: string; storrelse: number; innhold: Uint8Array };
 const refusjonStore = new Map<
@@ -551,6 +554,7 @@ export const handlers = [
     sluttrapportStore.set(id, {
       filnavn: filer[0]?.name ?? "vedlegg.pdf",
       opprettet: new Date().toISOString(),
+      storrelse: filer[0]?.size ?? 0,
     });
 
     return new HttpResponse(null, { status: 201 });
