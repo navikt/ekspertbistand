@@ -1,25 +1,91 @@
 name: Manuell deploy dev backend
+
 on:
   workflow_dispatch:
 
 jobs:
-  dev-deploy:
+  compile-and-build:
+    name: Compile and build image
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.docker-build-push.outputs.image }}
+    services:
+      postgres:
+        image: postgres:18.0
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5532:5432
+      gotenberg:
+        image: gotenberg/gotenberg:8.37.0
+        env:
+          CHROMIUM_DISABLE_JAVASCRIPT: "true"
+          CHROMIUM_ALLOW_LIST: "^file:///tmp/.*"
+          API_DISABLE_DOWNLOAD_FROM: "true"
+          WEBHOOK_DISABLE: "true"
+          LIBREOFFICE_DISABLE_ROUTES: "true"
+          CHROMIUM_MAX_CONCURRENCY: "2"
+        options: >-
+          --health-cmd "curl -fsS http://localhost:3000/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 3003:3000
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: nais/login@v0
-        id: login
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Init database
+        run: PGPASSWORD=postgres psql -U postgres -h localhost -p 5532 -f ./backend/local-db-init.sql
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 21
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Package
+        run: mvn -B package
+        working-directory: backend
+
+      - name: Build and push image
+        id: docker-build-push
+        uses: nais/docker-build-push@v0
         with:
           team: fager
+          image_suffix: backend
+          tag: ${{ github.sha }}
+          dockerfile: backend/Dockerfile
+          docker_context: backend
 
-      - uses: nais/deploy/actions/deploy@v2
-        name: Deploy dev-gcp
+  deploy-to-dev-gcp:
+    name: Deploy to dev-gcp
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    needs: compile-and-build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Deploy dev-gcp
+        uses: nais/deploy/actions/deploy@v2
         env:
-          VAR: image=${{ steps.login.outputs.registry }}/ekspertbistand-backend:${{ github.sha }}
+          VAR: image=${{ needs.compile-and-build.outputs.image }}
           RESOURCE: nais/dev-gcp-backend.yaml
           CLUSTER: dev-gcp
-
