@@ -1,5 +1,4 @@
 import { http, HttpResponse } from "msw";
-import eksempelPdfDataUrl from "./eksempel.pdf?inline";
 import type { ForelopigVedtakInput } from "../hooks/useForelopigVedtak";
 import type { ForelopigVedtakOppsett } from "../hooks/useForelopigVedtakOppsett";
 import type { ForelopigUtfall, ForelopigVedtak, SakDetaljer } from "../hooks/useSak";
@@ -381,16 +380,6 @@ export const handlers = [
     })
   ),
   http.get("/api/saksbehandling/v1/meg", () => HttpResponse.json(mockInnloggetAnsatt)),
-  http.get("/api/saksbehandling/v1/demo/vedlegg/:id", ({ params }) => {
-    if (params.id === "feil") {
-      return new HttpResponse(null, { status: 404 });
-    }
-    const base64 = eksempelPdfDataUrl.split(",")[1];
-    const pdf = Uint8Array.from(atob(base64), (tegn) => tegn.charCodeAt(0));
-    return new HttpResponse(pdf, {
-      headers: { "Content-Type": "application/pdf" },
-    });
-  }),
   http.get(SAKSBEHANDLING_SAKER_URL, () =>
     HttpResponse.json({ saker: alleSaker().filter(harTilgangTilEnhet) })
   ),

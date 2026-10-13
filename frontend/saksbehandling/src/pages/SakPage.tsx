@@ -67,17 +67,7 @@ function Spørsmål({ label, children }: { label: string; children: React.ReactN
 }
 
 const DEMO_VEDLEGG: PdfFil[] = [
-  {
-    url: "/api/saksbehandling/v1/demo/vedlegg/faktura",
-    filnavn: "Eksempelfaktura.pdf",
-    storrelse: 1472,
-  },
-  {
-    url: "/api/saksbehandling/v1/demo/vedlegg/reise",
-    filnavn: "Eksempel reisekostnader.pdf",
-    storrelse: 1472,
-  },
-  { url: "/api/saksbehandling/v1/demo/vedlegg/feil", filnavn: "Fil som ikke finnes.pdf" },
+  { url: "/mock/eksempel.pdf", filnavn: "Eksempelfaktura.pdf", storrelse: 1472 },
 ];
 
 type TildelingProps = {

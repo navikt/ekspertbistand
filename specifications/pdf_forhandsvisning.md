@@ -95,6 +95,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 ```
 
+Firefox starter ikke en modul-worker direkte fra URL når MSW sin service worker
+kontrollerer siden. pdf.js venter da på workeren for alltid, uten feilmelding, og
+miniatyren blir blank. Når en service worker kontrollerer siden, starter
+`pdfjs.ts` derfor workeren via en blob som importerer pdf.js-workeren, og gir den
+til pdf.js som `GlobalWorkerOptions.workerPort`. I prod finnes ingen service
+worker, så der brukes `workerSrc` som vanlig, og CSP-en trenger ikke `blob:`.
+
 pdf.js er stort. Komponentene som bruker `react-pdf`, lastes med `React.lazy`,
 slik at sider uten PDF ikke laster det.
 
@@ -151,23 +158,21 @@ Hjelpefunksjonen `formatBytes` legges i `src/utils/` med samme oppførsel som i
 
 ### 3. MSW-mock og demo
 
-- En syntetisk eksempel-PDF på én eller to sider, uten persondata, i
-  `src/mocks/`.
-- `http.get("/api/saksbehandling/v1/demo/vedlegg/:id", …)` returnerer filen med
-  `Content-Type: application/pdf`, og `id = "feil"` gir 404.
-- Eksempel-PDF-en importeres med `?inline` og dekodes i handleren, slik at det
-  virker likt i dev og i mock-bygget.
-- `SakPage` viser `PdfForhandsvisningListe` med to vedlegg og én feilfil bak
-  `isMockEnabled()`, under søknaden i midtkolonnen. Vi bruker ikke
-  `import.meta.env.DEV`, fordi demo-endepunktet bare finnes i MSW, og demoen da
-  også vises i mock-deployet i dev. Demoen fjernes når den
-  ekte datakilden kobles på.
+- Én syntetisk eksempel-PDF på to sider, uten persondata, i
+  `public/mock/eksempel.pdf`. Vite serverer den i dev og kopierer den til
+  `dist`, så den virker likt i dev og i mock-bygget.
+- Vi bruker ikke en MSW-handler for filen. MSW slipper gjennom
+  navigasjonsforespørsler, så nedlasting med `<a download>` ville ikke truffet
+  handleren.
+- `SakPage` viser `PdfForhandsvisningListe` med dette ene vedlegget bak
+  `isMockEnabled()`, under søknaden i midtkolonnen, slik at demoen også vises i
+  mock-deployet i dev. Demoen fjernes når den ekte datakilden kobles på.
 
 ### 4. CSP
 
 `saksbehandling-server` setter `script-src 'self' …` og ingen `worker-src`, så
 worker faller tilbake til `script-src`. Workeren fra samme opphav skal derfor
-virke. pdf.js v5 kan bruke WebAssembly for noen bildeformater (JPX, ICC). Vi
+virke. pdf.js kan bruke WebAssembly for noen bildeformater (JPX, ICC). Vi
 sjekker i nettleseren (CSP er `report-only` utenfor prod). Dukker det opp brudd,
 legger vi til det som trengs, for eksempel `workerSrc: ["'self'"]` eller
 `'wasm-unsafe-eval'` i `scriptSrc`, og skriver begrunnelsen inn her.
@@ -200,8 +205,7 @@ og manuelt i dev med MSW:
 | `frontend/saksbehandling/src/components/pdf/index.ts` | Ny: eksporter `PdfForhandsvisning`, `PdfForhandsvisningListe` og `PdfFil`, lazy |
 | `frontend/saksbehandling/src/components/pdf/Pdf.module.css` | Ny: ramme, skygge og fokus med Aksel-tokens |
 | `frontend/saksbehandling/src/utils/formatBytes.ts` | Ny |
-| `frontend/saksbehandling/src/mocks/handlers.ts` | Demo-endepunkt for PDF |
-| `frontend/saksbehandling/src/mocks/eksempel.pdf` | Ny: syntetisk PDF |
+| `frontend/saksbehandling/public/mock/eksempel.pdf` | Ny: syntetisk PDF for demoen |
 | `frontend/saksbehandling/src/pages/SakPage.tsx` | Demo bak `isMockEnabled()` |
 | `frontend/saksbehandling-server/src/index.ts` | Bare ved CSP-brudd |
 
@@ -233,7 +237,7 @@ og manuelt i dev med MSW:
    størrelse under hver miniatyr. Er det riktig, eller skal lenkelisten stå
    for seg selv i tillegg? Bør avklares med Hanna.
 2. **Hvor demoen skal ligge.** Spec-en legger den i `SakPage` bak
-   `import.meta.env.DEV`. Alternativet er en egen rute, for eksempel
+   `isMockEnabled()`. Alternativet er en egen rute, for eksempel
    `/dev/pdf`, som ikke rører saksbildet.
 3. **Deling med `client`.** Skal komponenten brukes i `client` senere? I så fall
    bør den flyttes til `frontend/shared`, og det bør bli et eget kort.
