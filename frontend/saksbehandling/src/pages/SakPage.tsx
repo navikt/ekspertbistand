@@ -23,6 +23,8 @@ import KolonneSeparator from "../components/KolonneSeparator";
 import Refusjonskontroll from "../components/Refusjonskontroll";
 import RefusjonskravVisning from "../components/RefusjonskravVisning";
 import Sakslogg from "../components/Sakslogg";
+import Sluttrapportkontroll from "../components/Sluttrapportkontroll";
+import SluttrapportVisning from "../components/SluttrapportVisning";
 import Tildeling from "../components/Tildeling";
 import VilkårItem from "../components/VilkårItem";
 import { type PdfFil, PdfForhandsvisningListe } from "../components/pdf";
@@ -33,11 +35,13 @@ import ForelopigVedtakSkjema, {
 } from "../components/forelopigVedtak/ForelopigVedtakSkjema";
 import {
   type ForelopigVedtakSkjemaTilstand,
+  formatPeriode,
   startTilstand,
 } from "../components/forelopigVedtak/forelopigVedtak";
 import { useForelopigVedtak } from "../hooks/useForelopigVedtak";
 import { useRefusjon } from "../hooks/useRefusjon";
 import { type SakDetaljer, useSak } from "../hooks/useSak";
+import { useSluttrapport } from "../hooks/useSluttrapport";
 import { type Vilkår, useVilkår } from "../hooks/useVilkår";
 import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
@@ -71,7 +75,7 @@ const DEMO_VEDLEGG: PdfFil[] = [
 ];
 
 type Fane = "vilkarsvurdering" | "forelopig-vedtak";
-type SaksFane = "soknad" | "refusjon";
+type SaksFane = "soknad" | "sluttrapport" | "refusjon";
 
 type ForelopigVedtakFaneProps = {
   sak: SakDetaljer;
@@ -255,6 +259,11 @@ export default function SakPage() {
     error: refusjonError,
     isLoading: refusjonLaster,
   } = useRefusjon(sakId ?? "", !!sak && !erArenaSak && saksFane === "refusjon");
+  const {
+    sluttrapport,
+    error: sluttrapportError,
+    isLoading: sluttrapportLaster,
+  } = useSluttrapport(sakId ?? "", !!sak && !erArenaSak && saksFane === "sluttrapport");
   // Holdes her, fordi fanepanelene avmonteres når de ikke vises.
   const [skjema, setSkjema] = useState<ForelopigVedtakSkjemaTilstand | null>(null);
   const [kvitteringForSak, setKvitteringForSak] = useState<string | null>(null);
@@ -357,6 +366,7 @@ export default function SakPage() {
           >
             <Tabs.List aria-label="Saksinnhold">
               <Tabs.Tab value="soknad" label="Søknad" />
+              {!erArenaSak && <Tabs.Tab value="sluttrapport" label="Sluttrapport" />}
               {!erArenaSak && <Tabs.Tab value="refusjon" label="Refusjon" />}
             </Tabs.List>
             <Tabs.Panel value="soknad">
@@ -488,6 +498,41 @@ export default function SakPage() {
                 </Panel>
               </Group>
             </Tabs.Panel>
+            {!erArenaSak && (
+              <Tabs.Panel value="sluttrapport">
+                <Group
+                  key={`${sak.sakId}:${
+                    sluttrapport && !sluttrapportError ? "med-rapport" : "uten-rapport"
+                  }`}
+                  orientation="horizontal"
+                  style={{ minHeight: "calc(100vh - 160px)" }}
+                >
+                  <VenstrePanel soknad={soknad} />
+                  <KolonneSeparator />
+                  <Panel defaultSize={sluttrapport && !sluttrapportError ? 45 : 75} minSize={30}>
+                    <SluttrapportVisning
+                      key={`${sak.sakId}:${sluttrapport?.opprettet ?? "ingen"}`}
+                      sakId={sak.sakId}
+                      sluttrapport={sluttrapport}
+                      tiltaksperiode={formatPeriode(
+                        sak.forelopigVedtak?.tiltaksperiodeFra ?? null,
+                        sak.forelopigVedtak?.tiltaksperiodeTil ?? null
+                      )}
+                      error={sluttrapportError}
+                      isLoading={sluttrapportLaster}
+                    />
+                  </Panel>
+                  {sluttrapport && !sluttrapportError && (
+                    <>
+                      <KolonneSeparator />
+                      <Panel defaultSize={30} minSize={20}>
+                        <Sluttrapportkontroll />
+                      </Panel>
+                    </>
+                  )}
+                </Group>
+              </Tabs.Panel>
+            )}
             {!erArenaSak && (
               <Tabs.Panel value="refusjon">
                 <Group

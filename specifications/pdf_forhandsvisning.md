@@ -170,12 +170,11 @@ Hjelpefunksjonen `formatBytes` legges i `src/utils/` med samme oppførsel som i
 
 ### 4. CSP
 
-`saksbehandling-server` setter `script-src 'self' …` og ingen `worker-src`, så
-worker faller tilbake til `script-src`. Workeren fra samme opphav skal derfor
-virke. pdf.js kan bruke WebAssembly for noen bildeformater (JPX, ICC). Vi
-sjekker i nettleseren (CSP er `report-only` utenfor prod). Dukker det opp brudd,
-legger vi til det som trengs, for eksempel `workerSrc: ["'self'"]` eller
-`'wasm-unsafe-eval'` i `scriptSrc`, og skriver begrunnelsen inn her.
+`saksbehandling-server` tillater workers fra samme opphav. Den tillater også
+`blob:` i `worker-src`, fordi Firefox trenger blob-workeren når en service
+worker kontrollerer siden. Tillatelsen gjelder bare workers, ikke andre skript.
+pdf.js kan bruke WebAssembly for noen bildeformater (JPX, ICC). Dukker det opp
+CSP-brudd for disse formatene, må vi vurdere en avgrenset utvidelse.
 
 ### 5. Tester
 

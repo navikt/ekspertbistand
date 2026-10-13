@@ -107,6 +107,7 @@ class SluttrapportStatusApiTest {
                 assertEquals(HttpStatusCode.OK, status)
                 val dto = body<SluttrapportStatusDto>()
                 assertEquals("sluttrapport.pdf", dto.filnavn)
+                assertEquals("HEMMELIG-PDF-INNHOLD".toByteArray().size, dto.storrelse)
                 // Filinnhold skal aldri lekke i status-responsen (personsensitivt)
                 assertFalse(bodyAsText().contains("HEMMELIG-PDF-INNHOLD"))
             }

@@ -18,6 +18,8 @@ import {
   SAKSBEHANDLING_REFUSJON_URL,
   SAKSBEHANDLING_REFUSJON_VEDLEGG_URL,
   SAKSBEHANDLING_SAKER_URL,
+  SAKSBEHANDLING_SLUTTRAPPORT_FIL_URL,
+  SAKSBEHANDLING_SLUTTRAPPORT_URL,
   SESSION_URL,
 } from "../utils/constants";
 import { gjeldendeMaksSats } from "../utils/maksSats";
@@ -416,6 +418,11 @@ const mockRefusjon = {
     },
   ],
 };
+const mockSluttrapport = {
+  filnavn: "sluttrapport-ekspertbistand.pdf",
+  opprettet: "2026-10-30T12:30:00Z",
+  storrelse: mockPdfBytes.length,
+};
 
 // Speiler oppgavetype i backend.
 const oppgavetype = (status: Saksstatus): Oppgavetype | null => {
@@ -631,6 +638,27 @@ export const handlers = [
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": 'attachment; filename="kvittering-arbeidsterapeut.pdf"',
+      },
+    });
+  }),
+  http.get(SAKSBEHANDLING_SLUTTRAPPORT_URL(":sakId"), ({ params }) => {
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
+    if (sak.sakId !== mockRefusjonSakId || sak.kildeTilBehandling === "ARENA") {
+      return new HttpResponse(null, { status: 204 });
+    }
+    return HttpResponse.json(mockSluttrapport);
+  }),
+  http.get(SAKSBEHANDLING_SLUTTRAPPORT_FIL_URL(":sakId"), ({ params }) => {
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
+    if (sak.sakId !== mockRefusjonSakId || sak.kildeTilBehandling === "ARENA") {
+      return HttpResponse.json({ message: "Fant ikke sluttrapporten." }, { status: 404 });
+    }
+    return new HttpResponse(mockPdfBytes, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'inline; filename="sluttrapport-ekspertbistand.pdf"',
       },
     });
   }),
