@@ -311,7 +311,6 @@ const mockPdfBytes = (() => {
 })();
 const mockRefusjon = {
   belopKroner: 18400,
-  utgifter: "Kostnader for rådgivning og tilrettelegging på arbeidsplassen.",
   opprettet: "2026-10-30T13:25:00Z",
   vedlegg: [
     {

@@ -66,7 +66,6 @@ suspend fun Application.configureSakDokumentApiV1() {
                     call.respond(
                         RefusjonStatusDto(
                             belopKroner = status.belopKroner,
-                            utgifter = status.utgifter,
                             opprettet = status.opprettet,
                             kontonummer = status.kontonummer,
                             vedlegg = status.vedlegg.map {

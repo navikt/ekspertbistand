@@ -4,7 +4,6 @@ import { HttpError } from "../utils/http";
 
 export type RefusjonStatusDto = {
   belopKroner: number;
-  utgifter: string;
   opprettet: string;
   vedlegg: {
     id: string;

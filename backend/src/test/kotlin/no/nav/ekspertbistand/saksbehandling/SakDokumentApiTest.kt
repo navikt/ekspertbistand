@@ -152,7 +152,6 @@ class SakDokumentApiTest {
                 refusjonDb.lagreRefusjonskrav(
                     sak.soknadId,
                     100_00,
-                    "utgifter",
                     listOf(RefusjonsfilInput("kvittering.pdf", refusjonPdf)),
                 )
                 sak.sakId to refusjonDb.finnRefusjonskravStatusForSak(sak.sakId)!!.vedlegg.single().id
@@ -185,7 +184,6 @@ class SakDokumentApiTest {
             val eldreRefusjonId = refusjonDb.lagreRefusjonskrav(
                 soknadId = sak.soknadId,
                 belopOre = 100_00,
-                utgifter = "eldre utgift",
                 filer = listOf(RefusjonsfilInput("eldre-refusjon.pdf", refusjonPdf)),
             )
             Thread.sleep(20)
@@ -193,7 +191,6 @@ class SakDokumentApiTest {
             val nyesteRefusjonId = refusjonDb.lagreRefusjonskrav(
                 soknadId = sak.soknadId,
                 belopOre = 200_00,
-                utgifter = "nyeste utgift",
                 filer = listOf(RefusjonsfilInput("nyeste-refusjon.pdf", sluttrapportPdf)),
             )
 
@@ -216,7 +213,6 @@ class SakDokumentApiTest {
             assertNoStoreAndNosniff(refusjonMetadata)
             val refusjonStatus = refusjonMetadata.body<RefusjonStatusDto>()
             assertEquals(200L, refusjonStatus.belopKroner)
-            assertEquals("nyeste utgift", refusjonStatus.utgifter)
             assertEquals("nyeste-refusjon.pdf", refusjonStatus.vedlegg.single().filnavn)
 
             val eldreVedleggId = transaction(db.config.jdbcDatabase) {
@@ -255,7 +251,6 @@ class SakDokumentApiTest {
             val annenSaksVedleggId = RefusjonDb(db.config.jdbcDatabase).lagreRefusjonskrav(
                 soknadId = annenSak.soknadId,
                 belopOre = 123_00,
-                utgifter = "annen sak",
                 filer = listOf(RefusjonsfilInput("annen-sak.pdf", refusjonPdf)),
             )
             val legacyIds = lagreLegacyDokumenter(db, sak)
@@ -335,7 +330,6 @@ class SakDokumentApiTest {
         val refusjonskravId = RefusjonDb(db.config.jdbcDatabase).lagreRefusjonskrav(
             soknadId = sak.soknadId,
             belopOre = 543_00,
-            utgifter = "reiseutgifter",
             filer = listOf(RefusjonsfilInput("kvittering.pdf", refusjonPdf)),
         )
         val oppsett = oppsett(db, grupper = grupper)
@@ -362,7 +356,6 @@ class SakDokumentApiTest {
         assertNoStoreAndNosniff(refusjonMetadata)
         val refusjonStatus = refusjonMetadata.body<RefusjonStatusDto>()
         assertEquals(543L, refusjonStatus.belopKroner)
-        assertEquals("reiseutgifter", refusjonStatus.utgifter)
         assertEquals("kvittering.pdf", refusjonStatus.vedlegg.single().filnavn)
 
         val vedleggId = refusjonStatus.vedlegg.single().id
@@ -411,7 +404,6 @@ class SakDokumentApiTest {
                 it[soknadId] = sak.soknadId
                 it[sakId] = null
                 it[belopOre] = 100_00
-                it[utgifter] = "legacy refusjon"
                 it[status] = "MOTTATT"
             }.single()[RefusjonskravTable.id].value
             val refusjonVedleggId = VedleggTable.insertReturning(listOf(VedleggTable.id)) {

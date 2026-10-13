@@ -10,7 +10,6 @@ export type RefusjonVedlegg = {
 
 export type RefusjonStatus = {
   belopKroner: number;
-  utgifter: string;
   opprettet: string;
   kontonummer: string | null;
   vedlegg: RefusjonVedlegg[];

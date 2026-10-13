@@ -25,7 +25,6 @@ import java.util.UUID
 
 private const val MAKS_FIL_STORRELSE_BYTES = 10 * 1024 * 1024
 private const val MAKS_ANTALL_FILER = 5
-private const val MAKS_UTGIFTER_LENGDE = 2000
 
 private val refusjonMottattCounter = Metrics.meterRegistry.counter("refusjon_mottatt_total")
 private val refusjonStatusHentetCounter = Metrics.meterRegistry.counter("refusjon_status_hentet_total")
@@ -60,7 +59,6 @@ class RefusjonApi(
         }
 
         val multipart = call.receiveMultipart()
-        var utgifter: String? = null
         var belopRaw: String? = null
         data class UploadedFile(val filnavn: String, val innhold: ByteArray)
         val filer = mutableListOf<UploadedFile>()
@@ -68,7 +66,6 @@ class RefusjonApi(
         multipart.forEachPart { part ->
             when (part) {
                 is PartData.FormItem -> when (part.name) {
-                    "utgifter" -> utgifter = part.value
                     "belop" -> belopRaw = part.value
                 }
 
@@ -81,16 +78,6 @@ class RefusjonApi(
                 else -> {}
             }
             part.dispose()
-        }
-
-        val utgifterVerdi = utgifter?.trim()
-        if (utgifterVerdi.isNullOrEmpty()) {
-            call.respond(HttpStatusCode.BadRequest, "Du må beskrive utgiftene")
-            return
-        }
-        if (utgifterVerdi.length > MAKS_UTGIFTER_LENGDE) {
-            call.respond(HttpStatusCode.BadRequest, "Beskrivelsen er for lang")
-            return
         }
 
         val belopOre = try {
@@ -152,7 +139,6 @@ class RefusjonApi(
             refusjonDb.lagreRefusjonskrav(
                 soknadId = soknadId,
                 belopOre = belopOre,
-                utgifter = utgifterVerdi,
                 filer = filer.map { RefusjonsfilInput(it.filnavn, it.innhold) },
             )
         } catch (_: SoknadIkkeFunnetException) {
@@ -173,7 +159,7 @@ class RefusjonApi(
     }
 
     /**
-     * Returnerer metadata om siste refusjonskrav (beløp, utgifter, tidspunkt, vedleggsliste).
+     * Returnerer metadata om siste refusjonskrav (beløp, tidspunkt, vedleggsliste).
      * Filinnhold følger ikke med – vedlegg lastes ned separat via [lastNedVedlegg].
      */
     suspend fun RoutingContext.hentRefusjonStatus(soknadId: UUID) {
@@ -200,7 +186,6 @@ class RefusjonApi(
         call.respond(
             RefusjonStatusDto(
                 belopKroner = status.belopKroner,
-                utgifter = status.utgifter,
                 opprettet = status.opprettet,
                 kontonummer = status.kontonummer,
                 vedlegg = status.vedlegg.map {
@@ -249,7 +234,6 @@ class RefusjonApi(
 @Serializable
 data class RefusjonStatusDto(
     val belopKroner: Long,
-    val utgifter: String,
     val opprettet: String,
     val kontonummer: String?,
     val vedlegg: List<RefusjonVedleggDto>,
