@@ -10,14 +10,16 @@ import {
   Loader,
   VStack,
 } from "@navikt/ds-react";
-import { useRefusjon } from "../hooks/useRefusjon";
+import type { RefusjonStatusDto } from "../hooks/useRefusjon";
 import { useRefusjonsvedleggNedlasting } from "../hooks/useRefusjonsvedleggNedlasting";
 import { formatKroner } from "../utils/belop";
 import type { HttpError } from "../utils/http";
 
 type RefusjonskravVisningProps = {
   sakId: string;
-  enabled: boolean;
+  refusjon: RefusjonStatusDto | null;
+  error?: HttpError;
+  isLoading: boolean;
 };
 
 function feilmelding(error: HttpError) {
@@ -44,8 +46,12 @@ function formatStorrelse(storrelse: number) {
   return `${(storrelse / 1024).toLocaleString("nb-NO", { maximumFractionDigits: 1 })} kB`;
 }
 
-export default function RefusjonskravVisning({ sakId, enabled }: RefusjonskravVisningProps) {
-  const { refusjon, error, isLoading } = useRefusjon(sakId, enabled);
+export default function RefusjonskravVisning({
+  sakId,
+  refusjon,
+  error,
+  isLoading,
+}: RefusjonskravVisningProps) {
   const { lastNed, lastesNedId, nedlastingFeil } = useRefusjonsvedleggNedlasting(sakId);
 
   if (isLoading) return <Loader size="medium" title="Laster refusjonskrav" />;
