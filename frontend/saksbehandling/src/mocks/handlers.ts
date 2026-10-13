@@ -288,6 +288,21 @@ const mockSaker: MockSak[] = [
       startdato: "2026-11-18",
     },
   },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002014",
+    status: "TIL_BESLUTNING",
+    saksbehandlerIdent: kollega.ident,
+    saksbehandlerNavn: kollega.navn,
+    beslutterIdent: mockInnloggetAnsatt.id,
+    beslutterNavn: mockInnloggetAnsatt.navn,
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001014",
+      virksomhetsnavn: "Lillestrøm lydstudio",
+      ansattNavn: "Mats Mikrofon",
+      innsendtTidspunkt: "2026-10-13T10:15:00Z",
+      startdato: "2026-11-20",
+    },
+  },
 ];
 
 const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];
@@ -348,13 +363,25 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
       sendtTidspunkt: "2026-10-29T08:00:00Z",
     },
   ],
+  [
+    "9c2f7a10-0000-4000-8000-000000002014",
+    {
+      versjon: 1,
+      utfall: "INNVILGE",
+      innvilgetBelop: 18000,
+      tiltaksperiodeFra: "2026-11-20",
+      tiltaksperiodeTil: "2026-12-20",
+      begrunnelseDeltaker: "Arbeidsgiveren din har fått tilskudd til ekspertbistand.",
+      begrunnelseArbeidsgiver: null,
+      innstiltAvIdent: kollega.ident,
+      sendtTidspunkt: "2026-10-28T14:00:00Z",
+    },
+  ],
 ]);
 
-// Speiler tildelingHindring i backend.
-const statuserSomIkkeKanTildeles: Saksstatus[] = ["AVSLATT", "AVSLUTTET"];
+// Speiler tildelingHindring i backend: bare saker som venter på saksbehandler.
 const kanTildeles = (sak: Pick<SakInfo, "status" | "saksbehandlerIdent">) =>
-  !statuserSomIkkeKanTildeles.includes(sak.status) &&
-  sak.saksbehandlerIdent !== mockInnloggetAnsatt.id;
+  oppgavetype(sak.status) === "SOKNAD" && sak.saksbehandlerIdent !== mockInnloggetAnsatt.id;
 
 const mockRefusjonSakId = "9c2f7a10-0000-4000-8000-000000002010";
 const mockRefusjonsvedleggId = "b7fa1e19-6adc-4444-b592-1567343686f6";
@@ -797,7 +824,7 @@ export const handlers = [
   http.post("/api/saksbehandling/v1/saker/:sakId/tildeling", ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;
-    if (statuserSomIkkeKanTildeles.includes(sak.status)) {
+    if (oppgavetype(sak.status) !== "SOKNAD") {
       return HttpResponse.json(
         {
           kode: "SAK_UGYLDIG_STATUS",

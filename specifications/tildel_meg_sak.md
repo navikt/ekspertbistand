@@ -97,7 +97,7 @@ Avvik mellom kort og skisse:
 | Ken, 2026-10-06 | `sakslogg` finnes på main. Vi publiserer `SakOppdatert` og lar `SkrivSakslogg` skrive loggen. |
 | Ken, 2026-10-06 | Tildeler to seg samme sak samtidig, vinner den siste (last writer wins). Ingen 409 for samtidighet. |
 | Ken, 2026-10-07 | Ugyldig status gir `409 kode = SAK_UGYLDIG_STATUS`. |
-| Ken, 2026-10-07 | `INNVILGET`-saker kan tildeles og overtas. En innvilget sak blir stående hos saksbehandleren mens hen venter på refusjonskravet, og arbeidsgiveren kan avbryte den når som helst. Sammen med bus factor betyr det at en kollega må kunne ta over. |
+| Ken, 2026-10-07 | `INNVILGET`-saker kan tildeles og overtas. En innvilget sak blir stående hos saksbehandleren mens hen venter på refusjonskravet, og arbeidsgiveren kan avbryte den når som helst. Sammen med bus factor betyr det at en kollega må kunne ta over. Erstattet 2026-10-13: tildeling følger oppgavetypen, og `INNVILGET` gir 409. Se [`tildeling_detaljvisning.md`](tildeling_detaljvisning.md). |
 | Ken, 2026-10-07 | Tildeling setter status til `UNDER_BEHANDLING`. Frigjøring endrer ikke status, og koden som frigjør har en kommentar om hvorfor. |
 | Ken, 2026-10-07 | Navnet til saksbehandleren følger med på `SakTildeltSaksbehandler` og vises i listen og på saksdetaljen. Det er ikke nullable og kommer alltid fra entra-proxy, aldri fra `name`-claimet. `AZURE_AD_PROVIDER` henter navn og enheter og legger dem på `AzureAdPrincipal`. Detaljoppslaget slår ikke opp navnet. |
 | Ken, 2026-10-08 | `AzureAdPrincipal` får også `epost` og `gjeldendeEnhet`, slik at `/meg` ikke gjør egne oppslag mot entra-proxy. |

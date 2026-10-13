@@ -12,6 +12,20 @@ export type KildeTilBehandling = "EKSPERTBISTAND" | "ARENA";
 /** Null på saken betyr at den ikke har noen oppgave. */
 export type Oppgavetype = "SOKNAD" | "SOKNAD_BESLUTTER";
 
+export type Tildelingsrolle = "saksbehandler" | "beslutter";
+
+/** Speiler `Oppgavetype.rolle` i backend. */
+export const rolleForOppgave = (oppgavetype: Oppgavetype | null): Tildelingsrolle | null => {
+  switch (oppgavetype) {
+    case "SOKNAD":
+      return "saksbehandler";
+    case "SOKNAD_BESLUTTER":
+      return "beslutter";
+    default:
+      return null;
+  }
+};
+
 export type SakInfo = {
   sakId: string;
   status: Saksstatus;

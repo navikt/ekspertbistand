@@ -1,12 +1,10 @@
 import { ArrowLeftIcon, CheckmarkCircleIcon, ChevronRightIcon } from "@navikt/aksel-icons";
 import {
   Accordion,
-  ActionMenu,
   Alert,
   BodyLong,
   BodyShort,
   Box,
-  Button,
   CopyButton,
   HGrid,
   HStack,
@@ -19,8 +17,7 @@ import {
 } from "@navikt/ds-react";
 import { useCallback, useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
-import { NavLink, useNavigate, useParams } from "react-router";
-import HeaderKnapp from "../components/HeaderKnapp";
+import { NavLink, useParams } from "react-router";
 import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
 import Refusjonskontroll from "../components/Refusjonskontroll";
@@ -28,6 +25,7 @@ import RefusjonskravVisning from "../components/RefusjonskravVisning";
 import Sakslogg from "../components/Sakslogg";
 import Sluttrapportkontroll from "../components/Sluttrapportkontroll";
 import SluttrapportVisning from "../components/SluttrapportVisning";
+import Tildeling from "../components/Tildeling";
 import VilkårItem from "../components/VilkårItem";
 import { type PdfFil, PdfForhandsvisningListe } from "../components/pdf";
 import ForelopigVedtakKvittering from "../components/forelopigVedtak/ForelopigVedtakKvittering";
@@ -44,7 +42,6 @@ import { useForelopigVedtak } from "../hooks/useForelopigVedtak";
 import { useRefusjon } from "../hooks/useRefusjon";
 import { type SakDetaljer, useSak } from "../hooks/useSak";
 import { useSluttrapport } from "../hooks/useSluttrapport";
-import { useTildeling } from "../hooks/useTildeling";
 import { type Vilkår, useVilkår } from "../hooks/useVilkår";
 import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
@@ -76,65 +73,6 @@ function Spørsmål({ label, children }: { label: string; children: React.ReactN
 const DEMO_VEDLEGG: PdfFil[] = [
   { url: "/mock/eksempel.pdf", filnavn: "Eksempelfaktura.pdf", storrelse: 1472 },
 ];
-
-type TildelingProps = {
-  sak: SakDetaljer;
-  tildelMeg: () => Promise<boolean>;
-  frigjoer: () => Promise<boolean>;
-  isSaving: boolean;
-};
-
-function Tildeling({ sak, tildelMeg, frigjoer, isSaving }: TildelingProps) {
-  const innloggetAnsatt = useInnloggetAnsatt();
-  const navigate = useNavigate();
-  const [menyÅpen, setMenyÅpen] = useState(false);
-
-  const frigjoerOgGåTilOversikten = async () => {
-    if (await frigjoer()) navigate(OVERSIKT_PATH);
-  };
-
-  if (innloggetAnsatt && sak.saksbehandlerIdent === innloggetAnsatt.id) {
-    return (
-      <HStack gap="space-16" align="stretch">
-        <HStack align="center">
-          <BodyShort>Saken er tildelt meg</BodyShort>
-        </HStack>
-        <ActionMenu open={menyÅpen} onOpenChange={setMenyÅpen}>
-          <ActionMenu.Trigger>
-            <HeaderKnapp tekst="Meny" åpen={menyÅpen} loading={isSaving} />
-          </ActionMenu.Trigger>
-          <ActionMenu.Content>
-            <ActionMenu.Group label="Legg behandlingen tilbake">
-              <ActionMenu.Item onSelect={() => void frigjoerOgGåTilOversikten()}>
-                Frigjør oppgave
-              </ActionMenu.Item>
-            </ActionMenu.Group>
-          </ActionMenu.Content>
-        </ActionMenu>
-      </HStack>
-    );
-  }
-
-  if (!sak.saksbehandlerNavn && !sak.kanTildeleMeg) return null;
-
-  return (
-    <Box paddingInline="space-0 space-16" asChild>
-      <HStack gap="space-16" align="center">
-        {sak.saksbehandlerNavn && <BodyShort>Saken er tildelt {sak.saksbehandlerNavn}</BodyShort>}
-        {sak.kanTildeleMeg && (
-          <Button
-            size="small"
-            variant="secondary"
-            loading={isSaving}
-            onClick={() => void tildelMeg()}
-          >
-            Tildel meg
-          </Button>
-        )}
-      </HStack>
-    </Box>
-  );
-}
 
 type Fane = "vilkarsvurdering" | "forelopig-vedtak";
 type SaksFane = "soknad" | "sluttrapport" | "refusjon";
@@ -312,7 +250,7 @@ export default function SakPage() {
     isLoading: vilkårLaster,
   } = useVilkår(erArenaSak ? undefined : sakId);
   const { lagreVurdering, isSaving, error: lagreError } = useVilkårsvurdering(sakId ?? "");
-  const { error: tildelingError, ...tildeling } = useTildeling(sakId ?? "");
+  const [tildelingError, setTildelingError] = useState<Error | null>(null);
   const forelopigVedtak = useForelopigVedtak(sakId ?? "");
   const [fane, setFane] = useState<Fane>("vilkarsvurdering");
   const [saksFane, setSaksFane] = useState<SaksFane>("soknad");
@@ -402,7 +340,7 @@ export default function SakPage() {
           </HStack>
           {!visKvittering && (
             <HStack align="stretch">
-              <Tildeling sak={sak} {...tildeling} />
+              <Tildeling sak={sak} onFeil={setTildelingError} />
               <Sakslogg sakId={sakId ?? ""} />
             </HStack>
           )}

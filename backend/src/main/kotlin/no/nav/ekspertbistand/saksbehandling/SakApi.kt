@@ -213,8 +213,6 @@ private val log = LoggerFactory.getLogger("SaksbehandlingSakApi")
 
 const val SAK_UGYLDIG_STATUS = "SAK_UGYLDIG_STATUS"
 
-private val statuserSomIkkeKanTildeles = setOf(Saksstatus.AVSLATT, Saksstatus.AVSLUTTET)
-
 enum class TildelingHindring {
     MANGLER_ROLLE,
     UGYLDIG_STATUS,
@@ -225,6 +223,8 @@ enum class TildelingHindring {
  * Den ene regelen for om innlogget kan tildele seg en sak. Brukes av `POST …/tildeling` og til
  * `kanTildeleMeg` i listen og detaljoppslaget, slik at knappen og API-et svarer likt.
  * Enhetstilgang og Tilgangsmaskinen sjekkes utenfor, fordi listen og oppslaget gjør det ulikt.
+ * Saken må vente på en oppgave for saksbehandler. Innvilgede saker kan derfor ikke tildeles før
+ * refusjon får egen oppgavetype, se `specifications/tildeling_detaljvisning.md`.
  * Returnerer null når innlogget kan tildele seg saken, ellers første hindring.
  */
 fun tildelingHindring(
@@ -233,7 +233,7 @@ fun tildelingHindring(
     principal: AzureAdPrincipal,
 ): TildelingHindring? = when {
     !principal.harRolle(Role.SAKSBEHANDLER) -> TildelingHindring.MANGLER_ROLLE
-    status in statuserSomIkkeKanTildeles -> TildelingHindring.UGYLDIG_STATUS
+    oppgavetype(status)?.rolle != Role.SAKSBEHANDLER -> TildelingHindring.UGYLDIG_STATUS
     saksbehandlerIdent == principal.navIdent -> TildelingHindring.HAR_SAKEN_ALLEREDE
     else -> null
 }
