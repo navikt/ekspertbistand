@@ -27,6 +27,7 @@ import Refusjonskontroll from "../components/Refusjonskontroll";
 import RefusjonskravVisning from "../components/RefusjonskravVisning";
 import Sakslogg from "../components/Sakslogg";
 import VilkårItem from "../components/VilkårItem";
+import { type PdfFil, PdfForhandsvisningListe } from "../components/pdf";
 import ForelopigVedtakKvittering from "../components/forelopigVedtak/ForelopigVedtakKvittering";
 import ForelopigVedtakOppsummering from "../components/forelopigVedtak/ForelopigVedtakOppsummering";
 import ForelopigVedtakSkjema, {
@@ -44,7 +45,7 @@ import { type Vilkår, useVilkår } from "../hooks/useVilkår";
 import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import type { HttpError } from "../utils/http";
-import { GOSYS_URL, MODIA_URL, OVERSIKT_PATH } from "../utils/constants";
+import { GOSYS_URL, MODIA_URL, OVERSIKT_PATH, isMockEnabled } from "../utils/constants";
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat("nb-NO", {
@@ -67,6 +68,10 @@ function Spørsmål({ label, children }: { label: string; children: React.ReactN
     </VStack>
   );
 }
+
+const DEMO_VEDLEGG: PdfFil[] = [
+  { url: "/mock/eksempel.pdf", filnavn: "Eksempelfaktura.pdf", storrelse: 1472 },
+];
 
 type TildelingProps = {
   sak: SakDetaljer;
@@ -458,6 +463,16 @@ export default function SakPage() {
                           <BodyShort>{formatDate(soknad.innsendtTidspunkt)}</BodyShort>
                         </Spørsmål>
                       </VStack>
+
+                      {/* TODO: fjernes når vedlegg kobles på ekte datakilde */}
+                      {isMockEnabled() && (
+                        <VStack as="section" gap="space-16">
+                          <Heading level="2" size="xsmall">
+                            Vedlegg (demo)
+                          </Heading>
+                          <PdfForhandsvisningListe filer={DEMO_VEDLEGG} />
+                        </VStack>
+                      )}
                     </VStack>
                   </Box>
                 </Panel>
