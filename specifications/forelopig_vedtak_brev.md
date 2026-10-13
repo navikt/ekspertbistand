@@ -621,6 +621,6 @@ prodsetting, sammen med de andre forslagene til brevtekst.
 - [x] `tilskuddsbrev` og Arena-journalføringen er uendret
 - [x] Brevene til arbeidsgiver ved innvilgelse og redusert beløp har refusjonsfrist seks måneder etter sluttdato, fra én konstant
 - [x] Forhåndsvisningen har ingen utkast-merking
-- [ ] PR-beskrivelsen ber fag gå gjennom forslagene til brevtekst, og klagerett for arbeidsgiver, før prodsetting
+- [x] PR-beskrivelsen ber fag gå gjennom forslagene til brevtekst, og klagerett for arbeidsgiver, før prodsetting
 - [x] `mvn -B package` er grønn
 - [x] `pnpm typecheck` og `pnpm lint` i `frontend/saksbehandling` er grønne
