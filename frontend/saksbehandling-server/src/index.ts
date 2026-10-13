@@ -6,6 +6,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { azureOboMiddleware } from "./azure-obo.js";
+import { lesLokalBruker, lokaleBrukere } from "./lokal-bruker.js";
 import { logger } from "@navikt/pino-logger";
 import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import type { Socket } from "net";
@@ -44,6 +45,7 @@ if (NODE_ENV === "production" && !azureEnabled && !mockEnabled) {
 const app = express();
 const api = express.Router();
 const localSessionEnabled = NODE_ENV !== "production";
+const lokalBrukerbytte = localSessionEnabled && !azureEnabled;
 const localHttpOrigins =
   NODE_ENV === "production" ? [] : ["http://localhost:*", "http://127.0.0.1:*"];
 const localWebsocketOrigins =
@@ -131,10 +133,17 @@ if (localSessionEnabled) {
   });
 }
 
+if (lokalBrukerbytte) {
+  api.get("/lokal/brukere", (req: Request, res: Response) => {
+    res.json({ valgt: lesLokalBruker(req.headers.cookie) ?? null, brukere: lokaleBrukere });
+  });
+}
+
 const azureObo = azureOboMiddleware({
   enabled: azureEnabled,
   audience: EKSPERTBISTAND_API_AUDIENCE,
   localSubjectToken: LOCAL_SUBJECT_TOKEN,
+  lokalBrukerbytte,
 });
 
 const backendProxy = createProxyMiddleware({

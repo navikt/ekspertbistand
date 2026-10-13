@@ -5,6 +5,8 @@ import io.ktor.client.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -15,6 +17,7 @@ import no.nav.ekspertbistand.mocks.testAnsattJson
 import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.ContinuationInterceptor
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.time.Clock
@@ -48,6 +51,7 @@ class EntraBerikelseCacheTest {
     private fun oppsett(
         ansatt: () -> Pair<HttpStatusCode, String> = { HttpStatusCode.OK to testAnsattJson("A123456") },
         foerSvar: suspend () -> Unit = {},
+        dispatcher: CoroutineDispatcher = Dispatchers.IO,
     ): Oppsett {
         val kall = ConcurrentHashMap<String, AtomicInteger>()
         val engine = MockEngine { request ->
@@ -69,6 +73,7 @@ class EntraBerikelseCacheTest {
             ttl = 5.minutes,
             ticker = Ticker { tid.nanos },
             clock = tid,
+            dispatcher = dispatcher,
         )
         return Oppsett(cache, kall, tid)
     }
@@ -124,7 +129,9 @@ class EntraBerikelseCacheTest {
 
     @Test
     fun `henter på nytt etter ttl, men ikke før`(): Unit = runBlocking {
-        val oppsett = oppsett()
+        // Caffeine setter skrivetiden i en callback etter at futuren er fullført. På testens tråd
+        // kjører den før testen går videre og flytter klokka.
+        val oppsett = oppsett(dispatcher = coroutineContext[ContinuationInterceptor] as CoroutineDispatcher)
 
         val foerste = oppsett.cache.hent("token", "A123456")
         oppsett.tid.gaa(4.minutes)

@@ -9,6 +9,9 @@ export type Saksstatus =
 
 export type KildeTilBehandling = "EKSPERTBISTAND" | "ARENA";
 
+/** Null på saken betyr at den ikke har noen oppgave. */
+export type Oppgavetype = "SOKNAD" | "SOKNAD_BESLUTTER";
+
 export type SakInfo = {
   sakId: string;
   status: Saksstatus;
@@ -18,10 +21,17 @@ export type SakInfo = {
   saksbehandlerNavn: string | null;
   kanTildeleMeg: boolean;
   beslutterIdent: string | null;
+  beslutterNavn: string | null;
+  kanTildeleMegSomBeslutter: boolean;
+  oppgavetype: Oppgavetype | null;
   arenaSakId: string | null;
 };
 
 export type SakListeElement = SakInfo & {
+  harOppgaveForMeg: boolean;
+  /** Fra siste foreløpige vedtak. Null uten vedtak og ved avslag. */
+  tiltaksperiodeFra: string | null;
+  tiltaksperiodeTil: string | null;
   soknad: {
     soknadId: string;
     status: SoknadStatus;

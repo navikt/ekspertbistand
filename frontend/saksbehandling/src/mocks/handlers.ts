@@ -2,7 +2,13 @@ import { http, HttpResponse } from "msw";
 import type { ForelopigVedtakInput } from "../hooks/useForelopigVedtak";
 import type { ForelopigVedtakOppsett } from "../hooks/useForelopigVedtakOppsett";
 import type { ForelopigUtfall, ForelopigVedtak, SakDetaljer } from "../hooks/useSak";
-import type { SakInfo, SakListeElement, Saksstatus, SoknadStatus } from "../hooks/useSaker";
+import type {
+  Oppgavetype,
+  SakInfo,
+  SakListeElement,
+  Saksstatus,
+  SoknadStatus,
+} from "../hooks/useSaker";
 import { VILKAR_TEKSTER, type VilkarId, type VilkarsvurderingDTO } from "../hooks/useVilkår";
 import type { SaksloggInnslag, SaksloggResponse } from "../hooks/useSakslogg";
 import { mockInnloggetAnsatt } from "../mock/ansatt";
@@ -79,6 +85,11 @@ const mockSakslogg: SaksloggInnslag[] = [
   ),
 ];
 
+const kollega = { ident: "H654321", navn: "Hedda Hansen" };
+const mockBeslutter = { ident: "B123456", navn: "Bea Beslutter" };
+
+const mockRoller = { saksbehandler: true, beslutter: true };
+
 type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent" | "saksbehandlerNavn"> &
   Partial<SakInfo> & {
     soknad: {
@@ -124,7 +135,6 @@ const mockSaker: MockSak[] = [
     status: "TIL_BESLUTNING",
     saksbehandlerIdent: mockInnloggetAnsatt.id,
     saksbehandlerNavn: mockInnloggetAnsatt.navn,
-    beslutterIdent: "B123456",
     soknad: {
       soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001003",
       virksomhetsnavn: "Mega Sales Dyypvik",
@@ -136,8 +146,8 @@ const mockSaker: MockSak[] = [
   {
     sakId: "9c2f7a10-0000-4000-8000-000000002004",
     status: "UNDER_BEHANDLING",
-    saksbehandlerIdent: "H654321",
-    saksbehandlerNavn: "Hedda Hansen",
+    saksbehandlerIdent: kollega.ident,
+    saksbehandlerNavn: kollega.navn,
     behandlendeEnhet: "0301",
     soknad: {
       soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001004",
@@ -165,7 +175,8 @@ const mockSaker: MockSak[] = [
     status: "INNVILGET",
     saksbehandlerIdent: "O111222",
     saksbehandlerNavn: "Ola Oppdiktet",
-    beslutterIdent: "B123456",
+    beslutterIdent: mockBeslutter.ident,
+    beslutterNavn: mockBeslutter.navn,
     soknad: {
       soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001006",
       virksomhetsnavn: "Flisfiksern AS",
@@ -178,9 +189,10 @@ const mockSaker: MockSak[] = [
   {
     sakId: "9c2f7a10-0000-4000-8000-000000002007",
     status: "AVSLATT",
-    saksbehandlerIdent: "H654321",
-    saksbehandlerNavn: "Hedda Hansen",
-    beslutterIdent: "B123456",
+    saksbehandlerIdent: kollega.ident,
+    saksbehandlerNavn: kollega.navn,
+    beslutterIdent: mockBeslutter.ident,
+    beslutterNavn: mockBeslutter.navn,
     soknad: {
       soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001007",
       virksomhetsnavn: "Ortopedisk avdeling",
@@ -207,8 +219,8 @@ const mockSaker: MockSak[] = [
   {
     sakId: "9c2f7a10-0000-4000-8000-000000002009",
     status: "UNDER_BEHANDLING",
-    saksbehandlerIdent: "H654321",
-    saksbehandlerNavn: "Hedda Hansen",
+    saksbehandlerIdent: kollega.ident,
+    saksbehandlerNavn: kollega.navn,
     soknad: {
       soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001009",
       virksomhetsnavn: "Fjordkanten regnskap AS",
@@ -246,6 +258,34 @@ const mockSaker: MockSak[] = [
       startdato: "2026-11-08",
     },
   },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002012",
+    status: "TIL_BESLUTNING",
+    saksbehandlerIdent: kollega.ident,
+    saksbehandlerNavn: kollega.navn,
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001012",
+      virksomhetsnavn: "Partner & Billingstad AS",
+      ansattNavn: "Anna Lena Hjalmarsson",
+      innsendtTidspunkt: "2026-10-16T09:20:00Z",
+      startdato: "2026-11-12",
+    },
+  },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002013",
+    status: "TIL_BESLUTNING",
+    saksbehandlerIdent: kollega.ident,
+    saksbehandlerNavn: kollega.navn,
+    beslutterIdent: mockBeslutter.ident,
+    beslutterNavn: mockBeslutter.navn,
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001013",
+      virksomhetsnavn: "Hønbro flytthjelp",
+      ansattNavn: "Sofie Segerhård",
+      innsendtTidspunkt: "2026-10-14T13:05:00Z",
+      startdato: "2026-11-18",
+    },
+  },
 ];
 
 const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];
@@ -276,6 +316,34 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
         "Dere søkte om 22 000 kr, Nav har innvilget 17 000 kr i tilskudd til ekspertbistand.",
       innstiltAvIdent: mockInnloggetAnsatt.id,
       sendtTidspunkt: "2026-10-31T09:30:00Z",
+    },
+  ],
+  [
+    "9c2f7a10-0000-4000-8000-000000002012",
+    {
+      versjon: 1,
+      utfall: "INNVILGE",
+      innvilgetBelop: 22000,
+      tiltaksperiodeFra: "2026-11-12",
+      tiltaksperiodeTil: "2026-12-15",
+      begrunnelseDeltaker: "Arbeidsgiveren din har fått tilskudd til ekspertbistand.",
+      begrunnelseArbeidsgiver: null,
+      innstiltAvIdent: kollega.ident,
+      sendtTidspunkt: "2026-10-30T12:00:00Z",
+    },
+  ],
+  [
+    "9c2f7a10-0000-4000-8000-000000002013",
+    {
+      versjon: 1,
+      utfall: "AVSLAA",
+      innvilgetBelop: null,
+      tiltaksperiodeFra: null,
+      tiltaksperiodeTil: null,
+      begrunnelseDeltaker: "Søknaden oppfyller ikke vilkårene for tilskudd.",
+      begrunnelseArbeidsgiver: "Søknaden oppfyller ikke vilkårene for tilskudd.",
+      innstiltAvIdent: kollega.ident,
+      sendtTidspunkt: "2026-10-29T08:00:00Z",
     },
   ],
 ]);
@@ -322,25 +390,72 @@ const mockRefusjon = {
   ],
 };
 
-const tilListeElement = ({ soknad, ...sak }: MockSak, index: number): SakListeElement => ({
-  kildeTilBehandling: "EKSPERTBISTAND",
-  behandlendeEnhet: "4710",
-  beslutterIdent: null,
-  arenaSakId: null,
-  ...sak,
-  kanTildeleMeg: sak.saksbehandlerIdent === null && kanTildeles(sak),
-  soknad: {
-    soknadId: soknad.soknadId,
-    status: soknad.status ?? "innsendt",
-    innsendtTidspunkt: soknad.innsendtTidspunkt,
-    virksomhet: {
-      virksomhetsnummer: String(876543210 + index),
-      virksomhetsnavn: soknad.virksomhetsnavn,
+// Speiler oppgavetype i backend.
+const oppgavetype = (status: Saksstatus): Oppgavetype | null => {
+  switch (status) {
+    case "OPPRETTET":
+    case "UNDER_BEHANDLING":
+      return "SOKNAD";
+    case "TIL_BESLUTNING":
+      return "SOKNAD_BESLUTTER";
+    default:
+      return null;
+  }
+};
+
+const harOppgaveForMeg = (type: Oppgavetype | null) =>
+  (mockRoller.saksbehandler && type === "SOKNAD") ||
+  (mockRoller.beslutter && type === "SOKNAD_BESLUTTER");
+
+type BeslutterTildelingHindring =
+  "MANGLER_ROLLE" | "UGYLDIG_STATUS" | "INHABIL" | "HAR_SAKEN_ALLEREDE";
+
+// Speiler beslutterTildelingHindring i backend.
+const beslutterTildelingHindring = (
+  sak: Pick<SakInfo, "sakId" | "status" | "beslutterIdent">
+): BeslutterTildelingHindring | null => {
+  const innstiltAvIdent = forelopigVedtakStore.get(sak.sakId)?.innstiltAvIdent ?? null;
+  if (!mockRoller.beslutter) return "MANGLER_ROLLE";
+  if (sak.status !== "TIL_BESLUTNING") return "UGYLDIG_STATUS";
+  if (innstiltAvIdent === null || innstiltAvIdent === mockInnloggetAnsatt.id) return "INHABIL";
+  if (sak.beslutterIdent === mockInnloggetAnsatt.id) return "HAR_SAKEN_ALLEREDE";
+  return null;
+};
+
+const tilListeElement = ({ soknad, ...mockSak }: MockSak, index: number): SakListeElement => {
+  const sak = {
+    kildeTilBehandling: "EKSPERTBISTAND" as const,
+    behandlendeEnhet: "4710",
+    beslutterIdent: null,
+    beslutterNavn: null,
+    arenaSakId: null,
+    ...mockSak,
+  };
+  const vedtak = forelopigVedtakStore.get(sak.sakId);
+  const type = oppgavetype(sak.status);
+  return {
+    ...sak,
+    kanTildeleMeg: sak.saksbehandlerIdent === null && kanTildeles(sak),
+    oppgavetype: type,
+    harOppgaveForMeg: harOppgaveForMeg(type),
+    kanTildeleMegSomBeslutter:
+      beslutterTildelingHindring(sak) === null &&
+      (sak.beslutterIdent === null || sak.beslutterIdent === vedtak?.innstiltAvIdent),
+    tiltaksperiodeFra: vedtak?.tiltaksperiodeFra ?? null,
+    tiltaksperiodeTil: vedtak?.tiltaksperiodeTil ?? null,
+    soknad: {
+      soknadId: soknad.soknadId,
+      status: soknad.status ?? "innsendt",
+      innsendtTidspunkt: soknad.innsendtTidspunkt,
+      virksomhet: {
+        virksomhetsnummer: String(876543210 + index),
+        virksomhetsnavn: soknad.virksomhetsnavn,
+      },
+      ansattNavn: soknad.ansattNavn,
+      startdato: soknad.startdato,
     },
-    ansattNavn: soknad.ansattNavn,
-    startdato: soknad.startdato,
-  },
-});
+  };
+};
 
 const alleSaker = (): SakListeElement[] => mockSaker.map(tilListeElement);
 
@@ -359,6 +474,7 @@ const estimertKostnad = (sakId: string) =>
 const lagSakDetaljer = ({ soknad: element, ...sak }: SakListeElement): SakDetaljer => ({
   ...sak,
   kanTildeleMeg: kanTildeles(sak),
+  kanTildeleMegSomBeslutter: beslutterTildelingHindring(sak) === null,
   forelopigVedtak: forelopigVedtakStore.get(sak.sakId) ?? null,
   soknad: {
     soknadId: element.soknadId,
@@ -667,6 +783,40 @@ export const handlers = [
     mockSak.saksbehandlerIdent = mockInnloggetAnsatt.id;
     mockSak.saksbehandlerNavn = mockInnloggetAnsatt.navn;
     if (mockSak.status === "OPPRETTET") mockSak.status = "UNDER_BEHANDLING";
+    return new HttpResponse(null, { status: 202 });
+  }),
+  http.post("/api/saksbehandling/v1/saker/:sakId/tildeling/beslutter", ({ params }) => {
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
+    switch (beslutterTildelingHindring(sak)) {
+      case "MANGLER_ROLLE":
+        return HttpResponse.json(
+          { kode: "MANGLER_ROLLE", begrunnelse: "krever rolle beslutter" },
+          { status: 403 }
+        );
+      case "UGYLDIG_STATUS":
+        return HttpResponse.json(
+          {
+            kode: "SAK_UGYLDIG_STATUS",
+            message: `Saken kan ikke tildeles beslutter med status ${sak.status}`,
+          },
+          { status: 409 }
+        );
+      case "INHABIL":
+        return HttpResponse.json(
+          {
+            kode: "BESLUTTER_INHABIL",
+            begrunnelse: "Du sendte det foreløpige vedtaket og kan ikke være beslutter på saken",
+          },
+          { status: 403 }
+        );
+      case "HAR_SAKEN_ALLEREDE":
+        return new HttpResponse(null, { status: 202 });
+    }
+
+    const mockSak = mockSaker.find((s) => s.sakId === sak.sakId)!;
+    mockSak.beslutterIdent = mockInnloggetAnsatt.id;
+    mockSak.beslutterNavn = mockInnloggetAnsatt.navn;
     return new HttpResponse(null, { status: 202 });
   }),
   http.delete("/api/saksbehandling/v1/saker/:sakId/tildeling", ({ params }) => {
