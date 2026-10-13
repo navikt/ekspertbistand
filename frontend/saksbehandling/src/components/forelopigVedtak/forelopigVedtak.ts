@@ -14,6 +14,12 @@ export type Mottaker = "deltaker" | "arbeidsgiver";
 
 export const harBegrunnelseTilArbeidsgiver = (utfall: ForelopigUtfall) => utfall !== "INNVILGE";
 
+/** «Tilpass» bare der feltet starter med en standardtekst, dvs. til arbeidsgiver ved redusert beløp. */
+export const begrunnelseLabel = (utfall: ForelopigUtfall, mottaker: Mottaker) =>
+  mottaker === "arbeidsgiver" && utfall === "INNVILGE_REDUSERT"
+    ? "Arbeidsgiver - tilpass begrunnelse"
+    : `Begrunnelse til ${mottaker}`;
+
 export const harTiltaksperiode = (utfall: ForelopigUtfall) => utfall !== "AVSLAA";
 
 /** Skjemaet holdes i `SakPage`, slik at fanebytte og «Forrige» ikke mister det som er skrevet. */
@@ -118,8 +124,8 @@ export function flettStandardtekst(
 }
 
 /**
- * Teksten saksbehandler har skrevet. Ellers standardteksten flettet med dagens beløp for
- * arbeidsgiver, og tom tekst for deltaker.
+ * Teksten saksbehandler har skrevet. Ellers standardteksten til arbeidsgiver flettet med dagens
+ * beløp, eller tom tekst der det ikke finnes standardtekst.
  */
 export function begrunnelse(
   tilstand: ForelopigVedtakSkjemaTilstand,

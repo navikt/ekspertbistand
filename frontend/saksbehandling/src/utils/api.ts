@@ -58,3 +58,52 @@ export async function fetchJson<T>(input: string, init?: RequestInit): Promise<T
 
   return handleResponse<T>(response);
 }
+
+function nedlastingsfilnavn(response: Response): string {
+  const contentDisposition = response.headers.get("Content-Disposition") ?? "";
+  const match = /(?:^|;)\s*filename=(?:"([^"]+)"|([^;\s]+))/i.exec(contentDisposition);
+  const filnavn = match?.[1] ?? match?.[2] ?? "";
+  return /^[a-z0-9._-]{1,90}\.pdf$/i.test(filnavn) ? filnavn : "refusjonsvedlegg.pdf";
+}
+
+export async function lastNedPdf(input: string, signal: AbortSignal): Promise<void> {
+  const response = await fetch(input, {
+    signal,
+    cache: "no-store",
+    headers: { Accept: "application/pdf" },
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      redirectToLogin();
+    }
+    throw new HttpError("Kunne ikke laste ned vedlegget.", {
+      status: response.status,
+      statusText: response.statusText,
+    });
+  }
+
+  if (!/^application\/pdf(?:\s*;|$)/i.test(response.headers.get("Content-Type") ?? "")) {
+    throw new Error("Serveren returnerte ikke en PDF.");
+  }
+
+  const blob = await response.blob();
+  if (signal.aborted) {
+    throw new DOMException("Nedlastingen ble avbrutt.", "AbortError");
+  }
+
+  const objektUrl = URL.createObjectURL(blob);
+  try {
+    const lenke = document.createElement("a");
+    lenke.href = objektUrl;
+    lenke.download = nedlastingsfilnavn(response);
+    document.body.appendChild(lenke);
+    try {
+      lenke.click();
+    } finally {
+      lenke.remove();
+    }
+  } finally {
+    window.setTimeout(() => URL.revokeObjectURL(objektUrl), 10_000);
+  }
+}

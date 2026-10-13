@@ -269,9 +269,10 @@ fun JdbcTransaction.publiserForelopigVedtak(
 }
 
 /**
- * Leser standardtekstene og sjekker at hvert utfall med begrunnelse til arbeidsgiver har en tekst
- * som ikke er blank, og at ingen andre utfall har tekst. Kaster ved feil, så appen ikke starter.
- * Begrunnelsen til deltaker har ingen standardtekst, fordi den skal skrives for hver enkelt.
+ * Leser standardtekstene og sjekker at akkurat [UTFALL_MED_STANDARDTEKST] har en tekst til
+ * arbeidsgiver som ikke er blank. Kaster ved feil, så appen ikke starter. Begrunnelsen til
+ * deltaker, og til arbeidsgiver ved avslag, har ingen standardtekst, fordi den skal skrives for
+ * hver enkelt.
  */
 internal fun lastStandardtekster(ressurs: String = STANDARDTEKSTER_RESSURS): Map<ForelopigUtfall, Standardtekst> {
     val innhold = requireNotNull(ForelopigVedtakOppsett::class.java.getResource(ressurs)) {
@@ -279,9 +280,8 @@ internal fun lastStandardtekster(ressurs: String = STANDARDTEKSTER_RESSURS): Map
     }.readText()
     val tekster = Json.decodeFromString<Map<ForelopigUtfall, Standardtekst>>(innhold)
 
-    val utfallMedTekst = ForelopigUtfall.entries.filter { it.harBegrunnelseTilArbeidsgiver }.toSet()
-    require(tekster.keys == utfallMedTekst) {
-        "Standardtekster skal finnes for $utfallMedTekst, fant ${tekster.keys}"
+    require(tekster.keys == UTFALL_MED_STANDARDTEKST) {
+        "Standardtekster skal finnes for $UTFALL_MED_STANDARDTEKST, fant ${tekster.keys}"
     }
     tekster.forEach { (utfall, tekst) ->
         require(tekst.arbeidsgiver.isNotBlank()) { "Mangler standardtekst til arbeidsgiver for $utfall" }
@@ -289,8 +289,7 @@ internal fun lastStandardtekster(ressurs: String = STANDARDTEKSTER_RESSURS): Map
     return tekster
 }
 
-private val ForelopigUtfall.harBegrunnelseTilArbeidsgiver: Boolean
-    get() = this != ForelopigUtfall.INNVILGE
+private val UTFALL_MED_STANDARDTEKST = setOf(ForelopigUtfall.INNVILGE_REDUSERT)
 
 @Serializable
 data class ForelopigVedtakRequest(

@@ -30,6 +30,7 @@ import {
   type Mottaker,
   UTFALL_TEKST,
   begrunnelse,
+  begrunnelseLabel,
   fraIsoDato,
   harBegrunnelseTilArbeidsgiver,
   harTiltaksperiode,
@@ -64,11 +65,6 @@ const FELT_ID: Record<Exclude<FeltId, "utfall">, string> = {
 };
 
 const radioId = (utfall: ForelopigUtfall) => `forelopig-vedtak-utfall-${utfall}`;
-
-const BEGRUNNELSE_LABEL: Record<Mottaker, string> = {
-  deltaker: "Deltaker - tilpass begrunnelse",
-  arbeidsgiver: "Arbeidsgiver - tilpass begrunnelse",
-};
 
 export default function ForelopigVedtakSkjema(props: Props) {
   const { oppsett, error, isLoading } = useForelopigVedtakOppsett();
@@ -191,10 +187,10 @@ function Skjema({
     }));
   };
 
-  const begrunnelsefelt = (mottaker: Mottaker, verdi: string) => (
+  const begrunnelsefelt = (utfall: ForelopigUtfall, mottaker: Mottaker, verdi: string) => (
     <Textarea
       id={FELT_ID[mottaker]}
-      label={BEGRUNNELSE_LABEL[mottaker]}
+      label={begrunnelseLabel(utfall, mottaker)}
       description={`Teksten blir synlig i vedtaksbrevet til ${mottaker}.`}
       value={verdi}
       onChange={(e) => endreBegrunnelse(mottaker, e.target.value)}
@@ -276,9 +272,9 @@ function Skjema({
             </Fieldset>
           )}
 
-          {begrunnelsefelt("deltaker", begrunnelseDeltaker)}
+          {begrunnelsefelt(utfall, "deltaker", begrunnelseDeltaker)}
           {harBegrunnelseTilArbeidsgiver(utfall) &&
-            begrunnelsefelt("arbeidsgiver", begrunnelseArbeidsgiver)}
+            begrunnelsefelt(utfall, "arbeidsgiver", begrunnelseArbeidsgiver)}
         </>
       )}
 

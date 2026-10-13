@@ -29,10 +29,10 @@ class ForelopigVedtakOppsettTest {
     private val url = "/api/saksbehandling/v1/forelopig-vedtak/oppsett"
 
     @Test
-    fun `standardtekstene har tekst til arbeidsgiver for redusert beløp og avslag`() {
+    fun `standardtekstene har bare tekst til arbeidsgiver for redusert beløp`() {
         val tekster = lastStandardtekster()
 
-        assertEquals(setOf(ForelopigUtfall.INNVILGE_REDUSERT, ForelopigUtfall.AVSLAA), tekster.keys)
+        assertEquals(setOf(ForelopigUtfall.INNVILGE_REDUSERT), tekster.keys)
         assertTrue(tekster.values.all { it.arbeidsgiver.isNotBlank() })
     }
 

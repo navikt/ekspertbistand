@@ -105,11 +105,83 @@ class VedleggDb(private val database: Database) {
                 )
             }
     }
+
+    /** Henter metadata for sluttrapporten til nyeste parent for saken, uten å lese filinnholdet. */
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    fun finnSluttrapportMetadataForSak(sakId: UUID): SluttrapportMetadata? = transaction(database) {
+        val sluttrapportId = SluttrapportTable
+            .select(SluttrapportTable.id)
+            .where { SluttrapportTable.sakId eq sakId }
+            .orderBy(
+                SluttrapportTable.opprettet to SortOrder.DESC,
+                SluttrapportTable.id to SortOrder.DESC,
+            )
+            .limit(1)
+            .singleOrNull()
+            ?.get(SluttrapportTable.id)
+            ?: return@transaction null
+
+        VedleggTable
+            .select(VedleggTable.filnavn, VedleggTable.lastetOpp)
+            .where {
+                (VedleggTable.sluttrapportId eq sluttrapportId) and
+                    (VedleggTable.type eq VedleggType.SLUTTRAPPORT.name)
+            }
+            .orderBy(
+                VedleggTable.lastetOpp to SortOrder.ASC,
+                VedleggTable.id to SortOrder.ASC,
+            )
+            .limit(1)
+            .singleOrNull()
+            ?.let {
+                SluttrapportMetadata(
+                    filnavn = it[VedleggTable.filnavn],
+                    lastetOpp = it[VedleggTable.lastetOpp].toString(),
+                )
+            }
+    }
+
+    /** Henter filinnhold bare når det er knyttet til nyeste sluttrapport for saken. */
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    fun hentNyesteSluttrapportForSak(sakId: UUID): SluttrapportInnhold? = transaction(database) {
+        val sluttrapportId = SluttrapportTable
+            .select(SluttrapportTable.id)
+            .where { SluttrapportTable.sakId eq sakId }
+            .orderBy(
+                SluttrapportTable.opprettet to SortOrder.DESC,
+                SluttrapportTable.id to SortOrder.DESC,
+            )
+            .limit(1)
+            .singleOrNull()
+            ?.get(SluttrapportTable.id)
+            ?: return@transaction null
+
+        VedleggTable
+            .select(VedleggTable.filnavn, VedleggTable.innhold)
+            .where {
+                (VedleggTable.sluttrapportId eq sluttrapportId) and
+                    (VedleggTable.type eq VedleggType.SLUTTRAPPORT.name)
+            }
+            .orderBy(
+                VedleggTable.lastetOpp to SortOrder.ASC,
+                VedleggTable.id to SortOrder.ASC,
+            )
+            .limit(1)
+            .singleOrNull()
+            ?.let {
+                SluttrapportInnhold(
+                    filnavn = it[VedleggTable.filnavn],
+                    innhold = it[VedleggTable.innhold],
+                )
+            }
+    }
 }
 
 data class SluttrapportMetadata(
     val filnavn: String,
     val lastetOpp: String,
 )
+
+data class SluttrapportInnhold(val filnavn: String, val innhold: ByteArray)
 
 enum class VedleggType { SLUTTRAPPORT, REFUSJONSDOKUMENTASJON }

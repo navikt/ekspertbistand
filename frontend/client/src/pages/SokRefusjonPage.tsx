@@ -33,6 +33,7 @@ import { useSoknad } from "../hooks/useSoknad";
 import { useRefusjonStatus } from "../hooks/useRefusjonStatus";
 import { useKontonummerFinnes } from "../hooks/useKontonummerFinnes";
 import { formatDate } from "../components/summaryFormatters";
+import { formatDateTime } from "../utils/date";
 import { formatBytes } from "../utils/format";
 import {
   EKSPERTBISTAND_REFUSJON_PATH,
@@ -198,13 +199,15 @@ export default function SokRefusjonPage() {
             Refusjonskrav sendt inn
           </Heading>
 
-          <ExpansionCard aria-label="Refusjonskrav sendt inn" defaultOpen>
+          <ExpansionCard aria-label="Opplysninger om refusjonskravet" defaultOpen>
             <ExpansionCard.Header>
               <VStack gap="space-8">
                 <FileTextIcon aria-hidden fontSize="1.5rem" />
-                <ExpansionCard.Title size="small">Refusjonskrav sendt inn</ExpansionCard.Title>
+                <ExpansionCard.Title size="small">
+                  Opplysninger om refusjonskravet
+                </ExpansionCard.Title>
                 <ExpansionCard.Description>
-                  {formatDate(refusjon.opprettet)}
+                  {formatDateTime(refusjon.opprettet) ?? "–"}
                 </ExpansionCard.Description>
               </VStack>
             </ExpansionCard.Header>
@@ -246,7 +249,7 @@ export default function SokRefusjonPage() {
                 </VStack>
                 <VStack gap="space-2">
                   <Label>Sendt inn til Nav</Label>
-                  <BodyShort>{formatDate(refusjon.opprettet)}</BodyShort>
+                  <BodyShort>{formatDateTime(refusjon.opprettet) ?? "–"}</BodyShort>
                 </VStack>
               </VStack>
             </ExpansionCard.Content>
