@@ -29,6 +29,8 @@ mvn -f backend/pom.xml verify
 
 Testene når Gotenberg på `http://localhost:3003`. I CI kjører Gotenberg som service-container i `cicd-backend.yaml`. Testcontainers brukes ikke.
 
+`LocalApplication` lager PDF-er med Gotenberg på samme port når den svarer på `/health`. Ellers svarer den med en PDF som sier at Gotenberg ikke kjører, så forhåndsvisningene i frontend fortsatt vises.
+
 Hver DB-test får sin egen database (`eb_test_*`) via `TestDatabase.isolert()` eller `testApplicationWithDatabase`. Skjemaet migreres én gang per JVM til en maldatabase, og hver test kopierer den med `CREATE DATABASE ... TEMPLATE`. Databasene slettes når testen og JVM-en avslutter. Databaser etter drepte kjøringer slettes ved neste kjøring når de er eldre enn 24 timer. `LocalApplication` bruker fortsatt den faste databasen `ekspertbistand`.
 
 ### Visuell sammenligning

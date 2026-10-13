@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand
 
 import io.ktor.client.*
+import io.ktor.client.engine.cio.*
 import io.ktor.client.engine.mock.*
 import io.ktor.content.*
 import io.ktor.http.*
@@ -30,7 +31,7 @@ import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
-import no.nav.ekspertbistand.mocks.StubPdfKonverterer
+import no.nav.ekspertbistand.mocks.LokalPdfKonverterer
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
 import no.nav.ekspertbistand.norg.NorgKlient
@@ -150,7 +151,7 @@ fun main() {
         tokenExchanger = successTokenXTokenExchanger
     )
     val mockEregClient = EregClient(defaultHttpClient = mockEregServer)
-    val mockDokumentService = DokumentService(StubPdfKonverterer())
+    val mockDokumentService = DokumentService(LokalPdfKonverterer(HttpClient(CIO)))
     val mockDokArkivClient = DokArkivClient(
         azureAdTokenProvider = successAzureAdTokenProvider,
         defaultHttpClient = HttpClient(MockEngine {
