@@ -16,6 +16,10 @@ export const SAKSBEHANDLING_FORELOPIG_VEDTAK_FORHANDSVISNING_URL = (sakId: strin
   `/api/saksbehandling/v1/saker/${sakId}/forelopig-vedtak/forhandsvisning`;
 export const SAKSBEHANDLING_FORELOPIG_VEDTAK_BREV_URL = (sakId: string, mottaker: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/forelopig-vedtak/brev/${mottaker}`;
+export const SAKSBEHANDLING_VEDTAK_URL = (sakId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/vedtak`;
+export const SAKSBEHANDLING_RETUR_URL = (sakId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/retur`;
 export const SAKSBEHANDLING_REFUSJON_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/refusjon`;
 export const SAKSBEHANDLING_REFUSJON_VEDLEGG_URL = (sakId: string, vedleggId: string) =>

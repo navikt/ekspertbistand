@@ -40,7 +40,12 @@ function rader(sak: SakDetaljer, vedtak: ForelopigVedtak): Rad[] {
   }
 }
 
-export default function ForelopigVedtakKvittering({ sak, vedtak }: Props) {
+export function Kvittering({
+  sak,
+  vedtak,
+  tittel,
+  tekst,
+}: Props & { tittel: string; tekst: string }) {
   return (
     <Box paddingBlock="space-40" paddingInline="space-24">
       <VStack gap="space-32" align="center" marginInline="auto" maxWidth="32rem">
@@ -51,12 +56,9 @@ export default function ForelopigVedtakKvittering({ sak, vedtak }: Props) {
         />
         <VStack gap="space-16" align="center">
           <Heading level="1" size="large" align="center">
-            Foreløpig vedtak sendt til beslutter
+            {tittel}
           </Heading>
-          <BodyLong align="center">
-            Saken er oversendt beslutter for godkjenning. Arbeidsgiver og deltaker vil bli varslet
-            etter endelig godkjenning.
-          </BodyLong>
+          <BodyLong align="center">{tekst}</BodyLong>
         </VStack>
         <Box background="neutral-soft" paddingInline="space-16" borderRadius="4" width="100%">
           <Table size="small">
@@ -82,5 +84,15 @@ export default function ForelopigVedtakKvittering({ sak, vedtak }: Props) {
         </Link>
       </VStack>
     </Box>
+  );
+}
+
+export default function ForelopigVedtakKvittering(props: Props) {
+  return (
+    <Kvittering
+      {...props}
+      tittel="Foreløpig vedtak sendt til beslutter"
+      tekst="Saken er oversendt beslutter for godkjenning. Arbeidsgiver og deltaker vil bli varslet etter endelig godkjenning."
+    />
   );
 }

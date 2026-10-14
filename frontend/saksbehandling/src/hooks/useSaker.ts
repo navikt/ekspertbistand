@@ -2,7 +2,7 @@ import useSWR from "swr";
 import { SAKSBEHANDLING_SAKER_URL } from "../utils/constants";
 import { HttpError } from "../utils/http";
 
-export type SoknadStatus = "innsendt" | "godkjent" | "avlyst";
+export type SoknadStatus = "innsendt" | "godkjent" | "avslatt" | "avlyst";
 
 export type Saksstatus =
   "OPPRETTET" | "UNDER_BEHANDLING" | "TIL_BESLUTNING" | "INNVILGET" | "AVSLATT" | "AVSLUTTET";
@@ -10,7 +10,7 @@ export type Saksstatus =
 export type KildeTilBehandling = "EKSPERTBISTAND" | "ARENA";
 
 /** Null på saken betyr at den ikke har noen oppgave. */
-export type Oppgavetype = "SOKNAD" | "SOKNAD_BESLUTTER";
+export type Oppgavetype = "SOKNAD" | "SOKNAD_RETUR" | "SOKNAD_BESLUTTER";
 
 export type Tildelingsrolle = "saksbehandler" | "beslutter";
 
@@ -18,6 +18,7 @@ export type Tildelingsrolle = "saksbehandler" | "beslutter";
 export const rolleForOppgave = (oppgavetype: Oppgavetype | null): Tildelingsrolle | null => {
   switch (oppgavetype) {
     case "SOKNAD":
+    case "SOKNAD_RETUR":
       return "saksbehandler";
     case "SOKNAD_BESLUTTER":
       return "beslutter";
