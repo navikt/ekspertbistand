@@ -7,15 +7,17 @@ Separat frontend-app for saksbehandling.
 - Kjør `pnpm install` fra rotmappen
 - Start appen med `pnpm dev:saksbehandling`
 
-## Kjøre mot LocalApplication med to brukere
+## Kjøre mot LocalApplication med flere brukere
 
-`LocalApplication.kt` i backend har to saksbehandlere. Begge har rollene
-saksbehandler og beslutter, og tilgang til samme enheter:
+`LocalApplication.kt` i backend har fire saksbehandlere med tilgang til samme
+enheter:
 
-| Ident | Navn |
-|-------|------|
-| `A123456` | Ola Nordmann |
-| `B654321` | Kari Beslutter |
+| Ident | Navn | Roller |
+|-------|------|--------|
+| `A123456` | Ola Nordmann | saksbehandler og beslutter |
+| `B654321` | Kari Beslutter | saksbehandler og beslutter |
+| `P123456` | Per Baresaksbehandler | saksbehandler |
+| `L654321` | Lisa Barebeslutter | beslutter |
 
 1. Start `LocalApplication.kt`.
 2. Kjør `VITE_ENABLE_MOCKS=false pnpm serve:saksbehandling` fra rotmappen og

@@ -9,6 +9,8 @@ export type LokalBruker = { navIdent: string; navn: string };
 export const lokaleBrukere: ReadonlyArray<LokalBruker> = [
   { navIdent: "A123456", navn: "Ola Nordmann" },
   { navIdent: "B654321", navn: "Kari Beslutter" },
+  { navIdent: "P123456", navn: "Per Baresaksbehandler" },
+  { navIdent: "L654321", navn: "Lisa Barebeslutter" },
 ];
 
 export function lesLokalBruker(cookieHeader: string | undefined): string | undefined {
