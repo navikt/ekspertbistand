@@ -27,9 +27,8 @@ function feilmelding(error: HttpError) {
 
 function formatDato(opprettet: string) {
   return new Intl.DateTimeFormat("nb-NO", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
+    dateStyle: "long",
+    timeStyle: "short",
   }).format(new Date(opprettet));
 }
 
@@ -76,7 +75,7 @@ export default function SluttrapportVisning({
         )}
 
         <VStack gap="space-4">
-          <BodyShort weight="semibold">Sendt inn til Nav</BodyShort>
+          <BodyShort weight="semibold">Sendt inn</BodyShort>
           <BodyShort>{formatDato(sluttrapport.opprettet)}</BodyShort>
         </VStack>
 
