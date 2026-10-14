@@ -227,7 +227,11 @@ fun Application.configureServer() {
                     log.error("Avviste ugyldig input i felt '{}': {}", cause.feltsti, cause.aarsak)
                     call.respond(
                         HttpStatusCode.BadRequest,
-                        "Ugyldig verdi i felt '${cause.feltsti}': ${cause.aarsak}",
+                        mapOf(
+                            "kode" to UGYLDIG_INPUT,
+                            "message" to "Ugyldig verdi i felt '${cause.feltsti}': ${cause.aarsak}",
+                            "felt" to cause.feltsti,
+                        ),
                     )
                 }
 

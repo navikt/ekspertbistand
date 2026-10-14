@@ -610,6 +610,33 @@ function hentVilkårsvurdering(sakId: string): VilkarsvurderingDTO[] {
 const erMottaker = (verdi: string | null): verdi is Mottaker =>
   verdi === "deltaker" || verdi === "arbeidsgiver";
 
+// Speiler backend sin `valider()` for `<` og `>`: første tekstfelt med brudd gir 400 med feltstien.
+function ugyldigInput(verdi: unknown, sti = ""): Response | null {
+  if (typeof verdi === "string") {
+    if (!/[<>]/.test(verdi)) return null;
+    return HttpResponse.json(
+      {
+        kode: "UGYLDIG_INPUT",
+        message: `Ugyldig verdi i felt '${sti}': inneholder < eller >`,
+        felt: sti,
+      },
+      { status: 400 }
+    );
+  }
+  if (Array.isArray(verdi)) {
+    for (const [index, element] of verdi.entries()) {
+      const feil = ugyldigInput(element, `${sti}[${index}]`);
+      if (feil) return feil;
+    }
+  } else if (verdi && typeof verdi === "object") {
+    for (const [nøkkel, barn] of Object.entries(verdi)) {
+      const feil = ugyldigInput(barn, sti ? `${sti}.${nøkkel}` : nøkkel);
+      if (feil) return feil;
+    }
+  }
+  return null;
+}
+
 async function mockVedtaksbrev() {
   const pdf = await fetch(bypass("/mock/eksempel.pdf")).then((r) => r.arrayBuffer());
   return new HttpResponse(pdf, {
@@ -735,6 +762,8 @@ export const handlers = [
     if (typeof vilkar !== "string" || !(godkjent === null || typeof godkjent === "boolean")) {
       return HttpResponse.json({ message: "ugyldig vilkårsvurdering" }, { status: 400 });
     }
+    const feil = ugyldigInput(body);
+    if (feil) return feil;
     if (sak.kildeTilBehandling === "ARENA") {
       return HttpResponse.json({ message: "fant ikke vilkår på saken" }, { status: 404 });
     }
@@ -780,6 +809,8 @@ export const handlers = [
           { status: 403 }
         );
       }
+      const feil = ugyldigInput(await request.json().catch(() => null));
+      if (feil) return feil;
       return mockVedtaksbrev();
     }
   ),
@@ -811,6 +842,8 @@ export const handlers = [
 
       const body = await request.json().catch(() => null);
       const ugyldig = () => HttpResponse.json({ message: "ugyldig input" }, { status: 400 });
+      const feil = ugyldigInput(body);
+      if (feil) return feil;
       const utfall = body?.utfall;
       if (
         !body ||

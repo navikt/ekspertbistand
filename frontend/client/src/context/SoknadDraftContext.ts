@@ -10,6 +10,7 @@ export type SoknadDraftContextValue = {
   saveDraft: (snapshot: SoknadInputs) => void;
   clearDraft: () => Promise<void>;
   lastPersistedAt: Date | null;
+  saveError: string | null;
 };
 
 export const SoknadDraftContext = createContext<SoknadDraftContextValue | undefined>(undefined);

@@ -12,8 +12,26 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const MIN_ESTIMERT_KOSTNAD = 0;
 export const MAX_ESTIMERT_KOSTNAD = 100_000;
+export const MAKS_TEKST_LENGDE = 10_000;
 
-const trimmedText = (message: string) => z.string().trim().min(1, { message });
+// Speiler standardTekstSjekker i backend (InputValidering.kt), så brukeren får feilen på feltet
+// i stedet for at lagringen avvises med 400.
+const kontrolltegnPattern = /[^\P{Cc}\t\n\r]/u;
+const formattegnPattern = /\p{Cf}/u;
+
+const trimmedText = (message: string) =>
+  z
+    .string()
+    .refine((value) => !/[<>]/.test(value), { message: "Teksten kan ikke inneholde < eller >." })
+    .refine((value) => !kontrolltegnPattern.test(value) && !formattegnPattern.test(value), {
+      message:
+        "Teksten inneholder usynlige tegn. Skriv inn teksten på nytt i stedet for å lime den inn.",
+    })
+    .refine((value) => value.length <= MAKS_TEKST_LENGDE, {
+      message: "Teksten kan ikke være lengre enn 10 000 tegn.",
+    })
+    .trim()
+    .min(1, { message });
 
 const emailField = trimmedText("Du må fylle ut e-post.").refine(
   (value) => emailPattern.test(value),

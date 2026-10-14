@@ -376,6 +376,13 @@ class SoknadTest {
             }
         ) {
             assertEquals(HttpStatusCode.BadRequest, status)
+            val feil = body<Map<String, String>>()
+            assertEquals(UGYLDIG_INPUT, feil["kode"])
+            assertEquals("virksomhet.kontaktperson.navn", feil["felt"])
+            assertEquals(
+                "Ugyldig verdi i felt 'virksomhet.kontaktperson.navn': inneholder < eller >",
+                feil["message"],
+            )
         }
 
         // put med gyldig payload gir 200 og soknad i retur

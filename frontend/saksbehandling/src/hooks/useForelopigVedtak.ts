@@ -45,7 +45,7 @@ function feilmelding(e: unknown): Error {
   if (e instanceof HttpError) {
     switch (e.status) {
       case 400:
-        return new Error("Sjekk feltene og prøv igjen.");
+        return new Error(e.message);
       case 403:
         return new Error(
           e.begrunnelse ?? "Du har ikke tilgang til å fatte foreløpig vedtak i denne saken."

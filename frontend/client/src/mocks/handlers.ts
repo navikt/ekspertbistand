@@ -407,6 +407,32 @@ const getParamValue = (value: string | readonly string[] | undefined): string | 
   return typeof value === "string" ? value : (value[0] ?? null);
 };
 
+const ugyldigInput = (verdi: unknown, sti = ""): Response | null => {
+  if (typeof verdi === "string") {
+    if (!/[<>]/.test(verdi)) return null;
+    return HttpResponse.json(
+      {
+        kode: "UGYLDIG_INPUT",
+        message: `Ugyldig verdi i felt '${sti}': inneholder < eller >`,
+        felt: sti,
+      },
+      { status: 400 }
+    );
+  }
+  if (Array.isArray(verdi)) {
+    for (const [index, element] of verdi.entries()) {
+      const feil = ugyldigInput(element, `${sti}[${index}]`);
+      if (feil) return feil;
+    }
+  } else if (verdi && typeof verdi === "object") {
+    for (const [nøkkel, barn] of Object.entries(verdi)) {
+      const feil = ugyldigInput(barn, sti ? `${sti}.${nøkkel}` : nøkkel);
+      if (feil) return feil;
+    }
+  }
+  return null;
+};
+
 const loginSessionJson = {
   session: {
     ends_in_seconds: 3600,
@@ -723,6 +749,8 @@ export const handlers = [
     } catch {
       return HttpResponse.json({ message: "ugyldig payload" }, { status: 400 });
     }
+    const ugyldig = ugyldigInput(payload);
+    if (ugyldig) return ugyldig;
     entry.data = mergeInputs(entry.data as Partial<SoknadInputs>, payload);
     skjemaStore.set(id, entry);
     await persistSkjemaStore();
@@ -758,6 +786,8 @@ export const handlers = [
     } catch {
       return HttpResponse.json({ message: "ugyldig payload" }, { status: 400 });
     }
+    const ugyldig = ugyldigInput(payload);
+    if (ugyldig) return ugyldig;
     entry.data = payload;
     entry.status = "innsendt";
     entry.innsendtTidspunkt = nowIso();
