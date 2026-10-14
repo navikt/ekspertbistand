@@ -208,7 +208,7 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
 
 export default function OppsummeringPage() {
   const navigate = useNavigate();
-  const { draftId, draft: formData, clearDraft, lastPersistedAt } = useSoknadDraft();
+  const { draftId, draft: formData, clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
   const { goToSoknader, goToSoknaderWithSaveNotice, goToStep1, goToStep2, createLinkHandler } =
     useSkjemaNavigation();
   const [submitError, setSubmitError] = useState<ApiErrorInfo | null>(null);
@@ -300,7 +300,7 @@ export default function OppsummeringPage() {
         />
 
         <VStack gap="space-16">
-          <SistLagretInfo timestamp={lastPersistedAt} />
+          <SistLagretInfo timestamp={lastPersistedAt} saveError={saveError} />
           <HGrid
             gap={{ xs: "space-32", sm: "space-16" }}
             columns={{ xs: 1, sm: 2 }}

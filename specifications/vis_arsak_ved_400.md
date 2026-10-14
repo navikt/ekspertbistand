@@ -125,9 +125,10 @@ tegn er `\p{Cf}`. Det matcher `isISOControl` og `Character.FORMAT` i backend.
 ### 4. Søknad: vis at utkastet ikke ble lagret
 
 - `SoknadDraftProvider` holder `saveError: string | null`. En feilet `PATCH`
-  setter den til meldingen fra `HttpError`, eller «Utkastet ble ikke lagret.
-  Prøv igjen senere.» når feilen ikke er en `HttpError`. Neste vellykkede
-  lagring nullstiller den.
+  setter den til meldingen fra `HttpError`, eller «Prøv igjen senere.» når
+  feilen ikke er en `HttpError`. Neste vellykkede lagring nullstiller den. Bare
+  den siste lagringen bestemmer `saveError`, så et sent svar på en eldre
+  lagring ikke overskriver resultatet.
 - `SoknadDraftContext` får `saveError`.
 - `SistLagretInfo` får `saveError` og viser en inline `Alert` (`variant="error"`,
   `size="small"`) med «Utkastet ble ikke lagret: {saveError}» under «Sist lagret».
@@ -189,11 +190,11 @@ Svarene står under *Beslutninger*.
 
 ## Ferdig når
 
-- [ ] `UgyldigInputException` gir 400 med JSON (`kode`, `message`, `felt`)
+- [x] `UgyldigInputException` gir 400 med JSON (`kode`, `message`, `felt`)
 - [ ] Vilkårsvurdering med `<` viser meldingen fra backend
 - [ ] Foreløpig vedtak med ugyldig felt viser meldingen fra backend
 - [ ] Forhåndsvisning av vedtaksbrev med ugyldig felt viser meldingen fra backend
-- [ ] Søknadsfelt med `<`, `>`, usynlige tegn eller over 10 000 tegn får feil på feltet
+- [x] Søknadsfelt med `<`, `>`, usynlige tegn eller over 10 000 tegn får feil på feltet
 - [ ] Feilet autolagring vises ved «Sist lagret», og forsvinner etter neste vellykkede lagring
-- [ ] Backend-testene og `pnpm test:run` i `frontend/client` er grønne
-- [ ] `pnpm typecheck` og `pnpm lint` er grønne i `frontend/client` og `frontend/saksbehandling`
+- [x] Backend-testene og `pnpm test:run` i `frontend/client` er grønne
+- [x] `pnpm typecheck` og `pnpm lint` er grønne i `frontend/client` og `frontend/saksbehandling`
