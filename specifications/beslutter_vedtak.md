@@ -654,19 +654,19 @@ Ingen. Spørsmålene er besvart av Ken 2026-10-14 og flyttet til *Beslutninger*,
 
 ## Ferdig når
 
-- [ ] API-ene publiserer `VedtakFattet` og `ForelopigVedtakReturnert` og skriver ikke selv til `sak`, `vedtak` eller `sak_retur`
-- [ ] Bare tildelt beslutter med tilgang (enhet, Tilgangsmaskinen `KJERNE`) kan fatte vedtak eller returnere, bare fra `TIL_BESLUTNING`, bare på siste versjon, og bare på saker med kilde `EKSPERTBISTAND`
-- [ ] Den som sendte det foreløpige vedtaket kan ikke fatte det, sjekket i API og handler, fail-closed
-- [ ] Vedtak setter `INNVILGET`/`AVSLATT` og lagrer en rad i `vedtak` med beslutter og versjon, idempotent
-- [ ] `SettSoknadStatusVedtakFattet` setter søknaden til `godkjent`/`avslatt` bare når vedtaket er lagret for samme event, idempotent
-- [ ] `SoknadStatus.avslatt` finnes, og arbeidsgiver ser «Avslått» i listen og «Søknad avslått» i kvitteringen. `avlyst` er uendret
-- [ ] Retur setter `UNDER_BEHANDLING`, nullstiller `foreslatt_utfall`, beholder saksbehandler og beslutter, og lagrer årsaker og forklaring i `sak_retur`, idempotent
-- [ ] Oppgavetypen «Søknad - retur» vises i listen og på saken, og kan tas av saksbehandler
-- [ ] Beslutter ser «Godkjenn» (uten bekreftelsessteg) og «Send i retur til saksbehandler», returmodalen med påkrevd årsak (én eller flere) og forklaring, og kvitteringen «Vedtak fattet» med varslingsteksten
-- [ ] Saksbehandler ser «I retur av beslutter» og et skjema forhåndsutfylt med forrige innstilling, og kan sende på nytt
-- [ ] Vedtak og retur vises i saksloggen, uten forklaringen
-- [ ] Forklaringen logges ikke
-- [ ] `sak-datamodell.md`, `listevisning.md`, `tildeling_detaljvisning.md`, `event/README.md` og `event-flow.md` er oppdatert
-- [ ] `mvn -B package` er grønn
-- [ ] `pnpm typecheck` og `pnpm lint` i `frontend/saksbehandling` er grønne
-- [ ] `pnpm typecheck`, `pnpm lint` og `pnpm test:run` i `frontend/client` er grønne
+- [x] API-ene publiserer `VedtakFattet` og `ForelopigVedtakReturnert` og skriver ikke selv til `sak`, `vedtak` eller `sak_retur`
+- [x] Bare tildelt beslutter med tilgang (enhet, Tilgangsmaskinen `KJERNE`) kan fatte vedtak eller returnere, bare fra `TIL_BESLUTNING`, bare på siste versjon, og bare på saker med kilde `EKSPERTBISTAND`
+- [x] Den som sendte det foreløpige vedtaket kan ikke fatte det, sjekket i API og handler, fail-closed
+- [x] Vedtak setter `INNVILGET`/`AVSLATT` og lagrer en rad i `vedtak` med beslutter og versjon, idempotent
+- [x] `SettSoknadStatusVedtakFattet` setter søknaden til `godkjent`/`avslatt` bare når vedtaket er lagret for samme event, idempotent
+- [x] `SoknadStatus.avslatt` finnes, og arbeidsgiver ser «Avslått» i listen og «Søknad avslått» i kvitteringen. `avlyst` er uendret
+- [x] Retur setter `UNDER_BEHANDLING`, nullstiller `foreslatt_utfall`, beholder saksbehandler og beslutter, og lagrer årsaker og forklaring i `sak_retur`, idempotent
+- [x] Oppgavetypen «Søknad - retur» vises i listen og på saken, og kan tas av saksbehandler
+- [x] Beslutter ser «Godkjenn» (uten bekreftelsessteg) og «Send i retur til saksbehandler», returmodalen med påkrevd årsak (én eller flere) og forklaring, og kvitteringen «Vedtak fattet» med varslingsteksten
+- [x] Saksbehandler ser «I retur av beslutter» og et skjema forhåndsutfylt med forrige innstilling, og kan sende på nytt
+- [x] Vedtak og retur vises i saksloggen, uten forklaringen
+- [x] Forklaringen logges ikke
+- [x] `sak-datamodell.md`, `listevisning.md`, `tildeling_detaljvisning.md`, `event/README.md` og `event-flow.md` er oppdatert
+- [x] `mvn -B package` er grønn
+- [x] `pnpm typecheck` og `pnpm lint` i `frontend/saksbehandling` er grønne
+- [x] `pnpm typecheck`, `pnpm lint` og `pnpm test:run` i `frontend/client` er grønne
