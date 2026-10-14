@@ -28,7 +28,7 @@ export default function PdfSider({ fil, bredde }: Props) {
 
   return (
     <Document
-      file={fil.url}
+      file={fil.innhold ?? fil.url}
       suspense={false}
       loading={laster}
       error={null}

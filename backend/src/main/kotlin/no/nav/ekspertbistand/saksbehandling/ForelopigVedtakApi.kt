@@ -222,7 +222,7 @@ fun JdbcTransaction.publiserForelopigVedtak(
         return PubliserForelopigVedtakResultat.Avvist(VILKAR_IKKE_VURDERT, "Alle vilkår må være vurdert")
     }
 
-    val soknadssum = sak[SoknadTable.behovForBistandEstimertKostnad].trim().toIntOrNull()?.takeIf { it > 0 }
+    val soknadssum = tolkSoknadssum(sak[SoknadTable.behovForBistandEstimertKostnad])
         ?: return PubliserForelopigVedtakResultat.Avvist(
             UGYLDIG_SOKNADSSUM,
             "Søknadssummen kan ikke tolkes som et beløp",

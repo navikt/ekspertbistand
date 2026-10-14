@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Vedtaksbrev på foreløpig vedtak",
+  "type": "object",
+  "properties": {
+    "dato": {
+      "type": "string"
+    },
+    "deltaker": {
+      "type": "object",
+      "properties": {
+        "navn": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "navn"
+      ]
+    },
+    "arbeidsgiver": {
+      "type": "object",
+      "properties": {
+        "navn": {
+          "type": "string"
+        },
+        "orgnr": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "navn",
+        "orgnr"
+      ]
+    },
+    "soknadssum": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "innvilgetBelop": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tiltaksperiode": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "fra": {
+          "type": "string"
+        },
+        "til": {
+          "type": "string"
+        }
+      }
+    },
+    "refusjonsfrist": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "begrunnelse": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "navEnhet": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "saksbehandler": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "dato",
+    "deltaker",
+    "arbeidsgiver",
+    "soknadssum",
+    "innvilgetBelop",
+    "tiltaksperiode",
+    "refusjonsfrist",
+    "begrunnelse",
+    "navEnhet",
+    "saksbehandler"
+  ]
+}

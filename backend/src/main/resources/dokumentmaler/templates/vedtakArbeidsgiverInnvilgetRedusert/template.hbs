@@ -1,0 +1,40 @@
+{{> felles/vedtakHodeArbeidsgiver}}
+
+<h1>Dere har fått innvilget lavere tilskudd til ekspertbistand enn dere søkte om</h1>
+
+<p>Nav har vurdert søknaden deres og innvilger dette:</p>
+
+<table>
+    <tr>
+        <td class="td02">Tiltaket:</td>
+        <td>Ekspertbistand</td>
+    </tr>
+    <tr>
+        <td class="td02">Deltakeren:</td>
+        <td>{{deltaker.navn}}</td>
+    </tr>
+    <tr>
+        <td class="td02">Tiltaksperioden:</td>
+        <td>{{tiltaksperiode.fra}} - {{tiltaksperiode.til}}</td>
+    </tr>
+    <tr>
+        <td class="td02">Dere søkte om:</td>
+        <td>{{soknadssum}} kroner</td>
+    </tr>
+    <tr>
+        <td class="td02">Støtten fra Nav:</td>
+        <td>Opptil {{innvilgetBelop}} kroner</td>
+    </tr>
+</table>
+
+<br/>
+
+<p>{{begrunnelse}}</p>
+
+{{> felles/vedtakHjemmel}}
+
+{{> felles/vedtakArbeidsgiverUtbetaling}}
+
+{{> felles/vedtakArbeidsgiverKlage}}
+
+{{> felles/vedtakHilsen}}

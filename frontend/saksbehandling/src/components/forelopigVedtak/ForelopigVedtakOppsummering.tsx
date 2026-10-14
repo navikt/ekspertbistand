@@ -2,6 +2,7 @@ import { Alert, Button, HStack, Heading, Textarea, VStack } from "@navikt/ds-rea
 import type { ForelopigVedtakInput } from "../../hooks/useForelopigVedtak";
 import type { SakDetaljer } from "../../hooks/useSak";
 import { tolkSoknadssum } from "../../utils/belop";
+import Vedtaksbrev from "./Vedtaksbrev";
 import VurderingKort from "./VurderingKort";
 import { begrunnelseLabel, formatPeriode, vurderingRader } from "./forelopigVedtak";
 
@@ -58,6 +59,12 @@ export default function ForelopigVedtakOppsummering(props: Props) {
           readOnly
           minRows={2}
         />
+      )}
+
+      {props.modus === "sendt" ? (
+        <Vedtaksbrev modus="sendt" sakId={sak.sakId} versjon={sak.forelopigVedtak?.versjon ?? 0} />
+      ) : (
+        <Vedtaksbrev modus="forhandsvisning" sakId={sak.sakId} vedtak={vedtak} />
       )}
 
       {props.modus === "forhandsvisning" && (

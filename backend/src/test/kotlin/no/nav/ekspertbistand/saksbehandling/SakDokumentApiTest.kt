@@ -17,9 +17,13 @@ import no.nav.common.audit_log.cef.CefMessage
 import no.nav.common.audit_log.log.AuditLogger
 import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.configureServer
+import no.nav.ekspertbistand.dokument.DokumentService
+import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
 import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
+import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
+import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
 import no.nav.ekspertbistand.refusjon.RefusjonDb
 import no.nav.ekspertbistand.refusjon.RefusjonStatusDto
@@ -39,14 +43,18 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
+import kotlinx.datetime.LocalDate
 import org.junit.jupiter.api.Test
 import java.util.UUID
+import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 class SakDokumentApiTest {
@@ -62,6 +70,19 @@ class SakDokumentApiTest {
 
     private val sluttrapportPdf = byteArrayOf(0x25, 0x50, 0x44, 0x46, 0x2d, 0x31)
     private val refusjonPdf = byteArrayOf(0x25, 0x50, 0x44, 0x46, 0x2d, 0x32)
+    private val stubPdf = byteArrayOf(0x25, 0x50, 0x44, 0x46, 0x2d, 0x33)
+    private val fnr = "01017012345"
+    private val brevHtml = mutableListOf<String>()
+    private val redusertBody = """
+        {
+          "utfall": "INNVILGE_REDUSERT",
+          "innvilgetBelop": 15000,
+          "tiltaksperiodeFra": "2026-11-22",
+          "tiltaksperiodeTil": "2026-12-31",
+          "begrunnelseDeltaker": "Til deltaker",
+          "begrunnelseArbeidsgiver": "Til arbeidsgiver"
+        }
+    """.trimIndent()
 
     private class RecordingAuditLogger : AuditLogger {
         override fun log(message: CefMessage) = Unit
@@ -323,6 +344,211 @@ class SakDokumentApiTest {
         assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
     }
 
+    @Test
+    fun `forhåndsvisning gir brev til hver mottaker med bare mottakerens begrunnelse, og lagrer ingenting`() =
+        testApplicationWithDatabase { db ->
+            val sakId = sakUnderBehandling(db)
+            val oppsett = oppsett(db)
+
+            val deltaker = oppsett.client.forhandsvisning(sakId, "deltaker", redusertBody)
+            assertPdfResponse(deltaker, "inline", "forelopig-vedtak-deltaker.pdf", stubPdf)
+            val deltakerHtml = brevHtml.single()
+            assertTrue("Til deltaker" in deltakerHtml)
+            assertTrue("Til arbeidsgiver" !in deltakerHtml)
+            assertTrue("Ansatt NN" in deltakerHtml)
+            assertTrue(fnr !in deltakerHtml)
+
+            val arbeidsgiver = oppsett.client.forhandsvisning(sakId, "ARBEIDSGIVER", redusertBody)
+            assertPdfResponse(arbeidsgiver, "inline", "forelopig-vedtak-arbeidsgiver.pdf", stubPdf)
+            val arbeidsgiverHtml = brevHtml.last()
+            assertTrue("Til arbeidsgiver" in arbeidsgiverHtml)
+            assertTrue("Til deltaker" !in arbeidsgiverHtml)
+            assertTrue("Dere har fått innvilget lavere tilskudd" in arbeidsgiverHtml)
+            assertTrue("15\u00A0000" in arbeidsgiverHtml)
+            assertTrue("30. juni 2027" in arbeidsgiverHtml)
+            assertTrue("Nav Test" in arbeidsgiverHtml)
+            assertTrue("Navn $navIdent" in arbeidsgiverHtml)
+
+            transaction(db.config.jdbcDatabase) {
+                val sak = SakTable.selectAll().where { SakTable.sakId eq sakId }.single()
+                assertEquals(Saksstatus.UNDER_BEHANDLING.name, sak[SakTable.status])
+                assertTrue(ForelopigVedtakTable.selectAll().where { ForelopigVedtakTable.sakId eq sakId }.empty())
+                assertTrue(QueuedEvents.selectAll().empty())
+            }
+        }
+
+    @Test
+    fun `forhåndsvisning krever tilgang til enheten og at innlogget har saken`() =
+        testApplicationWithDatabase { db ->
+            val annenEnhetSak = sakUnderBehandling(db, behandlendeEnhet = annenEnhet)
+            val utenEnhetSak = sakUnderBehandling(db, behandlendeEnhet = null)
+            val annenSaksbehandlerSak = sakUnderBehandling(db, saksbehandlerIdent = "Z999999")
+            val utildeltSak = sakUnderBehandling(db, saksbehandlerIdent = null)
+            val oppsett = oppsett(db)
+
+            listOf(annenEnhetSak, utenEnhetSak, annenSaksbehandlerSak, utildeltSak).forEach { sakId ->
+                assertEquals(
+                    HttpStatusCode.Forbidden,
+                    oppsett.client.forhandsvisning(sakId, "deltaker", redusertBody).status,
+                )
+            }
+            assertTrue(brevHtml.isEmpty())
+        }
+
+    @Test
+    fun `forhåndsvisning krever saksbehandlerrolle`() = testApplicationWithDatabase { db ->
+        val sakId = sakUnderBehandling(db)
+        val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+        assertEquals(HttpStatusCode.Forbidden, oppsett.client.forhandsvisning(sakId, "deltaker", redusertBody).status)
+        assertEquals(
+            HttpStatusCode.Unauthorized,
+            oppsett.client.post("/api/saksbehandling/v1/saker/$sakId/forelopig-vedtak/forhandsvisning?mottaker=deltaker") {
+                contentType(ContentType.Application.Json)
+                setBody(redusertBody)
+            }.status,
+        )
+    }
+
+    @Test
+    fun `forhåndsvisning og lagret brev gir 403 når tilgangsmaskinen avviser`() = testApplicationWithDatabase { db ->
+        val sakId = sakUnderBehandling(db)
+        lagreVedtak(db, sakId, versjon = 1, utfall = ForelopigUtfall.AVSLAA)
+        val oppsett = oppsett(db) { call ->
+            call.respondText(
+                """{"title":"AVVIST","status":403,"begrunnelse":"ikke tilgjengelig","kanOverstyres":false}""",
+                ContentType.parse("application/problem+json"),
+                HttpStatusCode.Forbidden,
+            )
+        }
+
+        assertEquals(HttpStatusCode.Forbidden, oppsett.client.forhandsvisning(sakId, "deltaker", redusertBody).status)
+        assertEquals(
+            HttpStatusCode.Forbidden,
+            oppsett.client.get("/api/saksbehandling/v1/saker/$sakId/forelopig-vedtak/brev/deltaker") {
+                bearerAuth(gyldigToken)
+            }.status,
+        )
+        assertTrue(brevHtml.isEmpty())
+    }
+
+    @Test
+    fun `forhåndsvisning avviser ugyldig mottaker, sak, kilde, status, innhold og søknadssum`() =
+        testApplicationWithDatabase { db ->
+            val sakId = sakUnderBehandling(db)
+            val arenaSak = sakUnderBehandling(db, kilde = KildeTilBehandling.ARENA)
+            val tilBeslutningSak = sakUnderBehandling(db, status = Saksstatus.TIL_BESLUTNING)
+            val tekstsumSak = sakUnderBehandling(db, soknadssum = "ca. 20 000")
+            val oppsett = oppsett(db)
+
+            assertEquals(HttpStatusCode.BadRequest, oppsett.client.forhandsvisning(sakId, null, redusertBody).status)
+            assertEquals(HttpStatusCode.BadRequest, oppsett.client.forhandsvisning(sakId, "ekspert", redusertBody).status)
+            assertEquals(
+                HttpStatusCode.NotFound,
+                oppsett.client.forhandsvisning(UUID.randomUUID(), "deltaker", redusertBody).status,
+            )
+
+            val arena = oppsett.client.forhandsvisning(arenaSak, "deltaker", redusertBody)
+            assertEquals(HttpStatusCode.Conflict, arena.status)
+            assertTrue(SAK_UGYLDIG_KILDE in arena.bodyAsText())
+
+            val tilBeslutning = oppsett.client.forhandsvisning(tilBeslutningSak, "deltaker", redusertBody)
+            assertEquals(HttpStatusCode.Conflict, tilBeslutning.status)
+            assertTrue(SAK_UGYLDIG_STATUS in tilBeslutning.bodyAsText())
+
+            val tekstsum = oppsett.client.forhandsvisning(tekstsumSak, "deltaker", redusertBody)
+            assertEquals(HttpStatusCode.Conflict, tekstsum.status)
+            assertTrue(UGYLDIG_SOKNADSSUM in tekstsum.bodyAsText())
+
+            assertEquals(HttpStatusCode.BadRequest, oppsett.client.forhandsvisning(sakId, "deltaker", "{").status)
+            assertEquals(
+                HttpStatusCode.BadRequest,
+                oppsett.client.forhandsvisning(
+                    sakId,
+                    "deltaker",
+                    """{"utfall":"AVSLAA","begrunnelseDeltaker":"Til deltaker"}""",
+                ).status,
+            )
+            assertTrue(brevHtml.isEmpty())
+        }
+
+    @Test
+    fun `forhåndsvisning gir 503 når PDF-en ikke kan lages`() = testApplicationWithDatabase { db ->
+        val sakId = sakUnderBehandling(db)
+        val oppsett = oppsett(
+            db,
+            dokumentService = DokumentService(
+                object : PdfKonverterer {
+                    override suspend fun tilPdfA(html: String): ByteArray = error("gotenberg nede")
+                },
+            ),
+        )
+
+        val response = oppsett.client.forhandsvisning(sakId, "deltaker", redusertBody)
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        assertTrue("Til deltaker" !in response.bodyAsText())
+    }
+
+    @Test
+    fun `saksbehandler henter brev fra siste lagrede foreløpige vedtak`() = testApplicationWithDatabase { db ->
+        val sakId = sakUnderBehandling(db, status = Saksstatus.TIL_BESLUTNING)
+        lagreVedtak(db, sakId, versjon = 1, utfall = ForelopigUtfall.AVSLAA)
+        lagreVedtak(db, sakId, versjon = 2, utfall = ForelopigUtfall.INNVILGE)
+        val oppsett = oppsett(db)
+
+        val nedlasting = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId/forelopig-vedtak/brev/arbeidsgiver") {
+            bearerAuth(gyldigToken)
+        }
+        assertPdfResponse(nedlasting, "attachment", "forelopig-vedtak-arbeidsgiver.pdf", stubPdf)
+        val html = brevHtml.single()
+        assertTrue("Dere har fått innvilget tilskudd" in html)
+        assertTrue("Dere får ikke tilskudd" !in html)
+        assertTrue("Navn $navIdent" in html)
+        assertTrue("1. desember 2026" in html)
+
+        val visning = oppsett.client.get(
+            "/api/saksbehandling/v1/saker/$sakId/forelopig-vedtak/brev/deltaker?visning=forhandsvisning",
+        ) {
+            bearerAuth(gyldigToken)
+        }
+        assertPdfResponse(visning, "inline", "forelopig-vedtak-deltaker.pdf", stubPdf)
+        assertTrue("Til deltaker v2" in brevHtml.last())
+    }
+
+    @Test
+    fun `beslutter henter lagret brev uten å være tildelt saken`() = testApplicationWithDatabase { db ->
+        val sakId = sakUnderBehandling(db, status = Saksstatus.TIL_BESLUTNING, saksbehandlerIdent = "Z999999")
+        lagreVedtak(db, sakId, versjon = 1, utfall = ForelopigUtfall.AVSLAA, innstiltAvIdent = "Z999999")
+        val oppsett = oppsett(db, grupper = beslutterGrupper)
+
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId/forelopig-vedtak/brev/arbeidsgiver") {
+            bearerAuth(gyldigToken)
+        }
+        assertPdfResponse(response, "attachment", "forelopig-vedtak-arbeidsgiver.pdf", stubPdf)
+        assertTrue("Dere får ikke tilskudd" in brevHtml.single())
+        assertTrue("Til arbeidsgiver v1" in brevHtml.single())
+        assertTrue("Navn Z999999" in brevHtml.single())
+    }
+
+    @Test
+    fun `lagret brev gir 404 uten vedtak, 400 for ukjent mottaker og 403 for annen enhet`() =
+        testApplicationWithDatabase { db ->
+            val utenVedtak = sakUnderBehandling(db)
+            val annenEnhetSak = sakUnderBehandling(db, behandlendeEnhet = annenEnhet)
+            lagreVedtak(db, annenEnhetSak, versjon = 1, utfall = ForelopigUtfall.AVSLAA)
+            val oppsett = oppsett(db)
+
+            suspend fun hent(sakId: UUID, mottaker: String) =
+                oppsett.client.get("/api/saksbehandling/v1/saker/$sakId/forelopig-vedtak/brev/$mottaker") {
+                    bearerAuth(gyldigToken)
+                }.status
+
+            assertEquals(HttpStatusCode.NotFound, hent(utenVedtak, "deltaker"))
+            assertEquals(HttpStatusCode.BadRequest, hent(utenVedtak, "ekspert"))
+            assertEquals(HttpStatusCode.Forbidden, hent(annenEnhetSak, "deltaker"))
+            assertTrue(brevHtml.isEmpty())
+        }
+
     private suspend fun ApplicationTestBuilder.assertDokumentruterTilgjengelige(
         db: TestDatabase,
         grupper: String,
@@ -446,6 +672,9 @@ class SakDokumentApiTest {
     private fun ApplicationTestBuilder.oppsett(
         db: TestDatabase,
         grupper: String = saksbehandlerGrupper,
+        dokumentService: DokumentService = DokumentService(
+            StubPdfKonverterer(pdf = stubPdf, onConvert = { brevHtml.add(it) }),
+        ),
         tilgangsmaskinSvar: suspend (ApplicationCall) -> Unit = {
             it.respond(HttpStatusCode.NoContent)
         },
@@ -485,6 +714,7 @@ class SakDokumentApiTest {
                 provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
                 provide(TilgangsmaskinClient::class)
                 provide<ArcSightAuditClient> { ArcSightAuditClient(auditLogger = audit) }
+                provide<DokumentService> { dokumentService }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
                         if (it == gyldigToken) mockAzureAdIntrospectionResponse.withNavIdent(navIdent) else null
@@ -500,6 +730,63 @@ class SakDokumentApiTest {
     }
 
     private class Oppsett(val client: HttpClient)
+
+    private suspend fun HttpClient.forhandsvisning(sakId: UUID, mottaker: String?, body: String): HttpResponse =
+        post("/api/saksbehandling/v1/saker/$sakId/forelopig-vedtak/forhandsvisning") {
+            bearerAuth(gyldigToken)
+            mottaker?.let { parameter("mottaker", it) }
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+
+    /** Sak under behandling på egen enhet, tildelt innlogget. Søknaden har søknadssum [soknadssum]. */
+    private fun sakUnderBehandling(
+        db: TestDatabase,
+        status: Saksstatus = Saksstatus.UNDER_BEHANDLING,
+        kilde: KildeTilBehandling = KildeTilBehandling.EKSPERTBISTAND,
+        behandlendeEnhet: String? = egenEnhet,
+        saksbehandlerIdent: String? = navIdent,
+        soknadssum: String = "22000",
+    ): UUID {
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase, ansattFnr = fnr)
+        transaction(db.config.jdbcDatabase) {
+            SoknadTable.update({ SoknadTable.id eq sak.soknadId }) {
+                it[ansattNavn] = "Ansatt NN"
+                it[behovForBistandEstimertKostnad] = soknadssum
+            }
+            SakTable.update({ SakTable.sakId eq sak.sakId }) {
+                it[SakTable.status] = status.name
+                it[kildeTilBehandling] = kilde.name
+                it[SakTable.behandlendeEnhet] = behandlendeEnhet
+                it[SakTable.saksbehandlerIdent] = saksbehandlerIdent
+                it[saksbehandlerNavn] = saksbehandlerIdent?.let { ident -> "Navn $ident" }
+            }
+        }
+        return sak.sakId
+    }
+
+    private fun lagreVedtak(
+        db: TestDatabase,
+        sakId: UUID,
+        versjon: Int,
+        utfall: ForelopigUtfall,
+        innstiltAvIdent: String = navIdent,
+    ) = transaction(db.config.jdbcDatabase) {
+        val avslag = utfall == ForelopigUtfall.AVSLAA
+        ForelopigVedtakTable.insert {
+            it[ForelopigVedtakTable.sakId] = sakId
+            it[ForelopigVedtakTable.versjon] = versjon
+            it[eventId] = Random.nextLong(1, Long.MAX_VALUE)
+            it[ForelopigVedtakTable.utfall] = utfall.name
+            it[innvilgetBelop] = if (avslag) null else 22000
+            it[tiltaksperiodeFra] = if (avslag) null else LocalDate(2026, 11, 22)
+            it[tiltaksperiodeTil] = if (avslag) null else LocalDate(2026, 12, 31)
+            it[begrunnelseDeltaker] = "Til deltaker v$versjon"
+            it[begrunnelseArbeidsgiver] = if (utfall == ForelopigUtfall.INNVILGE) null else "Til arbeidsgiver v$versjon"
+            it[ForelopigVedtakTable.innstiltAvIdent] = innstiltAvIdent
+            it[sendtTidspunkt] = Instant.parse("2026-12-01T10:00:00Z")
+        }
+    }
 
     private fun assertNoStoreAndNosniff(response: HttpResponse) {
         assertEquals("no-store", response.headers[HttpHeaders.CacheControl])

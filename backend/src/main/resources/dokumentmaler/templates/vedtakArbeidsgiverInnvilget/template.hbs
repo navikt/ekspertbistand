@@ -1,0 +1,30 @@
+{{> felles/vedtakHodeArbeidsgiver}}
+
+<h1>Dere har fått innvilget tilskudd til ekspertbistand</h1>
+
+<p>Nav og dere har blitt enige om dette:</p>
+
+<table>
+    <tr>
+        <td class="td02">Tiltaket:</td>
+        <td>Ekspertbistand</td>
+    </tr>
+    <tr>
+        <td class="td02">Deltakeren:</td>
+        <td>{{deltaker.navn}}</td>
+    </tr>
+    <tr>
+        <td class="td02">Tiltaksperioden:</td>
+        <td>{{tiltaksperiode.fra}} - {{tiltaksperiode.til}}</td>
+    </tr>
+    <tr>
+        <td class="td02">Støtten fra Nav:</td>
+        <td>Opptil {{innvilgetBelop}} kroner</td>
+    </tr>
+</table>
+
+<br/>
+
+{{> felles/vedtakArbeidsgiverUtbetaling}}
+
+{{> felles/vedtakHilsen}}

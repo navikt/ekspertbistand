@@ -54,7 +54,7 @@ export function PdfForhandsvisning({ fil, bredde = 240 }: Props) {
         >
           {synlig ? (
             <Suspense fallback={laster}>
-              <PdfMiniatyr url={fil.url} bredde={bredde} onFeil={håndterFeil} />
+              <PdfMiniatyr fil={fil} bredde={bredde} onFeil={håndterFeil} />
             </Suspense>
           ) : (
             laster

@@ -54,7 +54,7 @@ class HandlebarsConfig(
         val template = cache.getOrPut(templateName) { handlebars.compileInline(templateSource) }
         val model = jsonToJava(data)
         return if (strict) {
-            val context = Context.newBuilder(model)
+            val context = Context.newBuilder(somDatamodell(model))
                 .resolver(strictResolver)
                 .build()
             template.apply(context)
@@ -113,19 +113,34 @@ class HandlebarsConfig(
 }
 
 /**
+ * Map fra dataene til malen. [StrictMapValueResolver] er bare streng mot disse, ikke mot mapper
+ * Handlebars lager selv (for eksempel hash-konteksten til `{{> partial}}`).
+ */
+private class Datamodell(verdier: Map<String, Any?>) : Map<String, Any?> by verdier
+
+private fun somDatamodell(verdi: Any?): Any? = when (verdi) {
+    is Map<*, *> -> Datamodell(verdi.entries.associate { (k, v) -> k.toString() to somDatamodell(v) })
+    is List<*> -> verdi.map { somDatamodell(it) }
+    else -> verdi
+}
+
+/**
  * Strict variant av [MapValueResolver]: kaster [PdfGenerationException] når malen slår opp en
- * nøkkel som mangler helt i et [Map]. `null`-verdier (nøkkel finnes, verdi er `null`) slipper
- * gjennom. For ikke-Map-kontekster (for eksempel et list-element inne i `{{#each}}`) delegeres
+ * nøkkel som mangler helt i en [Datamodell]. `null`-verdier (nøkkel finnes, verdi er `null`) slipper
+ * gjennom. For andre kontekster (for eksempel et list-element inne i `{{#each}}`) delegeres
  * til [MapValueResolver], som returnerer [ValueResolver.UNRESOLVED] slik at Handlebars kan gå
  * videre til foreldre-scope.
  *
  * Fra Handlebars 4.5 slår `Variable` opp navnet i konteksten også når det er en helper (for å
  * støtte block params), så helper-navn ([isHelper]) må slippe gjennom uten å regnes som manglende.
+ * `{{> partial}}` slår også opp `size` og `empty` i konteksten (`Partial.OVERRIDE_PROPERTIES`).
  */
 private class StrictMapValueResolver(private val isHelper: (String) -> Boolean) : ValueResolver {
     override fun resolve(context: Any?, name: String): Any? {
-        if (context is Map<*, *>) {
-            if (!context.containsKey(name) && isHelper(name)) return ValueResolver.UNRESOLVED
+        if (context is Datamodell) {
+            if (!context.containsKey(name) && (isHelper(name) || name in PARTIAL_OPPSLAG)) {
+                return ValueResolver.UNRESOLVED
+            }
             if (!context.containsKey(name)) {
                 throw PdfGenerationException("Malen refererer feltet '$name' som mangler i dataene")
             }
@@ -138,4 +153,8 @@ private class StrictMapValueResolver(private val isHelper: (String) -> Boolean) 
 
     override fun propertySet(context: Any?): Set<Map.Entry<String, Any>> =
         MapValueResolver.INSTANCE.propertySet(context)
+
+    private companion object {
+        val PARTIAL_OPPSLAG = setOf("size", "empty")
+    }
 }
