@@ -21,6 +21,7 @@ import {
   type Saksstatus,
   type SakListeElement,
   type Tildelingsrolle,
+  kanTildeleMegSomSaksbehandler,
   useSaker,
 } from "../hooks/useSaker";
 import { useTildeling } from "../hooks/useTildeling";
@@ -202,7 +203,7 @@ export default function OversiktPage() {
                           onClick={() => navigate(`${OVERSIKT_PATH}/${sak.sakId}`)}
                         >
                           <Table.DataCell>
-                            {sak.kanTildeleMeg ? (
+                            {kanTildeleMegSomSaksbehandler(sak) ? (
                               <TildelMegKnapp
                                 sakId={sak.sakId}
                                 rolle="saksbehandler"

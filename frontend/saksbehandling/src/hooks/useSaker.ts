@@ -41,6 +41,11 @@ export type SakInfo = {
   arenaSakId: string | null;
 };
 
+/** Arena-saker behandles ferdig i Arena. API-et godtar tildeling, men GUI-et tilbyr det ikke. */
+export const kanTildeleMegSomSaksbehandler = (
+  sak: Pick<SakInfo, "kildeTilBehandling" | "kanTildeleMeg">
+) => sak.kildeTilBehandling !== "ARENA" && sak.kanTildeleMeg;
+
 export type SakListeElement = SakInfo & {
   harOppgaveForMeg: boolean;
   /** Fra siste foreløpige vedtak. Null uten vedtak og ved avslag. */
