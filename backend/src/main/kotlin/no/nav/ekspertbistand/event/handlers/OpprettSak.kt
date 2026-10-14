@@ -25,8 +25,8 @@ private const val opprettSakSubtask = "sak_opprettet"
  *
  * Behandlende enhet hentes fra [EventData.InnsendtSoknadJournalfoert] og mappes fra Arena- til
  * Norg-enhetsnummer før saken opprettes med alle vilkår. I samme transaksjon publiseres
- * [EventData.SakOppdatert] for saksloggen. Idempotent: saken opprettes én gang per søknad, og
- * eventen publiseres én gang per [EventData.InnsendtSoknadJournalfoert].
+ * [EventData.SakOppdatert] for saksloggen og [EventData.SakOpprettet]. Idempotent: saken opprettes
+ * én gang per søknad, og eventene publiseres én gang per [EventData.InnsendtSoknadJournalfoert].
  */
 @OptIn(ExperimentalTime::class)
 class OpprettSak(
@@ -59,6 +59,12 @@ class OpprettSak(
                     utfortAvIdent = null,
                     notat = "Sak opprettet",
                     tidspunkt = tidspunkt,
+                )
+            )
+            publishEventQueue(
+                EventData.SakOpprettet(
+                    sakId = sakId.toString(),
+                    soknad = event.data.soknad,
                 )
             )
             idempotencyGuard.guard(event, opprettSakSubtask)

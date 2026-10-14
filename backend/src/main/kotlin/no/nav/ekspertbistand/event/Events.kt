@@ -84,6 +84,23 @@ sealed interface EventData {
     }
 
     /**
+     * Det er opprettet sak for søknaden i ekspertbistand.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.OpprettSak] i samme transaksjon som saken
+     * opprettes, og bare én gang per [InnsendtSoknadJournalfoert].
+     *
+     * Konsument: [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSakOpprettet].
+     */
+    @Serializable
+    @SerialName("sakOpprettet")
+    data class SakOpprettet(
+        val sakId: String,
+        val soknad: DTO.Soknad,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
+
+    /**
      * Det er opprettet sak og tiltaksgjennomføring for søknaden i Arena.
      *
      * Publiseres av [no.nav.ekspertbistand.event.handlers.OpprettTiltaksgjennomfoeringForInnsendtSoknad]
@@ -467,6 +484,7 @@ suspend fun Application.configureEventHandlers() {
             },
             other = {
                 register(dependencies.create(OpprettSak::class))
+                register(dependencies.create(VarsleArbeidsgiverSakOpprettet::class))
             }
         )
 
