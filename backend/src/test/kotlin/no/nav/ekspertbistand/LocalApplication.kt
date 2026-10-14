@@ -77,8 +77,8 @@ private data class LokalAnsatt(
 )
 
 private val lokaleAnsatte = listOf(
-    LokalAnsatt(navIdent = "A123456", fornavn = "Ola", etternavn = "Nordmann"),
-    LokalAnsatt(navIdent = "B654321", fornavn = "Kari", etternavn = "Beslutter"),
+    LokalAnsatt(navIdent = "A123456", fornavn = "Ola", etternavn = "Beggedeler"),
+    LokalAnsatt(navIdent = "B654321", fornavn = "Kari", etternavn = "Beggedeler"),
     LokalAnsatt(navIdent = "P123456", fornavn = "Per", etternavn = "Baresaksbehandler", roller = setOf(Role.SAKSBEHANDLER)),
     LokalAnsatt(navIdent = "L654321", fornavn = "Lisa", etternavn = "Barebeslutter", roller = setOf(Role.BESLUTTER)),
 )

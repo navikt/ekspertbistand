@@ -14,8 +14,8 @@ enheter:
 
 | Ident | Navn | Roller |
 |-------|------|--------|
-| `A123456` | Ola Nordmann | saksbehandler og beslutter |
-| `B654321` | Kari Beslutter | saksbehandler og beslutter |
+| `A123456` | Ola Beggedeler | saksbehandler og beslutter |
+| `B654321` | Kari Beggedeler | saksbehandler og beslutter |
 | `P123456` | Per Baresaksbehandler | saksbehandler |
 | `L654321` | Lisa Barebeslutter | beslutter |
 
