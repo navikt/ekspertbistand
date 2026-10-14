@@ -218,6 +218,7 @@ export default function KvitteringPage() {
   }, [draft]);
   const isApproved = statusKey === "godkjent";
   const isRejected = statusKey === "avlyst";
+  const isAvslatt = statusKey === "avslatt";
   const isSubmitted = statusKey === "innsendt";
   const submissionSuccess = Boolean(
     (location.state as { submissionSuccess?: boolean } | null)?.submissionSuccess
@@ -311,7 +312,7 @@ export default function KvitteringPage() {
           <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
         )}
 
-        {showSubmittedAlert && !isApproved && !isRejected && (
+        {showSubmittedAlert && !isApproved && !isRejected && !isAvslatt && (
           <Alert variant="success" role="status">
             Du har sendt søknaden
           </Alert>
@@ -321,7 +322,7 @@ export default function KvitteringPage() {
           Søknad om tilskudd til ekspertbistand
         </Heading>
 
-        {!isApproved && !isRejected && (
+        {!isApproved && !isRejected && !isAvslatt && (
           <VStack gap="space-12" align="center">
             <Box background="neutral-moderate" padding="space-16">
               <Heading level="2" size="medium" align="center">
@@ -341,6 +342,18 @@ export default function KvitteringPage() {
               <Heading level="2" size="medium" align="center">
                 Søknaden godkjent
               </Heading>
+            </Box>
+          </VStack>
+        )}
+        {isAvslatt && (
+          <VStack gap="space-2" align="center">
+            <Box background="danger-moderate" padding="space-12">
+              <Heading level="2" size="medium" align="center">
+                Søknad avslått
+              </Heading>
+              <BodyLong align="center">
+                Du får vedtaket med begrunnelse og informasjon om hvordan du kan klage på det.
+              </BodyLong>
             </Box>
           </VStack>
         )}

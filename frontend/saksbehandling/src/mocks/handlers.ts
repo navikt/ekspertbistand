@@ -2,7 +2,14 @@ import { http, bypass, HttpResponse } from "msw";
 import type { ForelopigVedtakInput } from "../hooks/useForelopigVedtak";
 import type { ForelopigVedtakOppsett } from "../hooks/useForelopigVedtakOppsett";
 import type { Mottaker } from "../hooks/useVedtaksbrev";
-import type { ForelopigUtfall, ForelopigVedtak, SakDetaljer } from "../hooks/useSak";
+import type {
+  ForelopigUtfall,
+  ForelopigVedtak,
+  Retur,
+  ReturArsak,
+  SakDetaljer,
+  Vedtak,
+} from "../hooks/useSak";
 import type {
   Oppgavetype,
   SakInfo,
@@ -20,9 +27,11 @@ import {
   SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL,
   SAKSBEHANDLING_REFUSJON_URL,
   SAKSBEHANDLING_REFUSJON_VEDLEGG_URL,
+  SAKSBEHANDLING_RETUR_URL,
   SAKSBEHANDLING_SAKER_URL,
   SAKSBEHANDLING_SLUTTRAPPORT_FIL_URL,
   SAKSBEHANDLING_SLUTTRAPPORT_URL,
+  SAKSBEHANDLING_VEDTAK_URL,
   SESSION_URL,
 } from "../utils/constants";
 import { gjeldendeMaksSats } from "../utils/maksSats";
@@ -204,6 +213,7 @@ const mockSaker: MockSak[] = [
       ansattNavn: "Hanna Sødervik",
       innsendtTidspunkt: "2026-09-08T14:20:00Z",
       startdato: "2026-09-20",
+      status: "avslatt",
     },
   },
   {
@@ -336,6 +346,38 @@ const mockSaker: MockSak[] = [
       startdato: "2026-11-05",
     },
   },
+  {
+    // Mock-brukeren sendte det foreløpige vedtaket etter retur og står fortsatt som beslutter.
+    sakId: "9c2f7a10-0000-4000-8000-000000002017",
+    status: "TIL_BESLUTNING",
+    saksbehandlerIdent: mockInnloggetAnsatt.id,
+    saksbehandlerNavn: mockInnloggetAnsatt.navn,
+    beslutterIdent: mockInnloggetAnsatt.id,
+    beslutterNavn: mockInnloggetAnsatt.navn,
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001017",
+      virksomhetsnavn: "Fjordglimt hotell",
+      ansattNavn: "Ivar Inhabil",
+      innsendtTidspunkt: "2026-10-12T09:00:00Z",
+      startdato: "2026-11-15",
+    },
+  },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002018",
+    status: "UNDER_BEHANDLING",
+    saksbehandlerIdent: mockInnloggetAnsatt.id,
+    saksbehandlerNavn: mockInnloggetAnsatt.navn,
+    beslutterIdent: mockBeslutter.ident,
+    beslutterNavn: mockBeslutter.navn,
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001018",
+      virksomhetsnavn: "Returvik regnskap",
+      ansattNavn: "Rita Retur",
+      innsendtTidspunkt: "2026-10-10T08:00:00Z",
+      startdato: "2026-11-12",
+      estimertKostnad: "20000",
+    },
+  },
 ];
 
 const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];
@@ -410,6 +452,98 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
       sendtTidspunkt: "2026-10-28T14:00:00Z",
     },
   ],
+  [
+    "9c2f7a10-0000-4000-8000-000000002006",
+    {
+      versjon: 1,
+      utfall: "INNVILGE",
+      innvilgetBelop: 22000,
+      tiltaksperiodeFra: "2026-10-01",
+      tiltaksperiodeTil: "2026-12-31",
+      begrunnelseDeltaker: "Arbeidsgiveren din har fått tilskudd til ekspertbistand.",
+      begrunnelseArbeidsgiver: null,
+      innstiltAvIdent: "O111222",
+      sendtTidspunkt: "2026-09-18T10:00:00Z",
+    },
+  ],
+  [
+    "9c2f7a10-0000-4000-8000-000000002007",
+    {
+      versjon: 1,
+      utfall: "AVSLAA",
+      innvilgetBelop: null,
+      tiltaksperiodeFra: null,
+      tiltaksperiodeTil: null,
+      begrunnelseDeltaker: "Søknaden oppfyller ikke vilkårene for tilskudd.",
+      begrunnelseArbeidsgiver: "Søknaden oppfyller ikke vilkårene for tilskudd.",
+      innstiltAvIdent: kollega.ident,
+      sendtTidspunkt: "2026-09-14T09:00:00Z",
+    },
+  ],
+  [
+    "9c2f7a10-0000-4000-8000-000000002017",
+    {
+      versjon: 2,
+      utfall: "INNVILGE",
+      innvilgetBelop: 22000,
+      tiltaksperiodeFra: "2026-11-15",
+      tiltaksperiodeTil: "2026-12-15",
+      begrunnelseDeltaker: "Arbeidsgiveren din har fått tilskudd til ekspertbistand.",
+      begrunnelseArbeidsgiver: null,
+      innstiltAvIdent: mockInnloggetAnsatt.id,
+      sendtTidspunkt: "2026-10-27T11:00:00Z",
+    },
+  ],
+  [
+    "9c2f7a10-0000-4000-8000-000000002018",
+    {
+      versjon: 1,
+      utfall: "INNVILGE_REDUSERT",
+      innvilgetBelop: 15000,
+      tiltaksperiodeFra: "2026-11-12",
+      tiltaksperiodeTil: "2026-12-12",
+      begrunnelseDeltaker: "Arbeidsgiveren din har fått tilskudd til ekspertbistand.",
+      begrunnelseArbeidsgiver:
+        "Dere søkte om 20 000 kr, Nav har innvilget 15 000 kr i tilskudd til ekspertbistand.",
+      innstiltAvIdent: mockInnloggetAnsatt.id,
+      sendtTidspunkt: "2026-10-26T13:00:00Z",
+    },
+  ],
+]);
+
+const returStore = new Map<string, Retur>([
+  [
+    "9c2f7a10-0000-4000-8000-000000002018",
+    {
+      forelopigVedtakVersjon: 1,
+      aarsaker: ["FEIL_FAKTA", "ANNET"],
+      forklaring:
+        "Tiltaksperioden stemmer ikke med søknaden. Sjekk startdato og beløp med arbeidsgiver.",
+      returnertAvNavn: mockBeslutter.navn,
+      tidspunkt: "2026-10-27T08:30:00Z",
+    },
+  ],
+]);
+
+const vedtakStore = new Map<string, Vedtak>([
+  [
+    "9c2f7a10-0000-4000-8000-000000002006",
+    {
+      utfall: "INNVILGET",
+      forelopigVedtakVersjon: 1,
+      fattetAvNavn: mockBeslutter.navn,
+      fattetTidspunkt: "2026-09-19T12:00:00Z",
+    },
+  ],
+  [
+    "9c2f7a10-0000-4000-8000-000000002007",
+    {
+      utfall: "AVSLATT",
+      forelopigVedtakVersjon: 1,
+      fattetAvNavn: mockBeslutter.navn,
+      fattetTidspunkt: "2026-09-15T12:00:00Z",
+    },
+  ],
 ]);
 
 // Speiler tildelingHindring i backend: bare saker som venter på saksbehandler.
@@ -458,11 +592,12 @@ const mockSluttrapport = {
 };
 
 // Speiler oppgavetype i backend.
-const oppgavetype = (status: Saksstatus): Oppgavetype | null => {
+const oppgavetype = (status: Saksstatus, harRetur = false): Oppgavetype | null => {
   switch (status) {
     case "OPPRETTET":
-    case "UNDER_BEHANDLING":
       return "SOKNAD";
+    case "UNDER_BEHANDLING":
+      return harRetur ? "SOKNAD_RETUR" : "SOKNAD";
     case "TIL_BESLUTNING":
       return "SOKNAD_BESLUTTER";
     default:
@@ -471,7 +606,7 @@ const oppgavetype = (status: Saksstatus): Oppgavetype | null => {
 };
 
 const harOppgaveForMeg = (type: Oppgavetype | null) =>
-  (mockRoller.saksbehandler && type === "SOKNAD") ||
+  (mockRoller.saksbehandler && (type === "SOKNAD" || type === "SOKNAD_RETUR")) ||
   (mockRoller.beslutter && type === "SOKNAD_BESLUTTER");
 
 type BeslutterTildelingHindring =
@@ -499,7 +634,7 @@ const tilListeElement = ({ soknad, ...mockSak }: MockSak, index: number): SakLis
     ...mockSak,
   };
   const vedtak = forelopigVedtakStore.get(sak.sakId);
-  const type = oppgavetype(sak.status);
+  const type = oppgavetype(sak.status, returStore.has(sak.sakId));
   return {
     ...sak,
     kanTildeleMeg: sak.saksbehandlerIdent === null && kanTildeles(sak),
@@ -543,6 +678,8 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: SakListeElement): SakDetalj
   kanTildeleMeg: kanTildeles(sak),
   kanTildeleMegSomBeslutter: beslutterTildelingHindring(sak) === null,
   forelopigVedtak: forelopigVedtakStore.get(sak.sakId) ?? null,
+  sisteRetur: returStore.get(sak.sakId) ?? null,
+  vedtak: vedtakStore.get(sak.sakId) ?? null,
   soknad: {
     soknadId: element.soknadId,
     status: element.status,
@@ -587,6 +724,15 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: SakListeElement): SakDetalj
 });
 
 const vilkårStore = new Map<string, VilkarsvurderingDTO[]>([
+  [
+    "9c2f7a10-0000-4000-8000-000000002018",
+    lagVilkårsvurdering().map((v) => ({
+      ...v,
+      godkjent: true,
+      vurdertAvIdent: mockInnloggetAnsatt.id,
+      vurdertTidspunkt: "2026-10-26T12:00:00Z",
+    })),
+  ],
   [
     "9c2f7a10-0000-4000-8000-000000002010",
     lagVilkårsvurdering().map((v) => ({
@@ -660,6 +806,60 @@ function finnSakMedTilgang(sakId: string): SakListeElement | Response {
     );
   }
   return sak;
+}
+
+const RETUR_ARSAKER: ReturArsak[] = ["FEIL_REGELFORSTAELSE", "FEIL_FAKTA", "ANNET"];
+
+// Speiler sjekkBeslutterTilgang og beslutningHindring i BeslutterApi.
+function beslutningAvvist(
+  sak: SakListeElement,
+  forelopigVedtakVersjon: unknown,
+  sjekkHabilitet: boolean
+): Response | null {
+  if (!mockRoller.beslutter) {
+    return HttpResponse.json(
+      { kode: "MANGLER_ROLLE", begrunnelse: "krever rolle beslutter" },
+      { status: 403 }
+    );
+  }
+  if (sak.kildeTilBehandling === "ARENA") {
+    return HttpResponse.json(
+      { kode: "SAK_UGYLDIG_KILDE", message: "Saken behandles i Arena" },
+      { status: 409 }
+    );
+  }
+  if (sak.beslutterIdent !== mockInnloggetAnsatt.id) {
+    return HttpResponse.json(
+      { kode: "IKKE_TILDELT_SAK", begrunnelse: "Du er ikke tildelt saken som beslutter" },
+      { status: 403 }
+    );
+  }
+  if (typeof forelopigVedtakVersjon !== "number") {
+    return HttpResponse.json({ message: "ugyldig input" }, { status: 400 });
+  }
+  const siste = forelopigVedtakStore.get(sak.sakId);
+  if (sak.status !== "TIL_BESLUTNING") {
+    return HttpResponse.json(
+      { kode: "SAK_UGYLDIG_STATUS", message: "Saken er ikke til beslutning" },
+      { status: 409 }
+    );
+  }
+  if (!siste || siste.versjon !== forelopigVedtakVersjon) {
+    return HttpResponse.json(
+      { kode: "FORELOPIG_VEDTAK_ENDRET", message: "Det foreløpige vedtaket er endret" },
+      { status: 409 }
+    );
+  }
+  if (sjekkHabilitet && siste.innstiltAvIdent === mockInnloggetAnsatt.id) {
+    return HttpResponse.json(
+      {
+        kode: "BESLUTTER_INHABIL",
+        begrunnelse: "Du sendte det foreløpige vedtaket og kan ikke fatte vedtaket",
+      },
+      { status: 403 }
+    );
+  }
+  return null;
 }
 
 export const handlers = [
@@ -994,6 +1194,63 @@ export const handlers = [
     const mockSak = mockSaker.find((s) => s.sakId === sak.sakId)!;
     mockSak.saksbehandlerIdent = null;
     mockSak.saksbehandlerNavn = null;
+    return new HttpResponse(null, { status: 202 });
+  }),
+  http.post<{ sakId: string }, { forelopigVedtakVersjon?: unknown }>(
+    SAKSBEHANDLING_VEDTAK_URL(":sakId"),
+    async ({ params, request }) => {
+      const sak = finnSakMedTilgang(String(params.sakId));
+      if (sak instanceof Response) return sak;
+      const body = await request.json().catch(() => null);
+      const avvist = beslutningAvvist(sak, body?.forelopigVedtakVersjon, true);
+      if (avvist) return avvist;
+
+      const forelopig = forelopigVedtakStore.get(sak.sakId)!;
+      const utfall = forelopig.utfall === "AVSLAA" ? "AVSLATT" : "INNVILGET";
+      const mockSak = mockSaker.find((s) => s.sakId === sak.sakId)!;
+      mockSak.status = utfall;
+      mockSak.soknad.status = utfall === "AVSLATT" ? "avslatt" : "godkjent";
+      vedtakStore.set(sak.sakId, {
+        utfall,
+        forelopigVedtakVersjon: forelopig.versjon,
+        fattetAvNavn: mockInnloggetAnsatt.navn,
+        fattetTidspunkt: new Date().toISOString(),
+      });
+      return new HttpResponse(null, { status: 202 });
+    }
+  ),
+  http.post<
+    { sakId: string },
+    { forelopigVedtakVersjon?: unknown; aarsaker?: unknown; forklaring?: unknown }
+  >(SAKSBEHANDLING_RETUR_URL(":sakId"), async ({ params, request }) => {
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
+    const body = await request.json().catch(() => null);
+    const feil = ugyldigInput(body);
+    if (feil) return feil;
+    const aarsaker = body?.aarsaker;
+    const forklaring = typeof body?.forklaring === "string" ? body.forklaring.trim() : "";
+    if (
+      !Array.isArray(aarsaker) ||
+      aarsaker.length === 0 ||
+      !aarsaker.every((a) => RETUR_ARSAKER.includes(a as ReturArsak)) ||
+      !forklaring ||
+      forklaring.length > 1000
+    ) {
+      return HttpResponse.json({ message: "ugyldig retur" }, { status: 400 });
+    }
+    const avvist = beslutningAvvist(sak, body?.forelopigVedtakVersjon, false);
+    if (avvist) return avvist;
+
+    const mockSak = mockSaker.find((s) => s.sakId === sak.sakId)!;
+    mockSak.status = "UNDER_BEHANDLING";
+    returStore.set(sak.sakId, {
+      forelopigVedtakVersjon: forelopigVedtakStore.get(sak.sakId)!.versjon,
+      aarsaker: [...new Set(aarsaker as ReturArsak[])],
+      forklaring,
+      returnertAvNavn: mockInnloggetAnsatt.navn,
+      tidspunkt: new Date().toISOString(),
+    });
     return new HttpResponse(null, { status: 202 });
   }),
 ];

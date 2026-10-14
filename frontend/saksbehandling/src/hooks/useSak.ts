@@ -1,7 +1,7 @@
 import useSWR from "swr";
 import { SAKSBEHANDLING_SAK_URL } from "../utils/constants";
 import { HttpError } from "../utils/http";
-import type { SakInfo, SoknadStatus } from "./useSaker";
+import type { SakInfo, Saksstatus, SoknadStatus } from "./useSaker";
 
 export type ForelopigUtfall = "INNVILGE" | "INNVILGE_REDUSERT" | "AVSLAA";
 
@@ -18,9 +18,30 @@ export type ForelopigVedtak = {
   sendtTidspunkt: string;
 };
 
+export type ReturArsak = "FEIL_REGELFORSTAELSE" | "FEIL_FAKTA" | "ANNET";
+
+/** Speiler `ReturDTO` i backend: nyeste retur fra beslutter. */
+export type Retur = {
+  forelopigVedtakVersjon: number;
+  aarsaker: ReturArsak[];
+  forklaring: string;
+  returnertAvNavn: string;
+  tidspunkt: string;
+};
+
+/** Speiler `VedtakDTO` i backend. */
+export type Vedtak = {
+  utfall: Extract<Saksstatus, "INNVILGET" | "AVSLATT">;
+  forelopigVedtakVersjon: number;
+  fattetAvNavn: string;
+  fattetTidspunkt: string;
+};
+
 export type SakDetaljer = SakInfo & {
   soknad: SoknadDetaljer;
   forelopigVedtak: ForelopigVedtak | null;
+  sisteRetur: Retur | null;
+  vedtak: Vedtak | null;
 };
 
 export type SoknadDetaljer = {

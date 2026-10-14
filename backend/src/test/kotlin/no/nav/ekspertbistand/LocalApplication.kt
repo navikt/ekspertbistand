@@ -38,6 +38,7 @@ import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.saksbehandling.Role
+import no.nav.ekspertbistand.saksbehandling.configureBeslutterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureForelopigVedtakApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSakDokumentApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
@@ -63,15 +64,23 @@ import kotlin.time.ExperimentalTime
 
 
 /**
- * Saksbehandlere som kan logge inn lokalt. Begge har begge rollene, slik at topartskontrollen kan testes.
+ * Saksbehandlere som kan logge inn lokalt. Ola og Kari har begge rollene, slik at topartskontrollen kan testes.
+ * Per og Lisa har bare én rolle hver, slik at rollesjekkene kan testes.
  * `faketoken` gir den første. Saksbehandling-BFF-en sender `faketoken-<navIdent>` når brukeren er byttet
  * i klienten, se frontend/saksbehandling-server/src/lokal-bruker.ts.
  */
-private data class LokalAnsatt(val navIdent: String, val fornavn: String, val etternavn: String)
+private data class LokalAnsatt(
+    val navIdent: String,
+    val fornavn: String,
+    val etternavn: String,
+    val roller: Set<Role> = setOf(Role.SAKSBEHANDLER, Role.BESLUTTER),
+)
 
 private val lokaleAnsatte = listOf(
-    LokalAnsatt(navIdent = "A123456", fornavn = "Ola", etternavn = "Nordmann"),
-    LokalAnsatt(navIdent = "B654321", fornavn = "Kari", etternavn = "Beslutter"),
+    LokalAnsatt(navIdent = "A123456", fornavn = "Ola", etternavn = "Beggedeler"),
+    LokalAnsatt(navIdent = "B654321", fornavn = "Kari", etternavn = "Beggedeler"),
+    LokalAnsatt(navIdent = "P123456", fornavn = "Per", etternavn = "Baresaksbehandler", roller = setOf(Role.SAKSBEHANDLER)),
+    LokalAnsatt(navIdent = "L654321", fornavn = "Lisa", etternavn = "Barebeslutter", roller = setOf(Role.BESLUTTER)),
 )
 
 private fun lokalAnsattForToken(token: String): LokalAnsatt? = when {
@@ -235,13 +244,7 @@ fun main() {
                                 headersOf(HttpHeaders.ContentType, "application/json")
                             )
                             "${EntraProxyClient.GRUPPER_API_PATH}/${ansatt.navIdent}" -> respond(
-                                // language=JSON
-                                """
-                            [
-                                { "rolle": "${Role.SAKSBEHANDLER.groupId}" },
-                                { "rolle": "${Role.BESLUTTER.groupId}" }
-                            ]
-                            """.trimIndent(),
+                                ansatt.roller.joinToString(prefix = "[", postfix = "]") { """{ "rolle": "${it.groupId}" }""" },
                                 HttpStatusCode.OK,
                                 headersOf(HttpHeaders.ContentType, "application/json")
                             )
@@ -416,6 +419,7 @@ fun main() {
         configureSaksbehandlingSakApiV1()
         configureVilkarsvurderingApiV1()
         configureForelopigVedtakApiV1()
+        configureBeslutterApiV1()
         configureSakDokumentApiV1()
         //configureKontoregisterApiV1()
 

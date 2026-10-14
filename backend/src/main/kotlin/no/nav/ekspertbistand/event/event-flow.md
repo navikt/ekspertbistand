@@ -21,11 +21,13 @@ flowchart TD
     s_ArenaTilsagnsbrevProcessor[/"ArenaTilsagnsbrevProcessor"/]:::source
     s_ArenaTiltaksgjennomforingEndretProcessor[/"ArenaTiltaksgjennomforingEndretProcessor"/]:::source
     s_ArenaTiltakssakEndretProcessor[/"ArenaTiltakssakEndretProcessor"/]:::source
+    s_BeslutterApi[/"BeslutterApi"/]:::source
     s_ForelopigVedtakApi[/"ForelopigVedtakApi"/]:::source
     s_SakApi[/"SakApi"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
+    e_ForelopigVedtakReturnert(["ForelopigVedtakReturnert"]):::event
     e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
     e_SakFrigjort(["SakFrigjort"]):::event
@@ -43,7 +45,9 @@ flowchart TD
     e_TilskuddsbrevMottattKildeAltinn(["TilskuddsbrevMottattKildeAltinn"]):::event
     e_TilskuddsbrevVist(["TilskuddsbrevVist"]):::event
     e_TiltaksgjennomforingOpprettet(["TiltaksgjennomforingOpprettet"]):::event
+    e_VedtakFattet(["VedtakFattet"]):::event
     e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
+    h_FattVedtak["FattVedtak"]:::handler
     h_FrigjoerSak["FrigjoerSak"]:::handler
     h_JournalfoerInnsendtSoknad["JournalfoerInnsendtSoknad"]:::handler
     h_JournalfoerNotatArenaSakOpprettet["JournalfoerNotatArenaSakOpprettet"]:::handler
@@ -56,8 +60,10 @@ flowchart TD
     h_OppdaterVilkarsvurdering["OppdaterVilkarsvurdering"]:::handler
     h_OpprettSak["OpprettSak"]:::handler
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad["OpprettTiltaksgjennomfoeringForInnsendtSoknad"]:::handler
+    h_ReturnerForelopigVedtak["ReturnerForelopigVedtak"]:::handler
     h_SettAvlystSoknadStatus["SettAvlystSoknadStatus"]:::handler
     h_SettGodkjentSoknadStatus["SettGodkjentSoknadStatus"]:::handler
+    h_SettSoknadStatusVedtakFattet["SettSoknadStatusVedtakFattet"]:::handler
     h_SkrivSakslogg["SkrivSakslogg"]:::handler
     h_TildelBeslutter["TildelBeslutter"]:::handler
     h_TildelSaksbehandler["TildelSaksbehandler"]:::handler
@@ -75,6 +81,9 @@ flowchart TD
     s_ArenaTilsagnsbrevProcessor --> e_TilskuddsbrevMottattKildeAltinn
     s_ArenaTiltaksgjennomforingEndretProcessor --> e_SoknadAvlystIArena
     s_ArenaTiltakssakEndretProcessor --> e_SaksbehandlingStartetIArena
+    s_BeslutterApi --> e_ForelopigVedtakReturnert
+    s_BeslutterApi --> e_VedtakFattet
+    h_FattVedtak --> e_SakOppdatert
     s_ForelopigVedtakApi --> e_ForelopigVedtakSendtTilBeslutter
     h_FrigjoerSak --> e_SakOppdatert
     h_JournalfoerInnsendtSoknad --> e_InnsendtSoknadJournalfoert
@@ -85,6 +94,7 @@ flowchart TD
     h_OpprettSak --> e_SakOppdatert
     h_OpprettSak --> e_SakOpprettet
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
+    h_ReturnerForelopigVedtak --> e_SakOppdatert
     s_SakApi --> e_SakFrigjort
     s_SakApi --> e_SakTildeltBeslutter
     s_SakApi --> e_SakTildeltSaksbehandler
@@ -93,6 +103,7 @@ flowchart TD
     h_TildelSaksbehandler --> e_SakOppdatert
     s_TilsagnDataApi --> e_TilskuddsbrevVist
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
+    e_VedtakFattet --> h_FattVedtak
     e_SakFrigjort --> h_FrigjoerSak
     e_SoknadInnsendt --> h_JournalfoerInnsendtSoknad
     e_TiltaksgjennomforingOpprettet --> h_JournalfoerNotatArenaSakOpprettet
@@ -105,8 +116,10 @@ flowchart TD
     e_VilkarsvurderingOppdatert --> h_OppdaterVilkarsvurdering
     e_InnsendtSoknadJournalfoert --> h_OpprettSak
     e_InnsendtSoknadJournalfoert --> h_OpprettTiltaksgjennomfoeringForInnsendtSoknad
+    e_ForelopigVedtakReturnert --> h_ReturnerForelopigVedtak
     e_SoknadAvlystIArena --> h_SettAvlystSoknadStatus
     e_TilskuddsbrevJournalfoert --> h_SettGodkjentSoknadStatus
+    e_VedtakFattet --> h_SettSoknadStatusVedtakFattet
     e_SakOppdatert --> h_SkrivSakslogg
     e_SakTildeltBeslutter --> h_TildelBeslutter
     e_SakTildeltSaksbehandler --> h_TildelSaksbehandler

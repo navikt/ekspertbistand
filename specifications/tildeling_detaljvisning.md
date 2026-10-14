@@ -49,7 +49,9 @@ Fra før (`tildel_meg_sak.md`, `listevisning.md`):
   kobler `SOKNAD` til rollen saksbehandler og `SOKNAD_BESLUTTER` til rollen
   beslutter.
 - Oppgavetypene «Søknad - retur», «Refusjon» og «Refusjon - beslutter» finnes
-  ikke ennå. De kommer med beslutterflyten og kortene for refusjon.
+  ikke ennå. De kommer med beslutterflyten og kortene for refusjon. «Søknad -
+  retur» (`SOKNAD_RETUR`, rollen saksbehandler) er bygd i
+  [`beslutter_vedtak.md`](beslutter_vedtak.md).
 
 ## Skisser
 

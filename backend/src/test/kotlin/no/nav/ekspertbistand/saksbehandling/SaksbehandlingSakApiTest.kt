@@ -721,6 +721,70 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
+    fun `liste og detalj gir SOKNAD_RETUR og sisteRetur etter retur, og vedtak når det er fattet`() =
+        testApplicationWithDatabase { db ->
+            val utenRetur = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = kollega)
+            val medRetur = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = kollega, beslutterIdent = "Z888888")
+            val besluttet = lagreSak(
+                db, lagreSoknad(db), saksbehandlerIdent = kollega, beslutterIdent = "Z888888",
+                status = Saksstatus.INNVILGET,
+            )
+            transaction(db.config.jdbcDatabase) {
+                listOf(1, 2).forEach { versjon ->
+                    val forelopigId = lagreForelopigVedtak(db, medRetur, innstiltAvIdent = kollega, versjon = versjon)
+                    SakReturTable.insert {
+                        it[sakId] = medRetur
+                        it[forelopigVedtakId] = forelopigId
+                        it[returnertAvIdent] = "Z888888"
+                        it[returnertAvNavn] = "Navn Z888888"
+                        it[tilSaksbehandlerIdent] = kollega
+                        it[aarsaker] = if (versjon == 1) listOf("ANNET") else listOf("FEIL_REGELFORSTAELSE", "FEIL_FAKTA")
+                        it[forklaring] = "Forklaring $versjon"
+                        it[eventId] = Random().nextLong(1, Long.MAX_VALUE)
+                        it[opprettet] = Instant.parse("2026-11-0${versjon + 2}T10:00:00Z")
+                    }
+                }
+                val forelopigId = lagreForelopigVedtak(db, besluttet, innstiltAvIdent = kollega)
+                VedtakTable.insert {
+                    it[sakId] = besluttet
+                    it[forelopigVedtakId] = forelopigId
+                    it[utfall] = Saksstatus.INNVILGET.name
+                    it[fattetAvIdent] = "Z888888"
+                    it[fattetAvNavn] = "Navn Z888888"
+                    it[fattetTidspunkt] = Instant.parse("2026-11-05T10:00:00Z")
+                    it[eventId] = Random().nextLong(1, Long.MAX_VALUE)
+                }
+            }
+            val oppsett = oppsett(db)
+
+            val saker = oppsett.hentListe().associateBy { it.sakId }
+            assertEquals(Oppgavetype.SOKNAD, saker.getValue(utenRetur.toString()).oppgavetype)
+            assertEquals(Oppgavetype.SOKNAD_RETUR, saker.getValue(medRetur.toString()).oppgavetype)
+            assertTrue(saker.getValue(medRetur.toString()).harOppgaveForMeg)
+
+            with(oppsett.hentDetalj(utenRetur)) {
+                assertNull(sisteRetur)
+                assertNull(vedtak)
+            }
+            with(oppsett.hentDetalj(medRetur)) {
+                assertEquals(Oppgavetype.SOKNAD_RETUR, oppgavetype)
+                val retur = assertNotNull(sisteRetur)
+                assertEquals(2, retur.forelopigVedtakVersjon)
+                assertEquals(listOf(ReturArsak.FEIL_REGELFORSTAELSE, ReturArsak.FEIL_FAKTA), retur.aarsaker)
+                assertEquals("Forklaring 2", retur.forklaring)
+                assertEquals("Navn Z888888", retur.returnertAvNavn)
+                assertEquals(Instant.parse("2026-11-04T10:00:00Z"), retur.tidspunkt)
+                assertNull(vedtak)
+            }
+            with(assertNotNull(oppsett.hentDetalj(besluttet).vedtak)) {
+                assertEquals(Saksstatus.INNVILGET, utfall)
+                assertEquals(1, forelopigVedtakVersjon)
+                assertEquals("Navn Z888888", fattetAvNavn)
+                assertEquals(Instant.parse("2026-11-05T10:00:00Z"), fattetTidspunkt)
+            }
+        }
+
+    @Test
     fun `kanTildeleMegSomBeslutter i listen`() = testApplicationWithDatabase { db ->
         val ledig = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
         lagreForelopigVedtak(db, ledig, innstiltAvIdent = kollega)
@@ -931,7 +995,7 @@ class SaksbehandlingSakApiTest {
         versjon: Int = 1,
         tiltaksperiodeFra: LocalDate? = LocalDate(2026, 11, 22),
         tiltaksperiodeTil: LocalDate? = LocalDate(2026, 12, 31),
-    ) = transaction(db.config.jdbcDatabase) {
+    ): Long = transaction(db.config.jdbcDatabase) {
         ForelopigVedtakTable.insert {
             it[this.sakId] = sakId
             it[this.versjon] = versjon
@@ -943,7 +1007,7 @@ class SaksbehandlingSakApiTest {
             it[begrunnelseDeltaker] = "Til deltaker"
             it[this.innstiltAvIdent] = innstiltAvIdent
             it[sendtTidspunkt] = Instant.parse("2026-11-01T10:00:00Z")
-        }
+        }[ForelopigVedtakTable.id]
     }
 
     private fun hentSakRad(db: TestDatabase, sakId: UUID) = transaction(db.config.jdbcDatabase) {

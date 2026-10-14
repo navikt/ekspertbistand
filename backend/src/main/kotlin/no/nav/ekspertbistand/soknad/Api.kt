@@ -398,7 +398,9 @@ enum class SoknadStatus {
     utkast,
     innsendt,
     godkjent,
-    avlyst
+    avlyst,
+    /** Nav har avslått søknaden. `avlyst` fra Arena kan bety både avslått og trukket. */
+    avslatt,
 }
 
 @Suppress("EnumEntryName")

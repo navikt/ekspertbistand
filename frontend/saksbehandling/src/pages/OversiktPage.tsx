@@ -48,6 +48,7 @@ const saksstatusTekst: Record<Saksstatus, string> = {
 
 const oppgavetypeTekst: Record<Oppgavetype, string> = {
   SOKNAD: "Søknad",
+  SOKNAD_RETUR: "Søknad - retur",
   SOKNAD_BESLUTTER: "Søknad - beslutter",
 };
 

@@ -118,7 +118,7 @@ Valg i spec-en:
 - Frigjøring av beslutter og «Tildel beslutter» (tildele en annen).
 - Visning av beslutter og «Tildel meg» som beslutter på `SakPage`.
 - Oppgavetypen «Søknad - retur». Den kommer med beslutterflyten, utledet av
-  `sak_retur` (Ken, 2026-10-12).
+  `sak_retur` (Ken, 2026-10-12). Bygd i [`beslutter_vedtak.md`](beslutter_vedtak.md).
 - Oppgavetypene «Refusjon», «Refusjon - beslutter» og «Sluttrapport». De kommer
   med kortene for refusjon og sluttrapport. `Oppgavetype` utvides da.
 - Sortering på kolonnene.
@@ -181,7 +181,8 @@ fun oppgavetype(status: Saksstatus): Oppgavetype? = when (status) {
   `saksstatusTekst` («Innvilget», «Avslått», «Avsluttet»).
 - Arena-saker følger samme regel. De er aldri i `TIL_BESLUTNING`.
 - Beslutterflyten legger til `SOKNAD_RETUR` for `UNDER_BEHANDLING` med rad i
-  `sak_retur`.
+  `sak_retur`. Signaturen er nå `oppgavetype(status, harRetur)`, se
+  [`beslutter_vedtak.md`](beslutter_vedtak.md).
 
 ### 3. Backend: tildeling av beslutter
 

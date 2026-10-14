@@ -1,6 +1,6 @@
 import type { ForelopigVedtakInput } from "../../hooks/useForelopigVedtak";
 import type { Standardtekst } from "../../hooks/useForelopigVedtakOppsett";
-import type { ForelopigUtfall, SakDetaljer } from "../../hooks/useSak";
+import type { ForelopigUtfall, ForelopigVedtak, SakDetaljer } from "../../hooks/useSak";
 import { formatKroner, formatTusenskille, tolkSoknadssum } from "../../utils/belop";
 import { gjeldendeMaksSats, type MaksSats } from "../../utils/maksSats";
 
@@ -78,6 +78,34 @@ export function startTilstand(
     nyttBelop: "",
     redigerteBegrunnelser: {},
     forhandsvisning: null,
+  };
+}
+
+/** Etter retur starter skjemaet fra innstillingen beslutter sendte tilbake. */
+export function tilstandFraForelopigVedtak(
+  sakId: string,
+  soknadStartdato: string,
+  vedtak: ForelopigVedtak
+): ForelopigVedtakSkjemaTilstand {
+  const { utfall, begrunnelseDeltaker, begrunnelseArbeidsgiver } = vedtak;
+  return {
+    ...startTilstand(sakId, soknadStartdato),
+    utfall,
+    ...(vedtak.tiltaksperiodeFra !== null && {
+      tiltaksperiodeFra: vedtak.tiltaksperiodeFra,
+      tiltaksperiodeTil: vedtak.tiltaksperiodeTil,
+      sluttdatoEndret: true,
+    }),
+    nyttBelop:
+      utfall === "INNVILGE_REDUSERT" && vedtak.innvilgetBelop !== null
+        ? String(vedtak.innvilgetBelop)
+        : "",
+    redigerteBegrunnelser: {
+      [utfall]: {
+        deltaker: begrunnelseDeltaker,
+        ...(begrunnelseArbeidsgiver !== null && { arbeidsgiver: begrunnelseArbeidsgiver }),
+      },
+    },
   };
 }
 
@@ -189,16 +217,21 @@ const erKontrolltegn = (tegn: string) => {
   return (kode <= 0x1f && !erTillattWhitespace) || (kode >= 0x7f && kode <= 0x9f);
 };
 
+/** Tegnene backend avviser i all tekst. `felt` er subjektet i meldingen, f.eks. «Begrunnelsen». */
+export function ugyldigeTegnFeil(tekst: string, felt: string): string | null {
+  if (/[<>]/.test(tekst)) return `${felt} kan ikke inneholde < eller >.`;
+  if (FORMATTEGN.test(tekst) || Array.from(tekst).some(erKontrolltegn)) {
+    return `${felt} inneholder tegn som ikke er tillatt. Skriv inn teksten på nytt.`;
+  }
+  return null;
+}
+
 function tekstfeil(tekst: string, mottaker: Mottaker): string | null {
   if (!tekst.trim()) return `Du må skrive en begrunnelse til ${mottaker}.`;
   if (tekst.length > MAKS_TEKST_LENGDE) {
     return `Begrunnelsen kan ikke være lengre enn ${formatTusenskille(MAKS_TEKST_LENGDE)} tegn.`;
   }
-  if (/[<>]/.test(tekst)) return "Begrunnelsen kan ikke inneholde < eller >.";
-  if (FORMATTEGN.test(tekst) || Array.from(tekst).some(erKontrolltegn)) {
-    return "Begrunnelsen inneholder tegn som ikke er tillatt. Skriv inn teksten på nytt.";
-  }
-  return null;
+  return ugyldigeTegnFeil(tekst, "Begrunnelsen");
 }
 
 type Valideringsgrunnlag = {

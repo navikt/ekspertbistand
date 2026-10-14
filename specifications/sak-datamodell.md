@@ -135,17 +135,21 @@ Sluttrapportering for en sak (1:1 fra sak). Selve dokumentene ligger i `vedlegg`
 ### `sak_retur`
 
 Retur fra beslutter til saksbehandler i to-trinns kontroll (1:N). En sak kan returneres flere
-ganger — hver retur er en egen rad, slik at hele historikken bevares.
+ganger — hver retur er en egen rad, slik at hele historikken bevares. Skrives bare av handleren
+`ReturnerForelopigVedtak`. Endret i V24, se [`beslutter_vedtak.md`](beslutter_vedtak.md).
 
 | Kolonne | Type | Constraints | Beskrivelse |
 |---------|------|-------------|-------------|
 | `retur_id` | UUID | PK, default `gen_random_uuid()` | Teknisk id for returen. |
 | `sak_id` | UUID | NOT NULL, FK → `sak(sak_id)` ON DELETE CASCADE | Saken som ble returnert. |
+| `forelopig_vedtak_id` | BIGINT | NOT NULL, FK → `forelopig_vedtak(id)` | Versjonen av det foreløpige vedtaket som ble returnert. |
 | `returnert_av_ident` | TEXT | NOT NULL | NAV-ident til beslutter som returnerte. |
+| `returnert_av_navn` | TEXT | NOT NULL | Navnet til beslutteren, for visning. |
 | `til_saksbehandler_ident` | TEXT | NULL | Saksbehandler saken gikk tilbake til. Null hvis usatt. |
-| `aarsak` | TEXT | NOT NULL | Returårsak. Se `ReturArsak`. |
+| `aarsaker` | TEXT[] | NOT NULL, CHECK minst én, bare gyldige verdier | Returårsaker. Se `ReturArsak`. |
 | `forklaring` | TEXT | NOT NULL, CHECK `char_length(forklaring) <= 1000` | Beslutters begrunnelse. Maks 1000 tegn. |
-| `opprettet` | TIMESTAMPTZ | NOT NULL, default `now()` | Tidspunkt for returen. |
+| `event_id` | BIGINT | NOT NULL, UNIQUE | Eventet som skrev raden. Gjør handleren idempotent. |
+| `opprettet` | TIMESTAMPTZ | NOT NULL, default `now()` | Tidspunkt for returen, fra eventet. |
 
 Indeks: `idx_sak_retur_sak_id(sak_id)`.
 
@@ -171,6 +175,22 @@ versjon, slik at innstillingen før en retur bevares. Skrives bare av handleren
 | `sendt_tidspunkt` | TIMESTAMPTZ | NOT NULL | Tidspunktet fra eventet. |
 
 Indeks: `idx_forelopig_vedtak_sak_id(sak_id)`. Siste versjon er gjeldende innstilling.
+
+### `vedtak`
+
+Beslutters vedtak på søknaden (1:1). Skrives bare av handleren `FattVedtak`. Se
+[`beslutter_vedtak.md`](beslutter_vedtak.md).
+
+| Kolonne | Type | Constraints | Beskrivelse |
+|---------|------|-------------|-------------|
+| `id` | BIGSERIAL | PK | Teknisk id. |
+| `sak_id` | UUID | NOT NULL, UNIQUE, FK → `sak(sak_id)` | Saken vedtaket gjelder. |
+| `forelopig_vedtak_id` | BIGINT | NOT NULL, UNIQUE, FK → `forelopig_vedtak(id)` | Versjonen av det foreløpige vedtaket som ble godkjent. |
+| `utfall` | TEXT | NOT NULL, CHECK `INNVILGET` eller `AVSLATT` | Vedtakets utfall, samme verdi som `sak.status`. |
+| `fattet_av_ident` | TEXT | NOT NULL | NAV-ident til beslutter. Aldri lik `forelopig_vedtak.innstilt_av_ident`. |
+| `fattet_av_navn` | TEXT | NOT NULL | Navnet til beslutteren, for visning. |
+| `fattet_tidspunkt` | TIMESTAMPTZ | NOT NULL | Tidspunktet fra eventet. |
+| `event_id` | BIGINT | NOT NULL, UNIQUE | Eventet som skrev raden. Gjør handleren idempotent. |
 
 ## Endringer i eksisterende tabeller
 
@@ -209,17 +229,20 @@ Flyt: `OPPRETTET` → (saksbehandler tilordner seg) `UNDER_BEHANDLING` → (send
 `UNDER_BEHANDLING` (+ rad i `sak_retur`). `INNVILGET`/`AVSLATT` → `AVSLUTTET`.
 
 Bygd: `UNDER_BEHANDLING` → `TIL_BESLUTNING` (foreløpig vedtak, se
-[`forelopig_vedtak.md`](forelopig_vedtak.md)). Beslutters godkjenning og retur er ikke bygd ennå.
+[`forelopig_vedtak.md`](forelopig_vedtak.md)), og `TIL_BESLUTNING` → `INNVILGET`/`AVSLATT` eller
+tilbake til `UNDER_BEHANDLING` (se [`beslutter_vedtak.md`](beslutter_vedtak.md)). `AVSLUTTET` er
+ikke bygd ennå.
 
 ### Oppgavetype
 
-Oppgavetypen lagres ikke. Backend utleder den av `sak.status` (`oppgavetype` i
-`saksbehandling/Oppgavetype.kt`). Rollen er den som kan ta oppgaven
+Oppgavetypen lagres ikke. Backend utleder den av `sak.status` og om saken har en rad i
+`sak_retur` (`oppgavetype` i `saksbehandling/Oppgavetype.kt`). Rollen er den som kan ta oppgaven
 (`Oppgavetype.rolle`, speilet i `rolleForOppgave` i frontend):
 
 | Status | Oppgavetype | Rolle |
 |--------|-------------|-------|
-| `OPPRETTET`, `UNDER_BEHANDLING` | `SOKNAD` | `SAKSBEHANDLER` |
+| `OPPRETTET`, `UNDER_BEHANDLING` uten retur | `SOKNAD` | `SAKSBEHANDLER` |
+| `UNDER_BEHANDLING` med retur | `SOKNAD_RETUR` | `SAKSBEHANDLER` |
 | `TIL_BESLUTNING` | `SOKNAD_BESLUTTER` | `BESLUTTER` |
 | `INNVILGET`, `AVSLATT`, `AVSLUTTET` | Ingen | Ingen |
 
@@ -266,7 +289,7 @@ Rollen aktøren hadde ved handlingen. Alltid satt.
 | `DELTAKER_HAR_SYKEFRAVAERSHISTORIKK` | Det finnes relevant sykefraværshistorikk. |
 | `EKSPERT_HAR_KOMPETANSE` | Eksperten har nødvendig og relevant kompetanse. |
 
-### `ReturArsak` (`sak_retur.aarsak`)
+### `ReturArsak` (`sak_retur.aarsaker`)
 
 | Verdi | Betydning |
 |-------|-----------|
@@ -292,6 +315,8 @@ soknad 1 ──── 1 sak 1 ──── N saksvilkar
                  ├──── N sak_retur              (via sak_retur.sak_id)
                  │ 1
                  ├──── N forelopig_vedtak       (via forelopig_vedtak.sak_id)
+                 │ 1
+                 ├──── 0..1 vedtak              (via vedtak.sak_id)
                  │ 1
                  ├──── 0..1 refusjonskrav      (via sak.refusjon_id)
                  │ 1
