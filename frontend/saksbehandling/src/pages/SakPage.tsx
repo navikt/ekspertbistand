@@ -6,12 +6,14 @@ import {
   BodyShort,
   Box,
   CopyButton,
+  ExpansionCard,
   HGrid,
   HStack,
   Heading,
   Label,
   Link,
   Loader,
+  Show,
   Tabs,
   VStack,
 } from "@navikt/ds-react";
@@ -47,6 +49,7 @@ import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import type { HttpError } from "../utils/http";
 import { GOSYS_URL, MODIA_URL, OVERSIKT_PATH, isMockEnabled } from "../utils/constants";
+import styles from "./SakPage.module.css";
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat("nb-NO", {
@@ -168,74 +171,129 @@ function feilmelding(error: HttpError | undefined) {
   }
 }
 
-function VenstrePanel({ soknad }: { soknad: SakDetaljer["soknad"] }) {
+function Saksopplysninger({ soknad }: { soknad: SakDetaljer["soknad"] }) {
   const { ansatt, virksomhet, ekspert } = soknad;
 
   return (
-    <Panel defaultSize={25} minSize={15}>
-      <Box padding="space-16" paddingBlock="space-32">
-        <VStack gap="space-32">
-          <InfoKort tittel="Arbeidsgiver">
-            <HGrid columns="repeat(auto-fit, minmax(160px, 1fr))" gap="space-8 space-16">
-              <DataRad label="Navn" value={virksomhet.virksomhetsnavn} />
-              <DataRad label="Kontaktperson" value={virksomhet.kontaktperson.navn} />
-              <DataRad label="Org.nr" value={virksomhet.virksomhetsnummer} />
-              <DataRad label="E-post" value={virksomhet.kontaktperson.epost} />
-              <DataRad label="Beliggenhetsadresse" value={virksomhet.beliggenhetsadresse ?? "–"} />
-              <DataRad label="Telefon" value={virksomhet.kontaktperson.telefonnummer} />
-            </HGrid>
-          </InfoKort>
+    <VStack gap="space-32" minWidth="0">
+      <InfoKort tittel="Arbeidsgiver">
+        <HGrid columns="repeat(auto-fit, minmax(min(100%, 160px), 1fr))" gap="space-8 space-16">
+          <DataRad label="Navn" value={virksomhet.virksomhetsnavn} />
+          <DataRad label="Kontaktperson" value={virksomhet.kontaktperson.navn} />
+          <DataRad label="Org.nr" value={virksomhet.virksomhetsnummer} />
+          <DataRad label="E-post" value={virksomhet.kontaktperson.epost} />
+          <DataRad label="Beliggenhetsadresse" value={virksomhet.beliggenhetsadresse ?? "–"} />
+          <DataRad label="Telefon" value={virksomhet.kontaktperson.telefonnummer} />
+        </HGrid>
+      </InfoKort>
 
-          <InfoKort tittel="Deltakere">
-            <HGrid columns="repeat(auto-fit, minmax(160px, 1fr))" gap="space-8 space-16">
-              <VStack gap="space-8">
-                <DataRad label="Navn" value={ansatt.navn} />
-                <DataRad label="Fødselsnummer" value={ansatt.fnr} />
-                <VStack gap="space-2">
-                  <Label>Arbeidsforhold</Label>
-                  <Link href="#" target="_blank">
-                    <CheckmarkCircleIcon
-                      aria-hidden
-                      style={{ color: "var(--ax-text-success-decoration)" }}
-                    />
-                    Se Aa-registret
-                  </Link>
-                </VStack>
-              </VStack>
-              <VStack gap="space-12">
-                <Link href={`${MODIA_URL}/sykefravær`} target="modia">
-                  Sykefraværshistorikk
-                </Link>
-                <Link href={`${MODIA_URL}/person`} target="modia">
-                  Personoversikt - Modia
-                </Link>
-                <Link href={`${MODIA_URL}/aktivitetsplan`} target="modia">
-                  Aktivitetsplan - Modia
-                </Link>
-                <Link href={GOSYS_URL} target="gosys">
-                  Gosys - personmappe
-                </Link>
-              </VStack>
-            </HGrid>
-          </InfoKort>
-
-          <InfoKort tittel="Ekspert">
-            <VStack gap="space-8">
-              <DataRad label="Navn" value={ekspert.navn} />
-              <DataRad
-                label="Godkjent utdanning/autorisasjon"
-                value={ekspert.godkjentUtdanningEllerAutorisasjon.join(", ") || ekspert.kompetanse}
-              />
-              <DataRad
-                label="Tilknyttet virksomhet"
-                value={ekspert.virksomhetNavn ?? ekspert.virksomhet}
-              />
-              <DataRad label="Org.nr." value={ekspert.virksomhetOrgnr ?? "–"} />
+      <InfoKort tittel="Deltakere">
+        <HGrid columns="repeat(auto-fit, minmax(min(100%, 160px), 1fr))" gap="space-8 space-16">
+          <VStack gap="space-8" minWidth="0">
+            <DataRad label="Navn" value={ansatt.navn} />
+            <DataRad label="Fødselsnummer" value={ansatt.fnr} />
+            <VStack gap="space-2" minWidth="0">
+              <Label>Arbeidsforhold</Label>
+              <Link href="#" target="_blank">
+                <CheckmarkCircleIcon
+                  aria-hidden
+                  style={{ color: "var(--ax-text-success-decoration)" }}
+                />
+                Se Aa-registret
+              </Link>
             </VStack>
-          </InfoKort>
+          </VStack>
+          <VStack gap="space-12" minWidth="0">
+            <Link href={`${MODIA_URL}/sykefravær`} target="modia">
+              Sykefraværshistorikk
+            </Link>
+            <Link href={`${MODIA_URL}/person`} target="modia">
+              Personoversikt - Modia
+            </Link>
+            <Link href={`${MODIA_URL}/aktivitetsplan`} target="modia">
+              Aktivitetsplan - Modia
+            </Link>
+            <Link href={GOSYS_URL} target="gosys">
+              Gosys - personmappe
+            </Link>
+          </VStack>
+        </HGrid>
+      </InfoKort>
+
+      <InfoKort tittel="Ekspert">
+        <VStack gap="space-8" minWidth="0">
+          <DataRad label="Navn" value={ekspert.navn} />
+          <DataRad
+            label="Godkjent utdanning/autorisasjon"
+            value={ekspert.godkjentUtdanningEllerAutorisasjon.join(", ") || ekspert.kompetanse}
+          />
+          <DataRad
+            label="Tilknyttet virksomhet"
+            value={ekspert.virksomhetNavn ?? ekspert.virksomhet}
+          />
+          <DataRad label="Org.nr." value={ekspert.virksomhetOrgnr ?? "–"} />
         </VStack>
-      </Box>
-    </Panel>
+      </InfoKort>
+    </VStack>
+  );
+}
+
+function SaksinnholdLayout({
+  soknad,
+  midtreStandardstorrelse,
+  kontroll,
+  children,
+}: {
+  soknad: SakDetaljer["soknad"];
+  midtreStandardstorrelse: string;
+  kontroll?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <VStack className={styles.saksinnhold} gap="space-16" padding="space-16" minWidth="0">
+      <Show below="xl">
+        <ExpansionCard size="small" defaultOpen={false} aria-label="Saksopplysninger">
+          <ExpansionCard.Header>
+            <ExpansionCard.Title as="span" size="small">
+              Saksopplysninger
+            </ExpansionCard.Title>
+            <ExpansionCard.Description style={{ overflowWrap: "anywhere" }}>
+              {soknad.virksomhet.virksomhetsnavn} · {soknad.ansatt.navn}
+            </ExpansionCard.Description>
+          </ExpansionCard.Header>
+          <ExpansionCard.Content>
+            <Box padding="space-16" minWidth="0">
+              <Saksopplysninger soknad={soknad} />
+            </Box>
+          </ExpansionCard.Content>
+        </ExpansionCard>
+      </Show>
+      <Group
+        className={styles.saksinnholdGroup}
+        orientation="horizontal"
+        style={{ minHeight: "calc(100vh - 160px)" }}
+      >
+        <Show above="xl" asChild>
+          <Panel defaultSize="25%" minSize="260px">
+            <Box padding="space-16" paddingBlock="space-32" minWidth="0">
+              <Saksopplysninger soknad={soknad} />
+            </Box>
+          </Panel>
+        </Show>
+        <KolonneSeparator />
+        <Panel defaultSize={midtreStandardstorrelse} minSize="320px">
+          {children}
+        </Panel>
+        {kontroll && (
+          <>
+            <KolonneSeparator />
+            <Panel defaultSize="30%" minSize="260px">
+              {kontroll}
+            </Panel>
+          </>
+        )}
+      </Group>
+    </VStack>
   );
 }
 
@@ -314,11 +372,13 @@ export default function SakPage() {
   return (
     <>
       <Box background="soft" paddingBlock="space-8" paddingInline="space-24">
-        <HStack gap="space-8" align="center">
-          <BodyShort weight="semibold">{ansatt.navn}</BodyShort>
+        <HStack gap="space-8" align="center" wrap>
+          <BodyShort weight="semibold" style={{ overflowWrap: "anywhere" }}>
+            {ansatt.navn}
+          </BodyShort>
           <CopyButton copyText={ansatt.navn} size="xsmall" />
           <BodyShort>/</BodyShort>
-          <BodyShort>{ansatt.fnr}</BodyShort>
+          <BodyShort style={{ overflowWrap: "anywhere" }}>{ansatt.fnr}</BodyShort>
           <CopyButton copyText={ansatt.fnr} size="xsmall" />
         </HStack>
       </Box>
@@ -329,17 +389,17 @@ export default function SakPage() {
         borderWidth="0 0 1 0"
         borderColor="neutral-subtle"
       >
-        <HStack justify="space-between" align="stretch" gap="space-16">
+        <HStack justify="space-between" align="stretch" gap="space-16" wrap>
           <HStack align="center">
             <Link as={NavLink} to={OVERSIKT_PATH} underline={false}>
               <ArrowLeftIcon aria-hidden />
-              <BodyShort as="span" weight="semibold">
+              <BodyShort as="span" weight="semibold" style={{ overflowWrap: "anywhere" }}>
                 Tilbake til liste av saker
               </BodyShort>
             </Link>
           </HStack>
           {!visKvittering && (
-            <HStack align="stretch">
+            <HStack align="stretch" wrap>
               <Tildeling sak={sak} onFeil={setTildelingError} />
               <Sakslogg sakId={sakId ?? ""} />
             </HStack>
@@ -370,66 +430,11 @@ export default function SakPage() {
               {!erArenaSak && <Tabs.Tab value="refusjon" label="Refusjon" />}
             </Tabs.List>
             <Tabs.Panel value="soknad">
-              <Group orientation="horizontal" style={{ minHeight: "calc(100vh - 160px)" }}>
-                <VenstrePanel soknad={soknad} />
-
-                <KolonneSeparator />
-
-                {/* Midtre kolonne */}
-                <Panel defaultSize={45} minSize={30}>
-                  <Box padding="space-16" paddingBlock="space-32">
-                    <VStack gap="space-48">
-                      <VStack as="section" gap="space-16">
-                        <Heading level="2" size="xsmall">
-                          Situasjonen
-                        </Heading>
-                        <Spørsmål label="Beskriv den ansattes arbeidssituasjon">
-                          <BodyLong>{behovForBistand.begrunnelse}</BodyLong>
-                        </Spørsmål>
-                        <Spørsmål label="Beskriv ansatt sykefravær, og hvilken oppfølging og tilrettelegging dere allerede har tilbudt/prøvd ut?">
-                          <BodyLong>{behovForBistand.tilrettelegging}</BodyLong>
-                        </Spørsmål>
-                      </VStack>
-
-                      <VStack as="section" gap="space-16">
-                        <Heading level="2" size="xsmall">
-                          Ekspertbistand
-                        </Heading>
-                        <Spørsmål label="Hva skal eksperten hjelpe dere med?">
-                          <BodyLong>{behovForBistand.behov}</BodyLong>
-                        </Spørsmål>
-                        <Spørsmål label="Hvor mange timer skal eksperten hjelpe dere?">
-                          <BodyShort>{behovForBistand.timer} timer</BodyShort>
-                        </Spørsmål>
-                        <Spørsmål label="Søknadssum">
-                          <BodyShort>{formatBeløp(behovForBistand.estimertKostnad)}</BodyShort>
-                        </Spørsmål>
-                        <Spørsmål label="Startdato">
-                          <BodyShort>{formatDate(behovForBistand.startdato)}</BodyShort>
-                        </Spørsmål>
-                        <Spørsmål label="Sendt inn til Nav">
-                          <BodyShort>{formatDate(soknad.innsendtTidspunkt)}</BodyShort>
-                        </Spørsmål>
-                      </VStack>
-
-                      {/* TODO: fjernes når vedlegg kobles på ekte datakilde */}
-                      {isMockEnabled() && (
-                        <VStack as="section" gap="space-16">
-                          <Heading level="2" size="xsmall">
-                            Vedlegg (demo)
-                          </Heading>
-                          <PdfForhandsvisningListe filer={DEMO_VEDLEGG} />
-                        </VStack>
-                      )}
-                    </VStack>
-                  </Box>
-                </Panel>
-
-                <KolonneSeparator />
-
-                {/* Høyre kolonne */}
-                <Panel defaultSize={30} minSize={20}>
-                  {erArenaSak ? (
+              <SaksinnholdLayout
+                soknad={soknad}
+                midtreStandardstorrelse="45%"
+                kontroll={
+                  erArenaSak ? (
                     <Box padding="space-16">
                       <Alert variant="info" size="small">
                         Saken behandles i Arena. Vilkårsvurdering, vedtak og utbetaling gjøres der.
@@ -494,77 +499,108 @@ export default function SakPage() {
                         </Box>
                       </Tabs.Panel>
                     </Tabs>
-                  )}
-                </Panel>
-              </Group>
+                  )
+                }
+              >
+                <Box padding="space-16" paddingBlock="space-32">
+                  <VStack gap="space-48">
+                    <VStack as="section" gap="space-16">
+                      <Heading level="2" size="xsmall">
+                        Situasjonen
+                      </Heading>
+                      <Spørsmål label="Beskriv den ansattes arbeidssituasjon">
+                        <BodyLong>{behovForBistand.begrunnelse}</BodyLong>
+                      </Spørsmål>
+                      <Spørsmål label="Beskriv ansatt sykefravær, og hvilken oppfølging og tilrettelegging dere allerede har tilbudt/prøvd ut?">
+                        <BodyLong>{behovForBistand.tilrettelegging}</BodyLong>
+                      </Spørsmål>
+                    </VStack>
+
+                    <VStack as="section" gap="space-16">
+                      <Heading level="2" size="xsmall">
+                        Ekspertbistand
+                      </Heading>
+                      <Spørsmål label="Hva skal eksperten hjelpe dere med?">
+                        <BodyLong>{behovForBistand.behov}</BodyLong>
+                      </Spørsmål>
+                      <Spørsmål label="Hvor mange timer skal eksperten hjelpe dere?">
+                        <BodyShort>{behovForBistand.timer} timer</BodyShort>
+                      </Spørsmål>
+                      <Spørsmål label="Søknadssum">
+                        <BodyShort>{formatBeløp(behovForBistand.estimertKostnad)}</BodyShort>
+                      </Spørsmål>
+                      <Spørsmål label="Startdato">
+                        <BodyShort>{formatDate(behovForBistand.startdato)}</BodyShort>
+                      </Spørsmål>
+                      <Spørsmål label="Sendt inn til Nav">
+                        <BodyShort>{formatDate(soknad.innsendtTidspunkt)}</BodyShort>
+                      </Spørsmål>
+                    </VStack>
+
+                    {/* TODO: fjernes når vedlegg kobles på ekte datakilde */}
+                    {isMockEnabled() && (
+                      <VStack as="section" gap="space-16">
+                        <Heading level="2" size="xsmall">
+                          Vedlegg (demo)
+                        </Heading>
+                        <PdfForhandsvisningListe filer={DEMO_VEDLEGG} />
+                      </VStack>
+                    )}
+                  </VStack>
+                </Box>
+              </SaksinnholdLayout>
             </Tabs.Panel>
             {!erArenaSak && (
               <Tabs.Panel value="sluttrapport">
-                <Group
+                <SaksinnholdLayout
                   key={`${sak.sakId}:${
                     sluttrapport && !sluttrapportError ? "med-rapport" : "uten-rapport"
                   }`}
-                  orientation="horizontal"
-                  style={{ minHeight: "calc(100vh - 160px)" }}
+                  soknad={soknad}
+                  midtreStandardstorrelse={sluttrapport && !sluttrapportError ? "45%" : "75%"}
+                  kontroll={
+                    sluttrapport && !sluttrapportError ? <Sluttrapportkontroll /> : undefined
+                  }
                 >
-                  <VenstrePanel soknad={soknad} />
-                  <KolonneSeparator />
-                  <Panel defaultSize={sluttrapport && !sluttrapportError ? 45 : 75} minSize={30}>
-                    <SluttrapportVisning
-                      key={`${sak.sakId}:${sluttrapport?.opprettet ?? "ingen"}`}
-                      sakId={sak.sakId}
-                      sluttrapport={sluttrapport}
-                      tiltaksperiode={formatPeriode(
-                        sak.forelopigVedtak?.tiltaksperiodeFra ?? null,
-                        sak.forelopigVedtak?.tiltaksperiodeTil ?? null
-                      )}
-                      error={sluttrapportError}
-                      isLoading={sluttrapportLaster}
-                    />
-                  </Panel>
-                  {sluttrapport && !sluttrapportError && (
-                    <>
-                      <KolonneSeparator />
-                      <Panel defaultSize={30} minSize={20}>
-                        <Sluttrapportkontroll />
-                      </Panel>
-                    </>
-                  )}
-                </Group>
+                  <SluttrapportVisning
+                    key={`${sak.sakId}:${sluttrapport?.opprettet ?? "ingen"}`}
+                    sakId={sak.sakId}
+                    sluttrapport={sluttrapport}
+                    tiltaksperiode={formatPeriode(
+                      sak.forelopigVedtak?.tiltaksperiodeFra ?? null,
+                      sak.forelopigVedtak?.tiltaksperiodeTil ?? null
+                    )}
+                    error={sluttrapportError}
+                    isLoading={sluttrapportLaster}
+                  />
+                </SaksinnholdLayout>
               </Tabs.Panel>
             )}
             {!erArenaSak && (
               <Tabs.Panel value="refusjon">
-                <Group
+                <SaksinnholdLayout
                   key={`${sak.sakId}:${refusjon && !refusjonError ? "med-krav" : "uten-krav"}`}
-                  orientation="horizontal"
-                  style={{ minHeight: "calc(100vh - 160px)" }}
+                  soknad={soknad}
+                  midtreStandardstorrelse={refusjon && !refusjonError ? "45%" : "75%"}
+                  kontroll={
+                    refusjon && !refusjonError ? (
+                      <Refusjonskontroll
+                        key={`${sak.sakId}:${refusjon.opprettet}`}
+                        refusjon={refusjon}
+                        deltaker={soknad.ansatt.navn}
+                        arbeidsgiver={soknad.virksomhet.virksomhetsnavn}
+                      />
+                    ) : undefined
+                  }
                 >
-                  <VenstrePanel soknad={soknad} />
-                  <KolonneSeparator />
-                  <Panel defaultSize={refusjon && !refusjonError ? 45 : 75} minSize={30}>
-                    <RefusjonskravVisning
-                      key={`${sak.sakId}:${refusjon?.opprettet ?? "ingen"}`}
-                      sakId={sak.sakId}
-                      refusjon={refusjon}
-                      error={refusjonError}
-                      isLoading={refusjonLaster}
-                    />
-                  </Panel>
-                  {refusjon && !refusjonError && (
-                    <>
-                      <KolonneSeparator />
-                      <Panel defaultSize={30} minSize={20}>
-                        <Refusjonskontroll
-                          key={`${sak.sakId}:${refusjon.opprettet}`}
-                          refusjon={refusjon}
-                          deltaker={soknad.ansatt.navn}
-                          arbeidsgiver={soknad.virksomhet.virksomhetsnavn}
-                        />
-                      </Panel>
-                    </>
-                  )}
-                </Group>
+                  <RefusjonskravVisning
+                    key={`${sak.sakId}:${refusjon?.opprettet ?? "ingen"}`}
+                    sakId={sak.sakId}
+                    refusjon={refusjon}
+                    error={refusjonError}
+                    isLoading={refusjonLaster}
+                  />
+                </SaksinnholdLayout>
               </Tabs.Panel>
             )}
           </Tabs>
