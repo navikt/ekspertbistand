@@ -1,4 +1,4 @@
-import { Alert, Skeleton, VStack } from "@navikt/ds-react";
+import { Alert, HStack, Skeleton } from "@navikt/ds-react";
 import type { ForelopigVedtakInput } from "../../hooks/useForelopigVedtak";
 import {
   type Mottaker,
@@ -50,19 +50,16 @@ function Brev({ deltaker, arbeidsgiver, isLoading, error }: BrevProps) {
   const brev = [deltaker, arbeidsgiver];
 
   return (
-    <VStack gap="space-16">
-      {brev.map((fil, i) =>
-        isLoading || !fil ? (
-          <Skeleton
-            key={MOTTAKERE[i]}
-            variant="rectangle"
-            width={BREDDE}
-            height={BREDDE * A4_FORHOLD}
-          />
-        ) : (
-          <PdfForhandsvisning key={MOTTAKERE[i]} bredde={BREDDE} fil={fil} />
-        )
-      )}
-    </VStack>
+    <HStack as="ul" gap="space-24" wrap style={{ listStyle: "none", margin: 0, padding: 0 }}>
+      {brev.map((fil, i) => (
+        <li key={MOTTAKERE[i]}>
+          {isLoading || !fil ? (
+            <Skeleton variant="rectangle" width={BREDDE} height={BREDDE * A4_FORHOLD} />
+          ) : (
+            <PdfForhandsvisning bredde={BREDDE} fil={fil} />
+          )}
+        </li>
+      ))}
+    </HStack>
   );
 }
