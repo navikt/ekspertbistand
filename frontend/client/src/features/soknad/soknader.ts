@@ -99,12 +99,17 @@ function mapSkjemaToSoknad(raw: Skjema): SkjemaWithSort {
   };
 }
 
-function resolveStatusTag(statusKey: string): { label: string; variant: TagProps["variant"] } {
+export function resolveStatusTag(statusKey: string): {
+  label: string;
+  variant: TagProps["variant"];
+} {
   switch (statusKey) {
     case "godkjent":
       return { label: "Godkjent", variant: "success" };
     case "innsendt":
       return { label: "Innsendt", variant: "alt1" };
+    case "avslatt":
+      return { label: "Avslått", variant: "error" };
     case "avlyst":
       return { label: "Trukket eller avslått", variant: "error" };
     case "utkast":

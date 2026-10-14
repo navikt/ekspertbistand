@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createEmptyInputs, soknadSchema } from "./schema";
+import { draftDtoServerSchema } from "./server-schemas";
 
 const gyldigeInputs = () => {
   const inputs = createEmptyInputs();
@@ -57,5 +58,15 @@ describe("soknad schema fritekst", () => {
   it("avviser tekst lengre enn 10 000 tegn", () => {
     expect(feilFor("a".repeat(10_000))).toEqual([]);
     expect(feilFor("a".repeat(10_001))).toEqual(["Teksten kan ikke være lengre enn 10 000 tegn."]);
+  });
+});
+
+describe("søknad fra server", () => {
+  it.each(["innsendt", "godkjent", "avslatt", "avlyst"])("godtar status %s", (status) => {
+    expect(draftDtoServerSchema.safeParse({ status }).success).toBe(true);
+  });
+
+  it("avviser ukjent status", () => {
+    expect(draftDtoServerSchema.safeParse({ status: "slettet" }).success).toBe(false);
   });
 });
