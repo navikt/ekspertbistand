@@ -53,6 +53,7 @@ import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
+import no.nav.ekspertbistand.saksbehandling.configureBeslutterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureForelopigVedtakApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSakDokumentApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
@@ -148,6 +149,7 @@ fun main() {
                 configureSakDokumentApiV1()
                 configureVilkarsvurderingApiV1()
                 configureForelopigVedtakApiV1()
+                configureBeslutterApiV1()
             },
         )
         basedOnEnvSuspending(

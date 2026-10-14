@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
@@ -26,9 +27,12 @@ import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
+import org.slf4j.LoggerFactory
 import java.util.UUID
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
+
+private val dbLog = LoggerFactory.getLogger("SaksbehandlingDb")
 
 /**
  * Navs behandling av en søknad. Se `specifications/sak-datamodell.md`.
@@ -172,6 +176,13 @@ enum class ForelopigUtfall {
     AVSLAA,
 }
 
+/** Statusen saken får når vedtaket fattes med dette utfallet. */
+val ForelopigUtfall.saksstatus: Saksstatus
+    get() = when (this) {
+        ForelopigUtfall.INNVILGE, ForelopigUtfall.INNVILGE_REDUSERT -> Saksstatus.INNVILGET
+        ForelopigUtfall.AVSLAA -> Saksstatus.AVSLATT
+    }
+
 /**
  * Saksbehandlers foreløpige vedtak til beslutter, én rad per innsending. Speiler `forelopig_vedtak`
  * fra V21. Se `specifications/forelopig_vedtak.md`.
@@ -207,10 +218,7 @@ fun lagreForelopigVedtak(data: EventData.ForelopigVedtakSendtTilBeslutter, event
         where = { (SakTable.soknadId eq soknadId) and (SakTable.status eq Saksstatus.UNDER_BEHANDLING.name) }
     ) {
         it[status] = Saksstatus.TIL_BESLUTNING.name
-        it[foreslattUtfall] = when (data.utfall) {
-            ForelopigUtfall.INNVILGE, ForelopigUtfall.INNVILGE_REDUSERT -> Saksstatus.INNVILGET.name
-            ForelopigUtfall.AVSLAA -> Saksstatus.AVSLATT.name
-        }
+        it[foreslattUtfall] = data.utfall.saksstatus.name
         it[sistEndret] = data.tidspunkt
     } > 0
     if (!oppdatert) return false
@@ -307,6 +315,291 @@ data class ForelopigVedtakDTO(
     val begrunnelseArbeidsgiver: String?,
     val innstiltAvIdent: String,
     val sendtTidspunkt: Instant,
+)
+
+/** Lagres i `sak_retur.aarsaker` med [name]. Speiles av CHECK-en i V24. */
+@Serializable
+enum class ReturArsak {
+    FEIL_REGELFORSTAELSE,
+    FEIL_FAKTA,
+    ANNET,
+}
+
+/** Beslutters vedtak på søknaden, én rad per sak. Speiler `vedtak` fra V24. Se `specifications/beslutter_vedtak.md`. */
+@OptIn(ExperimentalTime::class)
+object VedtakTable : Table("vedtak") {
+    val id = long("id").autoIncrement()
+    val sakId = uuid("sak_id")
+    val forelopigVedtakId = long("forelopig_vedtak_id")
+    val utfall = text("utfall")
+    val fattetAvIdent = text("fattet_av_ident")
+    val fattetAvNavn = text("fattet_av_navn")
+    val fattetTidspunkt = timestamp("fattet_tidspunkt")
+    val eventId = long("event_id")
+
+    override val primaryKey = PrimaryKey(id)
+}
+
+/** Beslutters retur av et foreløpig vedtak, én rad per retur. Speiler `sak_retur` fra V12 og V24. */
+@OptIn(ExperimentalTime::class)
+object SakReturTable : Table("sak_retur") {
+    val returId = uuid("retur_id").databaseGenerated()
+    val sakId = uuid("sak_id")
+    val forelopigVedtakId = long("forelopig_vedtak_id")
+    val returnertAvIdent = text("returnert_av_ident")
+    val returnertAvNavn = text("returnert_av_navn")
+    val tilSaksbehandlerIdent = text("til_saksbehandler_ident").nullable()
+    val aarsaker = array<String>("aarsaker")
+    val forklaring = text("forklaring")
+    val eventId = long("event_id")
+    val opprettet = timestamp("opprettet")
+
+    override val primaryKey = PrimaryKey(returId)
+}
+
+/** Det beslutningen trenger fra siste versjon av det foreløpige vedtaket. */
+data class SisteForelopigVedtakRef(
+    val id: Long,
+    val versjon: Int,
+    val utfall: ForelopigUtfall,
+    val innstiltAvIdent: String,
+)
+
+/** Må kalles i en pågående transaksjon. */
+fun hentSisteForelopigVedtakRef(sakId: UUID): SisteForelopigVedtakRef? =
+    ForelopigVedtakTable
+        .select(
+            ForelopigVedtakTable.id,
+            ForelopigVedtakTable.versjon,
+            ForelopigVedtakTable.utfall,
+            ForelopigVedtakTable.innstiltAvIdent,
+        )
+        .where { ForelopigVedtakTable.sakId eq sakId }
+        .orderBy(ForelopigVedtakTable.versjon, SortOrder.DESC)
+        .limit(1)
+        .singleOrNull()
+        ?.let {
+            SisteForelopigVedtakRef(
+                id = it[ForelopigVedtakTable.id],
+                versjon = it[ForelopigVedtakTable.versjon],
+                utfall = ForelopigUtfall.valueOf(it[ForelopigVedtakTable.utfall]),
+                innstiltAvIdent = it[ForelopigVedtakTable.innstiltAvIdent],
+            )
+        }
+
+/** Hvorfor beslutteren ikke kan fatte vedtak eller returnere nå. */
+enum class BeslutningHindring {
+    UGYLDIG_STATUS,
+    FORELOPIG_VEDTAK_ENDRET,
+    INHABIL,
+}
+
+/**
+ * Den ene regelen for om en beslutning kan tas på saken. Brukes av API-et, handlerne og
+ * [no.nav.ekspertbistand.event.handlers.SettSoknadStatusVedtakFattet], så alle svarer likt.
+ * [fattetAvIdent] er null ved retur, som ikke sjekker habilitet. Mangler foreløpig vedtak, avvises
+ * beslutningen (fail-closed). Returnerer null når beslutningen kan tas.
+ */
+fun beslutningHindring(
+    status: Saksstatus,
+    siste: SisteForelopigVedtakRef?,
+    forelopigVedtakVersjon: Int,
+    fattetAvIdent: String?,
+): BeslutningHindring? = when {
+    status != Saksstatus.TIL_BESLUTNING -> BeslutningHindring.UGYLDIG_STATUS
+    siste == null || siste.versjon != forelopigVedtakVersjon -> BeslutningHindring.FORELOPIG_VEDTAK_ENDRET
+    fattetAvIdent != null && siste.innstiltAvIdent == fattetAvIdent -> BeslutningHindring.INHABIL
+    else -> null
+}
+
+private data class LastSak(val sakId: UUID, val status: Saksstatus, val saksbehandlerIdent: String?)
+
+private fun lastSakForSoknad(soknadId: UUID): LastSak? =
+    SakTable
+        .select(SakTable.sakId, SakTable.status, SakTable.saksbehandlerIdent)
+        .where { SakTable.soknadId eq soknadId }
+        .forUpdate(ForUpdateOption.ForUpdate)
+        .singleOrNull()
+        ?.let {
+            LastSak(
+                sakId = it[SakTable.sakId],
+                status = Saksstatus.valueOf(it[SakTable.status]),
+                saksbehandlerIdent = it[SakTable.saksbehandlerIdent],
+            )
+        }
+
+/**
+ * Lagrer vedtaket og setter saken til [EventData.VedtakFattet.utfall]. Låser saken og sjekker
+ * [beslutningHindring] på nytt, med habilitet, fordi en ny innstilling kan ha kommet etter at
+ * API-et sjekket. Brukes bare av [no.nav.ekspertbistand.event.handlers.FattVedtak].
+ * Må kalles i en pågående transaksjon. Returnerer true når vedtaket ble lagret.
+ */
+@OptIn(ExperimentalTime::class)
+fun fattVedtak(data: EventData.VedtakFattet, eventId: Long): Boolean {
+    val sak = lastSakForSoknad(UUID.fromString(data.soknadId)) ?: return false
+    val siste = hentSisteForelopigVedtakRef(sak.sakId)
+    when (beslutningHindring(sak.status, siste, data.forelopigVedtakVersjon, data.fattetAvIdent)) {
+        null -> Unit
+        BeslutningHindring.INHABIL -> {
+            dbLog.error("Vedtak for sak {} ble ikke lagret: beslutter er inhabil", sak.sakId)
+            return false
+        }
+        else -> return false
+    }
+    val forelopig = siste ?: return false
+
+    val lagret = VedtakTable.insertIgnore {
+        it[sakId] = sak.sakId
+        it[forelopigVedtakId] = forelopig.id
+        it[utfall] = data.utfall.name
+        it[fattetAvIdent] = data.fattetAvIdent
+        it[fattetAvNavn] = data.fattetAvNavn
+        it[fattetTidspunkt] = data.tidspunkt
+        it[VedtakTable.eventId] = eventId
+    }.insertedCount > 0
+    if (!lagret) return false
+
+    SakTable.update(where = { SakTable.sakId eq sak.sakId }) {
+        it[status] = data.utfall.name
+        it[sistEndret] = data.tidspunkt
+    }
+    return true
+}
+
+/**
+ * Lagrer returen og setter saken tilbake til `UNDER_BEHANDLING` uten `foreslatt_utfall`.
+ * Saksbehandler og beslutter beholdes. Brukes bare av
+ * [no.nav.ekspertbistand.event.handlers.ReturnerForelopigVedtak]. Må kalles i en pågående
+ * transaksjon. Returnerer true når returen ble lagret.
+ */
+@OptIn(ExperimentalTime::class)
+fun returnerForelopigVedtak(data: EventData.ForelopigVedtakReturnert, eventId: Long): Boolean {
+    val sak = lastSakForSoknad(UUID.fromString(data.soknadId)) ?: return false
+    val siste = hentSisteForelopigVedtakRef(sak.sakId)
+    if (beslutningHindring(sak.status, siste, data.forelopigVedtakVersjon, fattetAvIdent = null) != null) {
+        return false
+    }
+    val forelopig = siste ?: return false
+
+    val lagret = SakReturTable.insertIgnore {
+        it[sakId] = sak.sakId
+        it[forelopigVedtakId] = forelopig.id
+        it[returnertAvIdent] = data.returnertAvIdent
+        it[returnertAvNavn] = data.returnertAvNavn
+        it[tilSaksbehandlerIdent] = sak.saksbehandlerIdent
+        it[aarsaker] = data.aarsaker.sorted().map { arsak -> arsak.name }
+        it[forklaring] = data.forklaring
+        it[SakReturTable.eventId] = eventId
+        it[opprettet] = data.tidspunkt
+    }.insertedCount > 0
+    if (!lagret) return false
+
+    SakTable.update(where = { SakTable.sakId eq sak.sakId }) {
+        it[status] = Saksstatus.UNDER_BEHANDLING.name
+        it[foreslattUtfall] = null
+        it[sistEndret] = data.tidspunkt
+    }
+    return true
+}
+
+/** Utfallet i vedtaket som ble lagret for eventen, eller null. Må kalles i en pågående transaksjon. */
+fun hentVedtakUtfallForEvent(eventId: Long): Saksstatus? =
+    VedtakTable.select(VedtakTable.utfall)
+        .where { VedtakTable.eventId eq eventId }
+        .singleOrNull()
+        ?.let { Saksstatus.valueOf(it[VedtakTable.utfall]) }
+
+/**
+ * Om [EventData.VedtakFattet] fortsatt kan lagres av [fattVedtak], slik saken står nå.
+ * Må kalles i en pågående transaksjon.
+ */
+fun vedtakKanFattes(data: EventData.VedtakFattet): Boolean {
+    val soknadId = UUID.fromString(data.soknadId)
+    val sak = SakTable.select(SakTable.sakId, SakTable.status)
+        .where { SakTable.soknadId eq soknadId }
+        .singleOrNull()
+        ?: return false
+    val siste = hentSisteForelopigVedtakRef(sak[SakTable.sakId])
+    return beslutningHindring(
+        Saksstatus.valueOf(sak[SakTable.status]), siste, data.forelopigVedtakVersjon, data.fattetAvIdent,
+    ) == null
+}
+
+/** Sakene blant [sakIder] som har minst én retur. Må kalles i en pågående transaksjon. */
+fun hentSakerMedRetur(sakIder: Collection<UUID>): Set<UUID> {
+    if (sakIder.isEmpty()) return emptySet()
+    return SakReturTable.select(SakReturTable.sakId)
+        .where { SakReturTable.sakId inList sakIder }
+        .withDistinct()
+        .map { it[SakReturTable.sakId] }
+        .toSet()
+}
+
+/** Nyeste retur for saken, eller null. Må kalles i en pågående transaksjon. */
+@OptIn(ExperimentalTime::class)
+fun hentSisteRetur(sakId: UUID): ReturDTO? =
+    SakReturTable
+        .join(ForelopigVedtakTable, JoinType.INNER, SakReturTable.forelopigVedtakId, ForelopigVedtakTable.id)
+        .select(
+            ForelopigVedtakTable.versjon,
+            SakReturTable.aarsaker,
+            SakReturTable.forklaring,
+            SakReturTable.returnertAvNavn,
+            SakReturTable.opprettet,
+        )
+        .where { SakReturTable.sakId eq sakId }
+        .orderBy(SakReturTable.opprettet to SortOrder.DESC, SakReturTable.eventId to SortOrder.DESC)
+        .limit(1)
+        .singleOrNull()
+        ?.let {
+            ReturDTO(
+                forelopigVedtakVersjon = it[ForelopigVedtakTable.versjon],
+                aarsaker = it[SakReturTable.aarsaker].map(ReturArsak::valueOf),
+                forklaring = it[SakReturTable.forklaring],
+                returnertAvNavn = it[SakReturTable.returnertAvNavn],
+                tidspunkt = it[SakReturTable.opprettet],
+            )
+        }
+
+/** Vedtaket på saken, eller null før det er fattet. Må kalles i en pågående transaksjon. */
+@OptIn(ExperimentalTime::class)
+fun hentVedtak(sakId: UUID): VedtakDTO? =
+    VedtakTable
+        .join(ForelopigVedtakTable, JoinType.INNER, VedtakTable.forelopigVedtakId, ForelopigVedtakTable.id)
+        .select(
+            VedtakTable.utfall,
+            ForelopigVedtakTable.versjon,
+            VedtakTable.fattetAvNavn,
+            VedtakTable.fattetTidspunkt,
+        )
+        .where { VedtakTable.sakId eq sakId }
+        .singleOrNull()
+        ?.let {
+            VedtakDTO(
+                utfall = Saksstatus.valueOf(it[VedtakTable.utfall]),
+                forelopigVedtakVersjon = it[ForelopigVedtakTable.versjon],
+                fattetAvNavn = it[VedtakTable.fattetAvNavn],
+                fattetTidspunkt = it[VedtakTable.fattetTidspunkt],
+            )
+        }
+
+@OptIn(ExperimentalTime::class)
+@Serializable
+data class ReturDTO(
+    val forelopigVedtakVersjon: Int,
+    val aarsaker: List<ReturArsak>,
+    val forklaring: String,
+    val returnertAvNavn: String,
+    val tidspunkt: Instant,
+)
+
+@OptIn(ExperimentalTime::class)
+@Serializable
+data class VedtakDTO(
+    val utfall: Saksstatus,
+    val forelopigVedtakVersjon: Int,
+    val fattetAvNavn: String,
+    val fattetTidspunkt: Instant,
 )
 
 /**

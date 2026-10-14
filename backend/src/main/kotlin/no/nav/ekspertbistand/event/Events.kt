@@ -14,6 +14,9 @@ import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
+import no.nav.ekspertbistand.saksbehandling.MAKS_FORKLARING_LENGDE
+import no.nav.ekspertbistand.saksbehandling.ReturArsak
+import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.aggregateRootId
@@ -469,6 +472,73 @@ sealed interface EventData {
     ) : EventData {
         override val aggregateRootId: String get() = soknadId
     }
+
+    /**
+     * Beslutter har godkjent det foreløpige vedtaket, og vedtaket er fattet.
+     *
+     * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/vedtak` etter at tilgang, kilde,
+     * status, versjon og habilitet er sjekket. [utfall] er [Saksstatus.INNVILGET] eller
+     * [Saksstatus.AVSLATT]. [fattetAvIdent] og [fattetAvNavn] skal ikke logges utenfor teamLog.
+     * Se `specifications/beslutter_vedtak.md`.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.FattVedtak] og
+     * [no.nav.ekspertbistand.event.handlers.SettSoknadStatusVedtakFattet].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("vedtakFattet")
+    data class VedtakFattet(
+        val sakId: String,
+        val soknadId: String,
+        val forelopigVedtakVersjon: Int,
+        val utfall: Saksstatus,
+        val fattetAvIdent: String,
+        val fattetAvNavn: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        init {
+            require(utfall == Saksstatus.INNVILGET || utfall == Saksstatus.AVSLATT) {
+                "utfall må være INNVILGET eller AVSLATT, var $utfall"
+            }
+        }
+
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Beslutter har sendt det foreløpige vedtaket tilbake til saksbehandler.
+     *
+     * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/retur` etter at tilgang, kilde,
+     * status og versjon er sjekket. [forklaring] er trimmet og kan inneholde helseopplysninger, så
+     * den skal ikke logges. [returnertAvIdent] og [returnertAvNavn] skal ikke logges utenfor teamLog.
+     * Se `specifications/beslutter_vedtak.md`.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [no.nav.ekspertbistand.event.handlers.ReturnerForelopigVedtak].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("forelopigVedtakReturnert")
+    data class ForelopigVedtakReturnert(
+        val sakId: String,
+        val soknadId: String,
+        val forelopigVedtakVersjon: Int,
+        val aarsaker: Set<ReturArsak>,
+        val forklaring: String,
+        val returnertAvIdent: String,
+        val returnertAvNavn: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        init {
+            require(aarsaker.isNotEmpty()) { "aarsaker kan ikke være tom" }
+            require(forklaring.length in 1..MAKS_FORKLARING_LENGDE) { "forklaring må være 1–$MAKS_FORKLARING_LENGDE tegn" }
+        }
+
+        override val aggregateRootId: String get() = soknadId
+    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -504,6 +574,9 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(TildelBeslutter::class))
         register(dependencies.create(OppdaterVilkarsvurdering::class))
         register(dependencies.create(LagreForelopigVedtak::class))
+        register(dependencies.create(FattVedtak::class))
+        register(dependencies.create(SettSoknadStatusVedtakFattet::class))
+        register(dependencies.create(ReturnerForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
             EventHandledResult.Success()

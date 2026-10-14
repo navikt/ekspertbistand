@@ -415,11 +415,13 @@ stoler derfor ikke på at den andre handleren har kjørt, og slår opp vedtaket:
      `SettGodkjentSoknadStatus`.
    - 0 rader og søknaden har allerede en annen status enn `innsendt`: `success`
      uten endring. Det skjer ved ny kjøring av samme event.
-2. Vedtaket finnes ikke, men saken er fortsatt `TIL_BESLUTNING` på samme
-   versjon: `FattVedtak` har ikke kjørt ferdig. `transientError`, og eventen
-   prøves igjen.
-3. Vedtaket finnes ikke, og saken er ikke lenger `TIL_BESLUTNING` på samme
-   versjon: `FattVedtak` avviste eventen. `success` uten endring.
+2. Vedtaket finnes ikke, men `FattVedtak` ville fortsatt lagret eventen
+   (`vedtakKanFattes`: `TIL_BESLUTNING`, samme versjon og habil beslutter):
+   `FattVedtak` har ikke kjørt ferdig. `transientError`, og eventen prøves
+   igjen. Habiliteten er med, ellers ville en inhabil event bli prøvd igjen i
+   det uendelige.
+3. Vedtaket finnes ikke, og `FattVedtak` ville avvist eventen: `success` uten
+   endring.
 
 Handleren publiserer ikke `SakOppdatert`. Saksloggen har allerede linjen fra
 `FattVedtak`.
