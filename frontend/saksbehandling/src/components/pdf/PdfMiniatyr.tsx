@@ -1,19 +1,19 @@
 import { Skeleton } from "@navikt/ds-react";
 import { Document, Page } from "./pdfjs";
-import { A4_FORHOLD } from "./types";
+import { A4_FORHOLD, type PdfFil } from "./types";
 
 type Props = {
-  url: string;
+  fil: PdfFil;
   bredde: number;
   onFeil: () => void;
 };
 
-export default function PdfMiniatyr({ url, bredde, onFeil }: Props) {
+export default function PdfMiniatyr({ fil, bredde, onFeil }: Props) {
   const laster = <Skeleton variant="rectangle" width={bredde} height={bredde * A4_FORHOLD} />;
 
   return (
     <Document
-      file={url}
+      file={fil.innhold ?? fil.url}
       suspense={false}
       loading={laster}
       error={null}

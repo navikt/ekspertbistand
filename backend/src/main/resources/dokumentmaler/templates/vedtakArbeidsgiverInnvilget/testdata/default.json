@@ -1,0 +1,20 @@
+{
+  "dato": "13. oktober 2026",
+  "deltaker": {
+    "navn": "Ola Testdeltaker"
+  },
+  "arbeidsgiver": {
+    "navn": "Eksempel Bedrift AS",
+    "orgnr": "123456780"
+  },
+  "soknadssum": "22 000",
+  "innvilgetBelop": "22 000",
+  "tiltaksperiode": {
+    "fra": "22. november 2026",
+    "til": "31. desember 2026"
+  },
+  "refusjonsfrist": "30. juni 2027",
+  "begrunnelse": null,
+  "navEnhet": "Nav Testenhet",
+  "saksbehandler": "Siri Saksbehandler"
+}

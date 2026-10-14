@@ -8,6 +8,9 @@ import no.nav.ekspertbistand.dokument.pdf.DokumentRenderer
 import no.nav.ekspertbistand.dokument.pdf.Format
 import no.nav.ekspertbistand.dokument.pdf.HandlebarsConfig
 import no.nav.ekspertbistand.mocks.StubPdfKonverterer
+import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
+import no.nav.ekspertbistand.saksbehandling.Mottaker
+import no.nav.ekspertbistand.saksbehandling.vedtaksbrevData
 import no.nav.ekspertbistand.soknad.DTO
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DynamicTest
@@ -90,6 +93,46 @@ class DokumentmalTest {
         validerHtml(requireNotNull(tilskuddPdfHtml), medHeaderFooter = true)
         validerHtml(requireNotNull(arenaHtml), medHeaderFooter = true)
     }
+
+    @TestFactory
+    fun `vedtaksbrev rendrer gyldig HTML fra ekte payload for alle utfall og mottakere`(): List<DynamicTest> =
+        ForelopigUtfall.entries.flatMap { utfall ->
+            Mottaker.entries.flatMap { mottaker ->
+                listOf("Nav Test" to "Saksbehandler NN", null to null).map { (enhet, saksbehandler) ->
+                    DynamicTest.dynamicTest("$utfall/$mottaker/enhet=$enhet") {
+                        var html: String? = null
+                        val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }), strictRenderer)
+                        val avslag = utfall == ForelopigUtfall.AVSLAA
+                        val data = vedtaksbrevData(
+                            soknad = sampleSoknad(),
+                            utfall = utfall,
+                            belop = if (utfall == ForelopigUtfall.INNVILGE_REDUSERT) 7000 else null,
+                            begrunnelseDeltaker = "Begrunnelse til deltaker",
+                            begrunnelseArbeidsgiver = if (utfall == ForelopigUtfall.INNVILGE) null else "Begrunnelse til arbeidsgiver",
+                            tiltaksperiodeFra = if (avslag) null else LocalDate(2024, 12, 1),
+                            tiltaksperiodeTil = if (avslag) null else LocalDate(2025, 3, 31),
+                            mottaker = mottaker,
+                            navEnhet = enhet,
+                            saksbehandler = saksbehandler,
+                            dato = LocalDate(2024, 11, 20),
+                        )
+
+                        kotlinx.coroutines.runBlocking { service.genererVedtaksbrevPdf(utfall, mottaker, data) }
+
+                        val rendret = requireNotNull(html)
+                        validerHtml(rendret, medHeaderFooter = true)
+                        assertTrue("01010112345" !in rendret, "brevet skal ikke ha fødselsnummer")
+                        assertTrue(data.begrunnelse == null || data.begrunnelse!! in rendret, "brevet mangler begrunnelsen")
+                        if (!avslag && (mottaker == Mottaker.ARBEIDSGIVER || utfall == ForelopigUtfall.INNVILGE_REDUSERT)) {
+                            assertTrue(requireNotNull(data.innvilgetBelop) in rendret, "brevet mangler beløpet")
+                        }
+                        if (!avslag && mottaker == Mottaker.ARBEIDSGIVER) {
+                            assertTrue("30. september 2025" in rendret, "arbeidsgiverbrevet mangler refusjonsfristen")
+                        }
+                    }
+                }
+            }
+        }
 
     @Test
     fun `tilskuddsbrev uten deltaker rendrer gyldig HTML uten deltakerrad`() {

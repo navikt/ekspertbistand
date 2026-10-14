@@ -22,7 +22,7 @@ import kotlin.test.*
 class OpprettSakTest {
 
     @Test
-    fun `oppretter sak med behandlende enhet og vilkår, og publiserer SakOppdatert`() = testApplicationWithDatabase {
+    fun `oppretter sak med behandlende enhet og vilkår, og publiserer SakOppdatert og SakOpprettet`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val soknad = lagreSoknad(database)
 
@@ -35,8 +35,14 @@ class OpprettSakTest {
         assertEquals(KildeTilBehandling.EKSPERTBISTAND.name, sak.kilde)
         assertEquals(Vilkar.entries.size, antallVilkar(database, sak.sakId))
 
-        val oppdatert = hentEvents(database).single()
-        assertIs<EventData.SakOppdatert>(oppdatert)
+        val events = hentEvents(database)
+        assertEquals(2, events.size)
+
+        val opprettet = events.filterIsInstance<EventData.SakOpprettet>().single()
+        assertEquals(sak.sakId.toString(), opprettet.sakId)
+        assertEquals(soknad, opprettet.soknad)
+
+        val oppdatert = events.filterIsInstance<EventData.SakOppdatert>().single()
         assertEquals(sak.sakId.toString(), oppdatert.sakId)
         assertEquals(soknad.id, oppdatert.soknadId)
         assertEquals(AktorRolle.SYSTEM, oppdatert.utfortAvRolle)
@@ -54,7 +60,7 @@ class OpprettSakTest {
         repeat(2) { assertIs<EventHandledResult.Success>(handler.handle(event)) }
 
         transaction(database) { assertEquals(1, SakTable.selectAll().count()) }
-        assertEquals(1, hentEvents(database).size)
+        assertEquals(2, hentEvents(database).size)
     }
 
     @Test

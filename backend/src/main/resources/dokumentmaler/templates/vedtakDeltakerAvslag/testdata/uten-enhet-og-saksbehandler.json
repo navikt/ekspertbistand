@@ -1,0 +1,17 @@
+{
+  "dato": "13. oktober 2026",
+  "deltaker": {
+    "navn": "Ola Testdeltaker"
+  },
+  "arbeidsgiver": {
+    "navn": "Eksempel Bedrift AS",
+    "orgnr": "123456780"
+  },
+  "soknadssum": "22 000",
+  "innvilgetBelop": null,
+  "tiltaksperiode": null,
+  "refusjonsfrist": null,
+  "begrunnelse": "Ekspertbistand kan hjelpe deg tilbake i arbeid.\nVi har lagt vekt på det du og arbeidsgiveren din har beskrevet.",
+  "navEnhet": null,
+  "saksbehandler": null
+}

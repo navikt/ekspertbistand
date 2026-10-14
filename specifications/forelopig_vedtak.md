@@ -137,10 +137,8 @@ Ikke i dette kortet:
 
 - Beslutterens side: oversikt over saker til beslutning, godkjenne, returnere,
   `beslutter_ident`, habilitetssjekken og bruk av `sak_retur`.
-- Vedtaksbrev og tilskuddsbrev som PDF, og forhåndsvisning av dem. Lenkene
-  «Forhåndsvis foreløpig vedtak - deltaker/arbeidsgiver» bygges ikke. Hanna
-  lager et nytt forslag med forhåndsvisnings-«pills» etter knappene, og det
-  kommer i brevkortet (`6a8d564c…`) eller et eget kort.
+- Vedtaksbrev og tilskuddsbrev som PDF. Forhåndsvisning av vedtaksbrevene med
+  PDF-«pills» er beskrevet i `forelopig_vedtak_brev.md`.
 - Varsling av arbeidsgiver og deltaker.
 - Bestilling mot tiltaksøkonomi.
 - Å trekke tilbake et foreløpig vedtak etter innsending.

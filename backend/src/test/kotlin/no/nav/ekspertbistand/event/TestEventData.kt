@@ -227,6 +227,10 @@ object TestEventData {
     val allEventSamples: List<EventData> = listOf(
         soknadInnsendt,
         innsendtSoknadJournalfoert,
+        EventData.SakOpprettet(
+            sakId = "11111111-1111-1111-1111-111111111111",
+            soknad = sampleSoknad,
+        ),
         EventData.TiltaksgjennomforingOpprettet(
             soknad = sampleSoknad,
             saksnummer = "2026202",

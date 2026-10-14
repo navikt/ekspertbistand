@@ -15,6 +15,10 @@ import no.nav.ekspertbistand.dokument.pdf.DokumentRenderer
 import no.nav.ekspertbistand.dokument.pdf.Format
 import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
 import no.nav.ekspertbistand.infrastruktur.defaultJson
+import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
+import no.nav.ekspertbistand.saksbehandling.Mottaker
+import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
+import no.nav.ekspertbistand.saksbehandling.vedtaksbrevMal
 import no.nav.ekspertbistand.soknad.DTO
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -59,6 +63,15 @@ class DokumentService(
             put("tiltaksgjennomfoeringId", tiltaksgjennomfoeringId)
         }
         return renderPdf("arenaNotat", data)
+    }
+
+    suspend fun genererVedtaksbrevPdf(
+        utfall: ForelopigUtfall,
+        mottaker: Mottaker,
+        data: VedtaksbrevData,
+    ): ByteArray {
+        val json = defaultJson.encodeToJsonElement(data).jsonObject
+        return renderPdf(vedtaksbrevMal(utfall, mottaker), json)
     }
 
     private suspend fun renderPdf(templateName: String, data: JsonObject): ByteArray {

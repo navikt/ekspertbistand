@@ -38,23 +38,27 @@ export type Vilkår = {
 export const VILKAR_TEKSTER: Record<VilkarId, { tittel: string; beskrivelse: string }> = {
   DELTAKER_HAR_ARBEIDSFORHOLD: {
     tittel: "Arbeidsforhold",
-    beskrivelse: "Deltaker må ha et arbeidsforhold hos arbeidsgiver i Aa-reg",
+    beskrivelse:
+      "Deltaker må ha et arbeidsforhold i virksomheten som står i søknaden. Kontroller i Aa-registeret at arbeidsforholdet er registrert på riktig virksomhet.",
   },
   FYLLES_UT_I_SAMRAD_GODKJENT: {
     tittel: "Deltaker er enig",
-    beskrivelse: "Arbeidsgiver har oppgitt at deltaker gitt samtykke til at søknaden sendtes.",
+    beskrivelse:
+      "Deltaker er enig i at tilskudd til ekspertbistand er hensiktsmessig. Arbeidsgiver må bekrefte dette for at søknaden skal kunne sendes inn.",
   },
   ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING: {
     tittel: "Prøvd tilrettelegging",
-    beskrivelse: "Arbeidsgiver har beskrevet hvilke tiltak de prøvd eller vurdert.",
+    beskrivelse:
+      "Arbeidsgiver har beskrevet hvilke relevante tilretteleggingstiltak som er prøvd eller vurdert i tråd med tilretteleggingsplikten etter arbeidsmiljøloven § 4-6 første ledd.",
   },
   DELTAKER_HAR_SYKEFRAVAERSHISTORIKK: {
     tittel: "Sykefraværshistorikk",
-    beskrivelse: "Må ha legemeldt sykefravær som er hyppig eller gjentakerende.",
+    beskrivelse:
+      "Må ha hatt legemeldt sykefravær mer enn én gang. Vurder om fraværet fremstår som hyppig eller gjentakende. Ved kun to sykefraværsperioder bør minst én være av en viss varighet. Vurderingen er skjønnsmessig.",
   },
   EKSPERT_HAR_KOMPETANSE: {
     tittel: "Ekspertens kompetanse og uavhengighet",
-    beskrivelse: "Må ha offentlig godkjent utdanning og relevant arbeidsrelatert kompentanse.",
+    beskrivelse: "Må ha offentlig godkjent utdanning og relevant arbeidsrelatert kompetanse.",
   },
 };
 

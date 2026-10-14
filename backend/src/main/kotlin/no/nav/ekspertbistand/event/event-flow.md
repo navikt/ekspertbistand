@@ -30,6 +30,7 @@ flowchart TD
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
     e_SakFrigjort(["SakFrigjort"]):::event
     e_SakOppdatert(["SakOppdatert"]):::event
+    e_SakOpprettet(["SakOpprettet"]):::event
     e_SakTildeltBeslutter(["SakTildeltBeslutter"]):::event
     e_SakTildeltSaksbehandler(["SakTildeltSaksbehandler"]):::event
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
@@ -61,6 +62,7 @@ flowchart TD
     h_TildelBeslutter["TildelBeslutter"]:::handler
     h_TildelSaksbehandler["TildelSaksbehandler"]:::handler
     h_TilskuddsbrevVistNoop["TilskuddsbrevVistNoop"]:::handler
+    h_VarsleArbeidsgiverSakOpprettet["VarsleArbeidsgiverSakOpprettet"]:::handler
     h_VarsleArbeidsgiverSoknadAvlyst["VarsleArbeidsgiverSoknadAvlyst"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
@@ -81,6 +83,7 @@ flowchart TD
     h_LagreForelopigVedtak --> e_SakOppdatert
     h_LagreTilsagnsData --> e_TilsagnsdataLagret
     h_OpprettSak --> e_SakOppdatert
+    h_OpprettSak --> e_SakOpprettet
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
     s_SakApi --> e_SakFrigjort
     s_SakApi --> e_SakTildeltBeslutter
@@ -108,6 +111,7 @@ flowchart TD
     e_SakTildeltBeslutter --> h_TildelBeslutter
     e_SakTildeltSaksbehandler --> h_TildelSaksbehandler
     e_TilskuddsbrevVist --> h_TilskuddsbrevVistNoop
+    e_SakOpprettet --> h_VarsleArbeidsgiverSakOpprettet
     e_SoknadAvlystIArena --> h_VarsleArbeidsgiverSoknadAvlyst
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn

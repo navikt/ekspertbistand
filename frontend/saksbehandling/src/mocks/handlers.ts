@@ -1,6 +1,7 @@
-import { http, HttpResponse } from "msw";
+import { http, bypass, HttpResponse } from "msw";
 import type { ForelopigVedtakInput } from "../hooks/useForelopigVedtak";
 import type { ForelopigVedtakOppsett } from "../hooks/useForelopigVedtakOppsett";
+import type { Mottaker } from "../hooks/useVedtaksbrev";
 import type { ForelopigUtfall, ForelopigVedtak, SakDetaljer } from "../hooks/useSak";
 import type {
   Oppgavetype,
@@ -14,6 +15,8 @@ import type { SaksloggInnslag, SaksloggResponse } from "../hooks/useSakslogg";
 import { mockInnloggetAnsatt } from "../mock/ansatt";
 import { tolkSoknadssum } from "../utils/belop";
 import {
+  SAKSBEHANDLING_FORELOPIG_VEDTAK_BREV_URL,
+  SAKSBEHANDLING_FORELOPIG_VEDTAK_FORHANDSVISNING_URL,
   SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL,
   SAKSBEHANDLING_REFUSJON_URL,
   SAKSBEHANDLING_REFUSJON_VEDLEGG_URL,
@@ -303,6 +306,36 @@ const mockSaker: MockSak[] = [
       startdato: "2026-11-20",
     },
   },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002015",
+    status: "UNDER_BEHANDLING",
+    kildeTilBehandling: "ARENA",
+    saksbehandlerIdent: kollega.ident,
+    saksbehandlerNavn: kollega.navn,
+    arenaSakId: "2026777888",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001015",
+      virksomhetsnavn: "Strandvik bakeri",
+      ansattNavn: "Bente Brødskive",
+      innsendtTidspunkt: "2026-10-11T08:30:00Z",
+      startdato: "2026-11-10",
+    },
+  },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002016",
+    status: "UNDER_BEHANDLING",
+    kildeTilBehandling: "ARENA",
+    saksbehandlerIdent: mockInnloggetAnsatt.id,
+    saksbehandlerNavn: mockInnloggetAnsatt.navn,
+    arenaSakId: "2026999000",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001016",
+      virksomhetsnavn: "Havbris kafé",
+      ansattNavn: "Ola Oppskrift",
+      innsendtTidspunkt: "2026-10-09T11:45:00Z",
+      startdato: "2026-11-05",
+    },
+  },
 ];
 
 const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];
@@ -574,6 +607,16 @@ function hentVilkårsvurdering(sakId: string): VilkarsvurderingDTO[] {
   return vurderinger;
 }
 
+const erMottaker = (verdi: string | null): verdi is Mottaker =>
+  verdi === "deltaker" || verdi === "arbeidsgiver";
+
+async function mockVedtaksbrev() {
+  const pdf = await fetch(bypass("/mock/eksempel.pdf")).then((r) => r.arrayBuffer());
+  return new HttpResponse(pdf, {
+    headers: { "Content-Type": "application/pdf", "Cache-Control": "no-store" },
+  });
+}
+
 // Speiler backend: 404 når saken ikke finnes, 403 når saksbehandler mangler tilgang til enheten.
 function finnSakMedTilgang(sakId: string): SakListeElement | Response {
   const sak = alleSaker().find((s) => s.sakId === sakId);
@@ -717,6 +760,37 @@ export const handlers = [
   http.get(SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL, () =>
     HttpResponse.json<ForelopigVedtakOppsett>(mockOppsett)
   ),
+  http.post(
+    SAKSBEHANDLING_FORELOPIG_VEDTAK_FORHANDSVISNING_URL(":sakId"),
+    async ({ params, request }) => {
+      const sak = finnSakMedTilgang(String(params.sakId));
+      if (sak instanceof Response) return sak;
+      if (!erMottaker(new URL(request.url).searchParams.get("mottaker"))) {
+        return HttpResponse.json({ message: "Ukjent mottaker" }, { status: 400 });
+      }
+      if (sak.kildeTilBehandling === "ARENA") {
+        return HttpResponse.json(
+          { kode: "SAK_UGYLDIG_KILDE", message: "Saken behandles i Arena" },
+          { status: 409 }
+        );
+      }
+      if (sak.saksbehandlerIdent !== mockInnloggetAnsatt.id) {
+        return HttpResponse.json(
+          { kode: "IKKE_TILDELT_SAK", begrunnelse: "Du er ikke tildelt saken" },
+          { status: 403 }
+        );
+      }
+      return mockVedtaksbrev();
+    }
+  ),
+  http.get(SAKSBEHANDLING_FORELOPIG_VEDTAK_BREV_URL(":sakId", ":mottaker"), ({ params }) => {
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
+    if (!erMottaker(String(params.mottaker))) {
+      return HttpResponse.json({ message: "Ukjent mottaker" }, { status: 400 });
+    }
+    return mockVedtaksbrev();
+  }),
   http.post<{ sakId: string }, Partial<ForelopigVedtakInput>>(
     "/api/saksbehandling/v1/saker/:sakId/forelopig-vedtak",
     async ({ params, request }) => {
