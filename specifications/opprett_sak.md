@@ -12,7 +12,7 @@ fra start, slik at `SakProjection` på sikt kan fjernes.
 | Trigger | Handleren `OpprettSak` lytter på `InnsendtSoknadJournalfoert`, på samme måte som `OpprettTiltaksgjennomfoeringForInnsendtSoknad`. |
 | Behandlende enhet | Utledes før journalføring av `BehandlendeEnhetUtleder` (PDL, Ereg, Norg) i `JournalfoerInnsendtSoknad`. Eventen bærer Arena-enhetsnummeret, som `OpprettSak` mapper tilbake til Norg-nummer med `BehandlendeEnhetService.arenaTilNorgEnhetNr`. |
 | Enhetsnummer på saken | `sak.behandlende_enhet` er alltid Norg-nummer. Arena bruker et annet nummer for noen enheter (Nordland: Norg `1891`, Arena `1899`). |
-| Event for opprettet sak | Ingen egen `SakOpprettet`-event. En event uten handler gir `TransientError` i `EventManager`, og ingen trenger den ennå. |
+| Event for opprettet sak | `OpprettSak` publiserer `SakOpprettet(sakId, soknad)` i samme transaksjon som saken opprettes. `VarsleArbeidsgiverSakOpprettet` lytter på den og sender samme sak og beskjed til notifikasjonsplattformen som `VarsleArbeidsgiverSoknadMottattBehandlesIAltinn`. |
 | Sakslogg | `OpprettSak` publiserer `SakOppdatert(SYSTEM, null, "Sak opprettet")`, som `SkrivSakslogg` skriver til `sakslogg`. |
 | `SakProjection` | Beholdes som backfill for eldre søknader og for statusoverganger. Ingen versjonsbump. |
 | Søknad finnes ikke | `UnrecoverableError`. Det skal ikke skje i normal flyt, så det skal synes. |
@@ -22,7 +22,9 @@ fra start, slik at `SakProjection` på sikt kan fjernes.
 SoknadInnsendt
   └─ JournalfoerInnsendtSoknad (utleder enhet, journalfører)
        └─ InnsendtSoknadJournalfoert (behandlendeEnhetId = Arena-nummer)
-            ├─ OpprettSak → sak + vilkår, SakOppdatert → SkrivSakslogg
+            ├─ OpprettSak → sak + vilkår
+            │    ├─ SakOppdatert → SkrivSakslogg
+            │    └─ SakOpprettet → VarsleArbeidsgiverSakOpprettet → notifikasjonsplattformen
             └─ OpprettTiltaksgjennomfoeringForInnsendtSoknad → Arena
 ```
 
@@ -49,7 +51,8 @@ SoknadInnsendt
   1. Idempotency guard (subtask `sak_opprettet`). Hvis eventen allerede er håndtert, returneres success.
   2. Ugyldig `soknad.id` gir `UnrecoverableError`.
   3. Enheten mappes fra Arena- til Norg-nummer.
-  4. Én transaksjon gjør tre ting: kaller `opprettSakForSoknad`, publiserer `SakOppdatert` og setter guarden.
+  4. Én transaksjon gjør fire ting: kaller `opprettSakForSoknad`, publiserer `SakOppdatert` og `SakOpprettet`,
+     og setter guarden.
 - `opprettSakForSoknad` (privat):
   - Returnerer null hvis søknaden ikke finnes.
   - `insertIgnore` på `sak` (`OPPRETTET`, kilde `ARENA`, enhet, `opprettet = sist_endret = nå`).
