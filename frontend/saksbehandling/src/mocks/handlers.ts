@@ -306,6 +306,36 @@ const mockSaker: MockSak[] = [
       startdato: "2026-11-20",
     },
   },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002015",
+    status: "UNDER_BEHANDLING",
+    kildeTilBehandling: "ARENA",
+    saksbehandlerIdent: kollega.ident,
+    saksbehandlerNavn: kollega.navn,
+    arenaSakId: "2026777888",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001015",
+      virksomhetsnavn: "Strandvik bakeri",
+      ansattNavn: "Bente Brødskive",
+      innsendtTidspunkt: "2026-10-11T08:30:00Z",
+      startdato: "2026-11-10",
+    },
+  },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002016",
+    status: "UNDER_BEHANDLING",
+    kildeTilBehandling: "ARENA",
+    saksbehandlerIdent: mockInnloggetAnsatt.id,
+    saksbehandlerNavn: mockInnloggetAnsatt.navn,
+    arenaSakId: "2026999000",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001016",
+      virksomhetsnavn: "Havbris kafé",
+      ansattNavn: "Ola Oppskrift",
+      innsendtTidspunkt: "2026-10-09T11:45:00Z",
+      startdato: "2026-11-05",
+    },
+  },
 ];
 
 const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];

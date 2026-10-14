@@ -2,7 +2,7 @@ import { ActionMenu, BodyShort, Box, Button, HStack } from "@navikt/ds-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import type { SakDetaljer } from "../hooks/useSak";
-import { rolleForOppgave } from "../hooks/useSaker";
+import { kanTildeleMegSomSaksbehandler, rolleForOppgave } from "../hooks/useSaker";
 import { useTildeling } from "../hooks/useTildeling";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import { OVERSIKT_PATH } from "../utils/constants";
@@ -28,7 +28,9 @@ export default function Tildeling({ sak, onFeil }: Props) {
   const { tildelMeg, frigjoer, isSaving } = erBeslutter ? beslutter : saksbehandler;
   const ident = erBeslutter ? sak.beslutterIdent : sak.saksbehandlerIdent;
   const navn = erBeslutter ? sak.beslutterNavn : sak.saksbehandlerNavn;
-  const kanTildeleMeg = erBeslutter ? sak.kanTildeleMegSomBeslutter : sak.kanTildeleMeg;
+  const kanTildeleMeg = erBeslutter
+    ? sak.kanTildeleMegSomBeslutter
+    : kanTildeleMegSomSaksbehandler(sak);
   const erMeg = !!innloggetAnsatt && ident === innloggetAnsatt.id;
 
   const utfoer = (handling: () => Promise<boolean>) => {
