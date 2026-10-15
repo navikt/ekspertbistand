@@ -8,21 +8,24 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 
 /**
  * Når en søknad er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarslet] som kvittering.
  */
 class VarsleArbeidsgiverSoknadAvlyst(
     private val produsentApiKlient: ProdusentApiKlient,
-    database: Database
+    private val database: Database
 ) : EventHandler<EventData.SoknadAvlystIArena> {
     override val id: String = "Varsle Arbeidsgiver Soknad Avlyst"
     override val eventType = EventData.SoknadAvlystIArena::class
@@ -60,6 +63,14 @@ class VarsleArbeidsgiverSoknadAvlyst(
             )
         }
 
+        transaction(database) {
+            publishEventQueue(
+                EventData.ArbeidsgiverVarslet(
+                    soknadId = soknad.id,
+                    varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_AVLYST
+                )
+            )
+        }
         return success()
     }
 

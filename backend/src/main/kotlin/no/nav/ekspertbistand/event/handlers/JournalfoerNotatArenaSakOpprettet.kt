@@ -13,6 +13,9 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
+import no.nav.ekspertbistand.event.publishEventQueue
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 
 /**
@@ -20,11 +23,13 @@ import no.nav.ekspertbistand.event.EventHandler
  * Dette resulterer i eventen [no.nav.ekspertbistand.event.EventData.TiltaksgjennomforingOpprettet]
  *
  * Denne handleren oppretter da et notat i gosys med hvilket saksnummer som er opprettet i Arena
+ * Når alt har lyktes, publiserer handleren [EventData.ArenaNotatJournalfoert] som kvittering.
  */
 class JournalfoerNotatArenaSakOpprettet(
     private val dokumentService: DokumentService,
     private val dokArkivClient: DokArkivClient,
     private val fagsakIdService: FagsakIdService,
+    private val database: Database,
 ) : EventHandler<EventData.TiltaksgjennomforingOpprettet> {
 
     override val id: String = "JournalfoerNotatArenaSakOpprettet"
@@ -64,6 +69,15 @@ class JournalfoerNotatArenaSakOpprettet(
             return transientError("Journalpost ikke ferdigstilt")
         }
 
+        transaction(database) {
+            publishEventQueue(
+                EventData.ArenaNotatJournalfoert(
+                    soknadId = soknad.id,
+                    saksnummer = event.data.saksnummer,
+                    journalpostId = journalpostResponse.journalpostId
+                )
+            )
+        }
         return success()
     }
 }
