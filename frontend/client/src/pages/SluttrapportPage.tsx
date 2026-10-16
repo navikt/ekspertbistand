@@ -22,6 +22,7 @@ import { useSoknad } from "../hooks/useSoknad";
 import { useSluttrapportStatus } from "../hooks/useSluttrapportStatus";
 import { formatDate } from "../components/summaryFormatters";
 import { EKSPERTBISTAND_SLUTTRAPPORT_PATH } from "../utils/constants";
+import { formatDateTime } from "../utils/date";
 import { resolveApiError, type ApiErrorInfo } from "../utils/http";
 
 const MAX_FILES = 1;
@@ -142,7 +143,7 @@ export default function SluttrapportPage() {
                 <FileTextIcon aria-hidden fontSize="1.5rem" />
                 <ExpansionCard.Title size="small">Sluttrapport sendt inn</ExpansionCard.Title>
                 <ExpansionCard.Description>
-                  {formatDate(sluttrapport.opprettet)}
+                  {formatDateTime(sluttrapport.opprettet) ?? "–"}
                 </ExpansionCard.Description>
               </VStack>
             </ExpansionCard.Header>
@@ -154,7 +155,7 @@ export default function SluttrapportPage() {
                 </VStack>
                 <VStack gap="space-2">
                   <Label>Sendt inn til Nav</Label>
-                  <BodyShort>{formatDate(sluttrapport.opprettet)}</BodyShort>
+                  <BodyShort>{formatDateTime(sluttrapport.opprettet) ?? "–"}</BodyShort>
                 </VStack>
               </VStack>
             </ExpansionCard.Content>

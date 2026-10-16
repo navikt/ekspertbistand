@@ -4,6 +4,7 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
@@ -311,6 +312,25 @@ class VilkarsvurderingApiTest {
         }
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertIngenEndring(db, sakId)
+    }
+
+    @Test
+    fun `oppdater med ugyldige tegn i notat gir 400 med årsak`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, saksbehandlerIdent = navIdent)
+        val oppsett = oppsett(db)
+
+        val response = oppsett.client.patch(url(sakId)) {
+            bearerAuth(gyldigToken)
+            jsonBody("""{ "vilkar": "${Vilkar.entries.first().name}", "godkjent": true, "notat": "<b>hemmelig</b>" }""")
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val feil = response.body<Map<String, String>>()
+        assertEquals(UGYLDIG_INPUT, feil["kode"])
+        assertEquals("notat", feil["felt"])
+        assertEquals("Ugyldig verdi i felt 'notat': inneholder < eller >", feil["message"])
+        assertTrue("hemmelig" !in response.bodyAsText())
         assertIngenEndring(db, sakId)
     }
 

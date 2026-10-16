@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useMemo } from "react";
+import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema";
@@ -53,17 +53,29 @@ export function SoknadDraftProvider({
       })
   );
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const sisteLagring = useRef(0);
+
   const saveDraft = useCallback(
     (snapshot: SoknadInputs) => {
       if (draftDto?.status === "innsendt") return;
+      const lagring = ++sisteLagring.current;
       const optimisticPersistedIso = new Date().toISOString();
-      void persistDraft(snapshot, {
+      persistDraft(snapshot, {
         optimisticData: (current) =>
           mergeSnapshotIntoDraftDto(snapshot, draftId, current, optimisticPersistedIso),
         rollbackOnError: true,
         revalidate: false,
         populateCache: false,
-      }).catch(() => undefined);
+      }).then(
+        () => {
+          if (lagring === sisteLagring.current) setSaveError(null);
+        },
+        (e: unknown) => {
+          if (lagring !== sisteLagring.current) return;
+          setSaveError(e instanceof HttpError ? e.message : "Prøv igjen senere.");
+        }
+      );
     },
     [draftDto?.status, draftId, persistDraft]
   );
@@ -99,8 +111,9 @@ export function SoknadDraftProvider({
       saveDraft,
       clearDraft,
       lastPersistedAt,
+      saveError,
     }),
-    [clearDraft, draft, draftId, hydrated, lastPersistedAt, saveDraft, status]
+    [clearDraft, draft, draftId, hydrated, lastPersistedAt, saveDraft, saveError, status]
   );
 
   if (error instanceof HttpError && (error.status === 400 || error.status === 404)) {

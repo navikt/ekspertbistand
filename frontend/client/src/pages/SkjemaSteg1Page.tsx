@@ -57,7 +57,7 @@ export default function SkjemaSteg1Page() {
   const { errors } = formState;
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
 
-  const { clearDraft, lastPersistedAt } = useSoknadDraft();
+  const { clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
   const { goToSoknader, goToSoknaderWithSaveNotice, goToStep2, goToSummary, createLinkHandler } =
     useSkjemaNavigation();
   const virksomhetsnummer = useWatch({ control, name: "virksomhet.virksomhetsnummer" });
@@ -295,7 +295,7 @@ export default function SkjemaSteg1Page() {
           />
 
           <VStack gap="space-16">
-            <SistLagretInfo timestamp={lastPersistedAt} />
+            <SistLagretInfo timestamp={lastPersistedAt} saveError={saveError} />
             <HGrid
               gap={{ xs: "space-32", sm: "space-16" }}
               columns={{ xs: 1, sm: 2 }}

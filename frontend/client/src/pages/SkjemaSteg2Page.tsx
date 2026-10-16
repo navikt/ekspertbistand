@@ -39,7 +39,7 @@ export default function SkjemaSteg2Page() {
   const startdato = useWatch({ name: "behovForBistand.startdato" }) as
     SoknadInputs["behovForBistand"]["startdato"] | undefined;
   const syncingDateRef = useRef(false);
-  const { draftId, clearDraft, lastPersistedAt } = useSoknadDraft();
+  const { draftId, clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
   const { goToSoknader, goToSoknaderWithSaveNotice, goToStep1, goToSummary, createLinkHandler } =
     useSkjemaNavigation();
   const handleStepOneLink = createLinkHandler(goToStep1);
@@ -212,7 +212,7 @@ export default function SkjemaSteg2Page() {
           />
 
           <VStack gap="space-16">
-            <SistLagretInfo timestamp={lastPersistedAt} />
+            <SistLagretInfo timestamp={lastPersistedAt} saveError={saveError} />
             <HGrid
               gap={{ xs: "space-32", sm: "space-16" }}
               columns={{ xs: 1, sm: 2 }}

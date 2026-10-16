@@ -1,0 +1,49 @@
+.saksinnhold {
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .saksinnhold {
+    padding: 0 !important;
+  }
+}
+
+@media (max-width: 1279px) {
+  .saksinnholdGroup {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .saksinnholdGroup :global([data-panel]) {
+    box-sizing: border-box;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .saksinnholdGroup :global([data-panel] > *) {
+    box-sizing: border-box;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .saksinnholdGroup :global([data-separator]) {
+    display: none !important;
+  }
+}

@@ -14,6 +14,9 @@ import kotlin.reflect.full.memberProperties
 class UgyldigInputException(val feltsti: String, val aarsak: String) :
     IllegalArgumentException("Ugyldig verdi i felt '$feltsti': $aarsak")
 
+/** `kode` i 400-svaret for [UgyldigInputException]. */
+const val UGYLDIG_INPUT = "UGYLDIG_INPUT"
+
 /**
  * En enkelt sjekk som kan kjøres på en tekstverdi. Returner `null` når verdien er ok,
  * ellers en kort grunn (uten selve verdien). Nye sjekker legges til i [standardTekstSjekker].

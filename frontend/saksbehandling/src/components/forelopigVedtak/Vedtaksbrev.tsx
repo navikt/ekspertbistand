@@ -7,6 +7,7 @@ import {
 } from "../../hooks/useVedtaksbrev";
 import { PdfForhandsvisning, type PdfFil } from "../pdf";
 import { A4_FORHOLD } from "../pdf/types";
+import { HttpError } from "../../utils/http";
 
 const BREDDE = 360;
 const MOTTAKERE: Mottaker[] = ["deltaker", "arbeidsgiver"];
@@ -42,7 +43,9 @@ function Brev({ deltaker, arbeidsgiver, isLoading, error }: BrevProps) {
   if (error) {
     return (
       <Alert variant="warning" size="small">
-        Kunne ikke lage forhåndsvisning av brevene.
+        {error instanceof HttpError && error.status === 400
+          ? `Kunne ikke lage forhåndsvisning av brevene: ${error.message}`
+          : "Kunne ikke lage forhåndsvisning av brevene."}
       </Alert>
     );
   }
