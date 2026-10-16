@@ -13,6 +13,7 @@ import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
@@ -20,6 +21,8 @@ import no.nav.ekspertbistand.mocks.mockDokArkiv
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -63,6 +66,46 @@ class JournalfoerNotatArenaSakOpprettetTest {
         val result = handler.handle(event)
         assertIs<EventHandledResult.Success>(result)
         requestAssertions.forEach { assertion -> assertion() } // run assertions on the request payload
+
+        val kvitteringer = transaction(database) {
+            QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
+                .filterIsInstance<EventData.ArenaNotatJournalfoert>()
+        }
+        assertEquals(1, kvitteringer.size)
+        assertEquals(sampleSoknad.id, kvitteringer.single().soknadId)
+        assertEquals("1337", kvitteringer.single().saksnummer)
+        assertEquals("1234", kvitteringer.single().journalpostId)
+    }
+
+    @Test
+    fun `journalpost som ikke er ferdigstilt publiserer ikke kvittering`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        mockDokArkiv {
+            OpprettJournalpostResponse(
+                dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                journalpostId = "1234",
+                journalpostferdigstilt = false,
+            )
+        }
+        setupApplication(database)
+        startApplication()
+
+        val handler = application.dependencies.resolve<JournalfoerNotatArenaSakOpprettet>()
+        val event = Event(
+            id = 1L,
+            data = EventData.TiltaksgjennomforingOpprettet(
+                soknad = sampleSoknad,
+                saksnummer = "1337",
+                tiltaksgjennomfoeringId = 42,
+            )
+        )
+
+        assertIs<EventHandledResult.TransientError>(handler.handle(event))
+        val kvitteringer = transaction(database) {
+            QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
+                .filterIsInstance<EventData.ArenaNotatJournalfoert>()
+        }
+        assertEquals(0, kvitteringer.size)
     }
 }
 
@@ -115,5 +158,4 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
         }
     }
 }
-
 

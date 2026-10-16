@@ -9,6 +9,7 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
@@ -25,6 +26,7 @@ import java.util.UUID
  * Når en søknad, innsendt via ekspertbistand på arbeidsgiver.nav.no,
  * er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarslet] som kvittering.
  */
 class VarsleArbeidsgiverSoknadGodkjent(
     private val produsentApiKlient: ProdusentApiKlient,
@@ -66,6 +68,14 @@ class VarsleArbeidsgiverSoknadGodkjent(
             )
         }
 
+        transaction(database) {
+            publishEventQueue(
+                EventData.ArbeidsgiverVarslet(
+                    soknadId = soknad.id,
+                    varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_GODKJENT
+                )
+            )
+        }
         return success()
     }
 

@@ -27,6 +27,11 @@ class EventDataAggregateRootIdTest {
             EventData.TilskuddsbrevJournalfoertKildeAltinn(1, 2, TestEventData.sampleTilsagnData) to tilsagnRoot,
             EventData.SoknadAvlystIArena(TestEventData.sampleSoknad, TestEventData.sampleTiltaksgjennomforingEndret) to soknadRoot,
             EventData.SaksbehandlingStartetIArena(TestEventData.sampleSoknad, TestEventData.sampleTiltakssakEndret) to soknadRoot,
+            EventData.ArbeidsgiverVarslet(
+                TestEventData.sampleSoknad.id!!,
+                EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_GODKJENT,
+            ) to soknadRoot,
+            EventData.ArenaNotatJournalfoert(TestEventData.sampleSoknad.id!!, "2026202", "1234") to soknadRoot,
             EventData.TilsagnsdataLagret(TestEventData.sampleSoknad, TestEventData.sampleTilsagnData) to soknadRoot,
             EventData.TilskuddsbrevVist("1337:42:43", TestEventData.sampleSoknad) to soknadRoot,
             EventData.TilskuddsbrevVist("1337:42:43", null) to tilsagnRoot,

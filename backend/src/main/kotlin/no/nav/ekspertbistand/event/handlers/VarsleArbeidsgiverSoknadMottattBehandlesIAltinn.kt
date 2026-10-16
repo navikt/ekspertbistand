@@ -7,10 +7,12 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 
 /**
@@ -18,10 +20,11 @@ import org.jetbrains.exposed.v1.jdbc.Database
  * Dette resulterer i eventen [no.nav.ekspertbistand.event.EventData.TiltaksgjennomforingOpprettet]
  *
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen om at søknad er mottatt og under behandling.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarslet] som kvittering.
  */
 class VarsleArbeidsgiverSoknadMottattBehandlesIAltinn(
     private val produsentApiKlient: ProdusentApiKlient,
-    database: Database
+    private val database: Database
 ) : EventHandler<EventData.TiltaksgjennomforingOpprettet> {
 
     override val id: String = "VarsleArbeidsgiverSoknadMottatt"
@@ -46,6 +49,14 @@ class VarsleArbeidsgiverSoknadMottattBehandlesIAltinn(
             )
         }
 
+        transaction(database) {
+            publishEventQueue(
+                EventData.ArbeidsgiverVarslet(
+                    soknadId = event.data.soknad.id!!,
+                    varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_MOTTATT
+                )
+            )
+        }
         return success()
     }
 

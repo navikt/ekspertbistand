@@ -276,6 +276,15 @@ object TestEventData {
             tilsagnNummer = "1337:42:43",
             soknad = null,
         ),
+        EventData.ArbeidsgiverVarslet(
+            soknadId = sampleSoknad.id!!,
+            varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_GODKJENT,
+        ),
+        EventData.ArenaNotatJournalfoert(
+            soknadId = sampleSoknad.id!!,
+            saksnummer = "2026202",
+            journalpostId = "1234",
+        ),
         sakOppdatert,
         sakTildeltSaksbehandler,
         sakFrigjort,
