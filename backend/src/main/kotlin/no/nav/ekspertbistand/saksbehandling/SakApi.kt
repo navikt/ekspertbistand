@@ -233,7 +233,7 @@ fun tildelingHindring(
     principal: AzureAdPrincipal,
 ): TildelingHindring? = when {
     !principal.harRolle(Role.SAKSBEHANDLER) -> TildelingHindring.MANGLER_ROLLE
-    oppgavetype(status)?.rolle != Role.SAKSBEHANDLER -> TildelingHindring.UGYLDIG_STATUS
+    oppgavetype(status, harRetur = false)?.rolle != Role.SAKSBEHANDLER -> TildelingHindring.UGYLDIG_STATUS
     saksbehandlerIdent == principal.navIdent -> TildelingHindring.HAR_SAKEN_ALLEREDE
     else -> null
 }
@@ -299,14 +299,16 @@ fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal
         .where { SakTable.behandlendeEnhet inList enheter }
         .orderBy(SoknadTable.opprettetTidspunkt, SortOrder.DESC)
         .toList()
-    val vedtak = hentSisteForelopigVedtakSammendrag(rader.map { it[SakTable.sakId] })
+    val sakIder = rader.map { it[SakTable.sakId] }
+    val vedtak = hentSisteForelopigVedtakSammendrag(sakIder)
+    val sakerMedRetur = hentSakerMedRetur(sakIder)
 
     return rader.map { row ->
         val status = Saksstatus.valueOf(row[SakTable.status])
         val saksbehandlerIdent = row[SakTable.saksbehandlerIdent]
         val beslutterIdent = row[SakTable.beslutterIdent]
         val sisteVedtak = vedtak[row[SakTable.sakId]]
-        val oppgavetype = oppgavetype(status)
+        val oppgavetype = oppgavetype(status, harRetur = row[SakTable.sakId] in sakerMedRetur)
         SakListeElement(
             sakId = row[SakTable.sakId].toString(),
             status = status,
@@ -354,6 +356,7 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
             val saksbehandlerIdent = row[SakTable.saksbehandlerIdent]
             val beslutterIdent = row[SakTable.beslutterIdent]
             val forelopigVedtak = hentSisteForelopigVedtak(sakId)
+            val sisteRetur = hentSisteRetur(sakId)
             SakDetaljer(
                 sakId = sakId.toString(),
                 status = status,
@@ -364,7 +367,7 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                 beslutterIdent = beslutterIdent,
                 beslutterNavn = row[SakTable.beslutterNavn],
                 arenaSakId = row[SakTable.arenaSakId],
-                oppgavetype = oppgavetype(status),
+                oppgavetype = oppgavetype(status, harRetur = sisteRetur != null),
                 kanTildeleMeg = tildelingHindring(status, saksbehandlerIdent, principal) == null,
                 kanTildeleMegSomBeslutter = beslutterTildelingHindring(
                     status, beslutterIdent, forelopigVedtak?.innstiltAvIdent, principal,
@@ -380,6 +383,8 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                     nav = soknad.nav,
                 ),
                 forelopigVedtak = forelopigVedtak,
+                sisteRetur = sisteRetur,
+                vedtak = hentVedtak(sakId),
             )
         }
 
@@ -444,6 +449,10 @@ data class SakDetaljer(
     val kanTildeleMegSomBeslutter: Boolean,
     val soknad: Soknad,
     val forelopigVedtak: ForelopigVedtakDTO?,
+    /** Nyeste retur fra beslutter. Eldre returer ligger i saksloggen. */
+    val sisteRetur: ReturDTO?,
+    /** Null til beslutter har fattet vedtaket. */
+    val vedtak: VedtakDTO?,
 ) {
     @Serializable
     data class Soknad(

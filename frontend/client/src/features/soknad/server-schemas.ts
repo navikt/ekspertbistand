@@ -69,7 +69,7 @@ export const draftPayloadServerSchema = z.object({
 
 export const draftDtoServerSchema = z.object({
   id: z.string().optional(),
-  status: z.enum(["utkast", "innsendt", "godkjent", "avlyst"]).optional(),
+  status: z.enum(["utkast", "innsendt", "godkjent", "avslatt", "avlyst"]).optional(),
   beslutning: z
     .object({
       status: z.string().trim().optional(),

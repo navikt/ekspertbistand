@@ -74,7 +74,7 @@ samme rad, og gamle/nye rader er byte-identiske i payload.
 | Alle med `soknad` (SoknadInnsendt, InnsendtSoknadJournalfoert, SakOpprettet, TiltaksgjennomforingOpprettet, TilskuddsbrevMottatt, TilskuddsbrevJournalfoert, SoknadAvlystIArena, SaksbehandlingStartetIArena, TilsagnsdataLagret) | `soknad.id` |
 | `TilskuddsbrevMottattKildeAltinn`, `TilskuddsbrevJournalfoertKildeAltinn` | `tilsagnData.tilsagnNummer` satt sammen som `aar:loepenrSak:loepenrTilsagn` |
 | `TilskuddsbrevVist` | `soknad?.id ?: tilsagnNummer` |
-| `SakOppdatert`, `SakTildeltSaksbehandler`, `SakTildeltBeslutter`, `SakFrigjort`, `VilkarsvurderingOppdatert`, `ForelopigVedtakSendtTilBeslutter` | `soknadId` |
+| `SakOppdatert`, `SakTildeltSaksbehandler`, `SakTildeltBeslutter`, `SakFrigjort`, `VilkarsvurderingOppdatert`, `ForelopigVedtakSendtTilBeslutter`, `VedtakFattet`, `ForelopigVedtakReturnert` | `soknadId` |
 
 Derivings-SQL-en i backfillen (`AggregateRootIdBackfill`) speiler denne tabellen og valideres mot
 faktisk serialisert payload i `AggregateRootIdBackfillTest`.

@@ -337,6 +337,23 @@ const ensureSkjemaStoreLoaded = async () => {
       },
     };
     skjemaStore.set(rejectedEntry.id, rejectedEntry);
+
+    const avslattInputs = deepCopy(rejectedInputs);
+    avslattInputs.ansatt.fnr = "03040565432";
+    avslattInputs.ansatt.navn = "Ola Avslag";
+    const avslattEntry: MockSkjema = {
+      id: randomId(),
+      status: "innsendt",
+      data: avslattInputs,
+      opprettetAv: MOCK_BRUKER,
+      opprettetTidspunkt: now,
+      innsendtTidspunkt: now,
+      beslutning: {
+        status: "avslatt",
+        tidspunkt: now,
+      },
+    };
+    skjemaStore.set(avslattEntry.id, avslattEntry);
     await persistSkjemaStore();
   }
   skjemaStoreLoaded = true;
