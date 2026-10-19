@@ -47,6 +47,20 @@ Tabellen inneholder `fnr`. Trenger en mottaker ikke fødselsnummeret i klartekst
 pseudonymisert view av tabellen på Datamarkedsplassen i stedet. Se
 [tilgangsstyring](https://docs.knada.io/dataprodukter/tilgangsstyring/) for detaljer.
 
+Den som registrerer dataproduktet eller godkjenner søknader, må ha lagt til Google Cloud Platform i
+[myapps.microsoft.com](https://myapps.microsoft.com) og være medlem av teamet vårt.
+
+### Innsiden og utsiden
+
+[Kom i gang med dataprodukter](https://docs.knada.io/dataprodukter/) skiller mellom data på innsiden og data på
+utsiden. Hos oss er hendelsesloggen i Postgres innsiden. Den endrer seg når vi utvikler løsningen. Tabellen i
+BigQuery er utsiden: en stabil modell for statistikk, som appen skriver direkte. Vi har ingen råsone i BigQuery.
+
+Endrer vi tabellen på en måte som bryter for mottakerne, eller vil vi skjule duplikater og eldre versjoner av
+projeksjonen, kan vi legge et view foran tabellen og registrere viewet på Datamarkedsplassen i stedet.
+Datamarkedsplassen autoriserer viewet selv når det ligger i samme BigQuery-datasett som tabellen. Skjemaet til et
+view oppdateres ikke av seg selv, så viewet må lages på nytt når kolonnene endres.
+
 ## Slik fungerer det
 
 1. Alt som skjer i en sak, lagres som hendelser i en hendelseslogg i ekspertbistand.
@@ -334,5 +348,7 @@ feltene verdien `-5`:
 - Bump versjonen i `name` for å sende alle meldinger på nytt.
 - Nye kolonner må legges til i tabellen i BigQuery før appen skriver dem. Appen oppretter tabellen, men endrer den
   ikke.
+- Kolonnebeskrivelser legges inn i BigQuery-konsollet. Datamarkedsplassen henter skjema og beskrivelser fra
+  BigQuery én gang i timen.
 - Lokalt og i tester skriver projeksjonen ikke til BigQuery.
 - Planen og beslutningene står i `specifications/saksbehandlingsstatistikk.md`.
