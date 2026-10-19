@@ -24,8 +24,28 @@ datavarehuset har bedt om.
 | Tabell | `saksbehandlingsstatistikk` |
 
 Vi eier datasettet. Nais oppretter det fra `spec.gcp.bigQueryDatasets` i manifestet til `ekspertbistand-backend`,
-og appen oppretter tabellen første gang den skriver. Team Sak og datavarehuset ber oss om lesetilgang i GCP og
-leser tabellen direkte. Vi leverer ingen kopi eller fil.
+og appen oppretter tabellen første gang den skriver. Team Sak og datavarehuset leser tabellen direkte i BigQuery.
+Vi leverer ingen kopi eller fil.
+
+### Tilgang via Datamarkedsplassen
+
+Vi deler tabellen som et dataprodukt på [Datamarkedsplassen](https://data.ansatt.nav.no), slik
+[Nav-dokumentasjonen for dataprodukter](https://docs.knada.io/dataprodukter/dele/dataprodukt/) beskriver.
+Datamarkedsplassen gir tilgangen i BigQuery, så vi gir ikke tilgang direkte i GCP.
+
+Slik gjør vi det:
+
+1. Vi registrerer dataproduktet på Datamarkedsplassen med team, beskrivelse og kontaktpunkt.
+2. Vi legger tabellen `saksbehandlingsstatistikk` til som datasett i dataproduktet. Tabellen må finnes først. I
+   prod finnes den når projeksjonen har skrevet første rad.
+3. Team Sak og datavarehuset søker om tilgang til datasettet på Datamarkedsplassen. Søknaden gjelder en bruker, en
+   gruppe eller en servicebruker, og må vise til en behandling i
+   [Behandlingskatalogen](https://behandlingskatalog.nais.adeo.no/).
+4. Vi godkjenner søknaden når behandlingen finnes. Datamarkedsplassen gir da lesetilgang til tabellen.
+
+Tabellen inneholder `fnr`. Trenger en mottaker ikke fødselsnummeret i klartekst, kan vi registrere et
+pseudonymisert view av tabellen på Datamarkedsplassen i stedet. Se
+[tilgangsstyring](https://docs.knada.io/dataprodukter/tilgangsstyring/) for detaljer.
 
 ## Slik fungerer det
 

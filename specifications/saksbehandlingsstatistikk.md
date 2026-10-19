@@ -25,8 +25,9 @@ BigQuery-tabell i et datasett vi eier. Dokumentasjonen for Team Sak og datavareh
 | Tema | Valg |
 |------|------|
 | Hvilke saker | Bare saker med kilde EKSPERTBISTAND, altså saker der `SakOpprettet` finnes. Arena-saker vedtas i Arena og gir ingen meldinger |
-| Miljø | Registreres bare utenfor prod, som `OpprettSak`. Skrus på i prod når vi fatter vedtak der. Datasettet finnes allerede i prod, så tilgang kan gis før det kommer data |
-| Lagring | Appen skriver direkte til BigQuery-datasettet `ekspertbistand_statistikk`, som Nais oppretter fra `spec.gcp.bigQueryDatasets`. Ingen tabell i Postgres. Team Sak og datavarehuset ber om lesetilgang i GCP |
+| Miljø | Registreres bare utenfor prod, som `OpprettSak`. Skrus på i prod når vi fatter vedtak der. Datasettet finnes allerede i prod. Tabellen kommer med første rad, og først da kan den registreres på Datamarkedsplassen |
+| Lagring | Appen skriver direkte til BigQuery-datasettet `ekspertbistand_statistikk`, som Nais oppretter fra `spec.gcp.bigQueryDatasets`. Ingen tabell i Postgres |
+| Tilgang | Tabellen registreres som datasett i et dataprodukt på Datamarkedsplassen. Team Sak og datavarehuset søker om tilgang der, med en behandling i Behandlingskatalogen. Vi gir ikke tilgang direkte i GCP |
 | Tabellen | Appen oppretter `saksbehandlingsstatistikk` første gang den skriver. Radene endres eller slettes aldri |
 | Tilstand | Lagres ikke. For hver event folder projeksjonen tidligere fullførte eventer med samme aggregatrot fra `event_log` |
 | Ny melding | Bare når meldingsinnholdet endres. Ny tildeling til samme saksbehandler gir ingen rad |
