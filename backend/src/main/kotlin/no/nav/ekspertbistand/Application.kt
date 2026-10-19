@@ -63,6 +63,8 @@ import no.nav.ekspertbistand.soknad.configureSoknadApiV1
 import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.sokos.KontoregisterClient
+import no.nav.ekspertbistand.statistikk.BigQuerySaksbehandlingsstatistikkSkriver
+import no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkSkriver
 import no.nav.ekspertbistand.sokos.configureKontoregisterApiV1
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
@@ -115,6 +117,7 @@ fun main() {
             provide(TilgangsmaskinClient::class)
             provide<ArcSightAuditClient> { ArcSightAuditClient() }
             provide(FagsakIdService::class)
+            provide<SaksbehandlingsstatistikkSkriver> { BigQuerySaksbehandlingsstatistikkSkriver.fraNaisMiljo() }
             basedOnEnv(
                 dev = { provide(KontoregisterClient::class) },
                 other = {},

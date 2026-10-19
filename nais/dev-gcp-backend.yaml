@@ -49,6 +49,10 @@ spec:
         databases:
           - name: ekspertbistand
             envVarPrefix: DB
+    bigQueryDatasets:
+      - name: ekspertbistand_statistikk
+        description: Saksbehandlingsstatistikk for Team Sak og tiltaksstatistikk for datavarehuset
+        permission: READWRITE
 
   accessPolicy:
     inbound:

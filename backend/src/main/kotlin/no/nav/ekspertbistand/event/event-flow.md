@@ -74,6 +74,7 @@ flowchart TD
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
     h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn["VarsleArbeidsgiverSoknadMottattBehandlesIAltinn"]:::handler
     p_SakProjection[["SakProjection"]]:::projection
+    p_SaksbehandlingsstatistikkProjection[["SaksbehandlingsstatistikkProjection"]]:::projection
     p_SoknadBehandletForsinkelseProjection[["SoknadBehandletForsinkelseProjection"]]:::projection
     p_TilskuddsbrevVistProjection[["TilskuddsbrevVistProjection"]]:::projection
 
@@ -137,6 +138,15 @@ flowchart TD
     e_SoknadInnsendt -.-> p_SakProjection
     e_TilskuddsbrevMottatt -.-> p_SakProjection
     e_TiltaksgjennomforingOpprettet -.-> p_SakProjection
+    e_ForelopigVedtakReturnert -.-> p_SaksbehandlingsstatistikkProjection
+    e_ForelopigVedtakSendtTilBeslutter -.-> p_SaksbehandlingsstatistikkProjection
+    e_InnsendtSoknadJournalfoert -.-> p_SaksbehandlingsstatistikkProjection
+    e_SakFrigjort -.-> p_SaksbehandlingsstatistikkProjection
+    e_SakOpprettet -.-> p_SaksbehandlingsstatistikkProjection
+    e_SakTildeltBeslutter -.-> p_SaksbehandlingsstatistikkProjection
+    e_SakTildeltSaksbehandler -.-> p_SaksbehandlingsstatistikkProjection
+    e_SoknadInnsendt -.-> p_SaksbehandlingsstatistikkProjection
+    e_VedtakFattet -.-> p_SaksbehandlingsstatistikkProjection
     e_SoknadAvlystIArena -.-> p_SoknadBehandletForsinkelseProjection
     e_SoknadInnsendt -.-> p_SoknadBehandletForsinkelseProjection
     e_TilskuddsbrevMottatt -.-> p_SoknadBehandletForsinkelseProjection
