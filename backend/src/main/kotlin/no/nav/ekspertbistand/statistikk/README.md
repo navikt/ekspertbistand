@@ -44,7 +44,7 @@ Slik gjør vi det:
 4. Vi godkjenner søknaden når behandlingen finnes. Datamarkedsplassen gir da lesetilgang til tabellen.
 
 Tabellen inneholder `fnr` i klartekst. Vi pseudonymiserer ikke, fordi Team Sak og datavarehuset bruker
-fødselsnummeret til å koble mot andre datasett. Det er avklart med dem. Se
+fødselsnummeret til å koble mot andre datasett. Se
 [tilgangsstyring](https://docs.knada.io/dataprodukter/tilgangsstyring/) for detaljer om tilgang.
 
 Den som registrerer dataproduktet eller godkjenner søknader, må ha lagt til Google Cloud Platform i
