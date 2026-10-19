@@ -105,19 +105,19 @@ ved resending.
 | `registrert_tid` | Tidspunktet for `SakOpprettet` i event-loggen |
 | `ferdigbehandlet_tid` | `VedtakFattet.tidspunkt` |
 | `forventet_oppstart_tid` | `behovForBistand.startdato` |
-| `sak_ytelse` | `EKSPERTBISTAND` |
-| `sak_utland` | `NASJONAL` |
-| `behandling_type` | `SOKNAD` |
+| `sak_ytelse` | Alltid `EKSPERTBISTAND` |
+| `sak_utland` | Alltid `NASJONAL` |
+| `behandling_type` | Alltid `SOKNAD` |
 | `behandling_resultat` | `INNVILGE` → `INNVILGET`, `INNVILGE_REDUSERT` → `DELVIS_INNVILGET`, `AVSLAA` → `AVSLATT` |
 | `resultat_begrunnelse` | `FEIL_FAKTA` → `FEIL_FAKTUM`, `FEIL_REGELFORSTAELSE` → `FEIL_LOVANVENDELSE`, `ANNET` → `ANNET`. Flere årsaker sorteres og skilles med komma |
 | `behandling_metode` | `AUTOMATISK` på `REGISTRERT`, `MANUELL` fra første handling av saksbehandler eller beslutter |
-| `opprettet_av` | `EKSPERTBISTAND`, fordi systemet oppretter saken når søknaden er journalført |
+| `opprettet_av` | Alltid `EKSPERTBISTAND` (unntatt `-5` ved kode 6), fordi systemet oppretter saken når søknaden er journalført |
 | `saksbehandler` | Ident fra `SakTildeltSaksbehandler`, `null` før tildeling og etter frigjøring |
 | `ansvarlig_beslutter` | Ident fra `SakTildeltBeslutter` eller `VedtakFattet.fattetAv` |
 | `ansvarlig_enhet` | Behandlende enhet (Norg-nummer) |
-| `vedtaksloesning_navn` | `EKSPERTBISTAND` |
+| `vedtaksloesning_navn` | Alltid `EKSPERTBISTAND` |
 | `vedtaksloesning_versjon` | Image-taggen fra `NAIS_APP_IMAGE`, eller `lokal` |
-| `tiltakskode_arena` | `EKSPEBIST` (`EKSPERTBISTAND_TILTAKSKODE`) |
+| `tiltakskode_arena` | Alltid `EKSPEBIST` (`EKSPERTBISTAND_TILTAKSKODE`) |
 | `arrangor_orgnr` | `soknad.virksomhet.virksomhetsnummer`, som Arena bruker som arrangør |
 | `estimert_antall_timer` | `behovForBistand.timer` som heltall, `null` hvis verdien ikke er et tall |
 | `ekspert_virksomhet_orgnr` | `soknad.ekspert.virksomhetOrgnr` |

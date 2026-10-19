@@ -97,7 +97,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY behandling_id ORDER BY sekvensnummer DES
 | `behandling_resultat` | STRING | Se «Kodeverk». Midlertidig når saken ligger hos beslutter, endelig når status er `AVSLUTTET` |
 | `resultat_begrunnelse` | STRING | Årsaker til retur fra beslutter, se «Kodeverk» |
 | `behandling_metode` | STRING | `AUTOMATISK` til første manuelle hendelse, deretter `MANUELL` |
-| `opprettet_av` | STRING | `EKSPERTBISTAND`, fordi systemet oppretter saken |
+| `opprettet_av` | STRING | Alltid `EKSPERTBISTAND`, fordi systemet oppretter saken. Unntatt `-5` ved strengt fortrolig adresse |
 | `saksbehandler` | STRING | Nav-ident til saksbehandler. Kan være tom, se under |
 | `ansvarlig_beslutter` | STRING | Nav-ident til beslutter |
 | `ansvarlig_enhet` | STRING | Enhetsnummeret til behandlende Nav-enhet, for eksempel `0315` |
@@ -141,20 +141,20 @@ endelige verdier bare når `behandling_status = 'AVSLUTTET'`.
 | `ferdigbehandlet_tid` | `ferdigbehandlet_tid` | |
 | `utbetalt_tid` | mangler | Utbetaling skjer etter refusjon, som vi ikke rapporterer |
 | `forventet_oppstart_tid` | `forventet_oppstart_tid` | |
-| `sak_ytelse` | `sak_ytelse` | |
-| `sak_utland` | `sak_utland` | |
-| `behandling_type` | `behandling_type` | |
+| `sak_ytelse` | `sak_ytelse` | Alltid `EKSPERTBISTAND` |
+| `sak_utland` | `sak_utland` | Alltid `NASJONAL` |
+| `behandling_type` | `behandling_type` | Alltid `SOKNAD` |
 | `behandling_status` | `behandling_status` | |
 | `behandling_resultat` | `behandling_resultat` | |
 | `resultat_begrunnelse` | `resultat_begrunnelse` | Bare ved retur fra beslutter. Avslagsgrunn er ikke med, se under |
 | `behandling_metode` | `behandling_metode` | |
 | `behandling_aarsak` | mangler | Alle behandlinger er søknader. Vi har ingen årsakskoder |
-| `opprettet_av` | `opprettet_av` | |
+| `opprettet_av` | `opprettet_av` | Alltid `EKSPERTBISTAND`, unntatt `-5` ved strengt fortrolig adresse |
 | `saksbehandler` | `saksbehandler` | Påkrevd hos Team Sak, men kan være tom hos oss. Se «Feltene i tabellen» |
 | `ansvarlig_beslutter` | `ansvarlig_beslutter` | |
 | `ansvarlig_enhet` | `ansvarlig_enhet` | Team Sak ber om organisasjons-id. Vi sender enhetsnummeret |
 | `funksjonell_periode_fom`, `funksjonell_periode_tom`, `tilbakekrevingsbeløp` | mangler | Gjelder bare tilbakekreving |
-| `vedtaksløsning_navn` | `vedtaksloesning_navn` | |
+| `vedtaksløsning_navn` | `vedtaksloesning_navn` | Alltid `EKSPERTBISTAND` |
 | `vedtaksløsning_versjon` | `vedtaksloesning_versjon` | |
 | `sekvensnummer` | `sekvensnummer` | |
 
@@ -169,8 +169,8 @@ Tiltakstypen er fast og ligger ikke som egne rader i tabellen.
 
 | Felt hos datavarehuset | Verdi | Merknad |
 |------------------------|-------|---------|
-| Tiltakskode | `EKSPERTBISTAND` | Står i `sak_ytelse` |
-| Tiltakskode_Arena | `EKSPEBIST` | Står i `tiltakskode_arena` |
+| Tiltakskode | `EKSPERTBISTAND` | Alltid `EKSPERTBISTAND` i `sak_ytelse` |
+| Tiltakskode_Arena | `EKSPEBIST` | Alltid `EKSPEBIST` i `tiltakskode_arena` |
 | Tiltaksnavn | Ekspertbistand | |
 | Startdato | sendes ikke | Samme verdi for alle rader. Datavarehuset kan legge den til selv |
 | Sluttdato | sendes ikke | Ingen planlagt slutt |
@@ -181,7 +181,7 @@ Tiltakstypen er fast og ligger ikke som egne rader i tabellen.
 | Felt hos datavarehuset | Vårt felt | Merknad |
 |------------------------|-----------|---------|
 | GjennomføringsID | `sak_id` | |
-| Tiltakskode | `sak_ytelse` | |
+| Tiltakskode | `sak_ytelse` | Alltid `EKSPERTBISTAND` |
 | Startdato | `tiltaksperiode_fra` | Når saken er `AVSLUTTET` med innvilgelse |
 | Sluttdato | `tiltaksperiode_til` | Som over |
 | Arrangør | `arrangor_orgnr` | Arbeidsgiveren, som i Arena |
