@@ -50,6 +50,15 @@ fødselsnummeret til å koble mot andre datasett. Se
 Den som registrerer dataproduktet eller godkjenner søknader, må ha lagt til Google Cloud Platform i
 [myapps.microsoft.com](https://myapps.microsoft.com) og være medlem av teamet vårt.
 
+### Teste i dev
+
+I dev registrerer vi dataproduktet på [Datamarkedsplassen i dev](https://data.ansatt.dev.nav.no/), med tabellen i
+dev-prosjektet vårt. Der kan Team Sak og datavarehuset teste den tekniske integrasjonen før prod. Tabellen i dev
+inneholder bare fiktive testdata, så tilgang krever ingen behandling i Behandlingskatalogen.
+
+Datamarkedsplassen i dev er utviklingsmiljøet til Team Nada. Dataprodukter der kan forsvinne uten varsel, så de
+egner seg bare til testing. Vi registrerer dataproduktet på nytt hvis det blir borte.
+
 ### Innsiden og utsiden
 
 [Kom i gang med dataprodukter](https://docs.knada.io/dataprodukter/) skiller mellom data på innsiden og data på
