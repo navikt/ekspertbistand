@@ -14,6 +14,7 @@ import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.max
 import org.jetbrains.exposed.v1.core.or
@@ -42,8 +43,8 @@ private val dbLog = LoggerFactory.getLogger("SaksbehandlingDb")
  */
 @OptIn(ExperimentalTime::class)
 object SakTable : Table("sak") {
-    val sakId = uuid("sak_id").databaseGenerated()
-    val soknadId = uuid("soknad_id")
+    val sakId = javaUUID("sak_id").databaseGenerated()
+    val soknadId = javaUUID("soknad_id")
     val status = text("status")
     val kildeTilBehandling = text("kilde_til_behandling")
     val behandlendeEnhet = text("behandlende_enhet").nullable()
@@ -53,8 +54,8 @@ object SakTable : Table("sak") {
     val beslutterNavn = text("beslutter_navn").nullable()
     val foreslattUtfall = text("foreslatt_utfall").nullable()
     val arenaSakId = text("arena_sak_id").nullable()
-    val refusjonId = uuid("refusjon_id").nullable()
-    val sluttrapportId = uuid("sluttrapport_id").nullable()
+    val refusjonId = javaUUID("refusjon_id").nullable()
+    val sluttrapportId = javaUUID("sluttrapport_id").nullable()
     val tildelingEventId = long("tildeling_event_id").nullable()
     val beslutterTildelingEventId = long("beslutter_tildeling_event_id").nullable()
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
@@ -190,7 +191,7 @@ val ForelopigUtfall.saksstatus: Saksstatus
 @OptIn(ExperimentalTime::class)
 object ForelopigVedtakTable : Table("forelopig_vedtak") {
     val id = long("id").autoIncrement()
-    val sakId = uuid("sak_id")
+    val sakId = javaUUID("sak_id")
     val versjon = integer("versjon")
     val eventId = long("event_id")
     val utfall = text("utfall")
@@ -329,7 +330,7 @@ enum class ReturArsak {
 @OptIn(ExperimentalTime::class)
 object VedtakTable : Table("vedtak") {
     val id = long("id").autoIncrement()
-    val sakId = uuid("sak_id")
+    val sakId = javaUUID("sak_id")
     val forelopigVedtakId = long("forelopig_vedtak_id")
     val utfall = text("utfall")
     val fattetAvIdent = text("fattet_av_ident")
@@ -343,8 +344,8 @@ object VedtakTable : Table("vedtak") {
 /** Beslutters retur av et foreløpig vedtak, én rad per retur. Speiler `sak_retur` fra V12 og V24. */
 @OptIn(ExperimentalTime::class)
 object SakReturTable : Table("sak_retur") {
-    val returId = uuid("retur_id").databaseGenerated()
-    val sakId = uuid("sak_id")
+    val returId = javaUUID("retur_id").databaseGenerated()
+    val sakId = javaUUID("sak_id")
     val forelopigVedtakId = long("forelopig_vedtak_id")
     val returnertAvIdent = text("returnert_av_ident")
     val returnertAvNavn = text("returnert_av_navn")
@@ -609,7 +610,7 @@ data class VedtakDTO(
  */
 @OptIn(ExperimentalTime::class)
 object SaksvilkarTable : Table("saksvilkar") {
-    val sakId = uuid("sak_id")
+    val sakId = javaUUID("sak_id")
     val vilkarId = text("vilkar_id")
     val godkjent = bool("godkjent").nullable()
     val notat = text("notat").nullable()
@@ -646,8 +647,8 @@ class SakIkkeFunnetException : RuntimeException()
  */
 @OptIn(ExperimentalTime::class)
 object SaksloggTable : Table("sakslogg") {
-    val saksloggId = uuid("sakslogg_id").databaseGenerated()
-    val sakId = uuid("sak_id")
+    val saksloggId = javaUUID("sakslogg_id").databaseGenerated()
+    val sakId = javaUUID("sak_id")
     val utfortAvRolle = text("utfort_av_rolle")
     val utfortAvIdent = text("utfort_av_ident").nullable()
     val notat = text("notat").nullable()
