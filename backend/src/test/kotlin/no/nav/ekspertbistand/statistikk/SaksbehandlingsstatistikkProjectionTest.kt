@@ -22,6 +22,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
@@ -35,6 +36,8 @@ class SaksbehandlingsstatistikkProjectionTest {
     private lateinit var testDb: TestDatabase
     private lateinit var projection: SaksbehandlingsstatistikkProjection
     private val rader = mutableListOf<SaksbehandlingsstatistikkRad>()
+    private val strengtFortrolige = mutableSetOf<String>()
+    private var pdlFeil: Exception? = null
     private val start = Instant.fromEpochSeconds(Clock.System.now().epochSeconds)
     private val saksbehandler = "Z111111"
     private val beslutter = "Z222222"
@@ -44,7 +47,10 @@ class SaksbehandlingsstatistikkProjectionTest {
     @BeforeTest
     fun setup() {
         testDb = TestDatabase.isolert()
-        projection = SaksbehandlingsstatistikkProjection(testDb.config.jdbcDatabase, rader::add)
+        projection = SaksbehandlingsstatistikkProjection(testDb.config.jdbcDatabase, rader::add) { fnr ->
+            pdlFeil?.let { throw it }
+            fnr in strengtFortrolige
+        }
     }
 
     @AfterTest
@@ -172,9 +178,10 @@ class SaksbehandlingsstatistikkProjectionTest {
     }
 
     @Test
-    fun `strengt fortrolig adresse skjermer geo-lokaliserende felter`() = medDb {
-        val soknad = soknad().let { it.copy(ekspert = it.ekspert.copy(virksomhetOrgnr = "912345678")) }
-        registrer(soknad, enhet = NAV_VIKAFOSSEN)
+    fun `strengt fortrolig adresse i PDL skjermer geo-lokaliserende felter uansett enhet`() = medDb {
+        val soknad = soknad(fnr = "02020254321").let { it.copy(ekspert = it.ekspert.copy(virksomhetOrgnr = "912345678")) }
+        strengtFortrolige += soknad.ansatt.fnr
+        registrer(soknad, enhet = "0315")
         publishAndFinalize(tildeltSaksbehandler(soknad, saksbehandler, tid(1)))
         pollAlt()
 
@@ -185,6 +192,45 @@ class SaksbehandlingsstatistikkProjectionTest {
         assertEquals(SaksbehandlingsstatistikkProjection.SKJERMET, siste.arrangorOrgnr)
         assertEquals(SaksbehandlingsstatistikkProjection.SKJERMET, siste.ekspertVirksomhetOrgnr)
         assertNull(siste.ansvarligBeslutter)
+        assertEquals(soknad.ansatt.fnr, siste.fnr)
+    }
+
+    @Test
+    fun `kode 6 etter innsending skjermer radene som skrives etterpaa`() = medDb {
+        val soknad = soknad(fnr = "03030354321")
+        registrer(soknad, enhet = "0315")
+        pollAlt()
+        strengtFortrolige += soknad.ansatt.fnr
+        publishAndFinalize(tildeltSaksbehandler(soknad, saksbehandler, tid(1)))
+        pollAlt()
+
+        assertEquals(
+            listOf("0315", SaksbehandlingsstatistikkProjection.SKJERMET),
+            meldinger(soknad).map { it.ansvarligEnhet },
+        )
+    }
+
+    @Test
+    fun `enhet 2103 skjermer selv om PDL sier ugradert`() = medDb {
+        val soknad = soknad()
+        registrer(soknad, enhet = NAV_VIKAFOSSEN)
+        pollAlt()
+
+        assertEquals(SaksbehandlingsstatistikkProjection.SKJERMET, meldinger(soknad).single().ansvarligEnhet)
+    }
+
+    @Test
+    fun `feil mot PDL gir ingen rad foer oppslaget lykkes`() {
+        val soknad = soknad()
+        medDb { registrer(soknad, enhet = "0315") }
+        pdlFeil = IllegalStateException("PDL er nede")
+
+        assertFailsWith<Exception> { projection.poll() }
+        assertEquals(0, meldinger(soknad).size)
+
+        pdlFeil = null
+        pollAlt()
+        assertEquals(1, meldinger(soknad).size)
     }
 
     @Test
@@ -224,7 +270,10 @@ class SaksbehandlingsstatistikkProjectionTest {
 
     private fun tid(minutter: Int): Instant = start + minutter.minutes
 
-    private fun soknad() = TestEventData.sampleSoknad.copy(id = UUID.randomUUID().toString())
+    private fun soknad(fnr: String = TestEventData.sampleSoknad.ansatt.fnr) = TestEventData.sampleSoknad.copy(
+        id = UUID.randomUUID().toString(),
+        ansatt = TestEventData.sampleSoknad.ansatt.copy(fnr = fnr),
+    )
 
     private fun journalfoert(soknad: DTO.Soknad, enhet: String) = EventData.InnsendtSoknadJournalfoert(
         soknad = soknad,

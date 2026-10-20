@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.statistikk
 
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.EKSPERTBISTAND_TILTAKSKODE
 import no.nav.ekspertbistand.event.Event
@@ -37,6 +38,9 @@ import kotlin.time.Instant
  * Tilstanden lagres ikke. Den bygges for hver event fra tidligere eventer i loggen med samme
  * aggregatrot, som er søknad-id-en. Hver event som endrer meldingsinnholdet gir én ny rad.
  *
+ * Kode 6: før hver rad skrives slår vi opp gjeldende adressebeskyttelse i PDL. Behandlende enhet sier ikke
+ * sikkert om personen har strengt fortrolig adresse, og graderingen kan endres etter innsending.
+ *
  * Resending: bump versjonen i [name]. Projeksjonen leser loggen på nytt fra start og skriver nye rader
  * med samme `hendelse_tid` og `sekvensnummer`, og ny `melding_tid` og `projeksjon`.
  */
@@ -44,6 +48,7 @@ import kotlin.time.Instant
 class SaksbehandlingsstatistikkProjection(
     database: Database,
     private val skriver: SaksbehandlingsstatistikkSkriver,
+    private val adressebeskyttelse: AdressebeskyttelseOppslag,
 ) : EventLogProjectionBuilder(database) {
     override val name = "Saksbehandlingsstatistikk-v1"
 
@@ -59,7 +64,11 @@ class SaksbehandlingsstatistikkProjection(
         val melding = overgang.tilstand.meldingsinnhold() ?: return
         if (melding == forrige?.meldingsinnhold()) return
 
-        skriver.skriv(rad(behandlingId, melding, overgang.hendelseTid, event.id))
+        val skjermet = melding.ansvarligEnhet == NAV_VIKAFOSSEN ||
+            runBlocking { adressebeskyttelse.harStrengtFortroligAdresse(melding.fnr) }
+        val utgaende = if (skjermet) melding.skjermet() else melding
+
+        skriver.skriv(rad(behandlingId, utgaende, overgang.hendelseTid, event.id))
     }
 
     /** Tilstanden etter alle fullførte eventer for behandlingen med lavere id enn [eventId]. */
@@ -366,14 +375,12 @@ data class BehandlingTilstand(
         fattetAvIdent = fattetAvIdent,
     )
 
-    /** Feltene i meldingen som avgjør om hendelsen er relevant. Null før saken er registrert. */
+    /** Feltene i meldingen som avgjør om hendelsen er relevant, uten skjerming. Null før saken er registrert. */
     fun meldingsinnhold(): Meldingsinnhold? {
         val sakId = sakId ?: return null
         val fnr = fnr ?: return null
         val registrertTid = registrertTid ?: return null
         val status = status ?: return null
-        val skjermet = ansvarligEnhet == NAV_VIKAFOSSEN
-        fun skjerm(verdi: String?) = if (skjermet && verdi != null) SaksbehandlingsstatistikkProjection.SKJERMET else verdi
 
         return Meldingsinnhold(
             sakId = sakId,
@@ -386,13 +393,13 @@ data class BehandlingTilstand(
             resultat = resultat,
             resultatBegrunnelse = resultatBegrunnelse,
             metode = if (manuell) BehandlingMetode.MANUELL else BehandlingMetode.AUTOMATISK,
-            opprettetAv = if (skjermet) SaksbehandlingsstatistikkProjection.SKJERMET else SaksbehandlingsstatistikkProjection.VEDTAKSLOESNING_NAVN,
-            saksbehandler = skjerm(saksbehandler),
-            ansvarligBeslutter = skjerm(beslutter),
-            ansvarligEnhet = skjerm(ansvarligEnhet),
-            arrangorOrgnr = skjerm(arrangorOrgnr),
+            opprettetAv = SaksbehandlingsstatistikkProjection.VEDTAKSLOESNING_NAVN,
+            saksbehandler = saksbehandler,
+            ansvarligBeslutter = beslutter,
+            ansvarligEnhet = ansvarligEnhet,
+            arrangorOrgnr = arrangorOrgnr,
             estimertAntallTimer = estimertAntallTimer,
-            ekspertVirksomhetOrgnr = skjerm(ekspertVirksomhetOrgnr),
+            ekspertVirksomhetOrgnr = ekspertVirksomhetOrgnr,
             ekspertUtdanning = ekspertUtdanning,
             ekspertKompetanse = ekspertKompetanse,
             innvilgetBelop = innvilgetBelop,
@@ -426,4 +433,17 @@ data class Meldingsinnhold(
     val innvilgetBelop: Int?,
     val tiltaksperiodeFra: LocalDate?,
     val tiltaksperiodeTil: LocalDate?,
-)
+) {
+    /** Meldingen ved strengt fortrolig adresse (kode 6): felt som kan avsløre hvor personen bor, blir `-5`. */
+    fun skjermet(): Meldingsinnhold {
+        fun skjerm(verdi: String?) = verdi?.let { SaksbehandlingsstatistikkProjection.SKJERMET }
+        return copy(
+            opprettetAv = SaksbehandlingsstatistikkProjection.SKJERMET,
+            saksbehandler = skjerm(saksbehandler),
+            ansvarligBeslutter = skjerm(ansvarligBeslutter),
+            ansvarligEnhet = skjerm(ansvarligEnhet),
+            arrangorOrgnr = skjerm(arrangorOrgnr),
+            ekspertVirksomhetOrgnr = skjerm(ekspertVirksomhetOrgnr),
+        )
+    }
+}

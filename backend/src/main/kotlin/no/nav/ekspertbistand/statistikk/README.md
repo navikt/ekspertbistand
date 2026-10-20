@@ -328,12 +328,22 @@ Nye valg i søknaden gir `ANNET` til vi har lagt dem inn i kodeverket.
 
 ### Strengt fortrolig adresse (kode 6)
 
-Når saken behandles av Nav Vikafossen (enhet `2103`), har arbeidstakeren strengt fortrolig adresse. Da får disse
-feltene verdien `-5`:
+Før hver rad skrives, slår vi opp arbeidstakerens gjeldende adressebeskyttelse i PDL. Har personen strengt
+fortrolig adresse (`STRENGT_FORTROLIG` eller `STRENGT_FORTROLIG_UTLAND`), eller behandles saken av Nav Vikafossen
+(enhet `2103`), får disse feltene verdien `-5`:
 
 - `opprettet_av`, `saksbehandler` og `ansvarlig_enhet`
 - `ansvarlig_beslutter`, men bare når feltet har en verdi
 - `arrangor_orgnr` og `ekspert_virksomhet_orgnr`, fordi arbeidsgiveren og eksperten kan avsløre hvor personen bor
+
+Behandlende enhet alene er ikke nok. Norg kan gi en annen enhet enn Vikafossen, og personen kan få strengt fortrolig
+adresse etter at søknaden er sendt inn.
+
+Får personen strengt fortrolig adresse midt i behandlingen, blir radene fra og med neste hendelse skjermet. Rader som
+allerede er skrevet, endres ikke. Bruk derfor siste rad per `behandling_id` når dere avgjør om en sak er skjermet.
+
+Feiler oppslaget i PDL, skriver vi ingen rad. Projeksjonen prøver igjen til oppslaget lykkes. Personer som ikke finnes
+i PDL, behandles som ugradert.
 
 ### Det vi ikke sender
 
@@ -351,7 +361,7 @@ feltene verdien `-5`:
 ## For utviklere
 
 - Koden ligger i denne pakken. `SaksbehandlingsstatistikkProjection` lager radene, og
-  `BigQuerySaksbehandlingsstatistikkSkriver` skriver dem.
+  `BigQuerySaksbehandlingsstatistikkSkriver` skriver dem. `PdlAdressebeskyttelseOppslag` avgjør skjermingen.
 - Projeksjonen lagrer ingen tilstand. For hver hendelse bygger den tilstanden fra tidligere hendelser i loggen med
   samme aggregatrot (søknad-id). Indeksen `event_log_aggregate_root_id_idx` gjør oppslaget raskt.
 - Bump versjonen i `name` for å sende alle meldinger på nytt.
