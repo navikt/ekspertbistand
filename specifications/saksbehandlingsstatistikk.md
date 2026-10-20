@@ -134,7 +134,7 @@ ved resending.
 | `tiltakskode_arena` | Alltid `EKSPEBIST` (`EKSPERTBISTAND_TILTAKSKODE`) |
 | `arrangor_orgnr` | `soknad.virksomhet.virksomhetsnummer`, som Arena bruker som arrangør |
 | `estimert_antall_timer` | `behovForBistand.timer` som heltall, `null` hvis verdien ikke er et tall |
-| `estimert_kostnad` | `behovForBistand.estimertKostnad` tolket med `tolkSoknadssum`, `null` hvis verdien ikke er et positivt heltall |
+| `estimert_kostnad` | Påkrevd. `behovForBistand.estimertKostnad` som tall, avrundet til hele kroner. Projeksjonen stopper hvis verdien ikke er et tall |
 | `ekspert_virksomhet_orgnr` | `soknad.ekspert.virksomhetOrgnr` |
 | `ekspert_utdanning` | `godkjentUtdanningEllerAutorisasjon` som koder. Eldre søknader med bare `kompetanse` gir `ANNET` |
 | `ekspert_kompetanse` | `relevantKompetanse` som koder |
@@ -179,7 +179,7 @@ Testene bruker en skriver som legger radene i en liste.
 - Tidspunkter kommer fra eventene, ikke `now()`, slik at resending gir samme `hendelse_tid`. Bare `melding_tid` er ny.
 - BigQuery er ikke med i Postgres-transaksjonen. Feiler en senere event i samme batch etter at en rad er skrevet,
   skrives raden på nytt ved neste forsøk. Derfor fjerner konsumentene duplikater på `projeksjon` og `sekvensnummer`.
-- Nye kolonner må legges til i BigQuery-tabellen før appen skriver dem. Appen endrer ikke tabellen.
+- Appen legger til nye kolonner i BigQuery-tabellen første gang den bruker datasettet etter oppstart. Bare valgfrie kolonner kan legges til.
 - Rader skrevet før personen fikk adressebeskyttelse, endres ikke i rådata. Viewet skjuler dem. Mottakere som tar
   kopi, må laste hele viewet på nytt og slette behandlinger som er borte.
 - Alle med tilgang til viewet får `metadata viewer` på datasettet og kan se antall rader i `skjermede_behandlinger`.

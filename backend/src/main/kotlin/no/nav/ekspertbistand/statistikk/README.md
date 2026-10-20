@@ -156,7 +156,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY behandling_id ORDER BY sekvensnummer DES
 | `tiltakskode_arena` | STRING | Alltid `EKSPEBIST` |
 | `arrangor_orgnr` | STRING | Virksomhetsnummeret til arbeidsgiveren som søkte. Arena bruker samme nummer som arrangør |
 | `estimert_antall_timer` | INT64 | Antall timer med ekspertbistand arbeidsgiver har anslått i søknaden, for hele perioden |
-| `estimert_kostnad` | INT64 | Kostnaden i kroner arbeidsgiver har anslått i søknaden, for hele perioden |
+| `estimert_kostnad` | INT64 | Kostnaden arbeidsgiver har anslått i søknaden, for hele perioden, i hele kroner |
 | `ekspert_virksomhet_orgnr` | STRING | Organisasjonsnummeret til virksomheten eksperten kommer fra. Tom for eldre søknader |
 | `ekspert_utdanning` | STRING | Ekspertens offentlig godkjente utdanning eller autorisasjon, se «Kodeverk» |
 | `ekspert_kompetanse` | STRING | Ekspertens relevante kompetanse for saken, se «Kodeverk» |
@@ -401,8 +401,8 @@ projeksjonen behandlingen hvis feltet er satt eller PDL sier skjermet.
 - Projeksjonen lagrer ingen tilstand. For hver hendelse bygger den tilstanden fra tidligere hendelser i loggen med
   samme aggregatrot (søknad-id). Indeksen `event_log_aggregate_root_id_idx` gjør oppslaget raskt.
 - Bump versjonen i `name` for å sende alle meldinger på nytt.
-- Nye kolonner må legges til i tabellen i BigQuery før appen skriver dem. Appen oppretter tabellen, men endrer den
-  ikke. Viewet oppdateres ved neste oppstart.
+- Første gang appen bruker datasettet etter oppstart, legger den til nye kolonner i tabellen og oppdaterer viewet.
+  Nye kolonner må være valgfrie, fordi BigQuery ikke tillater å legge til påkrevde kolonner. Eldre rader får `NULL`.
 - Kolonnebeskrivelser legges inn i BigQuery-konsollet. Datamarkedsplassen henter skjema og beskrivelser fra
   BigQuery én gang i timen.
 - Lokalt og i tester skriver projeksjonen ikke til BigQuery.

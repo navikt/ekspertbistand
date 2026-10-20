@@ -16,12 +16,12 @@ import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.SisteForelopigVedtakRef
 import no.nav.ekspertbistand.saksbehandling.beslutningHindring
 import no.nav.ekspertbistand.saksbehandling.saksstatus
-import no.nav.ekspertbistand.saksbehandling.tolkSoknadssum
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import java.math.RoundingMode
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -190,7 +190,7 @@ fun nesteTilstand(
                 status = StatistikkStatus.REGISTRERT,
                 arrangorOrgnr = data.soknad.virksomhet.virksomhetsnummer,
                 estimertAntallTimer = data.soknad.behovForBistand.timer.trim().toIntOrNull(),
-                estimertKostnad = tolkSoknadssum(data.soknad.behovForBistand.estimertKostnad),
+                estimertKostnad = heleKroner(data.soknad.behovForBistand.estimertKostnad),
                 ekspertVirksomhetOrgnr = data.soknad.ekspert.virksomhetOrgnr,
                 ekspertUtdanning = data.soknad.ekspert.utdanningKoder,
                 ekspertKompetanse = data.soknad.ekspert.kompetanseKoder,
@@ -389,6 +389,7 @@ data class BehandlingTilstand(
         val fnr = fnr ?: return null
         val registrertTid = registrertTid ?: return null
         val status = status ?: return null
+        val estimertKostnad = estimertKostnad ?: return null
 
         return Meldingsinnhold(
             sakId = sakId,
@@ -436,7 +437,7 @@ data class Meldingsinnhold(
     val ansvarligEnhet: String?,
     val arrangorOrgnr: String?,
     val estimertAntallTimer: Int?,
-    val estimertKostnad: Int?,
+    val estimertKostnad: Int,
     val ekspertVirksomhetOrgnr: String?,
     val ekspertUtdanning: String?,
     val ekspertKompetanse: String?,
@@ -460,3 +461,9 @@ data class Meldingsinnhold(
         )
     }
 }
+
+/** Søknaden lagrer beløpet som tekst. Frontend godtar desimaler, så beløpet rundes av til hele kroner. */
+private fun heleKroner(estimertKostnad: String): Int =
+    checkNotNull(estimertKostnad.trim().toBigDecimalOrNull()) { "estimertKostnad i søknaden er ikke et tall" }
+        .setScale(0, RoundingMode.HALF_UP)
+        .intValueExact()

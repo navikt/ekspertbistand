@@ -143,6 +143,15 @@ class SaksbehandlingsstatistikkProjectionTest {
     }
 
     @Test
+    fun `estimert kostnad med desimaler rundes av til hele kroner`() = medDb {
+        val soknad = soknad().let { it.copy(behovForBistand = it.behovForBistand.copy(estimertKostnad = " 1500.5 ")) }
+        registrer(soknad, enhet = "0315")
+        pollAlt()
+
+        assertEquals(1501, meldinger(soknad).single().estimertKostnad)
+    }
+
+    @Test
     fun `ekspertens kompetanse blir koder, og fritekst blir ANNET`() {
         val ekspert = TestEventData.sampleSoknad.ekspert.copy(
             godkjentUtdanningEllerAutorisasjon = listOf("Psykolog", "Egen fritekst", " psykolog ", "Mer fritekst"),
