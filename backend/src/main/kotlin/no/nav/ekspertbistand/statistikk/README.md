@@ -401,8 +401,8 @@ projeksjonen behandlingen hvis feltet er satt eller PDL sier skjermet.
 - Projeksjonen lagrer ingen tilstand. For hver hendelse bygger den tilstanden fra tidligere hendelser i loggen med
   samme aggregatrot (søknad-id). Indeksen `event_log_aggregate_root_id_idx` gjør oppslaget raskt.
 - Bump versjonen i `name` for å sende alle meldinger på nytt.
-- Første gang appen bruker datasettet etter oppstart, legger den til nye kolonner i tabellen og oppdaterer viewet.
-  Nye kolonner må være valgfrie, fordi BigQuery ikke tillater å legge til påkrevde kolonner. Eldre rader får `NULL`.
+- Nye kolonner må legges til i tabellen i BigQuery før appen skriver dem. Appen oppretter tabellen, men endrer den
+  ikke. Viewet oppdateres ved neste oppstart.
 - Kolonnebeskrivelser legges inn i BigQuery-konsollet. Datamarkedsplassen henter skjema og beskrivelser fra
   BigQuery én gang i timen.
 - Lokalt og i tester skriver projeksjonen ikke til BigQuery.
