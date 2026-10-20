@@ -376,8 +376,7 @@ PDL om behandlingen skjermes. Var deltakeren skjermet da saken ble opprettet, me
 kontrolljobben sjekket, blir behandlingen vist.
 
 Teamet legger skjerming inn i datagrunnlaget for saksopprettelse som en egen oppgave. Når feltet finnes, skjermer
-projeksjonen behandlingen hvis feltet er satt eller PDL sier skjermet. Saker opprettet før feltet kom, har ikke
-verdien.
+projeksjonen behandlingen hvis feltet er satt eller PDL sier skjermet.
 
 ### Det vi ikke sender
 
