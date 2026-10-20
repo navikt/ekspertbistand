@@ -40,7 +40,7 @@ BigQuery-tabell i et datasett vi eier. Dokumentasjonen for Team Sak og datavareh
 | Avslagsgrunn | Fritekst hos oss. Ikke med i statistikken |
 | Kodeverdier | Dokumentert i README-en. Team Sak og datavarehuset kontrollerer at de passer |
 | `ansvarlig_enhet` | Enhetsnummeret, ikke organisasjons-id |
-| Kode 6 | Gjeldende adressebeskyttelse slås opp i PDL før hver rad skrives. `STRENGT_FORTROLIG`, `STRENGT_FORTROLIG_UTLAND` eller behandlende enhet 2103 (Nav Vikafossen) gir skjerming. Da settes `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`, `arrangor_orgnr` og `ekspert_virksomhet_orgnr` til `-5` |
+| Adressebeskyttelse | Gjeldende gradering slås opp i PDL før hver rad skrives. Alt annet enn `UGRADERT` (kode 6 og 7, også ukjente verdier) eller behandlende enhet 2103 (Nav Vikafossen) gir skjerming. Da settes `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`, `arrangor_orgnr` og `ekspert_virksomhet_orgnr` til `-5` |
 | Datavarehus | Ekstra kolonner i samme tabell. Feltnavnene er våre egne. Mappingen står i `statistikk/README.md` |
 | Ekspertens kompetanse | Faste valg blir koder (`EkspertStatistikkoder.kt`). Egne verdier og fritekst blir `ANNET`, fordi fritekst ikke kan grupperes og kan inneholde personopplysninger |
 | Timer | Arbeidsgiverens anslag fra søknaden. Saksbehandler kontrollerer det ikke |
@@ -80,8 +80,8 @@ ved resending.
 - `nesteTilstand` returnerer `Overgang(tilstand, hendelseTid)`, eller `null` når eventen ikke endrer noe.
 - `BehandlingTilstand.meldingsinnhold()` er `null` før `SakOpprettet`. Den er uskjermet, slik at duplikatsjekken
   sammenligner faktiske verdier.
-- `handle` skjermer med `Meldingsinnhold.skjermet()` når `AdressebeskyttelseOppslag` (PDL) sier strengt fortrolig
-  adresse, eller enheten er 2103. Feil fra PDL kastes, så posisjonen ikke flyttes og ingen uskjermet rad skrives.
+- `handle` skjermer med `Meldingsinnhold.skjermet()` når `AdressebeskyttelseOppslag` (PDL) finner
+  adressebeskyttelse, eller enheten er 2103. Feil fra PDL kastes, så posisjonen ikke flyttes og ingen uskjermet rad skrives.
 - Enum-ene `StatistikkStatus`, `StatistikkResultat` og `BehandlingMetode` holder kodeverdiene.
 - `EkspertStatistikkoder.kt` har `EkspertUtdanning` og `EkspertKompetanse` (kode og etikett fra skjemaet), og
   `DTO.Ekspert.utdanningKoder` og `kompetanseKoder`, som gjør valgene om til koder.
@@ -118,7 +118,7 @@ ved resending.
 | `behandling_resultat` | `INNVILGE` → `INNVILGET`, `INNVILGE_REDUSERT` → `DELVIS_INNVILGET`, `AVSLAA` → `AVSLATT` |
 | `resultat_begrunnelse` | `FEIL_FAKTA` → `FEIL_FAKTUM`, `FEIL_REGELFORSTAELSE` → `FEIL_LOVANVENDELSE`, `ANNET` → `ANNET`. Flere årsaker sorteres og skilles med komma |
 | `behandling_metode` | `AUTOMATISK` på `REGISTRERT`, `MANUELL` fra første handling av saksbehandler eller beslutter |
-| `opprettet_av` | Alltid `EKSPERTBISTAND` (unntatt `-5` ved kode 6), fordi systemet oppretter saken når søknaden er journalført |
+| `opprettet_av` | Alltid `EKSPERTBISTAND` (unntatt `-5` ved adressebeskyttelse), fordi systemet oppretter saken når søknaden er journalført |
 | `saksbehandler` | Ident fra `SakTildeltSaksbehandler`, `null` før tildeling og etter frigjøring |
 | `ansvarlig_beslutter` | Ident fra `SakTildeltBeslutter` eller `VedtakFattet.fattetAv` |
 | `ansvarlig_enhet` | Behandlende enhet (Norg-nummer) |
@@ -151,12 +151,12 @@ Testene bruker en skriver som legger radene i en liste.
 - Ekspertens kompetanse blir koder, og fritekst og eldre `kompetanse` blir `ANNET`
 - Sak uten `SakOpprettet` (Arena-sak) gir ingen meldinger
 - Hendelser handleren avviser gir ingen melding
-- Strengt fortrolig adresse i PDL skjermer de seks feltene med `-5`, også når enheten ikke er 2103
-- Kode 6 etter innsending skjermer radene som skrives etterpå
+- Adressebeskyttelse i PDL skjermer de seks feltene med `-5`, også når enheten ikke er 2103
+- Adressebeskyttelse etter innsending skjermer radene som skrives etterpå
 - Enhet 2103 skjermer selv om PDL sier ugradert
 - Feil mot PDL gir ingen rad før oppslaget lykkes
-- `PdlAdressebeskyttelseOppslag` (i `PdlApiKlientTest`): begge strengt fortrolig-graderinger gir kode 6,
-  `FORTROLIG` gjør det ikke, ukjent person er ugradert og andre feil kastes
+- `PdlAdressebeskyttelseOppslag` (i `PdlApiKlientTest`): `FORTROLIG`, `STRENGT_FORTROLIG` og
+  `STRENGT_FORTROLIG_UTLAND` gir skjerming, `UGRADERT` gjør det ikke, ukjent person er ugradert og andre feil kastes
 - Ny levering av samme eventer gir samme rader og samme `insertId`
 - Raden passer med BigQuery-skjemaet: alle påkrevde felter er med, og tidspunkt og datoer er ISO 8601
 
@@ -171,7 +171,7 @@ Testene bruker en skriver som legger radene i en liste.
 - BigQuery er ikke med i Postgres-transaksjonen. Feiler en senere event i samme batch etter at en rad er skrevet,
   skrives raden på nytt ved neste forsøk. Derfor fjerner konsumentene duplikater på `projeksjon` og `sekvensnummer`.
 - Nye kolonner må legges til i BigQuery-tabellen før appen skriver dem. Appen endrer ikke tabellen.
-- Skjermingen bruker graderingen da raden ble skrevet. Rader skrevet før personen fikk kode 6, endres ikke i
+- Skjermingen bruker graderingen da raden ble skrevet. Rader skrevet før personen fikk adressebeskyttelse, endres ikke i
   BigQuery. Mottakerne bruker siste rad per behandling.
 - Oppslaget i PDL skjer inne i projeksjonens databasetransaksjon, ett kall per rad som skrives.
 - Rammeverket hopper over eventer som havner i loggen med lavere id enn gjeldende posisjon. Det gjelder alle

@@ -38,8 +38,9 @@ import kotlin.time.Instant
  * Tilstanden lagres ikke. Den bygges for hver event fra tidligere eventer i loggen med samme
  * aggregatrot, som er søknad-id-en. Hver event som endrer meldingsinnholdet gir én ny rad.
  *
- * Kode 6: før hver rad skrives slår vi opp gjeldende adressebeskyttelse i PDL. Behandlende enhet sier ikke
- * sikkert om personen har strengt fortrolig adresse, og graderingen kan endres etter innsending.
+ * Adressebeskyttelse: før hver rad skrives slår vi opp gjeldende gradering i PDL. Alle graderinger (kode 6 og 7)
+ * gir skjerming. Behandlende enhet sier ikke sikkert om personen er beskyttet, og graderingen kan endres etter
+ * innsending.
  *
  * Resending: bump versjonen i [name]. Projeksjonen leser loggen på nytt fra start og skriver nye rader
  * med samme `hendelse_tid` og `sekvensnummer`, og ny `melding_tid` og `projeksjon`.
@@ -65,7 +66,7 @@ class SaksbehandlingsstatistikkProjection(
         if (melding == forrige?.meldingsinnhold()) return
 
         val skjermet = melding.ansvarligEnhet == NAV_VIKAFOSSEN ||
-            runBlocking { adressebeskyttelse.harStrengtFortroligAdresse(melding.fnr) }
+            runBlocking { adressebeskyttelse.harSkjermetAdresse(melding.fnr) }
         val utgaende = if (skjermet) melding.skjermet() else melding
 
         skriver.skriv(rad(behandlingId, utgaende, overgang.hendelseTid, event.id))
@@ -129,7 +130,7 @@ class SaksbehandlingsstatistikkProjection(
         const val SAK_UTLAND = "NASJONAL"
         const val BEHANDLING_TYPE = "SOKNAD"
 
-        /** Verdien Team Sak skal ha i geo-lokaliserende felter når søker har strengt fortrolig adresse (kode 6). */
+        /** Verdien i geo-lokaliserende felter når søker har adressebeskyttelse (kode 6 eller 7). */
         const val SKJERMET = "-5"
 
         private fun erRelevant(data: EventData) = when (data) {
@@ -434,7 +435,7 @@ data class Meldingsinnhold(
     val tiltaksperiodeFra: LocalDate?,
     val tiltaksperiodeTil: LocalDate?,
 ) {
-    /** Meldingen ved strengt fortrolig adresse (kode 6): felt som kan avsløre hvor personen bor, blir `-5`. */
+    /** Meldingen ved adressebeskyttelse (kode 6 eller 7): felt som kan avsløre hvor personen bor, blir `-5`. */
     fun skjermet(): Meldingsinnhold {
         fun skjerm(verdi: String?) = verdi?.let { SaksbehandlingsstatistikkProjection.SKJERMET }
         return copy(

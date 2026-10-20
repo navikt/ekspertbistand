@@ -259,7 +259,7 @@ private fun ApplicationTestBuilder.setupTestApplication() {
     }
 
     @Test
-    fun `adressebeskyttelseoppslag gir kode 6 for STRENGT_FORTROLIG og STRENGT_FORTROLIG_UTLAND`() = testApplication {
+    fun `adressebeskyttelseoppslag skjermer alle graderinger unntatt UGRADERT`() = testApplication {
         val gradering = mutableListOf<AdressebeskyttelseGradering>()
         setupTestApplication()
         setPdlApiRespons(
@@ -274,12 +274,13 @@ private fun ApplicationTestBuilder.setupTestApplication() {
         mapOf(
             listOf(AdressebeskyttelseGradering.STRENGT_FORTROLIG) to true,
             listOf(AdressebeskyttelseGradering.UGRADERT, AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND) to true,
-            listOf(AdressebeskyttelseGradering.FORTROLIG) to false,
+            listOf(AdressebeskyttelseGradering.FORTROLIG) to true,
+            listOf(AdressebeskyttelseGradering.UGRADERT) to false,
             emptyList<AdressebeskyttelseGradering>() to false,
         ).forEach { (graderinger, forventet) ->
             gradering.clear()
             gradering += graderinger
-            assertEquals(forventet, oppslag.harStrengtFortroligAdresse("42"), "$graderinger")
+            assertEquals(forventet, oppslag.harSkjermetAdresse("42"), "$graderinger")
         }
     }
 
@@ -291,10 +292,10 @@ private fun ApplicationTestBuilder.setupTestApplication() {
         startApplication()
         val oppslag = PdlAdressebeskyttelseOppslag(PdlApiKlient(application.dependencies.resolve(), client))
 
-        assertFalse(oppslag.harStrengtFortroligAdresse("42"))
+        assertFalse(oppslag.harSkjermetAdresse("42"))
 
         feilkode = "server_error"
-        assertFailsWith<ServerError> { oppslag.harStrengtFortroligAdresse("42") }
+        assertFailsWith<ServerError> { oppslag.harSkjermetAdresse("42") }
     }
 }
 

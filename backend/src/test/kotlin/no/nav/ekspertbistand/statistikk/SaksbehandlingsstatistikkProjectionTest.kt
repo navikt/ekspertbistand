@@ -36,7 +36,7 @@ class SaksbehandlingsstatistikkProjectionTest {
     private lateinit var testDb: TestDatabase
     private lateinit var projection: SaksbehandlingsstatistikkProjection
     private val rader = mutableListOf<SaksbehandlingsstatistikkRad>()
-    private val strengtFortrolige = mutableSetOf<String>()
+    private val skjermede = mutableSetOf<String>()
     private var pdlFeil: Exception? = null
     private val start = Instant.fromEpochSeconds(Clock.System.now().epochSeconds)
     private val saksbehandler = "Z111111"
@@ -49,7 +49,7 @@ class SaksbehandlingsstatistikkProjectionTest {
         testDb = TestDatabase.isolert()
         projection = SaksbehandlingsstatistikkProjection(testDb.config.jdbcDatabase, rader::add) { fnr ->
             pdlFeil?.let { throw it }
-            fnr in strengtFortrolige
+            fnr in skjermede
         }
     }
 
@@ -178,9 +178,9 @@ class SaksbehandlingsstatistikkProjectionTest {
     }
 
     @Test
-    fun `strengt fortrolig adresse i PDL skjermer geo-lokaliserende felter uansett enhet`() = medDb {
+    fun `adressebeskyttelse i PDL skjermer geo-lokaliserende felter uansett enhet`() = medDb {
         val soknad = soknad(fnr = "02020254321").let { it.copy(ekspert = it.ekspert.copy(virksomhetOrgnr = "912345678")) }
-        strengtFortrolige += soknad.ansatt.fnr
+        skjermede += soknad.ansatt.fnr
         registrer(soknad, enhet = "0315")
         publishAndFinalize(tildeltSaksbehandler(soknad, saksbehandler, tid(1)))
         pollAlt()
@@ -196,11 +196,11 @@ class SaksbehandlingsstatistikkProjectionTest {
     }
 
     @Test
-    fun `kode 6 etter innsending skjermer radene som skrives etterpaa`() = medDb {
+    fun `adressebeskyttelse etter innsending skjermer radene som skrives etterpaa`() = medDb {
         val soknad = soknad(fnr = "03030354321")
         registrer(soknad, enhet = "0315")
         pollAlt()
-        strengtFortrolige += soknad.ansatt.fnr
+        skjermede += soknad.ansatt.fnr
         publishAndFinalize(tildeltSaksbehandler(soknad, saksbehandler, tid(1)))
         pollAlt()
 

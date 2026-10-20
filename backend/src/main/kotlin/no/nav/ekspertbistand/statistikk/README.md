@@ -140,7 +140,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY behandling_id ORDER BY sekvensnummer DES
 | `behandling_resultat` | STRING | Se «Kodeverk». Midlertidig når saken ligger hos beslutter, endelig når status er `AVSLUTTET` |
 | `resultat_begrunnelse` | STRING | Årsaker til retur fra beslutter, se «Kodeverk» |
 | `behandling_metode` | STRING | `AUTOMATISK` til første manuelle hendelse, deretter `MANUELL` |
-| `opprettet_av` | STRING | Alltid `EKSPERTBISTAND`, fordi systemet oppretter saken. Unntatt `-5` ved strengt fortrolig adresse |
+| `opprettet_av` | STRING | Alltid `EKSPERTBISTAND`, fordi systemet oppretter saken. Unntatt `-5` ved adressebeskyttelse |
 | `saksbehandler` | STRING | Nav-ident til saksbehandler. Kan være tom, se under |
 | `ansvarlig_beslutter` | STRING | Nav-ident til beslutter |
 | `ansvarlig_enhet` | STRING | Enhetsnummeret til behandlende Nav-enhet, for eksempel `0315` |
@@ -192,7 +192,7 @@ endelige verdier bare når `behandling_status = 'AVSLUTTET'`.
 | `resultat_begrunnelse` | `resultat_begrunnelse` | Bare ved retur fra beslutter. Avslagsgrunn er ikke med, se under |
 | `behandling_metode` | `behandling_metode` | |
 | `behandling_aarsak` | mangler | Alle behandlinger er søknader. Vi har ingen årsakskoder |
-| `opprettet_av` | `opprettet_av` | Alltid `EKSPERTBISTAND`, unntatt `-5` ved strengt fortrolig adresse |
+| `opprettet_av` | `opprettet_av` | Alltid `EKSPERTBISTAND`, unntatt `-5` ved adressebeskyttelse |
 | `saksbehandler` | `saksbehandler` | Påkrevd hos Team Sak, men kan være tom hos oss. Se «Feltene i tabellen» |
 | `ansvarlig_beslutter` | `ansvarlig_beslutter` | |
 | `ansvarlig_enhet` | `ansvarlig_enhet` | Team Sak ber om organisasjons-id. Vi sender enhetsnummeret |
@@ -326,20 +326,23 @@ Nye valg i søknaden gir `ANNET` til vi har lagt dem inn i kodeverket.
 
 ## Personvern
 
-### Strengt fortrolig adresse (kode 6)
+### Adressebeskyttelse (kode 6 og 7)
 
-Før hver rad skrives, slår vi opp arbeidstakerens gjeldende adressebeskyttelse i PDL. Har personen strengt
-fortrolig adresse (`STRENGT_FORTROLIG` eller `STRENGT_FORTROLIG_UTLAND`), eller behandles saken av Nav Vikafossen
-(enhet `2103`), får disse feltene verdien `-5`:
+Før hver rad skrives, slår vi opp arbeidstakerens gjeldende adressebeskyttelse i PDL. Har personen en annen
+gradering enn `UGRADERT` (`FORTROLIG`, `STRENGT_FORTROLIG` eller `STRENGT_FORTROLIG_UTLAND`), eller behandles saken
+av Nav Vikafossen (enhet `2103`), får disse feltene verdien `-5`:
 
 - `opprettet_av`, `saksbehandler` og `ansvarlig_enhet`
 - `ansvarlig_beslutter`, men bare når feltet har en verdi
 - `arrangor_orgnr` og `ekspert_virksomhet_orgnr`, fordi arbeidsgiveren og eksperten kan avsløre hvor personen bor
 
-Behandlende enhet alene er ikke nok. Norg kan gi en annen enhet enn Vikafossen, og personen kan få strengt fortrolig
-adresse etter at søknaden er sendt inn.
+Team Sak krever `-5` ved strengt fortrolig adresse. Vi skjermer også fortrolig adresse (kode 7), fordi arbeidsgiver
+og ekspert kan avsløre hvor personen bor uansett gradering. En ukjent gradering fra PDL gir også skjerming.
 
-Får personen strengt fortrolig adresse midt i behandlingen, blir radene fra og med neste hendelse skjermet. Rader som
+Behandlende enhet alene er ikke nok. Norg kan gi en annen enhet enn Vikafossen, og personen kan få adressebeskyttelse
+etter at søknaden er sendt inn.
+
+Får personen adressebeskyttelse midt i behandlingen, blir radene fra og med neste hendelse skjermet. Rader som
 allerede er skrevet, endres ikke. Bruk derfor siste rad per `behandling_id` når dere avgjør om en sak er skjermet.
 
 Feiler oppslaget i PDL, skriver vi ingen rad. Projeksjonen prøver igjen til oppslaget lykkes. Personer som ikke finnes
