@@ -51,6 +51,7 @@ import no.nav.ekspertbistand.soknad.tilSoknadDTO
 import no.nav.ekspertbistand.statistikk.AdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.PdlAdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkSkriver
+import no.nav.ekspertbistand.statistikk.SkjermedeBehandlinger
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
@@ -410,6 +411,12 @@ fun main() {
             }
             provide(FagsakIdService::class)
             provide<SaksbehandlingsstatistikkSkriver> { SaksbehandlingsstatistikkSkriver { } }
+            provide<SkjermedeBehandlinger> {
+                object : SkjermedeBehandlinger {
+                    override fun registrer(behandlingIder: Collection<String>) = Unit
+                    override fun uskjermede() = emptyMap<String, String>()
+                }
+            }
             provide<AdressebeskyttelseOppslag> { PdlAdressebeskyttelseOppslag(resolve()) }
         }
         configureServer()

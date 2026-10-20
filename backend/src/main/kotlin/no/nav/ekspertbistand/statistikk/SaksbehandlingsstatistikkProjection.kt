@@ -38,7 +38,9 @@ import kotlin.time.Instant
  * aggregatrot, som er søknad-id-en. Hver event som endrer meldingsinnholdet gir én ny rad.
  *
  * Adressebeskyttelse: før hver rad skrives slår vi opp gjeldende gradering i PDL. Alle graderinger (kode 6 og 7)
- * gir skjerming. Behandlende enhet brukes ikke som signal.
+ * gir skjerming. Behandlende enhet brukes ikke som signal. En skjermet behandling registreres i [skjermede] før
+ * raden skrives, slik at viewet vi deler holder hele behandlingen utenfor, også rader skrevet før skjermingen.
+ * [Skjermingskontroll] fanger dem som blir skjermet etter siste hendelse.
  *
  * Resending: bump versjonen i [name]. Projeksjonen leser loggen på nytt fra start og skriver nye rader
  * med samme `hendelse_tid` og `sekvensnummer`, og ny `melding_tid` og `projeksjon`.
@@ -48,6 +50,7 @@ class SaksbehandlingsstatistikkProjection(
     database: Database,
     private val skriver: SaksbehandlingsstatistikkSkriver,
     private val adressebeskyttelse: AdressebeskyttelseOppslag,
+    private val skjermede: SkjermedeBehandlinger,
 ) : EventLogProjectionBuilder(database) {
     override val name = "Saksbehandlingsstatistikk-v1"
 
@@ -64,6 +67,7 @@ class SaksbehandlingsstatistikkProjection(
         if (melding == forrige?.meldingsinnhold()) return
 
         val skjermet = runBlocking { adressebeskyttelse.harSkjermetAdresse(melding.fnr) }
+        if (skjermet) skjermede.registrer(listOf(behandlingId))
         val utgaende = if (skjermet) melding.skjermet() else melding
 
         skriver.skriv(rad(behandlingId, utgaende, overgang.hendelseTid, event.id))
@@ -174,7 +178,7 @@ fun nesteTilstand(
     if (data is EventData.SakOpprettet) {
         if (t.sakId != null) return null
         // TODO: SakOpprettet får et felt for adressebeskyttelse ved saksopprettelse (egen oppgave). Lagre det i
-        //  tilstanden og skjerm i handle når det er satt, i tillegg til PDL-oppslaget.
+        //  tilstanden og registrer behandlingen som skjermet i handle når det er satt, i tillegg til PDL-oppslaget.
         return Overgang(
             t.copy(
                 sakId = data.sakId,
@@ -434,7 +438,10 @@ data class Meldingsinnhold(
     val tiltaksperiodeFra: LocalDate?,
     val tiltaksperiodeTil: LocalDate?,
 ) {
-    /** Meldingen ved adressebeskyttelse (kode 6 eller 7): felt som kan avsløre hvor personen bor, blir `-5`. */
+    /**
+     * Meldingen ved adressebeskyttelse (kode 6 eller 7): felt som kan avsløre hvor personen bor, blir `-5`.
+     * Viewet viser aldri skjermede behandlinger, så dette er et ekstra vern i rådatatabellen.
+     */
     fun skjermet(): Meldingsinnhold {
         fun skjerm(verdi: String?) = verdi?.let { SaksbehandlingsstatistikkProjection.SKJERMET }
         return copy(

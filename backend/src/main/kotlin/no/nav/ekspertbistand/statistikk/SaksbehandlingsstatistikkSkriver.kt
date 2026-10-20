@@ -13,12 +13,25 @@ import com.google.cloud.bigquery.StandardSQLTypeName.TIMESTAMP
 import com.google.cloud.bigquery.StandardTableDefinition
 import com.google.cloud.bigquery.TableId
 import com.google.cloud.bigquery.TableInfo
+import com.google.cloud.bigquery.ViewDefinition
 import kotlinx.datetime.LocalDate
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 fun interface SaksbehandlingsstatistikkSkriver {
     fun skriv(rad: SaksbehandlingsstatistikkRad)
+}
+
+/**
+ * Behandlinger som holdes utenfor viewet vi deler, fordi deltakeren har eller har hatt adressebeskyttelse.
+ * En behandling fjernes aldri fra listen.
+ */
+interface SkjermedeBehandlinger {
+    fun registrer(behandlingIder: Collection<String>)
+
+    /** Behandlinger med rader i rådatatabellen som ikke er registrert som skjermet, med deltakerens fnr. */
+    fun uskjermede(): Map<String, String>
 }
 
 /** Én rad i BigQuery-tabellen. Feltene er beskrevet i `README.md` i samme pakke. */
@@ -66,46 +79,98 @@ data class SaksbehandlingsstatistikkRad(
 }
 
 /**
- * Skriver til tabellen [TABELL] i datasettet [DATASETT], som Nais oppretter fra `spec.gcp.bigQueryDatasets`.
- * Appen oppretter tabellen selv første gang den skriver. Nye kolonner må legges til i BigQuery før
- * appen skriver dem, fordi tabellen ikke oppdateres automatisk.
+ * Eier objektene i datasettet [DATASETT], som Nais oppretter fra `spec.gcp.bigQueryDatasets`:
+ * - [TABELL]: rådata. Deles ikke.
+ * - [SKJERMEDE]: behandlinger som skal holdes utenfor. Deles ikke.
+ * - [VIEW]: rådata uten skjermede behandlinger. Bare dette registreres på Datamarkedsplassen, som autoriserer
+ *   viewet mot tabellene i samme datasett.
+ *
+ * Appen oppretter det som mangler første gang den bruker datasettet, og oppdaterer viewet slik at skjemaet følger
+ * tabellen. Nye kolonner må legges til i BigQuery før appen skriver dem, fordi tabellen ikke oppdateres automatisk.
  */
-class BigQuerySaksbehandlingsstatistikkSkriver(
+@OptIn(ExperimentalTime::class)
+class BigQuerySaksbehandlingsstatistikk(
     private val bigQuery: BigQuery,
-    private val tabell: TableId,
-) : SaksbehandlingsstatistikkSkriver {
+    prosjekt: String,
+) : SaksbehandlingsstatistikkSkriver, SkjermedeBehandlinger {
 
-    private val tabellFinnes by lazy {
-        if (bigQuery.getTable(tabell) == null) {
-            bigQuery.create(TableInfo.of(tabell, StandardTableDefinition.of(skjema)))
-        }
+    private val tabell = TableId.of(prosjekt, DATASETT, TABELL)
+    private val skjermede = TableId.of(prosjekt, DATASETT, SKJERMEDE)
+    private val view = TableId.of(prosjekt, DATASETT, VIEW)
+
+    private val datasettKlart by lazy {
+        opprettHvisMangler(tabell, StandardTableDefinition.of(skjema))
+        opprettHvisMangler(skjermede, StandardTableDefinition.of(skjermedeSkjema))
+        val definisjon = TableInfo.of(view, ViewDefinition.of(viewSql(tabell, skjermede)))
+        if (bigQuery.getTable(view) == null) bigQuery.create(definisjon) else bigQuery.update(definisjon)
+    }
+
+    private fun opprettHvisMangler(id: TableId, definisjon: StandardTableDefinition) {
+        if (bigQuery.getTable(id) == null) bigQuery.create(TableInfo.of(id, definisjon))
     }
 
     override fun skriv(rad: SaksbehandlingsstatistikkRad) {
-        tabellFinnes
+        datasettKlart
+        settInn(tabell, listOf(rad.insertId to rad.tilBigQuery()))
+    }
+
+    override fun registrer(behandlingIder: Collection<String>) {
+        if (behandlingIder.isEmpty()) return
+        datasettKlart
+        val tidspunkt = Clock.System.now().toString()
+        settInn(skjermede, behandlingIder.map { it to mapOf("behandling_id" to it, "registrert_tid" to tidspunkt) })
+    }
+
+    override fun uskjermede(): Map<String, String> {
+        datasettKlart
+        val allerede = bigQuery.listTableData(skjermede, skjermedeSkjema).iterateAll()
+            .map { it.get("behandling_id").stringValue }
+            .toSet()
+        return bigQuery.listTableData(tabell, skjema).iterateAll()
+            .associate { it.get("behandling_id").stringValue to it.get("fnr").stringValue }
+            .filterKeys { it !in allerede }
+    }
+
+    private fun settInn(id: TableId, rader: List<Pair<String, Map<String, Any>>>) {
         val svar = bigQuery.insertAll(
-            InsertAllRequest.newBuilder(tabell).addRow(rad.insertId, rad.tilBigQuery()).build()
+            InsertAllRequest.newBuilder(id).apply { rader.forEach { (insertId, verdier) -> addRow(insertId, verdier) } }.build()
         )
         check(!svar.hasErrors()) {
             val feil = svar.insertErrors.values.flatten().map { "${it.reason} (${it.location})" }
-            "Kunne ikke skrive ${rad.insertId} til $tabell: $feil"
+            "Kunne ikke skrive ${svar.insertErrors.size} av ${rader.size} rader til $id: $feil"
         }
     }
 
     companion object {
         const val DATASETT = "ekspertbistand_statistikk"
         const val TABELL = "saksbehandlingsstatistikk"
+        const val SKJERMEDE = "skjermede_behandlinger"
+        const val VIEW = "saksbehandlingsstatistikk_delt"
 
-        fun fraNaisMiljo(): BigQuerySaksbehandlingsstatistikkSkriver {
+        fun fraNaisMiljo(): BigQuerySaksbehandlingsstatistikk {
             val prosjekt = System.getenv("GCP_TEAM_PROJECT_ID")
                 ?: error("Mangler GCP_TEAM_PROJECT_ID")
-            return BigQuerySaksbehandlingsstatistikkSkriver(
+            return BigQuerySaksbehandlingsstatistikk(
                 bigQuery = BigQueryOptions.newBuilder().setProjectId(prosjekt).build().service,
-                tabell = TableId.of(prosjekt, DATASETT, TABELL),
+                prosjekt = prosjekt,
             )
         }
     }
 }
+
+private fun viewSql(tabell: TableId, skjermede: TableId): String =
+    """
+    SELECT r.*
+    FROM `${tabell.project}.${tabell.dataset}.${tabell.table}` r
+    WHERE r.behandling_id NOT IN (
+      SELECT behandling_id FROM `${skjermede.project}.${skjermede.dataset}.${skjermede.table}`
+    )
+    """.trimIndent()
+
+private val skjermedeSkjema: Schema = Schema.of(
+    Field.newBuilder("behandling_id", STRING).setMode(Field.Mode.REQUIRED).build(),
+    Field.newBuilder("registrert_tid", TIMESTAMP).setMode(Field.Mode.REQUIRED).build(),
+)
 
 private class Kolonne(
     val navn: String,

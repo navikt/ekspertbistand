@@ -64,9 +64,11 @@ import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.sokos.KontoregisterClient
 import no.nav.ekspertbistand.statistikk.AdressebeskyttelseOppslag
-import no.nav.ekspertbistand.statistikk.BigQuerySaksbehandlingsstatistikkSkriver
+import no.nav.ekspertbistand.statistikk.BigQuerySaksbehandlingsstatistikk
 import no.nav.ekspertbistand.statistikk.PdlAdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkSkriver
+import no.nav.ekspertbistand.statistikk.SkjermedeBehandlinger
+import no.nav.ekspertbistand.statistikk.configureSkjermingskontroll
 import no.nav.ekspertbistand.sokos.configureKontoregisterApiV1
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
@@ -119,7 +121,9 @@ fun main() {
             provide(TilgangsmaskinClient::class)
             provide<ArcSightAuditClient> { ArcSightAuditClient() }
             provide(FagsakIdService::class)
-            provide<SaksbehandlingsstatistikkSkriver> { BigQuerySaksbehandlingsstatistikkSkriver.fraNaisMiljo() }
+            val statistikk by lazy { BigQuerySaksbehandlingsstatistikk.fraNaisMiljo() }
+            provide<SaksbehandlingsstatistikkSkriver> { statistikk }
+            provide<SkjermedeBehandlinger> { statistikk }
             provide<AdressebeskyttelseOppslag> { PdlAdressebeskyttelseOppslag(resolve()) }
             basedOnEnv(
                 dev = { provide(KontoregisterClient::class) },
@@ -168,6 +172,7 @@ fun main() {
         configureEventHandlers()
 
         configureProjectionBuilders()
+        configureSkjermingskontroll()
 
         configureAppMetrics()
 

@@ -36,6 +36,7 @@ class SaksbehandlingsstatistikkProjectionTest {
     private lateinit var projection: SaksbehandlingsstatistikkProjection
     private val rader = mutableListOf<SaksbehandlingsstatistikkRad>()
     private val skjermede = mutableSetOf<String>()
+    private val registrerte = mutableListOf<String>()
     private var pdlFeil: Exception? = null
     private val start = Instant.fromEpochSeconds(Clock.System.now().epochSeconds)
     private val saksbehandler = "Z111111"
@@ -46,10 +47,21 @@ class SaksbehandlingsstatistikkProjectionTest {
     @BeforeTest
     fun setup() {
         testDb = TestDatabase.isolert()
-        projection = SaksbehandlingsstatistikkProjection(testDb.config.jdbcDatabase, rader::add) { fnr ->
-            pdlFeil?.let { throw it }
-            fnr in skjermede
-        }
+        projection = SaksbehandlingsstatistikkProjection(
+            database = testDb.config.jdbcDatabase,
+            skriver = rader::add,
+            adressebeskyttelse = { fnr ->
+                pdlFeil?.let { throw it }
+                fnr in skjermede
+            },
+            skjermede = object : SkjermedeBehandlinger {
+                override fun registrer(behandlingIder: Collection<String>) {
+                    registrerte += behandlingIder
+                }
+
+                override fun uskjermede() = emptyMap<String, String>()
+            },
+        )
     }
 
     @AfterTest
@@ -108,6 +120,7 @@ class SaksbehandlingsstatistikkProjectionTest {
         )
         assertEquals(periodeFra, meldinger.last().tiltaksperiodeFra)
         assertEquals(periodeTil, meldinger.last().tiltaksperiodeTil)
+        assertEquals(emptyList(), registrerte)
     }
 
     @Test
@@ -192,10 +205,11 @@ class SaksbehandlingsstatistikkProjectionTest {
         assertEquals(SaksbehandlingsstatistikkProjection.SKJERMET, siste.ekspertVirksomhetOrgnr)
         assertNull(siste.ansvarligBeslutter)
         assertEquals(soknad.ansatt.fnr, siste.fnr)
+        assertEquals(setOf(soknad.id), registrerte.toSet())
     }
 
     @Test
-    fun `adressebeskyttelse etter innsending skjermer radene som skrives etterpaa`() = medDb {
+    fun `adressebeskyttelse etter innsending registrerer behandlingen som skjermet`() = medDb {
         val soknad = soknad(fnr = "03030354321")
         registrer(soknad, enhet = "0315")
         pollAlt()
@@ -207,6 +221,7 @@ class SaksbehandlingsstatistikkProjectionTest {
             listOf("0315", SaksbehandlingsstatistikkProjection.SKJERMET),
             meldinger(soknad).map { it.ansvarligEnhet },
         )
+        assertEquals(listOf(soknad.id), registrerte)
     }
 
     @Test

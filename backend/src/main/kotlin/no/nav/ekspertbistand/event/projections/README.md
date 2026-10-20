@@ -57,7 +57,8 @@ builderen starter på posisjon 0. Eksisterende saker opprettes ikke på nytt, me
 
 Ligger i pakken `statistikk`. Skriver meldinger til felles saksbehandlingsstatistikk (Team Sak) og tiltaksstatistikk
 i datavarehuset til BigQuery-tabellen `ekspertbistand_statistikk.saksbehandlingsstatistikk`, én rad per relevant
-hendelse. Projeksjonen lagrer ingen tilstand. Den bygger tilstanden fra tidligere eventer med samme aggregatrot i
+hendelse. Mottakerne leser viewet `saksbehandlingsstatistikk_delt`, som holder behandlinger med adressebeskyttelse
+utenfor. Projeksjonen lagrer ingen tilstand. Den bygger tilstanden fra tidligere eventer med samme aggregatrot i
 `event_log`. Bare saker opprettet av `OpprettSak` rapporteres, og projeksjonen kjører derfor bare utenfor prod.
 Bump versjonen i `name` for å resende alle meldinger. Mapping og beslutninger står i
 [`specifications/saksbehandlingsstatistikk.md`](../../../../../../../../../specifications/saksbehandlingsstatistikk.md)
