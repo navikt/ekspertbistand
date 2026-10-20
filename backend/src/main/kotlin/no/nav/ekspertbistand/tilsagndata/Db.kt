@@ -4,15 +4,16 @@ import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.arena.TilsagnData
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.json.json
 import java.util.UUID
 
 object TilsagndataTable : Table("tilsagndata") {
-    val id = uuid("id")
+    val id = javaUUID("id")
     val tilsagnNummer = text("tilsagnnummer")
-    val soknadId = uuid("soknad_id").nullable()
+    val soknadId = javaUUID("soknad_id").nullable()
     val tilsagnData = json<TilsagnData>(
         "tilsagnData",
         serialize = { Json.encodeToString(it) },

@@ -13,12 +13,12 @@
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <main.class>no.nav.ekspertbistand.ApplicationKt</main.class>
 
-        <kotlin.version>2.2.10</kotlin.version>
-        <kotlinx.coroutines.version>1.10.2</kotlinx.coroutines.version>
-        <ktor.version>3.3.1</ktor.version>
+        <kotlin.version>2.4.21</kotlin.version>
+        <kotlinx.coroutines.version>1.11.0</kotlinx.coroutines.version>
+        <ktor.version>3.6.0</ktor.version>
         <java.version>21</java.version>
-        <graphql-kotlin.version>8.8.1</graphql-kotlin.version>
-        <exposed.version>1.0.0-rc-2</exposed.version>
+        <graphql-kotlin.version>8.9.1</graphql-kotlin.version>
+        <exposed.version>1.6.0</exposed.version>
     </properties>
     <repositories>
         <!-- Legger til central eksplisitt for prioritet over github -->
@@ -154,12 +154,12 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.21</version>
+            <version>1.6.5</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>2.0.17</version>
+            <version>2.0.20</version>
         </dependency>
         <dependency>
             <groupId>net.logstash.logback</groupId>
@@ -176,30 +176,30 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
-            <version>1.15.2</version>
+            <version>1.17.1</version>
         </dependency>
 
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
-            <version>3.2.2</version>
+            <version>3.3.1</version>
         </dependency>
 
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
-            <version>11.13.3</version>
+            <version>11.20.3</version>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-database-postgresql</artifactId>
-            <version>11.13.3</version>
+            <version>11.20.3</version>
         </dependency>
         <dependency>
             <!-- brukes av flyway -->
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.13</version>
+            <version>42.7.14</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.exposed</groupId>
@@ -234,7 +234,7 @@
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
-            <version>7.0.2</version>
+            <version>7.1.0</version>
         </dependency>
 
         <dependency>
@@ -264,7 +264,7 @@
         <dependency>
             <groupId>com.github.jknack</groupId>
             <artifactId>handlebars</artifactId>
-            <version>4.5.2</version>
+            <version>4.5.5</version>
         </dependency>
 
         <dependency>
@@ -307,21 +307,21 @@
         <dependency>
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
-            <version>1.21.2</version>
+            <version>1.23.2</version>
             <scope>test</scope>
         </dependency>
         <!-- PDF/A-2b-validering av Gotenberg-output (integrasjonstest). -->
         <dependency>
             <groupId>org.verapdf</groupId>
             <artifactId>validation-model</artifactId>
-            <version>1.30.2</version>
+            <version>1.30.3</version>
             <scope>test</scope>
         </dependency>
         <!-- Tekstuttrekk fra generert PDF (integrasjonstest). -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
-            <version>3.0.5</version>
+            <version>3.0.8</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -373,7 +373,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
+                <version>3.5.1</version>
                 <configuration>
                     <archive>
                         <manifest>
@@ -387,7 +387,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.7.1</version>
+                <version>3.8.0</version>
                 <configuration>
                     <attach>false</attach>
                     <finalName>${project.artifactId}</finalName>
@@ -408,7 +408,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
@@ -417,7 +417,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.4</version>
+                <version>3.6.0</version>
                 <configuration>
                     <failIfNoTests>true</failIfNoTests>
                 </configuration>
