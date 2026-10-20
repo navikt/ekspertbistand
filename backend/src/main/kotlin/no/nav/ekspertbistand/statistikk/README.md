@@ -15,6 +15,7 @@ datavarehuset har bedt om.
 |------|--------|
 | Skriving til BigQuery | Ferdig i dev |
 | Prod | Datasettet finnes, men er tomt. Tabellen kommer når ekspertbistand fatter vedtak selv i prod. Til da behandles alle saker i Arena |
+| Adressebeskyttelse | Kjent begrensning: hendelsene lagrer ikke om deltakeren er skjermet. Se «Kjent begrensning: skjerming lagres ikke» |
 
 ## Tilgang
 
@@ -347,6 +348,21 @@ allerede er skrevet, endres ikke. Bruk derfor siste rad per `behandling_id` når
 
 Feiler oppslaget i PDL, skriver vi ingen rad. Projeksjonen prøver igjen til oppslaget lykkes. Personer som ikke finnes
 i PDL, behandles som ugradert.
+
+### Kjent begrensning: skjerming lagres ikke
+
+Ingen hendelse i ekspertbistand lagrer om deltakeren har adressebeskyttelse. Skjermingen avgjøres av graderingen i PDL
+når raden skrives, ikke da hendelsen skjedde. Det gir disse følgene:
+
+- Sender vi alle meldinger på nytt, brukes graderingen på det tidspunktet. En hendelse kan da bli skjermet annerledes
+  enn i den første raden.
+- Ligger projeksjonen etter, brukes graderingen da raden skrives, ikke da hendelsen skjedde.
+- Vi kan ikke i ettertid vise hvilken gradering som gjaldt da en hendelse skjedde.
+
+Løsningen vi ønsker, er et flagg på en hendelse som sier at deltakeren har adressebeskyttelse. Det kan være en
+eksisterende hendelse, for eksempel når søknaden journalføres og behandlende enhet utledes, eller en ny hendelse når
+graderingen endres. Da kan projeksjonen lese skjermingen fra hendelsesloggen og gi samme svar ved ny sending. Teamet
+har dette som en egen oppgave.
 
 ### Det vi ikke sender
 

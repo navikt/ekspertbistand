@@ -174,5 +174,8 @@ Testene bruker en skriver som legger radene i en liste.
 - Skjermingen bruker graderingen da raden ble skrevet. Rader skrevet før personen fikk adressebeskyttelse, endres ikke i
   BigQuery. Mottakerne bruker siste rad per behandling.
 - Oppslaget i PDL skjer inne i projeksjonens databasetransaksjon, ett kall per rad som skrives.
+- Kjent begrensning: ingen event lagrer om deltakeren har adressebeskyttelse. Ny sending og etterslep bruker
+  graderingen da raden skrives. Ønsket løsning er et flagg på en event (eksisterende eller ny) som sier at deltakeren
+  har adressebeskyttelse. Tatt med til teamet som egen oppgave. Se `statistikk/README.md`.
 - Rammeverket hopper over eventer som havner i loggen med lavere id enn gjeldende posisjon. Det gjelder alle
   projeksjoner og er ikke løst her.
