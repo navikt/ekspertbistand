@@ -64,6 +64,7 @@ data class SaksbehandlingsstatistikkRad(
     val tiltakskodeArena: String,
     val arrangorOrgnr: String?,
     val estimertAntallTimer: Int?,
+    val estimertKostnad: Int?,
     val ekspertVirksomhetOrgnr: String?,
     val ekspertUtdanning: String?,
     val ekspertKompetanse: String?,
@@ -99,14 +100,24 @@ class BigQuerySaksbehandlingsstatistikk(
     private val view = TableId.of(prosjekt, DATASETT, VIEW)
 
     private val datasettKlart by lazy {
-        opprettHvisMangler(tabell, StandardTableDefinition.of(skjema))
-        opprettHvisMangler(skjermede, StandardTableDefinition.of(skjermedeSkjema))
+        opprettEllerUtvid(tabell, StandardTableDefinition.of(skjema))
+        opprettEllerUtvid(skjermede, StandardTableDefinition.of(skjermedeSkjema))
         val definisjon = TableInfo.of(view, ViewDefinition.of(viewSql(tabell, skjermede)))
         if (bigQuery.getTable(view) == null) bigQuery.create(definisjon) else bigQuery.update(definisjon)
     }
 
-    private fun opprettHvisMangler(id: TableId, definisjon: StandardTableDefinition) {
-        if (bigQuery.getTable(id) == null) bigQuery.create(TableInfo.of(id, definisjon))
+    private fun opprettEllerUtvid(id: TableId, definisjon: StandardTableDefinition) {
+        val eksisterende = bigQuery.getTable(id) ?: return run { bigQuery.create(TableInfo.of(id, definisjon)) }
+        val felter = eksisterende.getDefinition<StandardTableDefinition>().schema?.fields.orEmpty()
+        val nye = definisjon.schema!!.fields.filter { ny -> felter.none { it.name == ny.name } }
+        if (nye.isNotEmpty()) {
+            // BigQuery tillater bare å legge til valgfrie kolonner i en eksisterende tabell.
+            check(nye.none { it.mode == Field.Mode.REQUIRED }) { "Kan ikke legge til påkrevde kolonner i $id: $nye" }
+            eksisterende.toBuilder()
+                .setDefinition(StandardTableDefinition.of(Schema.of(felter + nye)))
+                .build()
+                .update()
+        }
     }
 
     override fun skriv(rad: SaksbehandlingsstatistikkRad) {
@@ -208,6 +219,7 @@ private val kolonner = listOf(
     Kolonne("tiltakskode_arena", STRING, true) { it.tiltakskodeArena },
     Kolonne("arrangor_orgnr", STRING, false) { it.arrangorOrgnr },
     Kolonne("estimert_antall_timer", INT64, false) { it.estimertAntallTimer },
+    Kolonne("estimert_kostnad", INT64, false) { it.estimertKostnad },
     Kolonne("ekspert_virksomhet_orgnr", STRING, false) { it.ekspertVirksomhetOrgnr },
     Kolonne("ekspert_utdanning", STRING, false) { it.ekspertUtdanning },
     Kolonne("ekspert_kompetanse", STRING, false) { it.ekspertKompetanse },

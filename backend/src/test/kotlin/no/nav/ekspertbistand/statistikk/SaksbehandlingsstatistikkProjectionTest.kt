@@ -114,6 +114,7 @@ class SaksbehandlingsstatistikkProjectionTest {
         assertEquals("EKSPEBIST", forste.tiltakskodeArena)
         assertEquals(soknad.virksomhet.virksomhetsnummer, forste.arrangorOrgnr)
         assertEquals(12, forste.estimertAntallTimer)
+        assertEquals(9000, forste.estimertKostnad)
         assertEquals(
             listOf(null, null, 5000, 5000, null, 6000, 6000),
             meldinger.map { it.innvilgetBelop },

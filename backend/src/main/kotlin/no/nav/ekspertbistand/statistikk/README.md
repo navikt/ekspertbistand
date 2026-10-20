@@ -156,6 +156,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY behandling_id ORDER BY sekvensnummer DES
 | `tiltakskode_arena` | STRING | Alltid `EKSPEBIST` |
 | `arrangor_orgnr` | STRING | Virksomhetsnummeret til arbeidsgiveren som søkte. Arena bruker samme nummer som arrangør |
 | `estimert_antall_timer` | INT64 | Antall timer med ekspertbistand arbeidsgiver har anslått i søknaden, for hele perioden |
+| `estimert_kostnad` | INT64 | Kostnaden i kroner arbeidsgiver har anslått i søknaden, for hele perioden |
 | `ekspert_virksomhet_orgnr` | STRING | Organisasjonsnummeret til virksomheten eksperten kommer fra. Tom for eldre søknader |
 | `ekspert_utdanning` | STRING | Ekspertens offentlig godkjente utdanning eller autorisasjon, se «Kodeverk» |
 | `ekspert_kompetanse` | STRING | Ekspertens relevante kompetanse for saken, se «Kodeverk» |
@@ -264,7 +265,7 @@ dagens dato. Vi vet ikke om bistanden ble fullført eller avbrutt, fordi sluttra
 |----------------------------|-----------|---------|
 | Hva slags ekspertbistand blir gitt? | `ekspert_utdanning`, `ekspert_kompetanse` | Se «Kodeverk» |
 | Hvor mange timer per uke eller måned? | `estimert_antall_timer` | Se under |
-| Andre nyttige felt | `innvilget_belop`, `ekspert_virksomhet_orgnr`, `ansvarlig_enhet` | |
+| Andre nyttige felt | `estimert_kostnad`, `innvilget_belop`, `ekspert_virksomhet_orgnr`, `ansvarlig_enhet` | |
 
 `estimert_antall_timer` er arbeidsgiverens svar på «Hvor mange timer skal eksperten hjelpe dere?» i søknaden,
 altså totalt for hele bistanden. Saksbehandler kontrollerer ikke tallet og vedtar beløp, ikke timer. Et omtrentlig
@@ -387,7 +388,6 @@ projeksjonen behandlingen hvis feltet er satt eller PDL sier skjermet.
 | Kontaktperson hos arbeidsgiver og i Nav | Personopplysninger. Ikke nødvendig for statistikk |
 | Fritekst fra søknad og vedtak (behov, begrunnelse, avslagsgrunn, tilrettelegging) | Kan inneholde helseopplysninger |
 | Egne verdier for utdanning og kompetanse | Sendes som `ANNET`, se «Kodeverk» |
-| Arbeidsgiverens anslåtte kostnad | Ikke med nå. Kan legges til hvis datavarehuset trenger det |
 
 `fnr` skal bare brukes til statistikk og må ikke logges.
 
@@ -401,8 +401,8 @@ projeksjonen behandlingen hvis feltet er satt eller PDL sier skjermet.
 - Projeksjonen lagrer ingen tilstand. For hver hendelse bygger den tilstanden fra tidligere hendelser i loggen med
   samme aggregatrot (søknad-id). Indeksen `event_log_aggregate_root_id_idx` gjør oppslaget raskt.
 - Bump versjonen i `name` for å sende alle meldinger på nytt.
-- Nye kolonner må legges til i tabellen i BigQuery før appen skriver dem. Appen oppretter tabellen, men endrer den
-  ikke. Viewet oppdateres ved neste oppstart.
+- Første gang appen bruker datasettet etter oppstart, legger den til nye kolonner i tabellen og oppdaterer viewet.
+  Nye kolonner må være valgfrie, fordi BigQuery ikke tillater å legge til påkrevde kolonner. Eldre rader får `NULL`.
 - Kolonnebeskrivelser legges inn i BigQuery-konsollet. Datamarkedsplassen henter skjema og beskrivelser fra
   BigQuery én gang i timen.
 - Lokalt og i tester skriver projeksjonen ikke til BigQuery.

@@ -16,6 +16,7 @@ import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.SisteForelopigVedtakRef
 import no.nav.ekspertbistand.saksbehandling.beslutningHindring
 import no.nav.ekspertbistand.saksbehandling.saksstatus
+import no.nav.ekspertbistand.saksbehandling.tolkSoknadssum
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
@@ -116,6 +117,7 @@ class SaksbehandlingsstatistikkProjection(
             tiltakskodeArena = EKSPERTBISTAND_TILTAKSKODE,
             arrangorOrgnr = melding.arrangorOrgnr,
             estimertAntallTimer = melding.estimertAntallTimer,
+            estimertKostnad = melding.estimertKostnad,
             ekspertVirksomhetOrgnr = melding.ekspertVirksomhetOrgnr,
             ekspertUtdanning = melding.ekspertUtdanning,
             ekspertKompetanse = melding.ekspertKompetanse,
@@ -188,6 +190,7 @@ fun nesteTilstand(
                 status = StatistikkStatus.REGISTRERT,
                 arrangorOrgnr = data.soknad.virksomhet.virksomhetsnummer,
                 estimertAntallTimer = data.soknad.behovForBistand.timer.trim().toIntOrNull(),
+                estimertKostnad = tolkSoknadssum(data.soknad.behovForBistand.estimertKostnad),
                 ekspertVirksomhetOrgnr = data.soknad.ekspert.virksomhetOrgnr,
                 ekspertUtdanning = data.soknad.ekspert.utdanningKoder,
                 ekspertKompetanse = data.soknad.ekspert.kompetanseKoder,
@@ -344,6 +347,7 @@ data class BehandlingTilstand(
     val innstiltAvIdent: String? = null,
     val arrangorOrgnr: String? = null,
     val estimertAntallTimer: Int? = null,
+    val estimertKostnad: Int? = null,
     val ekspertVirksomhetOrgnr: String? = null,
     val ekspertUtdanning: String? = null,
     val ekspertKompetanse: String? = null,
@@ -403,6 +407,7 @@ data class BehandlingTilstand(
             ansvarligEnhet = ansvarligEnhet,
             arrangorOrgnr = arrangorOrgnr,
             estimertAntallTimer = estimertAntallTimer,
+            estimertKostnad = estimertKostnad,
             ekspertVirksomhetOrgnr = ekspertVirksomhetOrgnr,
             ekspertUtdanning = ekspertUtdanning,
             ekspertKompetanse = ekspertKompetanse,
@@ -431,6 +436,7 @@ data class Meldingsinnhold(
     val ansvarligEnhet: String?,
     val arrangorOrgnr: String?,
     val estimertAntallTimer: Int?,
+    val estimertKostnad: Int?,
     val ekspertVirksomhetOrgnr: String?,
     val ekspertUtdanning: String?,
     val ekspertKompetanse: String?,

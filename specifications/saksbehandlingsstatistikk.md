@@ -43,7 +43,7 @@ BigQuery-tabell i et datasett vi eier. Dokumentasjonen for Team Sak og datavareh
 | Adressebeskyttelse | Skjermede behandlinger holdes helt utenfor viewet, med all historikk. Ellers kan rader fra før skjermingen avsløre både hvem som er skjermet og hvor de jobber. En behandling skjermes hvis deltakeren var skjermet ved saksopprettelse (felt på `SakOpprettet`, egen oppgave), er skjermet i PDL når en rad skrives, eller blir det senere (`Skjermingskontroll` hver time). Alt annet enn `UGRADERT` (kode 6 og 7, også ukjente verdier) gir skjerming. Behandlende enhet brukes ikke som signal. Skjerming oppheves aldri. Rådata får i tillegg `-5` i `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`, `arrangor_orgnr` og `ekspert_virksomhet_orgnr`. Vi sletter ikke rader i BigQuery, fordi `insertAll` hindrer DML de første minuttene og time travel beholder data |
 | Datavarehus | Ekstra kolonner i samme tabell. Feltnavnene er våre egne. Mappingen står i `statistikk/README.md` |
 | Ekspertens kompetanse | Faste valg blir koder (`EkspertStatistikkoder.kt`). Egne verdier og fritekst blir `ANNET`, fordi fritekst ikke kan grupperes og kan inneholde personopplysninger |
-| Timer | Arbeidsgiverens anslag fra søknaden. Saksbehandler kontrollerer det ikke |
+| Timer og kostnad | Arbeidsgiverens anslag fra søknaden. Saksbehandler kontrollerer dem ikke |
 | Deltakerstatus | Sendes ikke, fordi vi ikke har feltet. Datavarehuset kan utlede den fra feltene som finnes |
 | Startdato for tiltakstypen | Sendes ikke. Samme verdi for alle rader, så den kan legges til utenfor eksporten |
 | Utenfor scope | Refusjon og sluttrapport (kan bli egne behandlinger senere), avslagskoder, ekspertens navn, fritekst |
@@ -97,7 +97,7 @@ ved resending.
 |-------|--------|---------------------|----------------|
 | `SoknadInnsendt` | Nullstiller tilstanden og lagrer `mottatt_tid`. Ingen melding, saken finnes ikke ennå | – | – |
 | `InnsendtSoknadJournalfoert` | Lagrer behandlende enhet, mappet til Norg-nummer med `BehandlendeEnhetService.arenaTilNorgEnhetNr`. Ingen melding | – | – |
-| `SakOpprettet` | Første melding. Setter `sak_id`, `registrert_tid`, `fnr`, `forventet_oppstart_tid`, `arrangor_orgnr`, `estimert_antall_timer` og ekspertfeltene | `REGISTRERT` | tidspunktet i event-loggen |
+| `SakOpprettet` | Første melding. Setter `sak_id`, `registrert_tid`, `fnr`, `forventet_oppstart_tid`, `arrangor_orgnr`, `estimert_antall_timer`, `estimert_kostnad` og ekspertfeltene | `REGISTRERT` | tidspunktet i event-loggen |
 | `SakTildeltSaksbehandler` | Setter `saksbehandler` når `tildelingEventId` er null eller lavere enn event-id-en. Fra `REGISTRERT` blir status `UNDER_BEHANDLING` | uendret eller `UNDER_BEHANDLING` | `tidspunkt` |
 | `SakFrigjort` | Nuller `saksbehandler` når identen har saken og eventen er nyere enn forrige tildeling | uendret | `tidspunkt` |
 | `ForelopigVedtakSendtTilBeslutter` | Midlertidig `behandling_resultat` fra utfallet, og `innvilget_belop` og tiltaksperiode fra det foreløpige vedtaket. Krever saksstatus `UNDER_BEHANDLING` | `TIL_BESLUTNING` | `tidspunkt` |
@@ -134,6 +134,7 @@ ved resending.
 | `tiltakskode_arena` | Alltid `EKSPEBIST` (`EKSPERTBISTAND_TILTAKSKODE`) |
 | `arrangor_orgnr` | `soknad.virksomhet.virksomhetsnummer`, som Arena bruker som arrangør |
 | `estimert_antall_timer` | `behovForBistand.timer` som heltall, `null` hvis verdien ikke er et tall |
+| `estimert_kostnad` | `behovForBistand.estimertKostnad` tolket med `tolkSoknadssum`, `null` hvis verdien ikke er et positivt heltall |
 | `ekspert_virksomhet_orgnr` | `soknad.ekspert.virksomhetOrgnr` |
 | `ekspert_utdanning` | `godkjentUtdanningEllerAutorisasjon` som koder. Eldre søknader med bare `kompetanse` gir `ANNET` |
 | `ekspert_kompetanse` | `relevantKompetanse` som koder |
@@ -178,7 +179,7 @@ Testene bruker en skriver som legger radene i en liste.
 - Tidspunkter kommer fra eventene, ikke `now()`, slik at resending gir samme `hendelse_tid`. Bare `melding_tid` er ny.
 - BigQuery er ikke med i Postgres-transaksjonen. Feiler en senere event i samme batch etter at en rad er skrevet,
   skrives raden på nytt ved neste forsøk. Derfor fjerner konsumentene duplikater på `projeksjon` og `sekvensnummer`.
-- Nye kolonner må legges til i BigQuery-tabellen før appen skriver dem. Appen endrer ikke tabellen.
+- Appen legger til nye kolonner i BigQuery-tabellen første gang den bruker datasettet etter oppstart. Bare valgfrie kolonner kan legges til.
 - Rader skrevet før personen fikk adressebeskyttelse, endres ikke i rådata. Viewet skjuler dem. Mottakere som tar
   kopi, må laste hele viewet på nytt og slette behandlinger som er borte.
 - Alle med tilgang til viewet får `metadata viewer` på datasettet og kan se antall rader i `skjermede_behandlinger`.
