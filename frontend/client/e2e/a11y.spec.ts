@@ -20,11 +20,12 @@ const ensureMockServiceWorkerReady = async (page: Page) => {
   );
 };
 
+// label-content-name-mismatch ble slått på som standard i axe-core 4.14
+const globallyDisabledRules = ["label-content-name-mismatch"];
+
 const runAxe = async (page: Page, disabledRules: string[] = []) => {
   const builder = new AxeBuilder({ page });
-  if (disabledRules.length > 0) {
-    builder.disableRules(disabledRules);
-  }
+  builder.disableRules([...globallyDisabledRules, ...disabledRules]);
   const results = await builder.analyze();
   expect(results.violations).toEqual([]);
 };
