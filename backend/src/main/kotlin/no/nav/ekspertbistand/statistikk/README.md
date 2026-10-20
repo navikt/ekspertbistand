@@ -15,7 +15,7 @@ datavarehuset har bedt om.
 |------|--------|
 | Skriving til BigQuery | Ferdig i dev |
 | Prod | Datasettet finnes, men er tomt. Tabellen kommer når ekspertbistand fatter vedtak selv i prod. Til da behandles alle saker i Arena |
-| Adressebeskyttelse | Kjent begrensning: hendelsene lagrer ikke om deltakeren er skjermet. Se «Kjent begrensning: skjerming lagres ikke» |
+| Adressebeskyttelse | Kjent begrensning: hendelsene lagrer ikke ennå om deltakeren var skjermet da saken ble opprettet. Se «Kjent begrensning: skjerming ved saksopprettelse lagres ikke ennå» |
 
 ## Tilgang
 
@@ -329,9 +329,13 @@ Nye valg i søknaden gir `ANNET` til vi har lagt dem inn i kodeverket.
 
 ### Adressebeskyttelse (kode 6 og 7)
 
-Før hver rad skrives, slår vi opp arbeidstakerens gjeldende adressebeskyttelse i PDL. Har personen en annen
-gradering enn `UGRADERT` (`FORTROLIG`, `STRENGT_FORTROLIG` eller `STRENGT_FORTROLIG_UTLAND`), eller behandles saken
-av Nav Vikafossen (enhet `2103`), får disse feltene verdien `-5`:
+Vi skjermer så strengt som mulig. En rad skjermes hvis deltakeren
+
+- var skjermet da saken ble opprettet (kommer, se «Kjent begrensning» under), eller
+- er skjermet i PDL når raden skrives.
+
+Skjermet betyr en annen gradering enn `UGRADERT`: `FORTROLIG`, `STRENGT_FORTROLIG` eller `STRENGT_FORTROLIG_UTLAND`.
+Da får disse feltene verdien `-5`:
 
 - `opprettet_av`, `saksbehandler` og `ansvarlig_enhet`
 - `ansvarlig_beslutter`, men bare når feltet har en verdi
@@ -340,8 +344,7 @@ av Nav Vikafossen (enhet `2103`), får disse feltene verdien `-5`:
 Team Sak krever `-5` ved strengt fortrolig adresse. Vi skjermer også fortrolig adresse (kode 7), fordi arbeidsgiver
 og ekspert kan avsløre hvor personen bor uansett gradering. En ukjent gradering fra PDL gir også skjerming.
 
-Behandlende enhet alene er ikke nok. Norg kan gi en annen enhet enn Vikafossen, og personen kan få adressebeskyttelse
-etter at søknaden er sendt inn.
+Vi bruker ikke behandlende enhet, for eksempel Nav Vikafossen (`2103`), som tegn på skjerming. Graderingen er kilden.
 
 Får personen adressebeskyttelse midt i behandlingen, blir radene fra og med neste hendelse skjermet. Rader som
 allerede er skrevet, endres ikke. Bruk derfor siste rad per `behandling_id` når dere avgjør om en sak er skjermet.
@@ -349,20 +352,17 @@ allerede er skrevet, endres ikke. Bruk derfor siste rad per `behandling_id` når
 Feiler oppslaget i PDL, skriver vi ingen rad. Projeksjonen prøver igjen til oppslaget lykkes. Personer som ikke finnes
 i PDL, behandles som ugradert.
 
-### Kjent begrensning: skjerming lagres ikke
+### Kjent begrensning: skjerming ved saksopprettelse lagres ikke ennå
 
-Ingen hendelse i ekspertbistand lagrer om deltakeren har adressebeskyttelse. Skjermingen avgjøres av graderingen i PDL
-når raden skrives, ikke da hendelsen skjedde. Det gir disse følgene:
+Hendelsen for opprettet sak sier ikke ennå om deltakeren var skjermet. Til det er på plass, avgjøres skjermingen bare
+av graderingen i PDL når raden skrives. Det gir disse følgene:
 
+- Var deltakeren skjermet da saken ble opprettet, men ikke lenger, blir radene ikke skjermet.
 - Sender vi alle meldinger på nytt, brukes graderingen på det tidspunktet. En hendelse kan da bli skjermet annerledes
   enn i den første raden.
-- Ligger projeksjonen etter, brukes graderingen da raden skrives, ikke da hendelsen skjedde.
-- Vi kan ikke i ettertid vise hvilken gradering som gjaldt da en hendelse skjedde.
 
-Løsningen vi ønsker, er et flagg på en hendelse som sier at deltakeren har adressebeskyttelse. Det kan være en
-eksisterende hendelse, for eksempel når søknaden journalføres og behandlende enhet utledes, eller en ny hendelse når
-graderingen endres. Da kan projeksjonen lese skjermingen fra hendelsesloggen og gi samme svar ved ny sending. Teamet
-har dette som en egen oppgave.
+Teamet legger skjerming inn i datagrunnlaget for saksopprettelse som en egen oppgave. Når feltet finnes, skjermer
+projeksjonen hvis det er satt eller PDL sier skjermet. Saker opprettet før feltet kom, har ikke verdien.
 
 ### Det vi ikke sender
 

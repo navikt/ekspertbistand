@@ -8,7 +8,6 @@ import no.nav.ekspertbistand.event.TestEventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.event.projections.ProjectionBuilderState
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.norg.BehandlendeEnhetService.Companion.NAV_VIKAFOSSEN
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
@@ -208,15 +207,6 @@ class SaksbehandlingsstatistikkProjectionTest {
             listOf("0315", SaksbehandlingsstatistikkProjection.SKJERMET),
             meldinger(soknad).map { it.ansvarligEnhet },
         )
-    }
-
-    @Test
-    fun `enhet 2103 skjermer selv om PDL sier ugradert`() = medDb {
-        val soknad = soknad()
-        registrer(soknad, enhet = NAV_VIKAFOSSEN)
-        pollAlt()
-
-        assertEquals(SaksbehandlingsstatistikkProjection.SKJERMET, meldinger(soknad).single().ansvarligEnhet)
     }
 
     @Test

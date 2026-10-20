@@ -40,7 +40,7 @@ BigQuery-tabell i et datasett vi eier. Dokumentasjonen for Team Sak og datavareh
 | Avslagsgrunn | Fritekst hos oss. Ikke med i statistikken |
 | Kodeverdier | Dokumentert i README-en. Team Sak og datavarehuset kontrollerer at de passer |
 | `ansvarlig_enhet` | Enhetsnummeret, ikke organisasjons-id |
-| Adressebeskyttelse | Gjeldende gradering slås opp i PDL før hver rad skrives. Alt annet enn `UGRADERT` (kode 6 og 7, også ukjente verdier) eller behandlende enhet 2103 (Nav Vikafossen) gir skjerming. Da settes `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`, `arrangor_orgnr` og `ekspert_virksomhet_orgnr` til `-5` |
+| Adressebeskyttelse | Så strengt som mulig: skjermet ved saksopprettelse (felt på `SakOpprettet`, egen oppgave) eller skjermet i PDL når raden skrives. Alt annet enn `UGRADERT` (kode 6 og 7, også ukjente verdier) gir skjerming. Behandlende enhet brukes ikke som signal. Da settes `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`, `arrangor_orgnr` og `ekspert_virksomhet_orgnr` til `-5` |
 | Datavarehus | Ekstra kolonner i samme tabell. Feltnavnene er våre egne. Mappingen står i `statistikk/README.md` |
 | Ekspertens kompetanse | Faste valg blir koder (`EkspertStatistikkoder.kt`). Egne verdier og fritekst blir `ANNET`, fordi fritekst ikke kan grupperes og kan inneholde personopplysninger |
 | Timer | Arbeidsgiverens anslag fra søknaden. Saksbehandler kontrollerer det ikke |
@@ -81,7 +81,7 @@ ved resending.
 - `BehandlingTilstand.meldingsinnhold()` er `null` før `SakOpprettet`. Den er uskjermet, slik at duplikatsjekken
   sammenligner faktiske verdier.
 - `handle` skjermer med `Meldingsinnhold.skjermet()` når `AdressebeskyttelseOppslag` (PDL) finner
-  adressebeskyttelse, eller enheten er 2103. Feil fra PDL kastes, så posisjonen ikke flyttes og ingen uskjermet rad skrives.
+  adressebeskyttelse. TODO i `nesteTilstand`: les skjerming fra `SakOpprettet` når feltet kommer. Feil fra PDL kastes, så posisjonen ikke flyttes og ingen uskjermet rad skrives.
 - Enum-ene `StatistikkStatus`, `StatistikkResultat` og `BehandlingMetode` holder kodeverdiene.
 - `EkspertStatistikkoder.kt` har `EkspertUtdanning` og `EkspertKompetanse` (kode og etikett fra skjemaet), og
   `DTO.Ekspert.utdanningKoder` og `kompetanseKoder`, som gjør valgene om til koder.
@@ -151,9 +151,8 @@ Testene bruker en skriver som legger radene i en liste.
 - Ekspertens kompetanse blir koder, og fritekst og eldre `kompetanse` blir `ANNET`
 - Sak uten `SakOpprettet` (Arena-sak) gir ingen meldinger
 - Hendelser handleren avviser gir ingen melding
-- Adressebeskyttelse i PDL skjermer de seks feltene med `-5`, også når enheten ikke er 2103
+- Adressebeskyttelse i PDL skjermer de seks feltene med `-5`
 - Adressebeskyttelse etter innsending skjermer radene som skrives etterpå
-- Enhet 2103 skjermer selv om PDL sier ugradert
 - Feil mot PDL gir ingen rad før oppslaget lykkes
 - `PdlAdressebeskyttelseOppslag` (i `PdlApiKlientTest`): `FORTROLIG`, `STRENGT_FORTROLIG` og
   `STRENGT_FORTROLIG_UTLAND` gir skjerming, `UGRADERT` gjør det ikke, ukjent person er ugradert og andre feil kastes
@@ -174,8 +173,7 @@ Testene bruker en skriver som legger radene i en liste.
 - Skjermingen bruker graderingen da raden ble skrevet. Rader skrevet før personen fikk adressebeskyttelse, endres ikke i
   BigQuery. Mottakerne bruker siste rad per behandling.
 - Oppslaget i PDL skjer inne i projeksjonens databasetransaksjon, ett kall per rad som skrives.
-- Kjent begrensning: ingen event lagrer om deltakeren har adressebeskyttelse. Ny sending og etterslep bruker
-  graderingen da raden skrives. Ønsket løsning er et flagg på en event (eksisterende eller ny) som sier at deltakeren
-  har adressebeskyttelse. Tatt med til teamet som egen oppgave. Se `statistikk/README.md`.
+- Kjent begrensning: `SakOpprettet` sier ikke ennå om deltakeren var skjermet ved saksopprettelse. Til feltet kommer
+  (egen oppgave), avgjøres skjermingen bare av PDL når raden skrives. Se `statistikk/README.md`.
 - Rammeverket hopper over eventer som havner i loggen med lavere id enn gjeldende posisjon. Det gjelder alle
   projeksjoner og er ikke løst her.

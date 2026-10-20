@@ -10,7 +10,6 @@ import no.nav.ekspertbistand.event.LoggedEvent.Companion.tilLoggedEvent
 import no.nav.ekspertbistand.event.ProcessingStatus.COMPLETED
 import no.nav.ekspertbistand.event.projections.EventLogProjectionBuilder
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
-import no.nav.ekspertbistand.norg.BehandlendeEnhetService.Companion.NAV_VIKAFOSSEN
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
@@ -39,8 +38,7 @@ import kotlin.time.Instant
  * aggregatrot, som er søknad-id-en. Hver event som endrer meldingsinnholdet gir én ny rad.
  *
  * Adressebeskyttelse: før hver rad skrives slår vi opp gjeldende gradering i PDL. Alle graderinger (kode 6 og 7)
- * gir skjerming. Behandlende enhet sier ikke sikkert om personen er beskyttet, og graderingen kan endres etter
- * innsending.
+ * gir skjerming. Behandlende enhet brukes ikke som signal.
  *
  * Resending: bump versjonen i [name]. Projeksjonen leser loggen på nytt fra start og skriver nye rader
  * med samme `hendelse_tid` og `sekvensnummer`, og ny `melding_tid` og `projeksjon`.
@@ -65,10 +63,7 @@ class SaksbehandlingsstatistikkProjection(
         val melding = overgang.tilstand.meldingsinnhold() ?: return
         if (melding == forrige?.meldingsinnhold()) return
 
-        // PDL er kilden. Enhet 2103 er ekstra sikring: saken havner der bare ved kode 6 ved innsending, så enheten
-        // avslører graderingen selv om PDL nå svarer ugradert (gradering fjernet etter innsending, eller not_found).
-        val skjermet = melding.ansvarligEnhet == NAV_VIKAFOSSEN ||
-            runBlocking { adressebeskyttelse.harSkjermetAdresse(melding.fnr) }
+        val skjermet = runBlocking { adressebeskyttelse.harSkjermetAdresse(melding.fnr) }
         val utgaende = if (skjermet) melding.skjermet() else melding
 
         skriver.skriv(rad(behandlingId, utgaende, overgang.hendelseTid, event.id))
@@ -178,6 +173,8 @@ fun nesteTilstand(
     }
     if (data is EventData.SakOpprettet) {
         if (t.sakId != null) return null
+        // TODO: SakOpprettet får et felt for adressebeskyttelse ved saksopprettelse (egen oppgave). Lagre det i
+        //  tilstanden og skjerm i handle når det er satt, i tillegg til PDL-oppslaget.
         return Overgang(
             t.copy(
                 sakId = data.sakId,
