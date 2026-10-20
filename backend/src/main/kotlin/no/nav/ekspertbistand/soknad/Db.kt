@@ -8,8 +8,9 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
-import org.jetbrains.exposed.v1.core.dao.id.UUIDTable
+import org.jetbrains.exposed.v1.core.dao.id.java.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.date
 import org.jetbrains.exposed.v1.datetime.timestamp
@@ -25,7 +26,7 @@ val slettSøknadOm = 455.days
 
 @OptIn(ExperimentalTime::class)
 object SoknadTable : Table("soknad") {
-    val id = uuid("id")
+    val id = javaUUID("id")
 
     // Virksomhet
     val virksomhetsnummer = text("virksomhetsnummer").index()

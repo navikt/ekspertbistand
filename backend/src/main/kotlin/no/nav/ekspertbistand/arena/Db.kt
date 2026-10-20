@@ -6,6 +6,7 @@ import no.nav.ekspertbistand.soknad.DTO
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -52,7 +53,7 @@ object ArenaSakTable : Table("arena_sak") {
 object ArenaSakUnderBehandlingTable : Table("arena_sak_under_behandling") {
     val sakId = integer("sak_id")
     val saksnummer = text("saksnummer")
-    val soknadId = uuid("soknad_id")
+    val soknadId = javaUUID("soknad_id")
     val brukeridAnsvarlig = text("brukerid_ansvarlig")
     val aetatenhetAnsvarlig = text("aetatenhet_ansvarlig").nullable()
     val sakstatuskode = text("sakstatuskode").nullable()
