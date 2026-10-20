@@ -65,6 +65,8 @@ class SaksbehandlingsstatistikkProjection(
         val melding = overgang.tilstand.meldingsinnhold() ?: return
         if (melding == forrige?.meldingsinnhold()) return
 
+        // PDL er kilden. Enhet 2103 er ekstra sikring: saken havner der bare ved kode 6 ved innsending, så enheten
+        // avslører graderingen selv om PDL nå svarer ugradert (gradering fjernet etter innsending, eller not_found).
         val skjermet = melding.ansvarligEnhet == NAV_VIKAFOSSEN ||
             runBlocking { adressebeskyttelse.harSkjermetAdresse(melding.fnr) }
         val utgaende = if (skjermet) melding.skjermet() else melding
