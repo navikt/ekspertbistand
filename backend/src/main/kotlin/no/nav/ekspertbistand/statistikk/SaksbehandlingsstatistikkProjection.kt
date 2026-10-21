@@ -468,6 +468,7 @@ data class Meldingsinnhold(
  * Om deltakeren var skjermet da saken ble opprettet. Gir skjerming av hele behandlingen, uansett hva PDL sier senere.
  */
 // TODO: Returner feltet for skjerming når SakOpprettet får det (egen oppgave). Resten er koblet opp.
+//  Må være løst før projeksjonen skrus på i prod.
 internal fun EventData.SakOpprettet.skjermetVedOpprettelse(): Boolean = false
 
 /** Søknaden lagrer beløpet som tekst. Frontend godtar desimaler, så beløpet rundes av til hele kroner. */
