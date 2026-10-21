@@ -33,6 +33,7 @@ import { SOKNADER_PATH } from "../utils/constants";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
 
+// Backend gjør disse om til statistikkoder (EkspertStatistikkoder.kt). Nye valg må legges inn der, ellers blir de ANNET.
 const GODKJENT_UTDANNING_ALTERNATIVER = [
   "Ergoterapeut",
   "Fysioterapeut",
