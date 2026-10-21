@@ -15,7 +15,7 @@ datavarehuset har bedt om.
 |------|--------|
 | Skriving til BigQuery | Ferdig i dev |
 | Prod | Datasettet finnes, men er tomt. Tabellen kommer når ekspertbistand fatter vedtak selv i prod. Til da behandles alle saker i Arena |
-| Adressebeskyttelse | Behandlinger for personer med adressebeskyttelse er ikke med i viewet. Kjent begrensning: hendelsene lagrer ikke ennå om deltakeren var skjermet da saken ble opprettet. Se «Personvern» |
+| Adressebeskyttelse | Behandlinger for personer med adressebeskyttelse er ikke med i viewet. Se «Personvern» |
 
 ## Tilgang
 
@@ -348,7 +348,7 @@ arbeidsgiver og ekspert kan avsløre hvor personen bor uansett gradering.
 
 En behandling skjermes hvis deltakeren
 
-- var skjermet da saken ble opprettet (kommer, se «Kjent begrensning» under),
+- var skjermet da saken ble opprettet,
 - er skjermet i PDL når projeksjonen skriver en rad, eller
 - blir skjermet senere. En kontrolljobb sjekker alle deltakere i rådatatabellen mot PDL hver time, også i avsluttede saker.
 
@@ -373,15 +373,6 @@ ugradert.
 I rådatatabellen setter vi i tillegg `-5` i felt som kan avsløre hvor personen bor, for rader skrevet mens
 deltakeren var skjermet: `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`,
 `arrangor_orgnr` og `ekspert_virksomhet_orgnr`.
-
-### Kjent begrensning: skjerming ved saksopprettelse lagres ikke ennå
-
-Hendelsen for opprettet sak sier ikke ennå om deltakeren var skjermet. Til det er på plass, avgjør bare graderingen i
-PDL om behandlingen skjermes. Var deltakeren skjermet da saken ble opprettet, men ikke lenger da projeksjonen eller
-kontrolljobben sjekket, blir behandlingen vist.
-
-Teamet legger skjerming inn i datagrunnlaget for saksopprettelse som en egen oppgave. Når feltet finnes, skjermer
-projeksjonen behandlingen hvis feltet er satt eller PDL sier skjermet.
 
 ### Det vi ikke sender
 

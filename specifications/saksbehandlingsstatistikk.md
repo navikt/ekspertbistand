@@ -186,6 +186,7 @@ Testene bruker en skriver som legger radene i en liste.
 - Alle med tilgang til viewet får `metadata viewer` på datasettet og kan se antall rader i `skjermede_behandlinger`.
 - Oppslaget i PDL skjer inne i projeksjonens databasetransaksjon, ett kall per rad som skrives.
 - Kjent begrensning: `SakOpprettet` sier ikke ennå om deltakeren var skjermet ved saksopprettelse. Til feltet kommer
-  (egen oppgave), avgjøres skjermingen bare av PDL, når raden skrives og i kontrolljobben. Se `statistikk/README.md`.
+  (egen oppgave, før prodsetting), avgjøres skjermingen bare av PDL, når raden skrives og i kontrolljobben. Står ikke i
+  `statistikk/README.md`, fordi mottakerne ikke trenger å vite om det.
 - Rammeverket hopper over eventer som havner i loggen med lavere id enn gjeldende posisjon. Det gjelder alle
   projeksjoner og er ikke løst her.
