@@ -39,8 +39,9 @@ import kotlin.time.Instant
  * aggregatrot, som er søknad-id-en. Hver event som endrer meldingsinnholdet gir én ny rad.
  *
  * Adressebeskyttelse: før hver rad skrives slår vi opp gjeldende gradering i PDL. Alle graderinger (kode 6 og 7)
- * gir skjerming. Behandlende enhet brukes ikke som signal. En skjermet behandling registreres i [skjermede] før
- * raden skrives, slik at viewet vi deler holder hele behandlingen utenfor, også rader skrevet før skjermingen.
+ * gir skjerming, det samme gjør skjerming ved saksopprettelse ([skjermetVedOpprettelse]). Behandlende enhet
+ * brukes ikke som signal. En skjermet behandling registreres i [skjermede] før raden skrives, slik at viewet vi
+ * deler holder hele behandlingen utenfor, også rader skrevet før skjermingen.
  * [Skjermingskontroll] fanger dem som blir skjermet etter siste hendelse.
  *
  * Resending: bump versjonen i [name]. Projeksjonen leser loggen på nytt fra start og skriver nye rader
@@ -67,7 +68,8 @@ class SaksbehandlingsstatistikkProjection(
         val melding = overgang.tilstand.meldingsinnhold() ?: return
         if (melding == forrige?.meldingsinnhold()) return
 
-        val skjermet = runBlocking { adressebeskyttelse.harSkjermetAdresse(melding.fnr) }
+        val skjermet = overgang.tilstand.skjermetVedOpprettelse ||
+            runBlocking { adressebeskyttelse.harSkjermetAdresse(melding.fnr) }
         if (skjermet) skjermede.registrer(listOf(behandlingId))
         val utgaende = if (skjermet) melding.skjermet() else melding
 
@@ -179,8 +181,6 @@ fun nesteTilstand(
     }
     if (data is EventData.SakOpprettet) {
         if (t.sakId != null) return null
-        // TODO: SakOpprettet får et felt for adressebeskyttelse ved saksopprettelse (egen oppgave). Lagre det i
-        //  tilstanden og registrer behandlingen som skjermet i handle når det er satt, i tillegg til PDL-oppslaget.
         return Overgang(
             t.copy(
                 sakId = data.sakId,
@@ -194,6 +194,7 @@ fun nesteTilstand(
                 ekspertVirksomhetOrgnr = data.soknad.ekspert.virksomhetOrgnr,
                 ekspertUtdanning = data.soknad.ekspert.utdanningKoder,
                 ekspertKompetanse = data.soknad.ekspert.kompetanseKoder,
+                skjermetVedOpprettelse = data.skjermetVedOpprettelse(),
             ),
             eventTimestamp,
         )
@@ -354,6 +355,7 @@ data class BehandlingTilstand(
     val innvilgetBelop: Int? = null,
     val tiltaksperiodeFra: LocalDate? = null,
     val tiltaksperiodeTil: LocalDate? = null,
+    val skjermetVedOpprettelse: Boolean = false,
 ) {
     /** Statusen på `sak.status` som handlerne ser. */
     val saksstatus: Saksstatus?
@@ -461,6 +463,12 @@ data class Meldingsinnhold(
         )
     }
 }
+
+/**
+ * Om deltakeren var skjermet da saken ble opprettet. Gir skjerming av hele behandlingen, uansett hva PDL sier senere.
+ */
+// TODO: Returner feltet for skjerming når SakOpprettet får det (egen oppgave). Resten er koblet opp.
+internal fun EventData.SakOpprettet.skjermetVedOpprettelse(): Boolean = false
 
 /** Søknaden lagrer beløpet som tekst. Frontend godtar desimaler, så beløpet rundes av til hele kroner. */
 private fun heleKroner(estimertKostnad: String): Int =

@@ -88,7 +88,7 @@ ved resending.
 - `BehandlingTilstand.meldingsinnhold()` er `null` før `SakOpprettet`. Den er uskjermet, slik at duplikatsjekken
   sammenligner faktiske verdier.
 - Når `AdressebeskyttelseOppslag` (PDL) finner adressebeskyttelse, registrerer `handle` behandlingen i
-  `SkjermedeBehandlinger` før raden skrives, og skriver raden med `Meldingsinnhold.skjermet()`. TODO i `nesteTilstand`: les skjerming fra `SakOpprettet` når feltet kommer. Feil fra PDL kastes, så posisjonen ikke flyttes og ingen uskjermet rad skrives.
+  `SkjermedeBehandlinger` før raden skrives, og skriver raden med `Meldingsinnhold.skjermet()`. Det samme skjer når `BehandlingTilstand.skjermetVedOpprettelse` er satt. Den kommer fra `SakOpprettet.skjermetVedOpprettelse()`, som returnerer `false` til feltet finnes (TODO). Feil fra PDL kastes, så posisjonen ikke flyttes og ingen uskjermet rad skrives.
 - Enum-ene `StatistikkStatus`, `StatistikkResultat` og `BehandlingMetode` holder kodeverdiene.
 - `EkspertStatistikkoder.kt` har `EkspertUtdanning` og `EkspertKompetanse` (kode og etikett fra skjemaet), og
   `DTO.Ekspert.utdanningKoder` og `kompetanseKoder`, som gjør valgene om til koder.
