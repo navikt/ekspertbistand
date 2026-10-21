@@ -259,7 +259,7 @@ private fun ApplicationTestBuilder.setupTestApplication() {
     }
 
     @Test
-    fun `adressebeskyttelseoppslag skjermer alle graderinger unntatt UGRADERT`() = testApplication {
+    fun `adressebeskyttelseoppslag gir adressebeskyttelse for alle graderinger unntatt UGRADERT`() = testApplication {
         val gradering = mutableListOf<AdressebeskyttelseGradering>()
         setupTestApplication()
         setPdlApiRespons(
@@ -280,7 +280,7 @@ private fun ApplicationTestBuilder.setupTestApplication() {
         ).forEach { (graderinger, forventet) ->
             gradering.clear()
             gradering += graderinger
-            assertEquals(forventet, oppslag.harSkjermetAdresse("42"), "$graderinger")
+            assertEquals(forventet, oppslag.harAdressebeskyttelse("42"), "$graderinger")
         }
     }
 
@@ -292,10 +292,10 @@ private fun ApplicationTestBuilder.setupTestApplication() {
         startApplication()
         val oppslag = PdlAdressebeskyttelseOppslag(PdlApiKlient(application.dependencies.resolve(), client))
 
-        assertFalse(oppslag.harSkjermetAdresse("42"))
+        assertFalse(oppslag.harAdressebeskyttelse("42"))
 
         feilkode = "server_error"
-        assertFailsWith<ServerError> { oppslag.harSkjermetAdresse("42") }
+        assertFailsWith<ServerError> { oppslag.harAdressebeskyttelse("42") }
     }
 }
 
