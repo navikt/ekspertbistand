@@ -35,7 +35,7 @@ class SaksbehandlingsstatistikkProjectionTest {
     private lateinit var testDb: TestDatabase
     private lateinit var projection: SaksbehandlingsstatistikkProjection
     private val rader = mutableListOf<SaksbehandlingsstatistikkRad>()
-    private val skjermede = mutableSetOf<String>()
+    private val adressebeskyttede = mutableSetOf<String>()
     private val registrerte = mutableListOf<String>()
     private var pdlFeil: Exception? = null
     private val start = Instant.fromEpochSeconds(Clock.System.now().epochSeconds)
@@ -52,14 +52,14 @@ class SaksbehandlingsstatistikkProjectionTest {
             skriver = rader::add,
             adressebeskyttelse = { fnr ->
                 pdlFeil?.let { throw it }
-                fnr in skjermede
+                fnr in adressebeskyttede
             },
-            skjermede = object : SkjermedeBehandlinger {
+            adressebeskyttede = object : AdressebeskyttedeBehandlinger {
                 override fun registrer(behandlingIder: Collection<String>) {
                     registrerte += behandlingIder
                 }
 
-                override fun uskjermede() = emptyMap<String, String>()
+                override fun utenAdressebeskyttelse() = emptyMap<String, String>()
             },
         )
     }
@@ -200,35 +200,35 @@ class SaksbehandlingsstatistikkProjectionTest {
     }
 
     @Test
-    fun `adressebeskyttelse i PDL skjermer geo-lokaliserende felter uansett enhet`() = medDb {
+    fun `adressebeskyttelse i PDL maskerer geo-lokaliserende felter uansett enhet`() = medDb {
         val soknad = soknad(fnr = "02020254321").let { it.copy(ekspert = it.ekspert.copy(virksomhetOrgnr = "912345678")) }
-        skjermede += soknad.ansatt.fnr
+        adressebeskyttede += soknad.ansatt.fnr
         registrer(soknad, enhet = "0315")
         publishAndFinalize(tildeltSaksbehandler(soknad, saksbehandler, tid(1)))
         pollAlt()
 
         val siste = meldinger(soknad).last()
-        assertEquals(SaksbehandlingsstatistikkProjection.SKJERMET, siste.ansvarligEnhet)
-        assertEquals(SaksbehandlingsstatistikkProjection.SKJERMET, siste.saksbehandler)
-        assertEquals(SaksbehandlingsstatistikkProjection.SKJERMET, siste.opprettetAv)
-        assertEquals(SaksbehandlingsstatistikkProjection.SKJERMET, siste.arrangorOrgnr)
-        assertEquals(SaksbehandlingsstatistikkProjection.SKJERMET, siste.ekspertVirksomhetOrgnr)
+        assertEquals(SaksbehandlingsstatistikkProjection.MASKERT, siste.ansvarligEnhet)
+        assertEquals(SaksbehandlingsstatistikkProjection.MASKERT, siste.saksbehandler)
+        assertEquals(SaksbehandlingsstatistikkProjection.MASKERT, siste.opprettetAv)
+        assertEquals(SaksbehandlingsstatistikkProjection.MASKERT, siste.arrangorOrgnr)
+        assertEquals(SaksbehandlingsstatistikkProjection.MASKERT, siste.ekspertVirksomhetOrgnr)
         assertNull(siste.ansvarligBeslutter)
         assertEquals(soknad.ansatt.fnr, siste.fnr)
         assertEquals(setOf(soknad.id), registrerte.toSet())
     }
 
     @Test
-    fun `adressebeskyttelse etter innsending registrerer behandlingen som skjermet`() = medDb {
+    fun `adressebeskyttelse etter innsending registrerer behandlingen som adressebeskyttet`() = medDb {
         val soknad = soknad(fnr = "03030354321")
         registrer(soknad, enhet = "0315")
         pollAlt()
-        skjermede += soknad.ansatt.fnr
+        adressebeskyttede += soknad.ansatt.fnr
         publishAndFinalize(tildeltSaksbehandler(soknad, saksbehandler, tid(1)))
         pollAlt()
 
         assertEquals(
-            listOf("0315", SaksbehandlingsstatistikkProjection.SKJERMET),
+            listOf("0315", SaksbehandlingsstatistikkProjection.MASKERT),
             meldinger(soknad).map { it.ansvarligEnhet },
         )
         assertEquals(listOf(soknad.id), registrerte)

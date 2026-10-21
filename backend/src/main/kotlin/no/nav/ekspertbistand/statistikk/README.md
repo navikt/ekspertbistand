@@ -23,13 +23,13 @@ datavarehuset har bedt om.
 |-|-|
 | Datasett | `ekspertbistand_statistikk` i GCP-prosjektet til teamet vårt |
 | View som deles | `saksbehandlingsstatistikk_delt` |
-| Tabeller som ikke deles | `saksbehandlingsstatistikk` (rådata) og `skjermede_behandlinger` |
+| Tabeller som ikke deles | `saksbehandlingsstatistikk` (rådata) og `adressebeskyttede_behandlinger` |
 
 Vi eier datasettet. Nais oppretter det fra `spec.gcp.bigQueryDatasets` i manifestet til `ekspertbistand-backend`,
 og appen oppretter tabellene og viewet. Team Sak og datavarehuset leser viewet direkte i BigQuery. Vi leverer ingen
 kopi eller fil.
 
-Viewet viser alle rader i rådatatabellen, bortsett fra behandlinger i `skjermede_behandlinger`. Se «Personvern».
+Viewet viser alle rader i rådatatabellen, bortsett fra behandlinger i `adressebeskyttede_behandlinger`. Se «Personvern».
 
 ### Tilgang via Datamarkedsplassen
 
@@ -68,7 +68,7 @@ egner seg bare til testing. Vi registrerer dataproduktet på nytt hvis det blir 
 
 [Kom i gang med dataprodukter](https://docs.knada.io/dataprodukter/) skiller mellom data på innsiden og data på
 utsiden. Hos oss er hendelsesloggen i Postgres og tabellene i BigQuery innsiden. Viewet er utsiden: en stabil
-modell for statistikk uten skjermede behandlinger.
+modell for statistikk uten adressebeskyttede behandlinger.
 
 Endrer vi tabellen på en måte som bryter for mottakerne, eller vil vi skjule duplikater og eldre versjoner av
 projeksjonen, gjør vi det i viewet. Appen oppdaterer viewet ved hver oppstart, slik at skjemaet følger tabellen.
@@ -79,8 +79,8 @@ projeksjonen, gjør vi det i viewet. Appen oppdaterer viewet ved hver oppstart, 
 2. `SaksbehandlingsstatistikkProjection` leser loggen i rekkefølge. For hver hendelse som endrer noe i meldingen,
    skriver den én ny rad i BigQuery.
 3. Radene i rådatatabellen endres eller slettes aldri. En ny rad for samme behandling erstatter den forrige.
-4. Viewet holder skjermede behandlinger utenfor. Blir en deltaker skjermet, forsvinner alle radene for behandlingen
-   fra viewet, også de som ble skrevet før.
+4. Viewet holder adressebeskyttede behandlinger utenfor. Får en deltaker adressebeskyttelse, forsvinner alle radene
+   for behandlingen fra viewet, også de som ble skrevet før.
 
 Bare saker som behandles i ekspertbistand kommer med. Saker som behandles ferdig i Arena, rapporteres fortsatt
 fra Arena.
@@ -203,7 +203,7 @@ endelige verdier bare når `behandling_status = 'AVSLUTTET'`.
 | `resultat_begrunnelse` | `resultat_begrunnelse` | Bare ved retur fra beslutter. Avslagsgrunn er ikke med, se under |
 | `behandling_metode` | `behandling_metode` | |
 | `behandling_aarsak` | mangler | Alle behandlinger er søknader. Vi har ingen årsakskoder |
-| `opprettet_av` | `opprettet_av` | Alltid `EKSPERTBISTAND`. Viewet har ingen skjermede saker, så `-5` forekommer ikke |
+| `opprettet_av` | `opprettet_av` | Alltid `EKSPERTBISTAND`. Viewet har ingen adressebeskyttede saker, så `-5` forekommer ikke |
 | `saksbehandler` | `saksbehandler` | Påkrevd hos Team Sak, men kan være tom hos oss. Se «Feltene i viewet» |
 | `ansvarlig_beslutter` | `ansvarlig_beslutter` | |
 | `ansvarlig_enhet` | `ansvarlig_enhet` | Team Sak ber om organisasjons-id. Vi sender enhetsnummeret |
@@ -340,38 +340,42 @@ Nye valg i søknaden gir `ANNET` til vi har lagt dem inn i kodeverket.
 ### Adressebeskyttelse (kode 6 og 7)
 
 Behandlinger for deltakere med adressebeskyttelse er ikke med i viewet. Hele behandlingen holdes utenfor, også rader
-skrevet før deltakeren ble skjermet. Viewet viser derfor verken hvem som er skjermet eller hvor de jobber.
+skrevet før deltakeren fikk adressebeskyttelse. Viewet viser derfor verken hvem som har adressebeskyttelse eller hvor
+de jobber.
 
-Skjermet betyr en annen gradering i PDL enn `UGRADERT`: `FORTROLIG`, `STRENGT_FORTROLIG` eller
-`STRENGT_FORTROLIG_UTLAND`. En ukjent gradering gir også skjerming. Vi tar med fortrolig adresse (kode 7), fordi
-arbeidsgiver og ekspert kan avsløre hvor personen bor uansett gradering.
+Adressebeskyttelse betyr en annen gradering i PDL enn `UGRADERT`: `FORTROLIG`, `STRENGT_FORTROLIG` eller
+`STRENGT_FORTROLIG_UTLAND`. En ukjent gradering regnes også som adressebeskyttelse. Vi tar med fortrolig adresse
+(kode 7), fordi arbeidsgiver og ekspert kan avsløre hvor personen bor uansett gradering.
 
-En behandling skjermes hvis deltakeren
+En behandling holdes utenfor hvis deltakeren
 
-- var skjermet da saken ble opprettet,
-- er skjermet i PDL når projeksjonen skriver en rad, eller
-- blir skjermet senere. En kontrolljobb sjekker alle deltakere i rådatatabellen mot PDL hver time, også i avsluttede saker.
+- hadde adressebeskyttelse da saken ble opprettet,
+- har adressebeskyttelse i PDL når projeksjonen skriver en rad, eller
+- får adressebeskyttelse senere. En kontrolljobb sjekker alle deltakere i rådatatabellen mot PDL hver time, også i
+  avsluttede saker.
 
-En skjermet behandling blir aldri vist igjen, selv om skjermingen i PDL opphører. Vi bruker ikke behandlende enhet,
-for eksempel Nav Vikafossen (`2103`), som tegn på skjerming. Graderingen er kilden.
+En behandling som er holdt utenfor, blir aldri vist igjen, selv om adressebeskyttelsen i PDL opphører. Vi bruker ikke
+behandlende enhet, for eksempel Nav Vikafossen (`2103`), som tegn på adressebeskyttelse. Graderingen er kilden.
+
+Skjerming av egne ansatte er noe annet enn adressebeskyttelse og påvirker ikke statistikken.
 
 Følgene for dere som mottar data:
 
 - Statistikken mangler saker for personer med adressebeskyttelse. Det gjelder få saker, men dere kan ikke telle dem
   fra viewet.
 - Feltverdien `-5` som Team Sak bruker for kode 6, forekommer ikke.
-- Blir en deltaker skjermet, forsvinner behandlingen fra viewet innen en time. Rader dere har lest før det, kan vi
+- Får en deltaker adressebeskyttelse, forsvinner behandlingen fra viewet innen en time. Rader dere har lest før det, kan vi
   ikke fjerne. Dere håndterer adressebeskyttelse i egne data, slik dere gjør for andre kilder, for eksempel med
-  sjekk mot PDL ved innlesing og når en deltaker blir skjermet underveis.
+  sjekk mot PDL ved innlesing og når en deltaker får adressebeskyttelse underveis.
 - Alle med tilgang til viewet kan se metadata for tabellene i datasettet, også antall rader i
-  `skjermede_behandlinger`. Selve innholdet i tabellene er ikke tilgjengelig.
+  `adressebeskyttede_behandlinger`. Selve innholdet i tabellene er ikke tilgjengelig.
 
 Feiler oppslaget i PDL når projeksjonen skal skrive, skriver vi ingen rad. Projeksjonen prøver igjen til oppslaget
 lykkes. Feiler oppslaget i kontrolljobben, prøver den igjen neste time. Personer som ikke finnes i PDL, behandles som
 ugradert.
 
 I rådatatabellen setter vi i tillegg `-5` i felt som kan avsløre hvor personen bor, for rader skrevet mens
-deltakeren var skjermet: `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`,
+deltakeren hadde adressebeskyttelse: `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`,
 `arrangor_orgnr` og `ekspert_virksomhet_orgnr`.
 
 ### Det vi ikke sender
@@ -390,8 +394,9 @@ deltakeren var skjermet: `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`,
 
 - Koden ligger i denne pakken. `SaksbehandlingsstatistikkProjection` lager radene, og
   `BigQuerySaksbehandlingsstatistikk` skriver dem og eier tabellene og viewet. `PdlAdressebeskyttelseOppslag`
-  avgjør skjermingen, og `Skjermingskontroll` sjekker alle behandlinger på nytt hver time.
-- Skjermede behandlinger fjernes aldri fra `skjermede_behandlinger`. Rader i BigQuery kan ikke slettes trygt, fordi
+  avgjør om deltakeren har adressebeskyttelse, og `Adressebeskyttelseskontroll` sjekker alle behandlinger på nytt
+  hver time.
+- Behandlinger fjernes aldri fra `adressebeskyttede_behandlinger`. Rader i BigQuery kan ikke slettes trygt, fordi
   `insertAll` hindrer DML de første minuttene og time travel beholder data i flere dager. Derfor filtrerer viewet.
 - Projeksjonen lagrer ingen tilstand. For hver hendelse bygger den tilstanden fra tidligere hendelser i loggen med
   samme aggregatrot (søknad-id). Indeksen `event_log_aggregate_root_id_idx` gjør oppslaget raskt.

@@ -132,8 +132,8 @@ suspend fun Application.configureProjectionBuilders() {
                     dependencies.create(TilskuddsbrevVistProjection::class),
                     dependencies.create(SoknadBehandletForsinkelseProjection::class),
                     dependencies.create(SakProjection::class)
-                    // SaksbehandlingsstatistikkProjection skal ikke skrus på her før skjerming ved saksopprettelse
-                    // er løst. Se skjermetVedOpprettelse() i SaksbehandlingsstatistikkProjection.
+                    // SaksbehandlingsstatistikkProjection skal ikke skrus på her før adressebeskyttelse ved
+                    // saksopprettelse er løst. Se adressebeskyttetVedOpprettelse() i SaksbehandlingsstatistikkProjection.
                 )
             },
             other = {

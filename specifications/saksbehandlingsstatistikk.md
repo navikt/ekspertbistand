@@ -40,7 +40,7 @@ BigQuery-tabell i et datasett vi eier. Dokumentasjonen for Team Sak og datavareh
 | Avslagsgrunn | Fritekst hos oss. Ikke med i statistikken |
 | Kodeverdier | Dokumentert i README-en. Team Sak og datavarehuset kontrollerer at de passer |
 | `ansvarlig_enhet` | Enhetsnummeret, ikke organisasjons-id |
-| Adressebeskyttelse | Skjermede behandlinger holdes helt utenfor viewet, med all historikk. Ellers kan rader fra før skjermingen avsløre både hvem som er skjermet og hvor de jobber. En behandling skjermes hvis deltakeren var skjermet ved saksopprettelse (felt på `SakOpprettet`, egen oppgave), er skjermet i PDL når en rad skrives, eller blir det senere (`Skjermingskontroll` hver time). Alt annet enn `UGRADERT` (kode 6 og 7, også ukjente verdier) gir skjerming. Behandlende enhet brukes ikke som signal. Skjerming oppheves aldri. Rådata får i tillegg `-5` i `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`, `arrangor_orgnr` og `ekspert_virksomhet_orgnr`. Vi sletter ikke rader i BigQuery, fordi `insertAll` hindrer DML de første minuttene og time travel beholder data |
+| Adressebeskyttelse | Adressebeskyttede behandlinger holdes helt utenfor viewet, med all historikk. Ellers kan rader fra før personen fikk adressebeskyttelse avsløre både hvem som har den og hvor de jobber. En behandling holdes utenfor hvis deltakeren hadde adressebeskyttelse ved saksopprettelse (felt på `SakOpprettet`, egen oppgave), har det i PDL når en rad skrives, eller får det senere (`Adressebeskyttelseskontroll` hver time). Alt annet enn `UGRADERT` (kode 6 og 7, også ukjente verdier) regnes som adressebeskyttelse. Behandlende enhet brukes ikke som signal. En behandling slippes aldri inn igjen. Rådata får i tillegg `-5` (maskert) i `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`, `arrangor_orgnr` og `ekspert_virksomhet_orgnr`. Vi sletter ikke rader i BigQuery, fordi `insertAll` hindrer DML de første minuttene og time travel beholder data. «Skjerming» brukes ikke her: i Nav betyr det egne ansatte, som ikke påvirker statistikken |
 | Datavarehus | Ekstra kolonner i samme tabell. Feltnavnene er våre egne. Mappingen står i `statistikk/README.md` |
 | Ekspertens kompetanse | Faste valg blir koder (`EkspertStatistikkoder.kt`). Egne verdier og fritekst blir `ANNET`, fordi fritekst ikke kan grupperes og kan inneholde personopplysninger |
 | Timer og kostnad | Arbeidsgiverens anslag fra søknaden. Saksbehandler kontrollerer dem ikke |
@@ -61,34 +61,35 @@ ved resending.
 
 ### 3. `statistikk/SaksbehandlingsstatistikkSkriver.kt`
 - `fun interface SaksbehandlingsstatistikkSkriver { fun skriv(rad: SaksbehandlingsstatistikkRad) }`.
-- `interface SkjermedeBehandlinger { fun registrer(behandlingIder); fun uskjermede(): Map<behandlingId, fnr> }`.
+- `interface AdressebeskyttedeBehandlinger { fun registrer(behandlingIder); fun utenAdressebeskyttelse(): Map<behandlingId, fnr> }`.
 - `SaksbehandlingsstatistikkRad` har ett felt per kolonne og `insertId`. `toString` tar ikke med `fnr`.
 - `BigQuerySaksbehandlingsstatistikk` implementerer begge. Første gang oppretter den `saksbehandlingsstatistikk` og
-  `skjermede_behandlinger` hvis de mangler, og oppretter eller oppdaterer viewet `saksbehandlingsstatistikk_delt`
-  (`behandling_id NOT IN skjermede_behandlinger`). Den skriver med `insertAll` og leser med `listTableData`, så
+  `adressebeskyttede_behandlinger` hvis de mangler, og oppretter eller oppdaterer viewet `saksbehandlingsstatistikk_delt`
+  (`behandling_id NOT IN adressebeskyttede_behandlinger`). Den skriver med `insertAll` og leser med `listTableData`, så
   appen trenger ikke å kjøre spørrejobber. Feil gir unntak, slik at `EventLogProjectionBuilder` prøver på nytt. Feilmeldingen inneholder ikke radverdier.
 - Én liste med kolonner gir både BigQuery-skjemaet og verdiene som sendes. Tidspunkt og datoer sendes som ISO 8601.
 - `Application.kt` gir samme BigQuery-instans for begge grensesnittene. `LocalApplication.kt` gir varianter som ikke
   gjør noe.
-- `statistikk/Skjermingskontroll.kt`: henter `uskjermede()`, slår opp hver person i PDL og registrerer alle
-  behandlingene til dem som er skjermet. Den registrerer det den finner, også når enkelte oppslag feiler, og feiler
-  så. `configureSkjermingskontroll()` kjører den hver time utenfor prod, som projeksjonen.
+- `statistikk/Adressebeskyttelseskontroll.kt`: henter `utenAdressebeskyttelse()`, slår opp hver person i PDL og
+  registrerer alle behandlingene til dem som har adressebeskyttelse. Den registrerer det den finner, også når enkelte
+  oppslag feiler, og feiler så. `configureAdressebeskyttelseskontroll()` kjører den hver time utenfor prod, som
+  projeksjonen.
 - `statistikk/AdressebeskyttelseOppslag.kt`: `fun interface AdressebeskyttelseOppslag` og
   `PdlAdressebeskyttelseOppslag`, som bruker `PdlApiKlient.hentAdressebeskyttelse`. Begge applikasjonene gir
   PDL-varianten. Lokalt svarer den mockede PDL-klienten `UGRADERT`.
 
 ### 4. `statistikk/SaksbehandlingsstatistikkProjection.kt`
-`class SaksbehandlingsstatistikkProjection(database, skriver, adressebeskyttelse, skjermede) : EventLogProjectionBuilder(database)`,
+`class SaksbehandlingsstatistikkProjection(database, skriver, adressebeskyttelse, adressebeskyttede) : EventLogProjectionBuilder(database)`,
 `name = "Saksbehandlingsstatistikk-v1"`.
 
 - `handle` bygger forrige tilstand fra `event_log` (samme `aggregate_root_id`, lavere id, status `COMPLETED`),
   kaller den rene funksjonen `nesteTilstand(forrige, eventId, data, eventTimestamp)` og skriver en rad hvis
   `meldingsinnhold()` er endret.
 - `nesteTilstand` returnerer `Overgang(tilstand, hendelseTid)`, eller `null` når eventen ikke endrer noe.
-- `BehandlingTilstand.meldingsinnhold()` er `null` før `SakOpprettet`. Den er uskjermet, slik at duplikatsjekken
+- `BehandlingTilstand.meldingsinnhold()` er `null` før `SakOpprettet`. Den er ikke maskert, slik at duplikatsjekken
   sammenligner faktiske verdier.
 - Når `AdressebeskyttelseOppslag` (PDL) finner adressebeskyttelse, registrerer `handle` behandlingen i
-  `SkjermedeBehandlinger` før raden skrives, og skriver raden med `Meldingsinnhold.skjermet()`. Det samme skjer når `BehandlingTilstand.skjermetVedOpprettelse` er satt. Den kommer fra `SakOpprettet.skjermetVedOpprettelse()`, som returnerer `false` til feltet finnes (TODO). Feil fra PDL kastes, så posisjonen ikke flyttes og ingen uskjermet rad skrives.
+  `AdressebeskyttedeBehandlinger` før raden skrives, og skriver raden med `Meldingsinnhold.maskert()`. Det samme skjer når `BehandlingTilstand.adressebeskyttetVedOpprettelse` er satt. Den kommer fra `SakOpprettet.adressebeskyttetVedOpprettelse()`, som returnerer `false` til feltet finnes (TODO). Feil fra PDL kastes, så posisjonen ikke flyttes og ingen umaskert rad skrives.
 - Enum-ene `StatistikkStatus`, `StatistikkResultat` og `BehandlingMetode` holder kodeverdiene.
 - `EkspertStatistikkoder.kt` har `EkspertUtdanning` og `EkspertKompetanse` (kode og etikett fra skjemaet), og
   `DTO.Ekspert.utdanningKoder` og `kompetanseKoder`, som gjør valgene om til koder.
@@ -159,13 +160,13 @@ Testene bruker en skriver som legger radene i en liste.
 - Ekspertens kompetanse blir koder, og fritekst og eldre `kompetanse` blir `ANNET`
 - Sak uten `SakOpprettet` (Arena-sak) gir ingen meldinger
 - Hendelser handleren avviser gir ingen melding
-- Adressebeskyttelse i PDL registrerer behandlingen som skjermet og skjermer de seks feltene med `-5`
-- Adressebeskyttelse etter innsending registrerer behandlingen som skjermet
-- `SkjermingskontrollTest`: registrerer alle behandlingene til skjermede personer, og feil i ett oppslag hindrer ikke
-  de andre
+- Adressebeskyttelse i PDL registrerer behandlingen som adressebeskyttet og maskerer de seks feltene med `-5`
+- Adressebeskyttelse etter innsending registrerer behandlingen som adressebeskyttet
+- `AdressebeskyttelseskontrollTest`: registrerer alle behandlingene til personer med adressebeskyttelse, og feil i ett
+  oppslag hindrer ikke de andre
 - Feil mot PDL gir ingen rad før oppslaget lykkes
 - `PdlAdressebeskyttelseOppslag` (i `PdlApiKlientTest`): `FORTROLIG`, `STRENGT_FORTROLIG` og
-  `STRENGT_FORTROLIG_UTLAND` gir skjerming, `UGRADERT` gjør det ikke, ukjent person er ugradert og andre feil kastes
+  `STRENGT_FORTROLIG_UTLAND` gir adressebeskyttelse, `UGRADERT` gjør det ikke, ukjent person er ugradert og andre feil kastes
 - Ny levering av samme eventer gir samme rader og samme `insertId`
 - Raden passer med BigQuery-skjemaet: alle påkrevde felter er med, og tidspunkt og datoer er ISO 8601
 
@@ -182,11 +183,15 @@ Testene bruker en skriver som legger radene i en liste.
 - Appen legger til nye kolonner i BigQuery-tabellen første gang den bruker datasettet etter oppstart. Bare valgfrie kolonner kan legges til.
 - Rader skrevet før personen fikk adressebeskyttelse, endres ikke i rådata. Viewet skjuler dem. Mottakerne leser
   inkrementelt på `melding_tid` og håndterer adressebeskyttelse i egne kopier selv. Vi gir ikke ut en liste over
-  skjulte behandlinger, fordi den ville vist hvem som er skjermet.
-- Alle med tilgang til viewet får `metadata viewer` på datasettet og kan se antall rader i `skjermede_behandlinger`.
+  skjulte behandlinger, fordi den ville vist hvem som har adressebeskyttelse.
+- Alle med tilgang til viewet får `metadata viewer` på datasettet og kan se antall rader i
+  `adressebeskyttede_behandlinger`.
 - Oppslaget i PDL skjer inne i projeksjonens databasetransaksjon, ett kall per rad som skrives.
-- Kjent begrensning: `SakOpprettet` sier ikke ennå om deltakeren var skjermet ved saksopprettelse. Til feltet kommer
-  (egen oppgave, før prodsetting), avgjøres skjermingen bare av PDL, når raden skrives og i kontrolljobben. Står ikke i
+- Kjent begrensning: `SakOpprettet` sier ikke ennå om deltakeren hadde adressebeskyttelse ved saksopprettelse. Til
+  feltet kommer (egen oppgave, før prodsetting), avgjør bare PDL, når raden skrives og i kontrolljobben. Står ikke i
   `statistikk/README.md`, fordi mottakerne ikke trenger å vite om det.
+- Tabellen het tidligere `skjermede_behandlinger`. Den fikk nytt navn uten kopi, fordi projeksjonen ikke kjører i
+  prod. I dev oppretter appen den nye tabellen, og projeksjonen og kontrolljobben fyller den igjen. Den gamle tabellen
+  kan slettes.
 - Rammeverket hopper over eventer som havner i loggen med lavere id enn gjeldende posisjon. Det gjelder alle
   projeksjoner og er ikke løst her.
