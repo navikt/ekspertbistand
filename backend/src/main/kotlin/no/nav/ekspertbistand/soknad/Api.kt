@@ -15,7 +15,9 @@ import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.infrastruktur.valider
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.jdbc.*
@@ -73,7 +75,10 @@ class SoknadApi(
             SoknadStatusQueryParam.innsendt -> {
                 val results = transaction(database) {
                     SoknadTable.selectAll()
-                        .where { SoknadTable.virksomhetsnummer inList organisasjoner }
+                        .where {
+                            (SoknadTable.virksomhetsnummer inList organisasjoner) and
+                                (SoknadTable.arbeidsgiverTilgangTil greater Clock.System.now())
+                        }
                         .orderBy(SoknadTable.opprettetTidspunkt to SortOrder.DESC)
                         .toList()
                         .map { it.tilSoknadDTO() }
@@ -269,6 +274,7 @@ class SoknadApi(
                 it[navKontaktPerson] = soknad.nav.kontaktperson
                 it[opprettetAv] = innloggetBruker
                 it[status] = SoknadStatus.innsendt.toString()
+                it[arbeidsgiverTilgangTil] = Clock.System.now().plus(arbeidsgiverTilgangVarighet)
             }.single().tilSoknadDTO().also {
                 UtkastTable.deleteWhere { UtkastTable.id eq idParam }
             }
@@ -289,16 +295,6 @@ class SoknadApi(
             UtkastTable.opprettetTidspunkt lessEq (clock.now() - ttl)
         }.let {
             log.info("Slettet $it gamle utkast eldre enn $ttl")
-        }
-    }
-
-    fun slettGamleInnsendteSoknader(
-        clock: Clock = Clock.System,
-    ) = transaction {
-        SoknadTable.deleteWhere {
-            SoknadTable.sletteTidspunkt lessEq (clock.now())
-        }.let {
-            log.info("Slettet $it gamle innsendte søknader eldre enn $slettSøknadOm")
         }
     }
 

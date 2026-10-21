@@ -8,7 +8,7 @@ import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.slettSøknadOm
+import no.nav.ekspertbistand.soknad.arbeidsgiverTilgangVarighet
 import no.nav.ekspertbistand.soknad.tilSoknadDTO
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insertReturning
@@ -59,10 +59,10 @@ class SettAvlystSoknadStatusTest {
                 it[navKontaktPerson] = ""
                 it[beliggenhetsadresse] = ""
                 it[status] = SoknadStatus.innsendt.toString()
-                it[sletteTidspunkt] = now
+                it[arbeidsgiverTilgangTil] = now
             }.single().also { rw ->
                 assertEquals(SoknadStatus.innsendt, SoknadStatus.valueOf(rw[SoknadTable.status]))
-                assertEquals(now, rw[SoknadTable.sletteTidspunkt])
+                assertEquals(now, rw[SoknadTable.arbeidsgiverTilgangTil])
             }.tilSoknadDTO()
         }
         // flytt now 1 dag frem i tid
@@ -80,11 +80,11 @@ class SettAvlystSoknadStatusTest {
         )
         assertIs<EventHandledResult.Success>(handler.handle(event))
 
-        val nyttSletteTidspunkt = now.plus(slettSøknadOm)
+        val nyArbeidsgiverTilgangTil = now.plus(arbeidsgiverTilgangVarighet)
         transaction(database) {
             SoknadTable.selectAll().single().let { rw ->
                 assertEquals(SoknadStatus.avlyst, SoknadStatus.valueOf(rw[SoknadTable.status]))
-                assertEquals(nyttSletteTidspunkt, rw[SoknadTable.sletteTidspunkt])
+                assertEquals(nyArbeidsgiverTilgangTil, rw[SoknadTable.arbeidsgiverTilgangTil])
             }
         }
     }

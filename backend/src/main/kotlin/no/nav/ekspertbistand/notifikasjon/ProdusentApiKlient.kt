@@ -23,8 +23,8 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.Default
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsid
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsidEtterDelete
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.NySakVellykket
-import no.nav.ekspertbistand.soknad.slettSøknadOm
 import java.net.URI
+import kotlin.time.Duration.Companion.days
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UkjentProdusent as NyBeskjedUkjentProdusent
@@ -35,6 +35,12 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentR
 
 private const val merkelapp = "Ekspertbistand"
 private const val notifikasjonBaseUrl = "http://notifikasjon-produsent-api.fager/api/graphql"
+
+/**
+ * Notifikasjonsplattformen hard-sletter saken (og beskjeder med samme grupperingsid) så lenge etter
+ * siste oppdatering. nyStatusSak overskriver fristen, så siste statusoppdatering bestemmer.
+ */
+val hardDeleteINotifikasjonsplattformenOm = 455.days
 
 class ProdusentApiKlient(
     private val azureAdTokenProvider: AzureAdTokenProvider,
@@ -91,7 +97,7 @@ class ProdusentApiKlient(
                     lenke = lenke,
                     tidspunkt = tidspunkt,
                     mottaker = mottaker,
-                    hardDelete = FutureTemporalInput(om = slettSøknadOm.toIsoString()),
+                    hardDelete = FutureTemporalInput(om = hardDeleteINotifikasjonsplattformenOm.toIsoString()),
                 )
             )
         ) {
@@ -179,7 +185,7 @@ class ProdusentApiKlient(
                     overstyrStatustekstMed = statusTekst,
                     tidspunkt = tidspunkt,
                     hardDelete = HardDeleteUpdateInput(
-                        nyTid = FutureTemporalInput(om = slettSøknadOm.toIsoString()),
+                        nyTid = FutureTemporalInput(om = hardDeleteINotifikasjonsplattformenOm.toIsoString()),
                         strategi = NyTidStrategi.OVERSKRIV
                     )
                 )

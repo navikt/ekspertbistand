@@ -14,7 +14,7 @@ import no.nav.ekspertbistand.saksbehandling.hentVedtakUtfallForEvent
 import no.nav.ekspertbistand.saksbehandling.vedtakKanFattes
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.slettSøknadOm
+import no.nav.ekspertbistand.soknad.arbeidsgiverTilgangVarighet
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -81,7 +81,7 @@ class SettSoknadStatusVedtakFattet @OptIn(ExperimentalTime::class) constructor(
                     where = { (SoknadTable.id eq soknadId) and (SoknadTable.status eq SoknadStatus.innsendt.name) }
                 ) {
                     it[status] = nyStatus.name
-                    it[sletteTidspunkt] = clock.now().plus(slettSøknadOm)
+                    it[arbeidsgiverTilgangTil] = clock.now().plus(arbeidsgiverTilgangVarighet)
                 }
 
                 when {

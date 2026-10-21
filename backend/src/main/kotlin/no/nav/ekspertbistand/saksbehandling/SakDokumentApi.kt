@@ -154,7 +154,7 @@ suspend fun Application.configureSakDokumentApiV1() {
                     val vedtak = validerFelter(request)
 
                     val (soknad, saksbehandlerNavn) = transaction(database) {
-                        findSoknadById(sak.soknadId) to hentSaksbehandlerNavn(sakId, principal.navIdent)
+                        findSoknadById(sak.soknadId, filterForArbeidsgiver = false) to hentSaksbehandlerNavn(sakId, principal.navIdent)
                     }
                     if (soknad == null) {
                         return@post call.respond(HttpStatusCode.NotFound, mapOf("message" to "fant ikke søknad"))
@@ -194,7 +194,7 @@ suspend fun Application.configureSakDokumentApiV1() {
 
                     val lagret = transaction(database) {
                         val vedtak = hentSisteForelopigVedtak(sak.sakId) ?: return@transaction null
-                        val soknad = findSoknadById(sak.soknadId) ?: return@transaction null
+                        val soknad = findSoknadById(sak.soknadId, filterForArbeidsgiver = false) ?: return@transaction null
                         Triple(vedtak, soknad, hentSaksbehandlerNavn(sak.sakId, vedtak.innstiltAvIdent))
                     } ?: return@get call.respond(
                         HttpStatusCode.NotFound,

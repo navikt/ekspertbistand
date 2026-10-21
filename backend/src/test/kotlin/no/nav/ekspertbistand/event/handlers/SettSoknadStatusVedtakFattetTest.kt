@@ -8,7 +8,7 @@ import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.sak.LagretSak
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.slettSøknadOm
+import no.nav.ekspertbistand.soknad.arbeidsgiverTilgangVarighet
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -48,7 +48,7 @@ class SettSoknadStatusVedtakFattetTest {
 
         val soknad = hentSoknad(database, sak)
         assertEquals(SoknadStatus.godkjent.name, soknad[SoknadTable.status])
-        assertEquals(now.plus(slettSøknadOm), soknad[SoknadTable.sletteTidspunkt])
+        assertEquals(now.plus(arbeidsgiverTilgangVarighet), soknad[SoknadTable.arbeidsgiverTilgangTil])
     }
 
     @Test
