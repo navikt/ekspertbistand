@@ -113,8 +113,11 @@ legges til som egne behandlinger med søknadens id i `relatert_behandling_id`.
 - Vi kan sende alle meldinger på nytt, for eksempel etter en feilretting. De nye radene har samme `hendelse_tid` og
   `sekvensnummer`, ny `melding_tid` og ny verdi i `projeksjon`. Bruk den nyeste `projeksjon` hvis dere bare vil ha
   én versjon av historikken.
-- En behandling kan forsvinne fra viewet når deltakeren får adressebeskyttelse. Tar dere kopi, må dere laste hele
-  viewet på nytt og slette behandlinger som ikke lenger finnes. Se «Personvern».
+- Les inkrementelt på `melding_tid`. Hent rader med `melding_tid` etter forrige lesing minus en overlapp, for
+  eksempel én time, og fjern duplikater som beskrevet over. Ikke les på `sekvensnummer`: rader vi sender på nytt,
+  har samme `sekvensnummer` som før.
+- En behandling kan forsvinne fra viewet når deltakeren får adressebeskyttelse. Viewet sier ikke fra om det. Se
+  «Personvern».
 
 Eksempel på gjeldende tilstand per behandling:
 
@@ -357,8 +360,9 @@ Følgene for dere som mottar data:
 - Statistikken mangler saker for personer med adressebeskyttelse. Det gjelder få saker, men dere kan ikke telle dem
   fra viewet.
 - Feltverdien `-5` som Team Sak bruker for kode 6, forekommer ikke.
-- Blir en deltaker skjermet, forsvinner behandlingen fra viewet innen en time. Data dere har kopiert før det, må dere
-  slette. Last derfor hele viewet på nytt, og slett behandlinger som ikke lenger finnes.
+- Blir en deltaker skjermet, forsvinner behandlingen fra viewet innen en time. Rader dere har lest før det, kan vi
+  ikke fjerne. Dere håndterer adressebeskyttelse i egne data, slik dere gjør for andre kilder, for eksempel med
+  sjekk mot PDL ved innlesing og når en deltaker blir skjermet underveis.
 - Alle med tilgang til viewet kan se metadata for tabellene i datasettet, også antall rader i
   `skjermede_behandlinger`. Selve innholdet i tabellene er ikke tilgjengelig.
 

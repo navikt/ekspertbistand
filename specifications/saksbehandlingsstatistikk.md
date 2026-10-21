@@ -180,8 +180,9 @@ Testene bruker en skriver som legger radene i en liste.
 - BigQuery er ikke med i Postgres-transaksjonen. Feiler en senere event i samme batch etter at en rad er skrevet,
   skrives raden på nytt ved neste forsøk. Derfor fjerner konsumentene duplikater på `projeksjon` og `sekvensnummer`.
 - Appen legger til nye kolonner i BigQuery-tabellen første gang den bruker datasettet etter oppstart. Bare valgfrie kolonner kan legges til.
-- Rader skrevet før personen fikk adressebeskyttelse, endres ikke i rådata. Viewet skjuler dem. Mottakere som tar
-  kopi, må laste hele viewet på nytt og slette behandlinger som er borte.
+- Rader skrevet før personen fikk adressebeskyttelse, endres ikke i rådata. Viewet skjuler dem. Mottakerne leser
+  inkrementelt på `melding_tid` og håndterer adressebeskyttelse i egne kopier selv. Vi gir ikke ut en liste over
+  skjulte behandlinger, fordi den ville vist hvem som er skjermet.
 - Alle med tilgang til viewet får `metadata viewer` på datasettet og kan se antall rader i `skjermede_behandlinger`.
 - Oppslaget i PDL skjer inne i projeksjonens databasetransaksjon, ett kall per rad som skrives.
 - Kjent begrensning: `SakOpprettet` sier ikke ennå om deltakeren var skjermet ved saksopprettelse. Til feltet kommer
