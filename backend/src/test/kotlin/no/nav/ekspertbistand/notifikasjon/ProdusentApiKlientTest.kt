@@ -19,6 +19,7 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyB
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedVellykket
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.*
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.days
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
@@ -33,6 +34,11 @@ class ProdusentApiKlientTest {
     private val soknadId = "42"
     private val virksomhetsnummer = "1337"
     private val tidspunkt = "2026-01-01T10:15:30+01:00"
+
+    @Test
+    fun `hardDelete i notifikasjonsplattformen er 455 dager`() {
+        kotlin.test.assertEquals(455.days, hardDeleteINotifikasjonsplattformenOm)
+    }
 
     @Test
     fun `Ny Sak`() = testApplication {

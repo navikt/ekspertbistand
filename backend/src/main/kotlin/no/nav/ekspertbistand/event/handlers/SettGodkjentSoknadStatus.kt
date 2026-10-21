@@ -10,7 +10,7 @@ import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.slettSøknadOm
+import no.nav.ekspertbistand.soknad.arbeidsgiverTilgangVarighet
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -39,7 +39,7 @@ class SettGodkjentSoknadStatus @OptIn(ExperimentalTime::class) constructor(
                 val updates = SoknadTable.update(
                     where = { SoknadTable.id eq UUID.fromString(event.data.soknad.id) }) {
                     it[status] = SoknadStatus.godkjent.toString()
-                    it[sletteTidspunkt] = clock.now().plus(slettSøknadOm)
+                    it[arbeidsgiverTilgangTil] = clock.now().plus(arbeidsgiverTilgangVarighet)
                 }
                 if (updates == 0) {
                     unrecoverableError("Forsøkte å oppdatere status for søknad med id ${event.data.soknad.id}, men finner ikke søknad i databasen.")

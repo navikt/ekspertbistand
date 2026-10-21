@@ -26,6 +26,7 @@ suspend fun Application.configureSoknadApiV1() {
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
     val eregService = dependencies.resolve<EregService>()
     val soknadApi = SoknadApi(database, altinnTilgangerClient, eregService)
+    val aggregateRetention = AggregateRetention(database)
 
     launch {
         while (isActiveAndNotTerminating) {
@@ -42,10 +43,10 @@ suspend fun Application.configureSoknadApiV1() {
     launch {
         while (isActiveAndNotTerminating) {
             try {
-                soknadApi.slettGamleInnsendteSoknader()
+                aggregateRetention.slettGamleAggregater()
             } catch (e: Exception) {
                 e.rethrowIfCancellation()
-                log.error("Feil ved sletting av gamle innsendte søknader", e)
+                log.error("Feil ved sletting av aggregater eldre enn oppbevaringstiden", e)
             }
             delay(1.days)
         }

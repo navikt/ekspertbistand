@@ -2,13 +2,20 @@ package no.nav.ekspertbistand.tilsagndata
 
 import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.event.EventLog
+import no.nav.ekspertbistand.soknad.arbeidsgiverTilgangVarighet
+import no.nav.ekspertbistand.soknad.findSoknadById
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.java.javaUUID
+import org.jetbrains.exposed.v1.core.max
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.json.json
 import java.util.UUID
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 object TilsagndataTable : Table("tilsagndata") {
     val id = javaUUID("id")
@@ -30,15 +37,40 @@ fun insertTilsagndata(soknadId: UUID?, tilsagnData: TilsagnData) {
     }
 }
 
-fun findTilsagnDataByTilsagnNummer(tilsagnNummer: String) =
-    TilsagndataTable.select(
-        TilsagndataTable.tilsagnData
+/**
+ * Henter tilsagnet. Med [filterForArbeidsgiver] skjules tilsagnet når arbeidsgivers tilgang er
+ * utløpt. Er tilsagnet knyttet til en søknad, gjelder søknadens frist. Tilsagn uten søknad
+ * (legacy Altinn-sporet, se [no.nav.ekspertbistand.event.EventData.TilskuddsbrevMottattKildeAltinn])
+ * er tilgjengelige i [arbeidsgiverTilgangVarighet] etter siste event på tilsagnsnummeret.
+ */
+@OptIn(ExperimentalTime::class)
+fun findTilsagnDataByTilsagnNummer(
+    tilsagnNummer: String,
+    filterForArbeidsgiver: Boolean = true,
+    now: Instant = Clock.System.now(),
+): TilsagnData? {
+    val rad = TilsagndataTable.select(
+        TilsagndataTable.tilsagnData,
+        TilsagndataTable.soknadId,
     ).where {
         TilsagndataTable.tilsagnNummer eq tilsagnNummer
-    }.map {
-        it[TilsagndataTable.tilsagnData]
-    }.firstOrNull()
+    }.firstOrNull() ?: return null
 
+    val harTilgang = !filterForArbeidsgiver || when (val soknadId = rad[TilsagndataTable.soknadId]) {
+        null -> sisteEventTidspunkt(tilsagnNummer)?.let { it + arbeidsgiverTilgangVarighet > now } ?: false
+        else -> findSoknadById(soknadId, now = now) != null
+    }
+    return if (harTilgang) rad[TilsagndataTable.tilsagnData] else null
+}
+
+@OptIn(ExperimentalTime::class)
+private fun sisteEventTidspunkt(aggregateRootId: String): Instant? {
+    val sisteEvent = EventLog.createdAt.max()
+    return EventLog.select(sisteEvent)
+        .where { EventLog.aggregateRootId eq aggregateRootId }
+        .firstOrNull()
+        ?.get(sisteEvent)
+}
 
 fun findTilsagnDataBySoknadId(soknadId: UUID) =
     TilsagndataTable.select(
