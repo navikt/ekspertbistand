@@ -27,11 +27,11 @@ fun interface SaksbehandlingsstatistikkSkriver {
  * Behandlinger som holdes utenfor viewet vi deler, fordi deltakeren har eller har hatt adressebeskyttelse.
  * En behandling fjernes aldri fra listen.
  */
-interface SkjermedeBehandlinger {
+interface AdressebeskyttedeBehandlinger {
     fun registrer(behandlingIder: Collection<String>)
 
-    /** Behandlinger med rader i rådatatabellen som ikke er registrert som skjermet, med deltakerens fnr. */
-    fun uskjermede(): Map<String, String>
+    /** Behandlinger med rader i rådatatabellen som ikke er registrert som adressebeskyttet, med deltakerens fnr. */
+    fun utenAdressebeskyttelse(): Map<String, String>
 }
 
 /** Én rad i BigQuery-tabellen. Feltene er beskrevet i `README.md` i samme pakke. */
@@ -82,8 +82,8 @@ data class SaksbehandlingsstatistikkRad(
 /**
  * Eier objektene i datasettet [DATASETT], som Nais oppretter fra `spec.gcp.bigQueryDatasets`:
  * - [TABELL]: rådata. Deles ikke.
- * - [SKJERMEDE]: behandlinger som skal holdes utenfor. Deles ikke.
- * - [VIEW]: rådata uten skjermede behandlinger. Bare dette registreres på Datamarkedsplassen, som autoriserer
+ * - [ADRESSEBESKYTTEDE]: behandlinger som skal holdes utenfor. Deles ikke.
+ * - [VIEW]: rådata uten adressebeskyttede behandlinger. Bare dette registreres på Datamarkedsplassen, som autoriserer
  *   viewet mot tabellene i samme datasett.
  *
  * Appen oppretter det som mangler første gang den bruker datasettet, og oppdaterer viewet slik at skjemaet følger
@@ -93,16 +93,16 @@ data class SaksbehandlingsstatistikkRad(
 class BigQuerySaksbehandlingsstatistikk(
     private val bigQuery: BigQuery,
     prosjekt: String,
-) : SaksbehandlingsstatistikkSkriver, SkjermedeBehandlinger {
+) : SaksbehandlingsstatistikkSkriver, AdressebeskyttedeBehandlinger {
 
     private val tabell = TableId.of(prosjekt, DATASETT, TABELL)
-    private val skjermede = TableId.of(prosjekt, DATASETT, SKJERMEDE)
+    private val adressebeskyttede = TableId.of(prosjekt, DATASETT, ADRESSEBESKYTTEDE)
     private val view = TableId.of(prosjekt, DATASETT, VIEW)
 
     private val datasettKlart by lazy {
         opprettEllerUtvid(tabell, StandardTableDefinition.of(skjema))
-        opprettEllerUtvid(skjermede, StandardTableDefinition.of(skjermedeSkjema))
-        val definisjon = TableInfo.of(view, ViewDefinition.of(viewSql(tabell, skjermede)))
+        opprettEllerUtvid(adressebeskyttede, StandardTableDefinition.of(adressebeskyttedeSkjema))
+        val definisjon = TableInfo.of(view, ViewDefinition.of(viewSql(tabell, adressebeskyttede)))
         if (bigQuery.getTable(view) == null) bigQuery.create(definisjon) else bigQuery.update(definisjon)
     }
 
@@ -129,12 +129,12 @@ class BigQuerySaksbehandlingsstatistikk(
         if (behandlingIder.isEmpty()) return
         datasettKlart
         val tidspunkt = Clock.System.now().toString()
-        settInn(skjermede, behandlingIder.map { it to mapOf("behandling_id" to it, "registrert_tid" to tidspunkt) })
+        settInn(adressebeskyttede, behandlingIder.map { it to mapOf("behandling_id" to it, "registrert_tid" to tidspunkt) })
     }
 
-    override fun uskjermede(): Map<String, String> {
+    override fun utenAdressebeskyttelse(): Map<String, String> {
         datasettKlart
-        val allerede = bigQuery.listTableData(skjermede, skjermedeSkjema).iterateAll()
+        val allerede = bigQuery.listTableData(adressebeskyttede, adressebeskyttedeSkjema).iterateAll()
             .map { it.get("behandling_id").stringValue }
             .toSet()
         return bigQuery.listTableData(tabell, skjema).iterateAll()
@@ -155,7 +155,7 @@ class BigQuerySaksbehandlingsstatistikk(
     companion object {
         const val DATASETT = "ekspertbistand_statistikk"
         const val TABELL = "saksbehandlingsstatistikk"
-        const val SKJERMEDE = "skjermede_behandlinger"
+        const val ADRESSEBESKYTTEDE = "adressebeskyttede_behandlinger"
         const val VIEW = "saksbehandlingsstatistikk_delt"
 
         fun fraNaisMiljo(): BigQuerySaksbehandlingsstatistikk {
@@ -169,16 +169,16 @@ class BigQuerySaksbehandlingsstatistikk(
     }
 }
 
-private fun viewSql(tabell: TableId, skjermede: TableId): String =
+private fun viewSql(tabell: TableId, adressebeskyttede: TableId): String =
     """
     SELECT r.*
     FROM `${tabell.project}.${tabell.dataset}.${tabell.table}` r
     WHERE r.behandling_id NOT IN (
-      SELECT behandling_id FROM `${skjermede.project}.${skjermede.dataset}.${skjermede.table}`
+      SELECT behandling_id FROM `${adressebeskyttede.project}.${adressebeskyttede.dataset}.${adressebeskyttede.table}`
     )
     """.trimIndent()
 
-private val skjermedeSkjema: Schema = Schema.of(
+private val adressebeskyttedeSkjema: Schema = Schema.of(
     Field.newBuilder("behandling_id", STRING).setMode(Field.Mode.REQUIRED).build(),
     Field.newBuilder("registrert_tid", TIMESTAMP).setMode(Field.Mode.REQUIRED).build(),
 )

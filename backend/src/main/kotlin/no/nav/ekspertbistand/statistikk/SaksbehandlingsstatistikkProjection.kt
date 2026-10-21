@@ -39,10 +39,10 @@ import kotlin.time.Instant
  * aggregatrot, som er søknad-id-en. Hver event som endrer meldingsinnholdet gir én ny rad.
  *
  * Adressebeskyttelse: før hver rad skrives slår vi opp gjeldende gradering i PDL. Alle graderinger (kode 6 og 7)
- * gir skjerming, det samme gjør skjerming ved saksopprettelse ([skjermetVedOpprettelse]). Behandlende enhet
- * brukes ikke som signal. En skjermet behandling registreres i [skjermede] før raden skrives, slik at viewet vi
- * deler holder hele behandlingen utenfor, også rader skrevet før skjermingen.
- * [Skjermingskontroll] fanger dem som blir skjermet etter siste hendelse.
+ * teller, det samme gjør adressebeskyttelse ved saksopprettelse ([adressebeskyttetVedOpprettelse]). Behandlende
+ * enhet brukes ikke som signal. En adressebeskyttet behandling registreres i [adressebeskyttede] før raden skrives,
+ * slik at viewet vi deler holder hele behandlingen utenfor, også rader skrevet før personen fikk adressebeskyttelse.
+ * [Adressebeskyttelseskontroll] fanger dem som får adressebeskyttelse etter siste hendelse.
  *
  * Resending: bump versjonen i [name]. Projeksjonen leser loggen på nytt fra start og skriver nye rader
  * med samme `hendelse_tid` og `sekvensnummer`, og ny `melding_tid` og `projeksjon`.
@@ -52,7 +52,7 @@ class SaksbehandlingsstatistikkProjection(
     database: Database,
     private val skriver: SaksbehandlingsstatistikkSkriver,
     private val adressebeskyttelse: AdressebeskyttelseOppslag,
-    private val skjermede: SkjermedeBehandlinger,
+    private val adressebeskyttede: AdressebeskyttedeBehandlinger,
 ) : EventLogProjectionBuilder(database) {
     override val name = "Saksbehandlingsstatistikk-v1"
 
@@ -68,10 +68,10 @@ class SaksbehandlingsstatistikkProjection(
         val melding = overgang.tilstand.meldingsinnhold() ?: return
         if (melding == forrige?.meldingsinnhold()) return
 
-        val skjermet = overgang.tilstand.skjermetVedOpprettelse ||
-            runBlocking { adressebeskyttelse.harSkjermetAdresse(melding.fnr) }
-        if (skjermet) skjermede.registrer(listOf(behandlingId))
-        val utgaende = if (skjermet) melding.skjermet() else melding
+        val adressebeskyttet = overgang.tilstand.adressebeskyttetVedOpprettelse ||
+            runBlocking { adressebeskyttelse.harAdressebeskyttelse(melding.fnr) }
+        if (adressebeskyttet) adressebeskyttede.registrer(listOf(behandlingId))
+        val utgaende = if (adressebeskyttet) melding.maskert() else melding
 
         skriver.skriv(rad(behandlingId, utgaende, overgang.hendelseTid, event.id))
     }
@@ -136,7 +136,7 @@ class SaksbehandlingsstatistikkProjection(
         const val BEHANDLING_TYPE = "SOKNAD"
 
         /** Verdien i geo-lokaliserende felter når søker har adressebeskyttelse (kode 6 eller 7). */
-        const val SKJERMET = "-5"
+        const val MASKERT = "-5"
 
         private fun erRelevant(data: EventData) = when (data) {
             is EventData.SoknadInnsendt,
@@ -194,7 +194,7 @@ fun nesteTilstand(
                 ekspertVirksomhetOrgnr = data.soknad.ekspert.virksomhetOrgnr,
                 ekspertUtdanning = data.soknad.ekspert.utdanningKoder,
                 ekspertKompetanse = data.soknad.ekspert.kompetanseKoder,
-                skjermetVedOpprettelse = data.skjermetVedOpprettelse(),
+                adressebeskyttetVedOpprettelse = data.adressebeskyttetVedOpprettelse(),
             ),
             eventTimestamp,
         )
@@ -355,7 +355,7 @@ data class BehandlingTilstand(
     val innvilgetBelop: Int? = null,
     val tiltaksperiodeFra: LocalDate? = null,
     val tiltaksperiodeTil: LocalDate? = null,
-    val skjermetVedOpprettelse: Boolean = false,
+    val adressebeskyttetVedOpprettelse: Boolean = false,
 ) {
     /** Statusen på `sak.status` som handlerne ser. */
     val saksstatus: Saksstatus?
@@ -385,7 +385,7 @@ data class BehandlingTilstand(
         fattetAvIdent = fattetAvIdent,
     )
 
-    /** Feltene i meldingen som avgjør om hendelsen er relevant, uten skjerming. Null før saken er registrert. */
+    /** Feltene i meldingen som avgjør om hendelsen er relevant, før maskering. Null før saken er registrert. */
     fun meldingsinnhold(): Meldingsinnhold? {
         val sakId = sakId ?: return null
         val fnr = fnr ?: return null
@@ -449,27 +449,28 @@ data class Meldingsinnhold(
 ) {
     /**
      * Meldingen ved adressebeskyttelse (kode 6 eller 7): felt som kan avsløre hvor personen bor, blir `-5`.
-     * Viewet viser aldri skjermede behandlinger, så dette er et ekstra vern i rådatatabellen.
+     * Viewet viser aldri adressebeskyttede behandlinger, så dette er et ekstra vern i rådatatabellen.
      */
-    fun skjermet(): Meldingsinnhold {
-        fun skjerm(verdi: String?) = verdi?.let { SaksbehandlingsstatistikkProjection.SKJERMET }
+    fun maskert(): Meldingsinnhold {
+        fun masker(verdi: String?) = verdi?.let { SaksbehandlingsstatistikkProjection.MASKERT }
         return copy(
-            opprettetAv = SaksbehandlingsstatistikkProjection.SKJERMET,
-            saksbehandler = skjerm(saksbehandler),
-            ansvarligBeslutter = skjerm(ansvarligBeslutter),
-            ansvarligEnhet = skjerm(ansvarligEnhet),
-            arrangorOrgnr = skjerm(arrangorOrgnr),
-            ekspertVirksomhetOrgnr = skjerm(ekspertVirksomhetOrgnr),
+            opprettetAv = SaksbehandlingsstatistikkProjection.MASKERT,
+            saksbehandler = masker(saksbehandler),
+            ansvarligBeslutter = masker(ansvarligBeslutter),
+            ansvarligEnhet = masker(ansvarligEnhet),
+            arrangorOrgnr = masker(arrangorOrgnr),
+            ekspertVirksomhetOrgnr = masker(ekspertVirksomhetOrgnr),
         )
     }
 }
 
 /**
- * Om deltakeren var skjermet da saken ble opprettet. Gir skjerming av hele behandlingen, uansett hva PDL sier senere.
+ * Om deltakeren hadde adressebeskyttelse da saken ble opprettet. Holder hele behandlingen utenfor viewet, uansett hva
+ * PDL sier senere.
  */
-// TODO: Returner feltet for skjerming når SakOpprettet får det (egen oppgave). Resten er koblet opp.
+// TODO: Returner feltet for adressebeskyttelse når SakOpprettet får det (egen oppgave). Resten er koblet opp.
 //  Må være løst før projeksjonen skrus på i prod.
-internal fun EventData.SakOpprettet.skjermetVedOpprettelse(): Boolean = false
+internal fun EventData.SakOpprettet.adressebeskyttetVedOpprettelse(): Boolean = false
 
 /** Søknaden lagrer beløpet som tekst. Frontend godtar desimaler, så beløpet rundes av til hele kroner. */
 private fun heleKroner(estimertKostnad: String): Int =
