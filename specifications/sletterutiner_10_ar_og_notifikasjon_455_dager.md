@@ -87,12 +87,9 @@ Vi har funnet disse svakhetene:
 
 ### B. Arbeidsgivers tilgang: 455 dager
 
-- Migrering (expand/contract): legg til `soknad.arbeidsgiver_tilgang_til`, kopier
-  verdien fra `slette_tidspunkt` og sett standardverdien til
-  `now + 455 dager`. `slette_tidspunkt` blir stående til neste release, så gamle
-  pods fungerer under utrullingen. Standardverdien settes til `9999-12-31`, så
-  en rollback til gammel kode ikke sletter nye søknader. Kolonnen fjernes i en
-  senere migrering.
+- Migrering: gi `soknad.slette_tidspunkt` det nye navnet
+  `arbeidsgiver_tilgang_til`. Verdiene beholdes. Gamle pods som bruker det gamle
+  navnet, kan feile under utrullingen. Det er akseptert.
 - Erstatt `slettSøknadOm` med `arbeidsgiverTilgangVarighet = 455.days` i
   `soknad/Db.kt`. `SoknadTable` bruker den nye kolonnen,
   `arbeidsgiverTilgangTil`.
@@ -113,11 +110,11 @@ Vi har funnet disse svakhetene:
   | `GET /api/tilsagndata/v1/tilskuddsbrev/{tilsagnNummer}/tilskuddsbrev-html` og `-pdf` | `tilsagndata/Routing.kt` |
 
 - Tilskuddsbrev som slås opp på tilsagnsnummer: hvis tilsagnet har en
-  `soknad_id`, gjelder søknadens frist. Tilsagn fra Altinn uten søknad får sin
-  egen kolonne, `tilsagndata.arbeidsgiver_tilgang_til`, som settes til
-  `now + 455 dager` ved innsetting. Eksisterende rader fylles ut med
-  `max(event_log.created_at) + 455 dager` for tilsagnsnummeret, og ellers med
-  `CURRENT_TIMESTAMP + 455 dager`.
+  `soknad_id`, gjelder søknadens frist. Det kommer ingen nye tilsagn uten søknad
+  (se KDoc på `TilskuddsbrevMottattKildeAltinn`), men gamle rader fra Altinn-sporet
+  finnes. For dem regnes fristen ved oppslag: siste `event_log.created_at` for
+  tilsagnsnummeret pluss 455 dager. Uten events skjules tilsagnet. Vi trenger
+  ingen ny kolonne eller jobb.
 - Utkast (`utkast`-tabellen) berøres ikke. 48-timersregelen gjelder fortsatt.
 - Saksbehandler-API-et (Azure AD) filtrerer ikke på `arbeidsgiver_tilgang_til`.
 
@@ -170,13 +167,9 @@ slettejobben endres også.
 Én ny Flyway-migrering, `V26__oppbevaring_og_sletterutiner.sql`, med
 `SET lock_timeout = '3s'`:
 
-1. `soknad.arbeidsgiver_tilgang_til`: legg til, kopier fra `slette_tidspunkt`,
-   sett `NOT NULL` med standardverdi. Sett standardverdien på `slette_tidspunkt`
-   til `9999-12-31`.
-2. `tilsagndata.arbeidsgiver_tilgang_til`: legg til, fyll ut og sett `NOT NULL`
-   med standardverdi.
-3. Gjenopprett de fire fremmednøklene med `ON DELETE CASCADE`.
-4. Indekser på `event_log` og `event_queue`. Tabellene er små nok til vanlig
+1. Gi `soknad.slette_tidspunkt` navnet `arbeidsgiver_tilgang_til`.
+2. Gjenopprett de fire fremmednøklene med `ON DELETE CASCADE`.
+3. Indekser på `event_log` og `event_queue`. Tabellene er små nok til vanlig
    `CREATE INDEX`. Hvis de har vokst, flytt indeksene til en egen migrering med
    `CONCURRENTLY`.
 
@@ -231,7 +224,8 @@ Frontend-teksten endres ikke før innholdet er godkjent (se åpne punkter).
   - rører ikke et aggregat med rader i `event_queue` eller uferdig OeBS-outbox
   - respekterer projeksjonsposisjonen
   - regner 10 kalenderår riktig over skuddår
-  - avviser nye events for et slettet aggregat
+- Arbeidsgiver-API: tilsagn uten søknad vises bare til 455 dager etter siste
+  event på tilsagnsnummeret.
 
 ## Åpne punkter
 

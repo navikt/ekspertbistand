@@ -17,7 +17,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
@@ -153,11 +152,11 @@ class RetentionTest {
             settInnSoknad(utlopt, arbeidsgiverTilgangTil = "2036-06-14 12:00:00")
             val tilsagn = TestEventData.sampleTilsagnData
             insertTilsagndata(utlopt, tilsagn.copy(tilsagnNummer = TilsagnData.TilsagnNummer(2036, 1, 1)))
-            // Tilsagn uten søknad (Altinn-sporet) med egen frist, som gikk ut i går.
-            val forLengeSiden = object : Clock {
-                override fun now() = this@RetentionTest.now - arbeidsgiverTilgangVarighet - 1.days
-            }
-            insertTilsagndata(null, tilsagn.copy(tilsagnNummer = TilsagnData.TilsagnNummer(2036, 2, 1)), forLengeSiden)
+            // Tilsagn uten søknad (legacy Altinn-sporet): fristen regnes fra siste event på tilsagnsnummeret.
+            insertTilsagndata(null, tilsagn.copy(tilsagnNummer = TilsagnData.TilsagnNummer(2036, 2, 1)))
+            settInnEvent(1, "2036:2:1", "2035-03-01 00:00:00")
+            insertTilsagndata(null, tilsagn.copy(tilsagnNummer = TilsagnData.TilsagnNummer(2036, 3, 1)))
+            settInnEvent(2, "2036:3:1", "2036-06-01 00:00:00")
         }
 
         transaction(db) {
@@ -166,6 +165,7 @@ class RetentionTest {
             assertNull(findSoknadOrUtkastById(utlopt, now = now))
             assertNull(findTilsagnDataByTilsagnNummer("2036:1:1", now = now))
             assertNull(findTilsagnDataByTilsagnNummer("2036:2:1", now = now))
+            assertNotNull(findTilsagnDataByTilsagnNummer("2036:3:1", now = now))
             // Saksbehandler-oppslaget filtrerer ikke på arbeidsgivers frist.
             assertNotNull(findSoknadById(utlopt, filterForArbeidsgiver = false))
             assertNotNull(findTilsagnDataByTilsagnNummer("2036:2:1", filterForArbeidsgiver = false))
