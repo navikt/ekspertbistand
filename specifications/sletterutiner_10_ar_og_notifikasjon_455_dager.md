@@ -167,7 +167,7 @@ slettejobben endres også.
 
 ### D. Migrering
 
-Én ny Flyway-migrering, `V25__oppbevaring_og_sletterutiner.sql`, med
+Én ny Flyway-migrering, `V26__oppbevaring_og_sletterutiner.sql`, med
 `SET lock_timeout = '3s'`:
 
 1. `soknad.arbeidsgiver_tilgang_til`: legg til, kopier fra `slette_tidspunkt`,
@@ -182,7 +182,7 @@ slettejobben endres også.
 
 ## Filer som berøres
 
-- `backend/src/main/resources/db/migration/V25__oppbevaring_og_sletterutiner.sql` (ny)
+- `../backend/src/main/resources/db/migration/V26__oppbevaring_og_sletterutiner.sql` (ny)
 - `backend/src/main/kotlin/no/nav/ekspertbistand/soknad/Db.kt`, `Api.kt`, `Routing.kt`
 - `backend/src/main/kotlin/no/nav/ekspertbistand/soknad/AggregateRetention.kt` (ny)
 - `backend/src/main/kotlin/no/nav/ekspertbistand/event/handlers/SettGodkjentSoknadStatus.kt`,

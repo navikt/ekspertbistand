@@ -1,7 +1,10 @@
 package no.nav.ekspertbistand.soknad
 
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
+import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.event.TestEventData
 import no.nav.ekspertbistand.tilsagndata.findTilsagnDataByTilsagnNummer
+import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.core.IColumnType
 import org.jetbrains.exposed.v1.core.TextColumnType
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -14,6 +17,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
@@ -147,8 +151,13 @@ class RetentionTest {
         transaction(db) {
             settInnSoknad(aktiv, arbeidsgiverTilgangTil = "2036-06-16 12:00:00")
             settInnSoknad(utlopt, arbeidsgiverTilgangTil = "2036-06-14 12:00:00")
-            sql("""INSERT INTO tilsagndata (id, tilsagnnummer, soknad_id, "tilsagnData") VALUES (gen_random_uuid(), '2036:1:1', ?::uuid, '{}')""", utlopt)
-            sql("""INSERT INTO tilsagndata (id, tilsagnnummer, soknad_id, "tilsagnData", arbeidsgiver_tilgang_til) VALUES (gen_random_uuid(), '2036:2:1', NULL, '{}', '2036-06-14 12:00:00')""")
+            val tilsagn = TestEventData.sampleTilsagnData
+            insertTilsagndata(utlopt, tilsagn.copy(tilsagnNummer = TilsagnData.TilsagnNummer(2036, 1, 1)))
+            // Tilsagn uten søknad (Altinn-sporet) med egen frist, som gikk ut i går.
+            val forLengeSiden = object : Clock {
+                override fun now() = this@RetentionTest.now - arbeidsgiverTilgangVarighet - 1.days
+            }
+            insertTilsagndata(null, tilsagn.copy(tilsagnNummer = TilsagnData.TilsagnNummer(2036, 2, 1)), forLengeSiden)
         }
 
         transaction(db) {
