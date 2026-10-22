@@ -8,6 +8,8 @@ import io.ktor.http.*
 import io.ktor.server.plugins.di.*
 import kotlinx.datetime.TimeZone.Companion.currentSystemDefault
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import no.nav.common.audit_log.cef.CefMessage
 import no.nav.common.audit_log.log.AuditLogger
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
@@ -59,6 +61,7 @@ import no.nav.ekspertbistand.tilgangsmaskin.AggregertBulkRespons
 import no.nav.ekspertbistand.tilgangsmaskin.BrukerIdOgRegelsett
 import no.nav.ekspertbistand.tilgangsmaskin.EnkeltBulkRespons
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
+import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinAvvisning
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
 import org.jetbrains.exposed.v1.datetime.CurrentDate
@@ -75,20 +78,31 @@ import kotlin.time.ExperimentalTime
 
 /**
  * Saksbehandlere som kan logge inn lokalt. Ola og Kari har begge rollene, slik at topartskontrollen kan testes.
- * Per og Lisa har bare én rolle hver, slik at rollesjekkene kan testes.
+ * Per og Lisa har bare én rolle hver, slik at rollesjekkene kan testes. Bare Kari har tilgang til kode 6, kode 7
+ * og egne ansatte, og bare hun har Nav Vikafossen, der kode 6-sakene havner.
  * `faketoken` gir den første. Saksbehandling-BFF-en sender `faketoken-<navIdent>` når brukeren er byttet
  * i klienten, se frontend/saksbehandling-server/src/lokal-bruker.ts.
  */
-private data class LokalAnsatt(
+internal data class LokalAnsatt(
     val navIdent: String,
     val fornavn: String,
     val etternavn: String,
     val roller: Set<Role> = setOf(Role.SAKSBEHANDLER, Role.BESLUTTER),
-)
+    val tilganger: Set<LokalBeskyttelse> = emptySet(),
+    val enheter: List<LokalEnhet> = listOf(LokalEnhet.SYDPOLEN, LokalEnhet.NORDPOLEN),
+) {
+    val navn get() = "$fornavn $etternavn"
+}
 
-private val lokaleAnsatte = listOf(
+internal val lokaleAnsatte = listOf(
     LokalAnsatt(navIdent = "A123456", fornavn = "Ola", etternavn = "Beggedeler"),
-    LokalAnsatt(navIdent = "B654321", fornavn = "Kari", etternavn = "Beggedeler"),
+    LokalAnsatt(
+        navIdent = "B654321",
+        fornavn = "Kari",
+        etternavn = "Beggedeler",
+        tilganger = LokalBeskyttelse.entries.toSet(),
+        enheter = LokalEnhet.entries,
+    ),
     LokalAnsatt(navIdent = "P123456", fornavn = "Per", etternavn = "Baresaksbehandler", roller = setOf(Role.SAKSBEHANDLER)),
     LokalAnsatt(navIdent = "L654321", fornavn = "Lisa", etternavn = "Barebeslutter", roller = setOf(Role.BESLUTTER)),
 )
@@ -144,19 +158,20 @@ fun main() {
             headers = headersOf(HttpHeaders.ContentType, "application/json")
         )
     })
-    val mockEregServer = HttpClient(MockEngine {
+    val mockEregServer = HttpClient(MockEngine { request ->
+        val virksomhet = lokalVirksomhet(request.url.encodedPath.substringAfterLast('/'))
         respond(
             // language=JSON
             """{
-              "organisasjonsnummer": "123456780",
-              "navn": { "sammensattnavn": "Eksempel Bedrift AS Avd. Oslo" },
+              "organisasjonsnummer": "${virksomhet.orgnr}",
+              "navn": { "sammensattnavn": "${virksomhet.navn}" },
               "organisasjonDetaljer": {
                 "forretningsadresser": [
                   {
-                    "adresselinje1": "Testveien 1",
-                    "postnummer": "0557",
-                    "poststed": "Oslo",
-                    "kommunenummer": "0301"
+                    "adresselinje1": "${virksomhet.adresse}",
+                    "postnummer": "${virksomhet.postnummer}",
+                    "poststed": "${virksomhet.poststed}",
+                    "kommunenummer": "${virksomhet.kommunenummer}"
                   }
                 ]
               }
@@ -225,13 +240,9 @@ fun main() {
                             ?: error("Unhandled ${request.url}")
                         when (path) {
                             "${EntraProxyClient.API_PATH}/${ansatt.navIdent}" -> respond(
-                                // language=JSON
-                                """
-                            [
-                                { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
-                                { "enhetnummer": "5678", "navn": "Nav Avdeling Nordpolen" }
-                            ]
-                            """.trimIndent(),
+                                ansatt.enheter.joinToString(prefix = "[", postfix = "]") {
+                                    """{ "enhetnummer": "${it.nummer}", "navn": "${it.navn}" }"""
+                                },
                                 HttpStatusCode.OK,
                                 headersOf(HttpHeaders.ContentType, "application/json")
                             )
@@ -244,10 +255,11 @@ fun main() {
                                 "fornavn": "${ansatt.fornavn}",
                                 "etternavn": "${ansatt.etternavn}",
                                 "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
-                                "enheter": [
-                                    { "enhetsnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
-                                    { "enhetsnummer": "5678", "navn": "Nav Avdeling Nordpolen" }
-                                ]
+                                "enheter": ${
+                                    ansatt.enheter.joinToString(prefix = "[", postfix = "]") {
+                                        """{ "enhetsnummer": "${it.nummer}", "navn": "${it.navn}" }"""
+                                    }
+                                }
                             }
                             """.trimIndent(),
                                 HttpStatusCode.OK,
@@ -268,22 +280,49 @@ fun main() {
                 TilgangsmaskinClient(
                     tokenExchanger = object : AzureAdTokenExchanger {
                         override suspend fun exchange(target: String, userToken: String) =
-                            TokenResponse.Success(accessToken = "fake-token", expiresInSeconds = 3600)
+                            TokenResponse.Success(accessToken = userToken, expiresInSeconds = 3600)
                     },
                     defaultHttpClient = HttpClient(MockEngine { request ->
+                        val ansatt = request.headers[HttpHeaders.Authorization]
+                            ?.removePrefix("Bearer ")
+                            ?.let(::lokalAnsattForToken)
+                        fun avvisning(fnr: String) = lokalBeskyttelse(fnr)
+                            ?.takeUnless { ansatt != null && it in ansatt.tilganger }
+                            ?.let {
+                                TilgangsmaskinAvvisning(
+                                    title = it.avvisningskode,
+                                    status = 403,
+                                    brukerIdent = fnr,
+                                    navIdent = ansatt?.navIdent,
+                                    begrunnelse = it.begrunnelse,
+                                    kanOverstyres = false,
+                                )
+                            }
+
+                        val body = request.body.toByteArray().decodeToString()
                         if (request.url.encodedPath == "/api/v1/bulk/obo") {
-                            val identer = defaultJson.decodeFromString<List<BrukerIdOgRegelsett>>(
-                                request.body.toByteArray().decodeToString()
-                            )
+                            val identer = defaultJson.decodeFromString<List<BrukerIdOgRegelsett>>(body)
                             respond(
                                 defaultJson.encodeToString(
-                                    AggregertBulkRespons(resultater = identer.map { EnkeltBulkRespons(it.brukerId, 204) })
+                                    AggregertBulkRespons(resultater = identer.map {
+                                        val avvist = avvisning(it.brukerId)
+                                        EnkeltBulkRespons(it.brukerId, if (avvist == null) 204 else 403, avvist)
+                                    })
                                 ),
                                 HttpStatusCode.MultiStatus,
                                 headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
                             )
                         } else {
-                            respond("", HttpStatusCode.NoContent)
+                            val avvist = avvisning(defaultJson.decodeFromString<String>(body))
+                            if (avvist == null) {
+                                respond("", HttpStatusCode.NoContent)
+                            } else {
+                                respond(
+                                    defaultJson.encodeToString(avvist),
+                                    HttpStatusCode.Forbidden,
+                                    headersOf(HttpHeaders.ContentType, ContentType.Application.ProblemJson.toString()),
+                                )
+                            }
                         }
                     }),
                 )
@@ -315,20 +354,30 @@ fun main() {
                 NorgKlient(HttpClient(MockEngine { request ->
                     respond(
                         if (request.url.encodedPath.endsWith("/kodeverk/geografi"))
+                            lokaleVirksomheter.distinctBy { it.kommunenummer }
+                                .joinToString(prefix = "[", postfix = """, {"navn": "03", "term": "Oslo fylke"}]""") {
+                                    """{"navn": "${it.kommunenummer}", "term": "${it.kommunenavn}"}"""
+                                }
+                        else {
+                            val norgRequest = defaultJson.parseToJsonElement(request.body.toByteArray().decodeToString())
+                                .jsonObject
+                            val enhet =
+                                if (norgRequest["diskresjonskode"]?.jsonPrimitive?.content == NorgKlient.DISKRESJONSKODE_ADRESSEBESKYTTET)
+                                    LokalEnhet.VIKAFOSSEN
+                                else
+                                    lokalEnhetForKommune(norgRequest["geografiskOmraade"]?.jsonPrimitive?.content)
                             // language=JSON
-                            """[{"navn": "0301", "term": "Oslo"}, {"navn": "4601", "term": "Bergen"}, {"navn": "03", "term": "Oslo fylke"}]"""
-                        else
-                        // language=JSON
-                        """
-                        [
-                            {
-                                "enhetId": "1234",
-                                "enhetNr": "1234",
-                                "navn": "Nav Avdeling Sydpolen",
-                                "status": "Aktiv"
-                            }
-                        ]
-                        """.trimIndent(),
+                            """
+                            [
+                                {
+                                    "enhetId": "${enhet.nummer}",
+                                    "enhetNr": "${enhet.nummer}",
+                                    "navn": "${enhet.navn}",
+                                    "status": "Aktiv"
+                                }
+                            ]
+                            """.trimIndent()
+                        },
                         HttpStatusCode.OK,
                         headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                     )
@@ -343,7 +392,25 @@ fun main() {
                     azureAdTokenProvider = resolve<AzureAdTokenProvider>(),
                     defaultHttpClient = HttpClient(MockEngine { request ->
                         (request.body as TextContent).text.let { body ->
-                            if (body.contains("hentPerson")) {
+                            val ident = defaultJson.parseToJsonElement(body)
+                                .jsonObject["variables"]?.jsonObject?.get("ident")?.jsonPrimitive?.content
+                            if (body.contains("hentGeografiskTilknytning")) {
+                                respond(
+                                    // language=JSON
+                                    """
+                                    {
+                                        "data": {
+                                            "hentGeografiskTilknytning": {
+                                                "gtType": "KOMMUNE",
+                                                "gtKommune": "0301"
+                                            }
+                                        }
+                                    }
+                                    """.trimIndent(),
+                                    HttpStatusCode.OK,
+                                    headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                                )
+                            } else if (body.contains("hentPerson")) {
                                 respond(
                                     // language=JSON
                                     """
@@ -351,7 +418,7 @@ fun main() {
                                         "data": {
                                             "hentPerson": {
                                                 "adressebeskyttelse": [
-                                                    { "gradering": "UGRADERT" }
+                                                    { "gradering": "${lokalBeskyttelse(ident)?.gradering ?: "UGRADERT"}" }
                                                 ]
                                             }
                                         }
@@ -474,6 +541,7 @@ fun main() {
         registerShutdownListener()
 
         initTestData(testDb)
+        behandleLokaleSaker(testDb.config.jdbcDatabase)
     }
 }
 
@@ -664,6 +732,8 @@ private fun initTestData(testDb: TestDatabase) {
 
             it[navKontaktPerson] = "Navkontaktperson NN"
         }
+
+        lagreLokaleSoknader()
 
         insertTilsagndata(UUID.fromString("f8f48c1f-9a5c-4a75-9d1a-2fb0a3a2eaa1"), godkjentTilsagnData)
     }
