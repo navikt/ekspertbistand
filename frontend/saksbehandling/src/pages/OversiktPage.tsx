@@ -24,9 +24,11 @@ import {
   kanTildeleMegSomSaksbehandler,
   useSaker,
 } from "../hooks/useSaker";
+import { brukKommunefilter, useKommunefilter } from "../hooks/useKommunefilter";
 import { useTildeling } from "../hooks/useTildeling";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";
+import { Kommunefilter } from "../components/Kommunefilter";
 import { OVERSIKT_PATH } from "../utils/constants";
 
 function formatDate(date: string) {
@@ -88,6 +90,25 @@ function DeltakerCelle({ sak }: { sak: SakListeElement }) {
   );
 }
 
+function KommuneCelle({ sak, onVelg }: { sak: SakListeElement; onVelg: (nummer: string) => void }) {
+  if (!sak.kommunenummer) return null;
+  const navn = sak.kommunenavn ?? sak.kommunenummer;
+  const nummer = sak.kommunenummer;
+  return (
+    <Button
+      variant="tertiary"
+      size="xsmall"
+      aria-label={`Filtrer på ${navn}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onVelg(nummer);
+      }}
+    >
+      {navn}
+    </Button>
+  );
+}
+
 function tiltaksperiode(sak: SakListeElement) {
   if (sak.tiltaksperiodeFra && sak.tiltaksperiodeTil) {
     return `${formatDate(sak.tiltaksperiodeFra)} – ${formatDate(sak.tiltaksperiodeTil)}`;
@@ -129,10 +150,28 @@ function TildelMegKnapp({
 }
 
 export default function OversiktPage() {
-  const { saker, tilgangssjekkFeilet, error, isLoading } = useSaker();
+  const { saker: alleSaker, tilgangssjekkFeilet, error, isLoading } = useSaker();
   const [tildelingsfeil, setTildelingsfeil] = useState<Error | null>(null);
   const innloggetAnsatt = useInnloggetAnsatt();
   const navigate = useNavigate();
+  const enheter = innloggetAnsatt?.enheter ?? [];
+  const kommunefilter = useKommunefilter(enheter);
+  const {
+    synlige: saker,
+    skjulte,
+    kommuneValg,
+  } = brukKommunefilter(
+    alleSaker,
+    kommunefilter.filter,
+    kommunefilter.lagredeKommuner,
+    tilgangssjekkFeilet
+  );
+  const velgKommune = (nummer: string) => {
+    const { filter } = kommunefilter;
+    if (!filter.kommuner.includes(nummer)) {
+      kommunefilter.lagre({ ...filter, kommuner: [...filter.kommuner, nummer] });
+    }
+  };
 
   const faner = [
     {
@@ -163,7 +202,7 @@ export default function OversiktPage() {
     { value: "alle", label: "Alle", filter: () => saker },
   ];
 
-  if (isLoading) {
+  if (isLoading || kommunefilter.isLoading) {
     return <Loader size="large" title="Laster oversikt" />;
   }
 
@@ -199,11 +238,23 @@ export default function OversiktPage() {
               litt.
             </Alert>
           )}
+          {kommunefilter.lagringFeilet && (
+            <Alert variant="warning" size="small">
+              Vi kunne ikke lagre filteret ditt.
+            </Alert>
+          )}
           {tildelingsfeil && (
             <Alert variant="error" size="small" closeButton onClose={() => setTildelingsfeil(null)}>
               {tildelingsfeil.message}
             </Alert>
           )}
+          <Kommunefilter
+            enheter={enheter}
+            filter={kommunefilter.filter}
+            kommuneValg={kommuneValg}
+            skjulte={skjulte}
+            onEndre={kommunefilter.lagre}
+          />
           <Tabs defaultValue="oppgaver-som-venter">
             <Tabs.List>
               {faner.map(({ value, label, filter }) => (
@@ -221,6 +272,7 @@ export default function OversiktPage() {
                         <Table.ColumnHeader>Oppgavetype</Table.ColumnHeader>
                         <Table.ColumnHeader>Arbeidsgiver</Table.ColumnHeader>
                         <Table.ColumnHeader>Deltaker</Table.ColumnHeader>
+                        <Table.ColumnHeader>Kommune</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Tiltaksperiode</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Søknad mottatt</Table.ColumnHeader>
                         <Table.HeaderCell />
@@ -261,6 +313,9 @@ export default function OversiktPage() {
                           <Table.DataCell>{sak.soknad.virksomhet?.virksomhetsnavn}</Table.DataCell>
                           <Table.DataCell>
                             <DeltakerCelle sak={sak} />
+                          </Table.DataCell>
+                          <Table.DataCell>
+                            <KommuneCelle sak={sak} onVelg={velgKommune} />
                           </Table.DataCell>
                           <Table.DataCell style={{ whiteSpace: "nowrap" }}>
                             {tiltaksperiode(sak)}

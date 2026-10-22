@@ -1,6 +1,7 @@
 import { http, bypass, HttpResponse } from "msw";
 import type { ForelopigVedtakInput } from "../hooks/useForelopigVedtak";
 import type { ForelopigVedtakOppsett } from "../hooks/useForelopigVedtakOppsett";
+import type { Kommune } from "../hooks/useKommunefilter";
 import type { Mottaker } from "../hooks/useVedtaksbrev";
 import type {
   ForelopigUtfall,
@@ -23,6 +24,7 @@ import { mockInnloggetAnsatt } from "../mock/ansatt";
 import { tolkSoknadssum } from "../utils/belop";
 import {
   SAKSBEHANDLING_FORELOPIG_VEDTAK_BREV_URL,
+  SAKSBEHANDLING_KOMMUNEFILTER_URL,
   SAKSBEHANDLING_FORELOPIG_VEDTAK_FORHANDSVISNING_URL,
   SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL,
   SAKSBEHANDLING_REFUSJON_URL,
@@ -108,6 +110,8 @@ type DeltakerAvvisning = "AVVIST_SKJERMING" | "IKKE_TILGANG";
 
 type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent" | "saksbehandlerNavn"> &
   Partial<SakInfo> & {
+    /** Uten verdi får saken en kommune i Agder ut fra rekkefølgen, eller ingen. */
+    kommunenummer?: string | null;
     skjermet?: boolean;
     /** Svaret fra Tilgangsmaskinen for den innloggede. `IKKE_TILGANG` brukes for kode 6. */
     deltakerAvvist?: DeltakerAvvisning;
@@ -294,6 +298,8 @@ const mockSaker: MockSak[] = [
   {
     sakId: "9c2f7a10-0000-4000-8000-000000002013",
     status: "TIL_BESLUTNING",
+    behandlendeEnhet: "4711",
+    kommunenummer: "1103",
     saksbehandlerIdent: kollega.ident,
     saksbehandlerNavn: kollega.navn,
     beslutterIdent: mockBeslutter.ident,
@@ -680,8 +686,25 @@ type MockListeElement = SakListeElement & {
   };
 };
 
+// Speiler kodeverket `geografi` i Norg.
+const mockKommunenavn: Record<string, string> = {
+  "4201": "Risør",
+  "4202": "Grimstad",
+  "4203": "Arendal",
+  "4204": "Kristiansand",
+  "4205": "Lindesnes",
+  "1103": "Stavanger",
+};
+const agderKommuner = ["4204", "4203", "4202", "4205", "4201"];
+
+const mockKommune = (index: number, kommunenummer: string | null | undefined, arena: boolean) => {
+  if (kommunenummer !== undefined) return kommunenummer;
+  if (arena || index % 6 === 5) return null;
+  return agderKommuner[index % agderKommuner.length];
+};
+
 const tilListeElement = (
-  { soknad, skjermet = false, deltakerAvvist, ...mockSak }: MockSak,
+  { soknad, skjermet = false, deltakerAvvist, kommunenummer: oppgittKommune, ...mockSak }: MockSak,
   index: number
 ): MockListeElement => {
   const sak = {
@@ -692,10 +715,13 @@ const tilListeElement = (
     arenaSakId: null,
     ...mockSak,
   };
+  const kommunenummer = mockKommune(index, oppgittKommune, sak.kildeTilBehandling === "ARENA");
   const vedtak = forelopigVedtakStore.get(sak.sakId);
   const type = oppgavetype(sak.status, returStore.has(sak.sakId));
   return {
     ...sak,
+    kommunenummer,
+    kommunenavn: kommunenummer ? (mockKommunenavn[kommunenummer] ?? null) : null,
     kanTildeleMeg: sak.saksbehandlerIdent === null && kanTildeles(sak),
     oppgavetype: type,
     harOppgaveForMeg: harOppgaveForMeg(type),
@@ -730,6 +756,8 @@ const utenDeltaker = (sak: MockListeElement): SakListeElement =>
         skjermet: false,
         kanTildeleMeg: false,
         kanTildeleMegSomBeslutter: false,
+        kommunenummer: null,
+        kommunenavn: null,
         soknad: { ...sak.soknad, virksomhet: null, ansattNavn: null },
       }
     : sak;
@@ -749,6 +777,10 @@ const deltakerAvvist = (sak: SakListeElement): Response | null => {
 };
 
 const mineEnheter = new Set(mockInnloggetAnsatt.enheter.map((e) => e.nummer));
+
+let kommunefilter: { enhet: string; kommuner: string[] } | null = null;
+
+const tilKommune = (nummer: string): Kommune => ({ nummer, navn: mockKommunenavn[nummer] ?? null });
 
 // Speiler backend: saker uten enhet, eller på enhet saksbehandler ikke har tilgang til, er skjult.
 const harTilgangTilEnhet = (sak: SakListeElement) =>
@@ -960,6 +992,27 @@ export const handlers = [
     })
   ),
   http.get("/api/saksbehandling/v1/meg", () => HttpResponse.json(mockInnloggetAnsatt)),
+  http.get(SAKSBEHANDLING_KOMMUNEFILTER_URL, () =>
+    HttpResponse.json(
+      kommunefilter
+        ? { enhet: kommunefilter.enhet, kommuner: kommunefilter.kommuner.map(tilKommune) }
+        : { enhet: null, kommuner: [] }
+    )
+  ),
+  // Speiler `valider()` i KommunefilterApi.kt.
+  http.put(SAKSBEHANDLING_KOMMUNEFILTER_URL, async ({ request }) => {
+    const body = (await request.json()) as { enhet: string; kommuner: string[] };
+    const ugyldig = (felt: string, aarsak: string) =>
+      HttpResponse.json(
+        { kode: "UGYLDIG_INPUT", message: `Ugyldig verdi i felt '${felt}': ${aarsak}`, felt },
+        { status: 400 }
+      );
+    if (!mineEnheter.has(body.enhet)) return ugyldig("enhet", "ikke en av enhetene dine");
+    const feil = body.kommuner.findIndex((k) => !/^\d{4}$/.test(k));
+    if (feil >= 0) return ugyldig(`kommuner[${feil}]`, "må være fire sifre");
+    kommunefilter = { enhet: body.enhet, kommuner: [...new Set(body.kommuner)].sort() };
+    return new HttpResponse(null, { status: 204 });
+  }),
   http.get(SAKSBEHANDLING_SAKER_URL, () =>
     HttpResponse.json({
       saker: alleSaker().filter(harTilgangTilEnhet).map(utenDeltaker),

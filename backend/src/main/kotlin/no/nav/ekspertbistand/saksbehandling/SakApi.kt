@@ -14,6 +14,7 @@ import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
+import no.nav.ekspertbistand.norg.KommunenavnCache
 import no.nav.ekspertbistand.saksbehandling.SakTilgangsgrunnlag.Companion.tilTilgangsgrunnlag
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
@@ -49,6 +50,7 @@ import kotlin.time.ExperimentalTime
  * Alle eksterne tilgangssjekker på enkeltoppslag er fail-closed (503).
  * Listen sjekkes i bulk mot Tilgangsmaskinen. Rader uten tilgang mangler deltaker og arbeidsgiver.
  * Feiler sjekken, mangler alle rader dem, og svaret har `tilgangssjekkFeilet`.
+ * Kommunenavn kommer fra [KommunenavnCache]. Rader uten tilgang mangler også kommune.
  * Kode 6 gir et nøytralt 403, se [sjekkTilgangsmaskin] og `specifications/ruting_egne_ansatte_og_kommune.md`.
  * Listen sporingslogges ikke, jf. krav til oppslagslogg på sikkerhet.nav.no.
  *
@@ -62,6 +64,7 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
     val database = dependencies.resolve<Database>()
     val tilgangsmaskinClient = dependencies.resolve<TilgangsmaskinClient>()
     val auditClient = dependencies.resolve<ArcSightAuditClient>()
+    val kommunenavnCache = dependencies.resolve<KommunenavnCache>()
 
     routing {
         authenticate(AZURE_AD_PROVIDER) {
@@ -82,12 +85,14 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
                             null
                         }
                     }
+                    val kommunenavn = if (rader.any { it.sak.kommunenummer != null }) kommunenavnCache.hent() else emptyMap()
                     call.respond(
                         SakerResponse(
                             saker = rader.map { rad ->
+                                val sak = rad.sak.copy(kommunenavn = rad.sak.kommunenummer?.let(kommunenavn::get))
                                 when {
-                                    tilganger == null -> rad.sak.utenDeltaker(deltakerTilgang = null)
-                                    else -> tilganger.getValue(rad.ansattFnr)?.let { rad.sak.utenDeltaker(it) } ?: rad.sak
+                                    tilganger == null -> sak.utenDeltaker(deltakerTilgang = null)
+                                    else -> tilganger.getValue(rad.ansattFnr)?.let { sak.utenDeltaker(it) } ?: sak
                                 }
                             },
                             tilgangssjekkFeilet = tilganger == null,
@@ -307,12 +312,14 @@ private suspend fun ApplicationCall.hentSakForTildeling(
 /** En rad i sakslisten. [ansattFnr] brukes til tilgangssjekken og sendes ikke til frontend. */
 internal class SakListeRad(val ansattFnr: String, val sak: SakListeElement)
 
-/** Raden slik den vises uten tilgang til deltakeren: uten navn, arbeidsgiver og tildeling. */
+/** Raden slik den vises uten tilgang til deltakeren: uten navn, arbeidsgiver, kommune og tildeling. */
 private fun SakListeElement.utenDeltaker(deltakerTilgang: DeltakerTilgang?) = copy(
     skjermet = false,
     deltakerTilgang = deltakerTilgang,
     kanTildeleMeg = false,
     kanTildeleMegSomBeslutter = false,
+    kommunenummer = null,
+    kommunenavn = null,
     soknad = soknad.copy(ansattNavn = null, virksomhet = null),
 )
 
@@ -370,6 +377,8 @@ internal fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAd
             tiltaksperiodeTil = sisteVedtak?.tiltaksperiodeTil,
             skjermet = row.skjermetVedOpprettelse(),
             deltakerTilgang = null,
+            kommunenummer = row[SakTable.kommunenummer],
+            kommunenavn = null,
             soknad = SakListeElement.Soknad(
                 soknadId = row[SoknadTable.id].toString(),
                 status = SoknadStatus.valueOf(row[SoknadTable.status]),
@@ -466,6 +475,10 @@ data class SakListeElement(
     /** Deltakeren var skjermet da saken ble opprettet. Usann uten tilgang til deltakeren. */
     val skjermet: Boolean,
     val deltakerTilgang: DeltakerTilgang?,
+    /** Kommunen saken ble rutet på. Null for kode 6, eldre saker og uten tilgang til deltakeren. */
+    val kommunenummer: String?,
+    /** Fra kodeverket i Norg. Null når navnet ikke er kjent. */
+    val kommunenavn: String?,
     val soknad: Soknad,
 ) {
     @Serializable

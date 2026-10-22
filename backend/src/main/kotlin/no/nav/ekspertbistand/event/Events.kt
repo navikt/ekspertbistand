@@ -82,6 +82,8 @@ sealed interface EventData {
         val dokumentId: Int,
         val journaldpostId: Int,
         val behandlendeEnhetId: String,
+        /** Kommunen til virksomheten som ble brukt mot Norg. Null for strengt fortrolig adresse og eldre events. */
+        val virksomhetKommunenummer: String? = null,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
     }

@@ -28,7 +28,7 @@ private const val tittel = "Søknad om ekspertbistand"
  * adressebeskyttelse og geografiske tilknytning.
  *
  * Etter journalføring publiseres [EventData.InnsendtSoknadJournalfoert] med journalpostId, dokumentId og
- * behandlende enhet mappet til Arena-enhetsnummer.
+ * behandlende enhet og kommunen saken ble rutet på.
  */
 class JournalfoerInnsendtSoknad(
     private val dokumentService: DokumentService,
@@ -50,7 +50,7 @@ class JournalfoerInnsendtSoknad(
         val soknad = event.data.soknad
         val soknadId = soknad.id ?: return unrecoverableError("Søknad mangler id")
 
-        val behandlendeEnhet = try {
+        val ruting = try {
             behandlendeEnhetUtleder.utled(soknad)
         } catch (e: ManglerDataForBehandlendeEnhetException) {
             return transientError("Mangler data for å hente behandlende enhet", e)
@@ -92,7 +92,8 @@ class JournalfoerInnsendtSoknad(
                     soknad = soknad,
                     dokumentId = dokumentInfoId,
                     journaldpostId = journalpostId,
-                    behandlendeEnhetId = behandlendeEnhet,
+                    behandlendeEnhetId = ruting.enhetNr,
+                    virksomhetKommunenummer = ruting.virksomhetKommunenummer,
                 ),
             )
         }

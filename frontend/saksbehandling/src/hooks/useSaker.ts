@@ -58,6 +58,10 @@ export type SakListeElement = SakInfo & {
   skjermet: boolean;
   /** Null når Tilgangsmaskinen innvilger, eller når sjekken feilet. */
   deltakerTilgang: DeltakerTilgang | null;
+  /** Virksomhetens kommune. Null for kode 6, Arena-saker og rader uten tilgang. */
+  kommunenummer: string | null;
+  /** Null når Norg ikke kjenner kommunen eller ikke svarer. */
+  kommunenavn: string | null;
   /** Fra siste foreløpige vedtak. Null uten vedtak og ved avslag. */
   tiltaksperiodeFra: string | null;
   tiltaksperiodeTil: string | null;

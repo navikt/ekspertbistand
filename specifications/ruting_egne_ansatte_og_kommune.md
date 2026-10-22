@@ -399,10 +399,13 @@ listen.
 | `backend/.../saksbehandling/SakApi.kt` | 1, 2 | Bulk-sjekk i listen, nye og nullbare felter på `SakListeElement` og `SakerResponse` (`skjermet`, `deltakerTilgang`, `tilgangssjekkFeilet`, `virksomhet`, `kommunenummer`, `kommunenavn`), `feilId` på `TilgangAvvistResponse` |
 | `backend/.../saksbehandling/Tilgangsjekker.kt` | 1 | Nøytralt svar og `teamLog` for kode 6 ut fra avvisningskode og Vikafossen, `feilId` |
 | `backend/.../saksbehandling/KommunefilterApi.kt` (ny) | 2 | `GET` og `PUT /meg/kommunefilter` |
-| `backend/.../norg/NorgKlient.kt` | 2 | Kodeverket `geografi` for kommunenavn, med cache |
+| `backend/.../norg/NorgKlient.kt` | 2 | Kodeverket `geografi` for kommunenavn |
+| `backend/.../norg/KommunenavnCache.kt` (ny) | 2 | Cache for kommunenavn |
 | `backend/.../norg/BehandlendeEnhetUtleder.kt` | 2 | Kommunenummer |
 | `backend/.../event/Events.kt` | 2 | `virksomhetKommunenummer` |
+| `backend/.../event/handlers/JournalfoerInnsendtSoknad.kt` | 2 | Sender kommunenummer videre |
 | `backend/.../event/handlers/OpprettSak.kt` | 2 | Lagrer kommunenummer |
+| `backend/.../saksbehandling/Db.kt` | 2 | `SakTable.kommunenummer` |
 | `backend/src/main/resources/db/migration/V27__sak_kommunenummer.sql` | 2 | `sak.kommunenummer`, `saksbehandler_kommunefilter` |
 | `frontend/saksbehandling/src/pages/OversiktPage.tsx` | 1, 2 | Tag, tom arbeidsgiver uten tilgang, `Alert`, filter over fanene, kolonnen «Kommune» |
 | `frontend/saksbehandling/src/components/Kommunefilter.tsx` (ny) | 2 | `Select` og `UNSAFE_Combobox` |

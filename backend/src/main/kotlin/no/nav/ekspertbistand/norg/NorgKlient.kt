@@ -65,11 +65,20 @@ class NorgKlient(
     }
 
 
+    /** Kommunenummer til navn fra kodeverket `geografi`. Fylker, bydeler og land er utelatt. */
+    suspend fun hentKommunenavn(): Map<String, String> =
+        httpClient.get("$baseUrl/norg2/api/v1/kodeverk/geografi")
+            .body<List<Kodeverkterm>>()
+            .filter { it.navn.matches(KOMMUNENUMMER) }
+            .associate { it.navn to it.term }
+
     companion object {
         const val baseUrl = "http://norg2.org"
 
         const val DISKRESJONSKODE_ANY = "ANY"
         const val DISKRESJONSKODE_ADRESSEBESKYTTET = "SPSF"
+
+        val KOMMUNENUMMER = Regex("""\d{4}""")
     }
 }
 
@@ -79,6 +88,14 @@ class NorgKlient(
 data class Norg2Enhet(
     val enhetNr: String,
     val status: String,
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+@JsonIgnoreUnknownKeys
+data class Kodeverkterm(
+    val navn: String,
+    val term: String,
 )
 
 @Serializable
