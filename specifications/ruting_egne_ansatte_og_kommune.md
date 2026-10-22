@@ -7,8 +7,8 @@ Trello:
 - https://trello.com/c/SNQ9LgWb/610-ruting-av-sak-til-enhet-via-norg-m%C3%A5-ta-hensyn-til-skjerming-nav-ansatte
   (kort-ID `6ab3cacaf7d82050a52a9782`)
 
-Avhenger av: https://trello.com/c/6L5KVmvN (661, lagre adressebeskyttelse og
-skjerming på `SakOpprettet`).
+Henger sammen med: https://trello.com/c/6L5KVmvN (661, lagre adressebeskyttelse
+og skjerming på `SakOpprettet`). Del 1 venter ikke på 661, se 1.2.
 
 ## Mål
 
@@ -92,6 +92,7 @@ Nais-oppsett står på kortet.
 | Ken, 2026-10-22 | Kode 7 i listen: raden vises som «Ingen tilgang» uten navn. Åpner noen saken, logges avvisningen med feil-ID og følges opp derfra. |
 | Ken, 2026-10-22 | Vestfold og Telemark rutes i Norg til Nav arbeid og helse Vestfold og Telemark (`0891`). Enheten har regel for alle 23 kommunene. |
 | Ken, 2026-10-22 | Svalbard og Jan Mayen har ingen regel i Norg. Fallback til Oslo (`0391`) i `BehandlendeEnhetService` står som den er. |
+| Ken, 2026-10-22 | Del 1 venter ikke på 661. `skjermet` kommer fra en hook som returnerer `false` til 661 er på plass. Kode 6 kjennes igjen på avvisningskoden fra Tilgangsmaskinen og på Vikafossen, ikke på et lagret flagg. |
 
 Kortbeskrivelsen på 608 og Norg-dokumentasjonen peker mot egen kø for egne
 ansatte. Slack-svarene fra 2026-10-21 er nyere og sier vanlig enhet med ekstra
@@ -130,9 +131,14 @@ Rollen brukes bare til visning. Tilgangsmaskinen er fortsatt fasit.
 
 Listen bruker to kilder:
 
-- **Flagget fra opprettelsen.** Kort 661 lagrer skjerming og
-  adressebeskyttelse på saken. `SakListeElement` får `skjermet: Boolean` fra
-  flagget. Det merker saken uten kall til andre tjenester.
+- **Flagget fra opprettelsen.** Kort 661 lagrer skjerming på saken.
+  `SakListeElement` får `skjermet: Boolean` fra flagget. Det merker saken uten
+  kall til andre tjenester. Til 661 er på plass, kommer verdien fra en hook
+  `skjermetVedOpprettelse()` som returnerer `false` og har en TODO som peker
+  på 661. Det er samme mønster som
+  `EventData.SakOpprettet.adressebeskyttetVedOpprettelse()` i
+  `SaksbehandlingsstatistikkProjection.kt`. Til da mangler tagen «Egen
+  ansatt» for dem som har tilgang. Ingen saker skjules.
 - **Bulk-sjekk ved visning.** `GET /saker` kaller
   `tilgangsmaskinClient.evaluerBulk` med `Regelsett.KJERNE` for distinkte
   `ansattFnr` i resultatet, i bolker på maks 1000. Den avgjør hva den
@@ -206,9 +212,18 @@ den under feilmeldingen ved alle 403:
 
 🔴 Rød sone: strengt fortrolig adresse.
 
-`SakTilgangsgrunnlag` får adressebeskyttelsen fra kort 661. Gjelder saken
-strengt fortrolig adresse (også utland), og `sjekkTilgangTilEnhet` eller
-`sjekkTilgangsmaskin` avviser:
+Vi bruker ikke et lagret flagg for kode 6. Signalet kommer fra der avvisningen
+skjer:
+
+- `sjekkTilgangsmaskin`: avvisningskoden er
+  `AVVIST_STRENGT_FORTROLIG_ADRESSE` eller `AVVIST_STRENGT_FORTROLIG_UTLAND`.
+  Dette fanger også personer som har fått kode 6 etter innsending.
+- `sjekkTilgangTilEnhet`: saken ligger på Nav Vikafossen
+  (`BehandlendeEnhetService.NAV_VIKAFOSSEN`, `2103`). Svaret
+  `IKKE_TILGANG_ENHET` er generisk og avslører ikke kode 6, men vi trenger
+  linjen i team logs.
+
+Ved slik avvisning:
 
 - Svaret er 403 med `kode = "IKKE_TILGANG"`,
   `begrunnelse = "Du har ikke tilgang til saken."` og `feilId`. Vi sender
@@ -229,12 +244,15 @@ Sjekken ligger i `Tilgangsjekker.kt`, så den gjelder alle ruter som bruker
   - Avvist ident gir `ansattNavn = null`, `virksomhet = null`, ingen kommune,
     `deltakerTilgang.kode` og `kanTildeleMeg = false`.
   - Innvilget ident gir navn, virksomhet og `deltakerTilgang = null`.
-  - Skjermet sak med innvilget ident gir `skjermet = true` og navn.
+  - `skjermet` er `false` til 661 kobler hooken. Testen for `skjermet = true`
+    hører til 661.
   - Feil fra Tilgangsmaskinen gir 200 med `tilgangssjekkFeilet = true`, og
     ingen navn eller virksomhet.
   - Ingen saker gir ikke kall til Tilgangsmaskinen.
-  - Kode 6-sak avvist på enhet og av Tilgangsmaskinen gir 403 med
-    `IKKE_TILGANG` og `feilId` lik `X-Correlation-Id` i svaret.
+  - Sak på `2103` avvist på enhet, og sak avvist med
+    `AVVIST_STRENGT_FORTROLIG_ADRESSE`, gir 403 med `IKKE_TILGANG` og
+    `feilId` lik `X-Correlation-Id` i svaret.
+  - `AVVIST_SKJERMING` og `AVVIST_FORTROLIG_ADRESSE` sendes videre uendret.
 - `RolesTest` eller tilsvarende: `0000-GA-Egne_ansatte` gir `EGNE_ANSATTE`.
 - MSW: én skjermet sak med tilgang, én med `AVVIST_SKJERMING` i listen og 403
   med samme kode på detaljoppslaget, og én kode 6-sak med 403 og `feilId`.
@@ -374,7 +392,7 @@ listen.
 |-----|-----|---------|
 | `backend/.../saksbehandling/Roles.kt` | 1 | `EGNE_ANSATTE` |
 | `backend/.../saksbehandling/SakApi.kt` | 1, 2 | Bulk-sjekk i listen, nye og nullbare felter på `SakListeElement` og `SakerResponse` (`skjermet`, `deltakerTilgang`, `tilgangssjekkFeilet`, `virksomhet`, `kommunenummer`, `kommunenavn`), `feilId` på `TilgangAvvistResponse` |
-| `backend/.../saksbehandling/Tilgangsjekker.kt` | 1 | Adressebeskyttelse i `SakTilgangsgrunnlag`, nøytralt svar og `teamLog` for kode 6, `feilId` |
+| `backend/.../saksbehandling/Tilgangsjekker.kt` | 1 | Nøytralt svar og `teamLog` for kode 6 ut fra avvisningskode og Vikafossen, `feilId` |
 | `backend/.../saksbehandling/KommunefilterApi.kt` (ny) | 2 | `GET` og `PUT /meg/kommunefilter` |
 | `backend/.../norg/NorgKlient.kt` | 2 | Kodeverket `geografi` for kommunenavn, med cache |
 | `backend/.../norg/BehandlendeEnhetUtleder.kt` | 2 | Kommunenummer |
@@ -439,7 +457,7 @@ listen.
 ### Del 1
 
 - [ ] `Role.EGNE_ANSATTE` finnes og returneres fra `GET /api/saksbehandling/v1/meg`
-- [ ] `GET /saker` returnerer `skjermet` fra flagget og sjekker Tilgangsmaskinen i bulk med `KJERNE`
+- [ ] `GET /saker` returnerer `skjermet` fra hooken `skjermetVedOpprettelse()` (TODO 661) og sjekker Tilgangsmaskinen i bulk med `KJERNE`
 - [ ] Avviste rader har ikke deltaker, virksomhet eller kommune, har `deltakerTilgang` og kan ikke tildeles
 - [ ] Feil mot Tilgangsmaskinen gir liste uten deltaker og virksomhet, og `tilgangssjekkFeilet`
 - [ ] Listen viser «Egen ansatt» for skjermede saker, og «Ingen tilgang» for andre avviste rader
