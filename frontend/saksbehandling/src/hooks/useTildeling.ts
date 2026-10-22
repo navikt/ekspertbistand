@@ -10,6 +10,7 @@ import {
   SAKSBEHANDLING_TILDELING_URL,
 } from "../utils/constants";
 import { HttpError } from "../utils/http";
+import { medFeilId, tilgangAvvistTekst } from "../utils/tilgangsfeil";
 import type { SakDetaljer } from "./useSak";
 import type { SakInfo, SakerResponse, Tildelingsrolle } from "./useSaker";
 
@@ -26,10 +27,15 @@ function feilmelding(e: unknown, handling: Handling, rolle: Tildelingsrolle): Er
     switch (e.status) {
       case 403:
         return new Error(
-          e.begrunnelse ??
-            (handling === "tildel"
-              ? "Du har ikke tilgang til å behandle saken."
-              : "Saken er ikke tildelt deg, og du kan ikke frigjøre den.")
+          medFeilId(
+            tilgangAvvistTekst(
+              e,
+              handling === "tildel"
+                ? "Du har ikke tilgang til å behandle saken."
+                : "Saken er ikke tildelt deg, og du kan ikke frigjøre den."
+            ),
+            e
+          )
         );
       case 409:
         return new Error(

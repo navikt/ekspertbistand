@@ -406,8 +406,10 @@ Frontend har ikke testoppsett. `pnpm typecheck` og `pnpm lint` i
   `innstiltAvIdent` er null, og tildeling avvises som `INHABIL`.
 - **Avsluttede saker.** Ingen oppgavetype, ikke i «Oppgaver som venter».
 - **Ingen saker venter.** Fanen viser en tom tabell, som de andre fanene i dag.
-- **Listen kaller ikke Tilgangsmaskinen.** Som før. «Tildel meg» kan derfor gi
-  403 fra Tilgangsmaskinen ved klikk. Feilen vises over tabellen.
+- **Listen kaller Tilgangsmaskinen i bulk.** Endret i
+  `ruting_egne_ansatte_og_kommune.md` (1.2). Rader uten tilgang har ikke
+  «Tildel meg». Endres tilgangen mellom visning og klikk, gir «Tildel meg» 403.
+  Feilen vises over tabellen.
 - **Personopplysninger.** Navnet på beslutter logges ikke, bare ident i
   saksloggen, som for saksbehandler.
 

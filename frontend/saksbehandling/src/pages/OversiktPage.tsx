@@ -64,6 +64,30 @@ function OppgavetypeCelle({ sak }: { sak: SakListeElement }) {
   );
 }
 
+function DeltakerCelle({ sak }: { sak: SakListeElement }) {
+  const egenAnsattTag = (
+    <Tag size="xsmall" variant="outline" data-color="info">
+      Egen ansatt
+    </Tag>
+  );
+  if (sak.deltakerTilgang?.avvist) {
+    return sak.deltakerTilgang.kode === "AVVIST_SKJERMING" ? (
+      egenAnsattTag
+    ) : (
+      <Tag size="xsmall" variant="outline" data-color="neutral">
+        Ingen tilgang
+      </Tag>
+    );
+  }
+  if (!sak.skjermet) return sak.soknad.ansattNavn ?? "";
+  return (
+    <HStack gap="space-8" align="center" wrap={false}>
+      {sak.soknad.ansattNavn}
+      {egenAnsattTag}
+    </HStack>
+  );
+}
+
 function tiltaksperiode(sak: SakListeElement) {
   if (sak.tiltaksperiodeFra && sak.tiltaksperiodeTil) {
     return `${formatDate(sak.tiltaksperiodeFra)} – ${formatDate(sak.tiltaksperiodeTil)}`;
@@ -105,7 +129,7 @@ function TildelMegKnapp({
 }
 
 export default function OversiktPage() {
-  const { saker, error, isLoading } = useSaker();
+  const { saker, tilgangssjekkFeilet, error, isLoading } = useSaker();
   const [tildelingsfeil, setTildelingsfeil] = useState<Error | null>(null);
   const innloggetAnsatt = useInnloggetAnsatt();
   const navigate = useNavigate();
@@ -169,6 +193,12 @@ export default function OversiktPage() {
     <Page.Block as="main">
       <Box paddingInline="space-24">
         <VStack gap="space-16">
+          {tilgangssjekkFeilet && (
+            <Alert variant="warning" size="small">
+              Vi kunne ikke sjekke tilgangen din. Deltaker og arbeidsgiver vises ikke. Prøv igjen om
+              litt.
+            </Alert>
+          )}
           {tildelingsfeil && (
             <Alert variant="error" size="small" closeButton onClose={() => setTildelingsfeil(null)}>
               {tildelingsfeil.message}
@@ -228,8 +258,10 @@ export default function OversiktPage() {
                           <Table.DataCell>
                             <OppgavetypeCelle sak={sak} />
                           </Table.DataCell>
-                          <Table.DataCell>{sak.soknad.virksomhet.virksomhetsnavn}</Table.DataCell>
-                          <Table.DataCell>{sak.soknad.ansattNavn}</Table.DataCell>
+                          <Table.DataCell>{sak.soknad.virksomhet?.virksomhetsnavn}</Table.DataCell>
+                          <Table.DataCell>
+                            <DeltakerCelle sak={sak} />
+                          </Table.DataCell>
                           <Table.DataCell style={{ whiteSpace: "nowrap" }}>
                             {tiltaksperiode(sak)}
                           </Table.DataCell>

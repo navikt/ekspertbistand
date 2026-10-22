@@ -9,6 +9,7 @@ import {
   SAKSBEHANDLING_VEDTAK_URL,
 } from "../utils/constants";
 import { HttpError } from "../utils/http";
+import { medFeilId, tilgangAvvistTekst } from "../utils/tilgangsfeil";
 import type { ForelopigUtfall, ReturArsak, SakDetaljer, Vedtak } from "./useSak";
 
 // Handleren skriver sakslogglinjen kort tid etter 202 (EventManager poller hvert 100. ms).
@@ -43,7 +44,9 @@ function feilmelding(e: unknown, standard: string): Error {
       case 400:
         return new Error(e.message);
       case 403:
-        return new Error(e.begrunnelse ?? "Du har ikke tilgang til å beslutte denne saken.");
+        return new Error(
+          medFeilId(tilgangAvvistTekst(e, "Du har ikke tilgang til å beslutte denne saken."), e)
+        );
       case 409:
         return new Error(feilmelding409(e.kode));
       case 503:

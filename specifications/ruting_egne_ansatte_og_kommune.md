@@ -155,10 +155,15 @@ For hver sak der Tilgangsmaskinen avviser:
 - `kommunenummer` og `kommunenavn` (del 2) blir `null`.
 - Nytt felt `deltakerTilgang` på `SakListeElement`:
   `{ "avvist": true, "kode": "AVVIST_SKJERMING" }` eller `null` når innvilget.
+  Koden er `AVVIST_SKJERMING` eller `IKKE_TILGANG`. Alle andre koder fra
+  Tilgangsmaskinen maskeres til `IKKE_TILGANG`, slik at listesvaret aldri sier
+  at personen har kode 6 eller 7.
+- `skjermet` blir `false`, så flagget ikke lekker for kode 6 eller 7.
 - `kanTildeleMeg` og `kanTildeleMegSomBeslutter` blir `false`.
 
 Feiler kallet til Tilgangsmaskinen, er listen fail-closed: alle rader får
-`null` på deltaker, virksomhet og kommune, og responsen får
+`null` på deltaker, virksomhet, kommune og `deltakerTilgang`, `false` på
+`skjermet` og tildeling, og responsen får
 `tilgangssjekkFeilet: true`. Listen er fortsatt brukbar for å se hvilke saker
 som finnes. 404 for en ident i bulk-svaret behandles som avvist.
 

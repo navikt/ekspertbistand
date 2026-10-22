@@ -52,6 +52,10 @@ import no.nav.ekspertbistand.statistikk.AdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.PdlAdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkSkriver
 import no.nav.ekspertbistand.statistikk.AdressebeskyttedeBehandlinger
+import no.nav.ekspertbistand.infrastruktur.defaultJson
+import no.nav.ekspertbistand.tilgangsmaskin.AggregertBulkRespons
+import no.nav.ekspertbistand.tilgangsmaskin.BrukerIdOgRegelsett
+import no.nav.ekspertbistand.tilgangsmaskin.EnkeltBulkRespons
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
@@ -264,7 +268,22 @@ fun main() {
                         override suspend fun exchange(target: String, userToken: String) =
                             TokenResponse.Success(accessToken = "fake-token", expiresInSeconds = 3600)
                     },
-                    defaultHttpClient = HttpClient(MockEngine { respond("", HttpStatusCode.NoContent) }),
+                    defaultHttpClient = HttpClient(MockEngine { request ->
+                        if (request.url.encodedPath == "/api/v1/bulk/obo") {
+                            val identer = defaultJson.decodeFromString<List<BrukerIdOgRegelsett>>(
+                                request.body.toByteArray().decodeToString()
+                            )
+                            respond(
+                                defaultJson.encodeToString(
+                                    AggregertBulkRespons(resultater = identer.map { EnkeltBulkRespons(it.brukerId, 204) })
+                                ),
+                                HttpStatusCode.MultiStatus,
+                                headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                            )
+                        } else {
+                            respond("", HttpStatusCode.NoContent)
+                        }
+                    }),
                 )
             }
             provide<ArcSightAuditClient> {

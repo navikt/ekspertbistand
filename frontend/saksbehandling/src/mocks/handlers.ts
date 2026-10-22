@@ -104,8 +104,13 @@ const mockBeslutter = { ident: "B123456", navn: "Bea Beslutter" };
 
 const mockRoller = { saksbehandler: true, beslutter: true };
 
+type DeltakerAvvisning = "AVVIST_SKJERMING" | "IKKE_TILGANG";
+
 type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent" | "saksbehandlerNavn"> &
   Partial<SakInfo> & {
+    skjermet?: boolean;
+    /** Svaret fra Tilgangsmaskinen for den innloggede. `IKKE_TILGANG` brukes for kode 6. */
+    deltakerAvvist?: DeltakerAvvisning;
     soknad: {
       soknadId: string;
       virksomhetsnavn: string;
@@ -378,6 +383,49 @@ const mockSaker: MockSak[] = [
       estimertKostnad: "20000",
     },
   },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002019",
+    status: "OPPRETTET",
+    saksbehandlerIdent: null,
+    saksbehandlerNavn: null,
+    skjermet: true,
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001019",
+      virksomhetsnavn: "Nav arbeidslivssenter Vestland",
+      ansattNavn: "Synne Skjermet",
+      innsendtTidspunkt: "2026-10-29T08:30:00Z",
+      startdato: "2026-12-01",
+    },
+  },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002020",
+    status: "OPPRETTET",
+    saksbehandlerIdent: null,
+    saksbehandlerNavn: null,
+    skjermet: true,
+    deltakerAvvist: "AVVIST_SKJERMING",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001020",
+      virksomhetsnavn: "Nav Bergenhus",
+      ansattNavn: "Even Egenansatt",
+      innsendtTidspunkt: "2026-10-28T13:15:00Z",
+      startdato: "2026-12-03",
+    },
+  },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002021",
+    status: "OPPRETTET",
+    saksbehandlerIdent: null,
+    saksbehandlerNavn: null,
+    deltakerAvvist: "IKKE_TILGANG",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001021",
+      virksomhetsnavn: "Skjult bakeri",
+      ansattNavn: "Kari Kode",
+      innsendtTidspunkt: "2026-10-27T10:00:00Z",
+      startdato: "2026-12-05",
+    },
+  },
 ];
 
 const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];
@@ -624,7 +672,18 @@ const beslutterTildelingHindring = (
   return null;
 };
 
-const tilListeElement = ({ soknad, ...mockSak }: MockSak, index: number): SakListeElement => {
+// Uten maskering. Listesvaret maskeres i `utenDeltaker`, detaljene avvises i `deltakerAvvist`.
+type MockListeElement = SakListeElement & {
+  soknad: SakListeElement["soknad"] & {
+    virksomhet: NonNullable<SakListeElement["soknad"]["virksomhet"]>;
+    ansattNavn: string;
+  };
+};
+
+const tilListeElement = (
+  { soknad, skjermet = false, deltakerAvvist, ...mockSak }: MockSak,
+  index: number
+): MockListeElement => {
   const sak = {
     kildeTilBehandling: "EKSPERTBISTAND" as const,
     behandlendeEnhet: "4710",
@@ -640,6 +699,8 @@ const tilListeElement = ({ soknad, ...mockSak }: MockSak, index: number): SakLis
     kanTildeleMeg: sak.saksbehandlerIdent === null && kanTildeles(sak),
     oppgavetype: type,
     harOppgaveForMeg: harOppgaveForMeg(type),
+    skjermet,
+    deltakerTilgang: deltakerAvvist ? { avvist: true, kode: deltakerAvvist } : null,
     kanTildeleMegSomBeslutter:
       beslutterTildelingHindring(sak) === null &&
       (sak.beslutterIdent === null || sak.beslutterIdent === vedtak?.innstiltAvIdent),
@@ -659,7 +720,33 @@ const tilListeElement = ({ soknad, ...mockSak }: MockSak, index: number): SakLis
   };
 };
 
-const alleSaker = (): SakListeElement[] => mockSaker.map(tilListeElement);
+const alleSaker = (): MockListeElement[] => mockSaker.map(tilListeElement);
+
+// Speiler `utenDeltaker` i SakApi.kt.
+const utenDeltaker = (sak: MockListeElement): SakListeElement =>
+  sak.deltakerTilgang?.avvist
+    ? {
+        ...sak,
+        skjermet: false,
+        kanTildeleMeg: false,
+        kanTildeleMegSomBeslutter: false,
+        soknad: { ...sak.soknad, virksomhet: null, ansattNavn: null },
+      }
+    : sak;
+
+const deltakerAvvist = (sak: SakListeElement): Response | null => {
+  const kode = sak.deltakerTilgang?.avvist ? sak.deltakerTilgang.kode : null;
+  if (!kode) return null;
+  return HttpResponse.json(
+    {
+      kode,
+      begrunnelse:
+        kode === "IKKE_TILGANG" ? "Du har ikke tilgang til saken." : "Deltakeren er skjermet",
+      feilId: crypto.randomUUID(),
+    },
+    { status: 403 }
+  );
+};
 
 const mineEnheter = new Set(mockInnloggetAnsatt.enheter.map((e) => e.nummer));
 
@@ -673,7 +760,7 @@ const lagVilkårsvurdering = (): VilkarsvurderingDTO[] =>
 const estimertKostnad = (sakId: string) =>
   mockSaker.find((s) => s.sakId === sakId)?.soknad.estimertKostnad ?? "22000";
 
-const lagSakDetaljer = ({ soknad: element, ...sak }: SakListeElement): SakDetaljer => ({
+const lagSakDetaljer = ({ soknad: element, ...sak }: MockListeElement): SakDetaljer => ({
   ...sak,
   kanTildeleMeg: kanTildeles(sak),
   kanTildeleMegSomBeslutter: beslutterTildelingHindring(sak) === null,
@@ -791,7 +878,7 @@ async function mockVedtaksbrev() {
 }
 
 // Speiler backend: 404 når saken ikke finnes, 403 når saksbehandler mangler tilgang til enheten.
-function finnSakMedTilgang(sakId: string): SakListeElement | Response {
+function finnSakMedTilgang(sakId: string): MockListeElement | Response {
   const sak = alleSaker().find((s) => s.sakId === sakId);
   if (!sak) {
     return HttpResponse.json({ message: "fant ikke sak" }, { status: 404 });
@@ -805,6 +892,8 @@ function finnSakMedTilgang(sakId: string): SakListeElement | Response {
       { status: 403 }
     );
   }
+  const avvist = deltakerAvvist(sak);
+  if (avvist) return avvist;
   return sak;
 }
 
@@ -872,7 +961,10 @@ export const handlers = [
   ),
   http.get("/api/saksbehandling/v1/meg", () => HttpResponse.json(mockInnloggetAnsatt)),
   http.get(SAKSBEHANDLING_SAKER_URL, () =>
-    HttpResponse.json({ saker: alleSaker().filter(harTilgangTilEnhet) })
+    HttpResponse.json({
+      saker: alleSaker().filter(harTilgangTilEnhet).map(utenDeltaker),
+      tilgangssjekkFeilet: false,
+    })
   ),
   http.get("/api/saksbehandling/v1/saker/:sakId", ({ params }) => {
     const sak = alleSaker().find((s) => s.sakId === params.sakId);
@@ -888,6 +980,8 @@ export const handlers = [
         { status: 403 }
       );
     }
+    const avvist = deltakerAvvist(sak);
+    if (avvist) return avvist;
     return HttpResponse.json(lagSakDetaljer(sak));
   }),
   http.get(SAKSBEHANDLING_REFUSJON_URL(":sakId"), ({ params }) => {

@@ -23,7 +23,12 @@ import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.tilgangsmaskin.AggregertBulkRespons
+import no.nav.ekspertbistand.tilgangsmaskin.BrukerIdOgRegelsett
+import no.nav.ekspertbistand.tilgangsmaskin.EnkeltBulkRespons
+import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinAvvisning
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
+import io.ktor.util.AttributeKey
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -120,7 +125,7 @@ class SaksbehandlingSakApiTest {
         assertEquals(nyereSoknad.toString(), sak.soknad.soknadId)
         assertEquals("Nyere", sak.soknad.ansattNavn)
         assertEquals(SoknadStatus.innsendt, sak.soknad.status)
-        assertEquals("123456780", sak.soknad.virksomhet.virksomhetsnummer)
+        assertEquals("123456780", sak.soknad.virksomhet?.virksomhetsnummer)
 
         assertTrue(oppsett.audit.meldinger.isEmpty(), "listen skal ikke sporingslogges")
     }
@@ -249,24 +254,11 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
-    fun `detalj med avvist tilgang gir 403 uten personopplysninger og uten sporingslogg`() =
+    fun `detalj avvist med kode 6 gir nøytralt 403 med feilId, uten personopplysninger og uten sporingslogg`() =
         testApplicationWithDatabase { db ->
             val sakId = lagreSak(db, lagreSoknad(db))
             val oppsett = oppsett(db, tilgangsmaskinSvar = { call ->
-                call.respondText(
-                    """
-                    {
-                      "title": "AVVIST_STRENGT_FORTROLIG_ADRESSE",
-                      "status": 403,
-                      "brukerIdent": "$fnr",
-                      "navIdent": "$navIdent",
-                      "begrunnelse": "Du har ikke tilgang til brukere med strengt fortrolig adresse",
-                      "kanOverstyres": false
-                    }
-                    """.trimIndent(),
-                    ContentType.parse("application/problem+json"),
-                    HttpStatusCode.Forbidden,
-                )
+                call.respondAvvisning("AVVIST_STRENGT_FORTROLIG_ADRESSE")
             })
 
             val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }
@@ -274,9 +266,49 @@ class SaksbehandlingSakApiTest {
             assertEquals(HttpStatusCode.Forbidden, response.status)
             val raw = response.bodyAsText()
             assertFalse(raw.contains(fnr), "avvisning skal ikke inneholde fnr")
+            assertFalse(raw.contains("FORTROLIG", ignoreCase = true), "avvisning skal ikke avsløre kode 6")
             val avvist = response.body<TilgangAvvistResponse>()
-            assertEquals("AVVIST_STRENGT_FORTROLIG_ADRESSE", avvist.kode)
+            assertEquals(IKKE_TILGANG, avvist.kode)
+            assertEquals("Du har ikke tilgang til saken.", avvist.begrunnelse)
+            assertEquals(response.headers[HttpHeaders.XCorrelationId], assertNotNull(avvist.feilId))
             assertTrue(oppsett.audit.meldinger.isEmpty(), "avvist tilgang skal ikke sporingslogges")
+        }
+
+    @Test
+    fun `detalj på Vikafossen uten tilgang til enheten gir nøytralt 403 med feilId`() =
+        testApplicationWithDatabase { db ->
+            val sakId = lagreSak(db, lagreSoknad(db), behandlendeEnhet = "2103")
+            val oppsett = oppsett(db)
+
+            val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }
+
+            assertEquals(HttpStatusCode.Forbidden, response.status)
+            val avvist = response.body<TilgangAvvistResponse>()
+            assertEquals(IKKE_TILGANG, avvist.kode)
+            assertEquals(response.headers[HttpHeaders.XCorrelationId], assertNotNull(avvist.feilId))
+            assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
+        }
+
+    @Test
+    fun `detalj avvist for skjerming eller fortrolig adresse sender koden videre med feilId`() =
+        testApplicationWithDatabase { db ->
+            val kodePerFnr = mapOf("11111111111" to "AVVIST_SKJERMING", "22222222222" to "AVVIST_FORTROLIG_ADRESSE")
+            val sakPerKode = kodePerFnr.entries.associate { (fnr, kode) ->
+                kode to lagreSak(db, lagreSoknad(db, ansattFnr = fnr))
+            }
+            val oppsett = oppsett(db, tilgangsmaskinSvar = { call ->
+                call.respondAvvisning(kodePerFnr.getValue(call.attributes[tilgangsmaskinBody].trim('"')))
+            })
+
+            sakPerKode.forEach { (kode, sakId) ->
+                val response = oppsett.client.get("/api/saksbehandling/v1/saker/$sakId") { bearerAuth(gyldigToken) }
+
+                assertEquals(HttpStatusCode.Forbidden, response.status)
+                val avvist = response.body<TilgangAvvistResponse>()
+                assertEquals(kode, avvist.kode)
+                assertEquals("Begrunnelse for $kode", avvist.begrunnelse)
+                assertNotNull(avvist.feilId)
+            }
         }
 
     @Test
@@ -504,7 +536,7 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
-    fun `kanTildeleMeg i listen er false for saker tildelt en annen, og listen kaller ikke tilgangsmaskin`() =
+    fun `kanTildeleMeg i listen er false for saker tildelt en annen, og listen sjekker tilgangsmaskin i bulk`() =
         testApplicationWithDatabase { db ->
             val ledig = lagreSak(db, lagreSoknad(db))
             val annen = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = "Z999999")
@@ -529,7 +561,92 @@ class SaksbehandlingSakApiTest {
                 saker,
             )
             assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
+            assertEquals(listOf(listOf(BrukerIdOgRegelsett(fnr, "KJERNE_REGELTYPE"))), oppsett.bulkKall)
+            assertEquals(listOf(gyldigToken), oppsett.veksledeTokens, "OBO skal bruke innkommende token")
         }
+
+    @Test
+    fun `listen skjuler deltaker og arbeidsgiver når tilgangsmaskin avviser`() = testApplicationWithDatabase { db ->
+        val innvilgetFnr = "11111111111"
+        val skjermetFnr = "22222222222"
+        val kode6Fnr = "33333333333"
+        val ukjentFnr = "44444444444"
+        val manglerISvaretFnr = "55555555555"
+        val innvilget = lagreSak(db, lagreSoknad(db, ansattNavn = "Synlig Deltaker", ansattFnr = innvilgetFnr))
+        val skjermet = lagreSak(db, lagreSoknad(db, ansattFnr = skjermetFnr))
+        val kode6 = lagreSak(db, lagreSoknad(db, ansattFnr = kode6Fnr))
+        val ukjent = lagreSak(db, lagreSoknad(db, ansattFnr = ukjentFnr))
+        val manglerISvaret = lagreSak(db, lagreSoknad(db, ansattFnr = manglerISvaretFnr))
+        val oppsett = oppsett(db, bulkSvar = { call, _ ->
+            call.respondBulk(
+                listOf(
+                    EnkeltBulkRespons(innvilgetFnr, 204),
+                    EnkeltBulkRespons(skjermetFnr, 403, TilgangsmaskinAvvisning(title = "AVVIST_SKJERMING")),
+                    EnkeltBulkRespons(
+                        kode6Fnr, 403, TilgangsmaskinAvvisning(title = "AVVIST_STRENGT_FORTROLIG_ADRESSE"),
+                    ),
+                    EnkeltBulkRespons(ukjentFnr, 404),
+                )
+            )
+        })
+
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
+
+        assertFalse(response.bodyAsText().contains("FORTROLIG"), "listen skal ikke avsløre kode 6 eller 7")
+        val body = response.body<SakerResponse>()
+        assertFalse(body.tilgangssjekkFeilet)
+        val saker = body.saker.associateBy { UUID.fromString(it.sakId) }
+
+        val synlig = saker.getValue(innvilget)
+        assertNull(synlig.deltakerTilgang)
+        assertFalse(synlig.skjermet)
+        assertEquals("Synlig Deltaker", synlig.soknad.ansattNavn)
+        assertEquals("Eksempel Bedrift AS", synlig.soknad.virksomhet?.virksomhetsnavn)
+        assertTrue(synlig.kanTildeleMeg)
+
+        mapOf(
+            skjermet to AVVIST_SKJERMING,
+            kode6 to IKKE_TILGANG,
+            ukjent to IKKE_TILGANG,
+            manglerISvaret to IKKE_TILGANG,
+        ).forEach { (sakId, kode) ->
+            val sak = saker.getValue(sakId)
+            assertEquals(DeltakerTilgang(avvist = true, kode = kode), sak.deltakerTilgang)
+            assertNull(sak.soknad.ansattNavn)
+            assertNull(sak.soknad.virksomhet)
+            assertFalse(sak.kanTildeleMeg)
+            assertFalse(sak.kanTildeleMegSomBeslutter)
+        }
+    }
+
+    @Test
+    fun `listen skjuler deltaker og arbeidsgiver på alle saker når tilgangsmaskin feiler`() =
+        testApplicationWithDatabase { db ->
+            lagreSak(db, lagreSoknad(db))
+            val oppsett = oppsett(db, bulkSvar = { call, _ -> call.respond(HttpStatusCode.InternalServerError) })
+
+            val response = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
+
+            assertEquals(HttpStatusCode.OK, response.status)
+            val body = response.body<SakerResponse>()
+            assertTrue(body.tilgangssjekkFeilet)
+            val sak = body.saker.single()
+            assertNull(sak.soknad.ansattNavn)
+            assertNull(sak.soknad.virksomhet)
+            assertNull(sak.deltakerTilgang)
+            assertFalse(sak.kanTildeleMeg)
+        }
+
+    @Test
+    fun `tom liste kaller ikke tilgangsmaskin`() = testApplicationWithDatabase { db ->
+        val oppsett = oppsett(db)
+
+        val body = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }.body<SakerResponse>()
+
+        assertTrue(body.saker.isEmpty())
+        assertFalse(body.tilgangssjekkFeilet)
+        assertTrue(oppsett.bulkKall.isEmpty())
+    }
 
     @Test
     fun `tilTilgangsgrunnlag gir beslutterIdent fra saken`() = testApplicationWithDatabase { db ->
@@ -859,9 +976,12 @@ class SaksbehandlingSakApiTest {
         val client: HttpClient,
         val audit: RecordingAuditLogger,
         val tilgangsmaskinKall: List<TilgangsmaskinKall>,
+        val bulkKall: List<List<BrukerIdOgRegelsett>>,
         val veksledeTokens: List<String>,
         val ansattOppslag: List<String>,
     )
+
+    private val tilgangsmaskinBody = AttributeKey<String>("tilgangsmaskinBody")
 
     private fun ApplicationTestBuilder.oppsett(
         db: TestDatabase,
@@ -870,9 +990,13 @@ class SaksbehandlingSakApiTest {
         tilgangsmaskinSvar: suspend (io.ktor.server.application.ApplicationCall) -> Unit = {
             it.respond(HttpStatusCode.NoContent)
         },
+        bulkSvar: suspend (io.ktor.server.application.ApplicationCall, identer: List<String>) -> Unit = { call, identer ->
+            call.respondBulk(identer.map { EnkeltBulkRespons(brukerId = it, status = 204) })
+        },
     ): Oppsett {
         val audit = RecordingAuditLogger()
         val tilgangsmaskinKall = mutableListOf<TilgangsmaskinKall>()
+        val bulkKall = mutableListOf<List<BrukerIdOgRegelsett>>()
         val veksledeTokens = mutableListOf<String>()
         val ansattOppslag = mutableListOf<String>()
 
@@ -888,13 +1012,20 @@ class SaksbehandlingSakApiTest {
             hosts(TilgangsmaskinClient.ingress) {
                 routing {
                     post("/api/v1/kjerne") {
+                        val body = call.receiveText()
+                        call.attributes.put(tilgangsmaskinBody, body)
                         tilgangsmaskinKall.add(
                             TilgangsmaskinKall(
-                                body = call.receiveText(),
+                                body = body,
                                 authorization = call.request.headers[HttpHeaders.Authorization],
                             )
                         )
                         tilgangsmaskinSvar(call)
+                    }
+                    post("/api/v1/bulk/obo") {
+                        val specs = defaultJson.decodeFromString<List<BrukerIdOgRegelsett>>(call.receiveText())
+                        bulkKall.add(specs)
+                        bulkSvar(call, specs.map { it.brukerId })
                     }
                 }
             }
@@ -933,10 +1064,32 @@ class SaksbehandlingSakApiTest {
             configureServer()
         }
 
-        return Oppsett(client, audit, tilgangsmaskinKall, veksledeTokens, ansattOppslag)
+        return Oppsett(client, audit, tilgangsmaskinKall, bulkKall, veksledeTokens, ansattOppslag)
     }
 
-    private fun lagreSoknad(db: TestDatabase, ansattNavn: String = "Ansatt NN"): UUID {
+    private suspend fun io.ktor.server.application.ApplicationCall.respondAvvisning(kode: String) = respondText(
+        """
+        {
+          "title": "$kode",
+          "status": 403,
+          "brukerIdent": "$fnr",
+          "navIdent": "$navIdent",
+          "begrunnelse": "Begrunnelse for $kode",
+          "kanOverstyres": false
+        }
+        """.trimIndent(),
+        ContentType.parse("application/problem+json"),
+        HttpStatusCode.Forbidden,
+    )
+
+    private suspend fun io.ktor.server.application.ApplicationCall.respondBulk(resultater: List<EnkeltBulkRespons>) =
+        respondText(
+            defaultJson.encodeToString(AggregertBulkRespons(ansattId = navIdent, resultater = resultater)),
+            ContentType.Application.Json,
+            HttpStatusCode.MultiStatus,
+        )
+
+    private fun lagreSoknad(db: TestDatabase, ansattNavn: String = "Ansatt NN", ansattFnr: String = fnr): UUID {
         val soknadId = UUID.randomUUID()
         transaction(db.config.jdbcDatabase) {
             SoknadTable.insert {
@@ -946,7 +1099,7 @@ class SaksbehandlingSakApiTest {
                 it[kontaktpersonNavn] = "Kontaktperson NN"
                 it[kontaktpersonEpost] = "kontaktperson@bedrift.no"
                 it[kontaktpersonTelefon] = "41519999"
-                it[ansattFnr] = fnr
+                it[this.ansattFnr] = ansattFnr
                 it[this.ansattNavn] = ansattNavn
                 it[ekspertNavn] = "Ekspert NN"
                 it[ekspertVirksomhet] = "ErgoConsult AS"

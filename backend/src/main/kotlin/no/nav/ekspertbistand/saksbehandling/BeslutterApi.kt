@@ -233,12 +233,9 @@ private suspend fun ApplicationCall.svar(sakId: UUID, handling: String, resultat
                     mapOf("kode" to FORELOPIG_VEDTAK_ENDRET, "message" to "Det foreløpige vedtaket er endret"),
                 )
 
-                BeslutningHindring.INHABIL -> respond(
-                    HttpStatusCode.Forbidden,
-                    TilgangAvvistResponse(
-                        kode = BESLUTTER_INHABIL,
-                        begrunnelse = "Du sendte det foreløpige vedtaket og kan ikke fatte vedtaket",
-                    ),
+                BeslutningHindring.INHABIL -> respondTilgangAvvist(
+                    kode = BESLUTTER_INHABIL,
+                    begrunnelse = "Du sendte det foreløpige vedtaket og kan ikke fatte vedtaket",
                 )
             }
         }

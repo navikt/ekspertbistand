@@ -7,9 +7,9 @@ class RolesTest {
 
     @Test
     fun `mapper groups til roller`() {
-        val groups = listOf("0000-CA-Ekspertbistand_Saksbehandler", "0000-CA-Ekspertbistand_Beslutter")
+        val groups = listOf("0000-CA-Ekspertbistand_Saksbehandler", "0000-CA-Ekspertbistand_Beslutter", "0000-GA-Egne_ansatte")
         val roles = Role.fromGroups(groups)
-        assertEquals(setOf(Role.SAKSBEHANDLER, Role.BESLUTTER), roles)
+        assertEquals(setOf(Role.SAKSBEHANDLER, Role.BESLUTTER, Role.EGNE_ANSATTE), roles)
     }
 
     @Test

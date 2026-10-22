@@ -47,8 +47,17 @@ export const kanTildeleMegSomSaksbehandler = (
   sak: Pick<SakInfo, "kildeTilBehandling" | "kanTildeleMeg">
 ) => sak.kildeTilBehandling !== "ARENA" && sak.kanTildeleMeg;
 
+export type DeltakerTilgang = {
+  avvist: boolean;
+  /** `AVVIST_SKJERMING` eller `IKKE_TILGANG`. Backend maskerer andre koder. */
+  kode: string;
+};
+
 export type SakListeElement = SakInfo & {
   harOppgaveForMeg: boolean;
+  skjermet: boolean;
+  /** Null når Tilgangsmaskinen innvilger, eller når sjekken feilet. */
+  deltakerTilgang: DeltakerTilgang | null;
   /** Fra siste foreløpige vedtak. Null uten vedtak og ved avslag. */
   tiltaksperiodeFra: string | null;
   tiltaksperiodeTil: string | null;
@@ -56,17 +65,19 @@ export type SakListeElement = SakInfo & {
     soknadId: string;
     status: SoknadStatus;
     innsendtTidspunkt: string;
+    /** Null når den innloggede ikke har tilgang til deltakeren. */
     virksomhet: {
       virksomhetsnummer: string;
       virksomhetsnavn: string;
-    };
-    ansattNavn: string;
+    } | null;
+    ansattNavn: string | null;
     startdato: string;
   };
 };
 
 export type SakerResponse = {
   saker: SakListeElement[];
+  tilgangssjekkFeilet: boolean;
 };
 
 export function useSaker() {
@@ -76,6 +87,7 @@ export function useSaker() {
 
   return {
     saker: data?.saker ?? [],
+    tilgangssjekkFeilet: data?.tilgangssjekkFeilet ?? false,
     error,
     isLoading,
   };
