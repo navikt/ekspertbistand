@@ -408,6 +408,20 @@ deltakeren hadde adressebeskyttelse: `opprettet_av`, `saksbehandler`, `ansvarlig
   stopper skrivingen. Mangler viewet bare nye kolonner, logger appen en feil og skriver videre, fordi `r.*` henter
   alle kolonnene når noen spør. Skjemaet som vises, må da oppdateres ved å lagre viewet på nytt med en bruker som
   har tilgang.
+- Slik oppdaterer du viewet manuelt, med spørringen fra feilmeldingen (bytt prosjekt i prod):
+
+  ```shell
+  bq update --use_legacy_sql=false --view "$(cat <<'SQL'
+  SELECT r.*
+  FROM `fager-dev-24f2.ekspertbistand_statistikk.saksbehandlingsstatistikk` r
+  WHERE r.behandling_id NOT IN (
+    SELECT behandling_id FROM `fager-dev-24f2.ekspertbistand_statistikk.adressebeskyttede_behandlinger`
+  )
+  SQL
+  )" fager-dev-24f2:ekspertbistand_statistikk.saksbehandlingsstatistikk_delt
+  ```
+
+  Autorisasjonen fra Datamarkedsplassen gjelder fortsatt etterpå. Appen godtar avvik i innrykk og linjeskift.
 - Kolonnebeskrivelser legges inn i BigQuery-konsollet. Datamarkedsplassen henter skjema og beskrivelser fra
   BigQuery én gang i timen.
 - Lokalt og i tester skriver projeksjonen ikke til BigQuery.

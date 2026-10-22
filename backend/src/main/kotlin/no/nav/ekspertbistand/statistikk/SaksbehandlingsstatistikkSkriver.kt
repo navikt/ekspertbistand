@@ -119,7 +119,15 @@ class BigQuerySaksbehandlingsstatistikk(
         val eksisterende = bigQuery.getTable(view) ?: return run { bigQuery.create(definisjon) }
         when (viewEndring(eksisterende.getDefinition(), sql, skjema)) {
             ViewEndring.INGEN -> {}
-            ViewEndring.SPORRING -> bigQuery.update(definisjon)
+            ViewEndring.SPORRING -> try {
+                bigQuery.update(definisjon)
+            } catch (e: BigQueryException) {
+                throw IllegalStateException(
+                    "Spørringen i $view er endret, men appen har ikke tilgang til å oppdatere den. " +
+                        "Oppdater viewet manuelt, se «For utviklere» i statistikk/README.md. Ny spørring:\n$sql",
+                    e,
+                )
+            }
             ViewEndring.KOLONNER -> try {
                 bigQuery.update(definisjon)
             } catch (e: BigQueryException) {
@@ -206,11 +214,14 @@ internal enum class ViewEndring { INGEN, KOLONNER, SPORRING }
 internal fun viewEndring(eksisterende: ViewDefinition, sql: String, skjema: Schema): ViewEndring {
     val kolonnerIViewet = eksisterende.schema?.fields.orEmpty().map { it.name }.toSet()
     return when {
-        eksisterende.query != sql -> ViewEndring.SPORRING
+        utenMellomrom(eksisterende.query) != utenMellomrom(sql) -> ViewEndring.SPORRING
         kolonnerIViewet != skjema.fields.map { it.name }.toSet() -> ViewEndring.KOLONNER
         else -> ViewEndring.INGEN
     }
 }
+
+/** Viewet kan være lagret manuelt i konsollet eller med `bq`, så innrykk og linjeskift kan avvike. */
+private fun utenMellomrom(sql: String?) = sql.orEmpty().trim().replace(Regex("\\s+"), " ")
 
 private val adressebeskyttedeSkjema: Schema = Schema.of(
     Field.newBuilder("behandling_id", STRING).setMode(Field.Mode.REQUIRED).build(),

@@ -18,6 +18,11 @@ class ViewEndringTest {
     }
 
     @Test
+    fun `view lagret manuelt med annet innrykk og linjeskift skal ikke oppdateres`() {
+        assertEquals(ViewEndring.INGEN, viewEndring(view("  SELECT r.*\n  FROM t   r\n", skjema), sql, skjema))
+    }
+
+    @Test
     fun `ny kolonne i tabellen gir oppdatering av kolonner`() {
         val utenSisteKolonne = Schema.of(skjema.fields.dropLast(1))
         assertEquals(ViewEndring.KOLONNER, viewEndring(view(sql, utenSisteKolonne), sql, skjema))
