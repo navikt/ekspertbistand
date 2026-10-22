@@ -71,7 +71,7 @@ utsiden. Hos oss er hendelsesloggen i Postgres og tabellene i BigQuery innsiden.
 modell for statistikk uten adressebeskyttede behandlinger.
 
 Endrer vi tabellen på en måte som bryter for mottakerne, eller vil vi skjule duplikater og eldre versjoner av
-projeksjonen, gjør vi det i viewet. Appen oppdaterer viewet ved hver oppstart, slik at skjemaet følger tabellen.
+projeksjonen, gjør vi det i viewet. Appen oppdaterer viewet ved oppstart når spørringen eller kolonnene er endret.
 
 ## Slik fungerer det
 
@@ -403,6 +403,25 @@ deltakeren hadde adressebeskyttelse: `opprettet_av`, `saksbehandler`, `ansvarlig
 - Bump versjonen i `name` for å sende alle meldinger på nytt.
 - Første gang appen bruker datasettet etter oppstart, legger den til nye kolonner i tabellen og oppdaterer viewet.
   Nye kolonner må være valgfrie, fordi BigQuery ikke tillater å legge til påkrevde kolonner. Eldre rader får `NULL`.
+- Når Datamarkedsplassen har autorisert viewet, krever BigQuery `bigquery.datasets.update` for å endre det. Den
+  rettigheten gir ikke Nais appen. Appen endrer derfor viewet bare når noe er annerledes. Feiler en endret spørring,
+  stopper skrivingen. Mangler viewet bare nye kolonner, logger appen en feil og skriver videre, fordi `r.*` henter
+  alle kolonnene når noen spør. Skjemaet som vises, må da oppdateres ved å lagre viewet på nytt med en bruker som
+  har tilgang.
+- Slik oppdaterer du viewet manuelt, med spørringen fra feilmeldingen (bytt prosjekt i prod):
+
+  ```shell
+  bq update --use_legacy_sql=false --view "$(cat <<'SQL'
+  SELECT r.*
+  FROM `fager-dev-24f2.ekspertbistand_statistikk.saksbehandlingsstatistikk` r
+  WHERE r.behandling_id NOT IN (
+    SELECT behandling_id FROM `fager-dev-24f2.ekspertbistand_statistikk.adressebeskyttede_behandlinger`
+  )
+  SQL
+  )" fager-dev-24f2:ekspertbistand_statistikk.saksbehandlingsstatistikk_delt
+  ```
+
+  Autorisasjonen fra Datamarkedsplassen gjelder fortsatt etterpå. Appen godtar avvik i innrykk og linjeskift.
 - Kolonnebeskrivelser legges inn i BigQuery-konsollet. Datamarkedsplassen henter skjema og beskrivelser fra
   BigQuery én gang i timen.
 - Lokalt og i tester skriver projeksjonen ikke til BigQuery.

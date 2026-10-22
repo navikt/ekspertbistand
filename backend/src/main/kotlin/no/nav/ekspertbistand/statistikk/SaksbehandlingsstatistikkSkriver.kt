@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.statistikk
 
 import com.google.cloud.bigquery.BigQuery
+import com.google.cloud.bigquery.BigQueryException
 import com.google.cloud.bigquery.BigQueryOptions
 import com.google.cloud.bigquery.Field
 import com.google.cloud.bigquery.InsertAllRequest
@@ -15,6 +16,7 @@ import com.google.cloud.bigquery.TableId
 import com.google.cloud.bigquery.TableInfo
 import com.google.cloud.bigquery.ViewDefinition
 import kotlinx.datetime.LocalDate
+import no.nav.ekspertbistand.infrastruktur.logger
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -99,11 +101,40 @@ class BigQuerySaksbehandlingsstatistikk(
     private val adressebeskyttede = TableId.of(prosjekt, DATASETT, ADRESSEBESKYTTEDE)
     private val view = TableId.of(prosjekt, DATASETT, VIEW)
 
+    private val log = logger()
+
     private val datasettKlart by lazy {
         opprettEllerUtvid(tabell, StandardTableDefinition.of(skjema))
         opprettEllerUtvid(adressebeskyttede, StandardTableDefinition.of(adressebeskyttedeSkjema))
-        val definisjon = TableInfo.of(view, ViewDefinition.of(viewSql(tabell, adressebeskyttede)))
-        if (bigQuery.getTable(view) == null) bigQuery.create(definisjon) else bigQuery.update(definisjon)
+        opprettEllerOppdaterView()
+    }
+
+    /**
+     * Datamarkedsplassen autoriserer viewet mot datasettet. Etter det krever BigQuery `bigquery.datasets.update` for å
+     * endre viewet, og den rettigheten får ikke appen fra Nais. Derfor endrer vi viewet bare når noe er annerledes.
+     */
+    private fun opprettEllerOppdaterView() {
+        val sql = viewSql(tabell, adressebeskyttede)
+        val definisjon = TableInfo.of(view, ViewDefinition.of(sql))
+        val eksisterende = bigQuery.getTable(view) ?: return run { bigQuery.create(definisjon) }
+        when (viewEndring(eksisterende.getDefinition(), sql, skjema)) {
+            ViewEndring.INGEN -> {}
+            ViewEndring.SPORRING -> try {
+                bigQuery.update(definisjon)
+            } catch (e: BigQueryException) {
+                throw IllegalStateException(
+                    "Spørringen i $view er endret, men appen har ikke tilgang til å oppdatere den. " +
+                        "Oppdater viewet manuelt, se «For utviklere» i statistikk/README.md. Ny spørring:\n$sql",
+                    e,
+                )
+            }
+            ViewEndring.KOLONNER -> try {
+                bigQuery.update(definisjon)
+            } catch (e: BigQueryException) {
+                // Viewet leser r.* når det spørres, så mottakerne får de nye kolonnene. Bare skjemaet viewet viser er utdatert.
+                log.error("Kunne ikke oppdatere kolonnene i $view. Lagre viewet på nytt med en bruker som har tilgang.", e)
+            }
+        }
     }
 
     private fun opprettEllerUtvid(id: TableId, definisjon: StandardTableDefinition) {
@@ -177,6 +208,20 @@ private fun viewSql(tabell: TableId, adressebeskyttede: TableId): String =
       SELECT behandling_id FROM `${adressebeskyttede.project}.${adressebeskyttede.dataset}.${adressebeskyttede.table}`
     )
     """.trimIndent()
+
+internal enum class ViewEndring { INGEN, KOLONNER, SPORRING }
+
+internal fun viewEndring(eksisterende: ViewDefinition, sql: String, skjema: Schema): ViewEndring {
+    val kolonnerIViewet = eksisterende.schema?.fields.orEmpty().map { it.name }.toSet()
+    return when {
+        utenMellomrom(eksisterende.query) != utenMellomrom(sql) -> ViewEndring.SPORRING
+        kolonnerIViewet != skjema.fields.map { it.name }.toSet() -> ViewEndring.KOLONNER
+        else -> ViewEndring.INGEN
+    }
+}
+
+/** Viewet kan være lagret manuelt i konsollet eller med `bq`, så innrykk og linjeskift kan avvike. */
+private fun utenMellomrom(sql: String?) = sql.orEmpty().trim().replace(Regex("\\s+"), " ")
 
 private val adressebeskyttedeSkjema: Schema = Schema.of(
     Field.newBuilder("behandling_id", STRING).setMode(Field.Mode.REQUIRED).build(),
