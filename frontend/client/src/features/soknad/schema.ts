@@ -10,8 +10,6 @@ const telephonePattern = /^\d{8}$/;
 const fnrPattern = /^\d{11}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const MIN_ESTIMERT_KOSTNAD = 0;
-export const MAX_ESTIMERT_KOSTNAD = 100_000;
 export const MAKS_TEKST_LENGDE = 10_000;
 
 // Speiler standardTekstSjekker i backend (InputValidering.kt), så brukeren får feilen på feltet
@@ -98,19 +96,25 @@ const estimertKostnadSchema = z.string().superRefine((value, ctx) => {
     return;
   }
 
-  const numeric = Number(trimmed);
-  if (!Number.isFinite(numeric)) {
-    ctx.addIssue({ code: "custom", message: "Kostnad må være et tall." });
-    return;
-  }
-  if (numeric < MIN_ESTIMERT_KOSTNAD) {
-    ctx.addIssue({ code: "custom", message: "Kostnad kan ikke være negativ." });
-    return;
-  }
-  if (numeric > MAX_ESTIMERT_KOSTNAD) {
-    ctx.addIssue({ code: "custom", message: `Maksimalt beløp er ${MAX_ESTIMERT_KOSTNAD}.` });
+  if (tolkSoknadssum(trimmed) === null) {
+    ctx.addIssue({ code: "custom", message: "Søknadssummen må være et positivt heltall." });
   }
 });
+
+function tolkSoknadssum(verdi: string): number | null {
+  const trimmed = verdi.trim();
+  if (!/^\+?\d+$/.test(trimmed)) return null;
+  const belop = Number(trimmed);
+  return Number.isInteger(belop) && belop > 0 && belop <= 2_147_483_647 ? belop : null;
+}
+
+export function sjekkSoknadssumMotMaks(verdi: string, maksBelop: number): string | null {
+  const belop = tolkSoknadssum(verdi);
+  if (belop === null) return "Søknadssummen må være et positivt heltall.";
+  return belop > maksBelop
+    ? `Søknadssummen kan ikke være høyere enn ${new Intl.NumberFormat("nb-NO").format(maksBelop)} kr.`
+    : null;
+}
 
 const startdatoSchema = z.union([z.string().trim(), z.null()]).superRefine((value, ctx) => {
   if (!value) {

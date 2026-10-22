@@ -13,7 +13,10 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.logger
+import no.nav.ekspertbistand.infrastruktur.UgyldigInputException
 import no.nav.ekspertbistand.infrastruktur.valider
+import no.nav.ekspertbistand.saksbehandling.gjeldendeMaksSats
+import no.nav.ekspertbistand.saksbehandling.tolkSoknadssum
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -242,6 +245,14 @@ class SoknadApi(
                 message = "bruker har ikke tilgang til organisasjon"
             )
             return
+        }
+
+        val sats = gjeldendeMaksSats(soknad.behovForBistand.startdato)
+            ?: throw UgyldigInputException("behovForBistand.startdato", "ingen sats gjelder for startdato")
+        val soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad)
+            ?: throw UgyldigInputException("behovForBistand.estimertKostnad", "må være et positivt heltall")
+        if (soknadssum > sats.belop) {
+            throw UgyldigInputException("behovForBistand.estimertKostnad", "over maksgrensen på ${sats.belop} kr")
         }
 
         val adresse = eregService.hentForretningsadresse(soknad.virksomhet.virksomhetsnummer)

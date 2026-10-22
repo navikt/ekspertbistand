@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import type React from "react";
+import { useFormContext } from "react-hook-form";
 import { ArrowLeftIcon, PaperplaneIcon } from "@navikt/aksel-icons";
 import {
   Alert,
@@ -12,7 +13,7 @@ import {
   VStack,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
-import { soknadSchema } from "../features/soknad/schema";
+import { sjekkSoknadssumMotMaks, soknadSchema } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { buildSkjemaPayload } from "../features/soknad/payload";
@@ -23,7 +24,7 @@ import { fetchJson } from "../utils/api";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useNavigate } from "react-router";
-import { resolveApiError, type ApiErrorInfo } from "../utils/http";
+import { HttpError, resolveApiError, type ApiErrorInfo } from "../utils/http";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 import {
   formatCurrency,
@@ -35,6 +36,7 @@ import {
 import type { SoknadInputs } from "../features/soknad/schema";
 import { FormSummaryAnswer } from "@navikt/ds-react/FormSummary";
 import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
+import { useMaksSats } from "../hooks/useMaksSats";
 
 type SoknadSummaryProps = {
   data: SoknadInputs;
@@ -208,7 +210,15 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
 
 export default function OppsummeringPage() {
   const navigate = useNavigate();
-  const { draftId, draft: formData, clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
+  const { draftId, clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
+  const { watch, getValues, setError } = useFormContext<SoknadInputs>();
+  const formData = watch();
+  const {
+    maksSats,
+    isLoading: satsLoading,
+    error: satsError,
+    mutate: hentSats,
+  } = useMaksSats(formData.behovForBistand.startdato);
   const { goToSoknader, goToSoknaderWithSaveNotice, goToStep1, goToStep2, createLinkHandler } =
     useSkjemaNavigation();
   const [submitError, setSubmitError] = useState<ApiErrorInfo | null>(null);
@@ -225,7 +235,7 @@ export default function OppsummeringPage() {
   const handleStep2Link = createLinkHandler(goToStep2);
 
   const handleSubmit = useCallback(async () => {
-    const result = soknadSchema.safeParse(formData);
+    const result = soknadSchema.safeParse(getValues());
     if (!result.success) {
       setSubmitError({
         message:
@@ -233,6 +243,22 @@ export default function OppsummeringPage() {
         requiresLogin: false,
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    if (!maksSats || satsLoading || satsError) {
+      setSubmitError({
+        message: "Kunne ikke hente maksgrensen for startdatoen. Prøv igjen før du sender inn.",
+        requiresLogin: false,
+      });
+      return;
+    }
+    const belopsfeil = sjekkSoknadssumMotMaks(
+      result.data.behovForBistand.estimertKostnad,
+      maksSats.belop
+    );
+    if (belopsfeil) {
+      setError("behovForBistand.estimertKostnad", { type: "maksSats", message: belopsfeil });
+      goToStep2();
       return;
     }
     setSubmitError(null);
@@ -248,10 +274,36 @@ export default function OppsummeringPage() {
         state: { submissionSuccess: true },
       });
     } catch (error) {
+      if (error instanceof HttpError && error.field === "behovForBistand.estimertKostnad") {
+        setError("behovForBistand.estimertKostnad", {
+          type: "server",
+          message: "Søknadssummen er ugyldig eller over maksgrensen for startdatoen.",
+        });
+        goToStep2();
+        return;
+      }
+      if (error instanceof HttpError && error.field === "behovForBistand.startdato") {
+        setError("behovForBistand.startdato", {
+          type: "server",
+          message: "Ingen maksgrense gjelder for denne startdatoen.",
+        });
+        goToStep2();
+        return;
+      }
       setSubmitError(resolveApiError(error, "Kunne ikke sende søknaden akkurat nå."));
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, [draftId, formData, navigate, submitDraft]);
+  }, [
+    draftId,
+    getValues,
+    navigate,
+    submitDraft,
+    maksSats,
+    satsLoading,
+    satsError,
+    setError,
+    goToStep2,
+  ]);
 
   return (
     <DecoratedPage>
@@ -291,6 +343,14 @@ export default function OppsummeringPage() {
             </VStack>
           </Alert>
         )}
+        {satsError && (
+          <Alert variant="error">
+            Kunne ikke hente maksgrensen for startdatoen. Prøv igjen før du sender inn.
+            <Button type="button" variant="secondary" onClick={() => void hentSats()}>
+              Prøv igjen
+            </Button>
+          </Alert>
+        )}
 
         <SoknadSummary
           data={formData}
@@ -319,7 +379,7 @@ export default function OppsummeringPage() {
               icon={<PaperplaneIcon aria-hidden />}
               iconPosition="right"
               type="button"
-              loading={submitting}
+              loading={submitting || satsLoading}
               onClick={handleSubmit}
             >
               Send søknad
