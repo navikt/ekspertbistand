@@ -27,6 +27,8 @@ export const rolleForOppgave = (oppgavetype: Oppgavetype | null): Tildelingsroll
   }
 };
 
+export type Adressebeskyttelse = "FORTROLIG" | "STRENGT_FORTROLIG";
+
 export type SakInfo = {
   sakId: string;
   status: Saksstatus;
@@ -40,6 +42,8 @@ export type SakInfo = {
   kanTildeleMegSomBeslutter: boolean;
   oppgavetype: Oppgavetype | null;
   arenaSakId: string | null;
+  /** Null uten adressebeskyttelse og uten tilgang til deltakeren. Kode 7 er ikke kjent før kort 661. */
+  adressebeskyttelse: Adressebeskyttelse | null;
 };
 
 /** Arena-saker behandles ferdig i Arena. API-et godtar tildeling, men GUI-et tilbyr det ikke. */
@@ -49,7 +53,7 @@ export const kanTildeleMegSomSaksbehandler = (
 
 export type DeltakerTilgang = {
   avvist: boolean;
-  /** `AVVIST_SKJERMING` eller `IKKE_TILGANG`. Backend maskerer andre koder. */
+  /** `AVVIST_SKJERMING`, `AVVIST_FORTROLIG_ADRESSE`, `AVVIST_STRENGT_FORTROLIG_ADRESSE` eller `IKKE_TILGANG`. */
   kode: string;
 };
 

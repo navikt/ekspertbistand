@@ -28,6 +28,7 @@ import { brukKommunefilter, useKommunefilter } from "../hooks/useKommunefilter";
 import { useTildeling } from "../hooks/useTildeling";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";
+import { AdressebeskyttelseTag } from "../components/AdressebeskyttelseTag";
 import { Kommunefilter } from "../components/Kommunefilter";
 import { OVERSIKT_PATH } from "../utils/constants";
 
@@ -66,6 +67,12 @@ function OppgavetypeCelle({ sak }: { sak: SakListeElement }) {
   );
 }
 
+const avvisningstag: Record<string, { tekst: string; farge: "info" | "warning" | "danger" }> = {
+  AVVIST_SKJERMING: { tekst: "Egen ansatt", farge: "info" },
+  AVVIST_FORTROLIG_ADRESSE: { tekst: "Fortrolig adresse", farge: "warning" },
+  AVVIST_STRENGT_FORTROLIG_ADRESSE: { tekst: "Strengt fortrolig adresse", farge: "danger" },
+};
+
 function DeltakerCelle({ sak }: { sak: SakListeElement }) {
   const egenAnsattTag = (
     <Tag size="xsmall" variant="outline" data-color="info">
@@ -73,19 +80,19 @@ function DeltakerCelle({ sak }: { sak: SakListeElement }) {
     </Tag>
   );
   if (sak.deltakerTilgang?.avvist) {
-    return sak.deltakerTilgang.kode === "AVVIST_SKJERMING" ? (
-      egenAnsattTag
-    ) : (
-      <Tag size="xsmall" variant="outline" data-color="neutral">
-        Ingen tilgang
+    const tag = avvisningstag[sak.deltakerTilgang.kode];
+    return (
+      <Tag size="xsmall" variant="outline" data-color={tag?.farge ?? "neutral"}>
+        {tag?.tekst ?? "Ingen tilgang"}
       </Tag>
     );
   }
-  if (!sak.skjermet) return sak.soknad.ansattNavn ?? "";
+  if (!sak.skjermet && !sak.adressebeskyttelse) return sak.soknad.ansattNavn ?? "";
   return (
     <HStack gap="space-8" align="center" wrap={false}>
       {sak.soknad.ansattNavn}
-      {egenAnsattTag}
+      <AdressebeskyttelseTag adressebeskyttelse={sak.adressebeskyttelse} />
+      {sak.skjermet && egenAnsattTag}
     </HStack>
   );
 }

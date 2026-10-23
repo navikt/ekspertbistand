@@ -31,15 +31,17 @@ const val IKKE_TILGANG_ENHET = "IKKE_TILGANG_ENHET"
 const val IKKE_TILDELT_SAK = "IKKE_TILDELT_SAK"
 const val BESLUTTER_INHABIL = "BESLUTTER_INHABIL"
 
-private val avvisningskoderForKode6 = setOf("AVVIST_STRENGT_FORTROLIG_ADRESSE", "AVVIST_STRENGT_FORTROLIG_UTLAND")
+const val AVVIST_STRENGT_FORTROLIG_ADRESSE = "AVVIST_STRENGT_FORTROLIG_ADRESSE"
+const val AVVIST_FORTROLIG_ADRESSE = "AVVIST_FORTROLIG_ADRESSE"
+private val avvisningskoderForKode6 = setOf(AVVIST_STRENGT_FORTROLIG_ADRESSE, "AVVIST_STRENGT_FORTROLIG_UTLAND")
 
 /** Svarer 403 med correlation-ID-en til kallet som `feilId`, slik at brukerstøtte kan finne kallet i loggen. */
 internal suspend fun ApplicationCall.respondTilgangAvvist(kode: String?, begrunnelse: String?) =
     respond(HttpStatusCode.Forbidden, TilgangAvvistResponse(kode = kode, begrunnelse = begrunnelse, feilId = callId))
 
 /**
- * Avvisning av en sak der deltakeren kan ha strengt fortrolig adresse (kode 6). Svaret er nøytralt, slik at det ikke
- * avslører kode 6. Team logs får nok til å følge opp ut fra feil-ID-en, men ingenting om personen.
+ * Avvisning av en sak der deltakeren har strengt fortrolig adresse (kode 6). Svaret sier at det er grunnen
+ * (etterlevelseskrav K255.1), men ingenting om personen. Team logs får nok til å følge opp ut fra feil-ID-en.
  */
 private suspend fun ApplicationCall.avvisKode6(
     principal: AzureAdPrincipal,
@@ -50,7 +52,10 @@ private suspend fun ApplicationCall.avvisKode6(
         "Tilgang avvist til sak med strengt fortrolig adresse: navIdent={}, sakId={}, rute={} {}, avvisningskode={}, feilId={}",
         principal.navIdent, sak.sakId, request.httpMethod.value, request.path(), avvisningskode, callId,
     )
-    respondTilgangAvvist(kode = IKKE_TILGANG, begrunnelse = "Du har ikke tilgang til saken.")
+    respondTilgangAvvist(
+        kode = AVVIST_STRENGT_FORTROLIG_ADRESSE,
+        begrunnelse = "Du har ikke tilgang til brukere med strengt fortrolig adresse",
+    )
 }
 
 /**
@@ -224,9 +229,10 @@ const val AVVIST_SKJERMING = "AVVIST_SKJERMING"
 
 /**
  * Bulk-sjekk mot Tilgangsmaskinen (kjerneregler) for listen. Gir avvisningen per ident, eller null når innvilget.
- * Identer som mangler i svaret eller har annen status enn 204 (også 404), regnes som avvist. Bare
- * [AVVIST_SKJERMING] sendes videre som kode. Andre avvisninger blir [IKKE_TILGANG], slik at listen ikke avslører
- * kode 6 eller 7. Kaster ved feil mot Tilgangsmaskinen.
+ * Identer som mangler i svaret eller har annen status enn 204 (også 404), regnes som avvist. Skjerming og
+ * adressebeskyttelse sendes videre som kode, slik at saksbehandleren ser grunnen (etterlevelseskrav K255.1).
+ * Kode 6 i utlandet blir [AVVIST_STRENGT_FORTROLIG_ADRESSE]. Andre avvisninger blir [IKKE_TILGANG].
+ * Kaster ved feil mot Tilgangsmaskinen.
  */
 internal suspend fun TilgangsmaskinClient.deltakerTilganger(
     principal: AzureAdPrincipal,
@@ -244,7 +250,11 @@ internal suspend fun TilgangsmaskinClient.deltakerTilganger(
         } else {
             DeltakerTilgang(
                 avvist = true,
-                kode = if (resultat?.detaljer?.title == AVVIST_SKJERMING) AVVIST_SKJERMING else IKKE_TILGANG,
+                kode = when (val kode = resultat?.detaljer?.title) {
+                    AVVIST_SKJERMING, AVVIST_FORTROLIG_ADRESSE -> kode
+                    in avvisningskoderForKode6 -> AVVIST_STRENGT_FORTROLIG_ADRESSE
+                    else -> IKKE_TILGANG
+                },
             )
         }
     }

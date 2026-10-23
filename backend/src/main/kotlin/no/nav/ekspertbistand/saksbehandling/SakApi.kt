@@ -14,6 +14,7 @@ import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
+import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.KommunenavnCache
 import no.nav.ekspertbistand.saksbehandling.SakTilgangsgrunnlag.Companion.tilTilgangsgrunnlag
 import no.nav.ekspertbistand.soknad.DTO
@@ -51,7 +52,8 @@ import kotlin.time.ExperimentalTime
  * Listen sjekkes i bulk mot Tilgangsmaskinen. Rader uten tilgang mangler deltaker og arbeidsgiver.
  * Feiler sjekken, mangler alle rader dem, og svaret har `tilgangssjekkFeilet`.
  * Kommunenavn kommer fra [KommunenavnCache]. Rader uten tilgang mangler også kommune.
- * Kode 6 gir et nøytralt 403, se [sjekkTilgangsmaskin] og `specifications/ruting_egne_ansatte_og_kommune.md`.
+ * Avvisninger sier om grunnen er skjerming, fortrolig eller strengt fortrolig adresse (K255.1). Kode 6 logges
+ * med feil-ID i team logs, se [sjekkTilgangsmaskin] og `specifications/ruting_egne_ansatte_og_kommune.md`.
  * Listen sporingslogges ikke, jf. krav til oppslagslogg på sikkerhet.nav.no.
  *
  * Tildeling krever [Role.SAKSBEHANDLER] og de samme tilgangssjekkene som enkeltoppslaget. Rutene
@@ -315,6 +317,7 @@ internal class SakListeRad(val ansattFnr: String, val sak: SakListeElement)
 /** Raden slik den vises uten tilgang til deltakeren: uten navn, arbeidsgiver, kommune og tildeling. */
 private fun SakListeElement.utenDeltaker(deltakerTilgang: DeltakerTilgang?) = copy(
     skjermet = false,
+    adressebeskyttelse = null,
     deltakerTilgang = deltakerTilgang,
     kanTildeleMeg = false,
     kanTildeleMegSomBeslutter = false,
@@ -325,6 +328,10 @@ private fun SakListeElement.utenDeltaker(deltakerTilgang: DeltakerTilgang?) = co
 
 // TODO: Returner skjermingsflagget fra saken når kort 661 lagrer det. Resten er koblet opp.
 private fun ResultRow.skjermetVedOpprettelse(): Boolean = false
+
+// TODO: Returner graderingen fra saken når kort 661 lagrer den. Til da kjennes bare kode 6 igjen, fordi den rutes til Vikafossen.
+private fun ResultRow.adressebeskyttelseVedOpprettelse(): Adressebeskyttelse? =
+    if (this[SakTable.behandlendeEnhet] == BehandlendeEnhetService.NAV_VIKAFOSSEN) Adressebeskyttelse.STRENGT_FORTROLIG else null
 
 @OptIn(ExperimentalTime::class)
 internal fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal): List<SakListeRad> {
@@ -376,6 +383,7 @@ internal fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAd
             tiltaksperiodeFra = sisteVedtak?.tiltaksperiodeFra,
             tiltaksperiodeTil = sisteVedtak?.tiltaksperiodeTil,
             skjermet = row.skjermetVedOpprettelse(),
+            adressebeskyttelse = row.adressebeskyttelseVedOpprettelse(),
             deltakerTilgang = null,
             kommunenummer = row[SakTable.kommunenummer],
             kommunenavn = null,
@@ -418,6 +426,7 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                 beslutterNavn = row[SakTable.beslutterNavn],
                 arenaSakId = row[SakTable.arenaSakId],
                 oppgavetype = oppgavetype(status, harRetur = sisteRetur != null),
+                adressebeskyttelse = row.adressebeskyttelseVedOpprettelse(),
                 kanTildeleMeg = tildelingHindring(status, saksbehandlerIdent, principal) == null,
                 kanTildeleMegSomBeslutter = beslutterTildelingHindring(
                     status, beslutterIdent, forelopigVedtak?.innstiltAvIdent, principal,
@@ -445,7 +454,10 @@ data class SakerResponse(
     val tilgangssjekkFeilet: Boolean,
 )
 
-/** Null når innlogget har tilgang til deltakeren. [kode] er [AVVIST_SKJERMING] eller [IKKE_TILGANG]. */
+/**
+ * Null når innlogget har tilgang til deltakeren. [kode] er [AVVIST_SKJERMING], [AVVIST_FORTROLIG_ADRESSE],
+ * [AVVIST_STRENGT_FORTROLIG_ADRESSE] eller [IKKE_TILGANG].
+ */
 @Serializable
 data class DeltakerTilgang(
     val avvist: Boolean,
@@ -474,6 +486,8 @@ data class SakListeElement(
     val tiltaksperiodeTil: LocalDate?,
     /** Deltakeren var skjermet da saken ble opprettet. Usann uten tilgang til deltakeren. */
     val skjermet: Boolean,
+    /** Adressebeskyttelsen til deltakeren, slik at den kan merkes (K255.1). Null uten tilgang til deltakeren. */
+    val adressebeskyttelse: Adressebeskyttelse?,
     val deltakerTilgang: DeltakerTilgang?,
     /** Kommunen saken ble rutet på. Null for kode 6, eldre saker og uten tilgang til deltakeren. */
     val kommunenummer: String?,
@@ -511,6 +525,7 @@ data class SakDetaljer(
     val beslutterNavn: String?,
     val arenaSakId: String?,
     val oppgavetype: Oppgavetype?,
+    val adressebeskyttelse: Adressebeskyttelse?,
     val kanTildeleMeg: Boolean,
     val kanTildeleMegSomBeslutter: Boolean,
     val soknad: Soknad,
@@ -532,6 +547,10 @@ data class SakDetaljer(
         val nav: DTO.Nav,
     )
 }
+
+/** Deltakerens adressebeskyttelse. Kode 6 i utlandet regnes som [STRENGT_FORTROLIG]. */
+@Serializable
+enum class Adressebeskyttelse { FORTROLIG, STRENGT_FORTROLIG }
 
 /**
  * Svar ved avvist tilgang. Tilgangsmaskinens detaljer (inkl. brukerIdent) videresendes ikke. [feilId] er

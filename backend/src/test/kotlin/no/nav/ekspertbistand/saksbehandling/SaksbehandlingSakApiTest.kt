@@ -257,7 +257,7 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
-    fun `detalj avvist med kode 6 gir nøytralt 403 med feilId, uten personopplysninger og uten sporingslogg`() =
+    fun `detalj avvist med kode 6 sier grunnen med feilId, uten personopplysninger og uten sporingslogg`() =
         testApplicationWithDatabase { db ->
             val sakId = lagreSak(db, lagreSoknad(db))
             val oppsett = oppsett(db, tilgangsmaskinSvar = { call ->
@@ -269,16 +269,15 @@ class SaksbehandlingSakApiTest {
             assertEquals(HttpStatusCode.Forbidden, response.status)
             val raw = response.bodyAsText()
             assertFalse(raw.contains(fnr), "avvisning skal ikke inneholde fnr")
-            assertFalse(raw.contains("FORTROLIG", ignoreCase = true), "avvisning skal ikke avsløre kode 6")
             val avvist = response.body<TilgangAvvistResponse>()
-            assertEquals(IKKE_TILGANG, avvist.kode)
-            assertEquals("Du har ikke tilgang til saken.", avvist.begrunnelse)
+            assertEquals(AVVIST_STRENGT_FORTROLIG_ADRESSE, avvist.kode)
+            assertEquals("Du har ikke tilgang til brukere med strengt fortrolig adresse", avvist.begrunnelse)
             assertEquals(response.headers[HttpHeaders.XCorrelationId], assertNotNull(avvist.feilId))
             assertTrue(oppsett.audit.meldinger.isEmpty(), "avvist tilgang skal ikke sporingslogges")
         }
 
     @Test
-    fun `detalj på Vikafossen uten tilgang til enheten gir nøytralt 403 med feilId`() =
+    fun `detalj på Vikafossen uten tilgang til enheten sier at grunnen er strengt fortrolig adresse`() =
         testApplicationWithDatabase { db ->
             val sakId = lagreSak(db, lagreSoknad(db), behandlendeEnhet = "2103")
             val oppsett = oppsett(db)
@@ -287,10 +286,28 @@ class SaksbehandlingSakApiTest {
 
             assertEquals(HttpStatusCode.Forbidden, response.status)
             val avvist = response.body<TilgangAvvistResponse>()
-            assertEquals(IKKE_TILGANG, avvist.kode)
+            assertEquals(AVVIST_STRENGT_FORTROLIG_ADRESSE, avvist.kode)
             assertEquals(response.headers[HttpHeaders.XCorrelationId], assertNotNull(avvist.feilId))
             assertTrue(oppsett.tilgangsmaskinKall.isEmpty())
         }
+
+    @Test
+    fun `sak på Vikafossen er merket strengt fortrolig for den som har tilgang`() = testApplicationWithDatabase { db ->
+        val vikafossen = lagreSak(db, lagreSoknad(db), behandlendeEnhet = "2103")
+        val vanlig = lagreSak(db, lagreSoknad(db))
+        val oppsett = oppsett(db, enheter = {
+            """[{ "enhetnummer": "2103", "navn": "Nav Vikafossen" }, { "enhetnummer": "$egenEnhet", "navn": "Nav Test" }]"""
+        })
+
+        val saker = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
+            .body<SakerResponse>().saker.associateBy { it.sakId }
+        val detalj = oppsett.client.get("/api/saksbehandling/v1/saker/$vikafossen") { bearerAuth(gyldigToken) }
+            .body<SakDetaljer>()
+
+        assertEquals(Adressebeskyttelse.STRENGT_FORTROLIG, saker.getValue(vikafossen.toString()).adressebeskyttelse)
+        assertNull(saker.getValue(vanlig.toString()).adressebeskyttelse)
+        assertEquals(Adressebeskyttelse.STRENGT_FORTROLIG, detalj.adressebeskyttelse)
+    }
 
     @Test
     fun `detalj avvist for skjerming eller fortrolig adresse sender koden videre med feilId`() =
@@ -569,17 +586,23 @@ class SaksbehandlingSakApiTest {
         }
 
     @Test
-    fun `listen skjuler deltaker og arbeidsgiver når tilgangsmaskin avviser`() = testApplicationWithDatabase { db ->
+    fun `listen skjuler deltaker og arbeidsgiver og sier grunnen når tilgangsmaskin avviser`() = testApplicationWithDatabase { db ->
         val innvilgetFnr = "11111111111"
         val skjermetFnr = "22222222222"
         val kode6Fnr = "33333333333"
         val ukjentFnr = "44444444444"
         val manglerISvaretFnr = "55555555555"
+        val kode7Fnr = "66666666666"
+        val kode6UtlandFnr = "77777777777"
+        val habilitetFnr = "88888888888"
         val innvilget = lagreSak(db, lagreSoknad(db, ansattNavn = "Synlig Deltaker", ansattFnr = innvilgetFnr))
         val skjermet = lagreSak(db, lagreSoknad(db, ansattFnr = skjermetFnr))
         val kode6 = lagreSak(db, lagreSoknad(db, ansattFnr = kode6Fnr))
         val ukjent = lagreSak(db, lagreSoknad(db, ansattFnr = ukjentFnr))
         val manglerISvaret = lagreSak(db, lagreSoknad(db, ansattFnr = manglerISvaretFnr))
+        val kode7 = lagreSak(db, lagreSoknad(db, ansattFnr = kode7Fnr))
+        val kode6Utland = lagreSak(db, lagreSoknad(db, ansattFnr = kode6UtlandFnr))
+        val habilitet = lagreSak(db, lagreSoknad(db, ansattFnr = habilitetFnr))
         val oppsett = oppsett(db, bulkSvar = { call, _ ->
             call.respondBulk(
                 listOf(
@@ -589,13 +612,17 @@ class SaksbehandlingSakApiTest {
                         kode6Fnr, 403, TilgangsmaskinAvvisning(title = "AVVIST_STRENGT_FORTROLIG_ADRESSE"),
                     ),
                     EnkeltBulkRespons(ukjentFnr, 404),
+                    EnkeltBulkRespons(kode7Fnr, 403, TilgangsmaskinAvvisning(title = "AVVIST_FORTROLIG_ADRESSE")),
+                    EnkeltBulkRespons(
+                        kode6UtlandFnr, 403, TilgangsmaskinAvvisning(title = "AVVIST_STRENGT_FORTROLIG_UTLAND"),
+                    ),
+                    EnkeltBulkRespons(habilitetFnr, 403, TilgangsmaskinAvvisning(title = "AVVIST_HABILITET")),
                 )
             )
         })
 
         val response = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
 
-        assertFalse(response.bodyAsText().contains("FORTROLIG"), "listen skal ikke avsløre kode 6 eller 7")
         val body = response.body<SakerResponse>()
         assertFalse(body.tilgangssjekkFeilet)
         val saker = body.saker.associateBy { UUID.fromString(it.sakId) }
@@ -609,7 +636,10 @@ class SaksbehandlingSakApiTest {
 
         mapOf(
             skjermet to AVVIST_SKJERMING,
-            kode6 to IKKE_TILGANG,
+            kode6 to AVVIST_STRENGT_FORTROLIG_ADRESSE,
+            kode6Utland to AVVIST_STRENGT_FORTROLIG_ADRESSE,
+            kode7 to AVVIST_FORTROLIG_ADRESSE,
+            habilitet to IKKE_TILGANG,
             ukjent to IKKE_TILGANG,
             manglerISvaret to IKKE_TILGANG,
         ).forEach { (sakId, kode) ->

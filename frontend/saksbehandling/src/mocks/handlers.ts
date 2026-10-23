@@ -106,14 +106,18 @@ const mockBeslutter = { ident: "B123456", navn: "Bea Beslutter" };
 
 const mockRoller = { saksbehandler: true, beslutter: true };
 
-type DeltakerAvvisning = "AVVIST_SKJERMING" | "IKKE_TILGANG";
+type DeltakerAvvisning =
+  | "AVVIST_SKJERMING"
+  | "AVVIST_FORTROLIG_ADRESSE"
+  | "AVVIST_STRENGT_FORTROLIG_ADRESSE"
+  | "IKKE_TILGANG";
 
 type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent" | "saksbehandlerNavn"> &
   Partial<SakInfo> & {
     /** Uten verdi får saken en kommune i Agder ut fra rekkefølgen, eller ingen. */
     kommunenummer?: string | null;
     skjermet?: boolean;
-    /** Svaret fra Tilgangsmaskinen for den innloggede. `IKKE_TILGANG` brukes for kode 6. */
+    /** Svaret fra Tilgangsmaskinen for den innloggede, slik backend sender det videre. */
     deltakerAvvist?: DeltakerAvvisning;
     soknad: {
       soknadId: string;
@@ -390,6 +394,34 @@ const mockSaker: MockSak[] = [
     },
   },
   {
+    sakId: "9c2f7a10-0000-4000-8000-000000002023",
+    status: "OPPRETTET",
+    saksbehandlerIdent: null,
+    saksbehandlerNavn: null,
+    adressebeskyttelse: "STRENGT_FORTROLIG",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001023",
+      virksomhetsnavn: "Skjermet verksted",
+      ansattNavn: "Sigrid Strengt",
+      innsendtTidspunkt: "2026-10-30T08:00:00Z",
+      startdato: "2026-12-02",
+    },
+  },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002024",
+    status: "OPPRETTET",
+    saksbehandlerIdent: null,
+    saksbehandlerNavn: null,
+    adressebeskyttelse: "FORTROLIG",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001024",
+      virksomhetsnavn: "Lukket lager",
+      ansattNavn: "Frode Fortrolig",
+      innsendtTidspunkt: "2026-10-30T07:00:00Z",
+      startdato: "2026-12-04",
+    },
+  },
+  {
     sakId: "9c2f7a10-0000-4000-8000-000000002019",
     status: "OPPRETTET",
     saksbehandlerIdent: null,
@@ -423,13 +455,27 @@ const mockSaker: MockSak[] = [
     status: "OPPRETTET",
     saksbehandlerIdent: null,
     saksbehandlerNavn: null,
-    deltakerAvvist: "IKKE_TILGANG",
+    deltakerAvvist: "AVVIST_STRENGT_FORTROLIG_ADRESSE",
     soknad: {
       soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001021",
       virksomhetsnavn: "Skjult bakeri",
       ansattNavn: "Kari Kode",
       innsendtTidspunkt: "2026-10-27T10:00:00Z",
       startdato: "2026-12-05",
+    },
+  },
+  {
+    sakId: "9c2f7a10-0000-4000-8000-000000002022",
+    status: "OPPRETTET",
+    saksbehandlerIdent: null,
+    saksbehandlerNavn: null,
+    deltakerAvvist: "AVVIST_FORTROLIG_ADRESSE",
+    soknad: {
+      soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001022",
+      virksomhetsnavn: "Skjult snekkeri",
+      ansattNavn: "Frida Fortrolig",
+      innsendtTidspunkt: "2026-10-26T09:00:00Z",
+      startdato: "2026-12-07",
     },
   },
 ];
@@ -713,6 +759,7 @@ const tilListeElement = (
     beslutterIdent: null,
     beslutterNavn: null,
     arenaSakId: null,
+    adressebeskyttelse: null,
     ...mockSak,
   };
   const kommunenummer = mockKommune(index, oppgittKommune, sak.kildeTilBehandling === "ARENA");
@@ -726,6 +773,7 @@ const tilListeElement = (
     oppgavetype: type,
     harOppgaveForMeg: harOppgaveForMeg(type),
     skjermet,
+    adressebeskyttelse: deltakerAvvist ? null : sak.adressebeskyttelse,
     deltakerTilgang: deltakerAvvist ? { avvist: true, kode: deltakerAvvist } : null,
     kanTildeleMegSomBeslutter:
       beslutterTildelingHindring(sak) === null &&
@@ -762,14 +810,19 @@ const utenDeltaker = (sak: MockListeElement): SakListeElement =>
       }
     : sak;
 
+const avvisningsbegrunnelse: Record<string, string> = {
+  AVVIST_SKJERMING: "Du har ikke tilgang til Nav-ansatte og andre skjermede brukere",
+  AVVIST_FORTROLIG_ADRESSE: "Du har ikke tilgang til brukere med fortrolig adresse",
+  AVVIST_STRENGT_FORTROLIG_ADRESSE: "Du har ikke tilgang til brukere med strengt fortrolig adresse",
+};
+
 const deltakerAvvist = (sak: SakListeElement): Response | null => {
   const kode = sak.deltakerTilgang?.avvist ? sak.deltakerTilgang.kode : null;
   if (!kode) return null;
   return HttpResponse.json(
     {
       kode,
-      begrunnelse:
-        kode === "IKKE_TILGANG" ? "Du har ikke tilgang til saken." : "Deltakeren er skjermet",
+      begrunnelse: avvisningsbegrunnelse[kode] ?? "Du har ikke tilgang til saken.",
       feilId: crypto.randomUUID(),
     },
     { status: 403 }
