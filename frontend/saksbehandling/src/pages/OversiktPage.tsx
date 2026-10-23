@@ -123,7 +123,7 @@ function tiltaksperiode(sak: SakListeElement) {
   return `${formatDate(sak.soknad.startdato)} –`;
 }
 
-const ferdigeSaksstatuser: Saksstatus[] = ["INNVILGET", "AVSLATT", "AVSLUTTET"];
+const ferdigeSaksstatuser: Saksstatus[] = ["AVSLATT", "AVSLUTTET"];
 
 function erAvsluttet(sak: SakListeElement) {
   return ferdigeSaksstatuser.includes(sak.status);
@@ -197,9 +197,9 @@ export default function OversiktPage() {
         ),
     },
     {
-      value: "pagaende",
-      label: "Pågående",
-      filter: () => saker.filter((s) => !erAvsluttet(s)),
+      value: "gjennomfores",
+      label: "Gjennomføres",
+      filter: () => saker.filter((s) => s.status === "INNVILGET"),
     },
     {
       value: "avsluttet",
@@ -237,7 +237,7 @@ export default function OversiktPage() {
 
   return (
     <Page.Block as="main">
-      <Box paddingInline="space-24">
+      <Box paddingInline="space-24" paddingBlock="space-16 space-0">
         <VStack gap="space-16">
           {tilgangssjekkFeilet && (
             <Alert variant="warning" size="small">

@@ -254,7 +254,7 @@ fun main() {
                                 "tIdent": "T${ansatt.navIdent.drop(1)}",
                                 "fornavn": "${ansatt.fornavn}",
                                 "etternavn": "${ansatt.etternavn}",
-                                "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
+                                "enhet": { "enhetnummer": "1234", "navn": "Nav arbeidslivssenter Sydpolen" },
                                 "enheter": ${
                                     ansatt.enheter.joinToString(prefix = "[", postfix = "]") {
                                         """{ "enhetsnummer": "${it.nummer}", "navn": "${it.navn}" }"""

@@ -44,8 +44,8 @@ internal data class LokalVirksomhet(
 )
 
 internal enum class LokalEnhet(val nummer: String, val navn: String) {
-    SYDPOLEN("1234", "Nav Avdeling Sydpolen"),
-    NORDPOLEN("5678", "Nav Avdeling Nordpolen"),
+    SYDPOLEN("1234", "Nav arbeidslivssenter Sydpolen"),
+    NORDPOLEN("5678", "Nav arbeidslivssenter Nordpolen"),
     VIKAFOSSEN("2103", "Nav Vikafossen"),
 }
 

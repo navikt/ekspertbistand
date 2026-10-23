@@ -1,4 +1,4 @@
-import { BodyShort, HStack, Select, UNSAFE_Combobox, VStack } from "@navikt/ds-react";
+import { BodyShort, HStack, UNSAFE_Combobox, VStack } from "@navikt/ds-react";
 import type { Kommunefilter as Filter, KommuneValg } from "../hooks/useKommunefilter";
 import type { AnsattEnhet } from "../mock/ansatt";
 import classes from "./Kommunefilter.module.css";
@@ -18,19 +18,18 @@ export function Kommunefilter({ enheter, filter, kommuneValg, skjulte, onEndre }
     <VStack gap="space-8">
       <HStack gap="space-16" align="end">
         {enheter.length > 1 && (
-          <Select
+          <UNSAFE_Combobox
             label="Enhet"
             size="small"
             className={classes.enhet}
-            value={filter.enhet}
-            onChange={(e) => onEndre({ enhet: e.target.value, kommuner: [] })}
-          >
-            {enheter.map((enhet) => (
-              <option key={enhet.nummer} value={enhet.nummer}>
-                {enhet.navn}
-              </option>
-            ))}
-          </Select>
+            options={enheter.map((enhet) => ({ label: enhet.navn, value: enhet.nummer }))}
+            selectedOptions={enheter
+              .filter((enhet) => enhet.nummer === filter.enhet)
+              .map((enhet) => ({ label: enhet.navn, value: enhet.nummer }))}
+            onToggleSelected={(nummer, valgt) => {
+              if (valgt && nummer !== filter.enhet) onEndre({ enhet: nummer, kommuner: [] });
+            }}
+          />
         )}
         {kommuneValg.length > 0 && (
           <UNSAFE_Combobox

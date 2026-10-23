@@ -62,7 +62,7 @@ class EntraBerikelseCacheTest {
                 path.startsWith(EntraProxyClient.GRUPPER_API_PATH) ->
                     HttpStatusCode.OK to """[{ "rolle": "0000-CA-Ekspertbistand_Saksbehandler" }, { "rolle": "ukjent" }]"""
                 path.startsWith(EntraProxyClient.API_PATH) ->
-                    HttpStatusCode.OK to """[{ "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" }]"""
+                    HttpStatusCode.OK to """[{ "enhetnummer": "1234", "navn": "Nav arbeidslivssenter Sydpolen" }]"""
                 else -> ansatt()
             }
             respond(body, status, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
