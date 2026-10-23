@@ -468,9 +468,7 @@ data class Meldingsinnhold(
  * Om deltakeren hadde adressebeskyttelse da saken ble opprettet. Holder hele behandlingen utenfor viewet, uansett hva
  * PDL sier senere.
  */
-// TODO: Returner feltet for adressebeskyttelse når SakOpprettet får det (egen oppgave). Resten er koblet opp.
-//  Må være løst før projeksjonen skrus på i prod.
-internal fun EventData.SakOpprettet.adressebeskyttetVedOpprettelse(): Boolean = false
+internal fun EventData.SakOpprettet.adressebeskyttetVedOpprettelse(): Boolean = adressebeskyttelse != null
 
 /** Søknaden lagrer beløpet som tekst. Frontend godtar desimaler, så beløpet rundes av til hele kroner. */
 private fun heleKroner(estimertKostnad: String): Int =

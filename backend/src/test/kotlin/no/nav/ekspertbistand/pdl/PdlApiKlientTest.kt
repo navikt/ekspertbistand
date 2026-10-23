@@ -27,8 +27,10 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.Test
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse as SaksAdressebeskyttelse
 
 class PdlApiKlientTest {
 
@@ -245,6 +247,43 @@ class PdlApiKlientTest {
         result.getOrElse {
             assertIs<UnknownError>(it)
         }
+    }
+
+    @Test
+    fun `graderingoppslag gir strengeste gradering og null for ugradert og ukjent person`() = testApplication {
+        val gradering = mutableListOf<AdressebeskyttelseGradering>()
+        var feilkode: String? = null
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = {
+                if (feilkode != null) null
+                else Person(adressebeskyttelse = gradering.map { Adressebeskyttelse(gradering = it, folkeregistermetadata = null) })
+            },
+            hentGeografiskTilknytning = { null },
+            errorCode = { feilkode },
+        )
+        startApplication()
+        val oppslag = PdlGraderingOppslag(PdlApiKlient(application.dependencies.resolve(), client))
+
+        mapOf(
+            listOf(AdressebeskyttelseGradering.FORTROLIG) to SaksAdressebeskyttelse.FORTROLIG,
+            listOf(AdressebeskyttelseGradering.STRENGT_FORTROLIG) to SaksAdressebeskyttelse.STRENGT_FORTROLIG,
+            listOf(AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND) to SaksAdressebeskyttelse.STRENGT_FORTROLIG,
+            listOf(AdressebeskyttelseGradering.FORTROLIG, AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND) to
+                    SaksAdressebeskyttelse.STRENGT_FORTROLIG,
+            listOf(AdressebeskyttelseGradering.UGRADERT) to null,
+            emptyList<AdressebeskyttelseGradering>() to null,
+        ).forEach { (graderinger, forventet) ->
+            gradering.clear()
+            gradering += graderinger
+            assertEquals(forventet, oppslag.hentAdressebeskyttelse("42"), "$graderinger")
+        }
+
+        feilkode = "not_found"
+        assertNull(oppslag.hentAdressebeskyttelse("42"))
+
+        feilkode = "server_error"
+        assertFailsWith<ServerError> { oppslag.hentAdressebeskyttelse("42") }
     }
 }
 

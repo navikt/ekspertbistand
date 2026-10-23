@@ -73,6 +73,8 @@ spec:
       rules:
         - application: populasjonstilgangskontroll
           namespace: tilgangsmaskin
+        - application: skjermede-personer-pip
+          namespace: nom
         - application: logging
           namespace: nais-system
         - application: notifikasjon-produsent-api

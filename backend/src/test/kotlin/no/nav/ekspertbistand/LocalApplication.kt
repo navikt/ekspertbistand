@@ -39,7 +39,10 @@ import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
 import no.nav.ekspertbistand.norg.KommunenavnCache
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.pdl.GraderingOppslag
 import no.nav.ekspertbistand.pdl.PdlApiKlient
+import no.nav.ekspertbistand.pdl.PdlGraderingOppslag
+import no.nav.ekspertbistand.skjerming.SkjermingOppslag
 import no.nav.ekspertbistand.saksbehandling.Role
 import no.nav.ekspertbistand.saksbehandling.configureBeslutterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureForelopigVedtakApiV1
@@ -511,6 +514,8 @@ fun main() {
                 }
             }
             provide<AdressebeskyttelseOppslag> { PdlAdressebeskyttelseOppslag(resolve()) }
+            provide<GraderingOppslag> { PdlGraderingOppslag(resolve()) }
+            provide<SkjermingOppslag> { SkjermingOppslag { lokalBeskyttelse(it) == LokalBeskyttelse.SKJERMET } }
         }
         configureServer()
         configureAuthentication()

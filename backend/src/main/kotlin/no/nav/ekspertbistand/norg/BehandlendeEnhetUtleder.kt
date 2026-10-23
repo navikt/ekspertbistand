@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.norg
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.pdl.NotFound
 import no.nav.ekspertbistand.pdl.PdlApiKlient
+import no.nav.ekspertbistand.pdl.hoyesteGradering
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
 import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
@@ -68,17 +69,6 @@ class BehandlendeEnhetUtleder(
             ?.firstNotNullOfOrNull { it.kommunenummer }
             ?: throw ManglerDataForBehandlendeEnhetException("Fant ikke kommunenummer for virksomhet $virksomhetsnummer")
     }
-
-    private fun List<AdressebeskyttelseGradering>.hoyesteGradering(): AdressebeskyttelseGradering =
-        maxByOrNull { gradering ->
-            when (gradering) {
-                AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND -> 3
-                AdressebeskyttelseGradering.STRENGT_FORTROLIG -> 2
-                AdressebeskyttelseGradering.FORTROLIG -> 1
-                AdressebeskyttelseGradering.UGRADERT -> 0
-                AdressebeskyttelseGradering.__UNKNOWN_VALUE -> -1
-            }
-        } ?: AdressebeskyttelseGradering.UGRADERT
 
     private fun GeografiskTilknytning.geografiskTilknytning(): String? =
         when (gtType) {

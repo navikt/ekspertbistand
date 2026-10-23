@@ -52,7 +52,11 @@ import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
 import no.nav.ekspertbistand.norg.KommunenavnCache
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.pdl.GraderingOppslag
 import no.nav.ekspertbistand.pdl.PdlApiKlient
+import no.nav.ekspertbistand.pdl.PdlGraderingOppslag
+import no.nav.ekspertbistand.skjerming.SkjermedePersonerPipKlient
+import no.nav.ekspertbistand.skjerming.SkjermingOppslag
 import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.configureBeslutterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureForelopigVedtakApiV1
@@ -128,6 +132,8 @@ fun main() {
             provide<SaksbehandlingsstatistikkSkriver> { statistikk }
             provide<AdressebeskyttedeBehandlinger> { statistikk }
             provide<AdressebeskyttelseOppslag> { PdlAdressebeskyttelseOppslag(resolve()) }
+            provide<GraderingOppslag> { PdlGraderingOppslag(resolve()) }
+            provide<SkjermingOppslag> { SkjermedePersonerPipKlient(resolve(), resolve()) }
             basedOnEnv(
                 dev = { provide(KontoregisterClient::class) },
                 other = {},

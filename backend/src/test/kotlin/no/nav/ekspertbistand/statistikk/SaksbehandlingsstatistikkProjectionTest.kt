@@ -8,6 +8,7 @@ import no.nav.ekspertbistand.event.TestEventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.event.projections.ProjectionBuilderState
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
@@ -235,6 +236,16 @@ class SaksbehandlingsstatistikkProjectionTest {
     }
 
     @Test
+    fun `adressebeskyttelse ved opprettelse registrerer behandlingen selv om PDL sier ugradert`() = medDb {
+        val soknad = soknad(fnr = "04040454321")
+        registrer(soknad, enhet = "0315", adressebeskyttelse = Adressebeskyttelse.FORTROLIG)
+        pollAlt()
+
+        assertEquals(listOf(SaksbehandlingsstatistikkProjection.MASKERT), meldinger(soknad).map { it.ansvarligEnhet })
+        assertEquals(listOf(soknad.id), registrerte)
+    }
+
+    @Test
     fun `feil mot PDL gir ingen rad foer oppslaget lykkes`() {
         val soknad = soknad()
         medDb { registrer(soknad, enhet = "0315") }
@@ -267,10 +278,20 @@ class SaksbehandlingsstatistikkProjectionTest {
         assertEquals(forste.map { it.copy(meldingTid = start) }, andre.map { it.copy(meldingTid = start) })
     }
 
-    private fun JdbcTransaction.registrer(soknad: DTO.Soknad, enhet: String) {
+    private fun JdbcTransaction.registrer(
+        soknad: DTO.Soknad,
+        enhet: String,
+        adressebeskyttelse: Adressebeskyttelse? = null,
+    ) {
         publishAndFinalize(EventData.SoknadInnsendt(soknad))
         publishAndFinalize(journalfoert(soknad, enhet))
-        publishAndFinalize(EventData.SakOpprettet(sakId = UUID.randomUUID().toString(), soknad = soknad))
+        publishAndFinalize(
+            EventData.SakOpprettet(
+                sakId = UUID.randomUUID().toString(),
+                soknad = soknad,
+                adressebeskyttelse = adressebeskyttelse,
+            )
+        )
     }
 
     private fun medDb(block: JdbcTransaction.() -> Unit) {

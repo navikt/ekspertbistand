@@ -326,12 +326,12 @@ private fun SakListeElement.utenDeltaker(deltakerTilgang: DeltakerTilgang?) = co
     soknad = soknad.copy(ansattNavn = null, virksomhet = null),
 )
 
-// TODO: Returner skjermingsflagget fra saken når kort 661 lagrer det. Resten er koblet opp.
-private fun ResultRow.skjermetVedOpprettelse(): Boolean = false
+private fun ResultRow.skjermetVedOpprettelse(): Boolean = this[SakTable.skjermet]
 
-// TODO: Returner graderingen fra saken når kort 661 lagrer den. Til da kjennes bare kode 6 igjen, fordi den rutes til Vikafossen.
+/** Lagret gradering. Arena-saker og saker opprettet før V28 har ingen, så der kjennes bare kode 6 igjen via Vikafossen. */
 private fun ResultRow.adressebeskyttelseVedOpprettelse(): Adressebeskyttelse? =
-    if (this[SakTable.behandlendeEnhet] == BehandlendeEnhetService.NAV_VIKAFOSSEN) Adressebeskyttelse.STRENGT_FORTROLIG else null
+    this[SakTable.adressebeskyttelse]?.let(Adressebeskyttelse::valueOf)
+        ?: if (this[SakTable.behandlendeEnhet] == BehandlendeEnhetService.NAV_VIKAFOSSEN) Adressebeskyttelse.STRENGT_FORTROLIG else null
 
 @OptIn(ExperimentalTime::class)
 internal fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal): List<SakListeRad> {
@@ -427,6 +427,7 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                 arenaSakId = row[SakTable.arenaSakId],
                 oppgavetype = oppgavetype(status, harRetur = sisteRetur != null),
                 adressebeskyttelse = row.adressebeskyttelseVedOpprettelse(),
+                skjermet = row.skjermetVedOpprettelse(),
                 kanTildeleMeg = tildelingHindring(status, saksbehandlerIdent, principal) == null,
                 kanTildeleMegSomBeslutter = beslutterTildelingHindring(
                     status, beslutterIdent, forelopigVedtak?.innstiltAvIdent, principal,
@@ -526,6 +527,7 @@ data class SakDetaljer(
     val arenaSakId: String?,
     val oppgavetype: Oppgavetype?,
     val adressebeskyttelse: Adressebeskyttelse?,
+    val skjermet: Boolean,
     val kanTildeleMeg: Boolean,
     val kanTildeleMegSomBeslutter: Boolean,
     val soknad: Soknad,
