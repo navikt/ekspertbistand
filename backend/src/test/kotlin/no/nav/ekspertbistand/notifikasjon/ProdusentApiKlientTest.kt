@@ -180,6 +180,63 @@ class ProdusentApiKlientTest {
         )
     }
 
+    @Test
+    fun `Skeduler hard delete sak`() = testApplication {
+        setupApplication()
+        setProdusentApiResultat {
+            //language=json
+            """{
+                "data": {
+                  "skedulerHardDeleteSakByGrupperingsid": {
+                    "__typename": "SkedulerHardDeleteSakVellykket",
+                    "id": "$soknadId"
+                    }
+                },
+                "errors": []
+                }
+            """.trimIndent()
+        }
+        startApplication()
+
+        val klient = ProdusentApiKlient(
+            azureAdTokenProvider = application.dependencies.resolve(),
+            defaultHttpClient = client
+        )
+
+        klient.skedulerHardDeleteSak(
+            // kaster exception dersom det feiler
+            grupperingsid = soknadId,
+        )
+    }
+
+    @Test
+    fun `Skeduler hard delete sak som ikke finnes kaster`() = testApplication {
+        setupApplication()
+        setProdusentApiResultat {
+            //language=json
+            """{
+                "data": {
+                  "skedulerHardDeleteSakByGrupperingsid": {
+                    "__typename": "SakFinnesIkke",
+                    "feilmelding": "Sak finnes ikke"
+                    }
+                },
+                "errors": []
+                }
+            """.trimIndent()
+        }
+        startApplication()
+
+        val klient = ProdusentApiKlient(
+            azureAdTokenProvider = application.dependencies.resolve(),
+            defaultHttpClient = client
+        )
+
+        kotlin.test.assertFailsWith<SkedulerHardDeleteSakException> {
+            klient.skedulerHardDeleteSak(grupperingsid = soknadId)
+        }
+    }
+
     private fun ApplicationTestBuilder.setProdusentApiResultat(
         resultat: () -> String
     ) {

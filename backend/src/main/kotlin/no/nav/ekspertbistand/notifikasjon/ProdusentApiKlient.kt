@@ -23,7 +23,10 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.Default
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsid
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsidEtterDelete
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.NySakVellykket
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.DefaultSkedulerHardDeleteSakResultatImplementation
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.SkedulerHardDeleteSakVellykket
 import java.net.URI
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
@@ -32,6 +35,9 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.Ugyldig
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UgyldigMottaker as NySakUgyldigMottaker
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.SakFinnesIkke as SkedulerHardDeleteSakFinnesIkke
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.UgyldigMerkelapp as SkedulerHardDeleteUgyldigMerkelapp
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.UkjentProdusent as SkedulerHardDeleteUkjentProdusent
 
 private const val merkelapp = "Ekspertbistand"
 private const val notifikasjonBaseUrl = "http://notifikasjon-produsent-api.fager/api/graphql"
@@ -237,6 +243,40 @@ class ProdusentApiKlient(
         }
     }
 
+    /**
+     * Setter (eller endrer) når notifikasjonsplattformen skal hard-slette saken. Saken slettes ikke
+     * umiddelbart, men [om] etter nå, eller etter tidspunktet [strategi] gir.
+     */
+    suspend fun skedulerHardDeleteSak(
+        grupperingsid: String,
+        om: Duration = hardDeleteINotifikasjonsplattformenOm,
+        strategi: NyTidStrategi = NyTidStrategi.OVERSKRIV,
+    ) {
+        val token = hentEntraIdToken()
+        val resultat = client.execute(
+            SkedulerHardDeleteSak(
+                variables = SkedulerHardDeleteSak.Variables(
+                    grupperingsid = grupperingsid,
+                    merkelapp = merkelapp,
+                    hardDelete = HardDeleteUpdateInput(
+                        nyTid = FutureTemporalInput(om = om.toIsoString()),
+                        strategi = strategi,
+                    ),
+                )
+            )
+        ) {
+            bearerAuth(token)
+        }
+        when (val skedulert = resultat.data?.skedulerHardDeleteSakByGrupperingsid) {
+            is SkedulerHardDeleteSakVellykket -> log.info("Skedulerte hard delete om {} for sak med id {}", om, skedulert.id)
+            is SkedulerHardDeleteSakFinnesIkke -> throw SkedulerHardDeleteSakException(skedulert.feilmelding)
+            is SkedulerHardDeleteUgyldigMerkelapp -> throw SkedulerHardDeleteSakException(skedulert.feilmelding)
+            is SkedulerHardDeleteUkjentProdusent -> throw SkedulerHardDeleteSakException(skedulert.feilmelding)
+            is DefaultSkedulerHardDeleteSakResultatImplementation -> throw SkedulerHardDeleteSakException("Uventet feil: $resultat")
+            null -> throw SkedulerHardDeleteSakException("Uventet feil: SkedulerHardDeleteSak er null, $resultat")
+        }
+    }
+
     private fun EksterntVarsel.tilVarsel() =
         EksterntVarselInput(
             altinnressurs =
@@ -260,3 +300,4 @@ class SakOpprettetException(message: String) : Exception(message)
 class BeskjedOpprettetException(message: String) : Exception(message)
 class NyStatusSakException(message: String) : Exception(message)
 class HardDeleteSakException(message: String) : Exception(message)
+class SkedulerHardDeleteSakException(message: String) : Exception(message)
