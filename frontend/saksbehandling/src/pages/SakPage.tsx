@@ -20,6 +20,7 @@ import {
 import { useCallback, useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
 import { NavLink, useParams } from "react-router";
+import { AdressebeskyttelseTag } from "../components/AdressebeskyttelseTag";
 import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
 import Refusjonskontroll from "../components/Refusjonskontroll";
@@ -53,6 +54,7 @@ import { type Vilkår, useVilkår } from "../hooks/useVilkår";
 import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import type { HttpError } from "../utils/http";
+import { IKKE_TILGANG_TEKST, feilIdTekst, tilgangAvvistTekst } from "../utils/tilgangsfeil";
 import { GOSYS_URL, MODIA_URL, OVERSIKT_PATH, isMockEnabled } from "../utils/constants";
 import styles from "./SakPage.module.css";
 
@@ -211,7 +213,7 @@ function ForelopigVedtakFane({
 function feilmelding(error: HttpError | undefined) {
   switch (error?.status) {
     case 403:
-      return "Du har ikke tilgang til denne saken.";
+      return IKKE_TILGANG_TEKST;
     case 404:
       return "Fant ikke saken.";
     case 503:
@@ -397,13 +399,18 @@ export default function SakPage() {
 
   if (isLoading) return <Loader size="large" title="Laster sak" />;
   if (error || !sak) {
-    const begrunnelse = error?.status === 403 ? error.begrunnelse : undefined;
+    const forklaring =
+      error?.status === 403 && error.kode !== "IKKE_TILGANG"
+        ? tilgangAvvistTekst(error, "")
+        : undefined;
+    const feilId = error?.status === 403 ? feilIdTekst(error) : null;
     return (
       <Box padding="space-24">
         <Alert variant="error">
           <VStack gap="space-8">
             <BodyShort weight="semibold">{feilmelding(error)}</BodyShort>
-            {begrunnelse && <BodyShort>{begrunnelse}</BodyShort>}
+            {forklaring && <BodyShort>{forklaring}</BodyShort>}
+            {feilId && <BodyShort size="small">{feilId}</BodyShort>}
           </VStack>
         </Alert>
       </Box>
@@ -453,6 +460,7 @@ export default function SakPage() {
           <BodyShort>/</BodyShort>
           <BodyShort style={{ overflowWrap: "anywhere" }}>{ansatt.fnr}</BodyShort>
           <CopyButton copyText={ansatt.fnr} size="xsmall" />
+          <AdressebeskyttelseTag adressebeskyttelse={sak.adressebeskyttelse} size="small" />
         </HStack>
       </Box>
 

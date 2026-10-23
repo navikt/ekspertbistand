@@ -49,12 +49,14 @@ import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
+import no.nav.ekspertbistand.norg.KommunenavnCache
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.configureBeslutterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureForelopigVedtakApiV1
+import no.nav.ekspertbistand.saksbehandling.configureKommunefilterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSakDokumentApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
@@ -112,6 +114,7 @@ fun main() {
             provide(NorgKlient::class)
             provide(BehandlendeEnhetService::class)
             provide(BehandlendeEnhetUtleder::class)
+            provide<KommunenavnCache> { KommunenavnCache(resolve()) }
             provide(PdlApiKlient::class)
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
@@ -160,6 +163,7 @@ fun main() {
                 configureVilkarsvurderingApiV1()
                 configureForelopigVedtakApiV1()
                 configureBeslutterApiV1()
+                configureKommunefilterApiV1()
             },
         )
         basedOnEnvSuspending(

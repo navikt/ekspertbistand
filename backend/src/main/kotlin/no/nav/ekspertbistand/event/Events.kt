@@ -72,6 +72,16 @@ sealed interface EventData {
      * som ble utledet fra søkers adressebeskyttelse og geografiske tilknytning, og bæres videre fordi
      * Arena trenger det ved opprettelse av sak.
      *
+     * [virksomhetKommunenummer] er kommunen til virksomheten som ble brukt mot Norg. Den er null når:
+     * - deltakeren har strengt fortrolig adresse. Da rutes saken på deltakerens geografiske tilknytning,
+     *   og vi lagrer ikke bostedet.
+     * - eventen ble publisert før feltet ble innført (PR #211). I prod er disse eventene bare brukt av
+     *   [no.nav.ekspertbistand.event.projections.SakProjection], som lager Arena-saker og ignorerer feltet.
+     *
+     * Ut fra eventen alene skiller vi ikke de to tilfellene. Feltet skal derfor ikke brukes til å utlede
+     * adressebeskyttelse. Det sier bare hvilken kommune saken ble rutet på, og brukes av kommunefilteret
+     * i saksbehandling.
+     *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.OpprettSak] (mapper enheten tilbake til
      * Norg-enhetsnummer) og [no.nav.ekspertbistand.event.handlers.OpprettTiltaksgjennomfoeringForInnsendtSoknad].
      */
@@ -82,6 +92,8 @@ sealed interface EventData {
         val dokumentId: Int,
         val journaldpostId: Int,
         val behandlendeEnhetId: String,
+        /** Se klassedokumentasjonen for når feltet er null. */
+        val virksomhetKommunenummer: String? = null,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
     }

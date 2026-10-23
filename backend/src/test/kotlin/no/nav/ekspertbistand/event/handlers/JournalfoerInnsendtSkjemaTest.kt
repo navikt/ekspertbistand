@@ -42,6 +42,7 @@ import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class JournalfoerInnsendtSoknadTest {
     @Test
@@ -91,6 +92,7 @@ class JournalfoerInnsendtSoknadTest {
             assertEquals(9876, queuedEvent.dokumentId)
             assertEquals(1234, queuedEvent.journaldpostId)
             assertEquals("4242", queuedEvent.behandlendeEnhetId)
+            assertEquals("0301", queuedEvent.virksomhetKommunenummer)
             assertEquals("0301", capturedNorgRequest?.geografiskOmraade)
             assertEquals(NorgKlient.DISKRESJONSKODE_ANY, capturedNorgRequest?.diskresjonskode)
         }
@@ -134,6 +136,7 @@ class JournalfoerInnsendtSoknadTest {
             val queuedEvent = queued.first()[QueuedEvents.eventData]
             assertIs<EventData.InnsendtSoknadJournalfoert>(queuedEvent)
             assertEquals("9999", queuedEvent.behandlendeEnhetId)
+            assertNull(queuedEvent.virksomhetKommunenummer)
             assertEquals("1101", capturedNorgRequest?.geografiskOmraade)
             assertEquals(NorgKlient.DISKRESJONSKODE_ADRESSEBESKYTTET, capturedNorgRequest?.diskresjonskode)
         }

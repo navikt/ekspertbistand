@@ -21,8 +21,8 @@ class EntraProxyClientTest {
             // language=JSON
             """
             [
-                { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
-                { "enhetnummer": "5678", "navn": "Nav Avdeling Nordpolen" }
+                { "enhetnummer": "1234", "navn": "Nav arbeidslivssenter Sydpolen" },
+                { "enhetnummer": "5678", "navn": "Nav arbeidslivssenter Nordpolen" }
             ]
             """
         }
@@ -35,9 +35,9 @@ class EntraProxyClientTest {
         val enheter = client.hentEnheter(navIdent)
         assertEquals(2, enheter.size)
         assertEquals("1234", enheter[0].enhetnummer)
-        assertEquals("Nav Avdeling Sydpolen", enheter[0].navn)
+        assertEquals("Nav arbeidslivssenter Sydpolen", enheter[0].navn)
         assertEquals("5678", enheter[1].enhetnummer)
-        assertEquals("Nav Avdeling Nordpolen", enheter[1].navn)
+        assertEquals("Nav arbeidslivssenter Nordpolen", enheter[1].navn)
     }
 
     @Test
@@ -102,7 +102,7 @@ class EntraProxyClientTest {
                 "fornavn": "Tore",
                 "etternavn": "Tang",
                 "epost": "tore.tang@nav.no",
-                "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
+                "enhet": { "enhetnummer": "1234", "navn": "Nav arbeidslivssenter Sydpolen" },
                 "tIdent": "T123456"
             }
             """
@@ -120,7 +120,7 @@ class EntraProxyClientTest {
         assertEquals("Tang", ansatt.etternavn)
         assertEquals("tore.tang@nav.no", ansatt.epost)
         assertEquals("1234", ansatt.enhet.enhetnummer)
-        assertEquals("Nav Avdeling Sydpolen", ansatt.enhet.navn)
+        assertEquals("Nav arbeidslivssenter Sydpolen", ansatt.enhet.navn)
         assertEquals("T123456", ansatt.tIdent)
     }
 

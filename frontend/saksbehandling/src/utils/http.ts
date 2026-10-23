@@ -2,6 +2,7 @@ type ErrorPayload = {
   message: string | null;
   begrunnelse: string | null;
   kode: string | null;
+  feilId: string | null;
 };
 
 export async function parseErrorPayload(response: Response): Promise<ErrorPayload> {
@@ -11,10 +12,11 @@ export async function parseErrorPayload(response: Response): Promise<ErrorPayloa
       message: typeof payload?.message === "string" ? payload.message : null,
       begrunnelse: typeof payload?.begrunnelse === "string" ? payload.begrunnelse : null,
       kode: typeof payload?.kode === "string" ? payload.kode : null,
+      feilId: typeof payload?.feilId === "string" ? payload.feilId : null,
     };
   } catch {
     // Ignore parse failures and let caller use a fallback.
-    return { message: null, begrunnelse: null, kode: null };
+    return { message: null, begrunnelse: null, kode: null, feilId: null };
   }
 }
 
@@ -27,6 +29,7 @@ type HttpErrorOptions = {
   statusText?: string;
   begrunnelse?: string | null;
   kode?: string | null;
+  feilId?: string | null;
 };
 
 export class HttpError extends Error {
@@ -34,6 +37,7 @@ export class HttpError extends Error {
   statusText?: string;
   begrunnelse?: string;
   kode?: string;
+  feilId?: string;
 
   constructor(message: string, options: HttpErrorOptions) {
     super(message);
@@ -42,5 +46,6 @@ export class HttpError extends Error {
     this.statusText = options.statusText;
     this.begrunnelse = options.begrunnelse ?? undefined;
     this.kode = options.kode ?? undefined;
+    this.feilId = options.feilId ?? undefined;
   }
 }

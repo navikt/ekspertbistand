@@ -9,9 +9,10 @@ import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.Geo
 import no.nav.ekspertbistand.soknad.DTO
 
 /**
- * Utleder behandlende enhet for en søknad (Norg-enhetsnummer).
+ * Utleder behandlende enhet for en søknad (Norg-enhetsnummer), og kommunen saken ble rutet på.
  *
  * - Strengt fortrolig adresse: geografisk tilknytning fra PDL, ellers [BehandlendeEnhetService.NAV_VIKAFOSSEN].
+ *   Kommunenummeret er null, fordi vi ikke lagrer deltakerens bosted.
  * - Ellers (og når personen ikke finnes i PDL): kommunenummer fra virksomhetens forretningsadresse i Ereg.
  *
  * Kaster ved feil mot PDL, Ereg eller Norg, og [ManglerDataForBehandlendeEnhetException] når
@@ -22,36 +23,42 @@ class BehandlendeEnhetUtleder(
     private val eregClient: EregClient,
     private val behandlendeEnhetService: BehandlendeEnhetService,
 ) {
-    suspend fun utled(soknad: DTO.Soknad): String =
+    suspend fun utled(soknad: DTO.Soknad): Ruting =
         pdlApiKlient.hentAdressebeskyttelse(soknad.ansatt.fnr).fold(
             onSuccess = { person ->
-                val gradering = person.adressebeskyttelse.map { it.gradering }.hoyesteGradering()
-                val geografiskTilknytning = when (gradering) {
+                when (val gradering = person.adressebeskyttelse.map { it.gradering }.hoyesteGradering()) {
                     AdressebeskyttelseGradering.STRENGT_FORTROLIG,
-                    AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND ->
-                        pdlApiKlient.hentGeografiskTilknytning(soknad.ansatt.fnr).fold(
+                    AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND -> {
+                        val geografiskTilknytning = pdlApiKlient.hentGeografiskTilknytning(soknad.ansatt.fnr).fold(
                             onSuccess = { it.geografiskTilknytning() ?: BehandlendeEnhetService.NAV_VIKAFOSSEN },
                             onFailure = { throw it },
                         )
+                        Ruting(
+                            enhetNr = behandlendeEnhetService.hentBehandlendeEnhet(gradering, geografiskTilknytning),
+                            virksomhetKommunenummer = null,
+                        )
+                    }
 
                     AdressebeskyttelseGradering.FORTROLIG,
                     AdressebeskyttelseGradering.UGRADERT,
-                    AdressebeskyttelseGradering.__UNKNOWN_VALUE -> virksomhetensKommunenummer(soknad)
+                    AdressebeskyttelseGradering.__UNKNOWN_VALUE -> rutingPaaVirksomhet(gradering, soknad)
                 }
-
-                behandlendeEnhetService.hentBehandlendeEnhet(gradering, geografiskTilknytning)
             },
             onFailure = { error ->
                 when (error) {
-                    is NotFound -> behandlendeEnhetService.hentBehandlendeEnhet(
-                        AdressebeskyttelseGradering.__UNKNOWN_VALUE,
-                        virksomhetensKommunenummer(soknad),
-                    )
-
+                    is NotFound -> rutingPaaVirksomhet(AdressebeskyttelseGradering.__UNKNOWN_VALUE, soknad)
                     else -> throw error
                 }
             },
         )
+
+    private suspend fun rutingPaaVirksomhet(gradering: AdressebeskyttelseGradering, soknad: DTO.Soknad): Ruting {
+        val kommunenummer = virksomhetensKommunenummer(soknad)
+        return Ruting(
+            enhetNr = behandlendeEnhetService.hentBehandlendeEnhet(gradering, kommunenummer),
+            virksomhetKommunenummer = kommunenummer,
+        )
+    }
 
     private suspend fun virksomhetensKommunenummer(soknad: DTO.Soknad): String {
         val virksomhetsnummer = soknad.virksomhet.virksomhetsnummer
@@ -81,5 +88,11 @@ class BehandlendeEnhetUtleder(
             GtType.UDEFINERT, GtType.__UNKNOWN_VALUE -> null
         }
 }
+
+data class Ruting(
+    val enhetNr: String,
+    /** Kommunen til virksomheten som ble brukt mot Norg. Null for strengt fortrolig adresse. */
+    val virksomhetKommunenummer: String?,
+)
 
 class ManglerDataForBehandlendeEnhetException(message: String) : Exception(message)

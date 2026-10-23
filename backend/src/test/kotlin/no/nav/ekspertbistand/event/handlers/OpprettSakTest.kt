@@ -26,11 +26,12 @@ class OpprettSakTest {
         val database = it.config.jdbcDatabase
         val soknad = lagreSoknad(database)
 
-        val result = OpprettSak(database).handle(journalfoert(soknad, behandlendeEnhetId = "4242"))
+        val result = OpprettSak(database).handle(journalfoert(soknad, behandlendeEnhetId = "4242", kommunenummer = "4601"))
 
         assertIs<EventHandledResult.Success>(result)
         val sak = hentSak(database, soknad)
         assertEquals("4242", sak.behandlendeEnhet)
+        assertEquals("4601", sak.kommunenummer)
         assertEquals(Saksstatus.OPPRETTET.name, sak.status)
         assertEquals(KildeTilBehandling.EKSPERTBISTAND.name, sak.kilde)
         assertEquals(Vilkar.entries.size, antallVilkar(database, sak.sakId))
@@ -75,15 +76,16 @@ class OpprettSakTest {
         assertTrue(hentEvents(database).isEmpty())
     }
 
-    private data class LagretSak(val sakId: UUID, val status: String, val kilde: String, val behandlendeEnhet: String?)
+    private data class LagretSak(val sakId: UUID, val status: String, val kilde: String, val behandlendeEnhet: String?, val kommunenummer: String?)
 
-    private fun journalfoert(soknad: DTO.Soknad, behandlendeEnhetId: String) = Event(
+    private fun journalfoert(soknad: DTO.Soknad, behandlendeEnhetId: String, kommunenummer: String? = null) = Event(
         id = 1L,
         data = EventData.InnsendtSoknadJournalfoert(
             soknad = soknad,
             dokumentId = 9876,
             journaldpostId = 1234,
             behandlendeEnhetId = behandlendeEnhetId,
+            virksomhetKommunenummer = kommunenummer,
         ),
     )
 
@@ -94,6 +96,7 @@ class OpprettSakTest {
                 status = it[SakTable.status],
                 kilde = it[SakTable.kildeTilBehandling],
                 behandlendeEnhet = it[SakTable.behandlendeEnhet],
+                kommunenummer = it[SakTable.kommunenummer],
             )
         }
     }
