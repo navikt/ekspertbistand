@@ -69,9 +69,9 @@ import no.nav.ekspertbistand.statistikk.AdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.BigQuerySaksbehandlingsstatistikk
 import no.nav.ekspertbistand.statistikk.PdlAdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkSkriver
-import no.nav.ekspertbistand.statistikk.SkjermedeBehandlinger
-import no.nav.ekspertbistand.statistikk.configureSkjermingskontroll
 import no.nav.ekspertbistand.sokos.configureKontoregisterApiV1
+import no.nav.ekspertbistand.statistikk.AdressebeskyttedeBehandlinger
+import no.nav.ekspertbistand.statistikk.configureAdressebeskyttelseskontroll
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -182,8 +182,6 @@ fun main() {
             dependencies.resolve<ProdusentApiKlient>(),
         )
         launch { skedulerHardDeleteJobb.run() }
-
-        configureSkjermingskontroll()
 
         configureAppMetrics()
 
