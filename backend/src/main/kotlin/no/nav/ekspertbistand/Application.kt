@@ -50,9 +50,7 @@ import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
 import no.nav.ekspertbistand.norg.NorgKlient
-import kotlinx.coroutines.launch
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
-import no.nav.ekspertbistand.notifikasjon.SkedulerHardDeleteForEldreSakerJobb
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.configureBeslutterApiV1
@@ -175,13 +173,6 @@ fun main() {
 
         configureProjectionBuilders()
         configureAdressebeskyttelseskontroll()
-
-        // engangsjobb: skeduler hard delete i notifikasjonsplattformen for saker opprettet før vi satte det
-        val skedulerHardDeleteJobb = SkedulerHardDeleteForEldreSakerJobb(
-            dependencies.resolve<Database>(),
-            dependencies.resolve<ProdusentApiKlient>(),
-        )
-        launch { skedulerHardDeleteJobb.run() }
 
         configureAppMetrics()
 
