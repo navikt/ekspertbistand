@@ -26,7 +26,12 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.NySakVe
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.DefaultSkedulerHardDeleteSakResultatImplementation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.SkedulerHardDeleteSakVellykket
 import java.net.URI
-import kotlin.time.Duration
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 import kotlin.time.Duration.Companion.days
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
@@ -48,6 +53,7 @@ private const val notifikasjonBaseUrl = "http://notifikasjon-produsent-api.fager
  */
 val hardDeleteINotifikasjonsplattformenOm = 455.days
 
+@OptIn(ExperimentalTime::class)
 class ProdusentApiKlient(
     private val azureAdTokenProvider: AzureAdTokenProvider,
     defaultHttpClient: HttpClient
@@ -244,32 +250,31 @@ class ProdusentApiKlient(
     }
 
     /**
-     * Setter (eller endrer) når notifikasjonsplattformen skal hard-slette saken. Saken slettes ikke
-     * umiddelbart, men [om] etter nå, eller etter tidspunktet [strategi] gir.
+     * Setter (eller endrer) når notifikasjonsplattformen skal hard-slette saken, på tidspunktet [den].
+     * Tidspunktet beregnes alltid her i appen. Kaster [SkedulerHardDeleteSakFinnesIkkeException] hvis
+     * saken ikke finnes i plattformen.
      */
     suspend fun skedulerHardDeleteSak(
         grupperingsid: String,
-        om: Duration = hardDeleteINotifikasjonsplattformenOm,
+        den: Instant,
         strategi: NyTidStrategi = NyTidStrategi.OVERSKRIV,
     ) {
         val token = hentEntraIdToken()
+        val nyTid = FutureTemporalInput(den = den.tilOsloLocalDateTime())
         val resultat = client.execute(
             SkedulerHardDeleteSak(
                 variables = SkedulerHardDeleteSak.Variables(
                     grupperingsid = grupperingsid,
                     merkelapp = merkelapp,
-                    hardDelete = HardDeleteUpdateInput(
-                        nyTid = FutureTemporalInput(om = om.toIsoString()),
-                        strategi = strategi,
-                    ),
+                    hardDelete = HardDeleteUpdateInput(nyTid = nyTid, strategi = strategi),
                 )
             )
         ) {
             bearerAuth(token)
         }
         when (val skedulert = resultat.data?.skedulerHardDeleteSakByGrupperingsid) {
-            is SkedulerHardDeleteSakVellykket -> log.info("Skedulerte hard delete om {} for sak med id {}", om, skedulert.id)
-            is SkedulerHardDeleteSakFinnesIkke -> throw SkedulerHardDeleteSakException(skedulert.feilmelding)
+            is SkedulerHardDeleteSakVellykket -> log.info("Skedulerte hard delete {} ({}) for sak med id {}", nyTid.den, strategi, skedulert.id)
+            is SkedulerHardDeleteSakFinnesIkke -> throw SkedulerHardDeleteSakFinnesIkkeException(skedulert.feilmelding)
             is SkedulerHardDeleteUgyldigMerkelapp -> throw SkedulerHardDeleteSakException(skedulert.feilmelding)
             is SkedulerHardDeleteUkjentProdusent -> throw SkedulerHardDeleteSakException(skedulert.feilmelding)
             is DefaultSkedulerHardDeleteSakResultatImplementation -> throw SkedulerHardDeleteSakException("Uventet feil: $resultat")
@@ -300,4 +305,12 @@ class SakOpprettetException(message: String) : Exception(message)
 class BeskjedOpprettetException(message: String) : Exception(message)
 class NyStatusSakException(message: String) : Exception(message)
 class HardDeleteSakException(message: String) : Exception(message)
-class SkedulerHardDeleteSakException(message: String) : Exception(message)
+open class SkedulerHardDeleteSakException(message: String) : Exception(message)
+class SkedulerHardDeleteSakFinnesIkkeException(message: String) : SkedulerHardDeleteSakException(message)
+
+private val osloTidssone = TimeZone.of("Europe/Oslo")
+
+/** Notifikasjonsplattformen tolker `ISO8601LocalDateTime` i Europe/Oslo. Sekundpresisjon holder. */
+@OptIn(ExperimentalTime::class)
+internal fun Instant.tilOsloLocalDateTime(): ISO8601LocalDateTime =
+    Instant.fromEpochSeconds(epochSeconds).toLocalDateTime(osloTidssone).format(LocalDateTime.Formats.ISO)
