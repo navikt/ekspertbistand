@@ -3,11 +3,11 @@
 Ekspertbistand deler ett view i BigQuery som dekker to behov:
 
 - felles saksbehandlingsstatistikk hos Team Sak («Teknisk beskrivelse av behov til felles saksbehandlingsstatistikk»)
-- tiltaksstatistikk i datavarehuset, som i dag får ekspertbistand fra Arena (tiltakskode `EKSPEBIST`)
+- tiltaksstatistikk hos Team Oppfølging (datavarehus), som i dag får ekspertbistand fra Arena (tiltakskode `EKSPEBIST`)
 
 Dokumentet beskriver hva vi sender, hvilket felt som svarer til hvilket behov, og hva som mangler og hvorfor.
 Feltnavnene er våre egne. Tabellene under viser hvilket av feltene våre som dekker feltene Team Sak og
-datavarehuset har bedt om.
+Team Oppfølging har bedt om.
 
 ## Status
 
@@ -23,13 +23,13 @@ datavarehuset har bedt om.
 |-|-|
 | Datasett | `ekspertbistand_statistikk` i GCP-prosjektet til teamet vårt |
 | View som deles | `saksbehandlingsstatistikk_delt` |
-| Tabeller som ikke deles | `saksbehandlingsstatistikk` (rådata) og `skjermede_behandlinger` |
+| Tabeller som ikke deles | `saksbehandlingsstatistikk` (rådata) og `adressebeskyttede_behandlinger` |
 
 Vi eier datasettet. Nais oppretter det fra `spec.gcp.bigQueryDatasets` i manifestet til `ekspertbistand-backend`,
-og appen oppretter tabellene og viewet. Team Sak og datavarehuset leser viewet direkte i BigQuery. Vi leverer ingen
+og appen oppretter tabellene og viewet. Team Sak og Team Oppfølging leser viewet direkte i BigQuery. Vi leverer ingen
 kopi eller fil.
 
-Viewet viser alle rader i rådatatabellen, bortsett fra behandlinger i `skjermede_behandlinger`. Se «Personvern».
+Viewet viser alle rader i rådatatabellen, bortsett fra behandlinger i `adressebeskyttede_behandlinger`. Se «Personvern».
 
 ### Tilgang via Datamarkedsplassen
 
@@ -43,12 +43,12 @@ Slik gjør vi det:
 2. Vi legger viewet `saksbehandlingsstatistikk_delt` til som datasett i dataproduktet. Datamarkedsplassen
    autoriserer viewet mot tabellene i samme BigQuery-datasett. Tabellene deles aldri. Viewet må finnes først. I prod
    finnes det når projeksjonen begynner å skrive.
-3. Team Sak og datavarehuset søker om tilgang til datasettet på Datamarkedsplassen. Søknaden gjelder en bruker, en
+3. Team Sak og Team Oppfølging søker om tilgang til datasettet på Datamarkedsplassen. Søknaden gjelder en bruker, en
    gruppe eller en servicebruker, og må vise til en behandling i
    [Behandlingskatalogen](https://behandlingskatalog.nais.adeo.no/).
 4. Vi godkjenner søknaden når behandlingen finnes. Datamarkedsplassen gir da lesetilgang til viewet.
 
-Viewet inneholder `fnr` i klartekst. Vi pseudonymiserer ikke, fordi Team Sak og datavarehuset bruker
+Viewet inneholder `fnr` i klartekst. Vi pseudonymiserer ikke, fordi Team Sak og Team Oppfølging bruker
 fødselsnummeret til å koble mot andre datasett. Se
 [tilgangsstyring](https://docs.knada.io/dataprodukter/tilgangsstyring/) for detaljer om tilgang.
 
@@ -58,7 +58,7 @@ Den som registrerer dataproduktet eller godkjenner søknader, må ha lagt til Go
 ### Teste i dev
 
 I dev registrerer vi dataproduktet på [Datamarkedsplassen i dev](https://data.ansatt.dev.nav.no/), med viewet i
-dev-prosjektet vårt. Der kan Team Sak og datavarehuset teste den tekniske integrasjonen før prod. Viewet i dev
+dev-prosjektet vårt. Der kan Team Sak og Team Oppfølging teste den tekniske integrasjonen før prod. Viewet i dev
 inneholder bare fiktive testdata, så tilgang krever ingen behandling i Behandlingskatalogen.
 
 Datamarkedsplassen i dev er utviklingsmiljøet til Team Nada. Dataprodukter der kan forsvinne uten varsel, så de
@@ -68,10 +68,10 @@ egner seg bare til testing. Vi registrerer dataproduktet på nytt hvis det blir 
 
 [Kom i gang med dataprodukter](https://docs.knada.io/dataprodukter/) skiller mellom data på innsiden og data på
 utsiden. Hos oss er hendelsesloggen i Postgres og tabellene i BigQuery innsiden. Viewet er utsiden: en stabil
-modell for statistikk uten skjermede behandlinger.
+modell for statistikk uten adressebeskyttede behandlinger.
 
 Endrer vi tabellen på en måte som bryter for mottakerne, eller vil vi skjule duplikater og eldre versjoner av
-projeksjonen, gjør vi det i viewet. Appen oppdaterer viewet ved hver oppstart, slik at skjemaet følger tabellen.
+projeksjonen, gjør vi det i viewet. Appen oppdaterer viewet ved oppstart når spørringen eller kolonnene er endret.
 
 ## Slik fungerer det
 
@@ -79,8 +79,8 @@ projeksjonen, gjør vi det i viewet. Appen oppdaterer viewet ved hver oppstart, 
 2. `SaksbehandlingsstatistikkProjection` leser loggen i rekkefølge. For hver hendelse som endrer noe i meldingen,
    skriver den én ny rad i BigQuery.
 3. Radene i rådatatabellen endres eller slettes aldri. En ny rad for samme behandling erstatter den forrige.
-4. Viewet holder skjermede behandlinger utenfor. Blir en deltaker skjermet, forsvinner alle radene for behandlingen
-   fra viewet, også de som ble skrevet før.
+4. Viewet holder adressebeskyttede behandlinger utenfor. Får en deltaker adressebeskyttelse, forsvinner alle radene
+   for behandlingen fra viewet, også de som ble skrevet før.
 
 Bare saker som behandles i ekspertbistand kommer med. Saker som behandles ferdig i Arena, rapporteres fortsatt
 fra Arena.
@@ -90,7 +90,7 @@ søknad. Første rad kommer når saken er opprettet, og `mottatt_tid` står på 
 
 ### Begreper
 
-| Begrep | Hos Team Sak | Hos datavarehuset | I ekspertbistand |
+| Begrep | Hos Team Sak | Hos Team Oppfølging | I ekspertbistand |
 |--------|--------------|-------------------|------------------|
 | Sak | Sak | Tiltaksgjennomføring | Saken som opprettes når søknaden er journalført (`sak_id`) |
 | Behandling | Behandling | Tiltaksdeltakelse | Behandlingen av søknaden (`behandling_id`, lik søknadens id) |
@@ -168,7 +168,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY behandling_id ORDER BY sekvensnummer DES
 | `tiltaksperiode_til` | DATE | Siste dag i innvilget periode |
 | `projeksjon` | STRING | Versjonen av projeksjonen som skrev raden |
 
-Feltene fra `tiltakskode_arena` til `tiltaksperiode_til` er tillegg for datavarehuset. Team Sak kan se bort fra dem.
+Feltene fra `tiltakskode_arena` til `tiltaksperiode_til` er tillegg for Team Oppfølging. Team Sak kan se bort fra dem.
 
 `saksbehandler` er tom fra saken er opprettet til en saksbehandler tar den, og etter at saksbehandleren har
 frigjort den. Saken ligger da i en felles kø uten ansvarlig saksbehandler, så vi har ingen ident å sende.
@@ -203,7 +203,7 @@ endelige verdier bare når `behandling_status = 'AVSLUTTET'`.
 | `resultat_begrunnelse` | `resultat_begrunnelse` | Bare ved retur fra beslutter. Avslagsgrunn er ikke med, se under |
 | `behandling_metode` | `behandling_metode` | |
 | `behandling_aarsak` | mangler | Alle behandlinger er søknader. Vi har ingen årsakskoder |
-| `opprettet_av` | `opprettet_av` | Alltid `EKSPERTBISTAND`. Viewet har ingen skjermede saker, så `-5` forekommer ikke |
+| `opprettet_av` | `opprettet_av` | Alltid `EKSPERTBISTAND`. Viewet har ingen adressebeskyttede saker, så `-5` forekommer ikke |
 | `saksbehandler` | `saksbehandler` | Påkrevd hos Team Sak, men kan være tom hos oss. Se «Feltene i viewet» |
 | `ansvarlig_beslutter` | `ansvarlig_beslutter` | |
 | `ansvarlig_enhet` | `ansvarlig_enhet` | Team Sak ber om organisasjons-id. Vi sender enhetsnummeret |
@@ -215,24 +215,24 @@ endelige verdier bare når `behandling_status = 'AVSLUTTET'`.
 Saksbehandler skriver begrunnelsen for avslag som fritekst. Vi har ingen koder for avslagsgrunn, og fritekst kan
 inneholde helseopplysninger. Derfor er avslagsgrunn ikke med i statistikken.
 
-## Felt til datavarehuset
+## Felt til Team Oppfølging
 
 ### Tiltakstype
 
 Tiltakstypen er fast og ligger ikke som egne rader i viewet.
 
-| Felt hos datavarehuset | Verdi | Merknad |
+| Felt hos Team Oppfølging | Verdi | Merknad |
 |------------------------|-------|---------|
 | Tiltakskode | `EKSPERTBISTAND` | Alltid `EKSPERTBISTAND` i `sak_ytelse` |
 | Tiltakskode_Arena | `EKSPEBIST` | Alltid `EKSPEBIST` i `tiltakskode_arena` |
 | Tiltaksnavn | Ekspertbistand | |
-| Startdato | sendes ikke | Samme verdi for alle rader. Datavarehuset kan legge den til selv |
+| Startdato | sendes ikke | Samme verdi for alle rader. Team Oppfølging kan legge den til selv |
 | Sluttdato | sendes ikke | Ingen planlagt slutt |
 | Opprettet_dato, Endret_dato | sendes ikke | Tiltakstypen er ikke registrert som data hos oss |
 
 ### Tiltaksgjennomføring
 
-| Felt hos datavarehuset | Vårt felt | Merknad |
+| Felt hos Team Oppfølging | Vårt felt | Merknad |
 |------------------------|-----------|---------|
 | GjennomføringsID | `sak_id` | |
 | Tiltakskode | `sak_ytelse` | Alltid `EKSPERTBISTAND` |
@@ -246,7 +246,7 @@ Tiltakstypen er fast og ligger ikke som egne rader i viewet.
 
 ### Tiltaksdeltakelse
 
-| Felt hos datavarehuset | Vårt felt | Merknad |
+| Felt hos Team Oppfølging | Vårt felt | Merknad |
 |------------------------|-----------|---------|
 | DeltakerID | `behandling_id` | |
 | GjennomføringsID | `sak_id` | |
@@ -258,13 +258,13 @@ Tiltakstypen er fast og ligger ikke som egne rader i viewet.
 | Opprettet_dato | `registrert_tid` | |
 | Endret_dato | `hendelse_tid` | På siste rad for behandlingen |
 
-Vi har ikke deltakerstatus i løsningen vår, og sender den derfor ikke. Datavarehuset kan utlede den fra
+Vi har ikke deltakerstatus i løsningen vår, og sender den derfor ikke. Team Oppfølging kan utlede den fra
 `behandling_status`, `behandling_resultat`, `tiltaksperiode_fra` og `tiltaksperiode_til` på siste rad, sammen med
 dagens dato. Vi vet ikke om bistanden ble fullført eller avbrutt, fordi sluttrapport og refusjon ikke er med.
 
 ### Felt som gjelder ekspertbistand
 
-| Spørsmål fra datavarehuset | Vårt felt | Merknad |
+| Spørsmål fra Team Oppfølging | Vårt felt | Merknad |
 |----------------------------|-----------|---------|
 | Hva slags ekspertbistand blir gitt? | `ekspert_utdanning`, `ekspert_kompetanse` | Se «Kodeverk» |
 | Hvor mange timer per uke eller måned? | `estimert_antall_timer` | Se under |
@@ -276,7 +276,7 @@ snitt per måned kan regnes ut med antall måneder fra `tiltaksperiode_fra` til 
 
 ## Kodeverk
 
-Kodene under er våre egne. Team Sak og datavarehuset må kontrollere at de passer med kodeverkene deres, særlig
+Kodene under er våre egne. Team Sak og Team Oppfølging må kontrollere at de passer med kodeverkene deres, særlig
 `TIL_BESLUTNING`, `UNDERKJENT_BESLUTTER`, `AVSLATT` og `EKSPERTBISTAND`.
 
 ### `behandling_status`
@@ -340,38 +340,42 @@ Nye valg i søknaden gir `ANNET` til vi har lagt dem inn i kodeverket.
 ### Adressebeskyttelse (kode 6 og 7)
 
 Behandlinger for deltakere med adressebeskyttelse er ikke med i viewet. Hele behandlingen holdes utenfor, også rader
-skrevet før deltakeren ble skjermet. Viewet viser derfor verken hvem som er skjermet eller hvor de jobber.
+skrevet før deltakeren fikk adressebeskyttelse. Viewet viser derfor verken hvem som har adressebeskyttelse eller hvor
+de jobber.
 
-Skjermet betyr en annen gradering i PDL enn `UGRADERT`: `FORTROLIG`, `STRENGT_FORTROLIG` eller
-`STRENGT_FORTROLIG_UTLAND`. En ukjent gradering gir også skjerming. Vi tar med fortrolig adresse (kode 7), fordi
-arbeidsgiver og ekspert kan avsløre hvor personen bor uansett gradering.
+Adressebeskyttelse betyr en annen gradering i PDL enn `UGRADERT`: `FORTROLIG`, `STRENGT_FORTROLIG` eller
+`STRENGT_FORTROLIG_UTLAND`. En ukjent gradering regnes også som adressebeskyttelse. Vi tar med fortrolig adresse
+(kode 7), fordi arbeidsgiver og ekspert kan avsløre hvor personen bor uansett gradering.
 
-En behandling skjermes hvis deltakeren
+En behandling holdes utenfor hvis deltakeren
 
-- var skjermet da saken ble opprettet,
-- er skjermet i PDL når projeksjonen skriver en rad, eller
-- blir skjermet senere. En kontrolljobb sjekker alle deltakere i rådatatabellen mot PDL hver time, også i avsluttede saker.
+- hadde adressebeskyttelse da saken ble opprettet,
+- har adressebeskyttelse i PDL når projeksjonen skriver en rad, eller
+- får adressebeskyttelse senere. En kontrolljobb sjekker alle deltakere i rådatatabellen mot PDL hver time, også i
+  avsluttede saker.
 
-En skjermet behandling blir aldri vist igjen, selv om skjermingen i PDL opphører. Vi bruker ikke behandlende enhet,
-for eksempel Nav Vikafossen (`2103`), som tegn på skjerming. Graderingen er kilden.
+En behandling som er holdt utenfor, blir aldri vist igjen, selv om adressebeskyttelsen i PDL opphører. Vi bruker ikke
+behandlende enhet, for eksempel Nav Vikafossen (`2103`), som tegn på adressebeskyttelse. Graderingen er kilden.
+
+Skjerming av egne ansatte er noe annet enn adressebeskyttelse og påvirker ikke statistikken.
 
 Følgene for dere som mottar data:
 
 - Statistikken mangler saker for personer med adressebeskyttelse. Det gjelder få saker, men dere kan ikke telle dem
   fra viewet.
 - Feltverdien `-5` som Team Sak bruker for kode 6, forekommer ikke.
-- Blir en deltaker skjermet, forsvinner behandlingen fra viewet innen en time. Rader dere har lest før det, kan vi
+- Får en deltaker adressebeskyttelse, forsvinner behandlingen fra viewet innen en time. Rader dere har lest før det, kan vi
   ikke fjerne. Dere håndterer adressebeskyttelse i egne data, slik dere gjør for andre kilder, for eksempel med
-  sjekk mot PDL ved innlesing og når en deltaker blir skjermet underveis.
+  sjekk mot PDL ved innlesing og når en deltaker får adressebeskyttelse underveis.
 - Alle med tilgang til viewet kan se metadata for tabellene i datasettet, også antall rader i
-  `skjermede_behandlinger`. Selve innholdet i tabellene er ikke tilgjengelig.
+  `adressebeskyttede_behandlinger`. Selve innholdet i tabellene er ikke tilgjengelig.
 
 Feiler oppslaget i PDL når projeksjonen skal skrive, skriver vi ingen rad. Projeksjonen prøver igjen til oppslaget
 lykkes. Feiler oppslaget i kontrolljobben, prøver den igjen neste time. Personer som ikke finnes i PDL, behandles som
 ugradert.
 
 I rådatatabellen setter vi i tillegg `-5` i felt som kan avsløre hvor personen bor, for rader skrevet mens
-deltakeren var skjermet: `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`,
+deltakeren hadde adressebeskyttelse: `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`, `ansvarlig_enhet`,
 `arrangor_orgnr` og `ekspert_virksomhet_orgnr`.
 
 ### Det vi ikke sender
@@ -390,14 +394,34 @@ deltakeren var skjermet: `opprettet_av`, `saksbehandler`, `ansvarlig_beslutter`,
 
 - Koden ligger i denne pakken. `SaksbehandlingsstatistikkProjection` lager radene, og
   `BigQuerySaksbehandlingsstatistikk` skriver dem og eier tabellene og viewet. `PdlAdressebeskyttelseOppslag`
-  avgjør skjermingen, og `Skjermingskontroll` sjekker alle behandlinger på nytt hver time.
-- Skjermede behandlinger fjernes aldri fra `skjermede_behandlinger`. Rader i BigQuery kan ikke slettes trygt, fordi
+  avgjør om deltakeren har adressebeskyttelse, og `Adressebeskyttelseskontroll` sjekker alle behandlinger på nytt
+  hver time.
+- Behandlinger fjernes aldri fra `adressebeskyttede_behandlinger`. Rader i BigQuery kan ikke slettes trygt, fordi
   `insertAll` hindrer DML de første minuttene og time travel beholder data i flere dager. Derfor filtrerer viewet.
 - Projeksjonen lagrer ingen tilstand. For hver hendelse bygger den tilstanden fra tidligere hendelser i loggen med
   samme aggregatrot (søknad-id). Indeksen `event_log_aggregate_root_id_idx` gjør oppslaget raskt.
 - Bump versjonen i `name` for å sende alle meldinger på nytt.
 - Første gang appen bruker datasettet etter oppstart, legger den til nye kolonner i tabellen og oppdaterer viewet.
   Nye kolonner må være valgfrie, fordi BigQuery ikke tillater å legge til påkrevde kolonner. Eldre rader får `NULL`.
+- Når Datamarkedsplassen har autorisert viewet, krever BigQuery `bigquery.datasets.update` for å endre det. Den
+  rettigheten gir ikke Nais appen. Appen endrer derfor viewet bare når noe er annerledes. Feiler en endret spørring,
+  stopper skrivingen. Mangler viewet bare nye kolonner, logger appen en feil og skriver videre, fordi `r.*` henter
+  alle kolonnene når noen spør. Skjemaet som vises, må da oppdateres ved å lagre viewet på nytt med en bruker som
+  har tilgang.
+- Slik oppdaterer du viewet manuelt, med spørringen fra feilmeldingen (bytt prosjekt i prod):
+
+  ```shell
+  bq update --use_legacy_sql=false --view "$(cat <<'SQL'
+  SELECT r.*
+  FROM `fager-dev-24f2.ekspertbistand_statistikk.saksbehandlingsstatistikk` r
+  WHERE r.behandling_id NOT IN (
+    SELECT behandling_id FROM `fager-dev-24f2.ekspertbistand_statistikk.adressebeskyttede_behandlinger`
+  )
+  SQL
+  )" fager-dev-24f2:ekspertbistand_statistikk.saksbehandlingsstatistikk_delt
+  ```
+
+  Autorisasjonen fra Datamarkedsplassen gjelder fortsatt etterpå. Appen godtar avvik i innrykk og linjeskift.
 - Kolonnebeskrivelser legges inn i BigQuery-konsollet. Datamarkedsplassen henter skjema og beskrivelser fra
   BigQuery én gang i timen.
 - Lokalt og i tester skriver projeksjonen ikke til BigQuery.

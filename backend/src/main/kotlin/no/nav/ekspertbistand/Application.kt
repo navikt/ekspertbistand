@@ -125,7 +125,7 @@ fun main() {
             provide(FagsakIdService::class)
             val statistikk by lazy { BigQuerySaksbehandlingsstatistikk.fraNaisMiljo() }
             provide<SaksbehandlingsstatistikkSkriver> { statistikk }
-            provide<SkjermedeBehandlinger> { statistikk }
+            provide<AdressebeskyttedeBehandlinger> { statistikk }
             provide<AdressebeskyttelseOppslag> { PdlAdressebeskyttelseOppslag(resolve()) }
             basedOnEnv(
                 dev = { provide(KontoregisterClient::class) },
@@ -174,6 +174,7 @@ fun main() {
         configureEventHandlers()
 
         configureProjectionBuilders()
+        configureAdressebeskyttelseskontroll()
 
         // engangsjobb: skeduler hard delete i notifikasjonsplattformen for saker opprettet før vi satte det
         val skedulerHardDeleteJobb = SkedulerHardDeleteForEldreSakerJobb(

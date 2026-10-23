@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.statistikk
 
 import com.google.cloud.bigquery.BigQuery
+import com.google.cloud.bigquery.BigQueryException
 import com.google.cloud.bigquery.BigQueryOptions
 import com.google.cloud.bigquery.Field
 import com.google.cloud.bigquery.InsertAllRequest
@@ -15,6 +16,7 @@ import com.google.cloud.bigquery.TableId
 import com.google.cloud.bigquery.TableInfo
 import com.google.cloud.bigquery.ViewDefinition
 import kotlinx.datetime.LocalDate
+import no.nav.ekspertbistand.infrastruktur.logger
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -27,11 +29,11 @@ fun interface SaksbehandlingsstatistikkSkriver {
  * Behandlinger som holdes utenfor viewet vi deler, fordi deltakeren har eller har hatt adressebeskyttelse.
  * En behandling fjernes aldri fra listen.
  */
-interface SkjermedeBehandlinger {
+interface AdressebeskyttedeBehandlinger {
     fun registrer(behandlingIder: Collection<String>)
 
-    /** Behandlinger med rader i rådatatabellen som ikke er registrert som skjermet, med deltakerens fnr. */
-    fun uskjermede(): Map<String, String>
+    /** Behandlinger med rader i rådatatabellen som ikke er registrert som adressebeskyttet, med deltakerens fnr. */
+    fun utenAdressebeskyttelse(): Map<String, String>
 }
 
 /** Én rad i BigQuery-tabellen. Feltene er beskrevet i `README.md` i samme pakke. */
@@ -82,8 +84,8 @@ data class SaksbehandlingsstatistikkRad(
 /**
  * Eier objektene i datasettet [DATASETT], som Nais oppretter fra `spec.gcp.bigQueryDatasets`:
  * - [TABELL]: rådata. Deles ikke.
- * - [SKJERMEDE]: behandlinger som skal holdes utenfor. Deles ikke.
- * - [VIEW]: rådata uten skjermede behandlinger. Bare dette registreres på Datamarkedsplassen, som autoriserer
+ * - [ADRESSEBESKYTTEDE]: behandlinger som skal holdes utenfor. Deles ikke.
+ * - [VIEW]: rådata uten adressebeskyttede behandlinger. Bare dette registreres på Datamarkedsplassen, som autoriserer
  *   viewet mot tabellene i samme datasett.
  *
  * Appen oppretter det som mangler første gang den bruker datasettet, og oppdaterer viewet slik at skjemaet følger
@@ -93,17 +95,46 @@ data class SaksbehandlingsstatistikkRad(
 class BigQuerySaksbehandlingsstatistikk(
     private val bigQuery: BigQuery,
     prosjekt: String,
-) : SaksbehandlingsstatistikkSkriver, SkjermedeBehandlinger {
+) : SaksbehandlingsstatistikkSkriver, AdressebeskyttedeBehandlinger {
 
     private val tabell = TableId.of(prosjekt, DATASETT, TABELL)
-    private val skjermede = TableId.of(prosjekt, DATASETT, SKJERMEDE)
+    private val adressebeskyttede = TableId.of(prosjekt, DATASETT, ADRESSEBESKYTTEDE)
     private val view = TableId.of(prosjekt, DATASETT, VIEW)
+
+    private val log = logger()
 
     private val datasettKlart by lazy {
         opprettEllerUtvid(tabell, StandardTableDefinition.of(skjema))
-        opprettEllerUtvid(skjermede, StandardTableDefinition.of(skjermedeSkjema))
-        val definisjon = TableInfo.of(view, ViewDefinition.of(viewSql(tabell, skjermede)))
-        if (bigQuery.getTable(view) == null) bigQuery.create(definisjon) else bigQuery.update(definisjon)
+        opprettEllerUtvid(adressebeskyttede, StandardTableDefinition.of(adressebeskyttedeSkjema))
+        opprettEllerOppdaterView()
+    }
+
+    /**
+     * Datamarkedsplassen autoriserer viewet mot datasettet. Etter det krever BigQuery `bigquery.datasets.update` for å
+     * endre viewet, og den rettigheten får ikke appen fra Nais. Derfor endrer vi viewet bare når noe er annerledes.
+     */
+    private fun opprettEllerOppdaterView() {
+        val sql = viewSql(tabell, adressebeskyttede)
+        val definisjon = TableInfo.of(view, ViewDefinition.of(sql))
+        val eksisterende = bigQuery.getTable(view) ?: return run { bigQuery.create(definisjon) }
+        when (viewEndring(eksisterende.getDefinition(), sql, skjema)) {
+            ViewEndring.INGEN -> {}
+            ViewEndring.SPORRING -> try {
+                bigQuery.update(definisjon)
+            } catch (e: BigQueryException) {
+                throw IllegalStateException(
+                    "Spørringen i $view er endret, men appen har ikke tilgang til å oppdatere den. " +
+                        "Oppdater viewet manuelt, se «For utviklere» i statistikk/README.md. Ny spørring:\n$sql",
+                    e,
+                )
+            }
+            ViewEndring.KOLONNER -> try {
+                bigQuery.update(definisjon)
+            } catch (e: BigQueryException) {
+                // Viewet leser r.* når det spørres, så mottakerne får de nye kolonnene. Bare skjemaet viewet viser er utdatert.
+                log.error("Kunne ikke oppdatere kolonnene i $view. Lagre viewet på nytt med en bruker som har tilgang.", e)
+            }
+        }
     }
 
     private fun opprettEllerUtvid(id: TableId, definisjon: StandardTableDefinition) {
@@ -129,12 +160,12 @@ class BigQuerySaksbehandlingsstatistikk(
         if (behandlingIder.isEmpty()) return
         datasettKlart
         val tidspunkt = Clock.System.now().toString()
-        settInn(skjermede, behandlingIder.map { it to mapOf("behandling_id" to it, "registrert_tid" to tidspunkt) })
+        settInn(adressebeskyttede, behandlingIder.map { it to mapOf("behandling_id" to it, "registrert_tid" to tidspunkt) })
     }
 
-    override fun uskjermede(): Map<String, String> {
+    override fun utenAdressebeskyttelse(): Map<String, String> {
         datasettKlart
-        val allerede = bigQuery.listTableData(skjermede, skjermedeSkjema).iterateAll()
+        val allerede = bigQuery.listTableData(adressebeskyttede, adressebeskyttedeSkjema).iterateAll()
             .map { it.get("behandling_id").stringValue }
             .toSet()
         return bigQuery.listTableData(tabell, skjema).iterateAll()
@@ -155,7 +186,7 @@ class BigQuerySaksbehandlingsstatistikk(
     companion object {
         const val DATASETT = "ekspertbistand_statistikk"
         const val TABELL = "saksbehandlingsstatistikk"
-        const val SKJERMEDE = "skjermede_behandlinger"
+        const val ADRESSEBESKYTTEDE = "adressebeskyttede_behandlinger"
         const val VIEW = "saksbehandlingsstatistikk_delt"
 
         fun fraNaisMiljo(): BigQuerySaksbehandlingsstatistikk {
@@ -169,16 +200,30 @@ class BigQuerySaksbehandlingsstatistikk(
     }
 }
 
-private fun viewSql(tabell: TableId, skjermede: TableId): String =
+private fun viewSql(tabell: TableId, adressebeskyttede: TableId): String =
     """
     SELECT r.*
     FROM `${tabell.project}.${tabell.dataset}.${tabell.table}` r
     WHERE r.behandling_id NOT IN (
-      SELECT behandling_id FROM `${skjermede.project}.${skjermede.dataset}.${skjermede.table}`
+      SELECT behandling_id FROM `${adressebeskyttede.project}.${adressebeskyttede.dataset}.${adressebeskyttede.table}`
     )
     """.trimIndent()
 
-private val skjermedeSkjema: Schema = Schema.of(
+internal enum class ViewEndring { INGEN, KOLONNER, SPORRING }
+
+internal fun viewEndring(eksisterende: ViewDefinition, sql: String, skjema: Schema): ViewEndring {
+    val kolonnerIViewet = eksisterende.schema?.fields.orEmpty().map { it.name }.toSet()
+    return when {
+        utenMellomrom(eksisterende.query) != utenMellomrom(sql) -> ViewEndring.SPORRING
+        kolonnerIViewet != skjema.fields.map { it.name }.toSet() -> ViewEndring.KOLONNER
+        else -> ViewEndring.INGEN
+    }
+}
+
+/** Viewet kan være lagret manuelt i konsollet eller med `bq`, så innrykk og linjeskift kan avvike. */
+private fun utenMellomrom(sql: String?) = sql.orEmpty().trim().replace(Regex("\\s+"), " ")
+
+private val adressebeskyttedeSkjema: Schema = Schema.of(
     Field.newBuilder("behandling_id", STRING).setMode(Field.Mode.REQUIRED).build(),
     Field.newBuilder("registrert_tid", TIMESTAMP).setMode(Field.Mode.REQUIRED).build(),
 )
