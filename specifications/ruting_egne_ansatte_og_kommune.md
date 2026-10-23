@@ -89,10 +89,11 @@ Nais-oppsett står på kortet.
 | Ken, 2026-10-22 | Fagansvarlig må sørge for at hvert arbeidslivssenter har saksbehandlere og beslutter med `0000-GA-Egne_ansatte`. Det løses ikke i koden, men skrives i PR-en. |
 | Ken, 2026-10-22 | Habilitet: Vi kan ikke flytte saker. Vi lener oss på internkontroll og skjønn. Saksbehandleren har taushetsplikt, vurderer selv om hen er inhabil og lar en annen ta saken. |
 | Ken, 2026-10-22 | Kommunefilteret er en brukerinnstilling for appen og skrives direkte til databasen, ikke via event. Det er et bevisst unntak. `localStorage` ble vurdert, men følger ikke saksbehandleren mellom maskiner. |
-| Ken, 2026-10-22 | Kode 7 i listen: raden vises som «Ingen tilgang» uten navn. Åpner noen saken, logges avvisningen med feil-ID og følges opp derfra. |
+| Ken, 2026-10-22 | Kode 7 i listen: raden vises som «Ingen tilgang» uten navn. Åpner noen saken, logges avvisningen med feil-ID og følges opp derfra. Erstattet av K255.1-beslutningen 2026-10-23. |
 | Ken, 2026-10-22 | Vestfold og Telemark rutes i Norg til Nav arbeid og helse Vestfold og Telemark (`0891`). Enheten har regel for alle 23 kommunene. |
 | Ken, 2026-10-22 | Svalbard og Jan Mayen har ingen regel i Norg. Fallback til Oslo (`0391`) i `BehandlendeEnhetService` står som den er. |
 | Ken, 2026-10-22 | Del 1 venter ikke på 661. `skjermet` kommer fra en hook som returnerer `false` til 661 er på plass. Kode 6 kjennes igjen på avvisningskoden fra Tilgangsmaskinen og på Vikafossen, ikke på et lagret flagg. |
+| Ken, 2026-10-23, etterlevelseskrav K255.1 | Ved avvist tilgang viser vi grunnen: skjerming, fortrolig adresse eller strengt fortrolig adresse. Det er ikke hemmelig at en person har adressebeskyttelse. Erstatter «Ingen tilgang» for kode 7 i listen og det nøytrale svaret for kode 6. Med tilgang skal beskyttelsen merkes tydelig i skjermbildet. Krav: [K255.1](https://etterlevelse.ansatt.nav.no/dokumentasjon/c39843eb-84ae-4a28-9c9b-2aa0c92b3d91/INFOSIKKERHET/krav/255/1), suksesskriterium 2. |
 
 Kortbeskrivelsen på 608 og Norg-dokumentasjonen peker mot egen kø for egne
 ansatte. Slack-svarene fra 2026-10-21 er nyere og sier vanlig enhet med ekstra
@@ -155,10 +156,12 @@ For hver sak der Tilgangsmaskinen avviser:
 - `kommunenummer` og `kommunenavn` (del 2) blir `null`.
 - Nytt felt `deltakerTilgang` på `SakListeElement`:
   `{ "avvist": true, "kode": "AVVIST_SKJERMING" }` eller `null` når innvilget.
-  Koden er `AVVIST_SKJERMING` eller `IKKE_TILGANG`. Alle andre koder fra
-  Tilgangsmaskinen maskeres til `IKKE_TILGANG`, slik at listesvaret aldri sier
-  at personen har kode 6 eller 7.
-- `skjermet` blir `false`, så flagget ikke lekker for kode 6 eller 7.
+  Koden er grunnen til avvisningen (K255.1):
+  - `AVVIST_SKJERMING` og `AVVIST_FORTROLIG_ADRESSE` sendes videre uendret.
+  - `AVVIST_STRENGT_FORTROLIG_ADRESSE` og `AVVIST_STRENGT_FORTROLIG_UTLAND`
+    blir `AVVIST_STRENGT_FORTROLIG_ADRESSE`.
+  - Andre koder, for eksempel `AVVIST_HABILITET`, blir `IKKE_TILGANG`.
+- `skjermet` blir `false`. Koden sier grunnen.
 - `kanTildeleMeg` og `kanTildeleMegSomBeslutter` blir `false`.
 
 Feiler kallet til Tilgangsmaskinen, er listen fail-closed: alle rader får
@@ -180,8 +183,15 @@ Tilgangsmaskinen per listevisning.
 Kolonnen «Deltaker»:
 
 - Med tilgang: navnet, og `Tag` «Egen ansatt» når `skjermet` er `true`.
-- Uten tilgang (`deltakerTilgang.avvist`): `Tag` «Egen ansatt» når koden er
-  `AVVIST_SKJERMING`, ellers «Ingen tilgang». Ikke navn.
+- Uten tilgang (`deltakerTilgang.avvist`): `Tag` med grunnen i stedet for
+  navnet.
+
+| Kode | Tag | Farge |
+|------|-----|-------|
+| `AVVIST_SKJERMING` | Egen ansatt | `info` |
+| `AVVIST_FORTROLIG_ADRESSE` | Fortrolig adresse | `warning` |
+| `AVVIST_STRENGT_FORTROLIG_ADRESSE` | Strengt fortrolig adresse | `danger` |
+| Andre | Ingen tilgang | `neutral` |
 
 Kolonnen «Arbeidsgiver» er tom uten tilgang. Raden kan åpnes, og detaljsiden
 viser forklaringen i 1.4.
@@ -190,22 +200,45 @@ Ved `tilgangssjekkFeilet` viser siden en `Alert` (warning) over tabellen:
 «Vi kunne ikke sjekke tilgangen din. Deltaker og arbeidsgiver vises ikke. Prøv
 igjen om litt.»
 
-Vi viser ikke «Fortrolig adresse» i listen. Det ville fortalt saksbehandlere
-uten tilgang at personen har kode 7. «Egen ansatt» viser vi, fordi saken ellers
-ville se tom ut uten forklaring. Arbeidsgiveren skjules, slik at raden ikke
-sier hvor den ansatte jobber.
+K255.1 sier at det ikke er hemmelig at en person har adressebeskyttelse, og
+at et avslag skal forklare hvorfor. Da kan saksbehandleren sende saken videre
+til noen med tilgang. Navn og arbeidsgiver skjules fortsatt, slik at raden
+ikke sier hvem personen er eller hvor hen jobber.
+
+Med tilgang skal beskyttelsen merkes tydelig (K255.1). Tilgangsmaskinen svarer
+bare 204 når tilgangen er innvilget, så den gir ingen kilde for graderingen.
+
+- Skjerming merkes med «Egen ansatt» når `skjermet` er `true`.
+- `SakListeElement` og `SakDetaljer` får `adressebeskyttelse`:
+  `FORTROLIG`, `STRENGT_FORTROLIG` eller `null`. Feltet kommer fra hooken
+  `adressebeskyttelseVedOpprettelse()`, samme mønster som
+  `skjermetVedOpprettelse()`. Til 661 lagrer graderingen på `SakOpprettet`,
+  gir hooken `STRENGT_FORTROLIG` for saker på Vikafossen (`2103`) og ellers
+  `null`. Kode 6 rutes alltid dit, så signalet er sikkert. Kode 7 merkes
+  først med 661.
+- Uten tilgang er feltet `null`. Grunnen står i `deltakerTilgang.kode`.
+- Frontend viser `Tag` (`strong`) ved navnet i listen og i personlinjen på
+  detaljsiden: «Fortrolig adresse» (`warning`) eller «Strengt fortrolig
+  adresse» (`danger`).
+
+Valget og alternativet: PDL-oppslag per detaljvisning ville merket kode 7 nå,
+men bare på detaljsiden og med ett PDL-kall per visning. Hooken holder listen
+og detaljen like og trenger ingen nye kall. Prisen er at kode 7 ikke merkes
+før 661.
 
 #### 1.4 Forklarende feilmelding
 
 `feilmelding` i `SakPage.tsx` og feilhåndteringen i `useTildeling.ts` og
-`useBeslutning.ts` får egen tekst for `kode === "AVVIST_SKJERMING"`:
+`useBeslutning.ts` får egen tekst per grunn (`utils/tilgangsfeil.ts`):
 
-> Saken gjelder en Nav-ansatt eller en annen skjermet person. Du må ha tilgang
-> til egne ansatte (`0000-GA-Egne_ansatte`) for å åpne den. Snakk med lederen
-> din hvis du skal behandle saken.
+| Kode | Tekst |
+|------|-------|
+| `AVVIST_SKJERMING` | Saken gjelder en Nav-ansatt eller en annen skjermet person. Du må ha tilgang til egne ansatte (`0000-GA-Egne_ansatte`) for å åpne den. Snakk med lederen din hvis du skal behandle saken. |
+| `AVVIST_FORTROLIG_ADRESSE` | Du har ikke tilgang til brukere med fortrolig adresse. Snakk med lederen din hvis du skal behandle saken. |
+| `AVVIST_STRENGT_FORTROLIG_ADRESSE` | Du har ikke tilgang til brukere med strengt fortrolig adresse. Snakk med lederen din hvis du skal behandle saken. |
+| `IKKE_TILGANG` | Du har ikke tilgang til denne saken. |
 
-Andre koder fra Tilgangsmaskinen viser `begrunnelse` som i dag, utenom kode 6
-(1.5).
+Andre koder fra Tilgangsmaskinen viser `begrunnelse` som i dag.
 
 `TilgangAvvistResponse` får `feilId`: correlation-ID-en til kallet, som
 `CallId` allerede lager og legger i MDC som `x_correlation_id`. Frontend viser
@@ -224,17 +257,15 @@ skjer:
   `AVVIST_STRENGT_FORTROLIG_ADRESSE` eller `AVVIST_STRENGT_FORTROLIG_UTLAND`.
   Dette fanger også personer som har fått kode 6 etter innsending.
 - `sjekkTilgangTilEnhet`: saken ligger på Nav Vikafossen
-  (`BehandlendeEnhetService.NAV_VIKAFOSSEN`, `2103`). Svaret
-  `IKKE_TILGANG_ENHET` er generisk og avslører ikke kode 6, men vi trenger
-  linjen i team logs.
+  (`BehandlendeEnhetService.NAV_VIKAFOSSEN`, `2103`). Saken ligger der bare
+  fordi deltakeren har kode 6, så avslaget gir samme grunn.
 
 Ved slik avvisning:
 
-- Svaret er 403 med `kode = "IKKE_TILGANG"`,
-  `begrunnelse = "Du har ikke tilgang til saken."` og `feilId`. Vi sender
-  ikke koden eller begrunnelsen fra Tilgangsmaskinen. De ville fortalt at
-  personen har kode 6.
-- Frontend viser «Du har ikke tilgang til denne saken.» og feil-ID-en.
+- Svaret er 403 med `kode = "AVVIST_STRENGT_FORTROLIG_ADRESSE"`,
+  `begrunnelse = "Du har ikke tilgang til brukere med strengt fortrolig adresse"`
+  og `feilId` (K255.1). `AVVIST_STRENGT_FORTROLIG_UTLAND` gir samme kode.
+- Frontend viser teksten fra 1.4 og feil-ID-en.
 - `teamLog.warn` logger `navIdent`, `sakId`, rute, avvisningskoden og
   `feilId`. Det er nok til at teamet kan følge opp ut fra feil-ID-en.
 - Vi logger ikke fnr, navn, adresse, geografisk tilknytning eller annet om
@@ -254,13 +285,19 @@ Sjekken ligger i `Tilgangsjekker.kt`, så den gjelder alle ruter som bruker
   - Feil fra Tilgangsmaskinen gir 200 med `tilgangssjekkFeilet = true`, og
     ingen navn eller virksomhet.
   - Ingen saker gir ikke kall til Tilgangsmaskinen.
+  - Sak på `2103` med tilgang har `adressebeskyttelse = STRENGT_FORTROLIG` i
+    listen og på detaljen. Andre saker har `null`.
   - Sak på `2103` avvist på enhet, og sak avvist med
-    `AVVIST_STRENGT_FORTROLIG_ADRESSE`, gir 403 med `IKKE_TILGANG` og
-    `feilId` lik `X-Correlation-Id` i svaret.
+    `AVVIST_STRENGT_FORTROLIG_ADRESSE`, gir 403 med
+    `AVVIST_STRENGT_FORTROLIG_ADRESSE` og `feilId` lik `X-Correlation-Id` i
+    svaret.
   - `AVVIST_SKJERMING` og `AVVIST_FORTROLIG_ADRESSE` sendes videre uendret.
+  - I listen gir kode 7 `AVVIST_FORTROLIG_ADRESSE`, kode 6 i utlandet
+    `AVVIST_STRENGT_FORTROLIG_ADRESSE` og `AVVIST_HABILITET` `IKKE_TILGANG`.
 - `RolesTest` eller tilsvarende: `0000-GA-Egne_ansatte` gir `EGNE_ANSATTE`.
-- MSW: én skjermet sak med tilgang, én med `AVVIST_SKJERMING` i listen og 403
-  med samme kode på detaljoppslaget, og én kode 6-sak med 403 og `feilId`.
+- MSW: én skjermet sak med tilgang, én med `AVVIST_SKJERMING`, én med
+  `AVVIST_FORTROLIG_ADRESSE` og én med `AVVIST_STRENGT_FORTROLIG_ADRESSE`.
+  Detaljoppslaget gir 403 med samme kode, `begrunnelse` og `feilId`.
 
 ### Del 2: Fordeling per kommune
 
@@ -397,7 +434,7 @@ listen.
 |-----|-----|---------|
 | `backend/.../saksbehandling/Roles.kt` | 1 | `EGNE_ANSATTE` |
 | `backend/.../saksbehandling/SakApi.kt` | 1, 2 | Bulk-sjekk i listen, nye og nullbare felter på `SakListeElement` og `SakerResponse` (`skjermet`, `deltakerTilgang`, `tilgangssjekkFeilet`, `virksomhet`, `kommunenummer`, `kommunenavn`), `feilId` på `TilgangAvvistResponse` |
-| `backend/.../saksbehandling/Tilgangsjekker.kt` | 1 | Nøytralt svar og `teamLog` for kode 6 ut fra avvisningskode og Vikafossen, `feilId` |
+| `backend/.../saksbehandling/Tilgangsjekker.kt` | 1 | Avvisningskode med grunn i listen og på detaljen (K255.1), `teamLog` for kode 6 ut fra avvisningskode og Vikafossen, `feilId` |
 | `backend/.../saksbehandling/KommunefilterApi.kt` (ny) | 2 | `GET` og `PUT /meg/kommunefilter` |
 | `backend/.../norg/NorgKlient.kt` | 2 | Kodeverket `geografi` for kommunenavn |
 | `backend/.../norg/KommunenavnCache.kt` (ny) | 2 | Cache for kommunenavn |
@@ -410,8 +447,10 @@ listen.
 | `frontend/saksbehandling/src/pages/OversiktPage.tsx` | 1, 2 | Tag, tom arbeidsgiver uten tilgang, `Alert`, filter over fanene, kolonnen «Kommune» |
 | `frontend/saksbehandling/src/components/Kommunefilter.tsx` (ny) | 2 | `Select` og `UNSAFE_Combobox` |
 | `frontend/saksbehandling/src/hooks/useKommunefilter.ts` (ny) | 2 | Henter og lagrer filteret |
-| `frontend/saksbehandling/src/pages/SakPage.tsx` | 1 | Tekst for `AVVIST_SKJERMING` og `IKKE_TILGANG`, feil-ID |
+| `frontend/saksbehandling/src/pages/SakPage.tsx` | 1 | Tekst per avvisningskode, feil-ID, `AdressebeskyttelseTag` i personlinjen |
+| `frontend/saksbehandling/src/components/AdressebeskyttelseTag.tsx` (ny) | 1 | Merking av adressebeskyttelse med tilgang |
 | `frontend/saksbehandling/src/hooks/useTildeling.ts`, `useBeslutning.ts` | 1 | Samme tekster og feil-ID |
+| `frontend/saksbehandling/src/utils/tilgangsfeil.ts` | 1 | Tekster per avvisningskode |
 | `frontend/saksbehandling/src/hooks/useSaker.ts` | 1, 2 | Typer |
 | `frontend/saksbehandling/src/mocks/handlers.ts` | 1, 2 | Mock-saker med kommune, `/meg/kommunefilter` |
 | `specifications/listevisning.md` | 1 | Listen kaller nå Tilgangsmaskinen |
@@ -431,14 +470,14 @@ listen.
 - **Fortrolig adresse (kode 7).** Rutes på virksomhetens kommune til vanlig
   arbeidslivssenter. Tilgangsmaskinen avviser saksbehandlere uten
   `0000-GA-Fortrolig_Adresse` med `AVVIST_FORTROLIG_ADRESSE`. Samme problem
-  som egne ansatte. Del 1 skjuler deltaker og arbeidsgiver og viser «Ingen
-  tilgang». Detaljen gir 403 med feil-ID.
+  som egne ansatte. Del 1 skjuler deltaker og arbeidsgiver og viser «Fortrolig
+  adresse». Detaljen gir 403 med grunnen og feil-ID.
 - **Svalbard og Jan Mayen** (`2100`, `2112`, `2113`, `2115`, `2211`). Ingen av
   de tolv enhetene har regel for dem, og bestmatch i Norg gir ingen enhet.
   `BehandlendeEnhetService` faller derfor tilbake til Oslo (`0391`). Det er
   slik i dag, og det står som det er. Se beslutningene.
-- **Kode 6.** Rutes til Vikafossen. Åpner noen utenfor den saken, får de det
-  nøytrale svaret i 1.5 med feil-ID.
+- **Kode 6.** Rutes til Vikafossen. Åpner noen utenfor den saken, får de svaret i
+  1.5 med grunnen og feil-ID.
 - **Feil-ID uten treff i team logs.** Feil-ID-en finnes i vanlig logg for alle
   403. Bare kode 6 får egen linje i team logs.
 - **Arena-saker** (`kilde_til_behandling = ARENA`). Får bulk-sjekken i
@@ -468,10 +507,11 @@ listen.
 - [ ] `GET /saker` returnerer `skjermet` fra hooken `skjermetVedOpprettelse()` (TODO 661) og sjekker Tilgangsmaskinen i bulk med `KJERNE`
 - [ ] Avviste rader har ikke deltaker, virksomhet eller kommune, har `deltakerTilgang` og kan ikke tildeles
 - [ ] Feil mot Tilgangsmaskinen gir liste uten deltaker og virksomhet, og `tilgangssjekkFeilet`
-- [ ] Listen viser «Egen ansatt» for skjermede saker, og «Ingen tilgang» for andre avviste rader
-- [ ] Detalj, tildeling og beslutning viser forklarende tekst for `AVVIST_SKJERMING`
+- [ ] Listen viser grunnen for avviste rader: «Egen ansatt», «Fortrolig adresse», «Strengt fortrolig adresse», ellers «Ingen tilgang»
+- [ ] Detalj, tildeling og beslutning viser forklarende tekst for skjerming, fortrolig og strengt fortrolig adresse
 - [ ] Alle 403 har `feilId`, og frontend viser den
-- [ ] Kode 6 uten tilgang gir `IKKE_TILGANG` og én linje i team logs uten opplysninger om personen
+- [ ] Kode 6 uten tilgang gir `AVVIST_STRENGT_FORTROLIG_ADRESSE` og én linje i team logs uten opplysninger om personen
+- [ ] Med tilgang merkes kode 6 (Vikafossen) med «Strengt fortrolig adresse» i listen og på detaljsiden. Kode 7 merkes når 661 kobler hooken `adressebeskyttelseVedOpprettelse()`
 - [ ] `listevisning.md` er oppdatert
 - [ ] PR-beskrivelsen sier at fagansvarlig må sørge for at hvert arbeidslivssenter har saksbehandlere og beslutter med `0000-GA-Egne_ansatte`
 - [ ] `mvn -B package` er grønn
