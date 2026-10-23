@@ -90,6 +90,7 @@ Nais-oppsett står på kortet.
 | Ken, 2026-10-22 | Habilitet: Vi kan ikke flytte saker. Vi lener oss på internkontroll og skjønn. Saksbehandleren har taushetsplikt, vurderer selv om hen er inhabil og lar en annen ta saken. |
 | Ken, 2026-10-22 | Kommunefilteret er en brukerinnstilling for appen og skrives direkte til databasen, ikke via event. Det er et bevisst unntak. `localStorage` ble vurdert, men følger ikke saksbehandleren mellom maskiner. |
 | Ken, 2026-10-22 | Kode 7 i listen: raden vises som «Ingen tilgang» uten navn. Åpner noen saken, logges avvisningen med feil-ID og følges opp derfra. Erstattet av K255.1-beslutningen 2026-10-23. |
+| Ken, 2026-10-23 | Enhetsvelgeren er `UNSAFE_Combobox` med ett valg, ikke `Select`. Den åpne listen i en native `Select` tegnes av operativsystemet og fikk ikke Aksel-utseendet. |
 | Ken, 2026-10-22 | Vestfold og Telemark rutes i Norg til Nav arbeid og helse Vestfold og Telemark (`0891`). Enheten har regel for alle 23 kommunene. |
 | Ken, 2026-10-22 | Svalbard og Jan Mayen har ingen regel i Norg. Fallback til Oslo (`0391`) i `BehandlendeEnhetService` står som den er. |
 | Ken, 2026-10-22 | Del 1 venter ikke på 661. `skjermet` kommer fra en hook som returnerer `false` til 661 er på plass. Kode 6 kjennes igjen på avvisningskoden fra Tilgangsmaskinen og på Vikafossen, ikke på et lagret flagg. |
@@ -342,8 +343,8 @@ både fylkes- og kommuneregler og en cache som kan bli utdatert.
 
 Over fanene på `OversiktPage`, som i skissen:
 
-- `Select` «Enhet» med enhetene til den innloggede. Den vises bare når
-  saksbehandleren har mer enn én enhet. Med én enhet er den valgt.
+- `UNSAFE_Combobox` «Enhet» (ett valg) med enhetene til den innloggede. Den
+  vises bare når saksbehandleren har mer enn én enhet. Med én enhet er den valgt.
 - `UNSAFE_Combobox` «Kommune» med `isMultiSelect` og kontrollert
   `selectedOptions`. Valgene er fra 2.1, med kommunenummer som `value`. Tomt
   felt betyr alle kommuner.
@@ -445,7 +446,7 @@ listen.
 | `backend/.../saksbehandling/Db.kt` | 2 | `SakTable.kommunenummer` |
 | `backend/src/main/resources/db/migration/V27__sak_kommunenummer.sql` | 2 | `sak.kommunenummer`, `saksbehandler_kommunefilter` |
 | `frontend/saksbehandling/src/pages/OversiktPage.tsx` | 1, 2 | Tag, tom arbeidsgiver uten tilgang, `Alert`, filter over fanene, kolonnen «Kommune» |
-| `frontend/saksbehandling/src/components/Kommunefilter.tsx` (ny) | 2 | `Select` og `UNSAFE_Combobox` |
+| `frontend/saksbehandling/src/components/Kommunefilter.tsx` (ny) | 2 | `UNSAFE_Combobox` for enhet og kommuner |
 | `frontend/saksbehandling/src/hooks/useKommunefilter.ts` (ny) | 2 | Henter og lagrer filteret |
 | `frontend/saksbehandling/src/pages/SakPage.tsx` | 1 | Tekst per avvisningskode, feil-ID, `AdressebeskyttelseTag` i personlinjen |
 | `frontend/saksbehandling/src/components/AdressebeskyttelseTag.tsx` (ny) | 1 | Merking av adressebeskyttelse med tilgang |
