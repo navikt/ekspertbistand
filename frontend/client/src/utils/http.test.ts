@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { HttpError, isUnauthorizedError, parseErrorMessage, resolveApiError } from "./http";
+import {
+  HttpError,
+  isUnauthorizedError,
+  parseErrorMessage,
+  parseErrorPayload,
+  resolveApiError,
+} from "./http";
 
 describe("http utils", () => {
   it("extracts a message from a JSON error response", async () => {
@@ -22,6 +28,21 @@ describe("http utils", () => {
     expect(resolveApiError(error, "Fallback")).toEqual({
       message: "Unauthorized",
       requiresLogin: true,
+    });
+  });
+
+  it("reads the rejected field from a backend validation response", async () => {
+    const response = new Response(
+      JSON.stringify({
+        kode: "UGYLDIG_INPUT",
+        felt: "behovForBistand.estimertKostnad",
+        message: "Over maksgrensen.",
+      }),
+      { status: 400 }
+    );
+    expect(await parseErrorPayload(response)).toEqual({
+      message: "Over maksgrensen.",
+      field: "behovForBistand.estimertKostnad",
     });
   });
 });

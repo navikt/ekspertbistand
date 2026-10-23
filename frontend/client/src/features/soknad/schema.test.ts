@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createEmptyInputs, soknadSchema } from "./schema";
+import { createEmptyInputs, sjekkSoknadssumMotMaks, soknadSchema } from "./schema";
 import { draftDtoServerSchema } from "./server-schemas";
 
 const gyldigeInputs = () => {
@@ -64,6 +64,37 @@ describe("soknad schema fritekst", () => {
 describe("søknad fra server", () => {
   it.each(["innsendt", "godkjent", "avslatt", "avlyst"])("godtar status %s", (status) => {
     expect(draftDtoServerSchema.safeParse({ status }).success).toBe(true);
+  });
+
+  describe("søknadssum", () => {
+    const felt = soknadSchema.shape.behovForBistand.shape.estimertKostnad;
+
+    it.each(["24900", " 24900 ", "+24900", "1"])("godtar positivt heltall %s", (belop) => {
+      expect(felt.safeParse(belop).success).toBe(true);
+      expect(sjekkSoknadssumMotMaks(belop, 24_900)).toBeNull();
+    });
+
+    it.each(["0", "-1", "12.5", "1e4", "abc", "2147483648"])(
+      "avviser beløp som backend ikke kan tolke: %s",
+      (belop) => {
+        expect(felt.safeParse(belop).success).toBe(false);
+        expect(sjekkSoknadssumMotMaks(belop, 24_900)).toBe(
+          "Søknadssummen må være et positivt heltall."
+        );
+      }
+    );
+
+    it("bruker satsen fra backend som øvre grense også når den endres", () => {
+      expect(felt.safeParse("24901").success).toBe(true);
+      expect(sjekkSoknadssumMotMaks("24901", 24_900)).toBe(
+        "Søknadssummen kan ikke være høyere enn 24 900 kr."
+      );
+      expect(sjekkSoknadssumMotMaks("24901", 26_000)).toBeNull();
+    });
+
+    it("krever et beløp", () => {
+      expect(felt.safeParse("").success).toBe(false);
+    });
   });
 
   it("avviser ukjent status", () => {
