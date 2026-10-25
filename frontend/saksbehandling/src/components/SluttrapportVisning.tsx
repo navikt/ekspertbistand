@@ -63,7 +63,7 @@ export default function SluttrapportVisning({
   return (
     <Box padding="space-16">
       <VStack gap="space-24">
-        <Heading level="1" size="small">
+        <Heading level="2" size="small">
           Sluttrapport
         </Heading>
 
@@ -80,7 +80,7 @@ export default function SluttrapportVisning({
         </VStack>
 
         <VStack gap="space-8">
-          <Heading level="2" size="xsmall">
+          <Heading level="3" size="xsmall">
             Vedlegg
           </Heading>
           <PdfForhandsvisningListe filer={[fil]} />

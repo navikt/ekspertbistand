@@ -3,12 +3,14 @@ name: Playwright
 on:
   push:
     paths:
+      - ".github/workflows/playwright.yml"
       - "frontend/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
   pull_request:
     paths:
+      - ".github/workflows/playwright.yml"
       - "frontend/**"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -38,8 +40,11 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.READER_TOKEN }}
 
-      - name: Install Playwright browsers
-        run: pnpm --filter ./frontend/client exec playwright install --with-deps
+      - name: Install Chromium headless shell
+        run: pnpm --filter ./frontend/client exec playwright install --with-deps --only-shell chromium
 
-      - name: Run Playwright tests
+      - name: Run client Playwright tests
         run: pnpm --filter ./frontend/client e2e
+
+      - name: Run saksbehandling accessibility tests
+        run: pnpm --filter ./frontend/saksbehandling e2e

@@ -221,6 +221,9 @@ export default function OversiktPage() {
     return (
       <Page.Block as="main">
         <Box padding="space-24">
+          <Heading level="1" size="medium" spacing>
+            Saker
+          </Heading>
           <Alert variant="warning">
             <Heading spacing size="small" level="2">
               Du er ikke knyttet til noen enheter
@@ -239,6 +242,9 @@ export default function OversiktPage() {
     <Page.Block as="main">
       <Box paddingInline="space-24" paddingBlock="space-16 space-0">
         <VStack gap="space-16">
+          <Heading level="1" size="medium">
+            Saker
+          </Heading>
           {tilgangssjekkFeilet && (
             <Alert variant="warning" size="small">
               Vi kunne ikke sjekke tilgangen din. Deltaker og arbeidsgiver vises ikke. Prøv igjen om
@@ -282,7 +288,7 @@ export default function OversiktPage() {
                         <Table.ColumnHeader>Kommune</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Tiltaksperiode</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Søknad mottatt</Table.ColumnHeader>
-                        <Table.HeaderCell />
+                        <Table.ColumnHeader>Handlinger</Table.ColumnHeader>
                       </Table.Row>
                     </Table.Header>
                     <Table.Body>

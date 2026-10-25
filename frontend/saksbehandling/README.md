@@ -7,17 +7,25 @@ Separat frontend-app for saksbehandling.
 - Kjør `pnpm install` fra rotmappen
 - Start appen med `pnpm dev:saksbehandling`
 
+## UU-tester
+
+Kjør `pnpm --filter ./frontend/saksbehandling e2e` fra rotmappen. Testene starter
+Vite med mockdata på port 5174 og sjekker oversikt og saksvisning med axe.
+Playwright-jobben i GitHub Actions kjører dem på push og pull request.
+Hvis Chromium mangler lokalt, kjør
+`pnpm --filter ./frontend/saksbehandling exec playwright install chromium` først.
+
 ## Kjøre mot LocalApplication med flere brukere
 
 `LocalApplication.kt` i backend har fire saksbehandlere med tilgang til samme
 enheter:
 
-| Ident | Navn | Roller |
-|-------|------|--------|
-| `A123456` | Ola Beggedeler | saksbehandler og beslutter |
-| `B654321` | Kari Beggedeler | saksbehandler og beslutter |
-| `P123456` | Per Baresaksbehandler | saksbehandler |
-| `L654321` | Lisa Barebeslutter | beslutter |
+| Ident     | Navn                  | Roller                     |
+| --------- | --------------------- | -------------------------- |
+| `A123456` | Ola Beggedeler        | saksbehandler og beslutter |
+| `B654321` | Kari Beggedeler       | saksbehandler og beslutter |
+| `P123456` | Per Baresaksbehandler | saksbehandler              |
+| `L654321` | Lisa Barebeslutter    | beslutter                  |
 
 1. Start `LocalApplication.kt`.
 2. Kjør `VITE_ENABLE_MOCKS=false pnpm serve:saksbehandling` fra rotmappen og

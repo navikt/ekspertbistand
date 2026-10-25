@@ -450,12 +450,12 @@ export default function SakPage() {
   };
 
   return (
-    <>
+    <main>
       <Box background="soft" paddingBlock="space-8" paddingInline="space-24">
         <HStack gap="space-8" align="center" wrap>
-          <BodyShort weight="semibold" style={{ overflowWrap: "anywhere" }}>
+          <Heading level="1" size="xsmall" style={{ overflowWrap: "anywhere" }}>
             {ansatt.navn}
-          </BodyShort>
+          </Heading>
           <CopyButton copyText={ansatt.navn} size="xsmall" />
           <BodyShort>/</BodyShort>
           <BodyShort style={{ overflowWrap: "anywhere" }}>{ansatt.fnr}</BodyShort>
@@ -496,15 +496,15 @@ export default function SakPage() {
       </Box>
 
       {visKvittering && sak.forelopigVedtak ? (
-        <main>
+        <div>
           {kvittering?.type === "vedtak" ? (
             <VedtakKvittering sak={sak} vedtak={sak.forelopigVedtak} />
           ) : (
             <ForelopigVedtakKvittering sak={sak} vedtak={sak.forelopigVedtak} />
           )}
-        </main>
+        </div>
       ) : (
-        <main>
+        <div>
           <Tabs
             value={erArenaSak ? "soknad" : saksFane}
             onChange={(value) => setSaksFane(value as SaksFane)}
@@ -699,8 +699,8 @@ export default function SakPage() {
               </Tabs.Panel>
             )}
           </Tabs>
-        </main>
+        </div>
       )}
-    </>
+    </main>
   );
 }
