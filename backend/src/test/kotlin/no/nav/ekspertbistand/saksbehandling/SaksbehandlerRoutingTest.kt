@@ -45,14 +45,14 @@ class SaksbehandlerRoutingTest {
             "fornavn": "Tore",
             "etternavn": "Tang",
             "epost": "tore.tang@nav.no",
-            "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
+            "enhet": { "enhetnummer": "1234", "navn": "Nav arbeidslivssenter Sydpolen" },
             "tIdent": "T123456"
         }
     """.trimIndent()
 
     private val enheterJson = """
         [
-            { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" },
+            { "enhetnummer": "1234", "navn": "Nav arbeidslivssenter Sydpolen" },
             { "enhetnummer": "5678", "navn": "Nav Arbeid og Ytelser" }
         ]
     """.trimIndent()
@@ -314,7 +314,7 @@ class SaksbehandlerRoutingTest {
     fun `principal faar navn fra fornavn og etternavn naar visningNavn mangler`() = testApplicationWithDatabase { db ->
         val response = megRequest(db, ansattProvider = {
             """{ "navIdent": "A123456", "fornavn": "Tore", "etternavn": "Tang",
-                 "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" }, "tIdent": "T123456" }"""
+                 "enhet": { "enhetnummer": "1234", "navn": "Nav arbeidslivssenter Sydpolen" }, "tIdent": "T123456" }"""
         })
 
         assertEquals(HttpStatusCode.OK, response.status)
@@ -361,7 +361,7 @@ class SaksbehandlerRoutingTest {
     @Test
     fun `ansatt uten navn fra entra-proxy gir 500`() = testApplicationWithDatabase { db ->
         val response = megRequest(db, ansattProvider = {
-            """{ "navIdent": "A123456", "enhet": { "enhetnummer": "1234", "navn": "Nav Avdeling Sydpolen" }, "tIdent": "T123456" }"""
+            """{ "navIdent": "A123456", "enhet": { "enhetnummer": "1234", "navn": "Nav arbeidslivssenter Sydpolen" }, "tIdent": "T123456" }"""
         })
 
         assertEquals(HttpStatusCode.InternalServerError, response.status)

@@ -50,7 +50,7 @@ class OpprettSak(
 
         val tidspunkt = clock.now()
         val sakId = transaction(database) {
-            val sakId = opprettSakForSoknad(soknadId, behandlendeEnhet, tidspunkt) ?: return@transaction null
+            val sakId = opprettSakForSoknad(soknadId, behandlendeEnhet, event.data.virksomhetKommunenummer, tidspunkt) ?: return@transaction null
             publishEventQueue(
                 EventData.SakOppdatert(
                     sakId = sakId.toString(),
@@ -89,12 +89,17 @@ class OpprettSak(
         }
 
         /**
-         * Oppretter sak for søknaden (`OPPRETTET`, kilde `ARENA`) med [behandlendeEnhet] og alle vilkår,
-         * og returnerer `sakId`. Idempotent på `soknad_id`: finnes saken allerede (for eksempel opprettet av
-         * [no.nav.ekspertbistand.event.projections.SakProjection]), settes behandlende enhet bare hvis den mangler.
+         * Oppretter sak for søknaden (`OPPRETTET`, kilde `EKSPERTBISTAND`) med [behandlendeEnhet], [kommunenummer] og alle
+         * vilkår, og returnerer `sakId`. Idempotent på `soknad_id`: finnes saken allerede (for eksempel opprettet av
+         * [no.nav.ekspertbistand.event.projections.SakProjection]), settes enhet og kommune bare hvis enheten mangler.
          * Returnerer null hvis søknaden ikke finnes. Må kalles i en pågående transaksjon.
          */
-        fun opprettSakForSoknad(soknadId: UUID, behandlendeEnhet: String, tidspunkt: Instant): UUID? {
+        fun opprettSakForSoknad(
+            soknadId: UUID,
+            behandlendeEnhet: String,
+            kommunenummer: String?,
+            tidspunkt: Instant,
+        ): UUID? {
             val soknadFinnes = !SoknadTable.select(SoknadTable.id).where { SoknadTable.id eq soknadId }.empty()
             if (!soknadFinnes) return null
 
@@ -103,11 +108,13 @@ class OpprettSak(
                 it[status] = Saksstatus.OPPRETTET.name
                 it[kildeTilBehandling] = KildeTilBehandling.EKSPERTBISTAND.name
                 it[SakTable.behandlendeEnhet] = behandlendeEnhet
+                it[SakTable.kommunenummer] = kommunenummer
                 it[opprettet] = tidspunkt
                 it[sistEndret] = tidspunkt
             }
             SakTable.update({ (SakTable.soknadId eq soknadId) and SakTable.behandlendeEnhet.isNull() }) {
                 it[SakTable.behandlendeEnhet] = behandlendeEnhet
+                it[SakTable.kommunenummer] = kommunenummer
                 it[sistEndret] = tidspunkt
             }
 

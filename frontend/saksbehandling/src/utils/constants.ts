@@ -3,6 +3,7 @@ import { envSwitch } from "./env";
 export const OVERSIKT_PATH = "/oversikt";
 export const SAK_PATH = "/oversikt/:sakId";
 export const SAKSBEHANDLING_SAKER_URL = "/api/saksbehandling/v1/saker";
+export const SAKSBEHANDLING_KOMMUNEFILTER_URL = "/api/saksbehandling/v1/meg/kommunefilter";
 export const SAKSBEHANDLING_SAK_URL = (sakId: string) => `/api/saksbehandling/v1/saker/${sakId}`;
 export const SAKSBEHANDLING_VILKARSVURDERING_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/vilkarsvurdering`;

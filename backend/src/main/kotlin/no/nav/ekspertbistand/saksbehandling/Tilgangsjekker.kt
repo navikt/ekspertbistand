@@ -3,9 +3,13 @@ package no.nav.ekspertbistand.saksbehandling
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
+import io.ktor.server.plugins.callid.*
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
+import no.nav.ekspertbistand.infrastruktur.teamLogger
+import no.nav.ekspertbistand.norg.BehandlendeEnhetService
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.tilgangsmaskin.Regelsett
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
@@ -17,11 +21,42 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.slf4j.LoggerFactory
 import java.util.*
 
-private val log = LoggerFactory.getLogger("SaksbehandlingTilgangsjekker")
+private object SaksbehandlingTilgangsjekker
 
+private val log = LoggerFactory.getLogger("SaksbehandlingTilgangsjekker")
+private val teamLog = SaksbehandlingTilgangsjekker.teamLogger()
+
+const val IKKE_TILGANG = "IKKE_TILGANG"
 const val IKKE_TILGANG_ENHET = "IKKE_TILGANG_ENHET"
 const val IKKE_TILDELT_SAK = "IKKE_TILDELT_SAK"
 const val BESLUTTER_INHABIL = "BESLUTTER_INHABIL"
+
+const val AVVIST_STRENGT_FORTROLIG_ADRESSE = "AVVIST_STRENGT_FORTROLIG_ADRESSE"
+const val AVVIST_FORTROLIG_ADRESSE = "AVVIST_FORTROLIG_ADRESSE"
+private val avvisningskoderForKode6 = setOf(AVVIST_STRENGT_FORTROLIG_ADRESSE, "AVVIST_STRENGT_FORTROLIG_UTLAND")
+
+/** Svarer 403 med correlation-ID-en til kallet som `feilId`, slik at brukerstøtte kan finne kallet i loggen. */
+internal suspend fun ApplicationCall.respondTilgangAvvist(kode: String?, begrunnelse: String?) =
+    respond(HttpStatusCode.Forbidden, TilgangAvvistResponse(kode = kode, begrunnelse = begrunnelse, feilId = callId))
+
+/**
+ * Avvisning av en sak der deltakeren har strengt fortrolig adresse (kode 6). Svaret sier at det er grunnen
+ * (etterlevelseskrav K255.1), men ingenting om personen. Team logs får nok til å følge opp ut fra feil-ID-en.
+ */
+private suspend fun ApplicationCall.avvisKode6(
+    principal: AzureAdPrincipal,
+    sak: SakTilgangsgrunnlag,
+    avvisningskode: String?,
+) {
+    teamLog.warn(
+        "Tilgang avvist til sak med strengt fortrolig adresse: navIdent={}, sakId={}, rute={} {}, avvisningskode={}, feilId={}",
+        principal.navIdent, sak.sakId, request.httpMethod.value, request.path(), avvisningskode, callId,
+    )
+    respondTilgangAvvist(
+        kode = AVVIST_STRENGT_FORTROLIG_ADRESSE,
+        begrunnelse = "Du har ikke tilgang til brukere med strengt fortrolig adresse",
+    )
+}
 
 /**
  * Henter innlogget bruker og sjekker at den har minst én av [roller]. Svarer 401 uten innlogget
@@ -110,13 +145,14 @@ internal suspend fun ApplicationCall.sjekkTilgangTilEnhet(
     val harTilgangTilEnhet = sak.behandlendeEnhet != null && principal.harTilgangTilEnhet(sak.behandlendeEnhet)
     if (!harTilgangTilEnhet) {
         log.info("Tilgang avvist: saksbehandler mangler tilgang til enhet for sakId={}", sak.sakId)
-        respond(
-            HttpStatusCode.Forbidden,
-            TilgangAvvistResponse(
+        if (sak.behandlendeEnhet == BehandlendeEnhetService.NAV_VIKAFOSSEN) {
+            avvisKode6(principal, sak, avvisningskode = IKKE_TILGANG_ENHET)
+        } else {
+            respondTilgangAvvist(
                 kode = IKKE_TILGANG_ENHET,
                 begrunnelse = "Du har ikke tilgang til enheten som behandler saken",
-            ),
-        )
+            )
+        }
     }
     return harTilgangTilEnhet
 }
@@ -150,10 +186,11 @@ internal suspend fun ApplicationCall.sjekkTilgangsmaskin(
         Tilgangsresultat.Innvilget -> true
         is Tilgangsresultat.Avvist -> {
             log.info("Tilgang avvist av Tilgangsmaskinen for sakId={}", sak.sakId)
-            respond(
-                HttpStatusCode.Forbidden,
-                TilgangAvvistResponse(kode = tilgang.kode, begrunnelse = tilgang.begrunnelse),
-            )
+            if (tilgang.kode in avvisningskoderForKode6) {
+                avvisKode6(principal, sak, avvisningskode = tilgang.kode)
+            } else {
+                respondTilgangAvvist(kode = tilgang.kode, begrunnelse = tilgang.begrunnelse)
+            }
             false
         }
     }
@@ -170,10 +207,7 @@ internal suspend fun ApplicationCall.sjekkErSaksbehandlerPåSak(
     val erSaksbehandler = sak.saksbehandlerIdent != null && sak.saksbehandlerIdent == principal.navIdent
     if (!erSaksbehandler) {
         log.info("Tilgang avvist: saksbehandler er ikke tildelt sakId={}", sak.sakId)
-        respond(
-            HttpStatusCode.Forbidden,
-            TilgangAvvistResponse(kode = IKKE_TILDELT_SAK, begrunnelse = "Du er ikke tildelt saken"),
-        )
+        respondTilgangAvvist(kode = IKKE_TILDELT_SAK, begrunnelse = "Du er ikke tildelt saken")
     }
     return erSaksbehandler
 }
@@ -185,10 +219,43 @@ internal suspend fun ApplicationCall.sjekkErBeslutterPåSak(
     val erBeslutter = sak.beslutterIdent != null && sak.beslutterIdent == principal.navIdent
     if (!erBeslutter) {
         log.info("Tilgang avvist: beslutter er ikke tildelt sakId={}", sak.sakId)
-        respond(
-            HttpStatusCode.Forbidden,
-            TilgangAvvistResponse(kode = IKKE_TILDELT_SAK, begrunnelse = "Du er ikke tildelt saken"),
-        )
+        respondTilgangAvvist(kode = IKKE_TILDELT_SAK, begrunnelse = "Du er ikke tildelt saken")
     }
     return erBeslutter
+}
+
+private const val MAKS_IDENTER_PER_BULK = 1000
+const val AVVIST_SKJERMING = "AVVIST_SKJERMING"
+
+/**
+ * Bulk-sjekk mot Tilgangsmaskinen (kjerneregler) for listen. Gir avvisningen per ident, eller null når innvilget.
+ * Identer som mangler i svaret eller har annen status enn 204 (også 404), regnes som avvist. Skjerming og
+ * adressebeskyttelse sendes videre som kode, slik at saksbehandleren ser grunnen (etterlevelseskrav K255.1).
+ * Kode 6 i utlandet blir [AVVIST_STRENGT_FORTROLIG_ADRESSE]. Andre avvisninger blir [IKKE_TILGANG].
+ * Kaster ved feil mot Tilgangsmaskinen.
+ */
+internal suspend fun TilgangsmaskinClient.deltakerTilganger(
+    principal: AzureAdPrincipal,
+    identer: Collection<String>,
+): Map<String, DeltakerTilgang?> {
+    val distinkte = identer.distinct()
+    val resultater = distinkte
+        .chunked(MAKS_IDENTER_PER_BULK)
+        .flatMap { bolk -> evaluerBulk(principal.subjectToken, bolk, Regelsett.KJERNE).resultater }
+        .associateBy { it.brukerId }
+    return distinkte.associateWith { ident ->
+        val resultat = resultater[ident]
+        if (resultat?.innvilget == true) {
+            null
+        } else {
+            DeltakerTilgang(
+                avvist = true,
+                kode = when (val kode = resultat?.detaljer?.title) {
+                    AVVIST_SKJERMING, AVVIST_FORTROLIG_ADRESSE -> kode
+                    in avvisningskoderForKode6 -> AVVIST_STRENGT_FORTROLIG_ADRESSE
+                    else -> IKKE_TILGANG
+                },
+            )
+        }
+    }
 }

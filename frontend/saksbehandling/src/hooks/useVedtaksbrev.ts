@@ -26,11 +26,12 @@ async function hentPdf(url: string, init?: RequestInit): Promise<Blob> {
     headers: { ...init?.headers, Accept: "application/pdf" },
   });
   if (!response.ok) {
-    const { message, begrunnelse, kode } = await parseErrorPayload(response);
+    const { message, begrunnelse, kode, feilId } = await parseErrorPayload(response);
     throw new HttpError(message ?? `Kunne ikke lage brev (${response.status}).`, {
       status: response.status,
       begrunnelse,
       kode,
+      feilId,
     });
   }
   return response.blob();

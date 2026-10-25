@@ -27,6 +27,8 @@ export const rolleForOppgave = (oppgavetype: Oppgavetype | null): Tildelingsroll
   }
 };
 
+export type Adressebeskyttelse = "FORTROLIG" | "STRENGT_FORTROLIG";
+
 export type SakInfo = {
   sakId: string;
   status: Saksstatus;
@@ -40,6 +42,8 @@ export type SakInfo = {
   kanTildeleMegSomBeslutter: boolean;
   oppgavetype: Oppgavetype | null;
   arenaSakId: string | null;
+  /** Null uten adressebeskyttelse og uten tilgang til deltakeren. Kode 7 er ikke kjent før kort 661. */
+  adressebeskyttelse: Adressebeskyttelse | null;
 };
 
 /** Arena-saker behandles ferdig i Arena. API-et godtar tildeling, men GUI-et tilbyr det ikke. */
@@ -47,8 +51,21 @@ export const kanTildeleMegSomSaksbehandler = (
   sak: Pick<SakInfo, "kildeTilBehandling" | "kanTildeleMeg">
 ) => sak.kildeTilBehandling !== "ARENA" && sak.kanTildeleMeg;
 
+export type DeltakerTilgang = {
+  avvist: boolean;
+  /** `AVVIST_SKJERMING`, `AVVIST_FORTROLIG_ADRESSE`, `AVVIST_STRENGT_FORTROLIG_ADRESSE` eller `IKKE_TILGANG`. */
+  kode: string;
+};
+
 export type SakListeElement = SakInfo & {
   harOppgaveForMeg: boolean;
+  skjermet: boolean;
+  /** Null når Tilgangsmaskinen innvilger, eller når sjekken feilet. */
+  deltakerTilgang: DeltakerTilgang | null;
+  /** Virksomhetens kommune. Null for kode 6, Arena-saker og rader uten tilgang. */
+  kommunenummer: string | null;
+  /** Null når Norg ikke kjenner kommunen eller ikke svarer. */
+  kommunenavn: string | null;
   /** Fra siste foreløpige vedtak. Null uten vedtak og ved avslag. */
   tiltaksperiodeFra: string | null;
   tiltaksperiodeTil: string | null;
@@ -56,17 +73,19 @@ export type SakListeElement = SakInfo & {
     soknadId: string;
     status: SoknadStatus;
     innsendtTidspunkt: string;
+    /** Null når den innloggede ikke har tilgang til deltakeren. */
     virksomhet: {
       virksomhetsnummer: string;
       virksomhetsnavn: string;
-    };
-    ansattNavn: string;
+    } | null;
+    ansattNavn: string | null;
     startdato: string;
   };
 };
 
 export type SakerResponse = {
   saker: SakListeElement[];
+  tilgangssjekkFeilet: boolean;
 };
 
 export function useSaker() {
@@ -76,6 +95,7 @@ export function useSaker() {
 
   return {
     saker: data?.saker ?? [],
+    tilgangssjekkFeilet: data?.tilgangssjekkFeilet ?? false,
     error,
     isLoading,
   };

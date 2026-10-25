@@ -3,11 +3,11 @@
 Ekspertbistand deler ett view i BigQuery som dekker to behov:
 
 - felles saksbehandlingsstatistikk hos Team Sak («Teknisk beskrivelse av behov til felles saksbehandlingsstatistikk»)
-- tiltaksstatistikk i datavarehuset, som i dag får ekspertbistand fra Arena (tiltakskode `EKSPEBIST`)
+- tiltaksstatistikk hos Team Oppfølging (datavarehus), som i dag får ekspertbistand fra Arena (tiltakskode `EKSPEBIST`)
 
 Dokumentet beskriver hva vi sender, hvilket felt som svarer til hvilket behov, og hva som mangler og hvorfor.
 Feltnavnene er våre egne. Tabellene under viser hvilket av feltene våre som dekker feltene Team Sak og
-datavarehuset har bedt om.
+Team Oppfølging har bedt om.
 
 ## Status
 
@@ -26,7 +26,7 @@ datavarehuset har bedt om.
 | Tabeller som ikke deles | `saksbehandlingsstatistikk` (rådata) og `adressebeskyttede_behandlinger` |
 
 Vi eier datasettet. Nais oppretter det fra `spec.gcp.bigQueryDatasets` i manifestet til `ekspertbistand-backend`,
-og appen oppretter tabellene og viewet. Team Sak og datavarehuset leser viewet direkte i BigQuery. Vi leverer ingen
+og appen oppretter tabellene og viewet. Team Sak og Team Oppfølging leser viewet direkte i BigQuery. Vi leverer ingen
 kopi eller fil.
 
 Viewet viser alle rader i rådatatabellen, bortsett fra behandlinger i `adressebeskyttede_behandlinger`. Se «Personvern».
@@ -43,12 +43,12 @@ Slik gjør vi det:
 2. Vi legger viewet `saksbehandlingsstatistikk_delt` til som datasett i dataproduktet. Datamarkedsplassen
    autoriserer viewet mot tabellene i samme BigQuery-datasett. Tabellene deles aldri. Viewet må finnes først. I prod
    finnes det når projeksjonen begynner å skrive.
-3. Team Sak og datavarehuset søker om tilgang til datasettet på Datamarkedsplassen. Søknaden gjelder en bruker, en
+3. Team Sak og Team Oppfølging søker om tilgang til datasettet på Datamarkedsplassen. Søknaden gjelder en bruker, en
    gruppe eller en servicebruker, og må vise til en behandling i
    [Behandlingskatalogen](https://behandlingskatalog.nais.adeo.no/).
 4. Vi godkjenner søknaden når behandlingen finnes. Datamarkedsplassen gir da lesetilgang til viewet.
 
-Viewet inneholder `fnr` i klartekst. Vi pseudonymiserer ikke, fordi Team Sak og datavarehuset bruker
+Viewet inneholder `fnr` i klartekst. Vi pseudonymiserer ikke, fordi Team Sak og Team Oppfølging bruker
 fødselsnummeret til å koble mot andre datasett. Se
 [tilgangsstyring](https://docs.knada.io/dataprodukter/tilgangsstyring/) for detaljer om tilgang.
 
@@ -58,7 +58,7 @@ Den som registrerer dataproduktet eller godkjenner søknader, må ha lagt til Go
 ### Teste i dev
 
 I dev registrerer vi dataproduktet på [Datamarkedsplassen i dev](https://data.ansatt.dev.nav.no/), med viewet i
-dev-prosjektet vårt. Der kan Team Sak og datavarehuset teste den tekniske integrasjonen før prod. Viewet i dev
+dev-prosjektet vårt. Der kan Team Sak og Team Oppfølging teste den tekniske integrasjonen før prod. Viewet i dev
 inneholder bare fiktive testdata, så tilgang krever ingen behandling i Behandlingskatalogen.
 
 Datamarkedsplassen i dev er utviklingsmiljøet til Team Nada. Dataprodukter der kan forsvinne uten varsel, så de
@@ -90,7 +90,7 @@ søknad. Første rad kommer når saken er opprettet, og `mottatt_tid` står på 
 
 ### Begreper
 
-| Begrep | Hos Team Sak | Hos datavarehuset | I ekspertbistand |
+| Begrep | Hos Team Sak | Hos Team Oppfølging | I ekspertbistand |
 |--------|--------------|-------------------|------------------|
 | Sak | Sak | Tiltaksgjennomføring | Saken som opprettes når søknaden er journalført (`sak_id`) |
 | Behandling | Behandling | Tiltaksdeltakelse | Behandlingen av søknaden (`behandling_id`, lik søknadens id) |
@@ -168,7 +168,7 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY behandling_id ORDER BY sekvensnummer DES
 | `tiltaksperiode_til` | DATE | Siste dag i innvilget periode |
 | `projeksjon` | STRING | Versjonen av projeksjonen som skrev raden |
 
-Feltene fra `tiltakskode_arena` til `tiltaksperiode_til` er tillegg for datavarehuset. Team Sak kan se bort fra dem.
+Feltene fra `tiltakskode_arena` til `tiltaksperiode_til` er tillegg for Team Oppfølging. Team Sak kan se bort fra dem.
 
 `saksbehandler` er tom fra saken er opprettet til en saksbehandler tar den, og etter at saksbehandleren har
 frigjort den. Saken ligger da i en felles kø uten ansvarlig saksbehandler, så vi har ingen ident å sende.
@@ -215,24 +215,24 @@ endelige verdier bare når `behandling_status = 'AVSLUTTET'`.
 Saksbehandler skriver begrunnelsen for avslag som fritekst. Vi har ingen koder for avslagsgrunn, og fritekst kan
 inneholde helseopplysninger. Derfor er avslagsgrunn ikke med i statistikken.
 
-## Felt til datavarehuset
+## Felt til Team Oppfølging
 
 ### Tiltakstype
 
 Tiltakstypen er fast og ligger ikke som egne rader i viewet.
 
-| Felt hos datavarehuset | Verdi | Merknad |
+| Felt hos Team Oppfølging | Verdi | Merknad |
 |------------------------|-------|---------|
 | Tiltakskode | `EKSPERTBISTAND` | Alltid `EKSPERTBISTAND` i `sak_ytelse` |
 | Tiltakskode_Arena | `EKSPEBIST` | Alltid `EKSPEBIST` i `tiltakskode_arena` |
 | Tiltaksnavn | Ekspertbistand | |
-| Startdato | sendes ikke | Samme verdi for alle rader. Datavarehuset kan legge den til selv |
+| Startdato | sendes ikke | Samme verdi for alle rader. Team Oppfølging kan legge den til selv |
 | Sluttdato | sendes ikke | Ingen planlagt slutt |
 | Opprettet_dato, Endret_dato | sendes ikke | Tiltakstypen er ikke registrert som data hos oss |
 
 ### Tiltaksgjennomføring
 
-| Felt hos datavarehuset | Vårt felt | Merknad |
+| Felt hos Team Oppfølging | Vårt felt | Merknad |
 |------------------------|-----------|---------|
 | GjennomføringsID | `sak_id` | |
 | Tiltakskode | `sak_ytelse` | Alltid `EKSPERTBISTAND` |
@@ -246,7 +246,7 @@ Tiltakstypen er fast og ligger ikke som egne rader i viewet.
 
 ### Tiltaksdeltakelse
 
-| Felt hos datavarehuset | Vårt felt | Merknad |
+| Felt hos Team Oppfølging | Vårt felt | Merknad |
 |------------------------|-----------|---------|
 | DeltakerID | `behandling_id` | |
 | GjennomføringsID | `sak_id` | |
@@ -258,13 +258,13 @@ Tiltakstypen er fast og ligger ikke som egne rader i viewet.
 | Opprettet_dato | `registrert_tid` | |
 | Endret_dato | `hendelse_tid` | På siste rad for behandlingen |
 
-Vi har ikke deltakerstatus i løsningen vår, og sender den derfor ikke. Datavarehuset kan utlede den fra
+Vi har ikke deltakerstatus i løsningen vår, og sender den derfor ikke. Team Oppfølging kan utlede den fra
 `behandling_status`, `behandling_resultat`, `tiltaksperiode_fra` og `tiltaksperiode_til` på siste rad, sammen med
 dagens dato. Vi vet ikke om bistanden ble fullført eller avbrutt, fordi sluttrapport og refusjon ikke er med.
 
 ### Felt som gjelder ekspertbistand
 
-| Spørsmål fra datavarehuset | Vårt felt | Merknad |
+| Spørsmål fra Team Oppfølging | Vårt felt | Merknad |
 |----------------------------|-----------|---------|
 | Hva slags ekspertbistand blir gitt? | `ekspert_utdanning`, `ekspert_kompetanse` | Se «Kodeverk» |
 | Hvor mange timer per uke eller måned? | `estimert_antall_timer` | Se under |
@@ -276,7 +276,7 @@ snitt per måned kan regnes ut med antall måneder fra `tiltaksperiode_fra` til 
 
 ## Kodeverk
 
-Kodene under er våre egne. Team Sak og datavarehuset må kontrollere at de passer med kodeverkene deres, særlig
+Kodene under er våre egne. Team Sak og Team Oppfølging må kontrollere at de passer med kodeverkene deres, særlig
 `TIL_BESLUTNING`, `UNDERKJENT_BESLUTTER`, `AVSLATT` og `EKSPERTBISTAND`.
 
 ### `behandling_status`
