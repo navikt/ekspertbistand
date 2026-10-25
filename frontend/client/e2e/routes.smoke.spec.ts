@@ -1,41 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-
-const ensureMockServiceWorkerReady = async (page: Page) => {
-  const hasController = async () =>
-    page.evaluate(() => !!navigator.serviceWorker && !!navigator.serviceWorker.controller);
-
-  if (!(await hasController())) {
-    await page.reload();
-  }
-
-  await page.waitForFunction(
-    () => !!navigator.serviceWorker && !!navigator.serviceWorker.controller,
-    { timeout: 10000 }
-  );
-};
-
-const tryCreateDraftId = async (page: Page): Promise<string | null> =>
-  page.evaluate(async () => {
-    const response = await fetch("/ekspertbistand-backend/api/soknad/v1", { method: "POST" });
-    if (!response.ok) {
-      return null;
-    }
-    const data = (await response.json()) as { id?: string | null };
-    return data?.id ?? null;
-  });
-
-const createDraftId = async (page: Page) => {
-  let id = await tryCreateDraftId(page);
-  if (!id) {
-    await page.reload();
-    await ensureMockServiceWorkerReady(page);
-    id = await tryCreateDraftId(page);
-  }
-  if (!id) {
-    throw new Error("Missing draft id from mock API.");
-  }
-  return id;
-};
+import { test, expect } from "@playwright/test";
+import { createDraftId, ensureMockServiceWorkerReady } from "./mockApi";
 
 test("smoke: landing route", async ({ page }) => {
   await page.goto("/");
