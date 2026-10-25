@@ -6,6 +6,13 @@ packages:
 
 onlyBuiltDependencies:
   - msw
+packageExtensions:
+  '@grafana/faro-react@2.12.1':
+    peerDependencies:
+      '@types/react': '^19'
+  '@navikt/aksel-icons@8.19.2':
+    peerDependencies:
+      react: '^17 || ^18 || ^19'
 overrides:
   follow-redirects@<=1.15.11: '>=1.16.0'
   path-to-regexp@>=8.0.0 <8.4.0: '>=8.4.0'

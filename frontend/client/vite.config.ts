@@ -26,7 +26,7 @@ export default defineConfig(() => {
     test: {
       globals: true,
       environment: "jsdom",
-      pool: "vmThreads",
+      pool: "threads",
       setupFiles: ["./src/test/polyfills.ts", "./src/test/setup.ts"],
       css: true,
       deps: {
