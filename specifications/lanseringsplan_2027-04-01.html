@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tidslinje: ekspertbistand fram til 1. april 2027</title>
+<style>
+  :root {
+    --w: 64px;
+    --label: 150px;
+    --a: #2f6fdb; --a-1: #dce8fb; --a-2: #bcd3f6;
+    --b: #7b4bc4; --b-1: #ebe1f8; --b-2: #d6c4f0;
+    --c: #c4610f; --c-1: #fbe6d4; --c-2: #f5cba6;
+    --f: #5b6470; --f-1: #eceff2;
+    --prod: #23262a;
+    --ferie: repeating-linear-gradient(45deg, #f1f2f4 0 6px, #e3e5e8 6px 12px);
+    --line: #d5d8dc;
+  }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: #23262a; margin: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.lead { margin: 0 0 20px; color: #4d545c; max-width: 70ch; }
+  .scroll { overflow-x: auto; padding-bottom: 8px; }
+  .chart { width: calc(var(--label) + 23 * var(--w)); position: relative; }
+  .row { display: flex; border-bottom: 1px solid var(--line); }
+  .row > .label { width: var(--label); flex: none; padding: 8px 10px; font-weight: 600; position: sticky; left: 0; background: #fff; z-index: 3; }
+  .row > .label small { display: block; font-weight: 400; color: #5b6470; font-size: 12px; }
+  .lane { position: relative; width: calc(23 * var(--w)); flex: none; }
+  .lane.tall { height: 56px; }
+  .lane.mid { height: 40px; }
+  .lane.head { height: 24px; }
+  .bg { position: absolute; top: 0; bottom: 0; }
+  .bg.ferie { background: var(--ferie); }
+  .bg.wk { border-left: 1px solid #eef0f2; }
+  .cell { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #5b6470; }
+  .cell.month { justify-content: flex-start; padding-left: 6px; font-weight: 600; color: #23262a; border-left: 1px solid var(--line); }
+  .cell .d { display: block; font-size: 10px; color: #8a9199; }
+  .bar { position: absolute; top: 6px; bottom: 6px; border-radius: 6px; padding: 3px 6px; font-size: 12px; line-height: 1.2; overflow: hidden; border-left: 4px solid; display: flex; align-items: center; }
+  .bar span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+  .A { border-color: var(--a); } .A.s0 { background: var(--a-1); } .A.s1 { background: var(--a-2); }
+  .B { border-color: var(--b); } .B.s0 { background: var(--b-1); } .B.s1 { background: var(--b-2); }
+  .C { border-color: var(--c); } .C.s0 { background: var(--c-1); } .C.s1 { background: var(--c-2); }
+  .F { border-color: var(--f); background: var(--f-1); }
+  .F.ledig { background: repeating-linear-gradient(90deg, #f6f7f8 0 8px, #fff 8px 16px); border-left-style: dashed; color: #5b6470; }
+  .bar.prod { background: var(--prod); border-color: var(--prod); color: #fff; font-weight: 600; justify-content: center; }
+  .bar.ms { background: #fff; border: 1px solid #aab0b7; border-left: 4px solid #23262a; font-weight: 600; }
+  .bar.ms.buffer { border-left-color: #aab0b7; font-weight: 400; color: #5b6470; }
+  .pin { position: absolute; top: 4px; font-size: 12px; white-space: nowrap; padding: 2px 6px; border-radius: 10px; background: #fff4d6; border: 1px solid #e5c766; }
+  .pin.low { top: 30px; }
+  .vline { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid; z-index: 2; pointer-events: none; }
+  .vline .tag { position: absolute; top: -22px; left: -2px; font-size: 11px; font-weight: 600; white-space: nowrap; padding: 1px 5px; border-radius: 4px; color: #fff; }
+  .vline.na { border-color: #2f6fdb; } .vline.na .tag { background: #2f6fdb; }
+  .vline.frist { border-color: #c30000; } .vline.frist .tag { background: #c30000; }
+  .vline.april { border-color: #23262a; border-left-style: dashed; } .vline.april .tag { background: #23262a; }
+  .overlay { position: absolute; top: 0; bottom: 0; left: var(--label); width: calc(23 * var(--w)); pointer-events: none; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 16px 0 24px; font-size: 13px; }
+  .legend i { display: inline-block; width: 22px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; border-left: 4px solid; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; max-width: 1200px; }
+  .steps section { border-top: 4px solid; padding-top: 6px; }
+  .steps h2 { font-size: 15px; margin: 0 0 6px; }
+  .steps ol { margin: 0; padding-left: 22px; }
+  .steps li { margin: 2px 0; }
+  @media print { body { margin: 8mm; } .scroll { overflow: visible; } }
+</style>
+</head>
+<body>
+<h1>Tidslinje: ekspertbistand fram til 1. april 2027</h1>
+<p class="lead">Optimistisk plan for tre utviklere. Stolpene viser hva hvert spor jobber med uke for uke.
+Emojien er den samme som i <a href="lanseringsplan_2027-04-01.md">lanseringsplanen</a>, der du finner
+status, størrelse og Trello-kort. Hold musepekeren over en stolpe for å se hele navnet.</p>
+
+<div class="scroll"><div class="chart" id="chart"></div></div>
+<div class="legend" id="legend"></div>
+<div class="steps" id="steps"></div>
+
+<script>
+// Uke 44 2026 starter mandag 26.10.2026. Alle posisjoner regnes i uker fra den datoen.
+const START = new Date(2026, 9, 26);
+const WEEKS = [44,45,46,47,48,49,50,51,52,53,1,2,3,4,5,6,7,8,9,10,11,12,13];
+const idx = w => WEEKS.indexOf(w);
+const DAY = 864e5;
+const offsetOf = d => (d - START) / DAY / 7;
+
+const SPOR = {
+  A: { navn: 'Spor A', tema: 'søknad og deltaker', steg: {
+    '🧹': 'PR-er og sikkerhetsfunn H1/H2',
+    '🪪': 'Aa-reg i søknaden',
+    '⚖️': 'Vilkår, automatisk arbeidsforhold',
+    '📤': 'Refusjon og sluttrapport i prod',
+    '📡': 'Salesforce og Modia',
+    '🛡️': 'Personvern: stanse og slette' } },
+  B: { navn: 'Spor B', tema: 'brev, journalføring og varsel', steg: {
+    '📨': 'Varsel til deltaker ved innsending',
+    '📝': 'Brevmaler og tilsagnsbrev',
+    '🗄️': 'Journalføring med sladding',
+    '📬': 'Varsle deltaker om vedtak',
+    '🔔': 'Varsle arbeidsgiver om vedtak',
+    '📣': 'Varsel om godkjent refusjon',
+    '📜': 'Oppslagslogg og event for alt' } },
+  C: { navn: 'Spor C', tema: 'økonomi og refusjonsbehandling', steg: {
+    '🏦': 'OeBS og bestilling',
+    '🔢': 'Sak-ID som løpenummer',
+    '🧾': 'Refusjonsbehandling',
+    '💸': 'Utbetaling og avslutte sak',
+    '🚦': 'Prod-manifest og generalprøve' } },
+};
+
+// [emoji, første uke, siste uke]
+const PLAN = {
+  A: [['🧹',44,45],['🪪',46,49],['P1',50,50],['⚖️',51,51],['⚖️',1,2],['📤',3,5],['📡',6,7],['🛡️',8,9]],
+  B: [['📝',44,45],['📨',46,49],['P1',50,50],['🗄️',51,51],['🗄️',1,1],['📬',2,2],['🔔',3,3],['📝',4,5],['📜',6,8],['📣',9,9]],
+  C: [['🏦',44,46],['🧾',47,50],['💸',51,51],['💸',1,2],['🔢',3,3],['💸',4,5],['🚦',6,9]],
+};
+
+const MILEPAELER = [
+  ['M0 rydd bordet',44,45],['M1 vedtaket går ut · P1 tidlig i prod',46,51],
+  ['M2 refusjonen går ut',1,6],['M3 prodklar',7,9],['M4 go-live',10,11],['Buffer',12,13,'buffer'],
+];
+const EKSTERNT = [[47,'📌 Aa-reg, dokdist'],[49,'📌 Salesforce/Modia, jurist',true],[2,'📌 OeBS'],[6,'📌 Entra']];
+const FERIE = [[52,53,'Jul og nyttår'],[8,8,'Vinterferie (uke 8 eller 9)'],[12,12,'Påske'],[13,13.2,'2. påskedag']];
+const LINJER = [
+  ['na', 'Nå', Math.max(0, Math.min(23, offsetOf(new Date())))],
+  ['frist', 'Reell frist 19.3', offsetOf(new Date(2027, 2, 20))],
+  ['april', '1.4', offsetOf(new Date(2027, 3, 1))],
+];
+
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const place = (e, from, to) => { e.style.left = `calc(${from} * var(--w))`; e.style.width = `calc(${to - from} * var(--w))`; return e; };
+const chart = document.getElementById('chart');
+
+function row(label, sub, laneCls) {
+  const r = el('div', 'row'); const l = el('div', 'label', label);
+  if (sub) l.appendChild(el('small', null, sub));
+  const lane = el('div', 'lane ' + laneCls);
+  WEEKS.forEach((_, i) => lane.appendChild(place(el('div', 'bg wk'), i, i + 1)));
+  FERIE.forEach(([a, b, t]) => { const f = place(el('div', 'bg ferie'), idx(a), idx(Math.floor(b)) + (b % 1 || 1)); f.title = t; lane.appendChild(f); });
+  r.append(l, lane); chart.appendChild(r); return lane;
+}
+
+// Måned og uke
+const mnd = ['jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'];
+const mLane = row('', null, 'head');
+let prev = -1, startI = 0;
+const flushMonth = (m, a, b) => { const c = place(el('div', 'cell month', mnd[m] + (m === 0 ? ' 2027' : m === 9 ? ' 2026' : '')), a, b); mLane.appendChild(c); };
+for (let i = 0; i <= 23; i++) {
+  const m = i < 23 ? new Date(START.getTime() + (i * 7 + 3) * DAY).getMonth() : -2;
+  if (m !== prev) { if (prev !== -1) flushMonth(prev, startI, i); prev = m; startI = i; }
+}
+const wLane = row('Uke', null, 'mid');
+WEEKS.forEach((w, i) => {
+  const mon = new Date(START.getTime() + i * 7 * DAY);
+  const c = place(el('div', 'cell'), i, i + 1);
+  c.innerHTML = `<div style="text-align:center"><b>${w}</b><span class="d">${mon.getDate()}.${mon.getMonth() + 1}.</span></div>`;
+  wLane.appendChild(c);
+});
+
+// Milepæler
+const msLane = row('Milepæler', null, 'tall');
+MILEPAELER.forEach(([t, a, b, cls]) => { const bar = place(el('div', 'bar ms ' + (cls || '')), idx(a), idx(b) + 1); bar.title = t; bar.appendChild(el('span', null, t)); msLane.appendChild(bar); });
+
+// Spor
+const GOLIVE = [10, 11];
+for (const k of ['A', 'B', 'C']) {
+  const s = SPOR[k]; const lane = row(s.navn, s.tema, 'tall');
+  const shade = {}; let n = 0;
+  PLAN[k].forEach(([e, a, b]) => {
+    let bar;
+    if (e === 'P1') { bar = el('div', 'bar prod'); bar.title = 'P1: Aa-reg og varsel til deltaker i prod'; bar.appendChild(el('span', null, '🚀 P1')); }
+    else {
+      if (!(e in shade)) shade[e] = n++ % 2;
+      bar = el('div', `bar ${k} s${shade[e]}`); bar.title = `${e} ${s.steg[e]} (uke ${a}–${b})`;
+      bar.appendChild(el('span', null, `${e} ${s.steg[e]}`));
+    }
+    lane.appendChild(place(bar, idx(a), idx(b) + 1));
+  });
+  const live = place(el('div', 'bar prod'), idx(GOLIVE[0]), idx(GOLIVE[1]) + 1); live.title = 'Go-live';
+  live.appendChild(el('span', null, '🚀 Go-live')); lane.appendChild(live);
+}
+
+// Felles
+const fLane = row('Felles', 'den som har ledig tid', 'tall');
+const ledig = place(el('div', 'bar F ledig'), idx(44), idx(7) + 1);
+ledig.appendChild(el('span', null, 'Drift og etterlevelse mellom leveransene: ROS, alerts, DR, UU-tester, småfiks i GUI'));
+const at = place(el('div', 'bar F'), idx(8), idx(9) + 1); at.title = 'Akseptansetest og opplæring med saksbehandlere';
+at.appendChild(el('span', null, '🧪 Akseptansetest'));
+const fl = place(el('div', 'bar prod'), idx(10), idx(11) + 1); fl.appendChild(el('span', null, '🚀 Go-live'));
+fLane.append(ledig, at, fl);
+
+// Eksternt
+const eLane = row('Eksterne svar', 'må være på plass', 'tall');
+EKSTERNT.forEach(([w, t, low]) => { const p = el('div', 'pin' + (low ? ' low' : ''), t); p.style.left = `calc(${idx(w)} * var(--w) + 2px)`; eLane.appendChild(p); });
+
+// Loddrette linjer
+const ov = el('div', 'overlay'); ov.style.top = '24px';
+LINJER.forEach(([cls, t, x]) => { const v = el('div', 'vline ' + cls); v.style.left = `calc(${x} * var(--w))`; v.appendChild(el('span', 'tag', t)); ov.appendChild(v); });
+chart.appendChild(ov);
+chart.style.marginTop = '24px';
+
+// Forklaring
+document.getElementById('legend').innerHTML = `
+  <span><i style="background:var(--a-1);border-color:var(--a)"></i>Spor A</span>
+  <span><i style="background:var(--b-1);border-color:var(--b)"></i>Spor B</span>
+  <span><i style="background:var(--c-1);border-color:var(--c)"></i>Spor C</span>
+  <span><i style="background:var(--prod);border-color:var(--prod)"></i>Prodsetting</span>
+  <span><i style="background:var(--ferie);border-color:#aab0b7"></i>Ferie og fridager</span>
+  <span><i style="background:#fff4d6;border-color:#e5c766"></i>Eksternt svar må være på plass</span>
+  <span>Lysere og mørkere stolper i samme spor skiller stegene fra hverandre.</span>`;
+
+const steps = document.getElementById('steps');
+for (const k of ['A', 'B', 'C']) {
+  const s = SPOR[k]; const sec = el('section'); sec.style.borderColor = `var(--${k.toLowerCase()})`;
+  sec.appendChild(el('h2', null, `${s.navn}: ${s.tema}`));
+  const ol = el('ol'); Object.entries(s.steg).forEach(([e, t]) => ol.appendChild(el('li', null, `${e} ${t}`)));
+  sec.appendChild(ol); steps.appendChild(sec);
+}
+</script>
+</body>
+</html>
