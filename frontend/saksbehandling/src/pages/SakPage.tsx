@@ -21,6 +21,7 @@ import { useCallback, useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
 import { NavLink, useParams } from "react-router";
 import { AdressebeskyttelseTag } from "../components/AdressebeskyttelseTag";
+import { EgenAnsattTag } from "../components/EgenAnsattTag";
 import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
 import Refusjonskontroll from "../components/Refusjonskontroll";
@@ -461,6 +462,7 @@ export default function SakPage() {
           <BodyShort style={{ overflowWrap: "anywhere" }}>{ansatt.fnr}</BodyShort>
           <CopyButton copyText={ansatt.fnr} size="xsmall" />
           <AdressebeskyttelseTag adressebeskyttelse={sak.adressebeskyttelse} size="small" />
+          <EgenAnsattTag skjermet={sak.skjermet} size="small" />
         </HStack>
       </Box>
 

@@ -135,12 +135,9 @@ Listen bruker to kilder:
 
 - **Flagget fra opprettelsen.** Kort 661 lagrer skjerming på saken.
   `SakListeElement` får `skjermet: Boolean` fra flagget. Det merker saken uten
-  kall til andre tjenester. Til 661 er på plass, kommer verdien fra en hook
-  `skjermetVedOpprettelse()` som returnerer `false` og har en TODO som peker
-  på 661. Det er samme mønster som
-  `EventData.SakOpprettet.adressebeskyttetVedOpprettelse()` i
-  `SaksbehandlingsstatistikkProjection.kt`. Til da mangler tagen «Egen
-  ansatt» for dem som har tilgang. Ingen saker skjules.
+  kall til andre tjenester. Verdien kommer fra hooken
+  `skjermetVedOpprettelse()`, som leser `sak.skjermet`. Hooken returnerte
+  `false` til 661 koblet den. Ingen saker skjules.
 - **Bulk-sjekk ved visning.** `GET /saker` kaller
   `tilgangsmaskinClient.evaluerBulk` med `Regelsett.KJERNE` for distinkte
   `ansattFnr` i resultatet, i bolker på maks 1000. Den avgjør hva den
@@ -213,10 +210,10 @@ bare 204 når tilgangen er innvilget, så den gir ingen kilde for graderingen.
 - `SakListeElement` og `SakDetaljer` får `adressebeskyttelse`:
   `FORTROLIG`, `STRENGT_FORTROLIG` eller `null`. Feltet kommer fra hooken
   `adressebeskyttelseVedOpprettelse()`, samme mønster som
-  `skjermetVedOpprettelse()`. Til 661 lagrer graderingen på `SakOpprettet`,
-  gir hooken `STRENGT_FORTROLIG` for saker på Vikafossen (`2103`) og ellers
-  `null`. Kode 6 rutes alltid dit, så signalet er sikkert. Kode 7 merkes
-  først med 661.
+  `skjermetVedOpprettelse()`. Hooken leser graderingen 661 lagrer på saken.
+  Saker opprettet før 661 har ingen lagret gradering. For dem gir hooken
+  `STRENGT_FORTROLIG` på Vikafossen (`2103`) og ellers `null`. Kode 6 rutes
+  alltid dit, så signalet er sikkert.
 - Uten tilgang er feltet `null`. Grunnen står i `deltakerTilgang.kode`.
 - Frontend viser `Tag` (`strong`) ved navnet i listen og i personlinjen på
   detaljsiden: «Fortrolig adresse» (`warning`) eller «Strengt fortrolig
@@ -224,8 +221,8 @@ bare 204 når tilgangen er innvilget, så den gir ingen kilde for graderingen.
 
 Valget og alternativet: PDL-oppslag per detaljvisning ville merket kode 7 nå,
 men bare på detaljsiden og med ett PDL-kall per visning. Hooken holder listen
-og detaljen like og trenger ingen nye kall. Prisen er at kode 7 ikke merkes
-før 661.
+og detaljen like og trenger ingen nye kall. Prisen var at kode 7 ikke ble
+merket før 661.
 
 #### 1.4 Forklarende feilmelding
 
@@ -281,8 +278,8 @@ Sjekken ligger i `Tilgangsjekker.kt`, så den gjelder alle ruter som bruker
   - Avvist ident gir `ansattNavn = null`, `virksomhet = null`, ingen kommune,
     `deltakerTilgang.kode` og `kanTildeleMeg = false`.
   - Innvilget ident gir navn, virksomhet og `deltakerTilgang = null`.
-  - `skjermet` er `false` til 661 kobler hooken. Testen for `skjermet = true`
-    hører til 661.
+  - `skjermet` og `adressebeskyttelse` lagret på saken vises i listen og på
+    detaljsiden (lagt til i 661).
   - Feil fra Tilgangsmaskinen gir 200 med `tilgangssjekkFeilet = true`, og
     ingen navn eller virksomhet.
   - Ingen saker gir ikke kall til Tilgangsmaskinen.
@@ -505,14 +502,14 @@ listen.
 ### Del 1
 
 - [ ] `Role.EGNE_ANSATTE` finnes og returneres fra `GET /api/saksbehandling/v1/meg`
-- [ ] `GET /saker` returnerer `skjermet` fra hooken `skjermetVedOpprettelse()` (TODO 661) og sjekker Tilgangsmaskinen i bulk med `KJERNE`
+- [ ] `GET /saker` returnerer `skjermet` fra hooken `skjermetVedOpprettelse()` og sjekker Tilgangsmaskinen i bulk med `KJERNE`
 - [ ] Avviste rader har ikke deltaker, virksomhet eller kommune, har `deltakerTilgang` og kan ikke tildeles
 - [ ] Feil mot Tilgangsmaskinen gir liste uten deltaker og virksomhet, og `tilgangssjekkFeilet`
 - [ ] Listen viser grunnen for avviste rader: «Egen ansatt», «Fortrolig adresse», «Strengt fortrolig adresse», ellers «Ingen tilgang»
 - [ ] Detalj, tildeling og beslutning viser forklarende tekst for skjerming, fortrolig og strengt fortrolig adresse
 - [ ] Alle 403 har `feilId`, og frontend viser den
 - [ ] Kode 6 uten tilgang gir `AVVIST_STRENGT_FORTROLIG_ADRESSE` og én linje i team logs uten opplysninger om personen
-- [ ] Med tilgang merkes kode 6 (Vikafossen) med «Strengt fortrolig adresse» i listen og på detaljsiden. Kode 7 merkes når 661 kobler hooken `adressebeskyttelseVedOpprettelse()`
+- [ ] Med tilgang merkes kode 6 (Vikafossen) med «Strengt fortrolig adresse» i listen og på detaljsiden. Kode 7 merkes fra den lagrede graderingen (661)
 - [ ] `listevisning.md` er oppdatert
 - [ ] PR-beskrivelsen sier at fagansvarlig må sørge for at hvert arbeidslivssenter har saksbehandlere og beslutter med `0000-GA-Egne_ansatte`
 - [ ] `mvn -B package` er grønn

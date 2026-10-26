@@ -49,6 +49,8 @@ object SakTable : Table("sak") {
     val kildeTilBehandling = text("kilde_til_behandling")
     val behandlendeEnhet = text("behandlende_enhet").nullable()
     val kommunenummer = text("kommunenummer").nullable()
+    val adressebeskyttelse = text("adressebeskyttelse").nullable()
+    val skjermet = bool("skjermet").default(false)
     val saksbehandlerIdent = text("saksbehandler_ident").nullable()
     val saksbehandlerNavn = text("saksbehandler_navn").nullable()
     val beslutterIdent = text("beslutter_ident").nullable()

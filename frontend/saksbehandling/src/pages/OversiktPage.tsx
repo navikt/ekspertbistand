@@ -29,6 +29,7 @@ import { useTildeling } from "../hooks/useTildeling";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";
 import { AdressebeskyttelseTag } from "../components/AdressebeskyttelseTag";
+import { EgenAnsattTag } from "../components/EgenAnsattTag";
 import { Kommunefilter } from "../components/Kommunefilter";
 import { OVERSIKT_PATH } from "../utils/constants";
 
@@ -74,11 +75,6 @@ const avvisningstag: Record<string, { tekst: string; farge: "info" | "warning" |
 };
 
 function DeltakerCelle({ sak }: { sak: SakListeElement }) {
-  const egenAnsattTag = (
-    <Tag size="xsmall" variant="outline" data-color="info">
-      Egen ansatt
-    </Tag>
-  );
   if (sak.deltakerTilgang?.avvist) {
     const tag = avvisningstag[sak.deltakerTilgang.kode];
     return (
@@ -92,7 +88,7 @@ function DeltakerCelle({ sak }: { sak: SakListeElement }) {
     <HStack gap="space-8" align="center" wrap={false}>
       {sak.soknad.ansattNavn}
       <AdressebeskyttelseTag adressebeskyttelse={sak.adressebeskyttelse} />
-      {sak.skjermet && egenAnsattTag}
+      <EgenAnsattTag skjermet={sak.skjermet} />
     </HStack>
   );
 }

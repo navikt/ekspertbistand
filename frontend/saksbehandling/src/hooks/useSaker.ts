@@ -42,8 +42,10 @@ export type SakInfo = {
   kanTildeleMegSomBeslutter: boolean;
   oppgavetype: Oppgavetype | null;
   arenaSakId: string | null;
-  /** Null uten adressebeskyttelse og uten tilgang til deltakeren. Kode 7 er ikke kjent før kort 661. */
+  /** Null uten adressebeskyttelse og uten tilgang til deltakeren. Lagret da saken ble opprettet. */
   adressebeskyttelse: Adressebeskyttelse | null;
+  /** Egen ansatt i Nav da saken ble opprettet. False uten tilgang til deltakeren. */
+  skjermet: boolean;
 };
 
 /** Arena-saker behandles ferdig i Arena. API-et godtar tildeling, men GUI-et tilbyr det ikke. */
@@ -59,7 +61,6 @@ export type DeltakerTilgang = {
 
 export type SakListeElement = SakInfo & {
   harOppgaveForMeg: boolean;
-  skjermet: boolean;
   /** Null når Tilgangsmaskinen innvilger, eller når sjekken feilet. */
   deltakerTilgang: DeltakerTilgang | null;
   /** Virksomhetens kommune. Null for kode 6, Arena-saker og rader uten tilgang. */

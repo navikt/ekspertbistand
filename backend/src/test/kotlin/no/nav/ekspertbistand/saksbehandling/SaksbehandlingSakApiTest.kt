@@ -310,6 +310,29 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
+    fun `lagret adressebeskyttelse og skjerming vises i liste og detalj for den som har tilgang`() =
+        testApplicationWithDatabase { db ->
+            val fortrolig = lagreSak(db, lagreSoknad(db), adressebeskyttelse = Adressebeskyttelse.FORTROLIG)
+            val skjermet = lagreSak(db, lagreSoknad(db), skjermet = true)
+            val oppsett = oppsett(db)
+
+            val saker = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
+                .body<SakerResponse>().saker.associateBy { it.sakId }
+            val fortroligDetalj = oppsett.client.get("/api/saksbehandling/v1/saker/$fortrolig") { bearerAuth(gyldigToken) }
+                .body<SakDetaljer>()
+            val skjermetDetalj = oppsett.client.get("/api/saksbehandling/v1/saker/$skjermet") { bearerAuth(gyldigToken) }
+                .body<SakDetaljer>()
+
+            assertEquals(Adressebeskyttelse.FORTROLIG, saker.getValue(fortrolig.toString()).adressebeskyttelse)
+            assertFalse(saker.getValue(fortrolig.toString()).skjermet)
+            assertTrue(saker.getValue(skjermet.toString()).skjermet)
+            assertNull(saker.getValue(skjermet.toString()).adressebeskyttelse)
+            assertEquals(Adressebeskyttelse.FORTROLIG, fortroligDetalj.adressebeskyttelse)
+            assertFalse(fortroligDetalj.skjermet)
+            assertTrue(skjermetDetalj.skjermet)
+        }
+
+    @Test
     fun `detalj avvist for skjerming eller fortrolig adresse sender koden videre med feilId`() =
         testApplicationWithDatabase { db ->
             val kodePerFnr = mapOf("11111111111" to "AVVIST_SKJERMING", "22222222222" to "AVVIST_FORTROLIG_ADRESSE")
@@ -1334,10 +1357,14 @@ class SaksbehandlingSakApiTest {
         status: Saksstatus = Saksstatus.UNDER_BEHANDLING,
         beslutterIdent: String? = null,
         kommunenummer: String? = null,
+        adressebeskyttelse: Adressebeskyttelse? = null,
+        skjermet: Boolean = false,
     ): UUID =
         transaction(db.config.jdbcDatabase) {
             SakTable.insert {
                 it[this.kommunenummer] = kommunenummer
+                it[this.adressebeskyttelse] = adressebeskyttelse?.name
+                it[this.skjermet] = skjermet
                 it[this.soknadId] = soknadId
                 it[this.status] = status.name
                 it[this.beslutterIdent] = beslutterIdent

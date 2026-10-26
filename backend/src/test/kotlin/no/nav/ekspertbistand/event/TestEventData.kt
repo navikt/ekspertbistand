@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
@@ -259,6 +260,8 @@ object TestEventData {
         EventData.SakOpprettet(
             sakId = "11111111-1111-1111-1111-111111111111",
             soknad = sampleSoknad,
+            adressebeskyttelse = Adressebeskyttelse.FORTROLIG,
+            skjermet = true,
         ),
         EventData.TiltaksgjennomforingOpprettet(
             soknad = sampleSoknad,

@@ -349,7 +349,7 @@ Adressebeskyttelse betyr en annen gradering i PDL enn `UGRADERT`: `FORTROLIG`, `
 
 En behandling holdes utenfor hvis deltakeren
 
-- hadde adressebeskyttelse da saken ble opprettet,
+- hadde adressebeskyttelse da saken ble opprettet (`SakOpprettet.adressebeskyttelse`, lagret fra PDL),
 - har adressebeskyttelse i PDL når projeksjonen skriver en rad, eller
 - får adressebeskyttelse senere. En kontrolljobb sjekker alle deltakere i rådatatabellen mot PDL hver time, også i
   avsluttede saker.

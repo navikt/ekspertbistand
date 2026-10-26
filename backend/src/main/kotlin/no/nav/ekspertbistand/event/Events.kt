@@ -12,6 +12,7 @@ import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.handlers.*
 import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
 import kotlinx.datetime.LocalDate
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.MAKS_FORKLARING_LENGDE
@@ -104,13 +105,19 @@ sealed interface EventData {
      * Publiseres av [no.nav.ekspertbistand.event.handlers.OpprettSak] i samme transaksjon som saken
      * opprettes, og bare én gang per [InnsendtSoknadJournalfoert].
      *
-     * Konsument: [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSakOpprettet].
+     * [adressebeskyttelse] og [skjermet] er deltakerens adressebeskyttelse i PDL og skjerming i
+     * `skjermede-personer-pip` da saken ble opprettet. De oppdateres ikke senere. Defaultene gjelder eldre events.
+     *
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSakOpprettet] og
+     * [no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkProjection].
      */
     @Serializable
     @SerialName("sakOpprettet")
     data class SakOpprettet(
         val sakId: String,
         val soknad: DTO.Soknad,
+        val adressebeskyttelse: Adressebeskyttelse? = null,
+        val skjermet: Boolean = false,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
     }
