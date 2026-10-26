@@ -14,8 +14,6 @@ import no.nav.common.audit_log.cef.CefMessage
 import no.nav.common.audit_log.log.AuditLogger
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
-import no.nav.ekspertbistand.arena.TilsagnData
-import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
@@ -25,12 +23,8 @@ import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.ereg.configureEregApiV1
-import no.nav.ekspertbistand.event.Event
-import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.configureEventHandlers
-import no.nav.ekspertbistand.event.projections.SakProjection
 import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
-import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.internal.configureInternal
 import no.nav.ekspertbistand.mocks.LokalPdfKonverterer
@@ -42,41 +36,19 @@ import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.GraderingOppslag
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.pdl.PdlGraderingOppslag
+import no.nav.ekspertbistand.saksbehandling.*
 import no.nav.ekspertbistand.skjerming.SkjermingOppslag
-import no.nav.ekspertbistand.saksbehandling.Role
-import no.nav.ekspertbistand.saksbehandling.configureBeslutterApiV1
-import no.nav.ekspertbistand.saksbehandling.configureForelopigVedtakApiV1
-import no.nav.ekspertbistand.saksbehandling.configureKommunefilterApiV1
-import no.nav.ekspertbistand.saksbehandling.configureSakDokumentApiV1
-import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
-import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
-import no.nav.ekspertbistand.saksbehandling.configureVilkarsvurderingApiV1
-import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.UtkastTable
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
-import no.nav.ekspertbistand.soknad.tilSoknadDTO
+import no.nav.ekspertbistand.statistikk.AdressebeskyttedeBehandlinger
 import no.nav.ekspertbistand.statistikk.AdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.PdlAdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkSkriver
-import no.nav.ekspertbistand.statistikk.AdressebeskyttedeBehandlinger
-import no.nav.ekspertbistand.infrastruktur.defaultJson
-import no.nav.ekspertbistand.tilgangsmaskin.AggregertBulkRespons
-import no.nav.ekspertbistand.tilgangsmaskin.BrukerIdOgRegelsett
-import no.nav.ekspertbistand.tilgangsmaskin.EnkeltBulkRespons
-import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
-import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinAvvisning
+import no.nav.ekspertbistand.tilgangsmaskin.*
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
-import no.nav.ekspertbistand.tilsagndata.insertTilsagndata
-import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.insertReturning
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.slf4j.LoggerFactory
-import java.util.*
 import kotlin.time.Clock.System.now
 import kotlin.time.ExperimentalTime
-
 
 
 /**
@@ -116,8 +88,18 @@ private fun lokalAnsattForToken(token: String): LokalAnsatt? = when {
     else -> null
 }
 
-@OptIn(ExperimentalTime::class)
 fun main() {
+    val testDb = TestDatabase().cleanMigrate()
+    startLokalApplikasjon(testDb.config)
+}
+
+/**
+ * Starter backend med mockede eksterne tjenester og testdata mot en ferdig migrert database.
+ * Brukes av [main] lokalt og av `MockApplication` i dev-gcp.
+ */
+@OptIn(ExperimentalTime::class)
+fun startLokalApplikasjon(dbConfig: DbConfig) {
+    val database = dbConfig.jdbcDatabase
     val mockAltinnTilgangerServer = HttpClient(MockEngine {
         respond(
             // language=JSON
@@ -209,14 +191,10 @@ fun main() {
         })
     )
 
-    val testDb = TestDatabase().also {
-        it.cleanMigrate()
-    }
-
     ktorServer {
         dependencies {
             provide<Database> {
-                testDb.config.jdbcDatabase
+                database
             }
             provide<TokenXTokenIntrospector> {
                 MockTokenIntrospector {
@@ -545,8 +523,8 @@ fun main() {
         configureInternal()
         registerShutdownListener()
 
-        lagreLokaleSoknader(testDb.config.jdbcDatabase)
-        behandleLokaleSaker(testDb.config.jdbcDatabase)
+        lagreLokaleSoknader(database)
+        behandleLokaleSaker(database)
     }
 }
 

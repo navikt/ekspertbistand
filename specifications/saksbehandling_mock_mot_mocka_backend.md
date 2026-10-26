@@ -66,9 +66,9 @@ fallback-PDF-en at den mangler.
 Maven-profilen `mock` i `backend/pom.xml` legger til:
 
 - `maven-jar-plugin:test-jar`, som gir `app-tests.jar` med test-klassene
-- `maven-dependency-plugin:copy-dependencies` med `includeScope=test`, som legger
-  alle avhengigheter (også test-scope) i `target/ekspertbistand-backend-mock/lib`
-- kopi av `app.jar` og `app-tests.jar` til `target/ekspertbistand-backend-mock/`
+- en ekstra `maven-assembly-plugin`-kjøring med `assembly-mock.xml`. Den legger
+  `app.jar` og `app-tests.jar` i `target/ekspertbistand-backend-mock/` og alle
+  avhengigheter (også test-scope) i `lib/`
 
 `backend/Dockerfile.mock` bruker samme JRE-image som `backend/Dockerfile`:
 
@@ -118,7 +118,7 @@ CSP er uendret: SPA-en snakker bare med egen origin.
 
 `isLokalBrukerbytteMulig()` i `frontend/saksbehandling/src/utils/constants.ts`
 blir sann når `VITE_LOKAL_BRUKERBYTTE=true` er satt ved bygg, i tillegg til
-dagens localhost-regel. Mock-imaget bygges med `VITE_ENABLE_MOCKS=false`, så MSW
+dagens localhost-regel. Mock-imaget bygges uten `VITE_ENABLE_MOCKS`, så MSW
 ikke starter.
 
 MSW-mockene beholdes. De brukes ved lokal kjøring uten backend og i e2e-testene.
@@ -145,7 +145,7 @@ MSW-mockene beholdes. De brukes ved lokal kjøring uten backend og i e2e-testene
   `nais/docker-build-push` med `image_suffix: backend-mock` og
   `dockerfile: backend/Dockerfile.mock`.
 - Jobb `build-saksbehandling-mock`: som dagens jobb, men med
-  `VITE_ENABLE_MOCKS=false` og `VITE_LOKAL_BRUKERBYTTE=true` som build-args.
+  `VITE_LOKAL_BRUKERBYTTE=true` som build-arg og uten `VITE_ENABLE_MOCKS`.
 - Jobb `deploy`: deployer backend-mock og deretter saksbehandling-mock til dev-gcp.
 - Eksplisitte, minimale `permissions` per jobb, som i dagens workflows.
 
@@ -159,6 +159,7 @@ MSW-mockene beholdes. De brukes ved lokal kjøring uten backend og i e2e-testene
 | `backend/src/test/kotlin/no/nav/ekspertbistand/LocalApplication.kt` | `startLokalApplikasjon(dbConfig)` trekkes ut; `main` bruker `TestDatabase` som før |
 | `backend/src/test/kotlin/no/nav/ekspertbistand/MockApplication.kt` | Ny: `main` med `DbConfig.nais()`, clean + migrate |
 | `backend/pom.xml` | Ny profil `mock` (test-jar + test-scope-avhengigheter) |
+| `backend/assembly-mock.xml` | Ny: assembly for `target/ekspertbistand-backend-mock/` |
 | `backend/Dockerfile.mock` | Ny |
 | `nais/dev-gcp-backend-mock.yaml` | Ny |
 | `nais/dev-gcp-gotenberg.yaml` | Inbound fra `ekspertbistand-backend-mock` |
