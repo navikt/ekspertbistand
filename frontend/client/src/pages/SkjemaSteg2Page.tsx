@@ -16,7 +16,7 @@ import {
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import type { SoknadInputs } from "../features/soknad/schema";
-import { MAX_ESTIMERT_KOSTNAD, STEP2_FIELDS } from "../features/soknad/schema";
+import { sjekkSoknadssumMotMaks, STEP2_FIELDS } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { FORM_COLUMN_STYLE } from "../styles/forms";
@@ -28,16 +28,25 @@ import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { formatDateToIso, parseIsoDate, startOfToday } from "../utils/date";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
+import { useMaksSats } from "../hooks/useMaksSats";
 
 export default function SkjemaSteg2Page() {
   const todayDate = useMemo(() => startOfToday(), []);
 
   const form = useFormContext<SoknadInputs>();
-  const { register, setValue, formState } = form;
+  const { register, setValue, getValues, setError, clearErrors, formState } = form;
   const { errors } = formState;
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
   const startdato = useWatch({ name: "behovForBistand.startdato" }) as
     SoknadInputs["behovForBistand"]["startdato"] | undefined;
+  const estimertKostnad = useWatch({ name: "behovForBistand.estimertKostnad" });
+  const {
+    maksSats,
+    dato: satsDato,
+    isLoading: satsLoading,
+    error: satsError,
+    mutate: hentSats,
+  } = useMaksSats(startdato);
   const syncingDateRef = useRef(false);
   const { draftId, clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
   const { goToSoknader, goToSoknaderWithSaveNotice, goToStep1, goToSummary, createLinkHandler } =
@@ -93,10 +102,57 @@ export default function SkjemaSteg2Page() {
   const timerReg = register("behovForBistand.timer");
   const kostnadReg = register("behovForBistand.estimertKostnad");
 
+  useEffect(() => {
+    if (!maksSats || satsLoading || satsError) return;
+    const belop = estimertKostnad ?? "";
+    if (!belop.trim()) {
+      if (errors.behovForBistand?.estimertKostnad?.type === "maksSats") {
+        clearErrors("behovForBistand.estimertKostnad");
+      }
+      return;
+    }
+    const feil = sjekkSoknadssumMotMaks(belop, maksSats.belop);
+    if (feil && errors.behovForBistand?.estimertKostnad?.message !== feil) {
+      setError("behovForBistand.estimertKostnad", { type: "maksSats", message: feil });
+    } else if (
+      !feil &&
+      ["maksSats", "server"].includes(errors.behovForBistand?.estimertKostnad?.type ?? "")
+    ) {
+      clearErrors("behovForBistand.estimertKostnad");
+    }
+  }, [
+    maksSats,
+    satsLoading,
+    satsError,
+    estimertKostnad,
+    setError,
+    clearErrors,
+    errors.behovForBistand?.estimertKostnad?.message,
+    errors.behovForBistand?.estimertKostnad?.type,
+  ]);
+
   const handleSubmitStep2 = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const valid = await form.trigger(STEP2_FIELDS);
     if (!valid) {
+      bumpFocusKey();
+      return;
+    }
+    if (
+      !maksSats ||
+      satsLoading ||
+      satsError ||
+      getValues("behovForBistand.startdato") !== satsDato
+    ) {
+      bumpFocusKey();
+      return;
+    }
+    const feil = sjekkSoknadssumMotMaks(
+      getValues("behovForBistand.estimertKostnad"),
+      maksSats.belop
+    );
+    if (feil) {
+      setError("behovForBistand.estimertKostnad", { type: "maksSats", message: feil });
       bumpFocusKey();
       return;
     }
@@ -176,12 +232,26 @@ export default function SkjemaSteg2Page() {
                 id="behovForBistand.estimertKostnad"
                 label="Søknadssum"
                 inputMode="numeric"
-                max={MAX_ESTIMERT_KOSTNAD}
+                description={
+                  maksSats
+                    ? `Maksgrensen er ${new Intl.NumberFormat("nb-NO").format(maksSats.belop)} kr. Kontakt Nav hvis du er usikker på hvor mye du skal søke om.`
+                    : satsLoading
+                      ? "Henter maksgrensen ..."
+                      : "Maksgrensen kan ikke vises før en gyldig startdato og sats er tilgjengelig."
+                }
                 error={errors.behovForBistand?.estimertKostnad?.message}
                 {...kostnadReg}
                 aria-invalid={errors.behovForBistand?.estimertKostnad ? true : undefined}
                 style={FORM_COLUMN_STYLE}
               />
+              {satsError && (
+                <Alert variant="error">
+                  Kunne ikke hente maksgrensen for startdatoen. Prøv igjen før du fortsetter.
+                  <Button type="button" variant="secondary" onClick={() => void hentSats()}>
+                    Prøv igjen
+                  </Button>
+                </Alert>
+              )}
               <div>
                 <Box style={FORM_COLUMN_STYLE}>
                   <DatePicker {...datepickerProps}>

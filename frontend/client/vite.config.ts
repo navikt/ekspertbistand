@@ -1,6 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 
 // https://vite.dev/config/
 export default defineConfig(() => {
@@ -26,7 +26,7 @@ export default defineConfig(() => {
     test: {
       globals: true,
       environment: "jsdom",
-      pool: "vmThreads",
+      pool: "threads",
       setupFiles: ["./src/test/polyfills.ts", "./src/test/setup.ts"],
       css: true,
       deps: {

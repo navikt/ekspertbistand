@@ -23,7 +23,7 @@ export function DecoratedPage({ children, blockProps }: DecoratedPageProps) {
   return (
     <Page footer={<Footer />}>
       <Header />
-      <Page.Block as="main" {...mergedBlockProps}>
+      <Page.Block as="main" {...mergedBlockProps} id="maincontent" tabIndex={-1}>
         <VStack gap="space-32" paddingBlock="space-48">
           {children}
         </VStack>

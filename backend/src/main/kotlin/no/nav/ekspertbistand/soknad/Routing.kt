@@ -8,12 +8,14 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.TokenXPrincipal
 import no.nav.ekspertbistand.infrastruktur.isActiveAndNotTerminating
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
+import no.nav.ekspertbistand.saksbehandling.gjeldendeMaksSats
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 import kotlin.time.Duration.Companion.days
@@ -84,6 +86,22 @@ suspend fun Application.configureSoknadApiV1() {
                         }
 
                         hentAlleSoknader(statusParam)
+                    }
+
+                    get("/maks-sats") {
+                        val startdato = call.request.queryParameters.getRequired(
+                            name = "startdato",
+                            transform = { LocalDate.parse(it) },
+                        ) {
+                            call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Ugyldig startdato."))
+                            return@get
+                        }
+                        val sats = gjeldendeMaksSats(startdato)
+                        if (sats == null) {
+                            call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Ingen sats gjelder for startdato."))
+                            return@get
+                        }
+                        call.respond(sats)
                     }
 
                     get("/{id}") {
