@@ -58,6 +58,10 @@ LOCAL_SUBJECT_TOKEN=faketoken \
 pnpm --filter server run dev`
 4. Åpne http://localhost:4000
 
+### Saksbehandling-mock i dev-gcp
+
+https://ekspertbistand-saksbehandling-mock.ansatt.dev.nav.no kjører saksbehandling mot `ekspertbistand-backend-mock` (samme oppsett som `LocalApplication`) uten innlogging. Velg testbruker i headeren. Alle deler de samme dataene, og de nullstilles hver gang backend-mocken starter. Imaget bygges med `VITE_LOKAL_BRUKERBYTTE=true` og uten `VITE_ENABLE_MOCKS`, så MSW starter ikke, og BFF-en kjører med `LOKAL_BRUKERBYTTE=true`. Arbeidsgiver-mocken (`ekspertbistand-frontend-mock`) bruker fortsatt MSW.
+
 ## Teknologier
 
 - Bygg/verktøy: `pnpm` workspaces, Vite, TypeScript, `tsx`

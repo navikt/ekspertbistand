@@ -1,0 +1,7 @@
+# Image for ekspertbistand-backend-mock. Bygg først med: mvn -Pmock -DskipTests package
+# https://sikkerhet.nav.no/docs/verktoy/chainguard-dockerimages/#tilgjenglige-images
+FROM europe-north1-docker.pkg.dev/cgr-nav/pull-through/nav.no/jre:openjdk-21
+COPY target/ekspertbistand-backend-mock/ ./
+
+ENV JDK_JAVA_OPTIONS="-XX:MaxRAMPercentage=75"
+CMD ["-cp", "app.jar:app-tests.jar:lib/*", "no.nav.ekspertbistand.MockApplicationKt"]

@@ -9,6 +9,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
+import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
@@ -62,17 +63,44 @@ internal enum class LokalBeskyttelse(val gradering: String?, val avvisningskode:
 
 internal val lokaleVirksomheter = listOf(
     LokalVirksomhet("123456780", "Eksempel Bedrift AS Avd. Oslo", "Testveien 1", "0557", "Oslo", "0301", "Oslo"),
-    LokalVirksomhet("310000001", "Bryggen Bølgeblikk AS", "Bryggen 1", "5003", "Bergen", "4601", "Bergen", LokalEnhet.NORDPOLEN),
+    LokalVirksomhet(
+        "310000001",
+        "Bryggen Bølgeblikk AS",
+        "Bryggen 1",
+        "5003",
+        "Bergen",
+        "4601",
+        "Bergen",
+        LokalEnhet.NORDPOLEN
+    ),
     LokalVirksomhet("310000002", "Nidaros Nagleverk AS", "Munkegata 2", "7011", "Trondheim", "5001", "Trondheim"),
     LokalVirksomhet("310000003", "Stavanger Sveis AS", "Kirkegata 3", "4006", "Stavanger", "1103", "Stavanger"),
-    LokalVirksomhet("310000004", "Ishavsbyen Isolasjon AS", "Storgata 4", "9008", "Tromsø", "5501", "Tromsø", LokalEnhet.NORDPOLEN),
+    LokalVirksomhet(
+        "310000004",
+        "Ishavsbyen Isolasjon AS",
+        "Storgata 4",
+        "9008",
+        "Tromsø",
+        "5501",
+        "Tromsø",
+        LokalEnhet.NORDPOLEN
+    ),
     LokalVirksomhet("310000005", "Lillestrøm Lager AS", "Torget 5", "2000", "Lillestrøm", "3205", "Lillestrøm"),
     LokalVirksomhet("310000006", "Sandvika Snekkeri AS", "Rådhustorget 6", "1338", "Sandvika", "3201", "Bærum"),
-    LokalVirksomhet("310000007", "Sørlandet Seilmakeri AS", "Markens gate 7", "4611", "Kristiansand", "4204", "Kristiansand"),
+    LokalVirksomhet(
+        "310000007",
+        "Sørlandet Seilmakeri AS",
+        "Markens gate 7",
+        "4611",
+        "Kristiansand",
+        "4204",
+        "Kristiansand"
+    ),
     LokalVirksomhet("310000008", "Nav Lokalkontor Drammen", "Bragernes torg 8", "3017", "Drammen", "3301", "Drammen"),
 )
 
-internal fun lokalVirksomhet(orgnr: String) = lokaleVirksomheter.find { it.orgnr == orgnr } ?: lokaleVirksomheter.first()
+internal fun lokalVirksomhet(orgnr: String) =
+    lokaleVirksomheter.find { it.orgnr == orgnr } ?: lokaleVirksomheter.first()
 
 internal fun lokalEnhetForKommune(kommunenummer: String?) =
     lokaleVirksomheter.find { it.kommunenummer == kommunenummer }?.enhet ?: LokalEnhet.SYDPOLEN
@@ -204,34 +232,36 @@ private val lokaleSaker = listOf(
 
 internal fun lokalBeskyttelse(fnr: String?) = lokaleSaker.find { it.ansattFnr == fnr }?.beskyttelse
 
-internal fun JdbcTransaction.lagreLokaleSoknader() {
-    lokaleSaker.forEach { sak ->
-        SoknadTable.insertReturning {
-            it[id] = sak.soknadId
-            it[virksomhetsnummer] = sak.virksomhet.orgnr
-            it[virksomhetsnavn] = sak.virksomhet.navn
-            it[beliggenhetsadresse] = with(sak.virksomhet) { "$adresse, $postnummer $poststed" }
-            it[opprettetAv] = "42"
+internal fun lagreLokaleSoknader(database: Database) {
+    transaction(database) {
+        lokaleSaker.forEach { sak ->
+            SoknadTable.insertReturning {
+                it[id] = sak.soknadId
+                it[virksomhetsnummer] = sak.virksomhet.orgnr
+                it[virksomhetsnavn] = sak.virksomhet.navn
+                it[beliggenhetsadresse] = with(sak.virksomhet) { "$adresse, $postnummer $poststed" }
+                it[opprettetAv] = "42"
 
-            it[kontaktpersonNavn] = "Kontaktperson NN"
-            it[kontaktpersonEpost] = "kontaktperson@bedrift.no"
-            it[kontaktpersonTelefon] = "415199999"
-            it[ansattFnr] = sak.ansattFnr
-            it[ansattNavn] = sak.ansattNavn
-            it[ekspertNavn] = "Ekspert NN"
-            it[ekspertVirksomhet] = "ErgoConsult AS"
-            it[ekspertKompetanse] = "Ergoterapeut, autorisasjon HPR 1337"
-            it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
-            it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
-            it[behovForBistandEstimertKostnad] = sak.estimertKostnad.toString()
-            it[behovForBistandTimer] = "16"
-            it[behovForBistandTilrettelegging] = "Høydejustert bord testet, noe bedring"
-            it[behovForBistandStartdato] = CurrentDate
+                it[kontaktpersonNavn] = "Kontaktperson NN"
+                it[kontaktpersonEpost] = "kontaktperson@bedrift.no"
+                it[kontaktpersonTelefon] = "415199999"
+                it[ansattFnr] = sak.ansattFnr
+                it[ansattNavn] = sak.ansattNavn
+                it[ekspertNavn] = "Ekspert NN"
+                it[ekspertVirksomhet] = "ErgoConsult AS"
+                it[ekspertKompetanse] = "Ergoterapeut, autorisasjon HPR 1337"
+                it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
+                it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
+                it[behovForBistandEstimertKostnad] = sak.estimertKostnad.toString()
+                it[behovForBistandTimer] = "16"
+                it[behovForBistandTilrettelegging] = "Høydejustert bord testet, noe bedring"
+                it[behovForBistandStartdato] = CurrentDate
 
-            it[navKontaktPerson] = "Navkontaktperson NN"
-            it[status] = "innsendt"
-        }.single().tilSoknadDTO().also {
-            publishEventQueue(EventData.SoknadInnsendt(it))
+                it[navKontaktPerson] = "Navkontaktperson NN"
+                it[status] = "innsendt"
+            }.single().tilSoknadDTO().also {
+                publishEventQueue(EventData.SoknadInnsendt(it))
+            }
         }
     }
 }
@@ -279,7 +309,11 @@ private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
         EventData.VilkarsvurderingOppdatert(
             sakId = sakId,
             soknadId = soknadId,
-            vurdering = VilkarsvurderingRequest(vilkar, godkjent, if (godkjent) null else "Ingen tilrettelegging er prøvd"),
+            vurdering = VilkarsvurderingRequest(
+                vilkar,
+                godkjent,
+                if (godkjent) null else "Ingen tilrettelegging er prøvd"
+            ),
             vurdertAvIdent = saksbehandler.navIdent,
             tidspunkt = neste(),
         )

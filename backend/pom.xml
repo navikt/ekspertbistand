@@ -458,4 +458,47 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <!-- Image for ekspertbistand-backend-mock: app.jar, test-klassene og alle avhengigheter inkl. test-scope.
+             Bygges med `mvn -Pmock -DskipTests package`. Se specifications/saksbehandling_mock_mot_mocka_backend.md -->
+        <profile>
+            <id>mock</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>mock-test-jar</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>test-jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>mock</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <finalName>${project.artifactId}-mock</finalName>
+                                    <descriptors>
+                                        <descriptor>assembly-mock.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

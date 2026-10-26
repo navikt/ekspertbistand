@@ -30,8 +30,6 @@ jobs:
       contents: read
       id-token: write
       packages: write
-    env:
-      VITE_ENABLE_MOCKS: "false"
     outputs:
       image: ${{ steps.docker-build-push.outputs.image }}
 
@@ -83,7 +81,6 @@ jobs:
           dockerfile: frontend/saksbehandling-server/Dockerfile
           build_args: |
             NODE_AUTH_TOKEN=${{ secrets.READER_TOKEN }}
-            VITE_ENABLE_MOCKS=${{ env.VITE_ENABLE_MOCKS }}
           salsa: true
 
   deploy-to-dev-gcp:

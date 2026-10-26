@@ -59,7 +59,13 @@ export const isMockEnabled = () => {
   return flag === "true";
 };
 
-export const isLokalBrukerbytteMulig = () => isLocalHost() && !isMockEnabled();
+/**
+ * Brukervelgeren vises lokalt mot LocalApplication, og i ekspertbistand-saksbehandling-mock,
+ * som bygges med VITE_LOKAL_BRUKERBYTTE=true og går mot ekspertbistand-backend-mock.
+ */
+export const isLokalBrukerbytteMulig = () =>
+  !isMockEnabled() &&
+  (isLocalHost() || import.meta.env.VITE_LOKAL_BRUKERBYTTE?.toLowerCase() === "true");
 export const LOKALE_BRUKERE_URL = "/lokal/brukere";
 export const LOKAL_BRUKER_COOKIE = "lokal-bruker";
 
