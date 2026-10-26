@@ -29,7 +29,6 @@ class Adressebeskyttelseskontroll(
                 try {
                     adressebeskyttelse.harAdressebeskyttelse(fnr)
                 } catch (e: Exception) {
-                    log.error("AdressebeskyttelseOppslag.harAdressebeskyttelse feilet", e)
                     e.rethrowIfCancellation()
                     feilede++
                     false
