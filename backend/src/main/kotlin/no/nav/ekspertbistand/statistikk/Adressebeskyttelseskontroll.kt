@@ -4,6 +4,7 @@ import io.ktor.server.application.*
 import io.ktor.server.plugins.di.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import no.nav.ekspertbistand.infrastruktur.NaisEnvironment
 import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
@@ -28,6 +29,7 @@ class Adressebeskyttelseskontroll(
                 try {
                     adressebeskyttelse.harAdressebeskyttelse(fnr)
                 } catch (e: Exception) {
+                    log.error("AdressebeskyttelseOppslag.harAdressebeskyttelse feilet", e)
                     e.rethrowIfCancellation()
                     feilede++
                     false
