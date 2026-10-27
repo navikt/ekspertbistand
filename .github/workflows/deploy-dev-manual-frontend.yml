@@ -20,17 +20,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
           version: 10.32.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "22"
           registry-url: https://npm.pkg.github.com/
@@ -55,7 +55,7 @@ jobs:
           VITE_BASE_PATH: ${{ env.CDN_PUBLIC_BASE }}
 
       - name: Upload static assets to NAIS CDN
-        uses: nais/deploy/actions/cdn-upload/v2@master
+        uses: nais/deploy/actions/cdn-upload/v2@1064e26587ab2794266a35f477387e561899a7ef # master
         with:
           team: fager
           source: ./frontend/client/dist
@@ -64,7 +64,7 @@ jobs:
 
       - name: Login to NAIS (sets registry and OIDC)
         id: login
-        uses: nais/login@v0
+        uses: nais/login@40b72a35a18ddf2ad74b632461139ab838cc2a2f # v0
         with:
           team: fager
           project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
@@ -72,7 +72,7 @@ jobs:
 
       - name: Build and push image
         id: docker-build-push
-        uses: nais/docker-build-push@v0
+        uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # v0
         with:
           team: fager
           image_suffix: frontend
@@ -95,15 +95,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Login to NAIS (sets registry and OIDC)
-        uses: nais/login@v0
+        uses: nais/login@40b72a35a18ddf2ad74b632461139ab838cc2a2f # v0
         with:
           team: fager
 
       - name: Deploy dev-gcp
-        uses: nais/deploy/actions/deploy@v3
+        uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # v3
         env:
           CLUSTER: dev-gcp
           RESOURCE: nais/dev-gcp-frontend.yaml
