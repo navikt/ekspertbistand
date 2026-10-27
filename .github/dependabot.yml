@@ -58,3 +58,17 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+
+  # Gotenberg-imaget. Husk samme tag i backend/docker-compose.yml og backend-workflowene.
+  - package-ecosystem: docker
+    directory: "/gotenberg"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Oslo
+    cooldown:
+      default-days: 3
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

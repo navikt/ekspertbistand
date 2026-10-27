@@ -10,7 +10,7 @@ services:
       - ./local-db-init.sql:/docker-entrypoint-initdb.d/init.sql
 
   gotenberg:
-    image: gotenberg/gotenberg:8.37.0
+    image: gotenberg/gotenberg:8.39.0
     ports:
       - "3003:3000"
     environment:        # samme verdier som i nais (§4.2)

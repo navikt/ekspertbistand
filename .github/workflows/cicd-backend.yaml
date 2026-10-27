@@ -30,7 +30,7 @@ jobs:
         ports:
           - 5532:5432
       gotenberg:
-        image: gotenberg/gotenberg:8.37.0
+        image: gotenberg/gotenberg:8.39.0
         env:
           CHROMIUM_DISABLE_JAVASCRIPT: "true"
           CHROMIUM_ALLOW_LIST: "^file:///tmp/.*"
