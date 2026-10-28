@@ -45,11 +45,11 @@ class ClamAvClient(
 
     suspend fun scan(filnavn: String, innhold: ByteArray): ScanResultat {
         val url = endpointUrl ?: run {
-            log.warn("ClamAV ikke konfigurert (lokalt miljø) — hopper over virusskanning for fil: {}", filnavn)
+            log.warn("ClamAV ikke konfigurert (lokalt miljø) — hopper over virusskanning")
             return ScanResultat(filnavn, ScanStatus.OK)
         }
 
-        log.info("Virusscanner fil: filnavn={}, størrelse={}B", filnavn, innhold.size)
+        log.info("Virusscanner fil: størrelse={}B", innhold.size)
 
         val response = httpClient.submitFormWithBinaryData(
             url = url,
@@ -68,7 +68,7 @@ class ClamAvClient(
         val resultater = response.body<List<ScanResultatDto>>()
         val resultat = resultater.firstOrNull()
             ?: return ScanResultat(filnavn, ScanStatus.ERROR).also {
-                log.error("ClamAV returnerte tomt svar for fil: {}", filnavn)
+                log.error("ClamAV returnerte tomt svar")
             }
 
         return ScanResultat(
@@ -76,10 +76,10 @@ class ClamAvClient(
             status = when (resultat.Result) {
                 "OK" -> ScanStatus.OK
                 "FOUND" -> ScanStatus.FOUND.also {
-                    log.warn("Virus funnet i fil: {}", filnavn)
+                    log.warn("Virus funnet i opplastet fil")
                 }
                 else -> ScanStatus.ERROR.also {
-                    log.error("Uventet ClamAV-status '{}' for fil: {}", resultat.Result, filnavn)
+                    log.error("Uventet ClamAV-status '{}'", resultat.Result)
                 }
             }
         )

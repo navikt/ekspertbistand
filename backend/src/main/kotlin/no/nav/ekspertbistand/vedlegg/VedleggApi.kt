@@ -98,7 +98,7 @@ class VedleggApi(
                     return
                 }
                 ClamAvClient.ScanStatus.ERROR -> {
-                    log.error("ClamAV feilet for fil: soknadId={}, filnavn={}", soknadId, filnavn)
+                    log.error("ClamAV feilet for fil: soknadId={}", soknadId)
                     call.respond(HttpStatusCode.ServiceUnavailable, "Virusskanning feilet, prøv igjen")
                     return
                 }
