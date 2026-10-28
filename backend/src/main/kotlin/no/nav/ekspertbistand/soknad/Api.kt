@@ -67,7 +67,6 @@ class SoknadApi(
                 val results = transaction(database) {
                     UtkastTable.selectAll()
                         .where { UtkastTable.opprettetAv eq innloggetBruker }
-                        .orWhere { UtkastTable.virksomhetsnummer inList organisasjoner }
                         .orderBy(UtkastTable.opprettetTidspunkt to SortOrder.DESC)
                         .toList()
                         .map { it.tilUtkastDTO() }
@@ -104,13 +103,7 @@ class SoknadApi(
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
         val harTilgang = when (eksisterende) {
             is DTO.Soknad -> tilganger.harTilgang(eksisterende.virksomhet.virksomhetsnummer)
-
-            is DTO.Utkast -> if (eksisterende.virksomhet?.virksomhetsnummer == null) {
-                // utkast uten orgnummer kan kun leses av den som opprettet det
-                eksisterende.opprettetAv == innloggetBruker
-            } else {
-                tilganger.harTilgang(eksisterende.virksomhet.virksomhetsnummer)
-            }
+            is DTO.Utkast -> erOpprettetAvInnlogget(eksisterende)
         }
 
         if (!harTilgang) {
@@ -140,10 +133,10 @@ class SoknadApi(
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
         val oppdatertUtkast = call.receive<DTO.Utkast>().also { valider(it) }
 
-        val orgnr = oppdatertUtkast.virksomhet?.virksomhetsnummer
-            ?: eksisterende.virksomhet?.virksomhetsnummer
-
-        if (orgnr != null && !tilganger.harTilgang(orgnr)) {
+        val nyttOrgnr = oppdatertUtkast.virksomhet?.virksomhetsnummer
+        if (!erOpprettetAvInnlogget(eksisterende) ||
+            (nyttOrgnr != null && !tilganger.harTilgang(nyttOrgnr))
+        ) {
             call.respond(
                 status = HttpStatusCode.Forbidden,
                 message = "bruker har ikke tilgang til organisasjon"
@@ -205,13 +198,10 @@ class SoknadApi(
             return
         }
 
-        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
-        val virksomhetsnummer = eksisterende.virksomhet?.virksomhetsnummer
-
-        if (virksomhetsnummer != null && !tilganger.harTilgang(virksomhetsnummer)) {
+        if (!erOpprettetAvInnlogget(eksisterende)) {
             call.respond(
                 status = HttpStatusCode.Forbidden,
-                message = "bruker har ikke tilgang til organisasjon"
+                message = "bruker har ikke tilgang til utkastet"
             )
             return
         }
@@ -239,7 +229,9 @@ class SoknadApi(
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
         val soknad = call.receive<DTO.Soknad>().also { valider(it) }
 
-        if (!tilganger.harTilgang(soknad.virksomhet.virksomhetsnummer)) {
+        if (!erOpprettetAvInnlogget(eksisterende) ||
+            !tilganger.harTilgang(soknad.virksomhet.virksomhetsnummer)
+        ) {
             call.respond(
                 status = HttpStatusCode.Forbidden,
                 message = "bruker har ikke tilgang til organisasjon"
@@ -297,6 +289,10 @@ class SoknadApi(
 
         call.respond(innsendt)
     }
+
+    /** Utkast er private: bare den som opprettet utkastet kan se, endre, slette eller sende det inn. */
+    private fun RoutingContext.erOpprettetAvInnlogget(utkast: DTO.Utkast): Boolean =
+        utkast.opprettetAv == innloggetBruker
 
     fun slettGamleUtkast(
         ttl: Duration = 48.hours,
