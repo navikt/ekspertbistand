@@ -50,6 +50,7 @@ class RetentionTest {
             sql("INSERT INTO tilskuddsbrev_vist_state (tilsagn_nummer, tilskuddsbrev_opprettet_at) VALUES (?, now())", tilsagnnummer)
             sql("INSERT INTO soknad_behandlet_forsinkelse_state (soknad_id, innsendt_at) VALUES (?, now())", soknadId)
             sql("INSERT INTO fagsak_id_mapping (soknad_id) VALUES (?)", soknadId)
+            sql("INSERT INTO kvittering_publisert (nokkel, soknad_id, type) VALUES (?, ?, 'ARBEIDSGIVER_VARSLET_SOKNAD_MOTTATT')", "$soknadId-soknad-mottatt", soknadId)
             sql("INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json, status) VALUES ('E-2025/1-1', 'BESTILLING', '{}', 'PUBLISHED')")
             sql("INSERT INTO oebs_lopenummer (sak_id) VALUES ('2025/1')")
             sql("INSERT INTO event_handler_states (id, handler_id, result) VALUES (1, 'h', '{}')")
@@ -62,7 +63,8 @@ class RetentionTest {
             listOf(
                 "soknad", "sak", "forelopig_vedtak", "vedtak", "event_log", "tilsagndata",
                 "tilskuddsbrev_vist_state", "soknad_behandlet_forsinkelse_state", "fagsak_id_mapping",
-                "oebs_outbox", "oebs_lopenummer", "event_handler_states", "idempotency_guard_records",
+                "kvittering_publisert", "oebs_outbox", "oebs_lopenummer", "event_handler_states",
+                "idempotency_guard_records",
             ).forEach { tabell -> assertEquals(0, antall(tabell), "$tabell skal være tom") }
         }
     }

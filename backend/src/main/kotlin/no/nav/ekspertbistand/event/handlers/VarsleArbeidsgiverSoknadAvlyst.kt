@@ -8,6 +8,7 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.KvitteringPublisert
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
@@ -21,7 +22,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 /**
  * Når en søknad er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
- * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarslet] som kvittering.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarslet] som kvittering,
+ * men bare hvis [no.nav.ekspertbistand.event.KvitteringPublisert] ikke har nøkkelen fra før.
  */
 class VarsleArbeidsgiverSoknadAvlyst(
     private val produsentApiKlient: ProdusentApiKlient,
@@ -64,12 +66,19 @@ class VarsleArbeidsgiverSoknadAvlyst(
         }
 
         transaction(database) {
-            publishEventQueue(
-                EventData.ArbeidsgiverVarslet(
-                    soknadId = soknad.id,
-                    varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_AVLYST
-                )
+            val nyKvittering = KvitteringPublisert.registrer(
+                nokkel = KvitteringPublisert.soknadAvlystNokkel(soknad.id),
+                soknadId = soknad.id,
+                type = KvitteringPublisert.Type.ARBEIDSGIVER_VARSLET_SOKNAD_AVLYST,
             )
+            if (nyKvittering) {
+                publishEventQueue(
+                    EventData.ArbeidsgiverVarslet(
+                        soknadId = soknad.id,
+                        varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_AVLYST
+                    )
+                )
+            }
         }
         return success()
     }
@@ -78,7 +87,7 @@ class VarsleArbeidsgiverSoknadAvlyst(
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = soknad.id!!,
-                eksternId = "${soknad.id}-soknad-avlyst",
+                eksternId = KvitteringPublisert.soknadAvlystNokkel(soknad.id),
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
                 tekst = "Søknaden om ekspertbistand trukket eller avslått.",
                 lenke = soknad.kvitteringsLenke,

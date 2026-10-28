@@ -78,6 +78,37 @@ class JournalfoerNotatArenaSakOpprettetTest {
     }
 
     @Test
+    fun `kvittering publiseres bare en gang, ogsaa naar handleren kjoeres paa nytt med ny event-id`() =
+        testApplicationWithDatabase {
+            val database = it.config.jdbcDatabase
+            mockDokArkiv {
+                OpprettJournalpostResponse(
+                    dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                    journalpostId = "1234",
+                    journalpostferdigstilt = true,
+                )
+            }
+            setupApplication(database)
+            startApplication()
+
+            val handler = application.dependencies.resolve<JournalfoerNotatArenaSakOpprettet>()
+            val data = EventData.TiltaksgjennomforingOpprettet(
+                soknad = sampleSoknad,
+                saksnummer = "1337",
+                tiltaksgjennomfoeringId = 42,
+            )
+
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 1L, data = data)))
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 2L, data = data)))
+
+            val kvitteringer = transaction(database) {
+                QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
+                    .filterIsInstance<EventData.ArenaNotatJournalfoert>()
+            }
+            assertEquals(1, kvitteringer.size)
+        }
+
+    @Test
     fun `journalpost som ikke er ferdigstilt publiserer ikke kvittering`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         mockDokArkiv {

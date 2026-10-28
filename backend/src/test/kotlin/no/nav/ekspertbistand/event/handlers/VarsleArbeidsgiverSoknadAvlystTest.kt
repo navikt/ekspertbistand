@@ -89,6 +89,41 @@ class VarsleArbeidsgiverSoknadAvlystTest {
     }
 
     @Test
+    fun `kvittering publiseres bare en gang, ogsaa naar handleren kjoeres paa nytt med ny event-id`() =
+        testApplicationWithDatabase { db ->
+            val database = db.config.jdbcDatabase
+            setupTestApplication(db)
+            val statusVellykket: () -> NyStatusSakResultat = {
+                NyStatusSakVellykket(id = "sak-123", statuser = listOf(StatusOppdatering(tidspunkt = tidspunkt)))
+            }
+            setProdusentApiResultat(
+                mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }, { NyBeskjedVellykket(id = "beskjed-456") }),
+                mutableListOf(statusVellykket, statusVellykket),
+            )
+            startApplication()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadAvlyst>()
+            val data = EventData.SoknadAvlystIArena(
+                soknad = soknad1,
+                tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
+                    tiltaksgjennomfoeringId = 1,
+                    tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
+                    tiltakStatusKode = TiltaksgjennomforingEndret.TiltakStatusKode.AVLYST,
+                )
+            )
+
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 1L, data = data)))
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 1L, data = data)))
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 2L, data = data)))
+
+            assertEquals(1, antallArbeidsgiverVarslet(database))
+        }
+
+    private fun antallArbeidsgiverVarslet(database: org.jetbrains.exposed.v1.jdbc.Database) = transaction(database) {
+        QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
+            .filterIsInstance<EventData.ArbeidsgiverVarslet>().size
+    }
+
+    @Test
     fun `Idempotens sjekk`() =
         testApplicationWithDatabase { db ->
             val database = db.config.jdbcDatabase

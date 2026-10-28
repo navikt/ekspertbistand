@@ -80,6 +80,35 @@ class VarsleArbeidsgiverSoknadMottattTest {
     }
 
     @Test
+    fun `kvittering publiseres bare en gang, ogsaa naar handleren kjoeres paa nytt med ny event-id`() =
+        testApplicationWithDatabase {
+            val database = it.config.jdbcDatabase
+            setupTestApplication(it)
+            setProdusentApiResultat(
+                mutableListOf({ NySakVellykket(id = "sak-123") }, { NySakVellykket(id = "sak-123") }),
+                mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }, { NyBeskjedVellykket(id = "beskjed-456") })
+            )
+            startApplication()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
+            val data = EventData.TiltaksgjennomforingOpprettet(
+                soknad = soknad1,
+                saksnummer = "202112341234",
+                tiltaksgjennomfoeringId = 123,
+            )
+
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 1L, data = data)))
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 1L, data = data)))
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 2L, data = data)))
+
+            assertEquals(1, antallArbeidsgiverVarslet(database))
+        }
+
+    private fun antallArbeidsgiverVarslet(database: org.jetbrains.exposed.v1.jdbc.Database) = transaction(database) {
+        QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
+            .filterIsInstance<EventData.ArbeidsgiverVarslet>().size
+    }
+
+    @Test
     fun `Event prosesseres, men sak gir ugyldig merkelapp`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         setupTestApplication(it)

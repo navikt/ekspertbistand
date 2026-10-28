@@ -13,6 +13,7 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
+import no.nav.ekspertbistand.event.KvitteringPublisert
 import no.nav.ekspertbistand.event.publishEventQueue
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -23,7 +24,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  * Dette resulterer i eventen [no.nav.ekspertbistand.event.EventData.TiltaksgjennomforingOpprettet]
  *
  * Denne handleren oppretter da et notat i gosys med hvilket saksnummer som er opprettet i Arena
- * Når alt har lyktes, publiserer handleren [EventData.ArenaNotatJournalfoert] som kvittering.
+ * Når alt har lyktes, publiserer handleren [EventData.ArenaNotatJournalfoert] som kvittering,
+ * men bare hvis [no.nav.ekspertbistand.event.KvitteringPublisert] ikke har nøkkelen fra før.
  */
 class JournalfoerNotatArenaSakOpprettet(
     private val dokumentService: DokumentService,
@@ -53,7 +55,10 @@ class JournalfoerNotatArenaSakOpprettet(
                 tittel = "Saken er opprettet i Arena under saksnummer: ${event.data.saksnummer}",
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
                 sak = Sak.FagSak(fagsakId = fagsakIdService.opprettEllerHentFagsakId(soknadId = soknad.id)),
-                eksternReferanseId = "notat-${event.data.saksnummer}-${event.data.tiltaksgjennomfoeringId}",
+                eksternReferanseId = KvitteringPublisert.arenaNotatNokkel(
+                    event.data.saksnummer,
+                    event.data.tiltaksgjennomfoeringId
+                ),
                 dokumentPdfAsBytes = notatPdf,
                 journalposttype = JournalpostType.NOTAT,
                 avsenderMottaker = null,
@@ -70,13 +75,20 @@ class JournalfoerNotatArenaSakOpprettet(
         }
 
         transaction(database) {
-            publishEventQueue(
-                EventData.ArenaNotatJournalfoert(
-                    soknadId = soknad.id,
-                    saksnummer = event.data.saksnummer,
-                    journalpostId = journalpostResponse.journalpostId
-                )
+            val nyKvittering = KvitteringPublisert.registrer(
+                nokkel = KvitteringPublisert.arenaNotatNokkel(event.data.saksnummer, event.data.tiltaksgjennomfoeringId),
+                soknadId = soknad.id,
+                type = KvitteringPublisert.Type.ARENA_NOTAT_JOURNALFOERT,
             )
+            if (nyKvittering) {
+                publishEventQueue(
+                    EventData.ArenaNotatJournalfoert(
+                        soknadId = soknad.id,
+                        saksnummer = event.data.saksnummer,
+                        journalpostId = journalpostResponse.journalpostId
+                    )
+                )
+            }
         }
         return success()
     }

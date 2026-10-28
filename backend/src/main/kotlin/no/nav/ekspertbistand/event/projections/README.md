@@ -26,7 +26,7 @@ sequenceDiagram
 
 1. **EventLog**: Stores all domain events in an append-only fashion.
 2. **EventLogProjectionBuilder**: Listens to new events in the `EventLog` and applies them to update one or more projections.
-3. **Projections**: Materialized views (e.g., `TilskuddsbrevVistProjection`, `SoknadBehandletForsinkelseProjection`, `SakProjection`) that are updated by the builder and used for efficient querying.
+3. **Projections**: Materialized views (e.g., `TilskuddsbrevVistProjection`, `SoknadBehandletForsinkelseProjection`, `SakProjection`, `KvitteringPublisertProjection`) that are updated by the builder and used for efficient querying.
 
 ## SakProjection
 
@@ -63,6 +63,54 @@ utenfor. Projeksjonen lagrer ingen tilstand. Den bygger tilstanden fra tidligere
 Bump versjonen i `name` for å resende alle meldinger. Mapping og beslutninger står i
 [`specifications/saksbehandlingsstatistikk.md`](../../../../../../../../../specifications/saksbehandlingsstatistikk.md)
 og [`statistikk/README.md`](../../statistikk/README.md).
+
+## KvitteringPublisertProjection (midlertidig)
+
+Backfiller tabellen `kvittering_publisert` (`event/KvitteringPublisert.kt`) for eventer fra før tabellen fantes.
+Handlerne som publiserer `ArbeidsgiverVarslet` og `ArenaNotatJournalfoert`, setter inn en rad i samme transaksjon
+som publiseringen, og publiserer bare hvis raden er ny. Nøkkelen er den samme som det eksterne kallet bruker
+(`eksternId` i Notifikasjonsplattform, `eksternReferanseId` i DokArkiv). Uten backfill ville en gammel søknad få en
+ny kvittering hvis den utløsende eventen kom på nytt.
+
+| Event | Rad i `kvittering_publisert` |
+|-------|------------------------------|
+| `SakOpprettet` | `{soknadId}-soknad-mottatt` |
+| `TiltaksgjennomforingOpprettet` | `{soknadId}-soknad-mottatt` og `notat-{saksnummer}-{tiltaksgjennomfoeringId}` |
+| `TilsagnsdataLagret` | `{soknadId}-godkjent-{aar}:{loepenrSak}:{loepenrTilsagn}`, én per tilsagn |
+| `SoknadAvlystIArena` | `{soknadId}-soknad-avlyst` |
+
+`registrert` settes fra eventens tidspunkt. Projeksjonen bruker `insertIgnore`, så rader fra handlerne beholdes. Den
+publiserer ingen eventer og kjører i alle miljøer. Eventer med `COMPLETED_WITH_ERRORS` hoppes over, fordi varslingen
+kan ha feilet for dem.
+
+### Fjerne projeksjonen
+
+Fjern projeksjonen når begge kriteriene er oppfylt:
+
+1. Lag for `KvitteringPublisert-v1` er 0 i Grafana.
+2. Kontrollspørringen gir ingen rader:
+
+   ```sql
+   SELECT e.event_json ->> 'type' AS event, count(*)
+   FROM event_log e
+   WHERE e.status = 2 -- COMPLETED (ordinal i ProcessingStatus)
+     AND e.event_json ->> 'type' IN ('sakOpprettet', 'tiltaksgjennomforingOpprettet', 'TilsagnsdataLagret', 'soknadAvlystIArena')
+     AND NOT EXISTS (
+       SELECT 1 FROM kvittering_publisert k
+       WHERE k.soknad_id = e.aggregate_root_id
+         AND k.type = CASE e.event_json ->> 'type'
+           WHEN 'TilsagnsdataLagret' THEN 'ARBEIDSGIVER_VARSLET_SOKNAD_GODKJENT'
+           WHEN 'soknadAvlystIArena' THEN 'ARBEIDSGIVER_VARSLET_SOKNAD_AVLYST'
+           ELSE 'ARBEIDSGIVER_VARSLET_SOKNAD_MOTTATT'
+         END
+     )
+   GROUP BY 1;
+   ```
+
+Fjern da klassen og registreringen i `configureProjectionBuilders()`. Slett også raden `KvitteringPublisert-v1` i
+`projection_builder_state` med en migrering. `AggregateRetention` sletter bare aggregater som alle rader i
+`projection_builder_state` har lest forbi, så en rad som ikke lenger flyttes, stopper sletterutinen. Tabellen
+`kvittering_publisert` beholdes.
 
 ## Example
 

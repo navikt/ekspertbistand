@@ -127,6 +127,7 @@ class AggregateRetention(private val database: Database) {
 
         update("DELETE FROM soknad_behandlet_forsinkelse_state WHERE soknad_id = ?", text)
         update("DELETE FROM fagsak_id_mapping WHERE soknad_id = ?", text)
+        update("DELETE FROM kvittering_publisert WHERE soknad_id = ?", text)
 
         if (soknadId != null) {
             // Cascade: sak, saksvilkar, sakslogg, sak_retur, forelopig_vedtak, vedtak,

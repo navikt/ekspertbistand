@@ -84,6 +84,42 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
     }
 
     @Test
+    fun `kvittering publiseres en gang per tilsagn, ogsaa naar handleren kjoeres paa nytt med ny event-id`() =
+        testApplicationWithDatabase {
+            val database = it.config.jdbcDatabase
+            setupTestApplication(it)
+            val beskjedVellykket: () -> NyBeskjedResultat = { NyBeskjedVellykket(id = "beskjed-456") }
+            val statusVellykket: () -> NyStatusSakResultat = {
+                NyStatusSakVellykket(id = "sak-123", statuser = listOf(StatusOppdatering(tidspunkt = tidspunkt)))
+            }
+            setProdusentApiResultat(
+                mutableListOf(beskjedVellykket, beskjedVellykket, beskjedVellykket),
+                mutableListOf(statusVellykket, statusVellykket, statusVellykket),
+            )
+            startApplication()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadGodkjent>()
+            val forsteTilsagn = EventData.TilsagnsdataLagret(soknad = soknad1, tilsagnData = sampleTilskuddsbrev())
+            val andreTilsagn = EventData.TilsagnsdataLagret(
+                soknad = soknad1,
+                tilsagnData = sampleTilskuddsbrev().copy(
+                    tilsagnNummer = TilsagnData.TilsagnNummer(1337, 42, 44)
+                )
+            )
+
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 1L, data = forsteTilsagn)))
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 2L, data = forsteTilsagn)))
+            assertEquals(1, antallArbeidsgiverVarslet(database))
+
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 3L, data = andreTilsagn)))
+            assertEquals(2, antallArbeidsgiverVarslet(database))
+        }
+
+    private fun antallArbeidsgiverVarslet(database: org.jetbrains.exposed.v1.jdbc.Database) = transaction(database) {
+        QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
+            .filterIsInstance<EventData.ArbeidsgiverVarslet>().size
+    }
+
+    @Test
     fun `Event prosesseres, men beskjed gir ugyldig merkelapp`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         setupTestApplication(it)
