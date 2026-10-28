@@ -5,8 +5,9 @@ import no.nav.ekspertbistand.saksbehandling.SakTable
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.dao.id.UUIDTable
+import org.jetbrains.exposed.v1.core.dao.id.java.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -17,20 +18,20 @@ import java.util.UUID
 
 @OptIn(kotlin.time.ExperimentalTime::class)
 object VedleggTable : UUIDTable("vedlegg") {
-    val soknadId = uuid("soknad_id")
+    val soknadId = javaUUID("soknad_id")
     val type = text("type")
     val filnavn = text("filnavn")
     val innhold = binary("innhold")
     val storrelse = integer("storrelse")
     val lastetOpp = timestamp("lastet_opp").defaultExpression(CurrentTimestamp)
-    val refusjonskravId = uuid("refusjonskrav_id").nullable()
-    val sluttrapportId = uuid("sluttrapport_id").nullable()
+    val refusjonskravId = javaUUID("refusjonskrav_id").nullable()
+    val sluttrapportId = javaUUID("sluttrapport_id").nullable()
 }
 
 @OptIn(kotlin.time.ExperimentalTime::class)
 object SluttrapportTable : Table("sluttrapport") {
-    val id = uuid("sluttrapport_id").databaseGenerated()
-    val sakId = uuid("sak_id").nullable()
+    val id = javaUUID("sluttrapport_id").databaseGenerated()
+    val sakId = javaUUID("sak_id").nullable()
     val status = text("status")
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
 

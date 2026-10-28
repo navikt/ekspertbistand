@@ -51,6 +51,7 @@ spec:
     inbound:
       rules:
         - application: ekspertbistand-backend
+        - application: ekspertbistand-backend-mock
     outbound:
       rules:
         - application: logging

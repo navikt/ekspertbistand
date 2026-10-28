@@ -69,7 +69,7 @@ export default function RefusjonskravVisning({
   return (
     <Box padding="space-16">
       <VStack gap="space-24">
-        <Heading level="1" size="small">
+        <Heading level="2" size="small">
           Refusjonskrav
         </Heading>
 
@@ -90,7 +90,7 @@ export default function RefusjonskravVisning({
         </VStack>
 
         <VStack gap="space-8">
-          <Heading level="2" size="xsmall">
+          <Heading level="3" size="xsmall">
             Vedlegg
           </Heading>
           {refusjon.vedlegg.length === 0 ? (

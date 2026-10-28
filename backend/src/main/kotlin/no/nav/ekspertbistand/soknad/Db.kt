@@ -8,24 +8,30 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
-import org.jetbrains.exposed.v1.core.dao.id.UUIDTable
+import org.jetbrains.exposed.v1.core.dao.id.java.UUIDTable
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.date
 import org.jetbrains.exposed.v1.datetime.timestamp
-import org.jetbrains.exposed.v1.datetime.timestampParam
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.*
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
-/** Slett innsendte søknader om 12 + 3 måneder siden siste oppdatering */
-val slettSøknadOm = 455.days
+/**
+ * Arbeidsgiver har tilgang til en innsendt søknad i 12 + 3 måneder etter siste oppdatering.
+ * Dataene beholdes lokalt i 10 år, se [AggregateRetention].
+ */
+val arbeidsgiverTilgangVarighet = 455.days
 
 @OptIn(ExperimentalTime::class)
 object SoknadTable : Table("soknad") {
-    val id = uuid("id")
+    val id = javaUUID("id")
 
     // Virksomhet
     val virksomhetsnummer = text("virksomhetsnummer").index()
@@ -64,8 +70,8 @@ object SoknadTable : Table("soknad") {
     val opprettetAv = text("opprettet_av")
 
     val opprettetTidspunkt = timestamp("opprettet_tidspunkt").defaultExpression(CurrentTimestamp)
-    val sletteTidspunkt =
-        timestamp("slette_tidspunkt").defaultExpression(timestampParam(Clock.System.now().plus(slettSøknadOm)))
+    val arbeidsgiverTilgangTil = timestamp("arbeidsgiver_tilgang_til")
+        .clientDefault { Clock.System.now().plus(arbeidsgiverTilgangVarighet) }
 
     val status = text("status")
 
@@ -123,15 +129,35 @@ private fun parseJsonStringList(value: String?): List<String> =
 internal fun encodeStringList(list: List<String>): String =
     jsonParser.encodeToString(stringListSerializer, list)
 
-fun findSoknadOrUtkastById(id: UUID): DTO? =
-    findSoknadById(id) ?: findUtkastById(id)
+/** Se [findSoknadById] for [filterForArbeidsgiver]. */
+@OptIn(ExperimentalTime::class)
+fun findSoknadOrUtkastById(
+    id: UUID,
+    filterForArbeidsgiver: Boolean = true,
+    now: Instant = Clock.System.now(),
+): DTO? = findSoknadById(id, filterForArbeidsgiver, now) ?: findUtkastById(id)
 
 fun findUtkastById(id: UUID): DTO.Utkast? = UtkastTable.selectAll()
     .where { UtkastTable.id eq id }
     .singleOrNull()?.tilUtkastDTO()
 
-fun findSoknadById(id: UUID): DTO.Soknad? = SoknadTable.selectAll()
-    .where { SoknadTable.id eq id }
+/**
+ * Henter søknaden. Med [filterForArbeidsgiver] (standard) skjules søknaden når arbeidsgivers
+ * tilgang er utløpt ([SoknadTable.arbeidsgiverTilgangTil]). Saksbehandling må sende `false`.
+ */
+@OptIn(ExperimentalTime::class)
+fun findSoknadById(
+    id: UUID,
+    filterForArbeidsgiver: Boolean = true,
+    now: Instant = Clock.System.now(),
+): DTO.Soknad? = SoknadTable.selectAll()
+    .where {
+        if (filterForArbeidsgiver) {
+            (SoknadTable.id eq id) and (SoknadTable.arbeidsgiverTilgangTil greater now)
+        } else {
+            SoknadTable.id eq id
+        }
+    }
     .singleOrNull()?.tilSoknadDTO()
 
 @OptIn(ExperimentalTime::class)

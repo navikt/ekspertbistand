@@ -6,6 +6,8 @@ metadata:
   labels:
     team: fager
 spec:
+  # Saksbehandling mot ekspertbistand-backend-mock, uten innlogging. Brukervelgeren bytter mellom testbrukerne
+  # i LocalApplication. Se specifications/saksbehandling_mock_mot_mocka_backend.md.
   image: {{ image }}
   port: 4000
   ingresses:
@@ -20,6 +22,17 @@ spec:
 
   idporten:
     enabled: false
+
+  env:
+    - name: EKSPERTBISTAND_API_BASEURL
+      value: "http://ekspertbistand-backend-mock"
+    - name: LOKAL_BRUKERBYTTE
+      value: "true"
+
+  accessPolicy:
+    outbound:
+      rules:
+        - application: ekspertbistand-backend-mock
 
   observability:
     autoInstrumentation:

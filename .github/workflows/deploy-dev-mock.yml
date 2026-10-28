@@ -1,0 +1,147 @@
+name: Deploy dev mock (saksbehandling + backend)
+
+# ekspertbistand-saksbehandling-mock mot ekspertbistand-backend-mock.
+# Se specifications/saksbehandling_mock_mot_mocka_backend.md.
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+    paths:
+      - backend/**
+      - frontend/saksbehandling/**
+      - frontend/saksbehandling-server/**
+      - nais/dev-gcp-backend-mock.yaml
+      - nais/dev-gcp-saksbehandling-mock.yaml
+      - .github/workflows/deploy-dev-mock.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-backend-mock:
+    name: Build backend mock image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image: ${{ steps.docker-build-push.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Java
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: 'temurin'
+          java-version: 21
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      # Testene kjøres i cicd-backend.yaml. -DskipTests kompilerer fortsatt test-klassene mocken trenger.
+      - name: Build
+        run: mvn -B -Pmock -DskipTests package
+        working-directory: backend
+
+      - name: Build and push image
+        id: docker-build-push
+        uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # v0
+        with:
+          team: fager
+          image_suffix: backend-mock
+          tag: ${{ github.sha }}
+          dockerfile: backend/Dockerfile.mock
+          docker_context: backend
+
+  build-saksbehandling-mock:
+    name: Build saksbehandling mock image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    outputs:
+      image: ${{ steps.docker-build-push.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 10.32.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "22"
+          registry-url: https://npm.pkg.github.com/
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.READER_TOKEN }}
+
+      - name: Typecheck frontend
+        run: pnpm --filter ./frontend/saksbehandling typecheck
+
+      - name: Typecheck server
+        run: pnpm --filter ./frontend/saksbehandling-server typecheck
+
+      - name: Login to NAIS (sets registry and OIDC)
+        uses: nais/login@40b72a35a18ddf2ad74b632461139ab838cc2a2f # v0
+        with:
+          team: fager
+          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
+          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Build and push image
+        id: docker-build-push
+        uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # v0
+        with:
+          team: fager
+          image_suffix: saksbehandling-mock
+          tag: ${{ github.sha }}
+          docker_context: .
+          dockerfile: frontend/saksbehandling-server/Dockerfile
+          build_args: |
+            NODE_AUTH_TOKEN=${{ secrets.READER_TOKEN }}
+            VITE_LOKAL_BRUKERBYTTE=true
+          salsa: true
+
+  deploy:
+    name: Deploy to dev-gcp
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    needs: [ build-backend-mock, build-saksbehandling-mock ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Deploy backend mock
+        uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # v3
+        env:
+          CLUSTER: dev-gcp
+          RESOURCE: nais/dev-gcp-backend-mock.yaml
+          VAR: image=${{ needs.build-backend-mock.outputs.image }}
+          REF: ${{ github.sha }}
+
+      - name: Deploy saksbehandling mock
+        uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # v3
+        env:
+          CLUSTER: dev-gcp
+          RESOURCE: nais/dev-gcp-saksbehandling-mock.yaml
+          VAR: image=${{ needs.build-saksbehandling-mock.outputs.image }}
+          REF: ${{ github.sha }}

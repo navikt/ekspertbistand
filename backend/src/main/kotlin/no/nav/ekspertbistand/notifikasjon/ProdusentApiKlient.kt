@@ -23,8 +23,16 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.Default
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsid
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.DuplikatGrupperingsidEtterDelete
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.NySakVellykket
-import no.nav.ekspertbistand.soknad.slettSøknadOm
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.DefaultSkedulerHardDeleteSakResultatImplementation
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.SkedulerHardDeleteSakVellykket
 import java.net.URI
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.format
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
+import kotlin.time.Duration.Companion.days
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UkjentProdusent as NyBeskjedUkjentProdusent
@@ -32,10 +40,20 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.Ugyldig
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UgyldigMottaker as NySakUgyldigMottaker
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.SakFinnesIkke as SkedulerHardDeleteSakFinnesIkke
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.UgyldigMerkelapp as SkedulerHardDeleteUgyldigMerkelapp
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.UkjentProdusent as SkedulerHardDeleteUkjentProdusent
 
 private const val merkelapp = "Ekspertbistand"
 private const val notifikasjonBaseUrl = "http://notifikasjon-produsent-api.fager/api/graphql"
 
+/**
+ * Notifikasjonsplattformen hard-sletter saken (og beskjeder med samme grupperingsid) så lenge etter
+ * siste oppdatering. nyStatusSak overskriver fristen, så siste statusoppdatering bestemmer.
+ */
+val hardDeleteINotifikasjonsplattformenOm = 455.days
+
+@OptIn(ExperimentalTime::class)
 class ProdusentApiKlient(
     private val azureAdTokenProvider: AzureAdTokenProvider,
     defaultHttpClient: HttpClient
@@ -91,7 +109,7 @@ class ProdusentApiKlient(
                     lenke = lenke,
                     tidspunkt = tidspunkt,
                     mottaker = mottaker,
-                    hardDelete = FutureTemporalInput(om = slettSøknadOm.toIsoString()),
+                    hardDelete = FutureTemporalInput(om = hardDeleteINotifikasjonsplattformenOm.toIsoString()),
                 )
             )
         ) {
@@ -179,7 +197,7 @@ class ProdusentApiKlient(
                     overstyrStatustekstMed = statusTekst,
                     tidspunkt = tidspunkt,
                     hardDelete = HardDeleteUpdateInput(
-                        nyTid = FutureTemporalInput(om = slettSøknadOm.toIsoString()),
+                        nyTid = FutureTemporalInput(om = hardDeleteINotifikasjonsplattformenOm.toIsoString()),
                         strategi = NyTidStrategi.OVERSKRIV
                     )
                 )
@@ -231,6 +249,39 @@ class ProdusentApiKlient(
         }
     }
 
+    /**
+     * Setter (eller endrer) når notifikasjonsplattformen skal hard-slette saken, på tidspunktet [den].
+     * Tidspunktet beregnes alltid her i appen. Kaster [SkedulerHardDeleteSakFinnesIkkeException] hvis
+     * saken ikke finnes i plattformen.
+     */
+    suspend fun skedulerHardDeleteSak(
+        grupperingsid: String,
+        den: Instant,
+        strategi: NyTidStrategi = NyTidStrategi.OVERSKRIV,
+    ) {
+        val token = hentEntraIdToken()
+        val nyTid = FutureTemporalInput(den = den.tilOsloLocalDateTime())
+        val resultat = client.execute(
+            SkedulerHardDeleteSak(
+                variables = SkedulerHardDeleteSak.Variables(
+                    grupperingsid = grupperingsid,
+                    merkelapp = merkelapp,
+                    hardDelete = HardDeleteUpdateInput(nyTid = nyTid, strategi = strategi),
+                )
+            )
+        ) {
+            bearerAuth(token)
+        }
+        when (val skedulert = resultat.data?.skedulerHardDeleteSakByGrupperingsid) {
+            is SkedulerHardDeleteSakVellykket -> log.info("Skedulerte hard delete {} ({}) for sak med id {}", nyTid.den, strategi, skedulert.id)
+            is SkedulerHardDeleteSakFinnesIkke -> throw SkedulerHardDeleteSakFinnesIkkeException(skedulert.feilmelding)
+            is SkedulerHardDeleteUgyldigMerkelapp -> throw SkedulerHardDeleteSakException(skedulert.feilmelding)
+            is SkedulerHardDeleteUkjentProdusent -> throw SkedulerHardDeleteSakException(skedulert.feilmelding)
+            is DefaultSkedulerHardDeleteSakResultatImplementation -> throw SkedulerHardDeleteSakException("Uventet feil: $resultat")
+            null -> throw SkedulerHardDeleteSakException("Uventet feil: SkedulerHardDeleteSak er null, $resultat")
+        }
+    }
+
     private fun EksterntVarsel.tilVarsel() =
         EksterntVarselInput(
             altinnressurs =
@@ -254,3 +305,12 @@ class SakOpprettetException(message: String) : Exception(message)
 class BeskjedOpprettetException(message: String) : Exception(message)
 class NyStatusSakException(message: String) : Exception(message)
 class HardDeleteSakException(message: String) : Exception(message)
+open class SkedulerHardDeleteSakException(message: String) : Exception(message)
+class SkedulerHardDeleteSakFinnesIkkeException(message: String) : SkedulerHardDeleteSakException(message)
+
+private val osloTidssone = TimeZone.of("Europe/Oslo")
+
+/** Notifikasjonsplattformen tolker `ISO8601LocalDateTime` i Europe/Oslo. Sekundpresisjon holder. */
+@OptIn(ExperimentalTime::class)
+internal fun Instant.tilOsloLocalDateTime(): ISO8601LocalDateTime =
+    Instant.fromEpochSeconds(epochSeconds).toLocalDateTime(osloTidssone).format(LocalDateTime.Formats.ISO)

@@ -12,6 +12,7 @@ import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
 import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.NyTidStrategi
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DefaultNyBeskjedResultatImplementation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.DuplikatEksternIdOgMerkelapp
@@ -19,6 +20,9 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyB
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyBeskjedVellykket
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.*
 import kotlin.test.Test
+import kotlin.time.Duration.Companion.days
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMottaker as NyBeskjedUgyldigMottaker
@@ -28,11 +32,23 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.Ugyldig
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
 
+@OptIn(ExperimentalTime::class)
 class ProdusentApiKlientTest {
 
     private val soknadId = "42"
     private val virksomhetsnummer = "1337"
     private val tidspunkt = "2026-01-01T10:15:30+01:00"
+
+    @Test
+    fun `tidspunkt sendes som lokal tid i Oslo med sekunder`() {
+        kotlin.test.assertEquals("2027-05-30T12:00:00", Instant.parse("2027-05-30T10:00:00.123Z").tilOsloLocalDateTime())
+        kotlin.test.assertEquals("2027-01-15T11:30:00", Instant.parse("2027-01-15T10:30:00Z").tilOsloLocalDateTime())
+    }
+
+    @Test
+    fun `hardDelete i notifikasjonsplattformen er 455 dager`() {
+        kotlin.test.assertEquals(455.days, hardDeleteINotifikasjonsplattformenOm)
+    }
 
     @Test
     fun `Ny Sak`() = testApplication {
@@ -172,6 +188,69 @@ class ProdusentApiKlientTest {
             // kaster exception dersom det feiler
             grupperingsid = soknadId,
         )
+    }
+
+    @Test
+    fun `Skeduler hard delete sak`() = testApplication {
+        setupApplication()
+        setProdusentApiResultat {
+            //language=json
+            """{
+                "data": {
+                  "skedulerHardDeleteSakByGrupperingsid": {
+                    "__typename": "SkedulerHardDeleteSakVellykket",
+                    "id": "$soknadId"
+                    }
+                },
+                "errors": []
+                }
+            """.trimIndent()
+        }
+        startApplication()
+
+        val klient = ProdusentApiKlient(
+            azureAdTokenProvider = application.dependencies.resolve(),
+            defaultHttpClient = client
+        )
+
+        // kaster exception dersom det feiler
+        klient.skedulerHardDeleteSak(
+            grupperingsid = soknadId,
+            den = Instant.parse("2027-05-30T10:00:00Z"),
+            strategi = NyTidStrategi.OVERSKRIV,
+        )
+    }
+
+    @Test
+    fun `Skeduler hard delete sak som ikke finnes kaster`() = testApplication {
+        setupApplication()
+        setProdusentApiResultat {
+            //language=json
+            """{
+                "data": {
+                  "skedulerHardDeleteSakByGrupperingsid": {
+                    "__typename": "SakFinnesIkke",
+                    "feilmelding": "Sak finnes ikke"
+                    }
+                },
+                "errors": []
+                }
+            """.trimIndent()
+        }
+        startApplication()
+
+        val klient = ProdusentApiKlient(
+            azureAdTokenProvider = application.dependencies.resolve(),
+            defaultHttpClient = client
+        )
+
+        kotlin.test.assertFailsWith<SkedulerHardDeleteSakFinnesIkkeException> {
+            klient.skedulerHardDeleteSak(
+                grupperingsid = soknadId,
+                den = Instant.parse("2027-05-30T10:00:00Z"),
+                strategi = NyTidStrategi.OVERSKRIV,
+            )
+        }
     }
 
     private fun ApplicationTestBuilder.setProdusentApiResultat(

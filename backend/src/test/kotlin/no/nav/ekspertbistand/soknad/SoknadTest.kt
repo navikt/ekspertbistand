@@ -19,6 +19,7 @@ import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
 import no.nav.ekspertbistand.mocks.mockEreg
+import no.nav.ekspertbistand.saksbehandling.MaksSats
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
@@ -75,7 +76,11 @@ class SoknadTest {
                 }
                 provide<TokenXTokenIntrospector> {
                     MockTokenIntrospector {
-                        if (it == "faketoken") mockIntrospectionResponse.withPid("42") else null
+                        when (it) {
+                            "faketoken" -> mockIntrospectionResponse.withPid("42")
+                            "lowtoken" -> mockIntrospectionResponse.withAcr("idporten-loa-substantial")
+                            else -> null
+                        }
                     }
                 }
                 provide<EregService> { EregService(eregClient) }
@@ -87,6 +92,28 @@ class SoknadTest {
             configureAuthentication()
             configureServer()
             configureSoknadApiV1()
+        }
+
+        val maksSatsUrl = "/api/soknad/v1/maks-sats"
+        assertEquals(
+            HttpStatusCode.Unauthorized,
+            client.get("$maksSatsUrl?startdato=2026-01-01").status,
+        )
+        assertEquals(
+            HttpStatusCode.Unauthorized,
+            client.get("$maksSatsUrl?startdato=2026-01-01") { bearerAuth("lowtoken") }.status,
+        )
+        for (dato in listOf("2026-01-01", "2027-01-01")) {
+            val response = client.get("$maksSatsUrl?startdato=$dato") { bearerAuth("faketoken") }
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(MaksSats(LocalDate(2026, 1, 1), 24_900), response.body<MaksSats>())
+        }
+        for (dato in listOf(null, "abc", "2026-13-01", "2025-12-31")) {
+            val query = dato?.let { "?startdato=$it" } ?: ""
+            assertEquals(
+                HttpStatusCode.BadRequest,
+                client.get("$maksSatsUrl$query") { bearerAuth("faketoken") }.status,
+            )
         }
 
         var utkastId: String? = null
@@ -385,46 +412,71 @@ class SoknadTest {
             )
         }
 
-        // put med gyldig payload gir 200 og soknad i retur
+        val gyldigSoknad = DTO.Soknad(
+            virksomhet = DTO.Virksomhet(
+                virksomhetsnummer = "1337",
+                virksomhetsnavn = "foo bar AS",
+                kontaktperson = DTO.Kontaktperson(
+                    navn = "Donald Duck",
+                    epost = "Donald@duck.co",
+                    telefonnummer = "12345678"
+                )
+            ),
+            ansatt = DTO.Ansatt(fnr = "12345678910", navn = "Ole Olsen"),
+            ekspert = DTO.Ekspert(
+                navn = "Egon Olsen",
+                virksomhet = "Olsenbanden AS",
+                kompetanse = "Bankran",
+            ),
+            behovForBistand = DTO.BehovForBistand(
+                behov = "Tilrettelegging",
+                begrunnelse = "Tilrettelegging på arbeidsplassen",
+                estimertKostnad = "24900",
+                timer = "16",
+                tilrettelegging = "Spesialtilpasset kontor",
+                startdato = LocalDate.parse("2026-11-15")
+            ),
+            nav = DTO.Nav(kontaktperson = "Navn Navnesen"),
+            status = SoknadStatus.innsendt,
+        )
+
+        for (ugyldigBelop in listOf("24901", "1e4", "12.5", "0", "")) {
+            val response = client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
+                bearerAuth("faketoken")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    gyldigSoknad.copy(
+                        behovForBistand = gyldigSoknad.behovForBistand.copy(estimertKostnad = ugyldigBelop)
+                    )
+                )
+            }
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertEquals("behovForBistand.estimertKostnad", response.body<Map<String, String>>()["felt"])
+        }
+
         with(
             client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
                 setBody(
-                    // TODO: angi alle felter
-                    DTO.Soknad(
-                        virksomhet = DTO.Virksomhet(
-                            virksomhetsnummer = "1337",
-                            virksomhetsnavn = "foo bar AS",
-                            kontaktperson = DTO.Kontaktperson(
-                                navn = "Donald Duck",
-                                epost = "Donald@duck.co",
-                                telefonnummer = "12345678"
-                            )
-                        ),
-                        ansatt = DTO.Ansatt(
-                            fnr = "12345678910",
-                            navn = "Ole Olsen"
-                        ),
-                        ekspert = DTO.Ekspert(
-                            navn = "Egon Olsen",
-                            virksomhet = "Olsenbanden AS",
-                            kompetanse = "Bankran",
-                        ),
-                        behovForBistand = DTO.BehovForBistand(
-                            behov = "Tilrettelegging",
-                            begrunnelse = "Tilrettelegging på arbeidsplassen",
-                            estimertKostnad = "4200",
-                            timer = "16",
-                            tilrettelegging = "Spesialtilpasset kontor",
-                            startdato = LocalDate.parse("2024-11-15")
-                        ),
-                        nav = DTO.Nav(
-                            kontaktperson = "Navn Navnesen"
-                        ),
-                        status = SoknadStatus.innsendt,
+                    gyldigSoknad.copy(
+                        behovForBistand = gyldigSoknad.behovForBistand.copy(
+                            startdato = LocalDate(2025, 12, 31)
+                        )
                     )
                 )
+            }
+        ) {
+            assertEquals(HttpStatusCode.BadRequest, status)
+            assertEquals("behovForBistand.startdato", body<Map<String, String>>()["felt"])
+        }
+
+        // put med gyldig payload gir 200 og soknad i retur
+        with(
+            client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
+                bearerAuth("faketoken")
+                contentType(ContentType.Application.Json)
+                setBody(gyldigSoknad)
             }
         ) {
             assertEquals(HttpStatusCode.OK, status)

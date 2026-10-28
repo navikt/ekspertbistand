@@ -6,7 +6,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { azureOboMiddleware } from "./azure-obo.js";
-import { lesLokalBruker, lokaleBrukere } from "./lokal-bruker.js";
+import { lesLokalBruker, lokaleBrukere, lokalModus } from "./lokal-bruker.js";
 import { logger } from "@navikt/pino-logger";
 import type { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import type { Socket } from "net";
@@ -28,24 +28,20 @@ const {
   NODE_ENV,
   GIT_COMMIT,
   NAIS_APP_IMAGE,
-  VITE_ENABLE_MOCKS,
+  LOKAL_BRUKERBYTTE,
 } = process.env;
 
 const port = Number(PORT);
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
 const azureEnabled = Boolean(AZURE_APP_CLIENT_ID);
-// Mock-imaget bygges med VITE_ENABLE_MOCKS=true og kjører uten Azure.
-const mockEnabled = VITE_ENABLE_MOCKS === "true";
-if (NODE_ENV === "production" && !azureEnabled && !mockEnabled) {
-  throw new Error(
-    "AZURE_APP_CLIENT_ID mangler i production. Avslutter for å unngå fail-open auth."
-  );
-}
+const { localSessionEnabled, lokalBrukerbytte } = lokalModus({
+  nodeEnv: NODE_ENV,
+  azureEnabled,
+  lokalBrukerbytteFlagg: LOKAL_BRUKERBYTTE === "true",
+});
 
 const app = express();
 const api = express.Router();
-const localSessionEnabled = NODE_ENV !== "production";
-const lokalBrukerbytte = localSessionEnabled && !azureEnabled;
 const localHttpOrigins =
   NODE_ENV === "production" ? [] : ["http://localhost:*", "http://127.0.0.1:*"];
 const localWebsocketOrigins =

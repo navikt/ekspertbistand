@@ -24,9 +24,13 @@ import {
   kanTildeleMegSomSaksbehandler,
   useSaker,
 } from "../hooks/useSaker";
+import { brukKommunefilter, useKommunefilter } from "../hooks/useKommunefilter";
 import { useTildeling } from "../hooks/useTildeling";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";
+import { AdressebeskyttelseTag } from "../components/AdressebeskyttelseTag";
+import { EgenAnsattTag } from "../components/EgenAnsattTag";
+import { Kommunefilter } from "../components/Kommunefilter";
 import { OVERSIKT_PATH } from "../utils/constants";
 
 function formatDate(date: string) {
@@ -48,6 +52,7 @@ const saksstatusTekst: Record<Saksstatus, string> = {
 
 const oppgavetypeTekst: Record<Oppgavetype, string> = {
   SOKNAD: "Søknad",
+  SOKNAD_RETUR: "Søknad - retur",
   SOKNAD_BESLUTTER: "Søknad - beslutter",
 };
 
@@ -63,6 +68,50 @@ function OppgavetypeCelle({ sak }: { sak: SakListeElement }) {
   );
 }
 
+const avvisningstag: Record<string, { tekst: string; farge: "info" | "warning" | "danger" }> = {
+  AVVIST_SKJERMING: { tekst: "Egen ansatt", farge: "info" },
+  AVVIST_FORTROLIG_ADRESSE: { tekst: "Fortrolig adresse", farge: "warning" },
+  AVVIST_STRENGT_FORTROLIG_ADRESSE: { tekst: "Strengt fortrolig adresse", farge: "danger" },
+};
+
+function DeltakerCelle({ sak }: { sak: SakListeElement }) {
+  if (sak.deltakerTilgang?.avvist) {
+    const tag = avvisningstag[sak.deltakerTilgang.kode];
+    return (
+      <Tag size="xsmall" variant="outline" data-color={tag?.farge ?? "neutral"}>
+        {tag?.tekst ?? "Ingen tilgang"}
+      </Tag>
+    );
+  }
+  if (!sak.skjermet && !sak.adressebeskyttelse) return sak.soknad.ansattNavn ?? "";
+  return (
+    <HStack gap="space-8" align="center" wrap={false}>
+      {sak.soknad.ansattNavn}
+      <AdressebeskyttelseTag adressebeskyttelse={sak.adressebeskyttelse} />
+      <EgenAnsattTag skjermet={sak.skjermet} />
+    </HStack>
+  );
+}
+
+function KommuneCelle({ sak, onVelg }: { sak: SakListeElement; onVelg: (nummer: string) => void }) {
+  if (!sak.kommunenummer) return null;
+  const navn = sak.kommunenavn ?? sak.kommunenummer;
+  const nummer = sak.kommunenummer;
+  return (
+    <Button
+      variant="tertiary"
+      size="xsmall"
+      aria-label={`Filtrer på ${navn}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onVelg(nummer);
+      }}
+    >
+      {navn}
+    </Button>
+  );
+}
+
 function tiltaksperiode(sak: SakListeElement) {
   if (sak.tiltaksperiodeFra && sak.tiltaksperiodeTil) {
     return `${formatDate(sak.tiltaksperiodeFra)} – ${formatDate(sak.tiltaksperiodeTil)}`;
@@ -70,7 +119,7 @@ function tiltaksperiode(sak: SakListeElement) {
   return `${formatDate(sak.soknad.startdato)} –`;
 }
 
-const ferdigeSaksstatuser: Saksstatus[] = ["INNVILGET", "AVSLATT", "AVSLUTTET"];
+const ferdigeSaksstatuser: Saksstatus[] = ["AVSLATT", "AVSLUTTET"];
 
 function erAvsluttet(sak: SakListeElement) {
   return ferdigeSaksstatuser.includes(sak.status);
@@ -104,10 +153,28 @@ function TildelMegKnapp({
 }
 
 export default function OversiktPage() {
-  const { saker, error, isLoading } = useSaker();
+  const { saker: alleSaker, tilgangssjekkFeilet, error, isLoading } = useSaker();
   const [tildelingsfeil, setTildelingsfeil] = useState<Error | null>(null);
   const innloggetAnsatt = useInnloggetAnsatt();
   const navigate = useNavigate();
+  const enheter = innloggetAnsatt?.enheter ?? [];
+  const kommunefilter = useKommunefilter(enheter);
+  const {
+    synlige: saker,
+    skjulte,
+    kommuneValg,
+  } = brukKommunefilter(
+    alleSaker,
+    kommunefilter.filter,
+    kommunefilter.lagredeKommuner,
+    tilgangssjekkFeilet
+  );
+  const velgKommune = (nummer: string) => {
+    const { filter } = kommunefilter;
+    if (!filter.kommuner.includes(nummer)) {
+      kommunefilter.lagre({ ...filter, kommuner: [...filter.kommuner, nummer] });
+    }
+  };
 
   const faner = [
     {
@@ -126,9 +193,9 @@ export default function OversiktPage() {
         ),
     },
     {
-      value: "pagaende",
-      label: "Pågående",
-      filter: () => saker.filter((s) => !erAvsluttet(s)),
+      value: "gjennomfores",
+      label: "Gjennomføres",
+      filter: () => saker.filter((s) => s.status === "INNVILGET"),
     },
     {
       value: "avsluttet",
@@ -138,7 +205,7 @@ export default function OversiktPage() {
     { value: "alle", label: "Alle", filter: () => saker },
   ];
 
-  if (isLoading) {
+  if (isLoading || kommunefilter.isLoading) {
     return <Loader size="large" title="Laster oversikt" />;
   }
 
@@ -150,6 +217,9 @@ export default function OversiktPage() {
     return (
       <Page.Block as="main">
         <Box padding="space-24">
+          <Heading level="1" size="medium" spacing>
+            Saker
+          </Heading>
           <Alert variant="warning">
             <Heading spacing size="small" level="2">
               Du er ikke knyttet til noen enheter
@@ -166,13 +236,34 @@ export default function OversiktPage() {
 
   return (
     <Page.Block as="main">
-      <Box paddingInline="space-24">
+      <Box paddingInline="space-24" paddingBlock="space-16 space-0">
         <VStack gap="space-16">
+          <Heading level="1" size="medium">
+            Saker
+          </Heading>
+          {tilgangssjekkFeilet && (
+            <Alert variant="warning" size="small">
+              Vi kunne ikke sjekke tilgangen din. Deltaker og arbeidsgiver vises ikke. Prøv igjen om
+              litt.
+            </Alert>
+          )}
+          {kommunefilter.lagringFeilet && (
+            <Alert variant="warning" size="small">
+              Vi kunne ikke lagre filteret ditt.
+            </Alert>
+          )}
           {tildelingsfeil && (
             <Alert variant="error" size="small" closeButton onClose={() => setTildelingsfeil(null)}>
               {tildelingsfeil.message}
             </Alert>
           )}
+          <Kommunefilter
+            enheter={enheter}
+            filter={kommunefilter.filter}
+            kommuneValg={kommuneValg}
+            skjulte={skjulte}
+            onEndre={kommunefilter.lagre}
+          />
           <Tabs defaultValue="oppgaver-som-venter">
             <Tabs.List>
               {faner.map(({ value, label, filter }) => (
@@ -190,9 +281,10 @@ export default function OversiktPage() {
                         <Table.ColumnHeader>Oppgavetype</Table.ColumnHeader>
                         <Table.ColumnHeader>Arbeidsgiver</Table.ColumnHeader>
                         <Table.ColumnHeader>Deltaker</Table.ColumnHeader>
+                        <Table.ColumnHeader>Kommune</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Tiltaksperiode</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Søknad mottatt</Table.ColumnHeader>
-                        <Table.HeaderCell />
+                        <Table.ColumnHeader>Handlinger</Table.ColumnHeader>
                       </Table.Row>
                     </Table.Header>
                     <Table.Body>
@@ -227,8 +319,13 @@ export default function OversiktPage() {
                           <Table.DataCell>
                             <OppgavetypeCelle sak={sak} />
                           </Table.DataCell>
-                          <Table.DataCell>{sak.soknad.virksomhet.virksomhetsnavn}</Table.DataCell>
-                          <Table.DataCell>{sak.soknad.ansattNavn}</Table.DataCell>
+                          <Table.DataCell>{sak.soknad.virksomhet?.virksomhetsnavn}</Table.DataCell>
+                          <Table.DataCell>
+                            <DeltakerCelle sak={sak} />
+                          </Table.DataCell>
+                          <Table.DataCell>
+                            <KommuneCelle sak={sak} onVelg={velgKommune} />
+                          </Table.DataCell>
                           <Table.DataCell style={{ whiteSpace: "nowrap" }}>
                             {tiltaksperiode(sak)}
                           </Table.DataCell>

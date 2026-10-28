@@ -130,7 +130,7 @@ class VilkarsvurderingApiTest {
         val response = oppsett.client.get(url(sakId)) { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals("AVVIST_STRENGT_FORTROLIG_ADRESSE", response.body<TilgangAvvistResponse>().kode)
+        assertEquals(AVVIST_STRENGT_FORTROLIG_ADRESSE, response.body<TilgangAvvistResponse>().kode)
         assertTrue(oppsett.audit.meldinger.isEmpty())
     }
 

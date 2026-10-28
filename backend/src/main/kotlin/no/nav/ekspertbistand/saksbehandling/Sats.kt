@@ -11,7 +11,7 @@ data class MaksSats(val gyldigFra: LocalDate, val belop: Int)
  * og kan deployes før den gjelder. Se `specifications/forelopig_vedtak.md` (2b).
  */
 val MAKS_SATSER: List<MaksSats> = listOf(
-    MaksSats(gyldigFra = LocalDate(2026, 1, 1), belop = 24_000),
+    MaksSats(gyldigFra = LocalDate(2026, 1, 1), belop = 24_900),
 )
 
 /** Satsen med senest [MaksSats.gyldigFra] som ikke er etter [dato], eller null hvis ingen gjelder. */

@@ -34,7 +34,22 @@ class OppgavetypeTest {
                 Saksstatus.AVSLATT to null,
                 Saksstatus.AVSLUTTET to null,
             ),
-            Saksstatus.entries.associateWith { oppgavetype(it) },
+            Saksstatus.entries.associateWith { oppgavetype(it, harRetur = false) },
+        )
+    }
+
+    @Test
+    fun `retur gir SOKNAD_RETUR bare under behandling`() {
+        assertEquals(
+            mapOf(
+                Saksstatus.OPPRETTET to Oppgavetype.SOKNAD,
+                Saksstatus.UNDER_BEHANDLING to Oppgavetype.SOKNAD_RETUR,
+                Saksstatus.TIL_BESLUTNING to Oppgavetype.SOKNAD_BESLUTTER,
+                Saksstatus.INNVILGET to null,
+                Saksstatus.AVSLATT to null,
+                Saksstatus.AVSLUTTET to null,
+            ),
+            Saksstatus.entries.associateWith { oppgavetype(it, harRetur = true) },
         )
     }
 
@@ -43,6 +58,7 @@ class OppgavetypeTest {
         assertEquals(
             mapOf(
                 Oppgavetype.SOKNAD to Role.SAKSBEHANDLER,
+                Oppgavetype.SOKNAD_RETUR to Role.SAKSBEHANDLER,
                 Oppgavetype.SOKNAD_BESLUTTER to Role.BESLUTTER,
             ),
             Oppgavetype.entries.associateWith { it.rolle },

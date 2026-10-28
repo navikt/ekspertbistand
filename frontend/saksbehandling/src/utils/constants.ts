@@ -3,6 +3,7 @@ import { envSwitch } from "./env";
 export const OVERSIKT_PATH = "/oversikt";
 export const SAK_PATH = "/oversikt/:sakId";
 export const SAKSBEHANDLING_SAKER_URL = "/api/saksbehandling/v1/saker";
+export const SAKSBEHANDLING_KOMMUNEFILTER_URL = "/api/saksbehandling/v1/meg/kommunefilter";
 export const SAKSBEHANDLING_SAK_URL = (sakId: string) => `/api/saksbehandling/v1/saker/${sakId}`;
 export const SAKSBEHANDLING_VILKARSVURDERING_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/vilkarsvurdering`;
@@ -16,6 +17,10 @@ export const SAKSBEHANDLING_FORELOPIG_VEDTAK_FORHANDSVISNING_URL = (sakId: strin
   `/api/saksbehandling/v1/saker/${sakId}/forelopig-vedtak/forhandsvisning`;
 export const SAKSBEHANDLING_FORELOPIG_VEDTAK_BREV_URL = (sakId: string, mottaker: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/forelopig-vedtak/brev/${mottaker}`;
+export const SAKSBEHANDLING_VEDTAK_URL = (sakId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/vedtak`;
+export const SAKSBEHANDLING_RETUR_URL = (sakId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/retur`;
 export const SAKSBEHANDLING_REFUSJON_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/refusjon`;
 export const SAKSBEHANDLING_REFUSJON_VEDLEGG_URL = (sakId: string, vedleggId: string) =>
@@ -54,7 +59,13 @@ export const isMockEnabled = () => {
   return flag === "true";
 };
 
-export const isLokalBrukerbytteMulig = () => isLocalHost() && !isMockEnabled();
+/**
+ * Brukervelgeren vises lokalt mot LocalApplication, og i ekspertbistand-saksbehandling-mock,
+ * som bygges med VITE_LOKAL_BRUKERBYTTE=true og går mot ekspertbistand-backend-mock.
+ */
+export const isLokalBrukerbytteMulig = () =>
+  !isMockEnabled() &&
+  (isLocalHost() || import.meta.env.VITE_LOKAL_BRUKERBYTTE?.toLowerCase() === "true");
 export const LOKALE_BRUKERE_URL = "/lokal/brukere";
 export const LOKAL_BRUKER_COOKIE = "lokal-bruker";
 

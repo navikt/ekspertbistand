@@ -15,6 +15,8 @@ import {
 
 const MOCK_MAKS_ANTALL_VEDLEGG = 5;
 const MOCK_MAKS_VEDLEGG_STORRELSE_BYTES = 10 * 1024 * 1024;
+const MOCK_MAKS_SATS_GYLDIG_FRA = "2026-01-01";
+const MOCK_MAKS_SATS_BELOP = 24900;
 
 const sluttrapportStore = new Map<
   string,
@@ -337,6 +339,23 @@ const ensureSkjemaStoreLoaded = async () => {
       },
     };
     skjemaStore.set(rejectedEntry.id, rejectedEntry);
+
+    const avslattInputs = deepCopy(rejectedInputs);
+    avslattInputs.ansatt.fnr = "03040565432";
+    avslattInputs.ansatt.navn = "Ola Avslag";
+    const avslattEntry: MockSkjema = {
+      id: randomId(),
+      status: "innsendt",
+      data: avslattInputs,
+      opprettetAv: MOCK_BRUKER,
+      opprettetTidspunkt: now,
+      innsendtTidspunkt: now,
+      beslutning: {
+        status: "avslatt",
+        tidspunkt: now,
+      },
+    };
+    skjemaStore.set(avslattEntry.id, avslattEntry);
     await persistSkjemaStore();
   }
   skjemaStoreLoaded = true;
@@ -406,6 +425,15 @@ const getParamValue = (value: string | readonly string[] | undefined): string | 
   if (!value) return null;
   return typeof value === "string" ? value : (value[0] ?? null);
 };
+
+const isStrictIsoDate = (value: unknown): value is string => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+};
+
+const mockUgyldigInput = (felt: string, message: string) =>
+  HttpResponse.json({ kode: "UGYLDIG_INPUT", felt, message }, { status: 400 });
 
 const ugyldigInput = (verdi: unknown, sti = ""): Response | null => {
   if (typeof verdi === "string") {
@@ -721,6 +749,19 @@ export const handlers = [
       .map((entry) => (entry.status === "utkast" ? toUtkastDto(entry) : toSkjemaDto(entry)));
     return HttpResponse.json(results);
   }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/maks-sats`, ({ request }) => {
+    const startdato = new URL(request.url).searchParams.get("startdato");
+    if (!isStrictIsoDate(startdato) || startdato < MOCK_MAKS_SATS_GYLDIG_FRA) {
+      return mockUgyldigInput(
+        "startdato",
+        "Startdato må være en gyldig dato fra og med 2026-01-01."
+      );
+    }
+    return HttpResponse.json({
+      gyldigFra: MOCK_MAKS_SATS_GYLDIG_FRA,
+      belop: MOCK_MAKS_SATS_BELOP,
+    });
+  }),
   http.get(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params }) => {
     await ensureSkjemaStoreLoaded();
     const id = getParamValue(params.id);
@@ -788,6 +829,24 @@ export const handlers = [
     }
     const ugyldig = ugyldigInput(payload);
     if (ugyldig) return ugyldig;
+    const startdato = payload?.behovForBistand?.startdato;
+    if (!isStrictIsoDate(startdato)) {
+      return mockUgyldigInput("behovForBistand.startdato", "Startdato må være en gyldig dato.");
+    }
+    if (startdato < MOCK_MAKS_SATS_GYLDIG_FRA) {
+      return mockUgyldigInput("behovForBistand.startdato", "Ingen sats gjelder for startdato.");
+    }
+    const kostnadString =
+      typeof payload?.behovForBistand?.estimertKostnad === "string"
+        ? payload.behovForBistand.estimertKostnad.trim()
+        : "";
+    const kostnad = /^\+?\d+$/.test(kostnadString) ? BigInt(kostnadString) : null;
+    if (kostnad === null || kostnad <= 0n || kostnad > BigInt(MOCK_MAKS_SATS_BELOP)) {
+      return mockUgyldigInput(
+        "behovForBistand.estimertKostnad",
+        `Søknadssummen må være et positivt heltall og kan ikke overstige ${MOCK_MAKS_SATS_BELOP} kr.`
+      );
+    }
     entry.data = payload;
     entry.status = "innsendt";
     entry.innsendtTidspunkt = nowIso();

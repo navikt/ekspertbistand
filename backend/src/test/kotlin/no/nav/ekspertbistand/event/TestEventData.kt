@@ -4,8 +4,11 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
+import no.nav.ekspertbistand.saksbehandling.ReturArsak
+import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.Vilkar
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.soknad.DTO
@@ -89,6 +92,33 @@ object TestEventData {
             begrunnelseArbeidsgiver = null,
             innstiltAvIdent = "Z123456",
             tidspunkt = Instant.parse("2026-04-03T09:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val vedtakFattet by lazy {
+        EventData.VedtakFattet(
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            forelopigVedtakVersjon = 1,
+            utfall = Saksstatus.INNVILGET,
+            fattetAvIdent = "B123456",
+            fattetAvNavn = "Beslutter Navn",
+            tidspunkt = Instant.parse("2026-04-04T09:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val forelopigVedtakReturnert by lazy {
+        EventData.ForelopigVedtakReturnert(
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            forelopigVedtakVersjon = 1,
+            aarsaker = setOf(ReturArsak.FEIL_FAKTA),
+            forklaring = "Sjekk perioden",
+            returnertAvIdent = "B123456",
+            returnertAvNavn = "Beslutter Navn",
+            tidspunkt = Instant.parse("2026-04-04T09:00:00Z"),
         )
     }
 
@@ -230,6 +260,8 @@ object TestEventData {
         EventData.SakOpprettet(
             sakId = "11111111-1111-1111-1111-111111111111",
             soknad = sampleSoknad,
+            adressebeskyttelse = Adressebeskyttelse.FORTROLIG,
+            skjermet = true,
         ),
         EventData.TiltaksgjennomforingOpprettet(
             soknad = sampleSoknad,
@@ -291,5 +323,7 @@ object TestEventData {
         sakTildeltBeslutter,
         vilkarsvurderingOppdatert,
         forelopigVedtakSendtTilBeslutter,
+        vedtakFattet,
+        forelopigVedtakReturnert,
     )
 }

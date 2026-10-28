@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lesLokalBruker, lokaltSubjectToken } from "./lokal-bruker.js";
+import { lesLokalBruker, lokalModus, lokaltSubjectToken } from "./lokal-bruker.js";
 
 describe("lesLokalBruker", () => {
   it("returnerer kjent ident fra cookien", () => {
@@ -27,5 +27,40 @@ describe("lokaltSubjectToken", () => {
 
   it("legger valgt ident til tokenet", () => {
     expect(lokaltSubjectToken("faketoken", "B654321")).toBe("faketoken-B654321");
+  });
+});
+
+describe("lokalModus", () => {
+  it("lokal utvikling uten Azure gir session og brukerbytte", () => {
+    expect(
+      lokalModus({ nodeEnv: "development", azureEnabled: false, lokalBrukerbytteFlagg: false })
+    ).toEqual({ localSessionEnabled: true, lokalBrukerbytte: true });
+  });
+
+  it("production med Azure gir ingen lokale snarveier", () => {
+    expect(
+      lokalModus({ nodeEnv: "production", azureEnabled: true, lokalBrukerbytteFlagg: false })
+    ).toEqual({ localSessionEnabled: false, lokalBrukerbytte: false });
+  });
+
+  it("production med LOKAL_BRUKERBYTTE gir session og brukerbytte", () => {
+    expect(
+      lokalModus({ nodeEnv: "production", azureEnabled: false, lokalBrukerbytteFlagg: true })
+    ).toEqual({ localSessionEnabled: true, lokalBrukerbytte: true });
+  });
+
+  it("production uten Azure og uten flagg kaster", () => {
+    expect(() =>
+      lokalModus({ nodeEnv: "production", azureEnabled: false, lokalBrukerbytteFlagg: false })
+    ).toThrow(/AZURE_APP_CLIENT_ID/);
+  });
+
+  it("LOKAL_BRUKERBYTTE sammen med Azure kaster", () => {
+    expect(() =>
+      lokalModus({ nodeEnv: "production", azureEnabled: true, lokalBrukerbytteFlagg: true })
+    ).toThrow(/LOKAL_BRUKERBYTTE/);
+    expect(() =>
+      lokalModus({ nodeEnv: "development", azureEnabled: true, lokalBrukerbytteFlagg: true })
+    ).toThrow(/LOKAL_BRUKERBYTTE/);
   });
 });

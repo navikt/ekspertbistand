@@ -5,7 +5,9 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
+import no.nav.ekspertbistand.pdl.GraderingOppslag
 import no.nav.ekspertbistand.saksbehandling.*
+import no.nav.ekspertbistand.skjerming.SkjermingOppslag
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
@@ -26,11 +28,14 @@ class OpprettSakTest {
         val database = it.config.jdbcDatabase
         val soknad = lagreSoknad(database)
 
-        val result = OpprettSak(database).handle(journalfoert(soknad, behandlendeEnhetId = "4242"))
+        val result = opprettSak(database).handle(journalfoert(soknad, behandlendeEnhetId = "4242", kommunenummer = "4601"))
 
         assertIs<EventHandledResult.Success>(result)
         val sak = hentSak(database, soknad)
         assertEquals("4242", sak.behandlendeEnhet)
+        assertEquals("4601", sak.kommunenummer)
+        assertNull(sak.adressebeskyttelse)
+        assertFalse(sak.skjermet)
         assertEquals(Saksstatus.OPPRETTET.name, sak.status)
         assertEquals(KildeTilBehandling.EKSPERTBISTAND.name, sak.kilde)
         assertEquals(Vilkar.entries.size, antallVilkar(database, sak.sakId))
@@ -41,6 +46,8 @@ class OpprettSakTest {
         val opprettet = events.filterIsInstance<EventData.SakOpprettet>().single()
         assertEquals(sak.sakId.toString(), opprettet.sakId)
         assertEquals(soknad, opprettet.soknad)
+        assertNull(opprettet.adressebeskyttelse)
+        assertFalse(opprettet.skjermet)
 
         val oppdatert = events.filterIsInstance<EventData.SakOppdatert>().single()
         assertEquals(sak.sakId.toString(), oppdatert.sakId)
@@ -54,7 +61,7 @@ class OpprettSakTest {
     fun `retry oppretter ikke ny sak eller nye events`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val soknad = lagreSoknad(database)
-        val handler = OpprettSak(database)
+        val handler = opprettSak(database)
         val event = journalfoert(soknad, behandlendeEnhetId = "4242")
 
         repeat(2) { assertIs<EventHandledResult.Success>(handler.handle(event)) }
@@ -68,22 +75,74 @@ class OpprettSakTest {
         val database = it.config.jdbcDatabase
         val soknad = lagreSoknad(database).copy(id = UUID.randomUUID().toString())
 
-        val result = OpprettSak(database).handle(journalfoert(soknad, behandlendeEnhetId = "4242"))
+        val result = opprettSak(database).handle(journalfoert(soknad, behandlendeEnhetId = "4242"))
 
         assertIs<EventHandledResult.UnrecoverableError>(result)
         transaction(database) { assertEquals(0, SakTable.selectAll().count()) }
         assertTrue(hentEvents(database).isEmpty())
     }
 
-    private data class LagretSak(val sakId: UUID, val status: String, val kilde: String, val behandlendeEnhet: String?)
+    @Test
+    fun `lagrer adressebeskyttelse og skjerming på saken og SakOpprettet`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val soknad = lagreSoknad(database)
+        val handler = opprettSak(
+            database,
+            graderingOppslag = { fnr -> Adressebeskyttelse.FORTROLIG.also { assertEquals(soknad.ansatt.fnr, fnr) } },
+            skjermingOppslag = { fnr -> true.also { assertEquals(soknad.ansatt.fnr, fnr) } },
+        )
 
-    private fun journalfoert(soknad: DTO.Soknad, behandlendeEnhetId: String) = Event(
+        assertIs<EventHandledResult.Success>(handler.handle(journalfoert(soknad, behandlendeEnhetId = "4242")))
+
+        val sak = hentSak(database, soknad)
+        assertEquals(Adressebeskyttelse.FORTROLIG.name, sak.adressebeskyttelse)
+        assertTrue(sak.skjermet)
+        val opprettet = hentEvents(database).filterIsInstance<EventData.SakOpprettet>().single()
+        assertEquals(Adressebeskyttelse.FORTROLIG, opprettet.adressebeskyttelse)
+        assertTrue(opprettet.skjermet)
+    }
+
+    @Test
+    fun `feil i oppslag gir transient error uten sak eller events`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val soknad = lagreSoknad(database)
+        val event = journalfoert(soknad, behandlendeEnhetId = "4242")
+
+        listOf(
+            opprettSak(database, graderingOppslag = { throw RuntimeException("PDL er nede") }),
+            opprettSak(database, skjermingOppslag = { throw RuntimeException("pip er nede") }),
+        ).forEach { handler ->
+            assertIs<EventHandledResult.TransientError>(handler.handle(event))
+        }
+
+        transaction(database) { assertEquals(0, SakTable.selectAll().count()) }
+        assertTrue(hentEvents(database).isEmpty())
+    }
+
+    private fun opprettSak(
+        database: Database,
+        graderingOppslag: GraderingOppslag = GraderingOppslag { null },
+        skjermingOppslag: SkjermingOppslag = SkjermingOppslag { false },
+    ) = OpprettSak(database, graderingOppslag, skjermingOppslag)
+
+    private data class LagretSak(
+        val sakId: UUID,
+        val status: String,
+        val kilde: String,
+        val behandlendeEnhet: String?,
+        val kommunenummer: String?,
+        val adressebeskyttelse: String?,
+        val skjermet: Boolean,
+    )
+
+    private fun journalfoert(soknad: DTO.Soknad, behandlendeEnhetId: String, kommunenummer: String? = null) = Event(
         id = 1L,
         data = EventData.InnsendtSoknadJournalfoert(
             soknad = soknad,
             dokumentId = 9876,
             journaldpostId = 1234,
             behandlendeEnhetId = behandlendeEnhetId,
+            virksomhetKommunenummer = kommunenummer,
         ),
     )
 
@@ -94,6 +153,9 @@ class OpprettSakTest {
                 status = it[SakTable.status],
                 kilde = it[SakTable.kildeTilBehandling],
                 behandlendeEnhet = it[SakTable.behandlendeEnhet],
+                kommunenummer = it[SakTable.kommunenummer],
+                adressebeskyttelse = it[SakTable.adressebeskyttelse],
+                skjermet = it[SakTable.skjermet],
             )
         }
     }

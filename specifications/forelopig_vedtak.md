@@ -119,7 +119,7 @@ Avvik mellom kort og skisse:
 | Kortbeskrivelsen; Figma | Foreløpig vedtak kan fattes når alle vilkår er vurdert. Utfallene er innvilge, innvilge med redusert beløp og avslå, med feltene i *Mål*. Flyten har tre steg: skjema, forhåndsvisning med låste tekster, bekreftelse. Etter innsending viser fanen det foreløpige vedtaket uten knapper. |
 | Ken, 2026-10-09 | Innvilgelse krever ikke at alle vilkår er oppfylt, bare at alle er vurdert. |
 | Ken, 2026-10-09 (svar på kortkommentar fra Hanna, 2026-10-07) | Tiltaksperioden kan ikke gå over årsskiftet, fordi satsen kan endres med nytt statsbudsjett. Frontend og backend validerer at start og slutt er i samme år. Sluttdato forhåndsutfylles med startdato + 3 måneder, men aldri senere enn 31.12 samme år. Ingen regel for startdato i fortiden eller før søknadens startdato. |
-| Ken, 2026-10-09 og 2026-10-10 | Redusert beløp må være mindre enn søknadssummen, og innvilget beløp kan aldri være høyere enn maks sats. Satsen er 24 000 kr fra 2026 og kommer fra MD-brev eller fag. Vi støtter flere satser nå: hver sats har en gyldig fra-dato, slik at en ny sats kan deployes i god tid. Satsene ligger i koden, og en hjelpefunksjon gir gjeldende sats for en dato. Se *2b*. |
+| Ken, 2026-10-09 og 2026-10-10; korrigert 2026-10-22 | Redusert beløp må være mindre enn søknadssummen, og innvilget beløp kan aldri være høyere enn maks sats. Satsen er 24 900 kr fra 1. januar 2026 og kommer fra MD-brev eller fag. Vi støtter flere satser nå: hver sats har en gyldig fra-dato, slik at en ny sats kan deployes i god tid. Satsene ligger i koden, og en hjelpefunksjon gir gjeldende sats for en dato. Se *2b*. |
 | Ken, 2026-10-09, 2026-10-10 og 2026-10-12 | Begrunnelse til arbeidsgiver kreves bare ved redusert beløp og avslag. Begrunnelse til deltaker kreves for alle utfall. Bare begrunnelsen til arbeidsgiver ved redusert beløp har standardtekst. De andre må skrives for hver enkelt. Standardteksten kommer fra backend, sammen med brevmalene, og står ordrett som i skissen. PR-beskrivelsen flagger ordlyden til gjennomgang. |
 | Ken, 2026-10-09 | Forhåndsvisning av brevene er ikke med. Hanna lager et forslag med forhåndsvisnings-«pills» i stedet for lenker. |
 | Ken, 2026-10-10 | Visning av tilsagnsbrev i saksbildet er en egen oppgave. |
@@ -336,7 +336,7 @@ data class MaksSats(val gyldigFra: LocalDate, val belop: Int)
 
 /** Maks tilskudd per sak. Kilde: MD-brev eller fag. Ny sats legges til med gyldigFra og kan deployes før den gjelder. */
 val MAKS_SATSER: List<MaksSats> = listOf(
-    MaksSats(gyldigFra = LocalDate(2026, 1, 1), belop = 24_000),
+    MaksSats(gyldigFra = LocalDate(2026, 1, 1), belop = 24_900),
 )
 
 /** Satsen med senest [MaksSats.gyldigFra] som ikke er etter [dato], eller null hvis ingen gjelder. */
@@ -348,6 +348,13 @@ Satsen slås opp på tiltaksperiodens startdato. Perioden kan ikke gå over
 årsskiftet, så for satser som gjelder fra 1. januar, gir start og slutt samme
 sats. Får en sats en gyldig fra-dato midt i året, gjelder satsen på
 startdatoen for hele perioden.
+
+Søknadsskjemaet henter satsen fra `GET /api/soknad/v1/maks-sats?startdato=ÅÅÅÅ-MM-DD`.
+Uten valgt startdato viser skjemaet dagens sats, men krever startdato før
+brukeren kan fortsette. Når startdatoen endres, hentes satsen på nytt.
+Backend validerer søknadssummen mot satsen for søknadens startdato ved innsending.
+Hvis neste års sats ennå ikke er lagt inn, gjelder siste kjente sats.
+Utkast kan fortsatt lagres selv om beløpet overstiger satsen.
 
 Valget: en liste med gyldig fra-dato i koden. Det vi får: en ny sats kan
 deployes i god tid og gjelder fra riktig dato, og saker med startdato før

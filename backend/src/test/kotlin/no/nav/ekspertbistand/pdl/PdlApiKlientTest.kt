@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.pdl.graphql.generated.HentGeografiskTilknytning
+import no.nav.ekspertbistand.statistikk.PdlAdressebeskyttelseOppslag
 import no.nav.ekspertbistand.pdl.graphql.generated.HentPerson
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
@@ -22,10 +23,14 @@ import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Adressebeskyttelse
 import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Folkeregistermetadata
 import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Person
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.Test
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse as SaksAdressebeskyttelse
 
 class PdlApiKlientTest {
 
@@ -243,6 +248,43 @@ class PdlApiKlientTest {
             assertIs<UnknownError>(it)
         }
     }
+
+    @Test
+    fun `graderingoppslag gir strengeste gradering og null for ugradert og ukjent person`() = testApplication {
+        val gradering = mutableListOf<AdressebeskyttelseGradering>()
+        var feilkode: String? = null
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = {
+                if (feilkode != null) null
+                else Person(adressebeskyttelse = gradering.map { Adressebeskyttelse(gradering = it, folkeregistermetadata = null) })
+            },
+            hentGeografiskTilknytning = { null },
+            errorCode = { feilkode },
+        )
+        startApplication()
+        val oppslag = PdlGraderingOppslag(PdlApiKlient(application.dependencies.resolve(), client))
+
+        mapOf(
+            listOf(AdressebeskyttelseGradering.FORTROLIG) to SaksAdressebeskyttelse.FORTROLIG,
+            listOf(AdressebeskyttelseGradering.STRENGT_FORTROLIG) to SaksAdressebeskyttelse.STRENGT_FORTROLIG,
+            listOf(AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND) to SaksAdressebeskyttelse.STRENGT_FORTROLIG,
+            listOf(AdressebeskyttelseGradering.FORTROLIG, AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND) to
+                    SaksAdressebeskyttelse.STRENGT_FORTROLIG,
+            listOf(AdressebeskyttelseGradering.UGRADERT) to null,
+            emptyList<AdressebeskyttelseGradering>() to null,
+        ).forEach { (graderinger, forventet) ->
+            gradering.clear()
+            gradering += graderinger
+            assertEquals(forventet, oppslag.hentAdressebeskyttelse("42"), "$graderinger")
+        }
+
+        feilkode = "not_found"
+        assertNull(oppslag.hentAdressebeskyttelse("42"))
+
+        feilkode = "server_error"
+        assertFailsWith<ServerError> { oppslag.hentAdressebeskyttelse("42") }
+    }
 }
 
 
@@ -254,8 +296,47 @@ private fun ApplicationTestBuilder.setupTestApplication() {
             }
         }
     }
-}
 
+    @Test
+    fun `adressebeskyttelseoppslag gir adressebeskyttelse for alle graderinger unntatt UGRADERT`() = testApplication {
+        val gradering = mutableListOf<AdressebeskyttelseGradering>()
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = {
+                Person(adressebeskyttelse = gradering.map { Adressebeskyttelse(gradering = it, folkeregistermetadata = null) })
+            },
+            hentGeografiskTilknytning = { null },
+        )
+        startApplication()
+        val oppslag = PdlAdressebeskyttelseOppslag(PdlApiKlient(application.dependencies.resolve(), client))
+
+        mapOf(
+            listOf(AdressebeskyttelseGradering.STRENGT_FORTROLIG) to true,
+            listOf(AdressebeskyttelseGradering.UGRADERT, AdressebeskyttelseGradering.STRENGT_FORTROLIG_UTLAND) to true,
+            listOf(AdressebeskyttelseGradering.FORTROLIG) to true,
+            listOf(AdressebeskyttelseGradering.UGRADERT) to false,
+            emptyList<AdressebeskyttelseGradering>() to false,
+        ).forEach { (graderinger, forventet) ->
+            gradering.clear()
+            gradering += graderinger
+            assertEquals(forventet, oppslag.harAdressebeskyttelse("42"), "$graderinger")
+        }
+    }
+
+    @Test
+    fun `adressebeskyttelseoppslag behandler ukjent person som ugradert og kaster ved andre feil`() = testApplication {
+        var feilkode = "not_found"
+        setupTestApplication()
+        setPdlApiRespons(hentPerson = { null }, hentGeografiskTilknytning = { null }, errorCode = { feilkode })
+        startApplication()
+        val oppslag = PdlAdressebeskyttelseOppslag(PdlApiKlient(application.dependencies.resolve(), client))
+
+        assertFalse(oppslag.harAdressebeskyttelse("42"))
+
+        feilkode = "server_error"
+        assertFailsWith<ServerError> { oppslag.harAdressebeskyttelse("42") }
+    }
+}
 
 private fun ApplicationTestBuilder.setPdlApiRespons(
     hentPerson: () -> Person?,

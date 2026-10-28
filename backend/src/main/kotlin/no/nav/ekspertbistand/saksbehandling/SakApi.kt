@@ -13,6 +13,9 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
+import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
+import no.nav.ekspertbistand.norg.BehandlendeEnhetService
+import no.nav.ekspertbistand.norg.KommunenavnCache
 import no.nav.ekspertbistand.saksbehandling.SakTilgangsgrunnlag.Companion.tilTilgangsgrunnlag
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
@@ -20,6 +23,7 @@ import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.tilSoknadDTO
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import org.jetbrains.exposed.v1.core.JoinType
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -44,7 +48,12 @@ import kotlin.time.ExperimentalTime
  * Enkeltoppslag sjekkes i tillegg mot Tilgangsmaskinen og sporingslogges til ArcSight når saken
  * vises. Tilgangsmaskinen sjekker kun kjerneregler: geografisk tilgang styres av sakens
  * behandlende enhet, ikke av den ansattes geografiske tilknytning.
- * Alle eksterne tilgangssjekker er fail-closed (503).
+ * Alle eksterne tilgangssjekker på enkeltoppslag er fail-closed (503).
+ * Listen sjekkes i bulk mot Tilgangsmaskinen. Rader uten tilgang mangler deltaker og arbeidsgiver.
+ * Feiler sjekken, mangler alle rader dem, og svaret har `tilgangssjekkFeilet`.
+ * Kommunenavn kommer fra [KommunenavnCache]. Rader uten tilgang mangler også kommune.
+ * Avvisninger sier om grunnen er skjerming, fortrolig eller strengt fortrolig adresse (K255.1). Kode 6 logges
+ * med feil-ID i team logs, se [sjekkTilgangsmaskin] og `specifications/ruting_egne_ansatte_og_kommune.md`.
  * Listen sporingslogges ikke, jf. krav til oppslagslogg på sikkerhet.nav.no.
  *
  * Tildeling krever [Role.SAKSBEHANDLER] og de samme tilgangssjekkene som enkeltoppslaget. Rutene
@@ -57,6 +66,7 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
     val database = dependencies.resolve<Database>()
     val tilgangsmaskinClient = dependencies.resolve<TilgangsmaskinClient>()
     val auditClient = dependencies.resolve<ArcSightAuditClient>()
+    val kommunenavnCache = dependencies.resolve<KommunenavnCache>()
 
     routing {
         authenticate(AZURE_AD_PROVIDER) {
@@ -65,8 +75,31 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
                     val principal = call.principalMedRolle(Role.SAKSBEHANDLER, Role.BESLUTTER) ?: return@get
                     val enheter = principal.enheter.map { it.enhetnummer }.toSet()
 
-                    val saker = transaction(database) { hentSakerForSaksbehandling(enheter, principal) }
-                    call.respond(SakerResponse(saker = saker))
+                    val rader = transaction(database) { hentSakerForSaksbehandling(enheter, principal) }
+                    val tilganger = if (rader.isEmpty()) {
+                        emptyMap()
+                    } else {
+                        try {
+                            tilgangsmaskinClient.deltakerTilganger(principal, rader.map { it.ansattFnr })
+                        } catch (e: Exception) {
+                            e.rethrowIfCancellation()
+                            log.error("Tilgangskontroll for sakslisten feilet, skjuler deltaker og arbeidsgiver", e)
+                            null
+                        }
+                    }
+                    val kommunenavn = if (rader.any { it.sak.kommunenummer != null }) kommunenavnCache.hent() else emptyMap()
+                    call.respond(
+                        SakerResponse(
+                            saker = rader.map { rad ->
+                                val sak = rad.sak.copy(kommunenavn = rad.sak.kommunenummer?.let(kommunenavn::get))
+                                when {
+                                    tilganger == null -> sak.utenDeltaker(deltakerTilgang = null)
+                                    else -> tilganger.getValue(rad.ansattFnr)?.let { sak.utenDeltaker(it) } ?: sak
+                                }
+                            },
+                            tilgangssjekkFeilet = tilganger == null,
+                        )
+                    )
                 }
 
                 get("/{sakId}") {
@@ -190,12 +223,9 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
 
                             BeslutterTildelingHindring.INHABIL -> {
                                 log.info("Tildeling av beslutter for sakId={} avvist: inhabil", sak.sakId)
-                                call.respond(
-                                    HttpStatusCode.Forbidden,
-                                    TilgangAvvistResponse(
-                                        kode = BESLUTTER_INHABIL,
-                                        begrunnelse = "Du sendte det foreløpige vedtaket og kan ikke være beslutter på saken",
-                                    ),
+                                call.respondTilgangAvvist(
+                                    kode = BESLUTTER_INHABIL,
+                                    begrunnelse = "Du sendte det foreløpige vedtaket og kan ikke være beslutter på saken",
                                 )
                             }
 
@@ -233,7 +263,7 @@ fun tildelingHindring(
     principal: AzureAdPrincipal,
 ): TildelingHindring? = when {
     !principal.harRolle(Role.SAKSBEHANDLER) -> TildelingHindring.MANGLER_ROLLE
-    oppgavetype(status)?.rolle != Role.SAKSBEHANDLER -> TildelingHindring.UGYLDIG_STATUS
+    oppgavetype(status, harRetur = false)?.rolle != Role.SAKSBEHANDLER -> TildelingHindring.UGYLDIG_STATUS
     saksbehandlerIdent == principal.navIdent -> TildelingHindring.HAR_SAKEN_ALLEREDE
     else -> null
 }
@@ -281,8 +311,30 @@ private suspend fun ApplicationCall.hentSakForTildeling(
     return sak
 }
 
+/** En rad i sakslisten. [ansattFnr] brukes til tilgangssjekken og sendes ikke til frontend. */
+internal class SakListeRad(val ansattFnr: String, val sak: SakListeElement)
+
+/** Raden slik den vises uten tilgang til deltakeren: uten navn, arbeidsgiver, kommune og tildeling. */
+private fun SakListeElement.utenDeltaker(deltakerTilgang: DeltakerTilgang?) = copy(
+    skjermet = false,
+    adressebeskyttelse = null,
+    deltakerTilgang = deltakerTilgang,
+    kanTildeleMeg = false,
+    kanTildeleMegSomBeslutter = false,
+    kommunenummer = null,
+    kommunenavn = null,
+    soknad = soknad.copy(ansattNavn = null, virksomhet = null),
+)
+
+private fun ResultRow.skjermetVedOpprettelse(): Boolean = this[SakTable.skjermet]
+
+/** Lagret gradering. Arena-saker og saker opprettet før V28 har ingen, så der kjennes bare kode 6 igjen via Vikafossen. */
+private fun ResultRow.adressebeskyttelseVedOpprettelse(): Adressebeskyttelse? =
+    this[SakTable.adressebeskyttelse]?.let(Adressebeskyttelse::valueOf)
+        ?: if (this[SakTable.behandlendeEnhet] == BehandlendeEnhetService.NAV_VIKAFOSSEN) Adressebeskyttelse.STRENGT_FORTROLIG else null
+
 @OptIn(ExperimentalTime::class)
-fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal): List<SakListeElement> {
+internal fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal): List<SakListeRad> {
     if (enheter.isEmpty()) return emptyList()
     val rader = SakTable
         .join(SoknadTable, JoinType.INNER, SakTable.soknadId, SoknadTable.id)
@@ -292,6 +344,7 @@ fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal
             SoknadTable.opprettetTidspunkt,
             SoknadTable.virksomhetsnummer,
             SoknadTable.virksomhetsnavn,
+            SoknadTable.ansattFnr,
             SoknadTable.ansattNavn,
             SoknadTable.behovForBistandStartdato,
             *SakTable.columns.toTypedArray(),
@@ -299,15 +352,17 @@ fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal
         .where { SakTable.behandlendeEnhet inList enheter }
         .orderBy(SoknadTable.opprettetTidspunkt, SortOrder.DESC)
         .toList()
-    val vedtak = hentSisteForelopigVedtakSammendrag(rader.map { it[SakTable.sakId] })
+    val sakIder = rader.map { it[SakTable.sakId] }
+    val vedtak = hentSisteForelopigVedtakSammendrag(sakIder)
+    val sakerMedRetur = hentSakerMedRetur(sakIder)
 
     return rader.map { row ->
         val status = Saksstatus.valueOf(row[SakTable.status])
         val saksbehandlerIdent = row[SakTable.saksbehandlerIdent]
         val beslutterIdent = row[SakTable.beslutterIdent]
         val sisteVedtak = vedtak[row[SakTable.sakId]]
-        val oppgavetype = oppgavetype(status)
-        SakListeElement(
+        val oppgavetype = oppgavetype(status, harRetur = row[SakTable.sakId] in sakerMedRetur)
+        SakListeRad(ansattFnr = row[SoknadTable.ansattFnr], sak = SakListeElement(
             sakId = row[SakTable.sakId].toString(),
             status = status,
             kildeTilBehandling = KildeTilBehandling.valueOf(row[SakTable.kildeTilBehandling]),
@@ -327,6 +382,11 @@ fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal
                     beslutterTildelingHindring(status, beslutterIdent, sisteVedtak?.innstiltAvIdent, principal) == null,
             tiltaksperiodeFra = sisteVedtak?.tiltaksperiodeFra,
             tiltaksperiodeTil = sisteVedtak?.tiltaksperiodeTil,
+            skjermet = row.skjermetVedOpprettelse(),
+            adressebeskyttelse = row.adressebeskyttelseVedOpprettelse(),
+            deltakerTilgang = null,
+            kommunenummer = row[SakTable.kommunenummer],
+            kommunenavn = null,
             soknad = SakListeElement.Soknad(
                 soknadId = row[SoknadTable.id].toString(),
                 status = SoknadStatus.valueOf(row[SoknadTable.status]),
@@ -338,7 +398,7 @@ fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAdPrincipal
                 ansattNavn = row[SoknadTable.ansattNavn],
                 startdato = row[SoknadTable.behovForBistandStartdato],
             ),
-        )
+        ))
     }
 }
 
@@ -354,6 +414,7 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
             val saksbehandlerIdent = row[SakTable.saksbehandlerIdent]
             val beslutterIdent = row[SakTable.beslutterIdent]
             val forelopigVedtak = hentSisteForelopigVedtak(sakId)
+            val sisteRetur = hentSisteRetur(sakId)
             SakDetaljer(
                 sakId = sakId.toString(),
                 status = status,
@@ -364,7 +425,9 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                 beslutterIdent = beslutterIdent,
                 beslutterNavn = row[SakTable.beslutterNavn],
                 arenaSakId = row[SakTable.arenaSakId],
-                oppgavetype = oppgavetype(status),
+                oppgavetype = oppgavetype(status, harRetur = sisteRetur != null),
+                adressebeskyttelse = row.adressebeskyttelseVedOpprettelse(),
+                skjermet = row.skjermetVedOpprettelse(),
                 kanTildeleMeg = tildelingHindring(status, saksbehandlerIdent, principal) == null,
                 kanTildeleMegSomBeslutter = beslutterTildelingHindring(
                     status, beslutterIdent, forelopigVedtak?.innstiltAvIdent, principal,
@@ -380,15 +443,29 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                     nav = soknad.nav,
                 ),
                 forelopigVedtak = forelopigVedtak,
+                sisteRetur = sisteRetur,
+                vedtak = hentVedtak(sakId),
             )
         }
 
 @Serializable
 data class SakerResponse(
     val saker: List<SakListeElement>,
+    /** Tilgangsmaskinen svarte ikke. Ingen rader har da deltaker eller arbeidsgiver. */
+    val tilgangssjekkFeilet: Boolean,
 )
 
-/** Listeelement uten fødselsnummer. */
+/**
+ * Null når innlogget har tilgang til deltakeren. [kode] er [AVVIST_SKJERMING], [AVVIST_FORTROLIG_ADRESSE],
+ * [AVVIST_STRENGT_FORTROLIG_ADRESSE] eller [IKKE_TILGANG].
+ */
+@Serializable
+data class DeltakerTilgang(
+    val avvist: Boolean,
+    val kode: String,
+)
+
+/** Listeelement uten fødselsnummer. Uten tilgang til deltakeren mangler navn og arbeidsgiver. */
 @Serializable
 data class SakListeElement(
     val sakId: String,
@@ -408,6 +485,15 @@ data class SakListeElement(
     /** Fra siste foreløpige vedtak. Null uten vedtak og ved avslag. */
     val tiltaksperiodeFra: LocalDate?,
     val tiltaksperiodeTil: LocalDate?,
+    /** Deltakeren var skjermet da saken ble opprettet. Usann uten tilgang til deltakeren. */
+    val skjermet: Boolean,
+    /** Adressebeskyttelsen til deltakeren, slik at den kan merkes (K255.1). Null uten tilgang til deltakeren. */
+    val adressebeskyttelse: Adressebeskyttelse?,
+    val deltakerTilgang: DeltakerTilgang?,
+    /** Kommunen saken ble rutet på. Null for kode 6, eldre saker og uten tilgang til deltakeren. */
+    val kommunenummer: String?,
+    /** Fra kodeverket i Norg. Null når navnet ikke er kjent. */
+    val kommunenavn: String?,
     val soknad: Soknad,
 ) {
     @Serializable
@@ -415,8 +501,8 @@ data class SakListeElement(
         val soknadId: String,
         val status: SoknadStatus,
         val innsendtTidspunkt: String,
-        val virksomhet: Virksomhet,
-        val ansattNavn: String,
+        val virksomhet: Virksomhet?,
+        val ansattNavn: String?,
         val startdato: LocalDate,
     )
 
@@ -440,10 +526,16 @@ data class SakDetaljer(
     val beslutterNavn: String?,
     val arenaSakId: String?,
     val oppgavetype: Oppgavetype?,
+    val adressebeskyttelse: Adressebeskyttelse?,
+    val skjermet: Boolean,
     val kanTildeleMeg: Boolean,
     val kanTildeleMegSomBeslutter: Boolean,
     val soknad: Soknad,
     val forelopigVedtak: ForelopigVedtakDTO?,
+    /** Nyeste retur fra beslutter. Eldre returer ligger i saksloggen. */
+    val sisteRetur: ReturDTO?,
+    /** Null til beslutter har fattet vedtaket. */
+    val vedtak: VedtakDTO?,
 ) {
     @Serializable
     data class Soknad(
@@ -458,9 +550,17 @@ data class SakDetaljer(
     )
 }
 
-/** Svar ved avvist tilgang. Tilgangsmaskinens detaljer (inkl. brukerIdent) videresendes ikke. */
+/** Deltakerens adressebeskyttelse. Kode 6 i utlandet regnes som [STRENGT_FORTROLIG]. */
+@Serializable
+enum class Adressebeskyttelse { FORTROLIG, STRENGT_FORTROLIG }
+
+/**
+ * Svar ved avvist tilgang. Tilgangsmaskinens detaljer (inkl. brukerIdent) videresendes ikke. [feilId] er
+ * correlation-ID-en til kallet, som saksbehandleren kan oppgi til brukerstøtte.
+ */
 @Serializable
 data class TilgangAvvistResponse(
     val kode: String?,
     val begrunnelse: String?,
+    val feilId: String?,
 )

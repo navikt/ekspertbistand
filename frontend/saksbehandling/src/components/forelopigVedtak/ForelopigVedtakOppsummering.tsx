@@ -10,7 +10,7 @@ type Props = {
   sak: SakDetaljer;
   vedtak: ForelopigVedtakInput;
 } & (
-  | { modus: "sendt" }
+  | { modus: "sendt"; tittel?: string }
   | {
       modus: "forhandsvisning";
       onForrige: () => void;
@@ -29,7 +29,7 @@ export default function ForelopigVedtakOppsummering(props: Props) {
     <VStack gap="space-24">
       {props.modus === "sendt" && (
         <Heading level="2" size="small">
-          Foreløpig vedtak sendt til beslutter
+          {props.tittel ?? "Foreløpig vedtak sendt til beslutter"}
         </Heading>
       )}
 

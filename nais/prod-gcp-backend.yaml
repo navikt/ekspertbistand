@@ -47,6 +47,10 @@ spec:
         databases:
           - name: ekspertbistand
             envVarPrefix: DB
+    bigQueryDatasets:
+      - name: ekspertbistand_statistikk
+        description: Saksbehandlingsstatistikk for Team Sak og tiltaksstatistikk for datavarehuset
+        permission: READWRITE
 
   accessPolicy:
     inbound:
@@ -62,6 +66,8 @@ spec:
       rules:
         - application: populasjonstilgangskontroll
           namespace: tilgangsmaskin
+        - application: skjermede-personer-pip
+          namespace: nom
         - application: logging
           namespace: nais-system
         - application: notifikasjon-produsent-api

@@ -33,6 +33,19 @@ Testene når Gotenberg på `http://localhost:3003`. I CI kjører Gotenberg som s
 
 Hver DB-test får sin egen database (`eb_test_*`) via `TestDatabase.isolert()` eller `testApplicationWithDatabase`. Skjemaet migreres én gang per JVM til en maldatabase, og hver test kopierer den med `CREATE DATABASE ... TEMPLATE`. Databasene slettes når testen og JVM-en avslutter. Databaser etter drepte kjøringer slettes ved neste kjøring når de er eldre enn 24 timer. `LocalApplication` bruker fortsatt den faste databasen `ekspertbistand`.
 
+### Mock i dev-gcp
+
+`ekspertbistand-backend-mock` kjører samme oppsett som `LocalApplication` (mockede eksterne tjenester og testdata) via `MockApplication`, mot en egen Cloud SQL-database. Databasen tømmes og fylles med testdata ved hver oppstart, også ved pod-restart. Den brukes av `ekspertbistand-saksbehandling-mock` (https://ekspertbistand-saksbehandling-mock.ansatt.dev.nav.no), som har brukervelger for testbrukerne i `lokaleAnsatte`.
+
+Imaget bygges fra test-classpath, så prod-jaren endres ikke:
+
+```bash
+mvn -f backend/pom.xml -Pmock -DskipTests package   # target/ekspertbistand-backend-mock/
+docker build -f backend/Dockerfile.mock backend
+```
+
+Deployes av `.github/workflows/deploy-dev-mock.yml`. Se `specifications/saksbehandling_mock_mot_mocka_backend.md`.
+
 ### Visuell sammenligning
 
 `no.nav.ekspertbistand.executables.RenderDokumentmaler` rendrer alle `testdata/*.json` via lokal Gotenberg til `backend/target/dokumentmaler-preview/gotenberg/`. `RenderDokumentmalerDokgenLokal` henter de samme malene fra lokal dokgen (port 9000) til `backend/target/dokumentmaler-preview/dokgen/`. Filnavnene er like i begge mappene, så PDF-ene kan legges side om side eller diffes.

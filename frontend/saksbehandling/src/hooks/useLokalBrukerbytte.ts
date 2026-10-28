@@ -14,7 +14,7 @@ async function hentLokaleBrukere(url: string): Promise<LokaleBrukere | null> {
   return response.ok && erJson ? ((await response.json()) as LokaleBrukere) : null;
 }
 
-/** Brukerbytte mot LocalApplication. BFF-en svarer bare lokalt uten Azure. */
+/** Brukerbytte mot LocalApplication og ekspertbistand-backend-mock. BFF-en svarer bare uten Azure. */
 export function useLokalBrukerbytte() {
   const { data } = useSWR(
     isLokalBrukerbytteMulig() ? LOKALE_BRUKERE_URL : null,

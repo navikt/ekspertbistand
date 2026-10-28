@@ -6,9 +6,10 @@ import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.hentGodkjentSakIdForUpdate
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
-import org.jetbrains.exposed.v1.core.dao.id.UUIDTable
+import org.jetbrains.exposed.v1.core.dao.id.java.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -21,8 +22,8 @@ import java.util.UUID
 
 @OptIn(kotlin.time.ExperimentalTime::class)
 object RefusjonskravTable : UUIDTable("refusjonskrav") {
-    val soknadId = uuid("soknad_id")
-    val sakId = uuid("sak_id").nullable()
+    val soknadId = javaUUID("soknad_id")
+    val sakId = javaUUID("sak_id").nullable()
     val belopOre = long("belop_ore")
     val utgifter = text("utgifter")
     val status = text("status")

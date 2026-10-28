@@ -118,7 +118,7 @@ Valg i spec-en:
 - Frigjøring av beslutter og «Tildel beslutter» (tildele en annen).
 - Visning av beslutter og «Tildel meg» som beslutter på `SakPage`.
 - Oppgavetypen «Søknad - retur». Den kommer med beslutterflyten, utledet av
-  `sak_retur` (Ken, 2026-10-12).
+  `sak_retur` (Ken, 2026-10-12). Bygd i [`beslutter_vedtak.md`](beslutter_vedtak.md).
 - Oppgavetypene «Refusjon», «Refusjon - beslutter» og «Sluttrapport». De kommer
   med kortene for refusjon og sluttrapport. `Oppgavetype` utvides da.
 - Sortering på kolonnene.
@@ -181,7 +181,8 @@ fun oppgavetype(status: Saksstatus): Oppgavetype? = when (status) {
   `saksstatusTekst` («Innvilget», «Avslått», «Avsluttet»).
 - Arena-saker følger samme regel. De er aldri i `TIL_BESLUTNING`.
 - Beslutterflyten legger til `SOKNAD_RETUR` for `UNDER_BEHANDLING` med rad i
-  `sak_retur`.
+  `sak_retur`. Signaturen er nå `oppgavetype(status, harRetur)`, se
+  [`beslutter_vedtak.md`](beslutter_vedtak.md).
 
 ### 3. Backend: tildeling av beslutter
 
@@ -281,7 +282,7 @@ saken (trikkefaktor, Ken 2026-10-12):
 - Innlogget har rollen beslutter, og oppgavetypen er `SOKNAD_BESLUTTER`.
 
 En saksbehandler uten rollen beslutter ser dermed ikke saker som venter på
-beslutter i fanen. De ligger under «Pågående». Avsluttede saker har ingen
+beslutter i fanen. De ligger under «Alle». Avsluttede saker har ingen
 oppgavetype og er aldri med. Arena-saker er med som «Søknad», fordi de kan
 tildeles (kort 621). En beslutter ser også saker hen selv sendte, men får ikke
 «Tildel meg» på dem.
@@ -302,7 +303,8 @@ tildeles (kort 621). En beslutter ser også saker hen selv sendte, men får ikke
 `OversiktPage.tsx`:
 
 - Fanene er «Oppgaver som venter» (`harOppgaveForMeg`), «Mine saker» (innlogget er
-  saksbehandler eller beslutter), «Pågående», «Avsluttet» og «Alle».
+  saksbehandler eller beslutter), «Gjennomføres» (innvilget, tiltaket
+  gjennomføres hos arbeidsgiver), «Avsluttet» (avslåtte og avsluttede) og «Alle».
   `Tabs defaultValue` er «Oppgaver som venter».
 - Kolonnene er Saksbehandler, Beslutter, Oppgavetype, Arbeidsgiver, Deltaker,
   Tiltaksperiode, Søknad mottatt og handlingsmenyen. Startdato går ut.
@@ -405,8 +407,10 @@ Frontend har ikke testoppsett. `pnpm typecheck` og `pnpm lint` i
   `innstiltAvIdent` er null, og tildeling avvises som `INHABIL`.
 - **Avsluttede saker.** Ingen oppgavetype, ikke i «Oppgaver som venter».
 - **Ingen saker venter.** Fanen viser en tom tabell, som de andre fanene i dag.
-- **Listen kaller ikke Tilgangsmaskinen.** Som før. «Tildel meg» kan derfor gi
-  403 fra Tilgangsmaskinen ved klikk. Feilen vises over tabellen.
+- **Listen kaller Tilgangsmaskinen i bulk.** Endret i
+  `ruting_egne_ansatte_og_kommune.md` (1.2). Rader uten tilgang har ikke
+  «Tildel meg». Endres tilgangen mellom visning og klikk, gir «Tildel meg» 403.
+  Feilen vises over tabellen.
 - **Personopplysninger.** Navnet på beslutter logges ikke, bare ident i
   saksloggen, som for saksbehandler.
 

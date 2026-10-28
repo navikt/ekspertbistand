@@ -12,6 +12,7 @@ import no.nav.ekspertbistand.event.ProcessingStatus.COMPLETED
 import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
+import no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkProjection
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
@@ -131,12 +132,16 @@ suspend fun Application.configureProjectionBuilders() {
                     dependencies.create(TilskuddsbrevVistProjection::class),
                     dependencies.create(SoknadBehandletForsinkelseProjection::class),
                     dependencies.create(SakProjection::class)
+                    // SaksbehandlingsstatistikkProjection skal ikke skrus på her før OpprettSak kjører i prod.
+                    // Statistikken rapporterer bare saker OpprettSak har opprettet.
                 )
             },
             other = {
                 listOf(
                     dependencies.create(TilskuddsbrevVistProjection::class),
                     dependencies.create(SoknadBehandletForsinkelseProjection::class),
+                    // Bare saker opprettet av OpprettSak rapporteres, og den kjører ikke i prod ennå.
+                    dependencies.create(SaksbehandlingsstatistikkProjection::class),
                 )
             }
         )

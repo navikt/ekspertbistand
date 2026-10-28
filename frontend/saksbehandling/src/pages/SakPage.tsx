@@ -20,6 +20,8 @@ import {
 import { useCallback, useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
 import { NavLink, useParams } from "react-router";
+import { AdressebeskyttelseTag } from "../components/AdressebeskyttelseTag";
+import { EgenAnsattTag } from "../components/EgenAnsattTag";
 import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
 import Refusjonskontroll from "../components/Refusjonskontroll";
@@ -30,6 +32,9 @@ import SluttrapportVisning from "../components/SluttrapportVisning";
 import Tildeling from "../components/Tildeling";
 import VilkårItem from "../components/VilkårItem";
 import { type PdfFil, PdfForhandsvisningListe } from "../components/pdf";
+import Beslutterhandlinger from "../components/beslutning/Beslutterhandlinger";
+import ReturInfoKort from "../components/beslutning/ReturInfoKort";
+import VedtakKvittering from "../components/beslutning/VedtakKvittering";
 import ForelopigVedtakKvittering from "../components/forelopigVedtak/ForelopigVedtakKvittering";
 import ForelopigVedtakOppsummering from "../components/forelopigVedtak/ForelopigVedtakOppsummering";
 import ForelopigVedtakSkjema, {
@@ -39,15 +44,18 @@ import {
   type ForelopigVedtakSkjemaTilstand,
   formatPeriode,
   startTilstand,
+  tilstandFraForelopigVedtak,
 } from "../components/forelopigVedtak/forelopigVedtak";
+import { useBeslutning } from "../hooks/useBeslutning";
 import { useForelopigVedtak } from "../hooks/useForelopigVedtak";
 import { useRefusjon } from "../hooks/useRefusjon";
-import { type SakDetaljer, useSak } from "../hooks/useSak";
+import { type ForelopigVedtak, type SakDetaljer, useSak } from "../hooks/useSak";
 import { useSluttrapport } from "../hooks/useSluttrapport";
 import { type Vilkår, useVilkår } from "../hooks/useVilkår";
 import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import type { HttpError } from "../utils/http";
+import { IKKE_TILGANG_TEKST, feilIdTekst, tilgangAvvistTekst } from "../utils/tilgangsfeil";
 import { GOSYS_URL, MODIA_URL, OVERSIKT_PATH, isMockEnabled } from "../utils/constants";
 import styles from "./SakPage.module.css";
 
@@ -79,6 +87,12 @@ const DEMO_VEDLEGG: PdfFil[] = [
 
 type Fane = "vilkarsvurdering" | "forelopig-vedtak";
 type SaksFane = "soknad" | "sluttrapport" | "refusjon";
+type Kvitteringstype = "forelopig-vedtak" | "vedtak";
+
+const nyttSkjema = (sakId: string, startdato: string, returnertVedtak: ForelopigVedtak | null) =>
+  returnertVedtak
+    ? tilstandFraForelopigVedtak(sakId, startdato, returnertVedtak)
+    : startTilstand(sakId, startdato);
 
 type ForelopigVedtakFaneProps = {
   sak: SakDetaljer;
@@ -90,7 +104,12 @@ type ForelopigVedtakFaneProps = {
   sendTilBeslutter: (input: NonNullable<ForelopigVedtakSkjemaTilstand["forhandsvisning"]>) => void;
   isSaving: boolean;
   sendError: Error | null;
+  godkjenn: () => void;
+  beslutning: ReturnType<typeof useBeslutning>;
 };
+
+const erBeslutterPåSak = (sak: SakDetaljer, ansattId: string | undefined) =>
+  !!ansattId && sak.status === "TIL_BESLUTNING" && sak.beslutterIdent === ansattId;
 
 function ForelopigVedtakFane({
   sak,
@@ -102,12 +121,46 @@ function ForelopigVedtakFane({
   sendTilBeslutter,
   isSaving,
   sendError,
+  godkjenn,
+  beslutning,
 }: ForelopigVedtakFaneProps) {
   const innloggetAnsatt = useInnloggetAnsatt();
   const erTildeltMeg = !!innloggetAnsatt && sak.saksbehandlerIdent === innloggetAnsatt.id;
 
+  if (sak.forelopigVedtak && sak.vedtak) {
+    return (
+      <ForelopigVedtakOppsummering
+        modus="sendt"
+        tittel={`Vedtak fattet av ${sak.vedtak.fattetAvNavn} ${formatDate(sak.vedtak.fattetTidspunkt)}`}
+        sak={sak}
+        vedtak={sak.forelopigVedtak}
+      />
+    );
+  }
+
   if (sak.forelopigVedtak && sak.status === "TIL_BESLUTNING") {
-    return <ForelopigVedtakOppsummering modus="sendt" sak={sak} vedtak={sak.forelopigVedtak} />;
+    if (!erBeslutterPåSak(sak, innloggetAnsatt?.id)) {
+      return <ForelopigVedtakOppsummering modus="sendt" sak={sak} vedtak={sak.forelopigVedtak} />;
+    }
+    return (
+      <VStack gap="space-32">
+        <ForelopigVedtakOppsummering
+          modus="sendt"
+          tittel="Foreløpig vedtak til godkjenning"
+          sak={sak}
+          vedtak={sak.forelopigVedtak}
+        />
+        <Beslutterhandlinger
+          forelopigVedtakVersjon={sak.forelopigVedtak.versjon}
+          erInhabil={sak.forelopigVedtak.innstiltAvIdent === innloggetAnsatt?.id}
+          onGodkjenn={godkjenn}
+          onReturner={beslutning.returner}
+          isSaving={beslutning.isSaving}
+          error={beslutning.error}
+          nullstillFeil={beslutning.nullstillFeil}
+        />
+      </VStack>
+    );
   }
 
   if (sak.status === "UNDER_BEHANDLING" && erTildeltMeg) {
@@ -161,7 +214,7 @@ function ForelopigVedtakFane({
 function feilmelding(error: HttpError | undefined) {
   switch (error?.status) {
     case 403:
-      return "Du har ikke tilgang til denne saken.";
+      return IKKE_TILGANG_TEKST;
     case 404:
       return "Fant ikke saken.";
     case 503:
@@ -310,7 +363,9 @@ export default function SakPage() {
   const { lagreVurdering, isSaving, error: lagreError } = useVilkårsvurdering(sakId ?? "");
   const [tildelingError, setTildelingError] = useState<Error | null>(null);
   const forelopigVedtak = useForelopigVedtak(sakId ?? "");
-  const [fane, setFane] = useState<Fane>("vilkarsvurdering");
+  const beslutning = useBeslutning(sakId ?? "");
+  const innloggetAnsatt = useInnloggetAnsatt();
+  const [valgtFane, setValgtFane] = useState<{ sakId: string; fane: Fane } | null>(null);
   const [saksFane, setSaksFane] = useState<SaksFane>("soknad");
   const {
     refusjon,
@@ -324,30 +379,39 @@ export default function SakPage() {
   } = useSluttrapport(sakId ?? "", !!sak && !erArenaSak && saksFane === "sluttrapport");
   // Holdes her, fordi fanepanelene avmonteres når de ikke vises.
   const [skjema, setSkjema] = useState<ForelopigVedtakSkjemaTilstand | null>(null);
-  const [kvitteringForSak, setKvitteringForSak] = useState<string | null>(null);
+  const [kvittering, setKvittering] = useState<{ sakId: string; type: Kvitteringstype } | null>(
+    null
+  );
 
   const startdato = sak?.soknad.behovForBistand.startdato ?? "";
+  const returnertVedtak = sak?.oppgavetype === "SOKNAD_RETUR" ? sak.forelopigVedtak : null;
   const oppdaterSkjema: OppdaterSkjema = useCallback(
     (endring) => {
       if (!sakId) return;
       setSkjema((forrige) => {
-        const gjeldende = forrige?.sakId === sakId ? forrige : startTilstand(sakId, startdato);
+        const gjeldende =
+          forrige?.sakId === sakId ? forrige : nyttSkjema(sakId, startdato, returnertVedtak);
         const delvis = typeof endring === "function" ? endring(gjeldende) : endring;
         return { ...gjeldende, ...delvis };
       });
     },
-    [sakId, startdato]
+    [sakId, startdato, returnertVedtak]
   );
 
   if (isLoading) return <Loader size="large" title="Laster sak" />;
   if (error || !sak) {
-    const begrunnelse = error?.status === 403 ? error.begrunnelse : undefined;
+    const forklaring =
+      error?.status === 403 && error.kode !== "IKKE_TILGANG"
+        ? tilgangAvvistTekst(error, "")
+        : undefined;
+    const feilId = error?.status === 403 ? feilIdTekst(error) : null;
     return (
       <Box padding="space-24">
         <Alert variant="error">
           <VStack gap="space-8">
             <BodyShort weight="semibold">{feilmelding(error)}</BodyShort>
-            {begrunnelse && <BodyShort>{begrunnelse}</BodyShort>}
+            {forklaring && <BodyShort>{forklaring}</BodyShort>}
+            {feilId && <BodyShort size="small">{feilId}</BodyShort>}
           </VStack>
         </Alert>
       </Box>
@@ -357,29 +421,48 @@ export default function SakPage() {
   const { soknad } = sak;
   const { ansatt, behovForBistand } = soknad;
   const skjemaTilstand =
-    skjema?.sakId === sak.sakId ? skjema : startTilstand(sak.sakId, behovForBistand.startdato);
-  const visKvittering = kvitteringForSak === sak.sakId && sak.forelopigVedtak !== null;
+    skjema?.sakId === sak.sakId
+      ? skjema
+      : nyttSkjema(sak.sakId, behovForBistand.startdato, returnertVedtak);
+  const visKvittering = kvittering?.sakId === sak.sakId && sak.forelopigVedtak !== null;
+  const fane: Fane =
+    valgtFane?.sakId === sak.sakId
+      ? valgtFane.fane
+      : sak.oppgavetype === "SOKNAD_RETUR"
+        ? "forelopig-vedtak"
+        : "vilkarsvurdering";
+  const setFane = (nyFane: Fane) => setValgtFane({ sakId: sak.sakId, fane: nyFane });
+  const visesSomVedtak = !!sak.vedtak || erBeslutterPåSak(sak, innloggetAnsatt?.id);
 
   const sendTilBeslutter = async (
     input: NonNullable<ForelopigVedtakSkjemaTilstand["forhandsvisning"]>
   ) => {
     if (await forelopigVedtak.sendTilBeslutter(input)) {
-      setKvitteringForSak(sak.sakId);
+      setKvittering({ sakId: sak.sakId, type: "forelopig-vedtak" });
       setSkjema(null);
     }
   };
 
+  const godkjenn = async () => {
+    if (!sak.forelopigVedtak) return;
+    if (await beslutning.fattVedtak(sak.forelopigVedtak.versjon)) {
+      setKvittering({ sakId: sak.sakId, type: "vedtak" });
+    }
+  };
+
   return (
-    <>
+    <main>
       <Box background="soft" paddingBlock="space-8" paddingInline="space-24">
         <HStack gap="space-8" align="center" wrap>
-          <BodyShort weight="semibold" style={{ overflowWrap: "anywhere" }}>
+          <Heading level="1" size="xsmall" style={{ overflowWrap: "anywhere" }}>
             {ansatt.navn}
-          </BodyShort>
+          </Heading>
           <CopyButton copyText={ansatt.navn} size="xsmall" />
           <BodyShort>/</BodyShort>
           <BodyShort style={{ overflowWrap: "anywhere" }}>{ansatt.fnr}</BodyShort>
           <CopyButton copyText={ansatt.fnr} size="xsmall" />
+          <AdressebeskyttelseTag adressebeskyttelse={sak.adressebeskyttelse} size="small" />
+          <EgenAnsattTag skjermet={sak.skjermet} size="small" />
         </HStack>
       </Box>
 
@@ -415,11 +498,15 @@ export default function SakPage() {
       </Box>
 
       {visKvittering && sak.forelopigVedtak ? (
-        <main>
-          <ForelopigVedtakKvittering sak={sak} vedtak={sak.forelopigVedtak} />
-        </main>
+        <div>
+          {kvittering?.type === "vedtak" ? (
+            <VedtakKvittering sak={sak} vedtak={sak.forelopigVedtak} />
+          ) : (
+            <ForelopigVedtakKvittering sak={sak} vedtak={sak.forelopigVedtak} />
+          )}
+        </div>
       ) : (
-        <main>
+        <div>
           <Tabs
             value={erArenaSak ? "soknad" : saksFane}
             onChange={(value) => setSaksFane(value as SaksFane)}
@@ -444,7 +531,10 @@ export default function SakPage() {
                     <Tabs value={fane} onChange={(value) => setFane(value as Fane)}>
                       <Tabs.List>
                         <Tabs.Tab value="vilkarsvurdering" label="Vilkårsvurdering" />
-                        <Tabs.Tab value="forelopig-vedtak" label="Foreløpig vedtak" />
+                        <Tabs.Tab
+                          value="forelopig-vedtak"
+                          label={visesSomVedtak ? "Vedtak" : "Foreløpig vedtak"}
+                        />
                       </Tabs.List>
                       <Tabs.Panel value="vilkarsvurdering">
                         <VStack
@@ -485,17 +575,24 @@ export default function SakPage() {
                       </Tabs.Panel>
                       <Tabs.Panel value="forelopig-vedtak">
                         <Box padding="space-16" paddingBlock="space-24 space-32">
-                          <ForelopigVedtakFane
-                            sak={sak}
-                            vilkår={vilkår}
-                            vilkårLaster={vilkårLaster}
-                            vilkårFeilet={!!vilkårError}
-                            tilstand={skjemaTilstand}
-                            oppdater={oppdaterSkjema}
-                            sendTilBeslutter={(input) => void sendTilBeslutter(input)}
-                            isSaving={forelopigVedtak.isSaving}
-                            sendError={forelopigVedtak.error}
-                          />
+                          <VStack gap="space-24">
+                            {sak.oppgavetype === "SOKNAD_RETUR" && sak.sisteRetur && (
+                              <ReturInfoKort retur={sak.sisteRetur} />
+                            )}
+                            <ForelopigVedtakFane
+                              sak={sak}
+                              vilkår={vilkår}
+                              vilkårLaster={vilkårLaster}
+                              vilkårFeilet={!!vilkårError}
+                              tilstand={skjemaTilstand}
+                              oppdater={oppdaterSkjema}
+                              sendTilBeslutter={(input) => void sendTilBeslutter(input)}
+                              isSaving={forelopigVedtak.isSaving}
+                              sendError={forelopigVedtak.error}
+                              godkjenn={() => void godkjenn()}
+                              beslutning={beslutning}
+                            />
+                          </VStack>
                         </Box>
                       </Tabs.Panel>
                     </Tabs>
@@ -604,8 +701,8 @@ export default function SakPage() {
               </Tabs.Panel>
             )}
           </Tabs>
-        </main>
+        </div>
       )}
-    </>
+    </main>
   );
 }

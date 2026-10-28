@@ -5,11 +5,12 @@ import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 
 /**
  * Oppgaven saken venter på. Utledes av status, se `specifications/listevisning.md`.
- * Refusjon, sluttrapport og retur kommer med egne kort.
+ * Refusjon og sluttrapport kommer med egne kort.
  */
 @Serializable
 enum class Oppgavetype {
     SOKNAD,
+    SOKNAD_RETUR,
     SOKNAD_BESLUTTER,
 }
 
@@ -19,13 +20,17 @@ enum class Oppgavetype {
  */
 val Oppgavetype.rolle: Role
     get() = when (this) {
-        Oppgavetype.SOKNAD -> Role.SAKSBEHANDLER
+        Oppgavetype.SOKNAD, Oppgavetype.SOKNAD_RETUR -> Role.SAKSBEHANDLER
         Oppgavetype.SOKNAD_BESLUTTER -> Role.BESLUTTER
     }
 
-/** Null betyr at saken ikke har noen oppgave. */
-fun oppgavetype(status: Saksstatus): Oppgavetype? = when (status) {
-    Saksstatus.OPPRETTET, Saksstatus.UNDER_BEHANDLING -> Oppgavetype.SOKNAD
+/**
+ * Null betyr at saken ikke har noen oppgave. [harRetur] er om saken har en rad i `sak_retur`.
+ * En sak er bare `UNDER_BEHANDLING` med retur etter at beslutter har sendt den tilbake.
+ */
+fun oppgavetype(status: Saksstatus, harRetur: Boolean): Oppgavetype? = when (status) {
+    Saksstatus.OPPRETTET -> Oppgavetype.SOKNAD
+    Saksstatus.UNDER_BEHANDLING -> if (harRetur) Oppgavetype.SOKNAD_RETUR else Oppgavetype.SOKNAD
     Saksstatus.TIL_BESLUTNING -> Oppgavetype.SOKNAD_BESLUTTER
     Saksstatus.INNVILGET, Saksstatus.AVSLATT, Saksstatus.AVSLUTTET -> null
 }
