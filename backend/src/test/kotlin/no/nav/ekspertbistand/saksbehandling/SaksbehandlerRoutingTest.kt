@@ -38,6 +38,10 @@ import kotlin.time.Instant
 @OptIn(ExperimentalTime::class)
 class SaksbehandlerRoutingTest {
 
+    private companion object {
+        const val ENHET = "1234"
+    }
+
     private val ansattJson = """
         {
             "navIdent": "A123456",
@@ -369,19 +373,19 @@ class SaksbehandlerRoutingTest {
 
     @Test
     fun `20 - markert sak gir underBehandlingIArena true`() = testApplicationWithDatabase { db ->
-        val soknadId = UUID.randomUUID()
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase, behandlendeEnhet = ENHET)
         transaction(db.config.jdbcDatabase) {
             markerArenaSakUnderBehandling(
                 sakId = 13769058,
                 saksnummer = "2026202",
-                soknadId = soknadId,
+                soknadId = sak.soknadId,
                 brukeridAnsvarlig = "K123456",
                 aetatenhetAnsvarlig = "1899",
                 sakstatuskode = "AKTIV",
             )
         }
 
-        val response = arenaBehandlingRequest(db, soknadId.toString())
+        val response = arenaBehandlingRequest(db, sak.soknadId.toString())
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.body<ArenaBehandlingStatus>()
@@ -393,7 +397,9 @@ class SaksbehandlerRoutingTest {
 
     @Test
     fun `21 - umarkert sak gir underBehandlingIArena false`() = testApplicationWithDatabase { db ->
-        val response = arenaBehandlingRequest(db, UUID.randomUUID().toString())
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase, behandlendeEnhet = ENHET)
+
+        val response = arenaBehandlingRequest(db, sak.soknadId.toString())
 
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.body<ArenaBehandlingStatus>()
@@ -415,11 +421,62 @@ class SaksbehandlerRoutingTest {
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 
+    @Test
+    fun `arena-behandling for soknad uten sak gir 404`() = testApplicationWithDatabase { db ->
+        val response = arenaBehandlingRequest(db, UUID.randomUUID().toString())
+
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
+    fun `arena-behandling uten rolle gir 403`() = testApplicationWithDatabase { db ->
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase, behandlendeEnhet = ENHET)
+
+        val response = arenaBehandlingRequest(db, sak.soknadId.toString(), grupper = "[]")
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
+
+    @Test
+    fun `arena-behandling for sak paa annen enhet gir 403 uten tilgangsmaskin`() = testApplicationWithDatabase { db ->
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase, behandlendeEnhet = "9999")
+        var tilgangsmaskinKalt = false
+
+        val response = arenaBehandlingRequest(db, sak.soknadId.toString()) {
+            tilgangsmaskinKalt = true
+            respond("", HttpStatusCode.NoContent)
+        }
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals(IKKE_TILGANG_ENHET, response.body<TilgangAvvistResponse>().kode)
+        assertFalse(tilgangsmaskinKalt)
+    }
+
+    @Test
+    fun `arena-behandling gir 403 når tilgangsmaskin avviser`() = testApplicationWithDatabase { db ->
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase, behandlendeEnhet = ENHET)
+        transaction(db.config.jdbcDatabase) {
+            markerArenaSakUnderBehandling(
+                sakId = 13769058,
+                saksnummer = "2026202",
+                soknadId = sak.soknadId,
+                brukeridAnsvarlig = "K123456",
+                aetatenhetAnsvarlig = "1899",
+                sakstatuskode = "AKTIV",
+            )
+        }
+
+        val response = arenaBehandlingRequest(db, sak.soknadId.toString(), tilgangsmaskin = avvisSkjermet)
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertFalse(response.bodyAsText().contains("K123456"))
+    }
+
     @OptIn(ExperimentalTime::class)
     @Test
     fun `sakslogg returneres nyeste forst med navn fra entra`() = testApplicationWithDatabase { db ->
         val database = db.config.jdbcDatabase
-        val sak = lagreSoknadOgSak(database)
+        val sak = lagreSoknadOgSak(database, behandlendeEnhet = ENHET)
         lagreSaksloggInnslag(
             database, sak.sakId, AktorRolle.SYSTEM, null,
             "Søknad mottatt fra arbeidsgiver", Instant.parse("2026-03-30T10:00:00Z"),
@@ -454,7 +511,7 @@ class SaksbehandlerRoutingTest {
 
     @Test
     fun `sakslogg for sak uten innslag gir tom liste`() = testApplicationWithDatabase { db ->
-        val sak = lagreSoknadOgSak(db.config.jdbcDatabase)
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase, behandlendeEnhet = ENHET)
 
         val response = saksloggRequest(db, sak.sakId.toString())
 
@@ -464,7 +521,7 @@ class SaksbehandlerRoutingTest {
 
     @Test
     fun `sakslogg sjekker tilgang med saksbehandlers token og ansattes fnr`() = testApplicationWithDatabase { db ->
-        val sak = lagreSoknadOgSak(db.config.jdbcDatabase)
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase, behandlendeEnhet = ENHET)
         var tilgangsrequest: HttpRequestData? = null
 
         val response = saksloggRequest(db, sak.sakId.toString()) { request ->
@@ -482,33 +539,66 @@ class SaksbehandlerRoutingTest {
     @Test
     fun `sakslogg gir 403 når tilgangsmaskin avviser`() = testApplicationWithDatabase { db ->
         val database = db.config.jdbcDatabase
-        val sak = lagreSoknadOgSak(database)
+        val sak = lagreSoknadOgSak(database, behandlendeEnhet = ENHET)
         lagreSaksloggInnslag(
             database, sak.sakId, AktorRolle.SYSTEM, null,
             "Søknad mottatt fra arbeidsgiver", Instant.parse("2026-03-30T10:00:00Z"),
         )
 
-        val response = saksloggRequest(db, sak.sakId.toString()) {
-            respond(
-                content = """{"title":"AVVIST_STRENGT_FORTROLIG_ADRESSE","status":403,"kanOverstyres":false}""",
-                status = HttpStatusCode.Forbidden,
-                headers = headersOf(HttpHeaders.ContentType, "application/problem+json"),
-            )
-        }
+        val response = saksloggRequest(db, sak.sakId.toString(), tilgangsmaskin = avvisSkjermet)
 
         assertEquals(HttpStatusCode.Forbidden, response.status)
         assertFalse(response.bodyAsText().contains("Søknad mottatt"))
     }
 
     @Test
-    fun `sakslogg gir 500 når tilgangsmaskin feiler`() = testApplicationWithDatabase { db ->
-        val sak = lagreSoknadOgSak(db.config.jdbcDatabase)
+    fun `sakslogg gir 503 når tilgangsmaskin feiler`() = testApplicationWithDatabase { db ->
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase, behandlendeEnhet = ENHET)
 
         val response = saksloggRequest(db, sak.sakId.toString()) {
             respond("", HttpStatusCode.InternalServerError)
         }
 
-        assertEquals(HttpStatusCode.InternalServerError, response.status)
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+    }
+
+    @Test
+    fun `sakslogg uten rolle gir 403`() = testApplicationWithDatabase { db ->
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase, behandlendeEnhet = ENHET)
+
+        val response = saksloggRequest(db, sak.sakId.toString(), grupper = "[]")
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
+
+    @OptIn(ExperimentalTime::class)
+    @Test
+    fun `sakslogg for sak paa annen enhet gir 403 uten tilgangsmaskin`() = testApplicationWithDatabase { db ->
+        val database = db.config.jdbcDatabase
+        val sak = lagreSoknadOgSak(database, behandlendeEnhet = "9999")
+        lagreSaksloggInnslag(
+            database, sak.sakId, AktorRolle.SYSTEM, null,
+            "Søknad mottatt fra arbeidsgiver", Instant.parse("2026-03-30T10:00:00Z"),
+        )
+        var tilgangsmaskinKalt = false
+
+        val response = saksloggRequest(db, sak.sakId.toString()) {
+            tilgangsmaskinKalt = true
+            respond("", HttpStatusCode.NoContent)
+        }
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals(IKKE_TILGANG_ENHET, response.body<TilgangAvvistResponse>().kode)
+        assertFalse(tilgangsmaskinKalt)
+    }
+
+    @Test
+    fun `sakslogg for sak uten behandlende enhet gir 403`() = testApplicationWithDatabase { db ->
+        val sak = lagreSoknadOgSak(db.config.jdbcDatabase)
+
+        val response = saksloggRequest(db, sak.sakId.toString())
+
+        assertEquals(HttpStatusCode.Forbidden, response.status)
     }
 
     @Test
@@ -541,6 +631,14 @@ class SaksbehandlerRoutingTest {
     private val fakeTokenExchanger = object : AzureAdTokenExchanger {
         override suspend fun exchange(target: String, userToken: String): TokenResponse =
             TokenResponse.Success(accessToken = "fake-token", expiresInSeconds = 3600)
+    }
+
+    private val avvisSkjermet: MockRequestHandler = {
+        respond(
+            content = """{"title":"$AVVIST_SKJERMING","status":403,"kanOverstyres":false}""",
+            status = HttpStatusCode.Forbidden,
+            headers = headersOf(HttpHeaders.ContentType, "application/problem+json"),
+        )
     }
 
     private fun tilgangsmaskinClient(
@@ -594,11 +692,13 @@ class SaksbehandlerRoutingTest {
         sakId: String,
         token: String? = "valid-azure-token",
         ansattProvider: (String) -> String = { ansattJson },
+        grupper: String = grupperJson,
         tilgangsmaskin: MockRequestHandler = { respond("", HttpStatusCode.NoContent) },
     ): HttpResponse {
         mockEntraProxyFull(
             ansattProvider = ansattProvider,
             enheterProvider = { enheterJson },
+            grupperProvider = { grupper },
         )
 
         val client = createClient {
@@ -637,10 +737,13 @@ class SaksbehandlerRoutingTest {
         db: TestDatabase,
         soknadId: String,
         token: String? = "valid-azure-token",
+        grupper: String = grupperJson,
+        tilgangsmaskin: MockRequestHandler = { respond("", HttpStatusCode.NoContent) },
     ): HttpResponse {
         mockEntraProxyFull(
             ansattProvider = { ansattJson },
             enheterProvider = { enheterJson },
+            grupperProvider = { grupper },
         )
 
         val client = createClient {
@@ -654,7 +757,7 @@ class SaksbehandlerRoutingTest {
                 provide<Database> { db.config.jdbcDatabase }
                 provide(EntraProxyClient::class)
                 provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
-                provide<TilgangsmaskinClient> { tilgangsmaskinClient() }
+                provide<TilgangsmaskinClient> { tilgangsmaskinClient(tilgangsmaskin) }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
                         if (it == "valid-azure-token") {
