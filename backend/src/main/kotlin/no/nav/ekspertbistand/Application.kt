@@ -159,25 +159,20 @@ fun main() {
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()
         configureEregApiV1()
-        configureSaksbehandlerApiV1()
         // Saksrutene for saksbehandling er ikke åpnet i prod ennå.
         basedOnEnvSuspending(
             prod = {},
             other = {
+                configureSaksbehandlerApiV1()
                 configureSaksbehandlingSakApiV1()
                 configureSakDokumentApiV1()
                 configureVilkarsvurderingApiV1()
                 configureForelopigVedtakApiV1()
                 configureBeslutterApiV1()
                 configureKommunefilterApiV1()
+                configureKontoregisterApiV1()
             },
         )
-        basedOnEnvSuspending(
-            dev = { configureKontoregisterApiV1() },
-            other = {}
-
-        )
-
         // event manager and event handlers
         configureEventHandlers()
 
