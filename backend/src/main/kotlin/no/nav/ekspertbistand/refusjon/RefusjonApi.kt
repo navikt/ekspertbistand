@@ -1,12 +1,8 @@
 package no.nav.ekspertbistand.refusjon
 
 import io.ktor.http.*
-import io.ktor.http.content.*
-import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.utils.io.readRemaining
-import kotlinx.io.readByteArray
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
@@ -18,7 +14,10 @@ import no.nav.ekspertbistand.saksbehandling.SoknadIkkeGodkjentException
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.subjectToken
+import no.nav.ekspertbistand.vedlegg.Opplasting
 import no.nav.ekspertbistand.vedlegg.erGyldigPdf
+import no.nav.ekspertbistand.vedlegg.forStorFilMelding
+import no.nav.ekspertbistand.vedlegg.lesOpplasting
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
@@ -59,31 +58,20 @@ class RefusjonApi(
             return
         }
 
-        val multipart = call.receiveMultipart()
-        var utgifter: String? = null
-        var belopRaw: String? = null
-        data class UploadedFile(val filnavn: String, val innhold: ByteArray)
-        val filer = mutableListOf<UploadedFile>()
-
-        multipart.forEachPart { part ->
-            when (part) {
-                is PartData.FormItem -> when (part.name) {
-                    "utgifter" -> utgifter = part.value
-                    "belop" -> belopRaw = part.value
-                }
-
-                is PartData.FileItem -> {
-                    val filnavn = part.originalFileName?.ifBlank { null } ?: "vedlegg.pdf"
-                    val bytes = part.provider().readRemaining().readByteArray()
-                    filer.add(UploadedFile(filnavn, bytes))
-                }
-
-                else -> {}
+        val opplasting = call.lesOpplasting(MAKS_ANTALL_FILER, MAKS_FIL_STORRELSE_BYTES, setOf("utgifter", "belop"))
+        val (filer, felter) = when (opplasting) {
+            is Opplasting.Ok -> opplasting.filer to opplasting.felter
+            is Opplasting.ForMangeFiler -> {
+                call.respond(HttpStatusCode.BadRequest, "Maks $MAKS_ANTALL_FILER filer tillatt")
+                return
             }
-            part.dispose()
+            is Opplasting.ForStorFil -> {
+                call.respond(HttpStatusCode.PayloadTooLarge, forStorFilMelding(opplasting.filnavn))
+                return
+            }
         }
 
-        val utgifterVerdi = utgifter?.trim()
+        val utgifterVerdi = felter["utgifter"]?.trim()
         if (utgifterVerdi.isNullOrEmpty()) {
             call.respond(HttpStatusCode.BadRequest, "Du må beskrive utgiftene")
             return
@@ -94,7 +82,7 @@ class RefusjonApi(
         }
 
         val belopOre = try {
-            belopKronerTilOre(belopRaw ?: "")
+            belopKronerTilOre(felter["belop"] ?: "")
         } catch (e: UgyldigBelopException) {
             call.respond(HttpStatusCode.BadRequest, e.message ?: "Ugyldig beløp")
             return
@@ -104,16 +92,8 @@ class RefusjonApi(
             call.respond(HttpStatusCode.BadRequest, "Minst én fil må lastes opp")
             return
         }
-        if (filer.size > MAKS_ANTALL_FILER) {
-            call.respond(HttpStatusCode.BadRequest, "Maks $MAKS_ANTALL_FILER filer tillatt")
-            return
-        }
 
         for ((filnavn, bytes) in filer) {
-            if (bytes.size > MAKS_FIL_STORRELSE_BYTES) {
-                call.respond(HttpStatusCode.BadRequest, "Filen '$filnavn' overskrider maks 10 MB")
-                return
-            }
             if (!erGyldigPdf(bytes)) {
                 call.respond(HttpStatusCode.BadRequest, "Filen '$filnavn' er ikke en gyldig PDF")
                 return

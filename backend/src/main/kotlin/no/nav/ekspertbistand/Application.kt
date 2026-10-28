@@ -78,8 +78,10 @@ import no.nav.ekspertbistand.statistikk.AdressebeskyttedeBehandlinger
 import no.nav.ekspertbistand.statistikk.configureAdressebeskyttelseskontroll
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
+import no.nav.ekspertbistand.vedlegg.erForStorMultipartDel
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
+import java.io.IOException
 import java.util.*
 import kotlin.time.ExperimentalTime
 
@@ -239,6 +241,11 @@ fun Application.configureServer() {
                 is ClosedWriteChannelException -> {
                     log.warn("Client closed connection before response was sent", cause)
                     // no response, channel already closed
+                }
+
+                is IOException if cause.erForStorMultipartDel() -> {
+                    log.warn("Avviste multipart-opplasting med for stor del")
+                    call.respond(HttpStatusCode.PayloadTooLarge, "Filen overskrider maks 10 MB")
                 }
 
                 is UgyldigInputException -> {
