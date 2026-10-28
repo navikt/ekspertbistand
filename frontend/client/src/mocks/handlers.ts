@@ -600,7 +600,7 @@ export const handlers = [
       if (fil.size > MOCK_MAKS_VEDLEGG_STORRELSE_BYTES) {
         return HttpResponse.json(
           { message: `Filen '${fil.name}' overskrider maks 10 MB` },
-          { status: 400 }
+          { status: 413 }
         );
       }
     }
@@ -662,7 +662,7 @@ export const handlers = [
       if (fil.size > MOCK_MAKS_VEDLEGG_STORRELSE_BYTES) {
         return HttpResponse.json(
           { message: `Filen '${fil.name}' overskrider maks 10 MB` },
-          { status: 400 }
+          { status: 413 }
         );
       }
     }

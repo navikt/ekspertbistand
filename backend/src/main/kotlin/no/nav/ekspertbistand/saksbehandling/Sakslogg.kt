@@ -6,12 +6,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.entraproxy.visningsnavn
-import no.nav.ekspertbistand.soknad.SoknadTable
-import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.slf4j.LoggerFactory
@@ -44,16 +41,6 @@ data class SaksloggRad(
     val ident: String?,
     val notat: String?,
 )
-
-/** Fødselsnummeret til den ansatte saken gjelder, eller null hvis saken ikke finnes. */
-fun Database.hentAnsattFnrForSak(sakId: UUID): String? = transaction(this) {
-    SakTable
-        .join(SoknadTable, JoinType.INNER, SakTable.soknadId, SoknadTable.id)
-        .select(SoknadTable.ansattFnr)
-        .where { SakTable.sakId eq sakId }
-        .singleOrNull()
-        ?.get(SoknadTable.ansattFnr)
-}
 
 /** Saksloggen for en sak, nyeste først. */
 @OptIn(ExperimentalTime::class)

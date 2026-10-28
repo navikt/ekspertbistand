@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG BUILDER_IMAGE=node:20
+ARG BUILDER_IMAGE=node:24
 ARG RUNNER_IMAGE=cgr.dev/chainguard/node:latest
 FROM ${BUILDER_IMAGE} AS builder
 

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22 AS builder
+FROM node:24 AS builder
 
 ENV NODE_ENV=production
 WORKDIR /workspace
@@ -25,7 +25,7 @@ RUN pnpm --filter ./frontend/saksbehandling-server build
 RUN pnpm --filter ./frontend/saksbehandling-server deploy --prod --legacy /deploy/server
 
 
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 
 ENV NODE_ENV=production
 ENV STATIC_DIR=/app/client/dist

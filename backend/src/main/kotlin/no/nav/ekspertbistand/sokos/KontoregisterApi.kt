@@ -7,15 +7,18 @@ import io.ktor.server.plugins.di.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
+import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.TOKENX_PROVIDER
 import no.nav.ekspertbistand.saksbehandling.Role
+import no.nav.ekspertbistand.soknad.subjectToken
 
 private val orgnrRegex = Regex("^\\d{9}$")
 
 suspend fun Application.configureKontoregisterApiV1() {
     val kontoregisterClient = dependencies.resolve<KontoregisterClient>()
+    val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
 
     routing {
         authenticate(AZURE_AD_PROVIDER) {
@@ -50,6 +53,12 @@ suspend fun Application.configureKontoregisterApiV1() {
                 val orgnr = call.parameters["orgnr"]
                 if (orgnr == null || !orgnrRegex.matches(orgnr)) {
                     call.respond(HttpStatusCode.BadRequest, "ugyldig orgnr")
+                    return@get
+                }
+
+                val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
+                if (!tilganger.harTilgang(orgnr)) {
+                    call.respond(HttpStatusCode.Forbidden, "bruker har ikke tilgang til organisasjon")
                     return@get
                 }
 
