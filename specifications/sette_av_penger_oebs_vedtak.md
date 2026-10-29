@@ -199,8 +199,8 @@ Disse er ikke avklart i kortene. De er valgt her og kan endres ved review:
   publiserer bare `SakOppdatert`. Tilsagnsbrevet kan lytte på `VedtakFattet` og
   vente på raden i `sak_bestilling` på samme måte. En egen `TilsagnBestilt` lages
   når en konsument trenger den.
-- **Bestillingen bare utenfor prod.** `BestillTilsagnIOebs` registreres i
-  `other`-blokken sammen med `OpprettSak`. Saker med kilde `EKSPERTBISTAND`
+- **Bestillingen bare utenfor prod.** `BestillTilsagnIOebs` registreres bare
+  utenfor prod, som `OpprettSak`. Saker med kilde `EKSPERTBISTAND`
   finnes ikke i prod ennå, og polleren er ikke koblet inn.
 - **Ingen endring i prod.** `OpprettSak` kjører bare utenfor prod, og
   Arena-saker får ikke saksnummer. Migreringene kjører i prod, men
@@ -451,8 +451,11 @@ nytt løpenummer.
 | `besluttetTidspunkt` | `vedtak.fattet_tidspunkt` |
 | `valuta` | `NOK` |
 
-Registreres i `configureEventHandlers`, i `other`-blokken i
-`basedOnEnvSuspending`.
+Registreres i `configureEventHandlers`, i en egen `basedOnEnvSuspending` med
+bare `other`, rett etter `FattVedtak`. Handlerne kjører i registreringsrekkefølge,
+så vedtaket er lagret før bestillingen i samme runde. Står den før `FattVedtak`,
+får den `transientError` og prøves først igjen etter `abandonedTimeout` (ett
+minutt).
 
 ### 4. OeBS-mock i `LocalApplication` og `MockApplication`
 
