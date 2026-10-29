@@ -66,8 +66,8 @@ sequenceDiagram
     participant T as Kafka-topic
     participant V as Team VALP
 
-    K->>C: transaction { opprettBestilling(sakId) { nr -> ... } }
-    C->>N: nesteBestillingsnummer(sakId)
+    K->>C: transaction { opprettBestilling(saksnummer) { nr -> ... } }
+    C->>N: nesteBestillingsnummer(saksnummer)
     N-->>C: E<sak><løpenr>
     C->>O: leggIOutbox(Bestilling) — samme txn som kaller
     Note over O: rad {status: PENDING}
@@ -169,7 +169,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 | Tabell | Rolle |
 |--------|-------|
 | `oebs_outbox` | Utgående meldinger, drenert til Kafka av polleren (arbeidsdata) |
-| `oebs_lopenummer` | Neste ledige løpenummer per sak (én rad per sak) |
+| `oebs_lopenummer` | Neste ledige løpenummer per saksnummer (én rad per sak, nøkkel `saksnummer`) |
 | `oebs_bestilling_status` | Siste status per bestilling, med flagg for manuell oppfølging (arbeidsdata) |
 | `oebs_sendt_melding` | 📚 Revisjonsspor: hver melding vi publiserte, med Kafka-koordinater (append-only) |
 | `oebs_mottatt_status` | 📚 Revisjonsspor: hvert svar vi mottok, rått og komplett (append-only) |

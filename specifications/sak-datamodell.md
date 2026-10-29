@@ -51,6 +51,7 @@ journalført (`InnsendtSoknadJournalfoert`), sammen med alle vilkår.
 | `beslutter_navn` | TEXT | NULL | Navnet til beslutteren fra entra-proxy da hen tildelte seg saken (V23). Satt når og bare når `beslutter_ident` er satt (CHECK `chk_beslutter_navn_med_ident`). |
 | `foreslatt_utfall` | TEXT | NULL | Saksbehandlers foreløpige vedtak sendt til beslutning (`INNVILGET`/`AVSLATT`). Se `Saksstatus`. Null før innsending. Detaljene ligger i `forelopig_vedtak`. |
 | `arena_sak_id` | TEXT | NULL | Saksnummer i Arena når saken er speilet dit. Null hvis ikke i Arena. |
+| `saksnummer` | TEXT | UNIQUE, NULL | Saksnummeret `ÅÅÅÅ/løpenummer` (V29), fra `neste_saksnummer()`. Brukes i bestillingsnummeret mot OeBS (`E-<saksnummer>-<n>`). Påkrevd når `kilde_til_behandling = EKSPERTBISTAND` (CHECK `sak_saksnummer_ekspertbistand`), null for Arena-saker. Endres aldri. |
 | `refusjon_id` | UUID | UNIQUE, FK → `refusjonskrav(id)` | Refusjonskravet for saken (1:1). Null til krav mottas. |
 | `sluttrapport_id` | UUID | UNIQUE, FK → `sluttrapport(sluttrapport_id)` | Sluttrapporten for saken (1:1). Null til rapport mottas. |
 | `tildeling_event_id` | BIGINT | NULL | Id-en til eventen som sist tildelte eller frigjorde saken. En eldre event skriver aldri over en nyere. Null før første tildeling. |

@@ -18,6 +18,7 @@ import no.nav.ekspertbistand.mocks.mockAltinnTilganger
 import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
+import no.nav.ekspertbistand.saksbehandling.nesteSaksnummer
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.datetime.CurrentDate
@@ -230,5 +231,6 @@ private fun insertDummySoknad(
         it[SakTable.soknadId] = soknadId
         it[status] = Saksstatus.OPPRETTET.name
         it[kildeTilBehandling] = KildeTilBehandling.EKSPERTBISTAND.name
+        it[saksnummer] = nesteSaksnummer()
     }.single()[SakTable.sakId]
 }

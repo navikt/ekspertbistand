@@ -403,6 +403,7 @@ class BeslutterApiTest {
             it[soknadId] = lagreSoknad(db)
             it[this.status] = status.name
             it[kildeTilBehandling] = kilde.name
+            it[saksnummer] = nesteSaksnummer()
             it[this.behandlendeEnhet] = behandlendeEnhet
             it[saksbehandlerIdent] = saksbehandler
             it[saksbehandlerNavn] = "Navn $saksbehandler"

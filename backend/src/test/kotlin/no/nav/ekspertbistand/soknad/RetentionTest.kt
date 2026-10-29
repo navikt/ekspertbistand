@@ -42,7 +42,7 @@ class RetentionTest {
         val tilsagnnummer = "2025:1:1"
         transaction(db) {
             settInnSoknad(soknadId)
-            settInnSakMedVedtak(soknadId, arenaSakId = "2025/1")
+            settInnSakMedVedtak(soknadId, saksnummer = "2025/1000001")
             settInnEvent(1, soknadId.toString(), ellevaarSiden)
             settInnEvent(2, soknadId.toString(), ellevaarSiden)
             settProjeksjonsposisjon(10)
@@ -50,8 +50,8 @@ class RetentionTest {
             sql("INSERT INTO tilskuddsbrev_vist_state (tilsagn_nummer, tilskuddsbrev_opprettet_at) VALUES (?, now())", tilsagnnummer)
             sql("INSERT INTO soknad_behandlet_forsinkelse_state (soknad_id, innsendt_at) VALUES (?, now())", soknadId)
             sql("INSERT INTO fagsak_id_mapping (soknad_id) VALUES (?)", soknadId)
-            sql("INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json, status) VALUES ('E-2025/1-1', 'BESTILLING', '{}', 'PUBLISHED')")
-            sql("INSERT INTO oebs_lopenummer (sak_id) VALUES ('2025/1')")
+            sql("INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json, status) VALUES ('E-2025/1000001-1', 'BESTILLING', '{}', 'PUBLISHED')")
+            sql("INSERT INTO oebs_lopenummer (saksnummer) VALUES ('2025/1000001')")
             sql("INSERT INTO event_handler_states (id, handler_id, result) VALUES (1, 'h', '{}')")
             sql("INSERT INTO idempotency_guard_records (event_id, sub_task, event_name, status) VALUES (1, 's', 'e', 'COMPLETED')")
         }
@@ -133,10 +133,10 @@ class RetentionTest {
         val soknadId = UUID.randomUUID()
         transaction(db) {
             settInnSoknad(soknadId)
-            settInnSakMedVedtak(soknadId, arenaSakId = "2025/9")
+            settInnSakMedVedtak(soknadId, saksnummer = "2025/1000009")
             settInnEvent(1, soknadId.toString(), ellevaarSiden)
             settProjeksjonsposisjon(10)
-            sql("INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json) VALUES ('E-2025/9-1', 'BESTILLING', '{}')")
+            sql("INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json) VALUES ('E-2025/1000009-1', 'BESTILLING', '{}')")
         }
 
         assertEquals(0, AggregateRetention(db).slettGamleAggregater(clock))
@@ -191,8 +191,12 @@ class RetentionTest {
         id, arbeidsgiverTilgangTil,
     )
 
-    private fun JdbcTransaction.settInnSakMedVedtak(soknadId: UUID, arenaSakId: String) {
-        sql("INSERT INTO sak (soknad_id, arena_sak_id) VALUES (?::uuid, ?)", soknadId, arenaSakId)
+    private fun JdbcTransaction.settInnSakMedVedtak(soknadId: UUID, saksnummer: String) {
+        sql(
+            "INSERT INTO sak (soknad_id, kilde_til_behandling, saksnummer) VALUES (?::uuid, 'EKSPERTBISTAND', ?)",
+            soknadId,
+            saksnummer,
+        )
         sql(
             """
             INSERT INTO forelopig_vedtak (sak_id, versjon, event_id, utfall, begrunnelse_deltaker,

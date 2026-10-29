@@ -22,12 +22,12 @@ class NummerserieTest {
     @Test
     fun `deler ut sekvensielle nummer per sak`() = testApplicationWithDatabase { db ->
         val database = db.config.jdbcDatabase
-        val sakA = "2026/10000"
-        val sakB = "2026/20000"
+        val saksnummerA = "2026/10000"
+        val saksnummerB = "2026/20000"
 
-        val nrA1 = transaction(database) { nesteBestillingsnummer(sakA) }
-        val nrA2 = transaction(database) { nesteBestillingsnummer(sakA) }
-        val nrB1 = transaction(database) { nesteBestillingsnummer(sakB) }
+        val nrA1 = transaction(database) { nesteBestillingsnummer(saksnummerA) }
+        val nrA2 = transaction(database) { nesteBestillingsnummer(saksnummerA) }
+        val nrB1 = transaction(database) { nesteBestillingsnummer(saksnummerB) }
 
         assertEquals("E-2026/10000-1", nrA1)
         assertEquals("E-2026/10000-2", nrA2)
@@ -38,29 +38,29 @@ class NummerserieTest {
     @Test
     fun `to samtidige kall deler aldri ut samme nummer`() = testApplicationWithDatabase { db ->
         val database = db.config.jdbcDatabase
-        val sak = "2026/33333"
+        val saksnummer = "2026/33333"
         val antall = 20
 
         // Kjør mange nummer-uttak samtidig, hvert i sin egen transaksjon. Radlåsen (FOR UPDATE)
         // skal serialisere dem slik at vi får nøyaktig 1..antall uten dubletter eller hull.
         val numre = runBlocking(Dispatchers.IO) {
             (1..antall).map {
-                async { transaction(database) { nesteBestillingsnummer(sak) } }
+                async { transaction(database) { nesteBestillingsnummer(saksnummer) } }
             }.awaitAll()
         }
 
         assertEquals(antall, numre.toSet().size, "alle nummer skal være unike")
-        assertEquals((1..antall).map { "E-$sak-$it" }.toSet(), numre.toSet())
+        assertEquals((1..antall).map { "E-$saksnummer-$it" }.toSet(), numre.toSet())
     }
 
     @Test
     fun `for langt bestillingsnummer avvises og ruller tilbake`() = testApplicationWithDatabase { db ->
         val database = db.config.jdbcDatabase
         // "E-" + sak + "-1" > 20 tegn: saksnummer på 21 tegn gir 25 tegn totalt.
-        val forLangSak = "2026/1234567890123456"
+        val forLangtSaksnummer = "2026/1234567890123456"
 
         assertThrows<IllegalArgumentException> {
-            transaction(database) { nesteBestillingsnummer(forLangSak) }
+            transaction(database) { nesteBestillingsnummer(forLangtSaksnummer) }
         }
 
         // Lengdesjekken kaster inne i transaksjonen, så inkrementeringen rulles tilbake:

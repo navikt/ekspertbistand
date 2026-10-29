@@ -42,11 +42,11 @@ import no.nav.ekspertbistand.oebs.integration.GjorOppBestilling as GjorOppBestil
 class OebsKlient {
 
     /**
-     * Genererer et unikt bestillingsnummer for [sakId], lar [bygg] fylle resten av bestillingen med
+     * Genererer et unikt bestillingsnummer for [saksnummer] (`sak.saksnummer`), lar [bygg] fylle resten av bestillingen med
      * nummeret, legger meldingen i outbox-en og returnerer bestillingsnummeret.
      */
-    fun JdbcTransaction.opprettBestilling(sakId: String, bygg: (bestillingsnummer: String) -> OpprettBestilling): String {
-        val bestillingsnummer = nesteBestillingsnummer(sakId)
+    fun JdbcTransaction.opprettBestilling(saksnummer: String, bygg: (bestillingsnummer: String) -> OpprettBestilling): String {
+        val bestillingsnummer = nesteBestillingsnummer(saksnummer)
         leggIOutbox(OebsBestillingMelding.Bestilling(bygg(bestillingsnummer)))
         return bestillingsnummer
     }
