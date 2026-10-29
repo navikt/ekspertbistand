@@ -84,7 +84,7 @@ sequenceDiagram
 
 `BestillTilsagnIOebs` lytter på `VedtakFattet` og bestiller tilsagnet når vedtaket er innvilget. Den
 kaller `opprettBestilling(sak.saksnummer)` og lagrer bestillingen i `sak_bestilling` i samme
-transaksjon som outbox-raden. Handleren er bare registrert utenfor prod. Se
+transaksjon som outbox-raden. Se
 [`specifications/sette_av_penger_oebs_vedtak.md`](../../../../../../../../specifications/sette_av_penger_oebs_vedtak.md).
 
 Lokalt og i mock-backenden svarer `LokalOebs` (i `src/test/.../mocks`) i stedet for VALP og OeBS:

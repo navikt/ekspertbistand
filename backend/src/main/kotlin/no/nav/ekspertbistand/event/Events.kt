@@ -504,7 +504,7 @@ sealed interface EventData {
      *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.FattVedtak],
      * [no.nav.ekspertbistand.event.handlers.SettSoknadStatusVedtakFattet] og
-     * [no.nav.ekspertbistand.event.handlers.BestillTilsagnIOebs] (ikke i prod).
+     * [no.nav.ekspertbistand.event.handlers.BestillTilsagnIOebs].
      */
     @OptIn(ExperimentalTime::class)
     @Serializable
@@ -595,10 +595,7 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(OppdaterVilkarsvurdering::class))
         register(dependencies.create(LagreForelopigVedtak::class))
         register(dependencies.create(FattVedtak::class))
-        basedOnEnvSuspending(
-            prod = {},
-            other = { register(dependencies.create(BestillTilsagnIOebs::class)) }
-        )
+        register(dependencies.create(BestillTilsagnIOebs::class))
         register(dependencies.create(SettSoknadStatusVedtakFattet::class))
         register(dependencies.create(ReturnerForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->

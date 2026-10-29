@@ -199,9 +199,10 @@ Disse er ikke avklart i kortene. De er valgt her og kan endres ved review:
   publiserer bare `SakOppdatert`. Tilsagnsbrevet kan lytte på `VedtakFattet` og
   vente på raden i `sak_bestilling` på samme måte. En egen `TilsagnBestilt` lages
   når en konsument trenger den.
-- **Bestillingen bare utenfor prod.** `BestillTilsagnIOebs` registreres bare
-  utenfor prod, som `OpprettSak`. Saker med kilde `EKSPERTBISTAND`
-  finnes ikke i prod ennå, og polleren er ikke koblet inn.
+- **Bestillingen registreres i alle miljøer.** `VedtakFattet` kommer bare fra
+  `BeslutterApi`, som krever kilde `EKSPERTBISTAND`. Slike saker opprettes bare
+  av `OpprettSak`, som ikke kjører i prod. Når `OpprettSak` slås på i prod,
+  bestiller handleren uten flere endringer. Outbox-polleren er ikke koblet inn.
 - **Ingen endring i prod.** `OpprettSak` kjører bare utenfor prod, og
   Arena-saker får ikke saksnummer. Migreringene kjører i prod, men
   `sak_bestilling` forblir tom.
@@ -451,8 +452,7 @@ nytt løpenummer.
 | `besluttetTidspunkt` | `vedtak.fattet_tidspunkt` |
 | `valuta` | `NOK` |
 
-Registreres i `configureEventHandlers`, i en egen `basedOnEnvSuspending` med
-bare `other`, rett etter `FattVedtak`. Handlerne kjører i registreringsrekkefølge,
+Registreres i `configureEventHandlers` rett etter `FattVedtak`, i alle miljøer. Handlerne kjører i registreringsrekkefølge,
 så vedtaket er lagret før bestillingen i samme runde. Står den før `FattVedtak`,
 får den `transientError` og prøves først igjen etter `abandonedTimeout` (ett
 minutt).
@@ -615,7 +615,7 @@ ikke kommer noen ny event.
   med `sak_id` i `oebs_lopenummer`, feiler på den omdøpte kolonnen.
   Transaksjonen ruller tilbake, og neste kjøring på ny pod sletter søknaden.
 - **Prod.** Ingen endring i oppførsel. Migreringene kjører, men Arena-saker får
-  ikke saksnummer, og `BestillTilsagnIOebs` er ikke registrert.
+  ikke saksnummer, og `VedtakFattet` oppstår ikke.
 - **Personopplysninger.** Bestillingen har orgnr og Nav-identer, ikke fnr.
   Identene logges bare i teamLog. Saksnummeret og bestillingsnummeret er ikke
   personopplysninger og kan stå i saksloggen.
@@ -647,7 +647,7 @@ Kort 650:
 - [ ] Handleren venter (`transientError`) til `FattVedtak` har lagret vedtaket
 - [ ] Bestillingen har feltene i tabellen i *3*, med eksklusiv sluttdato
 - [ ] Saksloggen viser «Bestilling til OeBS opprettet» med bestillingsnummeret
-- [ ] Handleren er bare registrert utenfor prod
+- [ ] Handleren er registrert rett etter `FattVedtak`
 - [ ] Identer logges ikke utenfor teamLog
 - [ ] Lokalt og i mock-backenden blir bestillingen `PUBLISHED` og får status `AKTIV` i `oebs_bestilling_status` fra `LokalOebs`, og loggen viser «OeBS-mock»
 
