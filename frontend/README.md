@@ -55,10 +55,7 @@ Enkel oversikt over hvordan du kjører frontend lokalt.
 1. Start database: `docker-compose -f backend/docker-compose.yml up`
 2. Start backend: Kjør LocalApplication.kt
 3. Start frontend på en av to måter:
-   - Bygget klient servert av BFF-en: `pnpm --filter client run build && \
-EKSPERTBISTAND_API_BASEURL=http://localhost:8080 \
-LOCAL_SUBJECT_TOKEN=faketoken \
-pnpm --filter server run dev`, og åpne http://localhost:4000
+   - Bygget klient servert av BFF-en: `pnpm serve:e2e`, og åpne http://localhost:4000
    - Med hot reload: `EKSPERTBISTAND_API_BASEURL=http://localhost:8080 pnpm --filter server run dev` og
      `VITE_ENABLE_MOCKS=false pnpm --filter client dev`, og åpne http://localhost:5173
 
