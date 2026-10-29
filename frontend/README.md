@@ -59,7 +59,7 @@ Enkel oversikt over hvordan du kjører frontend lokalt.
    - Med hot reload: `EKSPERTBISTAND_API_BASEURL=http://localhost:8080 pnpm --filter server run dev` og
      `VITE_ENABLE_MOCKS=false pnpm --filter client dev`, og åpne http://localhost:5173
 
-Testbrukeren har tilgang til alle virksomhetene i `LokaleSaker.kt`. Testflyt:
+Testbrukeren har tilgang til alle virksomhetene i `LokaleSaker.kt`. `pnpm serve:all:e2e` starter både arbeidsgiverfrontenden (http://localhost:4000) og saksbehandling (http://localhost:4001) mot `LocalApplication`. Testflyt:
 
 1. Send inn en søknad som arbeidsgiver.
 2. Behandle saken i saksbehandling (http://localhost:4001): vilkårsvurdering, foreløpig vedtak og godkjenning.

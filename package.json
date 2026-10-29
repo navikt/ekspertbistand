@@ -11,6 +11,7 @@
     "dev:saksbehandling": "pnpm --filter ./frontend/saksbehandling dev",
     "serve:saksbehandling": "pnpm --filter ./frontend/saksbehandling build && pnpm --filter ./frontend/saksbehandling-server dev",
     "serve:saksbehandling:e2e": "VITE_ENABLE_MOCKS=false pnpm serve:saksbehandling",
+    "serve:all:e2e": "concurrently -n arbeidsgiver,saksbehandling \"pnpm serve:e2e\" \"pnpm serve:saksbehandling:e2e\"",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm --filter ./frontend/client lint && pnpm --filter ./frontend/saksbehandling lint && pnpm --filter ./frontend/server lint && pnpm --filter ./frontend/saksbehandling-server lint",
