@@ -47,6 +47,7 @@ flowchart TD
     e_TiltaksgjennomforingOpprettet(["TiltaksgjennomforingOpprettet"]):::event
     e_VedtakFattet(["VedtakFattet"]):::event
     e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
+    h_BestillTilsagnIOebs["BestillTilsagnIOebs"]:::handler
     h_FattVedtak["FattVedtak"]:::handler
     h_FrigjoerSak["FrigjoerSak"]:::handler
     h_JournalfoerInnsendtSoknad["JournalfoerInnsendtSoknad"]:::handler
@@ -84,6 +85,7 @@ flowchart TD
     s_ArenaTiltakssakEndretProcessor --> e_SaksbehandlingStartetIArena
     s_BeslutterApi --> e_ForelopigVedtakReturnert
     s_BeslutterApi --> e_VedtakFattet
+    h_BestillTilsagnIOebs --> e_SakOppdatert
     h_FattVedtak --> e_SakOppdatert
     s_ForelopigVedtakApi --> e_ForelopigVedtakSendtTilBeslutter
     h_FrigjoerSak --> e_SakOppdatert
@@ -104,6 +106,7 @@ flowchart TD
     h_TildelSaksbehandler --> e_SakOppdatert
     s_TilsagnDataApi --> e_TilskuddsbrevVist
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
+    e_VedtakFattet --> h_BestillTilsagnIOebs
     e_VedtakFattet --> h_FattVedtak
     e_SakFrigjort --> h_FrigjoerSak
     e_SoknadInnsendt --> h_JournalfoerInnsendtSoknad

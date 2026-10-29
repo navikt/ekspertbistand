@@ -5,10 +5,13 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import org.jetbrains.exposed.v1.core.CustomFunction
+import org.jetbrains.exposed.v1.core.Expression
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.TextColumnType
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.case
 import org.jetbrains.exposed.v1.core.eq
@@ -57,6 +60,7 @@ object SakTable : Table("sak") {
     val beslutterNavn = text("beslutter_navn").nullable()
     val foreslattUtfall = text("foreslatt_utfall").nullable()
     val arenaSakId = text("arena_sak_id").nullable()
+    val saksnummer = text("saksnummer").nullable()
     val refusjonId = javaUUID("refusjon_id").nullable()
     val sluttrapportId = javaUUID("sluttrapport_id").nullable()
     val tildelingEventId = long("tildeling_event_id").nullable()
@@ -66,6 +70,12 @@ object SakTable : Table("sak") {
 
     override val primaryKey = PrimaryKey(sakId)
 }
+
+/**
+ * Neste saksnummer, `<år>/<løpenummer>`, fra databasefunksjonen `neste_saksnummer()` (V29). Saksnummeret brukes mot
+ * OeBS og settes bare for saker med kilde `EKSPERTBISTAND`.
+ */
+fun nesteSaksnummer(): Expression<String> = CustomFunction("neste_saksnummer", TextColumnType())
 
 fun JdbcTransaction.hentGodkjentSakIdForUpdate(soknadId: UUID): UUID {
     val soknadStatus = SoknadTable

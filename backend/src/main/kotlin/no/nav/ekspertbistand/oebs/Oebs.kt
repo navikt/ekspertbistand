@@ -36,17 +36,17 @@ import no.nav.ekspertbistand.oebs.integration.GjorOppBestilling as GjorOppBestil
  * atomisk med kallerens forretningsendring. Selve publiseringen til Kafka gjøres asynkront av
  * outbox-polleren.
  *
- * Konkret klasse uten interface: vi har ikke behov for å stubbe/mocke den. Domene-triggere (hva som
- * utløser en bestilling) og saksbehandling er utenfor scope (jf. spec-avgrensning).
+ * Konkret klasse uten interface: vi har ikke behov for å stubbe/mocke den. Bestillingen ved vedtak
+ * gjøres av [no.nav.ekspertbistand.event.handlers.BestillTilsagnIOebs].
  */
 class OebsKlient {
 
     /**
-     * Genererer et unikt bestillingsnummer for [sakId], lar [bygg] fylle resten av bestillingen med
+     * Genererer et unikt bestillingsnummer for [saksnummer] (`sak.saksnummer`), lar [bygg] fylle resten av bestillingen med
      * nummeret, legger meldingen i outbox-en og returnerer bestillingsnummeret.
      */
-    fun JdbcTransaction.opprettBestilling(sakId: String, bygg: (bestillingsnummer: String) -> OpprettBestilling): String {
-        val bestillingsnummer = nesteBestillingsnummer(sakId)
+    fun JdbcTransaction.opprettBestilling(saksnummer: String, bygg: (bestillingsnummer: String) -> OpprettBestilling): String {
+        val bestillingsnummer = nesteBestillingsnummer(saksnummer)
         leggIOutbox(OebsBestillingMelding.Bestilling(bygg(bestillingsnummer)))
         return bestillingsnummer
     }

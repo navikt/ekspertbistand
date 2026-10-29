@@ -51,6 +51,7 @@ journalført (`InnsendtSoknadJournalfoert`), sammen med alle vilkår.
 | `beslutter_navn` | TEXT | NULL | Navnet til beslutteren fra entra-proxy da hen tildelte seg saken (V23). Satt når og bare når `beslutter_ident` er satt (CHECK `chk_beslutter_navn_med_ident`). |
 | `foreslatt_utfall` | TEXT | NULL | Saksbehandlers foreløpige vedtak sendt til beslutning (`INNVILGET`/`AVSLATT`). Se `Saksstatus`. Null før innsending. Detaljene ligger i `forelopig_vedtak`. |
 | `arena_sak_id` | TEXT | NULL | Saksnummer i Arena når saken er speilet dit. Null hvis ikke i Arena. |
+| `saksnummer` | TEXT | UNIQUE, NULL | Saksnummeret `ÅÅÅÅ/løpenummer` (V29), fra `neste_saksnummer()`. Brukes i bestillingsnummeret mot OeBS (`E-<saksnummer>-<n>`). Påkrevd når `kilde_til_behandling = EKSPERTBISTAND` (CHECK `sak_saksnummer_ekspertbistand`), null for Arena-saker. Endres aldri. |
 | `refusjon_id` | UUID | UNIQUE, FK → `refusjonskrav(id)` | Refusjonskravet for saken (1:1). Null til krav mottas. |
 | `sluttrapport_id` | UUID | UNIQUE, FK → `sluttrapport(sluttrapport_id)` | Sluttrapporten for saken (1:1). Null til rapport mottas. |
 | `tildeling_event_id` | BIGINT | NULL | Id-en til eventen som sist tildelte eller frigjorde saken. En eldre event skriver aldri over en nyere. Null før første tildeling. |
@@ -191,6 +192,25 @@ Beslutters vedtak på søknaden (1:1). Skrives bare av handleren `FattVedtak`. S
 | `fattet_av_navn` | TEXT | NOT NULL | Navnet til beslutteren, for visning. |
 | `fattet_tidspunkt` | TIMESTAMPTZ | NOT NULL | Tidspunktet fra eventet. |
 | `event_id` | BIGINT | NOT NULL, UNIQUE | Eventet som skrev raden. Gjør handleren idempotent. |
+
+### `sak_bestilling`
+
+Bestillingen til OeBS for et innvilget vedtak (V30), én rad per vedtak. Skrives bare av handleren
+`BestillTilsagnIOebs`, i samme transaksjon som outbox-raden. Se
+[`sette_av_penger_oebs_vedtak.md`](sette_av_penger_oebs_vedtak.md).
+
+| Kolonne | Type | Constraints | Beskrivelse |
+|---------|------|-------------|-------------|
+| `id` | BIGSERIAL | PK | Teknisk id. |
+| `sak_id` | UUID | NOT NULL, FK → `sak(sak_id)` ON DELETE CASCADE | Saken bestillingen gjelder. |
+| `vedtak_id` | BIGINT | NOT NULL, UNIQUE, FK → `vedtak(id)` ON DELETE CASCADE | Vedtaket som utløste bestillingen. Hindrer dobbel bestilling. |
+| `bestillingsnummer` | TEXT | NOT NULL, UNIQUE | `E-<saksnummer>-<løpenr>`, som sendt til OeBS. |
+| `belop` | INT | NOT NULL, CHECK > 0 | Innvilget beløp fra `forelopig_vedtak`. |
+| `periode_fra` | DATE | NOT NULL | Tiltaksperiodens start. |
+| `periode_til` | DATE | NOT NULL, CHECK ≥ `periode_fra` | Tiltaksperiodens slutt, inklusiv. Meldingen til VALP bruker dagen etter. |
+| `opprettet` | TIMESTAMPTZ | NOT NULL | Satt fra `vedtak.fattet_tidspunkt`. |
+
+Indeks: `sak_bestilling_sak_id_idx(sak_id)`.
 
 ## Endringer i eksisterende tabeller
 

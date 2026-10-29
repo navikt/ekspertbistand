@@ -91,8 +91,8 @@ class AggregateRetention(private val database: Database) {
         if (!erFortsattKandidat(aggregateRootId, cutoff)) return false
 
         val soknadId = aggregateRootId.tilUuidOrNull()
-        val arenaSakId = soknadId?.let { arenaSakIdFor(it) }
-        val oebsPrefiks = arenaSakId?.let { "$FAGSYSTEM_KILDE-$it-" }
+        val saksnummer = soknadId?.let { saksnummerFor(it) }
+        val oebsPrefiks = saksnummer?.let { "$FAGSYSTEM_KILDE-$it-" }
 
         if (oebsPrefiks != null && harUferdigOebsMelding(oebsPrefiks)) return false
 
@@ -106,7 +106,7 @@ class AggregateRetention(private val database: Database) {
             ).forEach { tabell ->
                 update("DELETE FROM $tabell WHERE starts_with(bestillingsnummer, ?)", TextColumnType() to oebsPrefiks)
             }
-            update("DELETE FROM oebs_lopenummer WHERE sak_id = ?", TextColumnType() to arenaSakId)
+            update("DELETE FROM oebs_lopenummer WHERE saksnummer = ?", TextColumnType() to saksnummer)
         }
 
         val text = TextColumnType() to aggregateRootId
@@ -129,7 +129,7 @@ class AggregateRetention(private val database: Database) {
         update("DELETE FROM fagsak_id_mapping WHERE soknad_id = ?", text)
 
         if (soknadId != null) {
-            // Cascade: sak, saksvilkar, sakslogg, sak_retur, forelopig_vedtak, vedtak,
+            // Cascade: sak, saksvilkar, sakslogg, sak_retur, forelopig_vedtak, vedtak, sak_bestilling,
             // refusjonskrav, sluttrapport og vedlegg.
             update("DELETE FROM soknad WHERE id = ?::uuid", text)
         }
@@ -168,9 +168,9 @@ class AggregateRetention(private val database: Database) {
             TextColumnType() to aggregateRootId,
         ) { getBoolean(1) }.singleOrNull() == true
 
-    private fun JdbcTransaction.arenaSakIdFor(soknadId: UUID): String? =
+    private fun JdbcTransaction.saksnummerFor(soknadId: UUID): String? =
         query(
-            "SELECT arena_sak_id FROM sak WHERE soknad_id = ?::uuid AND arena_sak_id IS NOT NULL",
+            "SELECT saksnummer FROM sak WHERE soknad_id = ?::uuid AND saksnummer IS NOT NULL",
             TextColumnType() to soknadId.toString(),
         ) { getString(1) }.singleOrNull()
 

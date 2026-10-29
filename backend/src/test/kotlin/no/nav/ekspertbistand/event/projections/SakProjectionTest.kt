@@ -12,6 +12,7 @@ import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.SaksvilkarTable
 import no.nav.ekspertbistand.saksbehandling.frigjoerSak
 import no.nav.ekspertbistand.saksbehandling.tildelSak
+import no.nav.ekspertbistand.saksbehandling.nesteSaksnummer
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -152,6 +153,7 @@ class SakProjectionTest {
             it[soknadId] = UUID.fromString(soknad.id)
             it[status] = Saksstatus.UNDER_BEHANDLING.name
             it[kildeTilBehandling] = KildeTilBehandling.EKSPERTBISTAND.name
+            it[saksnummer] = nesteSaksnummer()
         }
 
         publishAndFinalize(EventData.SoknadInnsendt(soknad))
@@ -230,6 +232,7 @@ class SakProjectionTest {
             it[soknadId] = UUID.fromString(soknad.id)
             it[status] = Saksstatus.OPPRETTET.name
             it[kildeTilBehandling] = KildeTilBehandling.EKSPERTBISTAND.name
+            it[saksnummer] = nesteSaksnummer()
         }
         publishAndFinalize(tildelt(soknad, "Z111111"))
         pollAlt()
