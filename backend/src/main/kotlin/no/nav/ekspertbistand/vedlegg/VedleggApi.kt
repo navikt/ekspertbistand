@@ -1,12 +1,8 @@
 package no.nav.ekspertbistand.vedlegg
 
 import io.ktor.http.*
-import io.ktor.http.content.*
-import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.utils.io.readRemaining
-import kotlinx.io.readByteArray
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.infrastruktur.Metrics
@@ -60,33 +56,24 @@ class VedleggApi(
             return
         }
 
-        val multipart = call.receiveMultipart()
-        data class UploadedFile(val filnavn: String, val innhold: ByteArray)
-        val filer = mutableListOf<UploadedFile>()
-
-        multipart.forEachPart { part ->
-            if (part is PartData.FileItem) {
-                val filnavn = part.originalFileName?.ifBlank { null } ?: "vedlegg.pdf"
-                val bytes = part.provider().readRemaining().readByteArray()
-                filer.add(UploadedFile(filnavn, bytes))
+        val filer = when (val opplasting = call.lesOpplasting(MAKS_ANTALL_FILER, MAKS_FIL_STORRELSE_BYTES)) {
+            is Opplasting.Ok -> opplasting.filer
+            is Opplasting.ForMangeFiler -> {
+                call.respond(HttpStatusCode.BadRequest, "Kun ett vedlegg tillatt")
+                return
             }
-            part.dispose()
+            is Opplasting.ForStorFil -> {
+                call.respond(HttpStatusCode.PayloadTooLarge, forStorFilMelding(opplasting.filnavn))
+                return
+            }
         }
 
         if (filer.isEmpty()) {
             call.respond(HttpStatusCode.BadRequest, "Minst én fil må lastes opp")
             return
         }
-        if (filer.size > MAKS_ANTALL_FILER) {
-            call.respond(HttpStatusCode.BadRequest, "Kun ett vedlegg tillatt")
-            return
-        }
 
         for ((filnavn, bytes) in filer) {
-            if (bytes.size > MAKS_FIL_STORRELSE_BYTES) {
-                call.respond(HttpStatusCode.BadRequest, "Filen '$filnavn' overskrider maks 10 MB")
-                return
-            }
             if (!erGyldigPdf(bytes)) {
                 call.respond(HttpStatusCode.BadRequest, "Filen '$filnavn' er ikke en gyldig PDF")
                 return
@@ -111,7 +98,7 @@ class VedleggApi(
                     return
                 }
                 ClamAvClient.ScanStatus.ERROR -> {
-                    log.error("ClamAV feilet for fil: soknadId={}, filnavn={}", soknadId, filnavn)
+                    log.error("ClamAV feilet for fil: soknadId={}", soknadId)
                     call.respond(HttpStatusCode.ServiceUnavailable, "Virusskanning feilet, prøv igjen")
                     return
                 }

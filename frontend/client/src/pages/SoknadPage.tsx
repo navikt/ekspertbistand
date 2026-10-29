@@ -149,10 +149,10 @@ export default function SoknadPage() {
                 <Accordion.Header>Hvordan vi behandler personopplysninger</Accordion.Header>
                 <Accordion.Content>
                   <BodyLong spacing>
-                    Søknader og utkast om tilskudd til ekspertbistand er synlig for alle som har
-                    Altinn-tilgangen “Tilskudd til ekspertbistand” i virksomheten. Av hensyn til
-                    personvernet fjerner vi deres tilgang til søknaden 12 måneder etter at tiltaket
-                    er avsluttet.
+                    Søknader om tilskudd til ekspertbistand er synlig for alle som har
+                    Altinn-tilgangen “Ekspertbistand” i virksomheten. Av hensyn til personvernet
+                    fjerner vi deres tilgang til søknaden 8 måneder etter at tiltaket er avsluttet.
+                    Utkast kan bare ses av den som laget utkastet.
                   </BodyLong>
                   <BodyLong spacing>
                     Søknad om tilskudd til ekspertbistand inneholder personopplysninger. Søknaden
@@ -181,10 +181,6 @@ export default function SoknadPage() {
                   <BodyLong spacing>
                     Svarene dine lagres automatisk mens du fyller ut søknaden. Det betyr at du kan
                     ta pauser og fortsette senere.
-                  </BodyLong>
-                  <BodyLong spacing>
-                    Utkastet er synlig for alle som har Altinn-tilgangen “Tilskudd til
-                    ekspertbistand” i virksomheten.
                   </BodyLong>
                   <BodyLong>
                     Hvis du ikke fortsetter innen 48 timer, blir utkastet slettet.

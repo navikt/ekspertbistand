@@ -20,7 +20,11 @@ data class LagretSak(val sakId: UUID, val soknadId: UUID)
 const val TEST_ANSATT_FNR = "22420094160"
 
 /** Lagrer en minimal søknad med tilhørende sak, for tester som trenger en rad i `sak`. */
-fun lagreSoknadOgSak(database: Database, ansattFnr: String = TEST_ANSATT_FNR): LagretSak = transaction(database) {
+fun lagreSoknadOgSak(
+    database: Database,
+    ansattFnr: String = TEST_ANSATT_FNR,
+    behandlendeEnhet: String? = null,
+): LagretSak = transaction(database) {
     val soknadId = UUID.randomUUID()
     SoknadTable.insert {
         it[id] = soknadId
@@ -48,6 +52,7 @@ fun lagreSoknadOgSak(database: Database, ansattFnr: String = TEST_ANSATT_FNR): L
         it[SakTable.soknadId] = soknadId
         it[status] = Saksstatus.OPPRETTET.name
         it[kildeTilBehandling] = KildeTilBehandling.EKSPERTBISTAND.name
+        it[SakTable.behandlendeEnhet] = behandlendeEnhet
     }.single()[SakTable.sakId]
     LagretSak(sakId = sakId, soknadId = soknadId)
 }

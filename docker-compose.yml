@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
       args:
         BASE_PATH: ${BASE_PATH:-/}
-        BUILDER_IMAGE: ${BUILDER_IMAGE:-node:20}
+        BUILDER_IMAGE: ${BUILDER_IMAGE:-node:24}
         RUNNER_IMAGE: ${RUNNER_IMAGE:-cgr.dev/chainguard/node:latest}
         NODE_AUTH_TOKEN: ${NODE_AUTH_TOKEN}
     container_name: ekspertbistand

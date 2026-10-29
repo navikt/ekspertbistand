@@ -200,15 +200,16 @@ class MaskingAppender : AppenderBase<ILoggingEvent>() {
                 override fun getFormattedMessage(): String? =
                     mask(event.formattedMessage)
 
-                override fun getThrowableProxy(): IThrowableProxy? {
-                    if (event.throwableProxy == null) {
-                        return null
+                override fun getThrowableProxy(): IThrowableProxy? =
+                    event.throwableProxy?.let(::MaskingThrowableProxy)
+
+                override fun getMDCPropertyMap(): Map<String, String>? =
+                    event.mdcPropertyMap?.mapValues { (key, value) ->
+                        if (key in UMASKERTE_MDC_NOKLER) value else mask(value) ?: value
                     }
-                    return object : IThrowableProxy by event.throwableProxy {
-                        override fun getMessage(): String? =
-                            mask(event.throwableProxy.message)
-                    }
-                }
+
+                @Deprecated("Deprecated in Java")
+                override fun getMdc(): Map<String, String>? = mdcPropertyMap
 
                 @Deprecated("Deprecated in Java")
                 override fun getMarker(): Marker? {
@@ -223,7 +224,18 @@ class MaskingAppender : AppenderBase<ILoggingEvent>() {
         )
     }
 
+    /** Maskerer meldingen i hele unntakskjeden, inkludert cause og suppressed. */
+    private class MaskingThrowableProxy(private val proxy: IThrowableProxy) : IThrowableProxy by proxy {
+        override fun getMessage(): String? = mask(proxy.message)
+        override fun getCause(): IThrowableProxy? = proxy.cause?.let(::MaskingThrowableProxy)
+        override fun getSuppressed(): Array<IThrowableProxy>? =
+            proxy.suppressed?.map { MaskingThrowableProxy(it) }?.toTypedArray()
+    }
+
     companion object {
+        /** Korrelasjons-ID er en UUID og kan tilfeldigvis inneholde 11 sammenhengende siffer. */
+        val UMASKERTE_MDC_NOKLER = setOf("x_correlation_id")
+
         val FNR = Regex("""(^|\D)\d{11}(?=$|\D)""")
         val ORGNR = Regex("""(^|\D)\d{9}(?=$|\D)""")
         val EPOST = Regex("""[\w.%+-]+@[\w.%+-]+\.[a-zA-Z]{2,}""")

@@ -340,7 +340,7 @@ class SoknadTest {
             UtkastTable.insertReturning {
                 it[virksomhetsnummer] = "1337"
                 it[virksomhetsnavn] = "foo bar AS"
-                it[opprettetAv] = "T2000"
+                it[opprettetAv] = "42"
             }.single().tilUtkastDTO()
         }
 
@@ -486,8 +486,6 @@ class SoknadTest {
                 assertEquals("1337", soknad.virksomhet.virksomhetsnummer)
                 assertEquals("Testveien 1, 0557 Oslo", soknad.virksomhet.beliggenhetsadresse)
 
-                // opprettetAv skal være den som sender inn søknad, ikke den som opprettet utkast
-                assertNotEquals(eksisterendeUtkast.opprettetAv, soknad.opprettetAv)
                 // opprettetTidspunkt skal være nytt
                 assertNotEquals(eksisterendeUtkast.opprettetTidspunkt, soknad.opprettetTidspunkt)
             }
@@ -732,7 +730,7 @@ class SoknadTest {
     }
 
     @Test
-    fun `utkast uten orgnr returneres kun til person som har opprettet utkastet`() =
+    fun `utkast returneres kun til person som har opprettet utkastet`() =
         testApplicationWithDatabase { testDb ->
             mockEreg {
                 """
@@ -864,11 +862,10 @@ class SoknadTest {
             {
                 assertEquals(HttpStatusCode.OK, status)
                 body<List<DTO.Utkast>>().also { soknader ->
-                    assertEquals(2, soknader.size)
-                    val soknadUtenVirksomhet = soknader.find { it.virksomhet == null }
-                    val soknadMedVirksomhet = soknader.find { it.virksomhet != null }
-                    assertEquals("42", soknadUtenVirksomhet!!.opprettetAv)
-                    assertEquals("1337", soknadMedVirksomhet!!.virksomhet!!.virksomhetsnummer)
+                    // utkastet til pid 44 for 1337 vises ikke, selv om innlogget har tilgang til 1337
+                    assertEquals(1, soknader.size)
+                    assertEquals("42", soknader.single().opprettetAv)
+                    assertNull(soknader.single().virksomhet)
                 }
             }
 
@@ -880,11 +877,124 @@ class SoknadTest {
             )
             {
                 assertEquals(HttpStatusCode.OK, status)
-                body<List<DTO.Utkast>>().also { soknader ->
-                    assertEquals(1, soknader.size)
-                    val soknadMedVirksomhet = soknader.find { it.virksomhet != null }
-                    assertEquals("1337", soknadMedVirksomhet!!.virksomhet!!.virksomhetsnummer)
+                assertTrue(body<List<DTO.Utkast>>().isEmpty())
+            }
+        }
+
+    @Test
+    fun `kan ikke se, endre, slette eller sende inn andres utkast, heller ikke i egen virksomhet`() =
+        testApplicationWithDatabase { testDb ->
+            mockEreg { """{ "organisasjonDetaljer": { "forretningsadresser": [] } }""" }
+            // innlogget (pid 43) har tilgang til 1337, men utkastene er opprettet av pid 42
+            mockAltinnTilganger(
+                AltinnTilgangerClientResponse(
+                    isError = false,
+                    hierarki = emptyList(),
+                    orgNrTilTilganger = mapOf("1337" to setOf(altinn3Ressursid)),
+                    tilgangTilOrgNr = mapOf(altinn3Ressursid to setOf("1337")),
+                )
+            )
+            client = createClient {
+                install(ContentNegotiation) {
+                    json()
                 }
+            }
+            val altinnTilgangerClient = AltinnTilgangerClient(
+                defaultHttpClient = client,
+                tokenExchanger = successTokenXTokenExchanger
+            )
+            val eregClient = EregClient(defaultHttpClient = client)
+            application {
+                dependencies {
+                    provide { testDb.config.jdbcDatabase }
+                    provide<TokenXTokenIntrospector> {
+                        MockTokenIntrospector {
+                            if (it == "angriper") mockIntrospectionResponse.withPid("43") else null
+                        }
+                    }
+                    provide { altinnTilgangerClient }
+                    provide<EregService> { EregService(eregClient) }
+                }
+                configureAuthentication()
+                configureServer()
+                configureSoknadApiV1()
+            }
+
+            val utkastISammeVirksomhet = UUID.randomUUID()
+            val utkastUtenOrgnr = UUID.randomUUID()
+            transaction(testDb.config.jdbcDatabase) {
+                UtkastTable.insert {
+                    it[id] = utkastISammeVirksomhet
+                    it[virksomhetsnummer] = "1337"
+                    it[virksomhetsnavn] = "Offer AS"
+                    it[ansattFnr] = "12345678910"
+                    it[ansattNavn] = "Ole Olsen"
+                    it[opprettetAv] = "42"
+                }
+                UtkastTable.insert {
+                    it[id] = utkastUtenOrgnr
+                    it[ansattFnr] = "12345678910"
+                    it[ansattNavn] = "Ole Olsen"
+                    it[opprettetAv] = "42"
+                }
+            }
+
+            val egenVirksomhet = DTO.Virksomhet(
+                virksomhetsnummer = "1337",
+                virksomhetsnavn = "Angriper AS",
+                kontaktperson = DTO.Kontaktperson(
+                    navn = "Donald Duck",
+                    epost = "donald@duck.co",
+                    telefonnummer = "12345678",
+                ),
+            )
+            val soknadMedEgenVirksomhet = DTO.Soknad(
+                virksomhet = egenVirksomhet,
+                ansatt = DTO.Ansatt(fnr = "12345678910", navn = "Ole Olsen"),
+                ekspert = DTO.Ekspert(navn = "Egon Olsen", virksomhet = "Olsenbanden AS", kompetanse = "Bankran"),
+                behovForBistand = DTO.BehovForBistand(
+                    behov = "Tilrettelegging",
+                    begrunnelse = "Tilrettelegging på arbeidsplassen",
+                    estimertKostnad = "24900",
+                    timer = "16",
+                    tilrettelegging = "Spesialtilpasset kontor",
+                    startdato = LocalDate.parse("2026-11-15"),
+                ),
+                nav = DTO.Nav(kontaktperson = "Navn Navnesen"),
+            )
+
+            for (utkastId in listOf(utkastISammeVirksomhet, utkastUtenOrgnr)) {
+                assertEquals(
+                    HttpStatusCode.Forbidden,
+                    client.get("/api/soknad/v1/$utkastId") { bearerAuth("angriper") }.status,
+                )
+                assertEquals(
+                    HttpStatusCode.Forbidden,
+                    client.patch("/api/soknad/v1/$utkastId") {
+                        bearerAuth("angriper")
+                        contentType(ContentType.Application.Json)
+                        setBody(DTO.Utkast(virksomhet = egenVirksomhet))
+                    }.status,
+                )
+                assertEquals(
+                    HttpStatusCode.Forbidden,
+                    client.put("/api/soknad/v1/$utkastId") {
+                        bearerAuth("angriper")
+                        contentType(ContentType.Application.Json)
+                        setBody(soknadMedEgenVirksomhet)
+                    }.status,
+                )
+                assertEquals(
+                    HttpStatusCode.Forbidden,
+                    client.delete("/api/soknad/v1/$utkastId") { bearerAuth("angriper") }.status,
+                )
+            }
+
+            transaction(testDb.config.jdbcDatabase) {
+                val rader = UtkastTable.selectAll().associateBy { it[UtkastTable.id].value }
+                assertEquals("Offer AS", rader[utkastISammeVirksomhet]!![UtkastTable.virksomhetsnavn])
+                assertNull(rader[utkastUtenOrgnr]!![UtkastTable.virksomhetsnummer])
+                assertTrue(SoknadTable.selectAll().empty())
             }
         }
 
