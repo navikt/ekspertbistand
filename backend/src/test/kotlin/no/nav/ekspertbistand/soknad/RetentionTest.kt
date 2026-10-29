@@ -52,6 +52,12 @@ class RetentionTest {
             sql("INSERT INTO fagsak_id_mapping (soknad_id) VALUES (?)", soknadId)
             sql("INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json, status) VALUES ('E-2025/1000001-1', 'BESTILLING', '{}', 'PUBLISHED')")
             sql("INSERT INTO oebs_lopenummer (saksnummer) VALUES ('2025/1000001')")
+            sql(
+                """
+                INSERT INTO sak_bestilling (sak_id, vedtak_id, bestillingsnummer, belop, periode_fra, periode_til, opprettet)
+                SELECT sak_id, id, 'E-2025/1000001-1', 1000, '2025-01-01', '2025-01-31', now() FROM vedtak
+                """.trimIndent(),
+            )
             sql("INSERT INTO event_handler_states (id, handler_id, result) VALUES (1, 'h', '{}')")
             sql("INSERT INTO idempotency_guard_records (event_id, sub_task, event_name, status) VALUES (1, 's', 'e', 'COMPLETED')")
         }
@@ -60,7 +66,7 @@ class RetentionTest {
 
         transaction(db) {
             listOf(
-                "soknad", "sak", "forelopig_vedtak", "vedtak", "event_log", "tilsagndata",
+                "soknad", "sak", "forelopig_vedtak", "vedtak", "sak_bestilling", "event_log", "tilsagndata",
                 "tilskuddsbrev_vist_state", "soknad_behandlet_forsinkelse_state", "fagsak_id_mapping",
                 "oebs_outbox", "oebs_lopenummer", "event_handler_states", "idempotency_guard_records",
             ).forEach { tabell -> assertEquals(0, antall(tabell), "$tabell skal være tom") }

@@ -129,7 +129,7 @@ class AggregateRetention(private val database: Database) {
         update("DELETE FROM fagsak_id_mapping WHERE soknad_id = ?", text)
 
         if (soknadId != null) {
-            // Cascade: sak, saksvilkar, sakslogg, sak_retur, forelopig_vedtak, vedtak,
+            // Cascade: sak, saksvilkar, sakslogg, sak_retur, forelopig_vedtak, vedtak, sak_bestilling,
             // refusjonskrav, sluttrapport og vedlegg.
             update("DELETE FROM soknad WHERE id = ?::uuid", text)
         }

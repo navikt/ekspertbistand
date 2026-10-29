@@ -502,8 +502,9 @@ sealed interface EventData {
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
      *
-     * Konsumenter: [no.nav.ekspertbistand.event.handlers.FattVedtak] og
-     * [no.nav.ekspertbistand.event.handlers.SettSoknadStatusVedtakFattet].
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.FattVedtak],
+     * [no.nav.ekspertbistand.event.handlers.SettSoknadStatusVedtakFattet] og
+     * [no.nav.ekspertbistand.event.handlers.BestillTilsagnIOebs] (ikke i prod).
      */
     @OptIn(ExperimentalTime::class)
     @Serializable
@@ -574,6 +575,7 @@ suspend fun Application.configureEventHandlers() {
             other = {
                 register(dependencies.create(OpprettSak::class))
                 register(dependencies.create(VarsleArbeidsgiverSakOpprettet::class))
+                register(dependencies.create(BestillTilsagnIOebs::class))
             }
         )
 

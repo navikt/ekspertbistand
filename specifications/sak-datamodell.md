@@ -193,6 +193,25 @@ Beslutters vedtak på søknaden (1:1). Skrives bare av handleren `FattVedtak`. S
 | `fattet_tidspunkt` | TIMESTAMPTZ | NOT NULL | Tidspunktet fra eventet. |
 | `event_id` | BIGINT | NOT NULL, UNIQUE | Eventet som skrev raden. Gjør handleren idempotent. |
 
+### `sak_bestilling`
+
+Bestillingen til OeBS for et innvilget vedtak (V30), én rad per vedtak. Skrives bare av handleren
+`BestillTilsagnIOebs`, i samme transaksjon som outbox-raden. Se
+[`sette_av_penger_oebs_vedtak.md`](sette_av_penger_oebs_vedtak.md).
+
+| Kolonne | Type | Constraints | Beskrivelse |
+|---------|------|-------------|-------------|
+| `id` | BIGSERIAL | PK | Teknisk id. |
+| `sak_id` | UUID | NOT NULL, FK → `sak(sak_id)` ON DELETE CASCADE | Saken bestillingen gjelder. |
+| `vedtak_id` | BIGINT | NOT NULL, UNIQUE, FK → `vedtak(id)` ON DELETE CASCADE | Vedtaket som utløste bestillingen. Hindrer dobbel bestilling. |
+| `bestillingsnummer` | TEXT | NOT NULL, UNIQUE | `E-<saksnummer>-<løpenr>`, som sendt til OeBS. |
+| `belop` | INT | NOT NULL, CHECK > 0 | Innvilget beløp fra `forelopig_vedtak`. |
+| `periode_fra` | DATE | NOT NULL | Tiltaksperiodens start. |
+| `periode_til` | DATE | NOT NULL, CHECK ≥ `periode_fra` | Tiltaksperiodens slutt, inklusiv. Meldingen til VALP bruker dagen etter. |
+| `opprettet` | TIMESTAMPTZ | NOT NULL | Satt fra `vedtak.fattet_tidspunkt`. |
+
+Indeks: `sak_bestilling_sak_id_idx(sak_id)`.
+
 ## Endringer i eksisterende tabeller
 
 ### `refusjonskrav`
