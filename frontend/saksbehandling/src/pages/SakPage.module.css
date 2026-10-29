@@ -2,6 +2,15 @@
   min-width: 0;
 }
 
+/* Aksel Link nullstiller ikke standardstilen til <button>. */
+.lenkeknapp {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
 @media (min-width: 1280px) {
   .saksinnhold {
     padding: 0 !important;

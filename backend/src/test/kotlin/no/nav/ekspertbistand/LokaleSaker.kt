@@ -26,8 +26,6 @@ import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -296,8 +294,9 @@ internal fun CoroutineScope.behandleLokaleSaker(database: Database) = launch {
 private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
     val saksbehandler = sak.saksbehandler ?: return emptyList()
     val soknadId = sak.soknadId.toString()
-    var tidspunkt: Instant = Clock.System.now() - 2.hours
-    fun neste() = tidspunkt.also { tidspunkt += 1.minutes }
+    // Saken er alt opprettet med Clock.System.now(), så eventene må komme etter for at saksloggen skal stå i rekkefølge.
+    var tidspunkt: Instant = Clock.System.now()
+    fun neste() = tidspunkt.also { tidspunkt += 1.seconds }
 
     val eventer = mutableListOf<EventData>(
         EventData.SakTildeltSaksbehandler(sakId, soknadId, saksbehandler.navIdent, saksbehandler.navn, neste()),

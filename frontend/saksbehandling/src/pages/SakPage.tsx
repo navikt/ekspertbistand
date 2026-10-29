@@ -565,9 +565,14 @@ export default function SakPage() {
                             <Link
                               as="button"
                               type="button"
+                              className={styles.lenkeknapp}
                               onClick={() => setFane("forelopig-vedtak")}
                             >
-                              Fatte foreløpig vedtak
+                              {visesSomVedtak
+                                ? "Vedtak"
+                                : sak.status === "TIL_BESLUTNING"
+                                  ? "Foreløpig vedtak"
+                                  : "Fatte foreløpig vedtak"}
                               <ChevronRightIcon aria-hidden />
                             </Link>
                           </Box>
