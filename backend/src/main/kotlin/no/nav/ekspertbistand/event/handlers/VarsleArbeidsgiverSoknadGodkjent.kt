@@ -9,12 +9,13 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.KvitteringPublisert
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.kvitteringsLenke
-import no.nav.ekspertbistand.tilsagndata.concat
 import no.nav.ekspertbistand.tilsagndata.findTilsagnDataBySoknadId
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -25,6 +26,8 @@ import java.util.UUID
  * Når en søknad, innsendt via ekspertbistand på arbeidsgiver.nav.no,
  * er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarslet] som kvittering,
+ * men bare hvis [no.nav.ekspertbistand.event.KvitteringPublisert] ikke har nøkkelen fra før.
  */
 class VarsleArbeidsgiverSoknadGodkjent(
     private val produsentApiKlient: ProdusentApiKlient,
@@ -66,6 +69,21 @@ class VarsleArbeidsgiverSoknadGodkjent(
             )
         }
 
+        transaction(database) {
+            val nyKvittering = KvitteringPublisert.registrer(
+                nokkel = KvitteringPublisert.soknadGodkjentNokkel(soknad.id, event.data.tilsagnData.tilsagnNummer),
+                soknadId = soknad.id,
+                type = KvitteringPublisert.Type.ARBEIDSGIVER_VARSLET_SOKNAD_GODKJENT,
+            )
+            if (nyKvittering) {
+                publishEventQueue(
+                    EventData.ArbeidsgiverVarslet(
+                        soknadId = soknad.id,
+                        varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_GODKJENT
+                    )
+                )
+            }
+        }
         return success()
     }
 
@@ -77,7 +95,7 @@ class VarsleArbeidsgiverSoknadGodkjent(
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = soknad.id!!,
-                eksternId = "${soknad.id}-godkjent-${tilsagnData.tilsagnNummer.concat()}",
+                eksternId = KvitteringPublisert.soknadGodkjentNokkel(soknad.id, tilsagnData.tilsagnNummer),
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
                 tekst = if (tilsagnsbrev.size > 1) {
                     "Søknaden er godkjent på nytt, se oppdaterte opplysninger."

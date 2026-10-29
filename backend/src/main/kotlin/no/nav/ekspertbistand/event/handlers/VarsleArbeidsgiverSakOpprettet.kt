@@ -7,10 +7,13 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.KvitteringPublisert
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 
 /**
@@ -19,10 +22,12 @@ import org.jetbrains.exposed.v1.jdbc.Database
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen om at søknad er mottatt
  * og under behandling. Varselet er identisk med det [VarsleArbeidsgiverSoknadMottattBehandlesIAltinn]
  * sender for saker som behandles i Arena.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarslet] som kvittering,
+ * men bare hvis [no.nav.ekspertbistand.event.KvitteringPublisert] ikke har nøkkelen fra før.
  */
 class VarsleArbeidsgiverSakOpprettet(
     private val produsentApiKlient: ProdusentApiKlient,
-    database: Database
+    private val database: Database
 ) : EventHandler<EventData.SakOpprettet> {
 
     override val id: String = "VarsleArbeidsgiverSakOpprettet"
@@ -47,6 +52,22 @@ class VarsleArbeidsgiverSakOpprettet(
             )
         }
 
+        transaction(database) {
+            val soknadId = event.data.soknad.id!!
+            val nyKvittering = KvitteringPublisert.registrer(
+                nokkel = KvitteringPublisert.soknadMottattNokkel(soknadId),
+                soknadId = soknadId,
+                type = KvitteringPublisert.Type.ARBEIDSGIVER_VARSLET_SOKNAD_MOTTATT,
+            )
+            if (nyKvittering) {
+                publishEventQueue(
+                    EventData.ArbeidsgiverVarslet(
+                        soknadId = soknadId,
+                        varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_MOTTATT
+                    )
+                )
+            }
+        }
         return success()
     }
 
@@ -68,7 +89,7 @@ class VarsleArbeidsgiverSakOpprettet(
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = soknad.id!!,
-                eksternId = "${soknad.id}-soknad-mottatt",
+                eksternId = KvitteringPublisert.soknadMottattNokkel(soknad.id),
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
                 tekst = "Nav har mottatt deres søknad om ekspertbistand.",
                 lenke = soknad.kvitteringsLenke,

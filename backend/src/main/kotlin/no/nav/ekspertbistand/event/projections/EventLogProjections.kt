@@ -131,7 +131,8 @@ suspend fun Application.configureProjectionBuilders() {
                 listOf(
                     dependencies.create(TilskuddsbrevVistProjection::class),
                     dependencies.create(SoknadBehandletForsinkelseProjection::class),
-                    dependencies.create(SakProjection::class)
+                    dependencies.create(SakProjection::class),
+                    dependencies.create(KvitteringPublisertProjection::class),
                     // SaksbehandlingsstatistikkProjection skal ikke skrus på her før OpprettSak kjører i prod.
                     // Statistikken rapporterer bare saker OpprettSak har opprettet.
                 )
@@ -142,6 +143,7 @@ suspend fun Application.configureProjectionBuilders() {
                     dependencies.create(SoknadBehandletForsinkelseProjection::class),
                     // Bare saker opprettet av OpprettSak rapporteres, og den kjører ikke i prod ennå.
                     dependencies.create(SaksbehandlingsstatistikkProjection::class),
+                    dependencies.create(KvitteringPublisertProjection::class),
                 )
             }
         )

@@ -558,6 +558,53 @@ sealed interface EventData {
 
         override val aggregateRootId: String get() = soknadId
     }
+
+    /**
+     * Arbeidsgiver er varslet i Notifikasjonsplattform: beskjed er opprettet, og sak/status er
+     * eventuelt oppdatert. Hendelsen bekrefter at Notifikasjonsplattform har tatt imot
+     * operasjonene, ikke at arbeidsgiver har lest varselet.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSakOpprettet] og
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIAltinn] for
+     * `SOKNAD_MOTTATT`, [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjent]
+     * for `SOKNAD_GODKJENT` og
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst] for
+     * `SOKNAD_AVLYST`, etter at alle varslingsoppgavene har lyktes. Hendelsen publiseres én gang per
+     * beskjed-`eksternId` (`SOKNAD_GODKJENT` én gang per tilsagn), også ved retry og når den utløsende
+     * hendelsen kommer flere ganger. Se [KvitteringPublisert].
+     *
+     * Payload har bevisst bare id-er, ingen personopplysninger; tidspunktet står i event_log.
+     * Konsument: bare en no-op-handler som logger, per nå.
+     */
+    @Serializable
+    @SerialName("arbeidsgiverVarslet")
+    data class ArbeidsgiverVarslet(
+        val soknadId: String,
+        val varsel: Varsel,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+
+        @Serializable
+        enum class Varsel { SOKNAD_MOTTATT, SOKNAD_GODKJENT, SOKNAD_AVLYST }
+    }
+
+    /**
+     * Notatet om at saken er opprettet i Arena er journalført og ferdigstilt i DokArkiv.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.JournalfoerNotatArenaSakOpprettet], én gang per
+     * `eksternReferanseId` i DokArkiv, også ved retry. Se [KvitteringPublisert].
+     *
+     * Konsument: bare en no-op-handler som logger, per nå.
+     */
+    @Serializable
+    @SerialName("arenaNotatJournalfoert")
+    data class ArenaNotatJournalfoert(
+        val soknadId: String,
+        val saksnummer: Saksnummer,
+        val journalpostId: String,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -598,6 +645,14 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(ReturnerForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
+            EventHandledResult.Success()
+        }
+        register<EventData.ArbeidsgiverVarslet>("ArbeidsgiverVarsletNoop") { event ->
+            log.info("Arbeidsgiver varslet: varsel={}, soknadId={}", event.data.varsel, event.data.soknadId)
+            EventHandledResult.Success()
+        }
+        register<EventData.ArenaNotatJournalfoert>("ArenaNotatJournalfoertNoop") { event ->
+            log.info("Arena-notat journalført: soknadId={}, journalpostId={}", event.data.soknadId, event.data.journalpostId)
             EventHandledResult.Success()
         }
 

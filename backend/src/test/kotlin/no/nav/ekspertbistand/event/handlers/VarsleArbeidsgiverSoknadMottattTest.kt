@@ -19,6 +19,7 @@ import kotlinx.serialization.modules.subclass
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.OpprettNyBeskjed
@@ -30,8 +31,11 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.NyB
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.*
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation as ServerContentNegotiation
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.UgyldigMerkelapp as NyBeskjedUgyldigMerkelapp
@@ -46,6 +50,7 @@ class VarsleArbeidsgiverSoknadMottattTest {
 
     @Test
     fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
         setupTestApplication(it)
         setProdusentApiResultat(
             mutableListOf({ NySakVellykket(id = "sak-123") }),
@@ -64,10 +69,48 @@ class VarsleArbeidsgiverSoknadMottattTest {
             )
         )
         assertIs<EventHandledResult.Success>(handler.handle(event))
+
+        val kvitteringer = transaction(database) {
+            QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
+                .filterIsInstance<EventData.ArbeidsgiverVarslet>()
+        }
+        assertEquals(1, kvitteringer.size)
+        assertEquals(soknad1.id, kvitteringer.single().soknadId)
+        assertEquals(EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_MOTTATT, kvitteringer.single().varsel)
+    }
+
+    @Test
+    fun `kvittering publiseres bare en gang, ogsaa naar handleren kjoeres paa nytt med ny event-id`() =
+        testApplicationWithDatabase {
+            val database = it.config.jdbcDatabase
+            setupTestApplication(it)
+            setProdusentApiResultat(
+                mutableListOf({ NySakVellykket(id = "sak-123") }, { NySakVellykket(id = "sak-123") }),
+                mutableListOf({ NyBeskjedVellykket(id = "beskjed-456") }, { NyBeskjedVellykket(id = "beskjed-456") })
+            )
+            startApplication()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
+            val data = EventData.TiltaksgjennomforingOpprettet(
+                soknad = soknad1,
+                saksnummer = "202112341234",
+                tiltaksgjennomfoeringId = 123,
+            )
+
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 1L, data = data)))
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 1L, data = data)))
+            assertIs<EventHandledResult.Success>(handler.handle(Event(id = 2L, data = data)))
+
+            assertEquals(1, antallArbeidsgiverVarslet(database))
+        }
+
+    private fun antallArbeidsgiverVarslet(database: org.jetbrains.exposed.v1.jdbc.Database) = transaction(database) {
+        QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
+            .filterIsInstance<EventData.ArbeidsgiverVarslet>().size
     }
 
     @Test
     fun `Event prosesseres, men sak gir ugyldig merkelapp`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
         setupTestApplication(it)
         setProdusentApiResultat(
             mutableListOf({ NySakUgyldigMerkelapp("ugyldig merkelapp") }),
@@ -85,11 +128,17 @@ class VarsleArbeidsgiverSoknadMottattTest {
             )
         )
         assertIs<EventHandledResult.TransientError>(handler.handle(event))
+        val kvitteringer = transaction(database) {
+            QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
+                .filterIsInstance<EventData.ArbeidsgiverVarslet>()
+        }
+        assertEquals(0, kvitteringer.size)
     }
 
     @Test
     fun `Idempotens sjekk`() =
         testApplicationWithDatabase {
+            val database = it.config.jdbcDatabase
             setupTestApplication(it)
             setProdusentApiResultat(
                 mutableListOf({ NySakVellykket(id = "sak-123") }),
@@ -107,6 +156,10 @@ class VarsleArbeidsgiverSoknadMottattTest {
                 )
             )
             assertIs<EventHandledResult.TransientError>(handler.handle(event)) // Sak velykket, beskjed feilet
+            assertEquals(0, transaction(database) {
+                QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
+                    .filterIsInstance<EventData.ArbeidsgiverVarslet>().size
+            })
             assertIs<EventHandledResult.Success>(handler.handle(event)) // Sak guardet, beskjed velykket
         }
 }
