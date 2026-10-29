@@ -20,10 +20,12 @@ RUN NODE_AUTH_TOKEN=$NODE_AUTH_TOKEN pnpm install --frozen-lockfile
 ARG BASE_PATH=/
 ARG VITE_BASE_PATH=/
 ARG VITE_ENABLE_MOCKS
+ARG VITE_LOKAL_INNLOGGING
 ENV BASE_PATH=${BASE_PATH}
 ENV VITE_APP_BASE_PATH=${BASE_PATH}
 ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 ENV VITE_ENABLE_MOCKS=${VITE_ENABLE_MOCKS}
+ENV VITE_LOKAL_INNLOGGING=${VITE_LOKAL_INNLOGGING}
 COPY frontend ./frontend
 RUN if [ ! -d frontend/client/dist ]; then \
       pnpm --filter ./frontend/client build; \
@@ -36,8 +38,6 @@ RUN pnpm --filter ./frontend/server deploy --prod --legacy /deploy/server
 FROM ${RUNNER_IMAGE} AS runner
 ENV NODE_ENV=production
 ENV STATIC_DIR=/app/client/dist
-ARG VITE_ENABLE_MOCKS
-ENV VITE_ENABLE_MOCKS=${VITE_ENABLE_MOCKS}
 WORKDIR /app
 
 COPY --from=builder /deploy/server/ ./
