@@ -18,6 +18,10 @@ export default defineConfig(() => {
           target: "http://localhost:4000",
           changeOrigin: true,
         },
+        "/oauth2": {
+          target: "http://localhost:4000",
+          changeOrigin: true,
+        },
       },
     },
     ssr: {
