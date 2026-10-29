@@ -575,7 +575,6 @@ suspend fun Application.configureEventHandlers() {
             other = {
                 register(dependencies.create(OpprettSak::class))
                 register(dependencies.create(VarsleArbeidsgiverSakOpprettet::class))
-                register(dependencies.create(BestillTilsagnIOebs::class))
             }
         )
 
@@ -596,6 +595,10 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(OppdaterVilkarsvurdering::class))
         register(dependencies.create(LagreForelopigVedtak::class))
         register(dependencies.create(FattVedtak::class))
+        basedOnEnvSuspending(
+            prod = {},
+            other = { register(dependencies.create(BestillTilsagnIOebs::class)) }
+        )
         register(dependencies.create(SettSoknadStatusVedtakFattet::class))
         register(dependencies.create(ReturnerForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
