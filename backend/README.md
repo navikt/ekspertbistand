@@ -35,7 +35,7 @@ Hver DB-test får sin egen database (`eb_test_*`) via `TestDatabase.isolert()` e
 
 ### Mock i dev-gcp
 
-`ekspertbistand-backend-mock` kjører samme oppsett som `LocalApplication` (mockede eksterne tjenester og testdata) via `MockApplication`, mot en egen Cloud SQL-database. Databasen tømmes og fylles med testdata ved hver oppstart, også ved pod-restart. Den brukes av `ekspertbistand-saksbehandling-mock` (https://ekspertbistand-saksbehandling-mock.ansatt.dev.nav.no), som har brukervelger for testbrukerne i `lokaleAnsatte`.
+`ekspertbistand-backend-mock` kjører samme oppsett som `LocalApplication` (mockede eksterne tjenester og testdata) via `MockApplication`, mot en egen Cloud SQL-database. Databasen tømmes og fylles med testdata ved hver oppstart, også ved pod-restart. Den brukes av `ekspertbistand-saksbehandling-mock` (https://ekspertbistand-saksbehandling-mock.ansatt.dev.nav.no), som har brukervelger for testbrukerne i `lokaleAnsatte`, og av `ekspertbistand-frontend-mock` (https://arbeidsgiver-dev.ansatt.dev.nav.no/ekspertbistand), som er innlogget som arbeidsgiver med tilgang til alle `lokaleVirksomheter`.
 
 Imaget bygges fra test-classpath, så prod-jaren endres ikke:
 
