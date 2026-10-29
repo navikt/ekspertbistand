@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"pnpm --filter ./frontend/client dev\" \"pnpm --filter ./frontend/server dev\"",
+    "serve": "pnpm --filter ./frontend/client build && pnpm --filter ./frontend/server dev",
     "dev:saksbehandling": "pnpm --filter ./frontend/saksbehandling dev",
     "serve:saksbehandling": "pnpm --filter ./frontend/saksbehandling build && pnpm --filter ./frontend/saksbehandling-server dev",
     "build": "pnpm -r build",
