@@ -91,7 +91,7 @@ Testdataene dekker tilstandene MSW-mocken viser i dag
 | Godkjent, kontonummer mangler | En av de tre innvilgede sakene, på virksomheten der Kontoregister-mocken svarer 404 |
 | Avslått | Dagens sak med avslag og godkjent vedtak |
 | Avlyst | Ny innsendt søknad. `LocalApplication` publiserer `SoknadAvlystIArena` for den, slik Arena-konsumenten gjør, og `SettAvlystSoknadStatus` setter status `avlyst` |
-| Tilskuddsbrev på godkjent søknad | `LocalApplication` publiserer `TilskuddsbrevMottatt` for én godkjent søknad, slik Arena-konsumenten gjør. Eventkjeden journalfører mot DokArkiv-mocken og lagrer tilsagnsdataene, og kvitteringssiden viser brevet |
+| Tilskuddsbrev på godkjent søknad | `LocalApplication` publiserer `TilskuddsbrevMottatt` for alle de innvilgede sakene, slik Arena-konsumenten gjør. Eventkjeden journalfører mot DokArkiv-mocken og lagrer tilsagnsdataene, og kvitteringssiden viser brevet |
 | Utkast | Opprettes av brukeren, som i MSW. Ingen testdata |
 
 Ingen nye eventtyper trengs. Eventene publiseres fra `src/test`, på samme måte

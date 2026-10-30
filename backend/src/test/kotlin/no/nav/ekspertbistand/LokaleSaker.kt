@@ -196,6 +196,7 @@ private val lokaleSaker = listOf(
         forslag = ForelopigUtfall.INNVILGE,
         beslutter = kari,
         beslutning = Beslutning.GODKJENN,
+        arena = ArenaHendelse.TILSKUDDSBREV,
     ),
     LokalSak(
         soknadId = UUID.fromString("a1000000-0000-4000-8000-000000000006"),
@@ -261,6 +262,7 @@ private val lokaleSaker = listOf(
         forslag = ForelopigUtfall.INNVILGE,
         beslutter = kari,
         beslutning = Beslutning.GODKJENN,
+        arena = ArenaHendelse.TILSKUDDSBREV,
     ),
     LokalSak(
         soknadId = UUID.fromString("a1000000-0000-4000-8000-000000000013"),
