@@ -69,10 +69,12 @@ Testdataene har allerede tre godkjente søknader (én uten kontonummer, én med 
 
 ### Mock-miljøet i dev-gcp
 
-`deploy-dev-mock.yml` bygger og deployer alle tre mock-appene mot `ekspertbistand-backend-mock` (samme oppsett som `LocalApplication`). Alle deler de samme dataene, og de nullstilles hver gang backend-mocken starter.
+`deploy-dev-mock.yml` bygger og deployer tre mock-apper mot `ekspertbistand-backend-mock` (samme oppsett som `LocalApplication`). Alle deler de samme dataene, og de nullstilles hver gang backend-mocken starter.
 
 - https://ekspertbistand-saksbehandling-mock.ansatt.dev.nav.no kjører saksbehandling uten innlogging. Velg testbruker i headeren. Imaget bygges med `VITE_LOKAL_BRUKERBYTTE=true` og uten `VITE_ENABLE_MOCKS`, så MSW starter ikke, og BFF-en kjører med `LOKAL_BRUKERBYTTE=true`.
-- https://arbeidsgiver-dev.ansatt.dev.nav.no/ekspertbistand (`ekspertbistand-frontend-mock`) kjører arbeidsgiverfrontenden uten ID-porten, innlogget som testbrukeren. Imaget bygges med `VITE_LOKAL_INNLOGGING=true`, og BFF-en kjører med `LOKAL_INNLOGGING=true`. BFF-en avslutter ved oppstart hvis både `LOKAL_INNLOGGING` og `TOKEN_X_ISSUER` er satt.
+- https://ekspertbistand-arbeidsgiver-e2e-mock.ansatt.dev.nav.no/ekspertbistand (`ekspertbistand-frontend-e2e-mock`) kjører arbeidsgiverfrontenden uten ID-porten, innlogget som testbrukeren. Imaget bygges med `VITE_LOKAL_INNLOGGING=true`, og BFF-en kjører med `LOKAL_INNLOGGING=true`. BFF-en avslutter ved oppstart hvis både `LOKAL_INNLOGGING` og `TOKEN_X_ISSUER` er satt.
+
+https://arbeidsgiver-dev.ansatt.dev.nav.no/ekspertbistand (`ekspertbistand-frontend-mock`) kjører arbeidsgiverfrontenden med MSW og uten backend. NKS bruker den. Den deployes av `deploy-dev-manual-frontend-mock.yml`.
 
 ## Teknologier
 

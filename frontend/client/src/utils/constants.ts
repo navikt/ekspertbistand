@@ -14,7 +14,7 @@ export const isMockEnabled = () => {
 };
 
 /**
- * ekspertbistand-frontend-mock bygges med VITE_LOKAL_INNLOGGING=true og går mot ekspertbistand-backend-mock,
+ * ekspertbistand-frontend-e2e-mock bygges med VITE_LOKAL_INNLOGGING=true og går mot ekspertbistand-backend-mock,
  * der BFF-en logger inn testbrukeren uten ID-porten.
  */
 export const isLokalInnlogging = () =>
