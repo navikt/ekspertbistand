@@ -43,6 +43,7 @@ class ValiderDeltakerTest {
             assertTrue(utkast.deltakerBekreftet)
             assertEquals(DTO.Ansatt(deltakerFnr, "Mona Moonlight"), utkast.ansatt)
             assertEquals(orgnr, utkast.virksomhet?.virksomhetsnummer)
+            assertEquals("Testbedrift AS", utkast.virksomhet?.virksomhetsnavn)
         }
         assertEquals(1, oppslag.antallArbeidsforholdOppslag)
         assertEquals(1, oppslag.antallNavneoppslag)
@@ -188,6 +189,41 @@ class ValiderDeltakerTest {
         assertFalse(hentUtkast(utkastId).deltakerBekreftet)
     }
 
+    @Test
+    fun `PATCH ignorerer deltaker og virksomhet og beholder bekreftelsen`() =
+        validerDeltakerTest { _, _ ->
+            val utkastId = opprettUtkast()
+            assertEquals(HttpStatusCode.OK, validerDeltaker(utkastId, deltakerFnr, orgnr).status)
+
+            val endring = DTO.Utkast(
+                ansatt = DTO.Ansatt(gyldigFnr("020290123"), "Skrevet Selv"),
+                virksomhet = virksomhet(annetOrgnr, virksomhetsnavn = "Nytt Navn AS"),
+            )
+            with(patch(utkastId, endring)) {
+                assertEquals(HttpStatusCode.OK, status)
+                val utkast = body<DTO.Utkast>()
+                assertTrue(utkast.deltakerBekreftet)
+                assertEquals(deltakerFnr, utkast.ansatt?.fnr)
+                assertEquals("Mona Moonlight", utkast.ansatt?.navn)
+                assertEquals(orgnr, utkast.virksomhet?.virksomhetsnummer)
+                assertEquals("Testbedrift AS", utkast.virksomhet?.virksomhetsnavn)
+                assertEquals("Ny Kontakt", utkast.virksomhet?.kontaktperson?.navn)
+            }
+        }
+
+    private fun virksomhet(virksomhetsnummer: String, virksomhetsnavn: String = "Testbedrift AS") = DTO.Virksomhet(
+        virksomhetsnummer = virksomhetsnummer,
+        virksomhetsnavn = virksomhetsnavn,
+        kontaktperson = DTO.Kontaktperson(navn = "Ny Kontakt", epost = "kari@test.no", telefonnummer = "99999999"),
+    )
+
+    private suspend fun ApplicationTestBuilder.patch(utkastId: String, utkast: DTO.Utkast) =
+        client.patch("/api/soknad/v1/$utkastId") {
+            bearerAuth("faketoken")
+            contentType(ContentType.Application.Json)
+            setBody(utkast)
+        }
+
     private suspend fun ApplicationTestBuilder.opprettUtkast(token: String = "faketoken"): String =
         client.post("/api/soknad/v1") { bearerAuth(token) }.body<DTO.Utkast>().id!!
 
@@ -207,13 +243,30 @@ class ValiderDeltakerTest {
     private suspend fun HttpResponse.json() = defaultJson.parseToJsonElement(bodyAsText()).jsonObject
     private suspend fun HttpResponse.kode() = json()["kode"]?.jsonPrimitive?.content
 
+    private fun altinnTilgang(
+        orgnr: String,
+        navn: String,
+        underenheter: List<AltinnTilgangerClientResponse.AltinnTilgang> = emptyList(),
+    ) = AltinnTilgangerClientResponse.AltinnTilgang(
+        erSlettet = false,
+        orgnr = orgnr,
+        organisasjonsform = "BEDR",
+        navn = navn,
+        underenheter = underenheter,
+        altinn3Tilganger = setOf(altinn3Ressursid),
+        altinn2Tilganger = emptySet(),
+    )
+
     private fun validerDeltakerTest(
         block: suspend ApplicationTestBuilder.(FakeDeltakerOppslag, org.jetbrains.exposed.v1.jdbc.Database) -> Unit,
     ) = testApplicationWithDatabase { testDb ->
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
-                hierarki = emptyList(),
+                hierarki = listOf(
+                    altinnTilgang("910456800", "Hovedenhet AS", underenheter = listOf(altinnTilgang(orgnr, "Testbedrift AS"))),
+                    altinnTilgang(annetOrgnr, "Annen Bedrift AS"),
+                ),
                 orgNrTilTilganger = mapOf(
                     orgnr to setOf(altinn3Ressursid),
                     annetOrgnr to setOf(altinn3Ressursid),

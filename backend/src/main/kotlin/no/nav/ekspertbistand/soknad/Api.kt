@@ -135,13 +135,9 @@ class SoknadApi(
             return
         }
 
-        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
         val oppdatertUtkast = call.receive<DTO.Utkast>().also { valider(it) }
 
-        val nyttOrgnr = oppdatertUtkast.virksomhet?.virksomhetsnummer
-        if (!erOpprettetAvInnlogget(eksisterende) ||
-            (nyttOrgnr != null && !tilganger.harTilgang(nyttOrgnr))
-        ) {
+        if (!erOpprettetAvInnlogget(eksisterende)) {
             call.respond(
                 status = HttpStatusCode.Forbidden,
                 message = "bruker har ikke tilgang til organisasjon"
@@ -153,16 +149,11 @@ class SoknadApi(
             UtkastTable.updateReturning(
                 where = { UtkastTable.id eq idParam }
             ) { utkast ->
+                // Deltaker (fnr, navn), virksomhetsnummer og virksomhetsnavn settes bare av valider-deltaker.
                 oppdatertUtkast.virksomhet?.also { v ->
-                    utkast[virksomhetsnummer] = v.virksomhetsnummer
-                    utkast[virksomhetsnavn] = v.virksomhetsnavn
                     utkast[kontaktpersonNavn] = v.kontaktperson.navn
                     utkast[kontaktpersonEpost] = v.kontaktperson.epost
                     utkast[kontaktpersonTelefon] = v.kontaktperson.telefonnummer
-                }
-                oppdatertUtkast.ansatt?.also { a ->
-                    utkast[ansattFnr] = a.fnr
-                    utkast[ansattNavn] = a.navn
                 }
                 oppdatertUtkast.ekspert?.also { e ->
                     utkast[ekspertNavn] = e.navn
@@ -244,6 +235,16 @@ class SoknadApi(
             return
         }
 
+        val bekreftetDeltakerNavn = eksisterende.ansatt?.navn
+        if (!eksisterende.deltakerBekreftet ||
+            bekreftetDeltakerNavn == null ||
+            eksisterende.ansatt.fnr != soknad.ansatt.fnr ||
+            eksisterende.virksomhet?.virksomhetsnummer != soknad.virksomhet.virksomhetsnummer ||
+            eksisterende.virksomhet?.virksomhetsnavn != soknad.virksomhet.virksomhetsnavn
+        ) {
+            throw UgyldigInputException("ansatt.fnr", "deltaker er ikke bekreftet")
+        }
+
         val sats = gjeldendeMaksSats(soknad.behovForBistand.startdato)
             ?: throw UgyldigInputException("behovForBistand.startdato", "ingen sats gjelder for startdato")
         val soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad)
@@ -264,7 +265,7 @@ class SoknadApi(
                 it[kontaktpersonTelefon] = soknad.virksomhet.kontaktperson.telefonnummer
                 it[beliggenhetsadresse] = adresse
                 it[ansattFnr] = soknad.ansatt.fnr
-                it[ansattNavn] = soknad.ansatt.navn
+                it[ansattNavn] = bekreftetDeltakerNavn
                 it[ekspertNavn] = soknad.ekspert.navn
                 it[ekspertVirksomhet] = soknad.ekspert.virksomhet
                 it[ekspertVirksomhetNavn] = soknad.ekspert.virksomhetNavn
@@ -336,6 +337,7 @@ class SoknadApi(
             )
             return
         }
+        val virksomhetsnavn = tilganger.navn(request.virksomhetsnummer)
 
         if (utkast.deltakerBekreftet &&
             utkast.ansatt?.fnr == request.fnr &&
@@ -364,7 +366,7 @@ class SoknadApi(
         }
 
         if (!harArbeidsforhold) {
-            lagreDeltaker(idParam, request, navn = null, ansattBekreftet = false)
+            lagreDeltaker(idParam, request, virksomhetsnavn, navn = null, ansattBekreftet = false)
             call.respondFeil(
                 HttpStatusCode.UnprocessableEntity,
                 INGEN_ARBEIDSFORHOLD,
@@ -382,7 +384,7 @@ class SoknadApi(
             return
         }
 
-        call.respond(lagreDeltaker(idParam, request, navn, ansattBekreftet = true))
+        call.respond(lagreDeltaker(idParam, request, virksomhetsnavn, navn, ansattBekreftet = true))
     }
 
     /**
@@ -392,6 +394,7 @@ class SoknadApi(
     private fun lagreDeltaker(
         idParam: UUID,
         request: ValiderDeltakerRequest,
+        virksomhetsnavn: String?,
         navn: String?,
         ansattBekreftet: Boolean,
     ): DTO.Utkast =
@@ -402,6 +405,7 @@ class SoknadApi(
                 utkast[ansattFnr] = request.fnr
                 utkast[ansattNavn] = navn
                 utkast[virksomhetsnummer] = request.virksomhetsnummer
+                utkast[UtkastTable.virksomhetsnavn] = virksomhetsnavn
                 utkast[ansattBekreftetTidspunkt] = if (ansattBekreftet) Clock.System.now() else null
             }.single().tilUtkastDTO()
         }
