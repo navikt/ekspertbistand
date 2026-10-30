@@ -18,8 +18,8 @@ import no.nav.ekspertbistand.oebs.integration.OkonomiPart
 import no.nav.ekspertbistand.oebs.integration.OpprettBestilling
 import no.nav.ekspertbistand.oebs.integration.Organisasjonsnummer
 import no.nav.ekspertbistand.oebs.integration.Periode
-import no.nav.ekspertbistand.oebs.integration.Tilskuddstype
-import no.nav.ekspertbistand.oebs.integration.Tiltakskode
+import no.nav.ekspertbistand.oebs.integration.Regnskapskonto
+import no.nav.ekspertbistand.oebs.integration.Artskonto
 import no.nav.ekspertbistand.oebs.integration.Valuta
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
@@ -104,8 +104,8 @@ class BestillTilsagnIOebs @OptIn(ExperimentalTime::class) constructor(
                     opprettBestilling(saksnummer) { nr ->
                         OpprettBestilling(
                             bestillingsnummer = nr,
-                            tilskuddstype = Tilskuddstype.TILTAK_DRIFTSTILSKUDD,
-                            tiltakskode = Tiltakskode.EKSPERTBISTAND,
+                            regnskapskonto = Regnskapskonto.TILTAK_DRIFTSTILSKUDD,
+                            artskonto = Artskonto.EKSPERTBISTAND,
                             arrangor = OpprettBestilling.Arrangor.Norsk(Organisasjonsnummer(grunnlag.virksomhetsnummer)),
                             kostnadssted = NavEnhetNummer(behandlendeEnhet),
                             avtalenummer = null,
