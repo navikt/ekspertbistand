@@ -8,6 +8,10 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.json.json
 import kotlin.time.ExperimentalTime
 
+/**
+ * Append-only. Bare [EventQueue.finalize] skriver hit. Backfill, projeksjoner og migreringer skal aldri
+ * sette inn eller endre rader, se «`event_log` endres aldri» i event/README.md.
+ */
 @OptIn(ExperimentalTime::class)
 object EventLog : Table("event_log") {
     val id = long("id")
