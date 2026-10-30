@@ -58,8 +58,8 @@ sealed class OebsBestillingMelding {
 @Serializable
 data class OpprettBestilling(
     val bestillingsnummer: String,
-    val tilskuddstype: Tilskuddstype,
-    val tiltakskode: Tiltakskode,
+    val regnskapskonto: Regnskapskonto,
+    val artskonto: Artskonto,
     val arrangor: Arrangor,
     val kostnadssted: NavEnhetNummer,
     val avtalenummer: String?,
@@ -171,13 +171,13 @@ enum class OkonomiFagsystem {
     EKSPERTBISTAND,
 }
 
-/** Ekspertbistand sender [TILTAK_DRIFTSTILSKUDD], som finnes i VALP sin `Tilskuddstype`-enum. */
-enum class Tilskuddstype {
+/** Nøkkelen VALP slår opp statlig regnskapskonto på. Ekspertbistand sender [TILTAK_DRIFTSTILSKUDD]. */
+enum class Regnskapskonto {
     TILTAK_DRIFTSTILSKUDD,
 }
 
-/** [EKSPERTBISTAND] er registrert i VALP sin `Tiltakskode`-enum (validert av VALP mot vår melding). */
-enum class Tiltakskode {
+/** Nøkkelen VALP slår opp statlig artskonto på. VALP avviser andre verdier enn [EKSPERTBISTAND] fra oss. */
+enum class Artskonto {
     EKSPERTBISTAND,
 }
 

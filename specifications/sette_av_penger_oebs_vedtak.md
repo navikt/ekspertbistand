@@ -104,9 +104,10 @@ meldingen til OeBS.
 - Tiltaksøkonomi må ha en kontering for `TILTAK_DRIFTSTILSKUDD` og
   `EKSPERTBISTAND` som dekker hele perioden. Ellers feiler bestillingen
   ([TiltaksokonomiService.kt](https://github.com/navikt/mulighetsrommet/blob/4e4f80dd06f28618f86e5e8944ee93b30b6d9d61/mulighetsrommet-tiltaksokonomi/src/main/kotlin/no/nav/tiltak/okonomi/service/TiltaksokonomiService.kt#L78-L85)).
-  Tilskuddstypen sendes ikke til OeBS. Den er bare en nøkkel i oppslaget i
-  `tiltak_kontering_oebs`, sammen med tiltakskode og periode, og OeBS får
-  `statsregnskapsKonto` og `artsKonto` fra raden. `Tilskuddstype` har ikke
+  Enum-verdiene sendes ikke til OeBS. `regnskapskonto` og `artskonto` er
+  nøkler i oppslaget i `tiltak_kontering_oebs`, sammen med periode, og OeBS
+  får `statsregnskapsKonto` og `artsKonto` fra raden. Feltene het
+  `tilskuddstype` og `tiltakskode` før mulighetsrommet#8485. Enumen har ikke
   verdien `TILTAK_EKSPERTBISTAND`, så raden Sondre la inn må ha
   `TILTAK_DRIFTSTILSKUDD` (sjekket på `main` 2026-10-26).
 - Fakturaen har ingen periode mot OeBS. `fakturaDato` er datoen fakturaen ble
@@ -152,6 +153,7 @@ i OEBS-2283 (2026-10-26) med forslaget til nummerserie.
 | Kort 627 og Ken, 2026-10-26 | Saken får et løpenummer som matcher OeBS, løst sammen med kort 650. Ny kolonne `saksnummer`, `sak_id` beholdes. Saksnummeret brukes bare mot OeBS: det vises ikke i saksbehandling, og journalføringen endres ikke. |
 | OEBS-2283, Ken og Sondre (VALP), godtatt av Kjersti (OeBS) 2026-10-28 | Bestilling `E-<saksnummer>-<løpenr per sak>`, maks 20 tegn, og VALP avviser nummer uten `E-`. Faktura `<bestillingsnummer>-<løpenr per bestilling>`, maks 50 tegn. Oppbyggingen er den samme som for tiltaksadministrasjon. Løpenummeret starter på 1 000 000, over høyeste Arena-løpenummer i prod (298 690). Normalt får en sak én bestilling, men flere må støttes. |
 | Sondre (VALP) og Ken, 2026-10-26 | Tilskuddstype `TILTAK_DRIFTSTILSKUDD` (ikke `TILTAK_EKSPERTBISTAND` fra kort 565). VALP slår opp kontoene på tilskuddstype, tiltakskode og periode, og konteringen gjelder `[2026-11-01, 2099-01-01)` i dev og prod. Kostnadssted er Norg-enhetsnummeret (`sak.behandlende_enhet`). VALP sender videre til OeBS med kilde `EKSPBIST`. |
+| Sondre (VALP), 2026-10-30 | Feltene `tilskuddstype` og `tiltakskode` i `OpprettBestilling` heter nå `regnskapskonto` og `artskonto` (mulighetsrommet#8485). Verdiene er de samme. VALP leser fortsatt de gamle navnene midlertidig. Vi har ingen outbox-rader i gammelt format, så vi trenger ikke lese dem. |
 | Ken, VALP og Kjersti (OeBS), 2026-10-26 til 2026-10-28 | En bestilling kan ikke gå over årsskiftet, men blir stående i OeBS. Refusjonsfristen er 6 måneder etter tiltaksperiodens slutt, og OeBS godtar faktura mot en bestilling med fjorårets `tilsagnsAar` så lenge perioden på utbetalingen overlapper bestillingens. For oss er perioden den samme på begge. Fordelingen per måned beholdes: OeBS og tiltaksøkonomi krever den, og den har ingen praktisk betydning for oss. |
 | VALP og teamet, 2026-10-28 | Perioden på en bestilling kan ikke endres. Endepunktet er idempotent: samme bestillingsnummer på nytt gir ok, uten endring. Forlengelse krever annullering og ny bestilling, trolig med nytt tilsagn som erstatter det gamle for saksbehandler. Detaljene avklares når forlengelse løses. |
 | Hilde-Mari (OeBS), Sondre (VALP) og Ken, 2026-10-26 | OeBS må gjøre funksjonelt og teknisk oppsett mot T1 før vi sender, og gir beskjed når de er klare. Start med tilsagn. VALP-consumeren for `fager.ekspertbistand.bestillinger-v1` er av, og VALP skrur den på når vi skal teste. Poststed er løst i navikt/mulighetsrommet#8264. Det ligger ingen bestillinger i dev. |
@@ -439,8 +441,8 @@ nytt løpenummer.
 | Felt | Verdi |
 |------|-------|
 | `bestillingsnummer` | Fra `nesteBestillingsnummer(sak.saksnummer)` |
-| `tilskuddstype` | `TILTAK_DRIFTSTILSKUDD` |
-| `tiltakskode` | `EKSPERTBISTAND` |
+| `regnskapskonto` | `TILTAK_DRIFTSTILSKUDD` |
+| `artskonto` | `EKSPERTBISTAND` |
 | `arrangor` | `Arrangor.Norsk(Organisasjonsnummer(soknad.virksomhetsnummer))` |
 | `kostnadssted` | `NavEnhetNummer(sak.behandlende_enhet)` |
 | `avtalenummer` | `null` |
