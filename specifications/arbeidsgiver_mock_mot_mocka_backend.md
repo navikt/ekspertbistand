@@ -41,6 +41,7 @@ gjør ikke det:
 | Ken, 2026-10-29 | Én workflow (`deploy-dev-mock.yml`). Saksbehandling får «Se som arbeidsgiver» der brukervelgeren vises. |
 | Spesifikasjonen | Flagget `LOKAL_INNLOGGING` i BFF-en, som `LOKAL_BRUKERBYTTE`, erstatter unntaket for `VITE_ENABLE_MOCKS`. Én testbruker (pid `42`). |
 | Forrige mock | Mock-koden blir i `src/test`, databasen nullstilles ved oppstart, og backend-mocken nås bare fra mock-BFF-ene. |
+| Ken, 2026-10-30 | Erstatter beslutningen fra 2026-10-29 om å overskrive `ekspertbistand-frontend-mock`. Den går tilbake til MSW, fordi backend-mocken ikke kan vise tilskuddsbrev før eventene finnes i ny saksbehandlingsflyt. Mocken mot backend-mocken blir en ny app, `ekspertbistand-frontend-e2e-mock`, med egen ingress. |
 
 ## Tilnærming
 
@@ -150,36 +151,39 @@ appen og med MSW vises den ikke.
   `frontend/saksbehandling/src/utils/constants.ts` velger base-URL:
   - localhost: `http://localhost:4000`, arbeidsgiver-BFF-en (saksbehandling-BFF-en
     bruker 4001)
-  - ellers: `https://arbeidsgiver-dev.ansatt.dev.nav.no/ekspertbistand`, som er
-    `ekspertbistand-frontend-mock`
+  - ellers: `https://ekspertbistand-arbeidsgiver-e2e-mock.ansatt.dev.nav.no/ekspertbistand`,
+    som er `ekspertbistand-frontend-e2e-mock`
 
 Lenken bærer ingen innlogging. Arbeidsgiverfrontenden logger alltid inn som pid
 `42`, som har tilgang til alle lokale virksomheter, se punkt 2.
 
 ### 6. Nais
 
-`nais/dev-gcp-frontend-mock.yaml` overskrives:
+Ny `nais/dev-gcp-frontend-e2e-mock.yaml` for `ekspertbistand-frontend-e2e-mock`:
 
+- ingress `https://ekspertbistand-arbeidsgiver-e2e-mock.ansatt.dev.nav.no/ekspertbistand`
 - env `EKSPERTBISTAND_API_BASEURL=http://ekspertbistand-backend-mock` og
   `LOKAL_INNLOGGING=true`
 - `accessPolicy.outbound`: `ekspertbistand-backend-mock`
-- ingress, `BASE_PATH`, `tokenx`/`idporten` av og ressurser som i dag
+- `BASE_PATH`, `tokenx`/`idporten` av og ressurser som i `ekspertbistand-frontend-mock`
 
-`nais/dev-gcp-backend-mock.yaml` får inbound fra `ekspertbistand-frontend-mock`.
+`nais/dev-gcp-frontend-mock.yaml` er uendret og kjører med MSW.
+`nais/dev-gcp-backend-mock.yaml` får inbound fra `ekspertbistand-frontend-e2e-mock`.
 
 ### 7. Workflow og image
 
-Bygget av arbeidsgiver-mocken flyttes inn i `.github/workflows/deploy-dev-mock.yml`,
-som da bygger og deployer alle tre mock-appene:
+`.github/workflows/deploy-dev-mock.yml` bygger og deployer også
+`ekspertbistand-frontend-e2e-mock`:
 
-- Ny jobb `build-frontend-mock`: som dagens jobb i
+- Ny jobb `build-frontend-e2e-mock`: som jobben i
   `deploy-dev-manual-frontend-mock.yml`, med CDN-opplasting til
-  `fager/ekspertbistand-mock/<sha>`, men med `VITE_LOKAL_INNLOGGING=true` og
-  uten `VITE_ENABLE_MOCKS`.
+  `fager/ekspertbistand-e2e-mock/<sha>`, men med `VITE_LOKAL_INNLOGGING=true` og
+  uten `VITE_ENABLE_MOCKS`. Egen CDN-sti, så den ikke overskriver MSW-bygget
+  for samme commit.
 - Jobb `deploy`: deployer backend-mock først, deretter begge frontend-mockene.
 - Trigger: dagens stier, pluss `frontend/client/**`, `frontend/server/**`,
-  `frontend/shared/**`, `Dockerfile` og `nais/dev-gcp-frontend-mock.yaml`.
-- `deploy-dev-manual-frontend-mock.yml` fjernes.
+  `frontend/shared/**`, `Dockerfile` og `nais/dev-gcp-frontend-e2e-mock.yaml`.
+- `deploy-dev-manual-frontend-mock.yml` beholdes og deployer MSW-mocken.
 
 Rot-`Dockerfile` tar imot `VITE_LOKAL_INNLOGGING` som `ARG`/`ENV` i byggesteget.
 
@@ -209,10 +213,9 @@ saksbehandling, send refusjonskrav og sluttrapport som arbeidsgiver.
 | `frontend/saksbehandling/src/utils/constants.ts` | Ny `arbeidsgiverSoknadUrl(soknadId)` |
 | `frontend/saksbehandling/src/pages/SakPage.tsx` | Knappen «Se som arbeidsgiver» når `isLokalBrukerbytteMulig()` |
 | `Dockerfile` | Build-arg `VITE_LOKAL_INNLOGGING` |
-| `nais/dev-gcp-frontend-mock.yaml` | Overskrives: peker mot backend-mock, `LOKAL_INNLOGGING=true` |
-| `nais/dev-gcp-backend-mock.yaml` | Inbound fra `ekspertbistand-frontend-mock` |
-| `.github/workflows/deploy-dev-mock.yml` | Bygger og deployer også arbeidsgiver-mocken |
-| `.github/workflows/deploy-dev-manual-frontend-mock.yml` | Fjernet |
+| `nais/dev-gcp-frontend-e2e-mock.yaml` | Ny app som peker mot backend-mock, `LOKAL_INNLOGGING=true` |
+| `nais/dev-gcp-backend-mock.yaml` | Inbound fra `ekspertbistand-frontend-e2e-mock` |
+| `.github/workflows/deploy-dev-mock.yml` | Bygger og deployer også `ekspertbistand-frontend-e2e-mock` |
 | `frontend/README.md`, `backend/README.md` | Lokal kjøring, mock-miljøet og testflyten |
 
 ## Kanttilfeller og feilmodus
@@ -220,10 +223,9 @@ saksbehandling, send refusjonskrav og sluttrapport som arbeidsgiver.
 - **Felles data.** Arbeidsgiver- og saksbehandling-mocken deler databasen. En
   søknad sendt i arbeidsgiver-mocken dukker opp i saksbehandling-mocken. Alle
   testere deler pid `42`.
-- **NKS og testere samtidig.** MSW holdt tilstanden i hver nettleser. Nå deler
-  alle de samme dataene. Sender en tester refusjonskrav på den godkjente søknaden
-  NKS bruker, ser NKS det innsendte kravet til neste omstart. Tilstandene i
-  tabellen i punkt 2 er tilbake etter hver omstart av backend-mocken.
+- **Testere samtidig.** Alle som bruker e2e-mocken deler de samme dataene.
+  Tilstandene i tabellen i punkt 2 er tilbake etter hver omstart av
+  backend-mocken. NKS bruker MSW-mocken og påvirkes ikke.
 - **Testdata brukt opp.** Et refusjonskrav eller en sluttrapport kan sendes én
   gang per søknad. Når de tre sakene er brukt, må testeren behandle en ny søknad
   i saksbehandling-mocken, eller vente på neste omstart.
@@ -268,14 +270,16 @@ saksbehandling, send refusjonskrav og sluttrapport som arbeidsgiver.
 - [ ] `kontonummer-finnes` svarer både `true` og `false` for lokale virksomheter
 - [ ] Ved oppstart finnes søknader i alle tilstandene MSW-mocken viser: godkjent
       med og uten kontonummer, avslått, avlyst og godkjent med tilskuddsbrev
-- [ ] `https://arbeidsgiver-dev.ansatt.dev.nav.no/ekspertbistand` går mot
-      `ekspertbistand-backend-mock` uten MSW, og samme flyt virker der
+- [ ] `https://ekspertbistand-arbeidsgiver-e2e-mock.ansatt.dev.nav.no/ekspertbistand`
+      går mot `ekspertbistand-backend-mock` uten MSW, og samme flyt virker der
+- [ ] `https://arbeidsgiver-dev.ansatt.dev.nav.no/ekspertbistand` kjører med MSW
+      som før
 - [ ] MSW virker fortsatt i `vite dev` uten flagg og i e2e-testene
 - [ ] Saksdetaljene viser «Se som arbeidsgiver» lokalt og i
       saksbehandling-mocken, ikke ellers. Lenken åpner søknaden i riktig
       arbeidsgiverfrontend
 - [ ] BFF-en nekter å starte med både `LOKAL_INNLOGGING` og `TOKEN_X_ISSUER`
 - [ ] Backend-mocken er bare nåbar fra de to mock-BFF-ene
-- [ ] `deploy-dev-mock.yml` bygger og deployer arbeidsgiver-mocken ved push til
+- [ ] `deploy-dev-mock.yml` bygger og deployer `ekspertbistand-frontend-e2e-mock` ved push til
       `main` og ved `workflow_dispatch`
 - [ ] README-ene beskriver lokal kjøring, mock-miljøet og testflyten

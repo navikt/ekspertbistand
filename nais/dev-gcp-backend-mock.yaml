@@ -6,7 +6,7 @@ metadata:
   labels:
     team: fager
 spec:
-  # Mock-backend for ekspertbistand-saksbehandling-mock og ekspertbistand-frontend-mock.
+  # Mock-backend for ekspertbistand-saksbehandling-mock og ekspertbistand-frontend-e2e-mock.
   # Kjører LocalApplication-oppsettet (MockApplication) med mockede eksterne tjenester.
   # Databasen tømmes og fylles med testdata ved hver oppstart.
   # Godtar faketoken, så den skal aldri ha ingress eller andre inbound-regler enn mock-BFF-ene.
@@ -59,7 +59,7 @@ spec:
     inbound:
       rules:
         - application: ekspertbistand-saksbehandling-mock
-        - application: ekspertbistand-frontend-mock
+        - application: ekspertbistand-frontend-e2e-mock
     outbound:
       rules:
         - application: ekspertbistand-gotenberg

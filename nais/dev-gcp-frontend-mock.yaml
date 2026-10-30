@@ -13,15 +13,6 @@ spec:
   env:
     - name: BASE_PATH
       value: "/ekspertbistand"
-    - name: EKSPERTBISTAND_API_BASEURL
-      value: "http://ekspertbistand-backend-mock"
-    - name: LOKAL_INNLOGGING
-      value: "true"
-
-  accessPolicy:
-    outbound:
-      rules:
-        - application: ekspertbistand-backend-mock
 
   replicas:
     min: 1

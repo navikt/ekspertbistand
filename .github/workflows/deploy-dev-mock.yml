@@ -1,6 +1,6 @@
 name: Deploy dev mock (backend, saksbehandling og arbeidsgiver)
 
-# ekspertbistand-saksbehandling-mock og ekspertbistand-frontend-mock mot ekspertbistand-backend-mock.
+# ekspertbistand-saksbehandling-mock og ekspertbistand-frontend-e2e-mock mot ekspertbistand-backend-mock.
 # Se specifications/saksbehandling_mock_mot_mocka_backend.md og
 # specifications/arbeidsgiver_mock_mot_mocka_backend.md.
 on:
@@ -18,7 +18,7 @@ on:
       - Dockerfile
       - nais/dev-gcp-backend-mock.yaml
       - nais/dev-gcp-saksbehandling-mock.yaml
-      - nais/dev-gcp-frontend-mock.yaml
+      - nais/dev-gcp-frontend-e2e-mock.yaml
       - .github/workflows/deploy-dev-mock.yml
 
 permissions:
@@ -123,8 +123,8 @@ jobs:
             VITE_LOKAL_BRUKERBYTTE=true
           salsa: true
 
-  build-frontend-mock:
-    name: Build frontend mock image
+  build-frontend-e2e-mock:
+    name: Build frontend e2e mock image
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -132,8 +132,8 @@ jobs:
       id-token: write
       packages: write
     env:
-      CDN_DESTINATION: /ekspertbistand-mock/${{ github.sha }}
-      CDN_PUBLIC_BASE: https://cdn.nav.no/fager/ekspertbistand-mock/${{ github.sha }}
+      CDN_DESTINATION: /ekspertbistand-e2e-mock/${{ github.sha }}
+      CDN_PUBLIC_BASE: https://cdn.nav.no/fager/ekspertbistand-e2e-mock/${{ github.sha }}
       BASE_PATH: /ekspertbistand
     outputs:
       image: ${{ steps.docker-build-push.outputs.image }}
@@ -190,7 +190,7 @@ jobs:
         uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # v0
         with:
           team: fager
-          image_suffix: frontend-mock
+          image_suffix: frontend-e2e-mock
           tag: ${{ github.sha }}
           docker_context: .
           dockerfile: Dockerfile
@@ -208,7 +208,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    needs: [ build-backend-mock, build-saksbehandling-mock, build-frontend-mock ]
+    needs: [ build-backend-mock, build-saksbehandling-mock, build-frontend-e2e-mock ]
 
     steps:
       - name: Checkout
@@ -230,10 +230,10 @@ jobs:
           VAR: image=${{ needs.build-saksbehandling-mock.outputs.image }}
           REF: ${{ github.sha }}
 
-      - name: Deploy frontend mock
+      - name: Deploy frontend e2e mock
         uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # v3
         env:
           CLUSTER: dev-gcp
-          RESOURCE: nais/dev-gcp-frontend-mock.yaml
-          VAR: image=${{ needs.build-frontend-mock.outputs.image }}
+          RESOURCE: nais/dev-gcp-frontend-e2e-mock.yaml
+          VAR: image=${{ needs.build-frontend-e2e-mock.outputs.image }}
           REF: ${{ github.sha }}

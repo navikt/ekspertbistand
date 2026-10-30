@@ -35,7 +35,7 @@ const port = Number(PORT);
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
 
 const tokenxEnabled = Boolean(TOKEN_X_ISSUER);
-// ekspertbistand-frontend-mock går mot ekspertbistand-backend-mock, som godtar faketoken, uten ID-porten og TokenX.
+// ekspertbistand-frontend-e2e-mock går mot ekspertbistand-backend-mock, som godtar faketoken, uten ID-porten og TokenX.
 const lokalInnlogging = LOKAL_INNLOGGING === "true";
 if (lokalInnlogging && tokenxEnabled) {
   throw new Error("LOKAL_INNLOGGING kan ikke kombineres med TokenX. Avslutter.");
