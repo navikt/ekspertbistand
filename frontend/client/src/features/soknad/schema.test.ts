@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createEmptyInputs, sjekkSoknadssumMotMaks, soknadSchema } from "./schema";
+import {
+  createEmptyInputs,
+  sjekkSoknadssumMotMaks,
+  soknadSchema,
+  STEP1_FIELDS,
+  STEP2_FIELDS,
+  STEP3_FIELDS,
+} from "./schema";
 import { draftDtoServerSchema } from "./server-schemas";
 
 const gyldigeInputs = () => {
@@ -99,5 +106,31 @@ describe("søknad fra server", () => {
 
   it("avviser ukjent status", () => {
     expect(draftDtoServerSchema.safeParse({ status: "slettet" }).success).toBe(false);
+  });
+});
+
+describe("feltgrupper per steg", () => {
+  const bladstier = (verdi: unknown, sti = ""): string[] =>
+    verdi && typeof verdi === "object" && !Array.isArray(verdi)
+      ? Object.entries(verdi).flatMap(([nøkkel, barn]) =>
+          bladstier(barn, sti ? `${sti}.${nøkkel}` : nøkkel)
+        )
+      : [sti];
+
+  it("steg 1 har bare deltaker og virksomhet", () => {
+    expect([...STEP1_FIELDS].sort()).toEqual(
+      [
+        "ansatt.fnr",
+        "virksomhet.beliggenhetsadresse",
+        "virksomhet.virksomhetsnavn",
+        "virksomhet.virksomhetsnummer",
+      ].sort()
+    );
+  });
+
+  it("dekker hvert felt i skjemaet nøyaktig én gang, unntatt navnet fra PDL", () => {
+    const grupper = [...STEP1_FIELDS, ...STEP2_FIELDS, ...STEP3_FIELDS];
+    expect(new Set(grupper).size).toBe(grupper.length);
+    expect([...grupper, "ansatt.navn"].sort()).toEqual(bladstier(createEmptyInputs()).sort());
   });
 });

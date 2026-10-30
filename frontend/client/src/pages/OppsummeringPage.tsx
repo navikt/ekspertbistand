@@ -43,9 +43,16 @@ type SoknadSummaryProps = {
   editable?: boolean;
   onEditStep1?: React.MouseEventHandler<HTMLAnchorElement>;
   onEditStep2?: React.MouseEventHandler<HTMLAnchorElement>;
+  onEditStep3?: React.MouseEventHandler<HTMLAnchorElement>;
 };
 
-function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: SoknadSummaryProps) {
+function SoknadSummary({
+  data,
+  editable = false,
+  onEditStep1,
+  onEditStep2,
+  onEditStep3,
+}: SoknadSummaryProps) {
   const { virksomhet, ansatt, ekspert, behovForBistand, nav } = data;
   const {
     adresse,
@@ -57,9 +64,17 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
     <>
       <FormSummary>
         <FormSummary.Header>
-          <FormSummary.Heading level="2">Deltakere</FormSummary.Heading>
+          <FormSummary.Heading level="2">Deltaker</FormSummary.Heading>
         </FormSummary.Header>
         <FormSummary.Answers>
+          <FormSummary.Answer>
+            <FormSummary.Label>Navn</FormSummary.Label>
+            <FormSummary.Value>{formatValue(ansatt.navn)}</FormSummary.Value>
+          </FormSummary.Answer>
+          <FormSummary.Answer>
+            <FormSummary.Label>Fødselsnummer</FormSummary.Label>
+            <FormSummary.Value>{formatValue(ansatt.fnr)}</FormSummary.Value>
+          </FormSummary.Answer>
           <FormSummary.Answer>
             <FormSummary.Label>Navn på virksomhet</FormSummary.Label>
             <FormSummary.Value>{formatValue(virksomhet.virksomhetsnavn)}</FormSummary.Value>
@@ -78,6 +93,19 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
                   : formatValue(adresse)}
             </FormSummary.Value>
           </FormSummary.Answer>
+        </FormSummary.Answers>
+        {editable && onEditStep1 && (
+          <FormSummary.Footer>
+            <FormSummary.EditLink href="#" onClick={onEditStep1} />
+          </FormSummary.Footer>
+        )}
+      </FormSummary>
+
+      <FormSummary>
+        <FormSummary.Header>
+          <FormSummary.Heading level="2">Kontaktperson og ekspert</FormSummary.Heading>
+        </FormSummary.Header>
+        <FormSummary.Answers>
           <FormSummaryAnswer>
             <FormSummary.Label>Kontaktperson i virksomheten</FormSummary.Label>
             <FormSummary.Value>
@@ -99,22 +127,6 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
                   <FormSummary.Value>
                     {formatValue(virksomhet.kontaktperson.telefonnummer)}
                   </FormSummary.Value>
-                </FormSummary.Answer>
-              </FormSummary.Answers>
-            </FormSummary.Value>
-          </FormSummaryAnswer>
-
-          <FormSummaryAnswer>
-            <FormSummary.Label>Ansatt</FormSummary.Label>
-            <FormSummary.Value>
-              <FormSummary.Answers>
-                <FormSummary.Answer>
-                  <FormSummary.Label>Navn</FormSummary.Label>
-                  <FormSummary.Value>{formatValue(ansatt.navn)}</FormSummary.Value>
-                </FormSummary.Answer>
-                <FormSummary.Answer>
-                  <FormSummary.Label>Fødselsnummer</FormSummary.Label>
-                  <FormSummary.Value>{formatValue(ansatt.fnr)}</FormSummary.Value>
                 </FormSummary.Answer>
               </FormSummary.Answers>
             </FormSummary.Value>
@@ -156,9 +168,9 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
             <FormSummary.Value>{formatValue(nav.kontaktperson)}</FormSummary.Value>
           </FormSummary.Answer>
         </FormSummary.Answers>
-        {editable && onEditStep1 && (
+        {editable && onEditStep2 && (
           <FormSummary.Footer>
-            <FormSummary.EditLink href="#" onClick={onEditStep1} />
+            <FormSummary.EditLink href="#" onClick={onEditStep2} />
           </FormSummary.Footer>
         )}
       </FormSummary>
@@ -198,9 +210,9 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
             <FormSummary.Value>{formatDate(behovForBistand.startdato)}</FormSummary.Value>
           </FormSummary.Answer>
         </FormSummary.Answers>
-        {editable && onEditStep2 && (
+        {editable && onEditStep3 && (
           <FormSummary.Footer>
-            <FormSummary.EditLink href="#" onClick={onEditStep2} />
+            <FormSummary.EditLink href="#" onClick={onEditStep3} />
           </FormSummary.Footer>
         )}
       </FormSummary>
@@ -210,7 +222,7 @@ function SoknadSummary({ data, editable = false, onEditStep1, onEditStep2 }: Sok
 
 export default function OppsummeringPage() {
   const navigate = useNavigate();
-  const { draftId, clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
+  const { draftId, clearDraft, lastPersistedAt, saveError, lastUtkastPaNytt } = useSoknadDraft();
   const { watch, getValues, setError } = useFormContext<SoknadInputs>();
   const formData = watch();
   const {
@@ -219,8 +231,14 @@ export default function OppsummeringPage() {
     error: satsError,
     mutate: hentSats,
   } = useMaksSats(formData.behovForBistand.startdato);
-  const { goToSoknader, goToSoknaderWithSaveNotice, goToStep1, goToStep2, createLinkHandler } =
-    useSkjemaNavigation();
+  const {
+    goToSoknader,
+    goToSoknaderWithSaveNotice,
+    goToStep1,
+    goToStep2,
+    goToStep3,
+    createLinkHandler,
+  } = useSkjemaNavigation();
   const [submitError, setSubmitError] = useState<ApiErrorInfo | null>(null);
   const { trigger: submitDraft, isMutating: submitting } = useSWRMutation<
     null,
@@ -233,6 +251,7 @@ export default function OppsummeringPage() {
 
   const handleStep1Link = createLinkHandler(goToStep1);
   const handleStep2Link = createLinkHandler(goToStep2);
+  const handleStep3Link = createLinkHandler(goToStep3);
 
   const handleSubmit = useCallback(async () => {
     const result = soknadSchema.safeParse(getValues());
@@ -258,7 +277,7 @@ export default function OppsummeringPage() {
     );
     if (belopsfeil) {
       setError("behovForBistand.estimertKostnad", { type: "maksSats", message: belopsfeil });
-      goToStep2();
+      goToStep3();
       return;
     }
     setSubmitError(null);
@@ -274,12 +293,21 @@ export default function OppsummeringPage() {
         state: { submissionSuccess: true },
       });
     } catch (error) {
+      if (error instanceof HttpError && error.field === "ansatt.fnr") {
+        await lastUtkastPaNytt();
+        setError("ansatt.fnr", {
+          type: "server",
+          message: "Du må sjekke deltakeren på nytt før du sender inn. Trykk «Neste steg».",
+        });
+        goToStep1();
+        return;
+      }
       if (error instanceof HttpError && error.field === "behovForBistand.estimertKostnad") {
         setError("behovForBistand.estimertKostnad", {
           type: "server",
           message: "Søknadssummen er ugyldig eller over maksgrensen for startdatoen.",
         });
-        goToStep2();
+        goToStep3();
         return;
       }
       if (error instanceof HttpError && error.field === "behovForBistand.startdato") {
@@ -287,7 +315,7 @@ export default function OppsummeringPage() {
           type: "server",
           message: "Ingen maksgrense gjelder for denne startdatoen.",
         });
-        goToStep2();
+        goToStep3();
         return;
       }
       setSubmitError(resolveApiError(error, "Kunne ikke sende søknaden akkurat nå."));
@@ -302,7 +330,9 @@ export default function OppsummeringPage() {
     satsLoading,
     satsError,
     setError,
-    goToStep2,
+    goToStep1,
+    goToStep3,
+    lastUtkastPaNytt,
   ]);
 
   return (
@@ -315,7 +345,7 @@ export default function OppsummeringPage() {
         </VStack>
 
         <div>
-          <BackLink to={`/skjema/${draftId}/steg-2`} onClick={handleStep2Link}>
+          <BackLink to={`/skjema/${draftId}/steg-3`} onClick={handleStep3Link}>
             Forrige steg
           </BackLink>
           <Box paddingBlock="space-32 space-16">
@@ -323,7 +353,12 @@ export default function OppsummeringPage() {
               Oppsummering
             </Heading>
           </Box>
-          <SkjemaFormProgress activeStep={3} onStep1={handleStep1Link} onStep2={handleStep2Link} />
+          <SkjemaFormProgress
+            activeStep={4}
+            onStep1={handleStep1Link}
+            onStep2={handleStep2Link}
+            onStep3={handleStep3Link}
+          />
         </div>
 
         <BodyLong>
@@ -357,6 +392,7 @@ export default function OppsummeringPage() {
           editable
           onEditStep1={handleStep1Link}
           onEditStep2={handleStep2Link}
+          onEditStep3={handleStep3Link}
         />
 
         <VStack gap="space-16">
@@ -370,7 +406,7 @@ export default function OppsummeringPage() {
               variant="secondary"
               icon={<ArrowLeftIcon aria-hidden />}
               iconPosition="left"
-              onClick={goToStep2}
+              onClick={goToStep3}
             >
               Forrige steg
             </Button>

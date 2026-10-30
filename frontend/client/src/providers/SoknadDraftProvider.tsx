@@ -16,9 +16,17 @@ const mergeSnapshotIntoDraftDto = (
   persistedIso?: string
 ): DraftDto => {
   const payload = buildDraftPayload(snapshot);
+  // PATCH endrer ikke deltaker eller virksomhet. Det gjør bare valider-deltaker.
   return {
     ...current,
     ...payload,
+    ansatt: current?.ansatt ?? null,
+    virksomhet: {
+      ...current?.virksomhet,
+      ...payload.virksomhet,
+      virksomhetsnummer: current?.virksomhet?.virksomhetsnummer,
+      virksomhetsnavn: current?.virksomhet?.virksomhetsnavn,
+    },
     id: current?.id ?? draftId,
     status: current?.status ?? "utkast",
     opprettetTidspunkt: persistedIso ?? current?.opprettetTidspunkt ?? null,
@@ -33,7 +41,7 @@ export function SoknadDraftProvider({
   children: ReactNode;
 }) {
   const draftUrl = `${EKSPERTBISTAND_API_PATH}/${draftId}`;
-  const { data: draftDto, error, isLoading } = useSWR<DraftDto | null, Error>(draftUrl);
+  const { data: draftDto, error, isLoading, mutate } = useSWR<DraftDto | null, Error>(draftUrl);
 
   const { trigger: persistDraft } = useSWRMutation<DraftDto | null, Error, string, SoknadInputs>(
     draftUrl,
@@ -102,6 +110,29 @@ export function SoknadDraftProvider({
     return persistedIso ? new Date(persistedIso) : null;
   }, [draftDto]);
 
+  const deltakerBekreftet = draftDto?.deltakerBekreftet ?? false;
+  const bekreftetFnr = draftDto?.ansatt?.fnr;
+  const bekreftetVirksomhetsnummer = draftDto?.virksomhet?.virksomhetsnummer;
+  const bekreftetDeltaker = useMemo(
+    () =>
+      deltakerBekreftet && bekreftetFnr && bekreftetVirksomhetsnummer
+        ? { fnr: bekreftetFnr, virksomhetsnummer: bekreftetVirksomhetsnummer }
+        : null,
+    [bekreftetFnr, bekreftetVirksomhetsnummer, deltakerBekreftet]
+  );
+  const opprettetAv = draftDto?.opprettetAv ?? null;
+
+  const oppdaterUtkast = useCallback(
+    async (utkast: DraftDto) => {
+      await mutate(utkast, { revalidate: false });
+    },
+    [mutate]
+  );
+
+  const lastUtkastPaNytt = useCallback(async () => {
+    await mutate();
+  }, [mutate]);
+
   const value = useMemo<SoknadDraftContextValue>(
     () => ({
       draftId,
@@ -112,8 +143,27 @@ export function SoknadDraftProvider({
       clearDraft,
       lastPersistedAt,
       saveError,
+      deltakerBekreftet,
+      bekreftetDeltaker,
+      opprettetAv,
+      oppdaterUtkast,
+      lastUtkastPaNytt,
     }),
-    [clearDraft, draft, draftId, hydrated, lastPersistedAt, saveDraft, saveError, status]
+    [
+      bekreftetDeltaker,
+      clearDraft,
+      deltakerBekreftet,
+      draft,
+      draftId,
+      hydrated,
+      lastPersistedAt,
+      lastUtkastPaNytt,
+      opprettetAv,
+      oppdaterUtkast,
+      saveDraft,
+      saveError,
+      status,
+    ]
   );
 
   if (error instanceof HttpError && (error.status === 400 || error.status === 404)) {

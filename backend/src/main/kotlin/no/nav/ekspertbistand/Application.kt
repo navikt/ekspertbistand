@@ -65,6 +65,8 @@ import no.nav.ekspertbistand.saksbehandling.configureSakDokumentApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
 import no.nav.ekspertbistand.saksbehandling.configureVilkarsvurderingApiV1
+import no.nav.ekspertbistand.soknad.AaregPdlDeltakerOppslag
+import no.nav.ekspertbistand.soknad.DeltakerOppslag
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
 import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
@@ -125,6 +127,7 @@ fun main() {
             provide(ProdusentApiKlient::class)
             provide(ArenaClient::class)
             provide(AaregClient::class)
+            provide<DeltakerOppslag> { AaregPdlDeltakerOppslag(resolve(), resolve()) }
             provide(EntraProxyClient::class)
             provide<EntraBerikelseCache> { EntraBerikelseCache(resolve()) }
             provide(TilgangsmaskinClient::class)

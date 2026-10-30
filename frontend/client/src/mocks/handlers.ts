@@ -142,13 +142,14 @@ type MockSkjema = {
   opprettetAv: string;
   opprettetTidspunkt: string;
   innsendtTidspunkt?: string;
+  deltakerBekreftet?: boolean;
   beslutning?: {
     status: string;
     tidspunkt?: string;
   };
 };
 
-const MOCK_BRUKER = "01020312345";
+const MOCK_BRUKER = "01819010001";
 const skjemaStore = new Map<string, MockSkjema>();
 
 const randomId = () => crypto.randomUUID();
@@ -387,6 +388,7 @@ const toUtkastDto = (entry: MockSkjema) => {
     nav: deepCopy(data.nav),
     opprettetAv: entry.opprettetAv,
     opprettetTidspunkt: entry.opprettetTidspunkt,
+    deltakerBekreftet: entry.deltakerBekreftet ?? false,
   };
 };
 
@@ -434,6 +436,30 @@ const isStrictIsoDate = (value: unknown): value is string => {
 
 const mockUgyldigInput = (felt: string, message: string) =>
   HttpResponse.json({ kode: "UGYLDIG_INPUT", felt, message }, { status: 400 });
+
+const MOCK_DELTAKER_NAVN = "Mona Moonlight";
+
+const finnOrganisasjonsnavn = (orgnr: string, liste = organisasjoner): string | null => {
+  for (const org of liste) {
+    if (org.orgnr === orgnr) return org.navn;
+    const treff = finnOrganisasjonsnavn(orgnr, org.underenheter);
+    if (treff) return treff;
+  }
+  return null;
+};
+
+// Som i backend: deltaker og virksomhet settes bare av valider-deltaker.
+const utenDeltakerOgVirksomhet = (payload: Partial<SoknadInputs>): Partial<SoknadInputs> => {
+  const rest: Partial<SoknadInputs> = { ...payload };
+  delete rest.ansatt;
+  if (payload.virksomhet) {
+    const virksomhet = { ...payload.virksomhet } as Partial<SoknadInputs["virksomhet"]>;
+    delete virksomhet.virksomhetsnummer;
+    delete virksomhet.virksomhetsnavn;
+    rest.virksomhet = virksomhet as SoknadInputs["virksomhet"];
+  }
+  return rest;
+};
 
 const ugyldigInput = (verdi: unknown, sti = ""): Response | null => {
   if (typeof verdi === "string") {
@@ -792,7 +818,43 @@ export const handlers = [
     }
     const ugyldig = ugyldigInput(payload);
     if (ugyldig) return ugyldig;
-    entry.data = mergeInputs(entry.data as Partial<SoknadInputs>, payload);
+    entry.data = mergeInputs(
+      entry.data as Partial<SoknadInputs>,
+      utenDeltakerOgVirksomhet(payload)
+    );
+    skjemaStore.set(id, entry);
+    await persistSkjemaStore();
+    return HttpResponse.json(toUtkastDto(entry));
+  }),
+  http.post(`${EKSPERTBISTAND_API_PATH}/:id/valider-deltaker`, async ({ params, request }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    const entry = skjemaStore.get(id);
+    if (!entry || entry.status !== "utkast") {
+      return HttpResponse.json({ message: "skjema ikke i utkast-status" }, { status: 409 });
+    }
+    let payload: { fnr?: string; virksomhetsnummer?: string };
+    try {
+      payload = (await request.json()) as { fnr?: string; virksomhetsnummer?: string };
+    } catch {
+      return HttpResponse.json({ message: "ugyldig payload" }, { status: 400 });
+    }
+    const fnr = payload.fnr ?? "";
+    const virksomhetsnummer = payload.virksomhetsnummer ?? "";
+    const data = entry.data ?? createEmptyInputs();
+    entry.data = {
+      ...data,
+      ansatt: { fnr, navn: MOCK_DELTAKER_NAVN },
+      virksomhet: {
+        ...data.virksomhet,
+        virksomhetsnummer,
+        virksomhetsnavn: finnOrganisasjonsnavn(virksomhetsnummer) ?? "",
+      },
+    };
+    entry.deltakerBekreftet = true;
     skjemaStore.set(id, entry);
     await persistSkjemaStore();
     return HttpResponse.json(toUtkastDto(entry));

@@ -20,8 +20,8 @@ class AaregClient(
 ) {
     companion object {
         val targetAudience = basedOnEnv(
-            prod = "api://prod-gcp.arbeidsforhold.aareg-services-nais/.default",
-            dev = "api://dev-gcp.arbeidsforhold.aareg-services-nais/.default",
+            prod = "api://prod-fss.arbeidsforhold.aareg-services-nais/.default",
+            dev = "api://dev-fss:arbeidsforhold:aareg-services-nais/.default",
             other = "api://mock.aareg-services/.default",
         )
 

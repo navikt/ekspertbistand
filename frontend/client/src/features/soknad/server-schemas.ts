@@ -84,4 +84,5 @@ export const draftDtoServerSchema = z.object({
   opprettetAv: z.string().nullable().optional(),
   opprettetTidspunkt: z.string().nullable().optional(),
   innsendtTidspunkt: z.string().nullable().optional(),
+  deltakerBekreftet: z.boolean().optional(),
 });

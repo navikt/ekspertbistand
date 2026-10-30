@@ -16,6 +16,9 @@ import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.pdl.graphql.generated.HentGeografiskTilknytning
 import no.nav.ekspertbistand.statistikk.PdlAdressebeskyttelseOppslag
 import no.nav.ekspertbistand.pdl.graphql.generated.HentPerson
+import no.nav.ekspertbistand.pdl.graphql.generated.HentPersonNavn
+import no.nav.ekspertbistand.pdl.graphql.generated.hentpersonnavn.Navn
+import no.nav.ekspertbistand.pdl.graphql.generated.hentpersonnavn.Person as NavnPerson
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
 import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
@@ -250,6 +253,60 @@ class PdlApiKlientTest {
     }
 
     @Test
+    fun `hentNavn setter sammen fornavn, mellomnavn og etternavn`() = testApplication {
+        var navn = listOf(Navn(fornavn = "Mona", mellomnavn = "Lisa", etternavn = "Moonlight"))
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = { null },
+            hentGeografiskTilknytning = { null },
+            hentPersonNavn = { NavnPerson(navn = navn) },
+        )
+        startApplication()
+        val pdlKlient = PdlApiKlient(application.dependencies.resolve(), client)
+
+        assertEquals("Mona Lisa Moonlight", pdlKlient.hentNavn("42").getOrThrow())
+
+        navn = listOf(Navn(fornavn = "Mona", mellomnavn = null, etternavn = "Moonlight"))
+        assertEquals("Mona Moonlight", pdlKlient.hentNavn("42").getOrThrow())
+
+        navn = listOf(Navn(fornavn = "Mona", mellomnavn = " ", etternavn = "Moonlight"))
+        assertEquals("Mona Moonlight", pdlKlient.hentNavn("42").getOrThrow())
+    }
+
+    @Test
+    fun `hentNavn gir NotFound for tom navneliste og ukjent person`() = testApplication {
+        var feilkode: String? = null
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = { null },
+            hentGeografiskTilknytning = { null },
+            errorCode = { feilkode },
+            hentPersonNavn = { if (feilkode == null) NavnPerson(navn = emptyList()) else null },
+        )
+        startApplication()
+        val pdlKlient = PdlApiKlient(application.dependencies.resolve(), client)
+
+        assertIs<NotFound>(pdlKlient.hentNavn("42").exceptionOrNull())
+
+        feilkode = "not_found"
+        assertIs<NotFound>(pdlKlient.hentNavn("42").exceptionOrNull())
+    }
+
+    @Test
+    fun `hentNavn gir ServerError ved serverfeil`() = testApplication {
+        setupTestApplication()
+        setPdlApiRespons(
+            hentPerson = { null },
+            hentGeografiskTilknytning = { null },
+            errorCode = { "server_error" },
+        )
+        startApplication()
+        val pdlKlient = PdlApiKlient(application.dependencies.resolve(), client)
+
+        assertIs<ServerError>(pdlKlient.hentNavn("42").exceptionOrNull())
+    }
+
+    @Test
     fun `graderingoppslag gir strengeste gradering og null for ugradert og ukjent person`() = testApplication {
         val gradering = mutableListOf<AdressebeskyttelseGradering>()
         var feilkode: String? = null
@@ -341,7 +398,8 @@ private fun ApplicationTestBuilder.setupTestApplication() {
 private fun ApplicationTestBuilder.setPdlApiRespons(
     hentPerson: () -> Person?,
     hentGeografiskTilknytning: () -> GeografiskTilknytning?,
-    errorCode: () -> String? = { null }
+    errorCode: () -> String? = { null },
+    hentPersonNavn: () -> NavnPerson? = { null },
 ) {
     externalServices {
         hosts(PdlApiKlient.baseUrl) {
@@ -373,6 +431,22 @@ private fun ApplicationTestBuilder.setPdlApiRespons(
                                 KotlinxGraphQLResponse(
                                     HentGeografiskTilknytning.Result(
                                         hentGeografiskTilknytning.invoke()
+                                    ),
+                                    errors = listOf(
+                                        KotlinxGraphQLError(
+                                            message = "",
+                                            extensions = mapOf("code" to errorCode())
+                                        )
+                                    )
+                                )
+                            )
+                        }
+
+                        "HentPersonNavn" -> {
+                            call.respond(
+                                KotlinxGraphQLResponse(
+                                    HentPersonNavn.Result(
+                                        hentPersonNavn.invoke()
                                     ),
                                     errors = listOf(
                                         KotlinxGraphQLError(

@@ -150,7 +150,7 @@ export const soknadSchema = z.object({
   }),
   ansatt: z.object({
     fnr: fnrField,
-    navn: trimmedText("Du må fylle ut navn for ansatt."),
+    navn: trimmedText("Du må gå videre fra steg 1 for å hente navnet på deltakeren."),
   }),
   ekspert: z.object({
     navn: trimmedText("Du må fylle ut navn på ekspert."),
@@ -179,15 +179,18 @@ export const soknadSchema = z.object({
 
 export type SoknadInputs = z.infer<typeof soknadSchema>;
 
+// ansatt.navn hentes fra PDL når deltakeren valideres på steg 1, og er derfor ikke med i noen gruppe.
 export const STEP1_FIELDS = [
   "virksomhet.virksomhetsnummer",
   "virksomhet.virksomhetsnavn",
+  "virksomhet.beliggenhetsadresse",
+  "ansatt.fnr",
+] as const satisfies ReadonlyArray<Path<SoknadInputs>>;
+
+export const STEP2_FIELDS = [
   "virksomhet.kontaktperson.navn",
   "virksomhet.kontaktperson.epost",
   "virksomhet.kontaktperson.telefonnummer",
-  "virksomhet.beliggenhetsadresse",
-  "ansatt.fnr",
-  "ansatt.navn",
   "ekspert.navn",
   "ekspert.virksomhet",
   "ekspert.virksomhetNavn",
@@ -197,7 +200,7 @@ export const STEP1_FIELDS = [
   "nav.kontaktperson",
 ] as const satisfies ReadonlyArray<Path<SoknadInputs>>;
 
-export const STEP2_FIELDS = [
+export const STEP3_FIELDS = [
   "behovForBistand.begrunnelse",
   "behovForBistand.behov",
   "behovForBistand.timer",
