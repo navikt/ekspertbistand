@@ -222,7 +222,7 @@ function SoknadSummary({
 
 export default function OppsummeringPage() {
   const navigate = useNavigate();
-  const { draftId, clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
+  const { draftId, clearDraft, lastPersistedAt, saveError, lastUtkastPaNytt } = useSoknadDraft();
   const { watch, getValues, setError } = useFormContext<SoknadInputs>();
   const formData = watch();
   const {
@@ -293,6 +293,15 @@ export default function OppsummeringPage() {
         state: { submissionSuccess: true },
       });
     } catch (error) {
+      if (error instanceof HttpError && error.field === "ansatt.fnr") {
+        await lastUtkastPaNytt();
+        setError("ansatt.fnr", {
+          type: "server",
+          message: "Du må sjekke deltakeren på nytt før du sender inn. Trykk «Neste steg».",
+        });
+        goToStep1();
+        return;
+      }
       if (error instanceof HttpError && error.field === "behovForBistand.estimertKostnad") {
         setError("behovForBistand.estimertKostnad", {
           type: "server",
@@ -321,7 +330,9 @@ export default function OppsummeringPage() {
     satsLoading,
     satsError,
     setError,
+    goToStep1,
     goToStep3,
+    lastUtkastPaNytt,
   ]);
 
   return (

@@ -1,15 +1,18 @@
-import { type FormEvent } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
   BodyShort,
   Button,
   ErrorMessage,
+  ErrorSummary,
   Fieldset,
   HGrid,
   Heading,
   Label,
+  Link,
   Loader,
+  LocalAlert,
   TextField,
   VStack,
 } from "@navikt/ds-react";
@@ -26,17 +29,31 @@ import { FormErrorSummary } from "../components/FormErrorSummary";
 import { STEP1_FIELDS } from "../features/soknad/schema";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
-import { SOKNADER_PATH } from "../utils/constants";
+import { SOKNADER_PATH, TILGANGSSTYRING_URL } from "../utils/constants";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
+import { validerDeltaker, type ValiderDeltakerFeil } from "../features/soknad/validerDeltaker";
+import { BekreftEgenDeltakelseModal } from "../components/BekreftEgenDeltakelseModal";
+
+const VIRKSOMHETSVELGER_ID = "virksomhet.virksomhetsnummer";
+
+type Oppslagsfeil = Exclude<ValiderDeltakerFeil, { type: "ugyldigInput" }>;
 
 export default function SkjemaSteg1Page() {
   const form = useFormContext<SoknadInputs>();
-  const { control, register, setValue, getValues, formState } = form;
+  const { control, register, setValue, getValues, setError, setFocus, formState } = form;
   const { errors } = formState;
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
 
-  const { clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
+  const {
+    draftId,
+    clearDraft,
+    lastPersistedAt,
+    saveError,
+    bekreftetDeltaker,
+    opprettetAv,
+    oppdaterUtkast,
+  } = useSoknadDraft();
   const {
     goToSoknader,
     goToSoknaderWithSaveNotice,
@@ -53,21 +70,90 @@ export default function SkjemaSteg1Page() {
   } = useVirksomhetAdresse(virksomhetsnummer);
   const hasVirksomhet = Boolean(virksomhetsnummer?.trim());
 
+  const [validerer, setValiderer] = useState(false);
+  const [oppslagsfeil, setOppslagsfeil] = useState<Oppslagsfeil | null>(null);
+  // Hvor arbeidsgiver skal etter oppslaget, mens dialogen om egen deltakelse er åpen.
+  const [ventendeMal, setVentendeMal] = useState<(() => void) | null>(null);
+  const oppslagsfeilRef = useRef<HTMLDivElement | null>(null);
+
   useAttemptedSubmitRedirect(form, { fields: STEP1_FIELDS, onValidationFailed: bumpFocusKey });
 
-  const handleBackLink = createLinkHandler(goToSoknaderWithSaveNotice);
-  const handleStepTwoLink = createLinkHandler(goToStep2);
-  const handleStepThreeLink = createLinkHandler(goToStep3);
-  const handleSummaryLink = createLinkHandler(goToSummary);
+  useEffect(() => {
+    if (oppslagsfeil) oppslagsfeilRef.current?.focus();
+  }, [oppslagsfeil]);
 
-  const handleSubmitStep1 = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const valid = await form.trigger(STEP1_FIELDS);
-    if (!valid) {
+  const gjorOppslag = async (gaTil: () => void) => {
+    const fnr = getValues("ansatt.fnr").replace(/\D/g, "");
+    const orgnr = getValues("virksomhet.virksomhetsnummer").trim();
+    setOppslagsfeil(null);
+    setValiderer(true);
+    const resultat = await validerDeltaker(draftId, { fnr, virksomhetsnummer: orgnr });
+    setValiderer(false);
+
+    if (resultat.ok) {
+      await oppdaterUtkast(resultat.utkast);
+      setValue("ansatt.navn", resultat.utkast.ansatt?.navn ?? "");
+      setValue("virksomhet.virksomhetsnavn", resultat.utkast.virksomhet?.virksomhetsnavn ?? "");
+      gaTil();
+      return;
+    }
+
+    const { feil } = resultat;
+    if (feil.type === "ugyldigInput") {
+      if (feil.felt === "virksomhetsnummer") {
+        setError("virksomhet.virksomhetsnummer", {
+          type: "server",
+          message: "Virksomhetsnummeret er ugyldig. Velg virksomheten på nytt.",
+        });
+      } else {
+        setError("ansatt.fnr", { type: "server", message: "Fødselsnummeret er ugyldig." });
+      }
       bumpFocusKey();
       return;
     }
-    goToStep2();
+    setOppslagsfeil(feil);
+  };
+
+  const gaVidere = async (gaTil: () => void) => {
+    if (validerer) return;
+    const valid = await form.trigger(STEP1_FIELDS);
+    if (!valid) {
+      setOppslagsfeil(null);
+      bumpFocusKey();
+      return;
+    }
+    const fnr = getValues("ansatt.fnr").replace(/\D/g, "");
+    const orgnr = getValues("virksomhet.virksomhetsnummer").trim();
+    if (bekreftetDeltaker?.fnr === fnr && bekreftetDeltaker.virksomhetsnummer === orgnr) {
+      gaTil();
+      return;
+    }
+    if (opprettetAv && fnr === opprettetAv) {
+      setVentendeMal(() => gaTil);
+      return;
+    }
+    await gjorOppslag(gaTil);
+  };
+
+  const handleBekreftEgenDeltakelse = () => {
+    const gaTil = ventendeMal;
+    setVentendeMal(null);
+    if (gaTil) void gjorOppslag(gaTil);
+  };
+
+  const handleAvbrytEgenDeltakelse = () => {
+    setVentendeMal(null);
+    setFocus("ansatt.fnr");
+  };
+
+  const handleBackLink = createLinkHandler(goToSoknaderWithSaveNotice);
+  const handleStepTwoLink = createLinkHandler(() => void gaVidere(goToStep2));
+  const handleStepThreeLink = createLinkHandler(() => void gaVidere(goToStep3));
+  const handleSummaryLink = createLinkHandler(() => void gaVidere(goToSummary));
+
+  const handleSubmitStep1 = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await gaVidere(goToStep2);
   };
 
   return (
@@ -91,7 +177,7 @@ export default function SkjemaSteg1Page() {
           </VStack>
 
           <VStack gap="space-32">
-            <div style={FORM_COLUMN_STYLE}>
+            <div id={VIRKSOMHETSVELGER_ID} tabIndex={-1} style={FORM_COLUMN_STYLE}>
               <Controller
                 name="virksomhet.virksomhetsnummer"
                 control={control}
@@ -155,6 +241,42 @@ export default function SkjemaSteg1Page() {
             focusKey={errorFocusKey}
           />
 
+          {oppslagsfeil?.type === "ingenArbeidsforhold" ? (
+            <VStack gap="space-16">
+              <ErrorSummary
+                heading="For å gå videre må du rette opp følgende:"
+                ref={oppslagsfeilRef}
+              >
+                <ErrorSummary.Item href={`#${VIRKSOMHETSVELGER_ID}`}>
+                  Velg virksomheten som deltaker er ansatt i, det vil si virksomheten dere
+                  rapporterer deltakerens lønn på i A-meldingen.
+                </ErrorSummary.Item>
+              </ErrorSummary>
+              <BodyShort>
+                Hvis du ikke kan velge riktig virksomhet her, må du{" "}
+                <Link href={TILGANGSSTYRING_URL} target="_blank" rel="noreferrer">
+                  be om tilgang til enkelttjenesten «Tilskudd til ekspertbistand»
+                </Link>{" "}
+                for riktig virksomhet i Altinn.
+              </BodyShort>
+            </VStack>
+          ) : null}
+          {oppslagsfeil?.type === "forMangeOppslag" ? (
+            <LocalAlert status="warning" ref={oppslagsfeilRef} tabIndex={-1}>
+              <LocalAlert.Content>
+                Du har slått opp for mange ulike fødselsnummer på kort tid. Vent 5 minutter og prøv
+                igjen.
+              </LocalAlert.Content>
+            </LocalAlert>
+          ) : null}
+          {oppslagsfeil?.type === "oppslagFeilet" ? (
+            <LocalAlert status="error" ref={oppslagsfeilRef} tabIndex={-1}>
+              <LocalAlert.Content>
+                Vi kunne ikke sjekke arbeidsforholdet akkurat nå. Prøv igjen senere.
+              </LocalAlert.Content>
+            </LocalAlert>
+          ) : null}
+
           <VStack gap="space-16">
             <SistLagretInfo timestamp={lastPersistedAt} saveError={saveError} />
             <HGrid
@@ -176,6 +298,7 @@ export default function SkjemaSteg1Page() {
                 variant="primary"
                 icon={<ArrowRightIcon aria-hidden />}
                 iconPosition="right"
+                loading={validerer}
               >
                 Neste steg
               </Button>
@@ -192,6 +315,11 @@ export default function SkjemaSteg1Page() {
           </VStack>
         </VStack>
       </form>
+      <BekreftEgenDeltakelseModal
+        open={ventendeMal !== null}
+        onBekreft={handleBekreftEgenDeltakelse}
+        onAvbryt={handleAvbrytEgenDeltakelse}
+      />
     </DecoratedPage>
   );
 }

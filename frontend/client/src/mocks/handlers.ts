@@ -149,7 +149,7 @@ type MockSkjema = {
   };
 };
 
-const MOCK_BRUKER = "01020312345";
+const MOCK_BRUKER = "01819010001";
 const skjemaStore = new Map<string, MockSkjema>();
 
 const randomId = () => crypto.randomUUID();

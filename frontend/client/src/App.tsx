@@ -51,6 +51,14 @@ function SkjemaDraftOutlet() {
   );
 }
 
+function DeltakerBekreftetGate() {
+  const { draftId, hydrated, deltakerBekreftet } = useSoknadDraft();
+  if (hydrated && !deltakerBekreftet) {
+    return <Navigate to={`/skjema/${draftId}/steg-1`} replace />;
+  }
+  return <Outlet />;
+}
+
 function OrganisasjonerGate() {
   const { authenticated, error: sessionError, isLoading: isSessionLoading } = useSession();
   const { organisasjoner, error, isLoading } = useOrganisasjoner();
@@ -115,9 +123,11 @@ export default function App() {
             )}
             <Route path="/skjema/:id" element={<SkjemaDraftRoute />}>
               <Route path="steg-1" element={<SkjemaSteg1Page />} />
-              <Route path="steg-2" element={<SkjemaSteg2Page />} />
-              <Route path="steg-3" element={<SkjemaSteg3Page />} />
-              <Route path="oppsummering" element={<OppsummeringPage />} />
+              <Route element={<DeltakerBekreftetGate />}>
+                <Route path="steg-2" element={<SkjemaSteg2Page />} />
+                <Route path="steg-3" element={<SkjemaSteg3Page />} />
+                <Route path="oppsummering" element={<OppsummeringPage />} />
+              </Route>
               <Route path="" element={<Navigate to="steg-1" replace />} />
             </Route>
             <Route path="/health" element={<HealthPage />} />
