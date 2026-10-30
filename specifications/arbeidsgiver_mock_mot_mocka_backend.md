@@ -41,7 +41,7 @@ gjør ikke det:
 | Ken, 2026-10-29 | Én workflow (`deploy-dev-mock.yml`). Saksbehandling får «Se som arbeidsgiver» der brukervelgeren vises. |
 | Spesifikasjonen | Flagget `LOKAL_INNLOGGING` i BFF-en, som `LOKAL_BRUKERBYTTE`, erstatter unntaket for `VITE_ENABLE_MOCKS`. Én testbruker (pid `42`). |
 | Forrige mock | Mock-koden blir i `src/test`, databasen nullstilles ved oppstart, og backend-mocken nås bare fra mock-BFF-ene. |
-| Ken, 2026-10-30 | Erstatter beslutningen fra 2026-10-29 om å overskrive `ekspertbistand-frontend-mock`. Den går tilbake til MSW, fordi backend-mocken ikke kan vise tilskuddsbrev før eventene finnes i ny saksbehandlingsflyt. Mocken mot backend-mocken blir en ny app, `ekspertbistand-frontend-e2e-mock`, med egen ingress. |
+| Ken, 2026-10-30 | Erstatter beslutningen fra 2026-10-29 om å overskrive `ekspertbistand-frontend-mock`. Den går tilbake til MSW, fordi backend-mocken ikke kan vise tilskuddsbrev før eventene finnes i ny saksbehandlingsflyt. Mocken mot backend-mocken blir en ny app, `ekspertbistand-frontend-e2e-mock`, med egen ingress. BFF-en beholder derfor unntaket for `VITE_ENABLE_MOCKS` ved siden av `LOKAL_INNLOGGING`. |
 
 ## Tilnærming
 
@@ -108,7 +108,9 @@ som `behandleLokaleSaker` publiserer saksbehandlingseventene.
   som i dag lokalt
 - fail-open-sjekken tillater oppstart uten `TOKEN_X_ISSUER`
 
-Flagget erstatter dagens unntak for `VITE_ENABLE_MOCKS` i BFF-en. Er både
+Unntaket for `VITE_ENABLE_MOCKS` blir stående for MSW-mocken
+(`ekspertbistand-frontend-mock`), som setter flagget i runner-steget i
+`Dockerfile`. Er både
 `LOKAL_INNLOGGING` og `TOKEN_X_ISSUER` satt, avslutter BFF-en ved oppstart, så
 flagget aldri kan skru av TokenX i den ekte appen.
 
@@ -207,12 +209,12 @@ saksbehandling, send refusjonskrav og sluttrapport som arbeidsgiver.
 |-----|---------|
 | `backend/src/test/kotlin/no/nav/ekspertbistand/LocalApplication.kt` | Registrerer vedlegg-, refusjon- og kontoregister-API; mock av `ClamAvClient` og `KontoregisterClient`; Altinn-mock fra `lokaleVirksomheter` |
 | `backend/src/test/kotlin/no/nav/ekspertbistand/LokaleSaker.kt` | To nye saker med innvilget vedtak; virksomheten uten kontonummer; avlyst søknad og tilskuddsbrev via `SoknadAvlystIArena` og `TilskuddsbrevMottatt` |
-| `frontend/server/src/index.ts` | Flagget `LOKAL_INNLOGGING` erstatter unntaket for `VITE_ENABLE_MOCKS` |
+| `frontend/server/src/index.ts` | Nytt flagg `LOKAL_INNLOGGING` ved siden av unntaket for `VITE_ENABLE_MOCKS` |
 | `frontend/client/src/utils/constants.ts` | `isMockEnabled()` respekterer `VITE_ENABLE_MOCKS=false`; ny `isLokalInnlogging()` |
 | `frontend/client/vite.config.ts` | Proxy for `/oauth2` |
 | `frontend/saksbehandling/src/utils/constants.ts` | Ny `arbeidsgiverSoknadUrl(soknadId)` |
 | `frontend/saksbehandling/src/pages/SakPage.tsx` | Knappen «Se som arbeidsgiver» når `isLokalBrukerbytteMulig()` |
-| `Dockerfile` | Build-arg `VITE_LOKAL_INNLOGGING` |
+| `Dockerfile` | Build-arg `VITE_LOKAL_INNLOGGING`; `VITE_ENABLE_MOCKS` også i runner-steget |
 | `nais/dev-gcp-frontend-e2e-mock.yaml` | Ny app som peker mot backend-mock, `LOKAL_INNLOGGING=true` |
 | `nais/dev-gcp-backend-mock.yaml` | Inbound fra `ekspertbistand-frontend-e2e-mock` |
 | `.github/workflows/deploy-dev-mock.yml` | Bygger og deployer også `ekspertbistand-frontend-e2e-mock` |
