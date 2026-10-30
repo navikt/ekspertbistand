@@ -5,7 +5,7 @@ import { SOKNADER_PATH } from "../utils/constants";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { useAutosaveNavigate } from "./useAutosaveNavigate";
 
-type StepSegment = "steg-1" | "steg-2" | "oppsummering";
+type StepSegment = "steg-1" | "steg-2" | "steg-3" | "oppsummering";
 
 export const useSkjemaNavigation = () => {
   const { draftId } = useSoknadDraft();
@@ -34,6 +34,7 @@ export const useSkjemaNavigation = () => {
 
   const goToStep1 = useCallback(() => navigateToSegment("steg-1"), [navigateToSegment]);
   const goToStep2 = useCallback(() => navigateToSegment("steg-2"), [navigateToSegment]);
+  const goToStep3 = useCallback(() => navigateToSegment("steg-3"), [navigateToSegment]);
   const goToSummary = useCallback(() => navigateToSegment("oppsummering"), [navigateToSegment]);
 
   const createLinkHandler = useCallback(
@@ -50,6 +51,7 @@ export const useSkjemaNavigation = () => {
     goToSoknaderWithSaveNotice,
     goToStep1,
     goToStep2,
+    goToStep3,
     goToSummary,
     createLinkHandler,
   };

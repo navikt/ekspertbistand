@@ -5,6 +5,7 @@ import LandingPage from "./pages/LandingPage";
 import SoknadPage from "./pages/SoknadPage";
 import SkjemaSteg1Page from "./pages/SkjemaSteg1Page";
 import SkjemaSteg2Page from "./pages/SkjemaSteg2Page";
+import SkjemaSteg3Page from "./pages/SkjemaSteg3Page";
 import OppsummeringPage from "./pages/OppsummeringPage";
 import KvitteringPage from "./pages/KvitteringPage";
 import TilskuddsbrevPage from "./pages/TilskuddsbrevPage";
@@ -115,6 +116,7 @@ export default function App() {
             <Route path="/skjema/:id" element={<SkjemaDraftRoute />}>
               <Route path="steg-1" element={<SkjemaSteg1Page />} />
               <Route path="steg-2" element={<SkjemaSteg2Page />} />
+              <Route path="steg-3" element={<SkjemaSteg3Page />} />
               <Route path="oppsummering" element={<OppsummeringPage />} />
               <Route path="" element={<Navigate to="steg-1" replace />} />
             </Route>

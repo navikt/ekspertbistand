@@ -23,6 +23,7 @@ const routes = [
   { name: "soknad start page", path: "/skjema/start" },
   { name: "skjema steg 1 page", path: (id: string) => `/skjema/${id}/steg-1` },
   { name: "skjema steg 2 page", path: (id: string) => `/skjema/${id}/steg-2` },
+  { name: "skjema steg 3 page", path: (id: string) => `/skjema/${id}/steg-3` },
   { name: "oppsummering page", path: (id: string) => `/skjema/${id}/oppsummering` },
   { name: "kvittering page", path: (id: string) => `/skjema/${id}/kvittering` },
 ];

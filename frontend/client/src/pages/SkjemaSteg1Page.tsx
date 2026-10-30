@@ -4,7 +4,6 @@ import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
   BodyShort,
   Button,
-  UNSAFE_Combobox,
   ErrorMessage,
   Fieldset,
   HGrid,
@@ -19,8 +18,6 @@ import { FORM_COLUMN_STYLE } from "../styles/forms";
 import type { SoknadInputs } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { VirksomhetVelger } from "../components/VirksomhetVelger.tsx";
-import { EkspertVirksomhetVelger } from "../components/EkspertVirksomhetVelger.tsx";
-import { formaterVirksomhet } from "../components/formaterVirksomhet.ts";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { useErrorFocus } from "../hooks/useErrorFocus";
 import { BackLink } from "../components/BackLink";
@@ -33,25 +30,6 @@ import { SOKNADER_PATH } from "../utils/constants";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
 
-// Backend gjør disse om til statistikkoder (EkspertStatistikkoder.kt). Nye valg må legges inn der, ellers blir de ANNET.
-const GODKJENT_UTDANNING_ALTERNATIVER = [
-  "Ergoterapeut",
-  "Fysioterapeut",
-  "Karriereveileder",
-  "Psykolog",
-  "Sykepleier",
-];
-
-const RELEVANT_KOMPETANSE_ALTERNATIVER = [
-  "Relasjoner og kommunikasjon på arbeidsplassen",
-  "Tilrettelegging på arbeidsplassen",
-  "Konflikthåndtering",
-  "Omstillingsarbeid (endring i arbeidslivet)",
-  "Arbeidsplassvurdering",
-  "God kjennskap til offentlige virkemidler",
-  "Karriereveiledning",
-];
-
 export default function SkjemaSteg1Page() {
   const form = useFormContext<SoknadInputs>();
   const { control, register, setValue, getValues, formState } = form;
@@ -59,8 +37,14 @@ export default function SkjemaSteg1Page() {
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
 
   const { clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
-  const { goToSoknader, goToSoknaderWithSaveNotice, goToStep2, goToSummary, createLinkHandler } =
-    useSkjemaNavigation();
+  const {
+    goToSoknader,
+    goToSoknaderWithSaveNotice,
+    goToStep2,
+    goToStep3,
+    goToSummary,
+    createLinkHandler,
+  } = useSkjemaNavigation();
   const virksomhetsnummer = useWatch({ control, name: "virksomhet.virksomhetsnummer" });
   const {
     adresse,
@@ -73,6 +57,7 @@ export default function SkjemaSteg1Page() {
 
   const handleBackLink = createLinkHandler(goToSoknaderWithSaveNotice);
   const handleStepTwoLink = createLinkHandler(goToStep2);
+  const handleStepThreeLink = createLinkHandler(goToStep3);
   const handleSummaryLink = createLinkHandler(goToSummary);
 
   const handleSubmitStep1 = async (event: FormEvent<HTMLFormElement>) => {
@@ -100,6 +85,7 @@ export default function SkjemaSteg1Page() {
             <SkjemaFormProgress
               activeStep={1}
               onStep2={handleStepTwoLink}
+              onStep3={handleStepThreeLink}
               onSummary={handleSummaryLink}
             />
           </VStack>
@@ -150,141 +136,15 @@ export default function SkjemaSteg1Page() {
               ) : null}
             </div>
             <input type="hidden" {...register("virksomhet.virksomhetsnavn")} />
-
-            <Fieldset
-              legend="Kontaktperson i virksomheten"
-              description="Den som følger opp den ansatte under ekspertbistanden, vanligvis nærmeste leder."
-              style={FORM_COLUMN_STYLE}
-            >
-              <TextField
-                id="virksomhet.kontaktperson.navn"
-                label="Navn"
-                error={errors.virksomhet?.kontaktperson?.navn?.message}
-                {...register("virksomhet.kontaktperson.navn")}
-              />
-              <TextField
-                id="virksomhet.kontaktperson.epost"
-                label="E-post"
-                type="email"
-                error={errors.virksomhet?.kontaktperson?.epost?.message}
-                {...register("virksomhet.kontaktperson.epost")}
-              />
-              <TextField
-                id="virksomhet.kontaktperson.telefonnummer"
-                label="Telefonnummer"
-                inputMode="numeric"
-                htmlSize={8}
-                error={errors.virksomhet?.kontaktperson?.telefonnummer?.message}
-                {...register("virksomhet.kontaktperson.telefonnummer")}
-              />
-            </Fieldset>
           </VStack>
 
-          <Fieldset legend="Ansatt" style={FORM_COLUMN_STYLE}>
-            <VStack gap="space-16">
-              <TextField
-                id="ansatt.navn"
-                label="Navn"
-                error={errors.ansatt?.navn?.message}
-                {...register("ansatt.navn")}
-              />
-              <TextField
-                id="ansatt.fnr"
-                label="Fødselsnummer"
-                htmlSize={11}
-                error={errors.ansatt?.fnr?.message}
-                {...register("ansatt.fnr")}
-              />
-            </VStack>
-          </Fieldset>
-
-          <Fieldset
-            legend="Ekspert"
-            description="Må ha offentlig godkjent utdanning eller autorisasjon. Bedriftshelsetjenesten kan bare brukes som ekspert hvis hjelpen går utover det som vanligvis inngår i avtalen."
-            style={FORM_COLUMN_STYLE}
-          >
-            <VStack gap="space-16">
-              <TextField
-                id="ekspert.navn"
-                label="Navn"
-                description="Personen som skal utføre oppdraget."
-                error={errors.ekspert?.navn?.message}
-                {...register("ekspert.navn")}
-              />
-              <Controller
-                name="ekspert.virksomhet"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <EkspertVirksomhetVelger
-                    value={field.value ?? ""}
-                    onChange={(organisasjon) => {
-                      field.onChange(formaterVirksomhet(organisasjon?.navn, organisasjon?.orgnr));
-                      setValue("ekspert.virksomhetNavn", organisasjon?.navn ?? null, {
-                        shouldDirty: true,
-                      });
-                      setValue("ekspert.virksomhetOrgnr", organisasjon?.orgnr ?? null, {
-                        shouldDirty: true,
-                      });
-                    }}
-                    error={fieldState.error?.message}
-                  />
-                )}
-              />
-              <Controller
-                name="ekspert.godkjentUtdanningEllerAutorisasjon"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <UNSAFE_Combobox
-                    id="ekspert.godkjentUtdanningEllerAutorisasjon"
-                    label="Offentlig godkjent utdanning eller autorisasjon"
-                    description={"Velg i listen eller skriv inn egen."}
-                    options={GODKJENT_UTDANNING_ALTERNATIVER}
-                    isMultiSelect
-                    allowNewValues
-                    selectedOptions={field.value}
-                    onToggleSelected={(option, isSelected) => {
-                      field.onChange(
-                        isSelected
-                          ? [...field.value, option]
-                          : field.value.filter((v) => v !== option)
-                      );
-                    }}
-                    error={fieldState.error?.message}
-                  />
-                )}
-              />
-              <Controller
-                name="ekspert.relevantKompetanse"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <UNSAFE_Combobox
-                    id="ekspert.relevantKompetanse"
-                    label="Relevant kompetanse for denne saken"
-                    description={"Velg i listen eller skriv inn egen."}
-                    options={RELEVANT_KOMPETANSE_ALTERNATIVER}
-                    isMultiSelect
-                    allowNewValues
-                    selectedOptions={field.value}
-                    onToggleSelected={(option, isSelected) => {
-                      field.onChange(
-                        isSelected
-                          ? [...field.value, option]
-                          : field.value.filter((v) => v !== option)
-                      );
-                    }}
-                    error={fieldState.error?.message}
-                  />
-                )}
-              />
-            </VStack>
-          </Fieldset>
-
-          <Fieldset legend="Nav" style={FORM_COLUMN_STYLE} hideLegend>
+          <Fieldset legend="Deltaker" style={FORM_COLUMN_STYLE}>
             <TextField
-              id="nav.kontaktperson"
-              label="Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?"
-              error={errors.nav?.kontaktperson?.message}
-              {...register("nav.kontaktperson")}
+              id="ansatt.fnr"
+              label="Fødselsnummer"
+              htmlSize={11}
+              error={errors.ansatt?.fnr?.message}
+              {...register("ansatt.fnr")}
             />
           </Fieldset>
 
