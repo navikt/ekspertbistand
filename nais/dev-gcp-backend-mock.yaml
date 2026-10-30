@@ -17,6 +17,10 @@ spec:
     min: 1
     max: 1
 
+  # Ny pod tømmer databasen ved oppstart, så to versjoner kan ikke dele den. Gammel pod stoppes først.
+  strategy:
+    type: Recreate
+
   liveness:
     path: /internal/isalive
     initialDelay: 30
