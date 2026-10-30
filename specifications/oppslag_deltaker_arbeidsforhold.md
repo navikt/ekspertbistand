@@ -309,6 +309,13 @@ i `features/soknad/`. Den kaller endepunktet med `fetchJson` og tolker svaret me
 `ErrorSummary` sin første lenke flytter fokus til virksomhetsvelgeren, slik
 `FormErrorSummary` gjør i dag.
 
+Lenkene til steg 2, steg 3 og oppsummeringen i stegindikatoren på steg 1 går
+gjennom den samme flyten. De går dit lenken peker etter et vellykket oppslag.
+
+Autolagring (PATCH) skriver ikke deltaker eller virksomhet inn i
+utkastet frontend har i minnet, siden backend ignorerer feltene. Sammenligningen
+i punkt 2 bruker derfor alltid det backend sist bekreftet.
+
 **Dialog når deltakeren er innlogget bruker.** Ny komponent
 `components/BekreftEgenDeltakelseModal.tsx` med Aksel `Modal`. Dialogen er
 bare et varsel. Backend sperrer ikke eget fødselsnummer.
@@ -343,12 +350,18 @@ fødselsnummer, får hen spørsmålet på nytt. Er deltakeren uendret og bekreft
 `deltakerBekreftet` er `false`. Det gjelder også eksisterende utkast.
 
 **Innsending.** 400 med `felt` lik `ansatt.fnr` sender arbeidsgiver til steg 1,
-på samme måte som feltfeil i dag sendes til riktig steg.
+på samme måte som feltfeil i dag sendes til riktig steg. Frontend henter
+utkastet på nytt og viser feltfeilen «Du må sjekke deltakeren på nytt før du
+sender inn. Trykk «Neste steg».» på fødselsnummeret.
 
 **Mock (MSW).** `handlers.ts` får en enkel handler for `POST .../:id/valider-deltaker`.
 Den godtar alle fødselsnummer og alle virksomheter og svarer 200 med navnet
 «Mona Moonlight». Handleren lagrer resultatet på mock-utkastet. PATCH-handleren
 ignorerer `ansatt`, `virksomhet.virksomhetsnummer` og `virksomhet.virksomhetsnavn`, som i 5.
+Den innloggede mock-brukeren (`MOCK_BRUKER`, som blir `opprettetAv`) får et
+gyldig syntetisk fødselsnummer, slik at dialogen for egen deltakelse kan prøves
+lokalt. E2E-hjelperen `createDraftId` bekrefter deltakeren, slik at vakten
+slipper testene inn på steg 2, steg 3 og oppsummeringen.
 
 Feiltilfellene (409, 422, 429 og 503) testes med `server.use(...)` i den enkelte
 testen, ikke i den felles handleren.
