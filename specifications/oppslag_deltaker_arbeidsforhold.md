@@ -106,21 +106,22 @@ UPDATE utkast SET ansatt_navn = NULL;
 
 CREATE TABLE IF NOT EXISTS deltaker_oppslag (
     id BIGSERIAL PRIMARY KEY,
-    innlogget_bruker TEXT NOT NULL,
+    innlogget_bruker_hash TEXT NOT NULL,
     fnr_hash TEXT NOT NULL,
     tidspunkt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS deltaker_oppslag_bruker_tidspunkt
-    ON deltaker_oppslag (innlogget_bruker, tidspunkt);
+    ON deltaker_oppslag (innlogget_bruker_hash, tidspunkt);
 ```
 
 - `UtkastTable` får `ansattBekreftetTidspunkt`. Er den null, er deltakeren ikke
   bekreftet.
 - `UPDATE utkast SET ansatt_navn = NULL` fjerner navnene som er skrevet inn for
   hånd i eksisterende utkast. Fødselsnummeret blir stående.
-- `deltaker_oppslag` lagrer hvem som slo opp, når, og en SHA-256-hash av
-  fødselsnummeret det ble slått opp på. Hashen trengs for å telle ulike
-  fødselsnummer. Fødselsnummeret lagres aldri i klartekst. Rader eldre enn én
+- `deltaker_oppslag` lagrer en SHA-256-hash av innlogget brukers
+  fødselsnummer, tidspunktet og en SHA-256-hash av fødselsnummeret det ble
+  slått opp på. Hashene trengs for å telle ulike fødselsnummer per bruker.
+  Ingen av fødselsnumrene lagres i klartekst. Rader eldre enn én
   time slettes i samme jobb som `slettGamleUtkast`.
 
 ### 3. Rate limit
@@ -141,7 +142,7 @@ class DeltakerOppslagRateLimit(
 
 `registrer` kjører i én transaksjon:
 
-1. `pg_advisory_xact_lock(hashtext(innlogget_bruker))`, slik at samtidige kall
+1. `pg_advisory_xact_lock(hashtext(innlogget_bruker_hash))`, slik at samtidige kall
    fra samme bruker ikke slipper forbi grensen.
 2. Henter de ulike `fnr_hash` brukeren har innenfor vinduet (rullerende
    vindu, siste 5 minutter).
@@ -362,7 +363,7 @@ Backend:
   - mange oppslag på samme fødselsnummer godtas;
   - fødselsnummer utenfor vinduet teller ikke;
   - ulike brukere telles hver for seg;
-  - fødselsnummeret lagres ikke i klartekst.
+  - verken brukerens eller deltakerens fødselsnummer lagres i klartekst.
 - `ValiderDeltakerTest` (ny, `testApplicationWithDatabase`, `mockAareg`,
   `MockEngine` for PDL):
   - treff gir 200 og lagret navn og bekreftelse;
@@ -410,9 +411,10 @@ E2E-testene i `e2e/` oppdateres bare hvis de brekker på de nye stegene.
 
 - Fødselsnummeret sendes bare i request-body og i Aareg-headere, aldri i URL
   eller logg. Navnet logges ikke.
-- `deltaker_oppslag` lagrer innlogget brukers ident, tidspunkt og en SHA-256-hash
-  av fødselsnummeret det ble slått opp på, i høyst én time. Fødselsnummeret
-  lagres ikke i klartekst. Hashen er pseudonymisering, ikke anonymisering:
+- `deltaker_oppslag` lagrer SHA-256-hasher av innlogget brukers
+  fødselsnummer og av fødselsnummeret det ble slått opp på, sammen med
+  tidspunktet, i høyst én time. Ingen av fødselsnumrene lagres i klartekst.
+  Hashene er pseudonymisering, ikke anonymisering:
   fødselsnummer har få nok mulige verdier til at hashen kan knekkes. Derfor er
   lagringstiden kort.
 - Endepunktet svarer med navn bare ved treff i Aa-registeret, for en virksomhet
@@ -500,7 +502,7 @@ E2E-testene i `e2e/` oppdateres bare hvis de brekker på de nye stegene.
    `TextField` med `readOnly`, fordi virksomhetsvelgeren ikke har en låst
    variant. Er det godt nok?
 4. **Hash av fødselsnummer i `deltaker_oppslag`.** For å telle ulike
-   fødselsnummer må vi lagre noe som identifiserer dem. Forslaget er en
+   fødselsnummer per bruker må vi lagre noe som identifiserer begge. Forslaget er en
    SHA-256-hash uten hemmelig nøkkel, som slettes etter én time. En HMAC med
    hemmelig nøkkel fra Nais er sikrere, men krever en ny hemmelighet. Er hash
    uten nøkkel godt nok?
