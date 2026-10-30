@@ -45,6 +45,7 @@ finnes i dag. De blir værende på steg 2, se *Tilnærming*.
 | Kort 601, sjekkliste | Egen feilmelding når innlogget bruker legger inn seg selv som deltaker. |
 | Anders, 2026-10-29 | Rate limit er med i dette kortet. |
 | Anders, 2026-10-30 | Arbeidsgiver kan legge inn seg selv som deltaker, men må bekrefte det i en dialog. Backend avgjør om fødselsnummeret er innlogget brukers. Erstatter «tas i et senere kort» fra 2026-10-29, og sjekklistens «eget feilmeddelande». |
+| Anders, 2026-10-30 | Sjekken på eget fødselsnummer gjøres i frontend før kallet til `valider-deltaker`. Den er bare et «heads up» til arbeidsgiver, ikke en sperre i backend. Erstatter «backend avgjør» over. |
 | Anders, 2026-10-29 | Oppslagene lagres i databasen, slik at grensen gjelder på tvers av pods. Oppslag uten treff teller også. |
 | Anders, 2026-10-30 | Grensen er 5 ulike fødselsnummer per 5 minutter per innlogget bruker. På et fødselsnummer som allerede er slått opp i vinduet, kan arbeidsgiver prøve så mange virksomheter hen vil. Erstatter «3 oppslag per 20 minutter» fra sjekklisten og fra 2026-10-29. |
 | Anders, 2026-10-29 | Navnet vises også for deltakere med adressebeskyttelse eller skjerming. Arbeidsgiver kjenner den ansatte, og oppslaget gir aldri adresse. Valget beskrives i etterlevelse. |
@@ -163,15 +164,12 @@ fødselsnummeret er med i vinduet, men endrer ikke antallet ulike fødselsnummer
 ### 4. Endepunkt
 
 `POST /api/soknad/v1/{id}/valider-deltaker` (TokenX) gjør alle sjekkene på
-deltakeren i ett kall. Det validerer fødselsnummeret, sjekker om det er innlogget
-brukers eget, og slår opp arbeidsforhold og navn. Stien bruker bindestrek
-(kebab-case), som er vanlig i REST-stier. Body:
+deltakeren i ett kall. Det validerer fødselsnummeret og slår opp arbeidsforhold
+og navn. Stien bruker bindestrek (kebab-case), som er vanlig i REST-stier. Body:
 
 ```json
-{ "fnr": "12345678910", "virksomhetsnummer": "910456900", "bekreftetEgenDeltakelse": false }
+{ "fnr": "12345678910", "virksomhetsnummer": "910456900" }
 ```
-
-`bekreftetEgenDeltakelse` er valgfri og har `false` som standard.
 
 Steg, i rekkefølge:
 
@@ -180,23 +178,15 @@ Steg, i rekkefølge:
 | 1 | Utkastet finnes og er i utkast-status | 409, som PATCH |
 | 2 | Innlogget bruker har opprettet utkastet | 403 |
 | 3 | Validering av input: `valider(body)`, `fnr` er 11 siffer med gyldige kontrollsiffer (mod 11) og `virksomhetsnummer` er 9 siffer | 400 `UGYLDIG_INPUT` med feltsti, via `UgyldigInputException` |
-| 4 | Validering av eget fødselsnummer: `fnr` er lik `innloggetBruker`, og `bekreftetEgenDeltakelse` er `false` | 409 `{ "kode": "DELTAKER_ER_INNLOGGET_BRUKER" }`. Utkastet endres ikke, og oppslaget teller ikke mot grensen |
-| 5 | Altinn-tilgang til `virksomhetsnummer` | 403 |
-| 6 | Samme fødselsnummer og virksomhet er allerede bekreftet på utkastet | Svarer 200 med utkastet uten nytt oppslag. Teller ikke mot grensen |
-| 7 | `DeltakerOppslagRateLimit.registrer(innloggetBruker, fnr)` | 429 `{ "kode": "FOR_MANGE_OPPSLAG" }` |
-| 8 | `AaregClient.hentArbeidsforhold(fnr, virksomhetsnummer)`. Treff er minst ett arbeidsforhold der `arbeidssted.identer` har `ident == virksomhetsnummer` | 422 `{ "kode": "INGEN_ARBEIDSFORHOLD" }` |
-| 9 | `PdlApiKlient.hentNavn(fnr)` | 503 `{ "kode": "OPPSLAG_FEILET" }` |
-| 10 | Lagrer på utkastet: `ansatt_fnr`, `ansatt_navn`, `virksomhetsnummer`, `ansatt_bekreftet_tidspunkt = now()` | – |
+| 4 | Altinn-tilgang til `virksomhetsnummer` | 403 |
+| 5 | Samme fødselsnummer og virksomhet er allerede bekreftet på utkastet | Svarer 200 med utkastet uten nytt oppslag. Teller ikke mot grensen |
+| 6 | `DeltakerOppslagRateLimit.registrer(innloggetBruker, fnr)` | 429 `{ "kode": "FOR_MANGE_OPPSLAG" }` |
+| 7 | `AaregClient.hentArbeidsforhold(fnr, virksomhetsnummer)`. Treff er minst ett arbeidsforhold der `arbeidssted.identer` har `ident == virksomhetsnummer` | 422 `{ "kode": "INGEN_ARBEIDSFORHOLD" }` |
+| 8 | `PdlApiKlient.hentNavn(fnr)` | 503 `{ "kode": "OPPSLAG_FEILET" }` |
+| 9 | Lagrer på utkastet: `ansatt_fnr`, `ansatt_navn`, `virksomhetsnummer`, `ansatt_bekreftet_tidspunkt = now()` | – |
 
-Steg 3 og 4 er valideringen av fødselsnummeret. De gjøres før Altinn-sjekken
-og før noe eksternt oppslag. Sammenligningen med innlogget bruker gjøres bare i
-backend. Frontend får aldri vite innlogget brukers fødselsnummer.
-
-Kalles endepunktet på nytt for en deltaker som allerede er bekreftet, kommer
-steg 4 likevel før kortslutningen i steg 6. Frontend kaller derfor ikke
-endepunktet når fødselsnummer og virksomhet er uendret og `deltakerBekreftet`
-er `true` (se 7). Arbeidsgiver får da ikke spørsmålet på nytt når hen går frem
-og tilbake uten å endre noe.
+Backend sjekker ikke om fødselsnummeret er innlogget brukers eget. Det gjør
+frontend før kallet, som et varsel til arbeidsgiver (se 7).
 
 Ved 200 svarer endepunktet med hele utkastet (`DTO.Utkast`), som PATCH.
 
@@ -211,7 +201,7 @@ Aa-registeret med 404 er et åpent spørsmål, se under.
 Kodene i 409, 422, 429 og 503 bruker samme form som `UGYLDIG_INPUT`:
 `{ "kode": "...", "message": "..." }`.
 
-Kontrollsifferet sjekkes med en ny funksjon i `infrastruktur/`, for eksempel
+Kontrollsifferet sjekkes med en ny funksjon i `infrastruktur/InputValidering.kt`,
 `erGyldigFodselsnummer(fnr)`. Syntetiske nummer fra Nav og Tenor har gyldige
 kontrollsiffer, så sjekken er lik i alle miljøer.
 
@@ -244,9 +234,13 @@ verdien fra utkastet, ikke fra request-body.
 
 ### 6. Lokal utvikling og DI
 
-- `Application.kt`: `provide(DeltakerOppslagRateLimit::class)`.
-- `configureSoknadApiV1` henter `AaregClient`, `PdlApiKlient` og
-  `DeltakerOppslagRateLimit` og sender dem til `SoknadApi`.
+- Oppslagene mot Aa-registeret og PDL ligger bak grensesnittet
+  `DeltakerOppslag` (`harAktivtArbeidsforhold`, `hentNavn`), som følger mønsteret
+  til `AdressebeskyttelseOppslag`. `AaregPdlDeltakerOppslag` bruker `AaregClient`
+  og `PdlApiKlient`. Aareg-svaret 404 gir `false`.
+- `Application.kt`: `provide<DeltakerOppslag> { AaregPdlDeltakerOppslag(resolve(), resolve()) }`.
+- `configureSoknadApiV1` henter `DeltakerOppslag`, lager
+  `DeltakerOppslagRateLimit(database)` og sender begge til `SoknadApi`.
 - `LocalApplication.kt` får en `AaregClient` med `MockEngine`:
   - fødselsnummer som slutter på `00000` gir tom liste (ingen arbeidsforhold),
   - alle andre gir ett aktivt arbeidsforhold på virksomhetsnummeret i
@@ -275,7 +269,7 @@ verdien fra utkastet, ikke fra request-body.
   videre fra steg 1 for å hente navnet på deltakeren.» Feilen peker til steg 1.
 
 **Validering av deltaker.** Ny funksjon
-`validerDeltaker(draftId, { fnr, virksomhetsnummer, bekreftetEgenDeltakelse })`
+`validerDeltaker(draftId, { fnr, virksomhetsnummer })`
 i `features/soknad/`. Den kaller endepunktet med `fetchJson` og tolker svaret med
 `server-schemas.ts`.
 
@@ -285,11 +279,14 @@ i `features/soknad/`. Den kaller endepunktet med `fetchJson` og tolker svaret me
    feltfeil, som i dag.
 2. Er `deltakerBekreftet` `true`, og fødselsnummer og virksomhet er de samme som
    sist bekreftet, går funksjonen rett til steg 2 uten kall.
-3. Ellers kaller den `validerDeltaker`. Knappen «Neste» viser `loading` mens
-   kallet pågår.
-4. Ved 200 setter funksjonen `ansatt.navn` og `deltakerBekreftet` i skjemaet og
+3. Er fødselsnummeret likt `opprettetAv` på utkastet, åpnes dialogen for egen
+   deltakelse (se under) før kallet. `opprettetAv` er innlogget brukers
+   fødselsnummer, fordi bare den som opprettet utkastet har tilgang til det.
+4. Ellers, eller når arbeidsgiver har bekreftet i dialogen, kaller den
+   `validerDeltaker`. Knappen «Neste» viser `loading` mens kallet pågår.
+5. Ved 200 setter funksjonen `ansatt.navn` og `deltakerBekreftet` i skjemaet og
    går til steg 2.
-5. Ved feil vises:
+6. Ved feil vises:
 
 | Svar | Visning |
 |------|---------|
@@ -297,30 +294,29 @@ i `features/soknad/`. Den kaller endepunktet med `fetchJson` og tolker svaret me
 | 429 `FOR_MANGE_OPPSLAG` | `LocalAlert status="warning"`: «Du har slått opp for mange ulike fødselsnummer på kort tid. Vent 5 minutter og prøv igjen.» |
 | 503 `OPPSLAG_FEILET` eller annen feil | `LocalAlert status="error"`: «Vi kunne ikke sjekke arbeidsforholdet akkurat nå. Prøv igjen senere.» |
 | 400 `UGYLDIG_INPUT` | Feltfeil på `ansatt.fnr` eller virksomheten, ut fra `felt` |
-| 409 `DELTAKER_ER_INNLOGGET_BRUKER` | Dialog for å bekrefte egen deltakelse, se under |
 
 `ErrorSummary` sin første lenke flytter fokus til virksomhetsvelgeren, slik
 `FormErrorSummary` gjør i dag.
 
 **Dialog når deltakeren er innlogget bruker.** Ny komponent
-`components/BekreftEgenDeltakelseModal.tsx` med Aksel `Modal`:
+`components/BekreftEgenDeltakelseModal.tsx` med Aksel `Modal`. Dialogen er
+bare et varsel. Backend sperrer ikke eget fødselsnummer.
 
 - `header={{ heading: "Er du selv deltakeren?" }}`.
 - `Modal.Body`: «Fødselsnummeret du har skrevet inn, er ditt eget. Bekreft at
   du søker om ekspertbistand der du selv er deltakeren.»
 - `Modal.Footer` med to knapper:
-  - «Ja, jeg er deltakeren» (`variant="primary"`). Kaller `validerDeltaker` på
-    nytt med `bekreftetEgenDeltakelse: true`, og viser `loading` mens kallet
-    pågår. Svaret håndteres som over. Feil som 429 og 503 vises på steg 1 etter
-    at dialogen er lukket.
+  - «Ja, jeg er deltakeren» (`variant="primary"`). Lukker dialogen og kaller
+    `validerDeltaker`. Svaret håndteres som over.
   - «Nei, endre fødselsnummer» (`variant="secondary"`). Lukker dialogen og
     flytter fokus til fødselsnummerfeltet.
 - Lukkes dialogen med Esc eller lukkeknappen, skjer det samme som ved «Nei».
   `closeOnBackdropClick` er av, som standard.
 
-Bekreftelsen gjelder bare det ene kallet. Den lagres ikke i frontend. Endrer
+Bekreftelsen gjelder bare det ene kallet. Den lagres ikke. Endrer
 arbeidsgiver fødselsnummer eller virksomhet og kommer tilbake til sitt eget
-fødselsnummer, får hen spørsmålet på nytt.
+fødselsnummer, får hen spørsmålet på nytt. Er deltakeren uendret og bekreftet
+(punkt 2), kommer ikke spørsmålet.
 
 **Låste felter på steg 2.**
 
@@ -364,8 +360,13 @@ Backend:
   - fødselsnummer utenfor vinduet teller ikke;
   - ulike brukere telles hver for seg;
   - verken brukerens eller deltakerens fødselsnummer lagres i klartekst.
-- `ValiderDeltakerTest` (ny, `testApplicationWithDatabase`, `mockAareg`,
-  `MockEngine` for PDL):
+- `InputValideringTest`: gyldige kontrollsiffer, D-nummer, syntetiske nummer,
+  feil lengde og feil kontrollsiffer.
+- `AaregPdlDeltakerOppslagTest` (`MockEngine`): treff bare når
+  `arbeidssted.identer` har virksomhetsnummeret, 404 gir `false`, andre feil
+  kastes.
+- `ValiderDeltakerTest` (ny, `testApplicationWithDatabase`, falsk
+  `DeltakerOppslag` som teller kall):
   - treff gir 200 og lagret navn og bekreftelse;
   - ingen arbeidsforhold gir 422, og navn og bekreftelse nullstilles;
   - arbeidsforhold i en annen virksomhet gir 422;
@@ -375,10 +376,6 @@ Backend:
     telle;
   - Aareg- og PDL-feil gir 503 og ingen endring;
   - ugyldig fødselsnummer gir 400;
-  - eget fødselsnummer uten `bekreftetEgenDeltakelse` gir 409
-    `DELTAKER_ER_INNLOGGET_BRUKER`, uten kall til Aareg og uten å telle;
-  - eget fødselsnummer med `bekreftetEgenDeltakelse: true` gir 200;
-  - `bekreftetEgenDeltakelse: true` på et annet fødselsnummer endrer ingenting;
   - manglende Altinn-tilgang gir 403;
   - utkast opprettet av en annen bruker gir 403.
 - `SoknadTest`:
@@ -397,10 +394,9 @@ Frontend (vitest og MSW):
   - 429 og 503 viser `LocalAlert`;
   - ugyldig fødselsnummer gjør ikke kallet;
   - uendret og bekreftet deltaker går til steg 2 uten kall;
-  - 409 `DELTAKER_ER_INNLOGGET_BRUKER` åpner dialogen;
-  - «Ja, jeg er deltakeren» sender `bekreftetEgenDeltakelse: true` og går til
-    steg 2;
-  - «Nei, endre fødselsnummer» lukker dialogen og gir fokus til
+  - fødselsnummer likt `opprettetAv` åpner dialogen før kallet;
+  - «Ja, jeg er deltakeren» gjør kallet og går til steg 2;
+  - «Nei, endre fødselsnummer» lukker dialogen uten kall og gir fokus til
     fødselsnummerfeltet.
 - `SkjemaSteg2Page.test.tsx` (ny): låste felter vises med verdier. Ikke
   bekreftet deltaker sender brukeren til steg 1.
@@ -431,9 +427,10 @@ E2E-testene i `e2e/` oppdateres bare hvis de brekker på de nye stegene.
 | `backend/src/main/resources/db/migration/V29__deltaker_oppslag.sql` (ny) | Kolonne, nullstilling og tabell |
 | `backend/.../soknad/Db.kt` | `ansattBekreftetTidspunkt`, `DeltakerOppslagTable`, `deltakerBekreftet` i `tilUtkastDTO` |
 | `backend/.../soknad/DeltakerOppslagRateLimit.kt` (ny) | Rate limit |
+| `backend/.../soknad/DeltakerOppslag.kt` (ny) | Grensesnitt og Aareg/PDL-implementasjon |
 | `backend/.../soknad/Api.kt` | `validerDeltaker`, regler i PATCH og PUT, `DTO.Utkast.deltakerBekreftet` |
 | `backend/.../soknad/Routing.kt` | Ruten `POST /{id}/valider-deltaker`, opprydding i `deltaker_oppslag` |
-| `backend/.../infrastruktur/` | `erGyldigFodselsnummer` |
+| `backend/.../infrastruktur/InputValidering.kt` | `erGyldigFodselsnummer` |
 | `backend/.../Application.kt` | DI og statuskoder |
 | `backend/src/test/.../LocalApplication.kt` | Aareg-mock, navn i PDL-mock |
 | `backend/src/test/.../pdl/PdlApiKlientTest.kt` | `hentNavn` |
@@ -461,7 +458,7 @@ E2E-testene i `e2e/` oppdateres bare hvis de brekker på de nye stegene.
   oppslag.
 - **Arbeidsgiver går frem og tilbake uten å endre noe.** Frontend kaller ikke
   endepunktet, og spørsmålet om egen deltakelse kommer ikke på nytt. Kalles
-  endepunktet likevel, svarer steg 6 uten nytt oppslag, så grensen brukes ikke
+  endepunktet likevel, svarer steg 5 uten nytt oppslag, så grensen brukes ikke
   opp.
 - **Arbeidsforholdet avsluttes etter oppslaget.** Søknaden kan sendes inn med det
   lagrede oppslaget. Saksbehandler vurderer arbeidsforholdet.
@@ -479,8 +476,8 @@ E2E-testene i `e2e/` oppdateres bare hvis de brekker på de nye stegene.
   prøve igjen. Et nytt forsøk på samme fødselsnummer teller ikke på nytt.
 - **Personen finnes i Aa-registeret, men ikke i PDL.** Svarer 503
   `OPPSLAG_FEILET`. Det bør ikke skje, og det logges uten fødselsnummer.
-- **Arbeidsgiver legger inn seg selv.** Backend svarer 409 før oppslaget, og
-  frontend viser dialogen. Bekrefter arbeidsgiver, gjøres oppslaget som vanlig.
+- **Arbeidsgiver legger inn seg selv.** Frontend ser at fødselsnummeret er likt `opprettetAv` og
+  viser dialogen før kallet. Bekrefter arbeidsgiver, gjøres oppslaget som vanlig.
   Innlogget bruker må da selv ha et aktivt arbeidsforhold i virksomheten, ellers
   blir svaret 422.
 - **Arbeidsgiver lukker dialogen uten å svare.** Behandles som «Nei». Ingenting
