@@ -28,7 +28,7 @@ enheter:
 | `L654321` | Lisa Barebeslutter    | beslutter                  |
 
 1. Start `LocalApplication.kt`.
-2. Kjør `VITE_ENABLE_MOCKS=false pnpm serve:saksbehandling` fra rotmappen og
+2. Kjør `pnpm serve:saksbehandling:e2e` fra rotmappen og
    åpne http://localhost:4001.
 3. Bytt bruker under «Bytt bruker (lokalt)» i brukermenyen øverst til høyre.
 

@@ -1,7 +1,8 @@
-name: Deploy dev mock (saksbehandling + backend)
+name: Deploy dev mock (backend, saksbehandling og arbeidsgiver)
 
-# ekspertbistand-saksbehandling-mock mot ekspertbistand-backend-mock.
-# Se specifications/saksbehandling_mock_mot_mocka_backend.md.
+# ekspertbistand-saksbehandling-mock og ekspertbistand-frontend-mock mot ekspertbistand-backend-mock.
+# Se specifications/saksbehandling_mock_mot_mocka_backend.md og
+# specifications/arbeidsgiver_mock_mot_mocka_backend.md.
 on:
   workflow_dispatch: {}
   push:
@@ -11,8 +12,13 @@ on:
       - backend/**
       - frontend/saksbehandling/**
       - frontend/saksbehandling-server/**
+      - frontend/client/**
+      - frontend/server/**
+      - frontend/shared/**
+      - Dockerfile
       - nais/dev-gcp-backend-mock.yaml
       - nais/dev-gcp-saksbehandling-mock.yaml
+      - nais/dev-gcp-frontend-mock.yaml
       - .github/workflows/deploy-dev-mock.yml
 
 permissions:
@@ -117,6 +123,84 @@ jobs:
             VITE_LOKAL_BRUKERBYTTE=true
           salsa: true
 
+  build-frontend-mock:
+    name: Build frontend mock image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    env:
+      CDN_DESTINATION: /ekspertbistand-mock/${{ github.sha }}
+      CDN_PUBLIC_BASE: https://cdn.nav.no/fager/ekspertbistand-mock/${{ github.sha }}
+      BASE_PATH: /ekspertbistand
+    outputs:
+      image: ${{ steps.docker-build-push.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          version: 10.32.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: "24"
+          registry-url: https://npm.pkg.github.com/
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.READER_TOKEN }}
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build workspace
+        run: pnpm run build
+        env:
+          VITE_BASE_PATH: ${{ env.CDN_PUBLIC_BASE }}
+          VITE_LOKAL_INNLOGGING: "true"
+
+      - name: Upload static assets to NAIS CDN
+        uses: nais/deploy/actions/cdn-upload/v2@1064e26587ab2794266a35f477387e561899a7ef # master
+        with:
+          team: fager
+          source: ./frontend/client/dist
+          destination: ${{ env.CDN_DESTINATION }}
+          source_keep_parent_name: false
+
+      - name: Login to NAIS (sets registry and OIDC)
+        uses: nais/login@40b72a35a18ddf2ad74b632461139ab838cc2a2f # v0
+        with:
+          team: fager
+          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
+          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Build and push image
+        id: docker-build-push
+        uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # v0
+        with:
+          team: fager
+          image_suffix: frontend-mock
+          tag: ${{ github.sha }}
+          docker_context: .
+          dockerfile: Dockerfile
+          build_args: |
+            NODE_AUTH_TOKEN=${{ secrets.READER_TOKEN }}
+            BASE_PATH=${{ env.BASE_PATH }}
+            VITE_BASE_PATH=${{ env.CDN_PUBLIC_BASE }}
+            VITE_LOKAL_INNLOGGING=true
+          salsa: true
+
   deploy:
     name: Deploy to dev-gcp
     runs-on: ubuntu-latest
@@ -124,7 +208,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    needs: [ build-backend-mock, build-saksbehandling-mock ]
+    needs: [ build-backend-mock, build-saksbehandling-mock, build-frontend-mock ]
 
     steps:
       - name: Checkout
@@ -144,4 +228,12 @@ jobs:
           CLUSTER: dev-gcp
           RESOURCE: nais/dev-gcp-saksbehandling-mock.yaml
           VAR: image=${{ needs.build-saksbehandling-mock.outputs.image }}
+          REF: ${{ github.sha }}
+
+      - name: Deploy frontend mock
+        uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # v3
+        env:
+          CLUSTER: dev-gcp
+          RESOURCE: nais/dev-gcp-frontend-mock.yaml
+          VAR: image=${{ needs.build-frontend-mock.outputs.image }}
           REF: ${{ github.sha }}

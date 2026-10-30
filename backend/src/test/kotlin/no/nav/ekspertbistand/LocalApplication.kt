@@ -15,6 +15,7 @@ import no.nav.common.audit_log.log.AuditLogger
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.arena.ArenaClient
 import no.nav.ekspertbistand.audit.ArcSightAuditClient
+import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokument.DokumentService
@@ -37,15 +38,19 @@ import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.pdl.GraderingOppslag
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.pdl.PdlGraderingOppslag
+import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.*
 import no.nav.ekspertbistand.skjerming.SkjermingOppslag
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
+import no.nav.ekspertbistand.sokos.KontoregisterClient
+import no.nav.ekspertbistand.sokos.configureKontoregisterApiV1
 import no.nav.ekspertbistand.statistikk.AdressebeskyttedeBehandlinger
 import no.nav.ekspertbistand.statistikk.AdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.PdlAdressebeskyttelseOppslag
 import no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkSkriver
 import no.nav.ekspertbistand.tilgangsmaskin.*
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
+import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.LoggerFactory
 import kotlin.time.Clock.System.now
@@ -101,6 +106,7 @@ fun main() {
 @OptIn(ExperimentalTime::class)
 fun startLokalApplikasjon(dbConfig: DbConfig) {
     val database = dbConfig.jdbcDatabase
+    val altinnTilganger = """[ "nav_tiltak_ekspertbistand" ]"""
     val mockAltinnTilgangerServer = HttpClient(MockEngine {
         respond(
             // language=JSON
@@ -112,31 +118,29 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                   "orgnr": "123456789",
                   "organisasjonsform": "AS",
                   "navn": "Eksempel Bedrift AS",
-                  "underenheter": [
-                    {
+                  "underenheter": ${
+                lokaleVirksomheter.joinToString(prefix = "[", postfix = "]") {
+                    """{
                       "erSlettet": false,
-                      "orgnr": "123456780",
+                      "orgnr": "${it.orgnr}",
                       "organisasjonsform": "BEDR",
-                      "navn": "Eksempel Bedrift AS Avd. Oslo",
+                      "navn": "${it.navn}",
                       "underenheter": [],
-                      "altinn3Tilganger": [
-                        "nav_tiltak_ekspertbistand"
-                      ],
+                      "altinn3Tilganger": $altinnTilganger,
                       "altinn2Tilganger": []
-                    }
-                  ],
-                  "altinn3Tilganger": [
-                    "nav_tiltak_ekspertbistand"
-                  ],
+                    }"""
+                }
+            },
+                  "altinn3Tilganger": $altinnTilganger,
                   "altinn2Tilganger": []
                 }
               ],
               "orgNrTilTilganger": {
-                "123456789": [ "nav_tiltak_ekspertbistand" ],
-                "123456780": [ "nav_tiltak_ekspertbistand" ]
+                "123456789": $altinnTilganger,
+                ${lokaleVirksomheter.joinToString { """"${it.orgnr}": $altinnTilganger""" }}
               },
               "tilgangTilOrgNr": {
-                "nav_tiltak_ekspertbistand": [ "123456789", "123456780" ]
+                "nav_tiltak_ekspertbistand": [ "123456789", ${lokaleVirksomheter.joinToString { "\"${it.orgnr}\"" }} ]
               }
             }
             """,
@@ -332,6 +336,35 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
             provide<EregService> { EregService(resolve()) }
             provide { mockDokumentService }
             provide { mockDokArkivClient }
+            provide<ClamAvClient> {
+                ClamAvClient(HttpClient(MockEngine {
+                    respond(
+                        // language=JSON
+                        """[{ "Filename": "vedlegg.pdf", "Result": "OK" }]""",
+                        HttpStatusCode.OK,
+                        headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                    )
+                }))
+            }
+            provide<KontoregisterClient> {
+                KontoregisterClient(
+                    tokenProvider = successAzureAdTokenProvider,
+                    defaultHttpClient = HttpClient(MockEngine { request ->
+                        val orgnr = request.url.encodedPath.substringAfterLast('/')
+                        val kontonummer = lokaleVirksomheter.find { it.orgnr == orgnr }?.kontonummer
+                        if (kontonummer == null) {
+                            respond("", HttpStatusCode.NotFound)
+                        } else {
+                            respond(
+                                // language=JSON
+                                """{ "mottaker": "$orgnr", "kontonr": "$kontonummer" }""",
+                                HttpStatusCode.OK,
+                                headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                            )
+                        }
+                    }),
+                )
+            }
             provide<NorgKlient> {
                 NorgKlient(HttpClient(MockEngine { request ->
                     respond(
@@ -421,7 +454,24 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                     azureAdTokenProvider = resolve<AzureAdTokenProvider>(),
                     defaultHttpClient = HttpClient(MockEngine { request ->
                         (request.body as TextContent).text.let { body ->
-                            if (body.contains("nyBeskjed")) {
+                            if (body.contains("nyStatusSakByGrupperingsid")) {
+                                respond(
+                                    // language=JSON
+                                    """
+                                    {
+                                        "data": {
+                                            "nyStatusSakByGrupperingsid": {
+                                                "__typename": "NyStatusSakVellykket",
+                                                "id": "1234",
+                                                "statuser": []
+                                            }
+                                        }
+                                    }
+                                    """.trimIndent(),
+                                    HttpStatusCode.OK,
+                                    headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                                )
+                            } else if (body.contains("nyBeskjed")) {
                                 respond(
                                     // language=JSON
                                     """
@@ -501,6 +551,8 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
 
         // application modules
         configureSoknadApiV1()
+        configureVedleggApiV1()
+        configureRefusjonApiV1()
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()
         configureEregApiV1()
@@ -511,7 +563,7 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
         configureBeslutterApiV1()
         configureKommunefilterApiV1()
         configureSakDokumentApiV1()
-        //configureKontoregisterApiV1()
+        configureKontoregisterApiV1()
 
         // event manager and event handlers
         configureEventHandlers()
