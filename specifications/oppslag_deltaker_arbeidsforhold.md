@@ -97,7 +97,7 @@ med adressebeskyttelse som i dag ellers.
 
 ### 2. Database
 
-Migrering `V29__deltaker_oppslag.sql`:
+Migrering `V31__deltaker_oppslag.sql`:
 
 ```sql
 SET lock_timeout = '3s';
@@ -452,7 +452,7 @@ E2E-testene i `e2e/` oppdateres bare hvis de brekker på de nye stegene.
 |-----|---------|
 | `backend/src/main/resources/graphql/pdl/HentPersonNavn.graphql` (ny) | Spørring for navn |
 | `backend/.../pdl/PdlApiKlient.kt` | `hentNavn` |
-| `backend/src/main/resources/db/migration/V29__deltaker_oppslag.sql` (ny) | Kolonne, nullstilling og tabell |
+| `../backend/src/main/resources/db/migration/V31__deltaker_oppslag.sql` (ny) | Kolonne, nullstilling og tabell |
 | `backend/.../soknad/Db.kt` | `ansattBekreftetTidspunkt`, `DeltakerOppslagTable`, `deltakerBekreftet` i `tilUtkastDTO` |
 | `backend/.../soknad/DeltakerOppslagRateLimit.kt` (ny) | Rate limit |
 | `backend/.../soknad/DeltakerOppslag.kt` (ny) | Grensesnitt og Aareg/PDL-implementasjon |
