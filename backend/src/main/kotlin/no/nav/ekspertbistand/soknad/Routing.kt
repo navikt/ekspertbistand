@@ -28,6 +28,7 @@ suspend fun Application.configureSoknadApiV1() {
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
     val eregService = dependencies.resolve<EregService>()
     val soknadApi = SoknadApi(database, altinnTilgangerClient, eregService)
+    val deltakerOppslagRateLimit = DeltakerOppslagRateLimit(database)
     val aggregateRetention = AggregateRetention(database)
 
     launch {
@@ -37,6 +38,12 @@ suspend fun Application.configureSoknadApiV1() {
             } catch (e: Exception) {
                 e.rethrowIfCancellation()
                 log.error("Feil ved sletting av gamle utkast", e)
+            }
+            try {
+                deltakerOppslagRateLimit.slettGamleOppslag()
+            } catch (e: Exception) {
+                e.rethrowIfCancellation()
+                log.error("Feil ved sletting av gamle deltakeroppslag", e)
             }
             delay(10.minutes)
         }

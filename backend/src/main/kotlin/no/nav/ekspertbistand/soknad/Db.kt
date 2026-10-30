@@ -91,6 +91,10 @@ object UtkastTable : UUIDTable("utkast") {
     val ansattFnr = text("ansatt_fnr").nullable()
     val ansattNavn = text("ansatt_navn").nullable()
 
+    /** Satt når arbeidsforholdet er bekreftet i Aa-registeret og navnet er hentet fra PDL. */
+    @OptIn(ExperimentalTime::class)
+    val ansattBekreftetTidspunkt = timestamp("ansatt_bekreftet_tidspunkt").nullable()
+
     // Ekspert
     val ekspertNavn = text("ekspert_navn").nullable()
     val ekspertVirksomhet = text("ekspert_virksomhet").nullable()
