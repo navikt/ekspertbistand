@@ -375,6 +375,8 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                         (request.body as TextContent).text.let { body ->
                             val ident = defaultJson.parseToJsonElement(body)
                                 .jsonObject["variables"]?.jsonObject?.get("ident")?.jsonPrimitive?.content
+                            val operationName = defaultJson.parseToJsonElement(body)
+                                .jsonObject["operationName"]?.jsonPrimitive?.content
                             if (body.contains("hentGeografiskTilknytning")) {
                                 respond(
                                     // language=JSON
@@ -384,6 +386,23 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                                             "hentGeografiskTilknytning": {
                                                 "gtType": "KOMMUNE",
                                                 "gtKommune": "0301"
+                                            }
+                                        }
+                                    }
+                                    """.trimIndent(),
+                                    HttpStatusCode.OK,
+                                    headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                                )
+                            } else if (operationName == "HentPersonNavn") {
+                                respond(
+                                    // language=JSON
+                                    """
+                                    {
+                                        "data": {
+                                            "hentPerson": {
+                                                "navn": [
+                                                    { "fornavn": "Mona", "mellomnavn": null, "etternavn": "Moonlight" }
+                                                ]
                                             }
                                         }
                                     }
