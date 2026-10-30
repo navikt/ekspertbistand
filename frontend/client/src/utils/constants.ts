@@ -7,10 +7,20 @@ const withBasePath = (path: `/${string}`) =>
 
 export const isMockEnabled = () => {
   if (detectEnv() === "prod") return false;
-  if (import.meta.env.DEV) return true;
   const flag = import.meta.env.VITE_ENABLE_MOCKS?.toLowerCase();
+  if (flag === "false") return false;
+  if (import.meta.env.DEV) return true;
   return flag === "true";
 };
+
+/**
+ * ekspertbistand-frontend-e2e-mock bygges med VITE_LOKAL_INNLOGGING=true og går mot ekspertbistand-backend-mock,
+ * der BFF-en logger inn testbrukeren uten ID-porten.
+ */
+export const isLokalInnlogging = () =>
+  detectEnv() !== "prod" && import.meta.env.VITE_LOKAL_INNLOGGING?.toLowerCase() === "true";
+
+const utenIdporten = () => isMockEnabled() || isLokalInnlogging();
 
 export const TELEMETRY_COLLECTOR_URL = envSwitch({
   prod: () => "https://telemetry.nav.no/collect",
@@ -22,7 +32,7 @@ export const TELEMETRY_COLLECTOR_URL = envSwitch({
 export const MIN_SIDE_URL = envSwitch({
   prod: () => "https://arbeidsgiver.nav.no/min-side-arbeidsgiver/",
   dev: () =>
-    isMockEnabled()
+    utenIdporten()
       ? "https://arbeidsgiver-dev-like.ansatt.dev.nav.no/min-side-arbeidsgiver"
       : "https://arbeidsgiver.intern.dev.nav.no/min-side-arbeidsgiver/",
   local: () => "https://arbeidsgiver.intern.dev.nav.no/min-side-arbeidsgiver/",
@@ -67,7 +77,7 @@ export const HENT_FORSTESIDE_URL =
 export const LOGIN_URL = envSwitch({
   prod: () => `${withBasePath("/oauth2/login")}?redirect=${withBasePath(SOKNADER_PATH)}`,
   dev: () =>
-    isMockEnabled()
+    utenIdporten()
       ? withBasePath(SOKNADER_PATH)
       : `${withBasePath("/oauth2/login")}?redirect=${withBasePath(SOKNADER_PATH)}`,
   local: () => withBasePath(SOKNADER_PATH),

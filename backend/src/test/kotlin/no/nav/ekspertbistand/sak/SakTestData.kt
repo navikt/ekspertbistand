@@ -5,6 +5,7 @@ import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.SaksloggTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
+import no.nav.ekspertbistand.saksbehandling.nesteSaksnummer
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -52,6 +53,7 @@ fun lagreSoknadOgSak(
         it[SakTable.soknadId] = soknadId
         it[status] = Saksstatus.OPPRETTET.name
         it[kildeTilBehandling] = KildeTilBehandling.EKSPERTBISTAND.name
+        it[saksnummer] = nesteSaksnummer()
         it[SakTable.behandlendeEnhet] = behandlendeEnhet
     }.single()[SakTable.sakId]
     LagretSak(sakId = sakId, soknadId = soknadId)

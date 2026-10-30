@@ -6,6 +6,27 @@ Durable, at-least-once event processing using a relational database queue and lo
 - Use `EventQueue` to publish events and manage their lifecycle.
 - Use `EventManager` to process events from the queue, dispatching them to registered handlers.
 
+## `event_log` endres aldri
+
+Alt som ligger i `event_log`, har skjedd: eventen er publisert med `publishEventQueue`, behandlet av
+`EventManager` og flyttet til loggen av `finalize`. Ingen annen kode skriver til `event_log`. Teamet har
+besluttet dette, og regelen har ingen unntak.
+
+- Ingen backfill-jobb, projeksjon, Flyway-migrering eller manuell SQL setter inn eller endrer rader i `event_log`.
+- Mangler en hendelse, publiserer vanlig applikasjonskode en ny event med `publishEventQueue`. Da kjører
+  handlerne som for alle andre events.
+- En feil i en event rettes med en ny event, ikke ved å endre den gamle.
+- Trenger vi nye data om eksisterende events, utleder vi dem fra `event_json` ved lesing eller bygger en
+  projeksjon. Vi legger ikke til kolonner som må fylles for gamle rader.
+- Flyway-migreringer mot `event_log` kan legge til indekser, men aldri røre radene.
+
+Backfillen av `aggregate_root_id` (se [Utrulling](#utrulling-historikk)) ble gjort før denne beslutningen.
+Den er ikke en mal for nye endringer.
+
+Sletting etter oppbevaringstid er ikke en endring av innholdet. `AggregateRetention` sletter alle rader for et
+aggregat når fristen er ute, se
+[`specifications/sletterutiner_10_ar_og_notifikasjon_455_dager.md`](../../../../../../../../specifications/sletterutiner_10_ar_og_notifikasjon_455_dager.md).
+
 ### Flytdiagram
 
 [`event-flow.md`](event-flow.md) viser hvilke kilden til events, hvilke handlere som lytter på hvilke events og hvilke events som en handler produserer. Diagrammet genereres ved
@@ -65,7 +86,7 @@ kolonnen `aggregate_root_id` på `event_queue` og `event_log`. Dermed finnes det
 samme rad, og gamle/nye rader er byte-identiske i payload.
 
 `publishEventQueue` skriver kolonnen ved publisering, og `finalize` kopierer den videre til
-`event_log` (med derivering fra payload som fallback for eventuelle legacy-rader med `NULL`).
+`event_log`.
 
 ### Mapping per event-type
 
@@ -76,12 +97,13 @@ samme rad, og gamle/nye rader er byte-identiske i payload.
 | `TilskuddsbrevVist` | `soknad?.id ?: tilsagnNummer` |
 | `SakOppdatert`, `SakTildeltSaksbehandler`, `SakTildeltBeslutter`, `SakFrigjort`, `VilkarsvurderingOppdatert`, `ForelopigVedtakSendtTilBeslutter`, `VedtakFattet`, `ForelopigVedtakReturnert` | `soknadId` |
 
-Derivings-SQL-en i backfillen (`AggregateRootIdBackfill`) speiler denne tabellen og valideres mot
-faktisk serialisert payload i `AggregateRootIdBackfillTest`.
+### Utrulling (historikk)
 
-### Utrulling (engangs-migrering av eksisterende rader)
+> Denne backfillen endret eksisterende rader i `event_log` og ble gjort før teamet besluttet at
+> `event_log` aldri skal endres (se [`event_log` endres aldri](#event_log-endres-aldri)). Den er beskrevet
+> her som historikk og skal ikke gjentas. `AggregateRootIdBackfill` og testen er fjernet fra kodebasen.
 
-Kolonnen innføres i faser slik at ingen migrering holder en blokkerende lås gjennom en tabell-scan:
+Kolonnen ble innført i faser slik at ingen migrering holdt en blokkerende lås gjennom en tabell-scan:
 
 1. **Nullbar kolonne** (Flyway `V8`) + **modell/finalize-fallback** og en `CHECK … NOT VALID` på
    `event_log` (Flyway `V9`) som håndhever invarianten for alle *nye* rader.
@@ -90,14 +112,15 @@ Kolonnen innføres i faser slik at ingen migrering holder en blokkerende lås gj
    kjørte den P6 steg 1: `VALIDATE CONSTRAINT` på `event_log` (ikke-blokkerende SHARE UPDATE
    EXCLUSIVE-scan) og opprettet oppslagsindeksene `CONCURRENTLY`
    (`(aggregate_root_id, id)` på begge tabeller). Jobben er **fjernet fra kodebasen** etter at den
-   var ferdig i begge miljøer; den generiske `backfill_state`-tabellen beholdes for neste backfill.
+   var ferdig i begge miljøer. Den generiske `backfill_state`-tabellen finnes fortsatt, men skal aldri
+   brukes til å backfille `event_log`.
 3. **`SET NOT NULL`** gjøres i en **egen, senere Flyway-migrering** (`V10`, P6 steg 2), *etter* at
    verifiseringen under gir 0 i miljøet og steg 1 er bekreftet ferdig. Fordi den validerte checken
    allerede finnes, blir `SET NOT NULL` på `event_log` en O(1)-operasjon; `V10` dropper deretter
    checken og strammer `event_queue` på samme måte. Til slutt er Exposed-kolonnene og
    `QueuedEvent`/`LoggedEvent.aggregateRootId` ikke-nullbare (`String`).
 
-### Verifisering (kjøres i dev, så prod — må gi 0 før P6 steg 2)
+### Verifisering (historikk, kjørt i dev og prod før P6 steg 2)
 
 ```sql
 -- 1. Ingen gjenstående NULL
@@ -302,6 +325,7 @@ sequenceDiagram
 ### Event Log Projections
 
 Once an event is finalized and moved to the `event_log`, projections can be built to create read-optimized views of the event data. 
+Projections only read `event_log`, see [`event_log` endres aldri](#event_log-endres-aldri).
 See [EventLogProjectionBuilder](projections/README.md) for details.
 
 ### Source

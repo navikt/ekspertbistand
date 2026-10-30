@@ -28,6 +28,15 @@ sequenceDiagram
 2. **EventLogProjectionBuilder**: Listens to new events in the `EventLog` and applies them to update one or more projections.
 3. **Projections**: Materialized views (e.g., `TilskuddsbrevVistProjection`, `SoknadBehandletForsinkelseProjection`, `SakProjection`) that are updated by the builder and used for efficient querying.
 
+## Projeksjoner leser bare `event_log`
+
+En projeksjon leser `event_log` og skriver til sine egne tabeller, som `sak`. Den skriver aldri til `event_log`,
+heller ikke når den backfiller eller kjøres på nytt fra posisjon 0. Alt i `event_log` har kommet via
+`event_queue` og `finalize`, uten unntak. Se [`event_log` endres aldri](../README.md#event_log-endres-aldri).
+
+Trenger en projeksjon en hendelse som ikke finnes i loggen, må vanlig applikasjonskode publisere den som en
+ny event med `publishEventQueue`. Projeksjonen får den da på samme måte som alle andre events.
+
 ## SakProjection
 
 `SakProjection` bygger `sak`-tabellen for søknader som behandles i Arena. Se

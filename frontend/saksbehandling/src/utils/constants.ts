@@ -69,4 +69,8 @@ export const isLokalBrukerbytteMulig = () =>
 export const LOKALE_BRUKERE_URL = "/lokal/brukere";
 export const LOKAL_BRUKER_COOKIE = "lokal-bruker";
 
+/** Søknaden i arbeidsgiverfrontenden som går mot samme mocka backend, se isLokalBrukerbytteMulig. */
+export const arbeidsgiverSoknadUrl = (soknadId: string) =>
+  `${isLocalHost() ? "http://localhost:4000" : "https://ekspertbistand-arbeidsgiver-e2e-mock.ansatt.dev.nav.no/ekspertbistand"}/skjema/${soknadId}/kvittering`;
+
 export const LOGIN_URL = `/oauth2/login?redirect=${OVERSIKT_PATH}`;

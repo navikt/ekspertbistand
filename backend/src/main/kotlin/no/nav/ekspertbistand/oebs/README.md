@@ -66,9 +66,9 @@ sequenceDiagram
     participant T as Kafka-topic
     participant V as Team VALP
 
-    K->>C: transaction { opprettBestilling(sakId) { nr -> ... } }
-    C->>N: nesteBestillingsnummer(sakId)
-    N-->>C: E<sak><løpenr>
+    K->>C: transaction { opprettBestilling(saksnummer) { nr -> ... } }
+    C->>N: nesteBestillingsnummer(saksnummer)
+    N-->>C: E-<saksnummer>-<løpenr>
     C->>O: leggIOutbox(Bestilling) — samme txn som kaller
     Note over O: rad {status: PENDING}
 
@@ -79,6 +79,17 @@ sequenceDiagram
     P->>O: loggSendtMelding + marker PUBLISHED (samme txn)
     T-->>V: konsumerer bestilling
 ```
+
+### Hvem bestiller
+
+`BestillTilsagnIOebs` lytter på `VedtakFattet` og bestiller tilsagnet når vedtaket er innvilget. Den
+kaller `opprettBestilling(sak.saksnummer)` og lagrer bestillingen i `sak_bestilling` i samme
+transaksjon som outbox-raden. Se
+[`specifications/sette_av_penger_oebs_vedtak.md`](../../../../../../../../specifications/sette_av_penger_oebs_vedtak.md).
+
+Lokalt og i mock-backenden svarer `LokalOebs` (i `src/test/.../mocks`) i stedet for VALP og OeBS:
+den ekte polleren publiserer til en `MockProducer`, og hver publiserte rad får status gjennom den
+ekte `TiltaksokonomiConsumer`. Loggen viser «OeBS-mock».
 
 ### Statusflyt (OeBS → oss)
 
@@ -169,7 +180,8 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 | Tabell | Rolle |
 |--------|-------|
 | `oebs_outbox` | Utgående meldinger, drenert til Kafka av polleren (arbeidsdata) |
-| `oebs_lopenummer` | Neste ledige løpenummer per sak (én rad per sak) |
+| `oebs_lopenummer` | Neste ledige løpenummer per saksnummer (én rad per sak, nøkkel `saksnummer`) |
+| `sak_bestilling` | Bestillingen per innvilget vedtak (`saksbehandling/Bestilling.kt`), slettes med saken |
 | `oebs_bestilling_status` | Siste status per bestilling, med flagg for manuell oppfølging (arbeidsdata) |
 | `oebs_sendt_melding` | 📚 Revisjonsspor: hver melding vi publiserte, med Kafka-koordinater (append-only) |
 | `oebs_mottatt_status` | 📚 Revisjonsspor: hvert svar vi mottok, rått og komplett (append-only) |
@@ -216,7 +228,8 @@ implementert.
 
 ## Gjenstående eksterne avhengigheter
 
-- **Fagsystembokstav/kilde**: bruker `E` midlertidig (`FAGSYSTEM_KILDE`), må bekreftes mot OeBS.
+- **OeBS** må gjøre funksjonelt og teknisk oppsett før vi kan teste bestilling i dev, og sier fra
+  når de er klare. Fagsystembokstaven `E` og nummerserien er godtatt (OEBS-2283, 2026-10-28).
 - **VALP** må abonnere på `fager.ekspertbistand.bestillinger-v1` før meldinger godtas.
   Enum-verdiene vi sender finnes allerede hos VALP (tiltakskode `EKSPERTBISTAND`,
   `OkonomiFagsystem.EKSPERTBISTAND`, tilskuddstype `TILTAK_DRIFTSTILSKUDD`).

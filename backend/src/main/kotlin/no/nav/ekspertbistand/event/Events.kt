@@ -502,8 +502,9 @@ sealed interface EventData {
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
      *
-     * Konsumenter: [no.nav.ekspertbistand.event.handlers.FattVedtak] og
-     * [no.nav.ekspertbistand.event.handlers.SettSoknadStatusVedtakFattet].
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.FattVedtak],
+     * [no.nav.ekspertbistand.event.handlers.SettSoknadStatusVedtakFattet] og
+     * [no.nav.ekspertbistand.event.handlers.BestillTilsagnIOebs].
      */
     @OptIn(ExperimentalTime::class)
     @Serializable
@@ -594,16 +595,11 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(OppdaterVilkarsvurdering::class))
         register(dependencies.create(LagreForelopigVedtak::class))
         register(dependencies.create(FattVedtak::class))
+        register(dependencies.create(BestillTilsagnIOebs::class))
         register(dependencies.create(SettSoknadStatusVedtakFattet::class))
         register(dependencies.create(ReturnerForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
-            EventHandledResult.Success()
-        }
-
-        register<EventData>("InlineAlEventsHandler") { event ->
-            // Inline handler example
-            log.debug("event handled: {}", event)
             EventHandledResult.Success()
         }
     }

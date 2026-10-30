@@ -18,6 +18,8 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import java.time.Year
+import java.time.ZoneId
 import java.util.*
 import kotlin.test.*
 
@@ -39,6 +41,7 @@ class OpprettSakTest {
         assertEquals(Saksstatus.OPPRETTET.name, sak.status)
         assertEquals(KildeTilBehandling.EKSPERTBISTAND.name, sak.kilde)
         assertEquals(Vilkar.entries.size, antallVilkar(database, sak.sakId))
+        assertSaksnummer(sak.saksnummer)
 
         val events = hentEvents(database)
         assertEquals(2, events.size)
@@ -64,9 +67,12 @@ class OpprettSakTest {
         val handler = opprettSak(database)
         val event = journalfoert(soknad, behandlendeEnhetId = "4242")
 
-        repeat(2) { assertIs<EventHandledResult.Success>(handler.handle(event)) }
+        assertIs<EventHandledResult.Success>(handler.handle(event))
+        val saksnummer = hentSak(database, soknad).saksnummer
+        assertIs<EventHandledResult.Success>(handler.handle(event))
 
         transaction(database) { assertEquals(1, SakTable.selectAll().count()) }
+        assertEquals(saksnummer, hentSak(database, soknad).saksnummer)
         assertEquals(2, hentEvents(database).size)
     }
 
@@ -119,6 +125,29 @@ class OpprettSakTest {
         assertTrue(hentEvents(database).isEmpty())
     }
 
+    @Test
+    fun `to saker får ulike saksnummer`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val soknadA = lagreSoknad(database)
+        val soknadB = lagreSoknad(database)
+
+        assertIs<EventHandledResult.Success>(opprettSak(database).handle(journalfoert(soknadA, behandlendeEnhetId = "4242")))
+        assertIs<EventHandledResult.Success>(opprettSak(database).handle(journalfoert(soknadB, behandlendeEnhetId = "4242").copy(id = 2L)))
+
+        val a = hentSak(database, soknadA).saksnummer
+        val b = hentSak(database, soknadB).saksnummer
+        assertSaksnummer(a)
+        assertSaksnummer(b)
+        assertNotEquals(a, b)
+    }
+
+    private fun assertSaksnummer(saksnummer: String?) {
+        assertNotNull(saksnummer)
+        val (aar, lopenummer) = saksnummer.split("/")
+        assertEquals(Year.now(ZoneId.of("Europe/Oslo")).value, aar.toInt())
+        assertTrue(lopenummer.toLong() >= 1_000_000, "løpenummer $lopenummer skal være minst 1000000")
+    }
+
     private fun opprettSak(
         database: Database,
         graderingOppslag: GraderingOppslag = GraderingOppslag { null },
@@ -133,6 +162,7 @@ class OpprettSakTest {
         val kommunenummer: String?,
         val adressebeskyttelse: String?,
         val skjermet: Boolean,
+        val saksnummer: String?,
     )
 
     private fun journalfoert(soknad: DTO.Soknad, behandlendeEnhetId: String, kommunenummer: String? = null) = Event(
@@ -156,6 +186,7 @@ class OpprettSakTest {
                 kommunenummer = it[SakTable.kommunenummer],
                 adressebeskyttelse = it[SakTable.adressebeskyttelse],
                 skjermet = it[SakTable.skjermet],
+                saksnummer = it[SakTable.saksnummer],
             )
         }
     }

@@ -27,7 +27,7 @@ const {
   NODE_ENV,
   GIT_COMMIT,
   NAIS_APP_IMAGE,
-  VITE_ENABLE_MOCKS,
+  LOKAL_INNLOGGING,
 } = process.env;
 
 const port = Number(PORT);
@@ -35,9 +35,12 @@ const port = Number(PORT);
 const basePath = BASE_PATH !== "/" && BASE_PATH.endsWith("/") ? BASE_PATH.slice(0, -1) : BASE_PATH;
 
 const tokenxEnabled = Boolean(TOKEN_X_ISSUER);
-// Mock-imaget bygges med VITE_ENABLE_MOCKS=true og kjører uten TokenX.
-const mockEnabled = VITE_ENABLE_MOCKS === "true";
-if (NODE_ENV === "production" && !tokenxEnabled && !mockEnabled) {
+// ekspertbistand-frontend-e2e-mock går mot ekspertbistand-backend-mock, som godtar faketoken, uten ID-porten og TokenX.
+const lokalInnlogging = LOKAL_INNLOGGING === "true";
+if (lokalInnlogging && tokenxEnabled) {
+  throw new Error("LOKAL_INNLOGGING kan ikke kombineres med TokenX. Avslutter.");
+}
+if (NODE_ENV === "production" && !tokenxEnabled && !lokalInnlogging) {
   throw new Error("TOKEN_X_ISSUER mangler i production. Avslutter for å unngå fail-open auth.");
 }
 if (tokenxEnabled && !EKSPERTBISTAND_API_AUDIENCE) {
@@ -46,7 +49,7 @@ if (tokenxEnabled && !EKSPERTBISTAND_API_AUDIENCE) {
 
 const app = express();
 const api = express.Router();
-const localSessionEnabled = NODE_ENV !== "production";
+const localSessionEnabled = NODE_ENV !== "production" || lokalInnlogging;
 const localHttpOrigins =
   NODE_ENV === "production" ? [] : ["http://localhost:*", "http://127.0.0.1:*"];
 const localWebsocketOrigins =

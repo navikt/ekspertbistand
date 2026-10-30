@@ -17,7 +17,7 @@ import org.jetbrains.exposed.v1.jdbc.update
  * sparer ingenting på å legge verdien i ekstern config — config er reservert for plattform-gitte
  * verdier og hemmeligheter.
  *
- * `E` er midlertidig og må avklares/bekreftes mot OeBS før produksjon (se spec, gjenstående punkt).
+ * OeBS har godtatt `E` og nummerserien (OEBS-2283, 2026-10-28). Se `specifications/sette_av_penger_oebs_vedtak.md`.
  */
 const val FAGSYSTEM_KILDE: String = "E"
 
@@ -38,12 +38,12 @@ const val FAKTURANUMMER_MAKS_LENGDE: Int = 50
  * transaksjon som outbox-skrivingen slik at et bestillingsnummer aldri deles ut to ganger.
  */
 object OebsLopenummer : Table("oebs_lopenummer") {
-    val sakId = text("sak_id")
+    val saksnummer = text("saksnummer")
     val nesteLopenr = integer("neste_lopenr").default(1)
     @OptIn(kotlin.time.ExperimentalTime::class)
     val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
 
-    override val primaryKey = PrimaryKey(sakId)
+    override val primaryKey = PrimaryKey(saksnummer)
 }
 
 /**
@@ -62,13 +62,14 @@ object OebsFakturaLopenummer : Table("oebs_faktura_lopenummer") {
 
 /**
  * Genererer neste unike bestillingsnummer for en sak, på OeBS-formatet
- * `<FAGSYSTEM_KILDE>-<sakId>-<løpenr>` (f.eks. `E-2026/10000-1`).
+ * `<FAGSYSTEM_KILDE>-<saksnummer>-<løpenr>` (f.eks. `E-2026/1000000-1`). [saksnummer] er `sak.saksnummer`, ikke
+ * `sak.sak_id`: en UUID gir et nummer over [BESTILLINGSNUMMER_MAKS_LENGDE].
  *
  * **Transaksjonssikkerhet (økonomikritisk).** Funksjonen kjører i kallerens [JdbcTransaction] —
  * samme transaksjon som [leggIOutbox] — slik at nummeret og outbox-raden committes atomisk.
  *
  * 1. [insertIgnore] oppretter løpenummer-raden for saken hvis den mangler (idempotent og trygt ved
- *    samtidige første-bestillinger, siden `sak_id` er primærnøkkel).
+ *    samtidige første-bestillinger, siden `saksnummer` er primærnøkkel).
  * 2. `SELECT … FOR UPDATE` ([ForUpdateOption.ForUpdate]) tar radlås på saken. To samtidige kall for
  *    **samme** sak serialiseres: det andre venter til det første har committet, og leser da det
  *    inkrementerte nummeret. Dermed deles aldri samme løpenummer ut to ganger. (Samme mønster som
@@ -79,24 +80,24 @@ object OebsFakturaLopenummer : Table("oebs_faktura_lopenummer") {
  * nummer feiler her, ikke først ved avvisning fra OeBS.
  */
 @OptIn(kotlin.time.ExperimentalTime::class)
-fun JdbcTransaction.nesteBestillingsnummer(sakId: String): String {
+fun JdbcTransaction.nesteBestillingsnummer(saksnummer: String): String {
     OebsLopenummer.insertIgnore {
-        it[OebsLopenummer.sakId] = sakId
+        it[OebsLopenummer.saksnummer] = saksnummer
         it[nesteLopenr] = 1
     }
 
     val lopenr = OebsLopenummer
         .selectAll()
-        .where { OebsLopenummer.sakId eq sakId }
+        .where { OebsLopenummer.saksnummer eq saksnummer }
         .forUpdate(ForUpdateOption.ForUpdate)
         .single()[OebsLopenummer.nesteLopenr]
 
-    OebsLopenummer.update({ OebsLopenummer.sakId eq sakId }) {
+    OebsLopenummer.update({ OebsLopenummer.saksnummer eq saksnummer }) {
         it[nesteLopenr] = lopenr + 1
         it[updatedAt] = CurrentTimestamp
     }
 
-    val bestillingsnummer = "$FAGSYSTEM_KILDE-$sakId-$lopenr"
+    val bestillingsnummer = "$FAGSYSTEM_KILDE-$saksnummer-$lopenr"
     require(bestillingsnummer.length <= BESTILLINGSNUMMER_MAKS_LENGDE) {
         "Bestillingsnummer '$bestillingsnummer' er ${bestillingsnummer.length} tegn, " +
             "over OeBS-grensen på $BESTILLINGSNUMMER_MAKS_LENGDE."

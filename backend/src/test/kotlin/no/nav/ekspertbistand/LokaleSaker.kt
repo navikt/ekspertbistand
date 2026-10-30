@@ -7,6 +7,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.todayIn
+import no.nav.ekspertbistand.arena.EKSPERTBISTAND_TILTAKSKODE
+import no.nav.ekspertbistand.arena.TilsagnData
+import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
@@ -18,6 +21,7 @@ import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import no.nav.ekspertbistand.saksbehandling.saksstatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.tilSoknadDTO
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -26,13 +30,14 @@ import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-/** Fiktive virksomheter for lokal kjøring. Ereg-, Norg- og geografi-mockene i [main] slår opp her. */
+/**
+ * Fiktive virksomheter for lokal kjøring. Altinn-, Ereg-, Norg-, geografi- og Kontoregister-mockene i [main]
+ * slår opp her.
+ */
 internal data class LokalVirksomhet(
     val orgnr: String,
     val navn: String,
@@ -42,7 +47,10 @@ internal data class LokalVirksomhet(
     val kommunenummer: String,
     val kommunenavn: String,
     val enhet: LokalEnhet = LokalEnhet.SYDPOLEN,
-)
+    val harKontonummer: Boolean = true,
+) {
+    val kontonummer get() = if (harKontonummer) "1234${orgnr.drop(2)}" else null
+}
 
 internal enum class LokalEnhet(val nummer: String, val navn: String) {
     SYDPOLEN("1234", "Nav arbeidslivssenter Sydpolen"),
@@ -97,6 +105,16 @@ internal val lokaleVirksomheter = listOf(
         "Kristiansand"
     ),
     LokalVirksomhet("310000008", "Nav Lokalkontor Drammen", "Bragernes torg 8", "3017", "Drammen", "3301", "Drammen"),
+    LokalVirksomhet(
+        "310000009",
+        "Hamar Hovleri AS",
+        "Strandgata 9",
+        "2317",
+        "Hamar",
+        "3403",
+        "Hamar",
+        harKontonummer = false,
+    ),
 )
 
 internal fun lokalVirksomhet(orgnr: String) =
@@ -107,9 +125,13 @@ internal fun lokalEnhetForKommune(kommunenummer: String?) =
 
 private enum class Beslutning { GODKJENN, RETURNER }
 
+/** Hendelser fra Arena som [behandleLokaleSaker] publiserer slik Arena-konsumentene gjør. */
+private enum class ArenaHendelse { AVLYST, TILSKUDDSBREV }
+
 /**
  * Søknad som drives fram med de samme eventene som saksbehandlingen publiserer. Uten [saksbehandler] blir
- * saken stående ledig, uten [forslag] under behandling, og uten [beslutning] til beslutning.
+ * saken stående ledig, uten [forslag] under behandling, og uten [beslutning] til beslutning. [arena] publiseres
+ * etter behandlingen.
  */
 private data class LokalSak(
     val soknadId: UUID,
@@ -122,6 +144,7 @@ private data class LokalSak(
     val beslutter: LokalAnsatt? = null,
     val beslutning: Beslutning? = null,
     val beskyttelse: LokalBeskyttelse? = null,
+    val arena: ArenaHendelse? = null,
 )
 
 private val ola = lokaleAnsatte.single { it.navIdent == "A123456" }
@@ -228,6 +251,37 @@ private val lokaleSaker = listOf(
         estimertKostnad = 11000,
         beskyttelse = LokalBeskyttelse.SKJERMET,
     ),
+    LokalSak(
+        soknadId = UUID.fromString("a1000000-0000-4000-8000-000000000012"),
+        virksomhet = lokaleVirksomheter[9],
+        ansattNavn = "Hanne Hovel",
+        ansattFnr = "01019012312",
+        estimertKostnad = 20000,
+        saksbehandler = ola,
+        forslag = ForelopigUtfall.INNVILGE,
+        beslutter = kari,
+        beslutning = Beslutning.GODKJENN,
+    ),
+    LokalSak(
+        soknadId = UUID.fromString("a1000000-0000-4000-8000-000000000013"),
+        virksomhet = lokaleVirksomheter[0],
+        ansattNavn = "Tor Tilskudd",
+        ansattFnr = "01019012313",
+        estimertKostnad = 24000,
+        saksbehandler = kari,
+        forslag = ForelopigUtfall.INNVILGE,
+        beslutter = ola,
+        beslutning = Beslutning.GODKJENN,
+        arena = ArenaHendelse.TILSKUDDSBREV,
+    ),
+    LokalSak(
+        soknadId = UUID.fromString("a1000000-0000-4000-8000-000000000014"),
+        virksomhet = lokaleVirksomheter[1],
+        ansattNavn = "Anne Avlyst",
+        ansattFnr = "01019012314",
+        estimertKostnad = 13000,
+        arena = ArenaHendelse.AVLYST,
+    ),
 )
 
 internal fun lokalBeskyttelse(fnr: String?) = lokaleSaker.find { it.ansattFnr == fnr }?.beskyttelse
@@ -273,7 +327,7 @@ internal fun lagreLokaleSoknader(database: Database) {
 @OptIn(ExperimentalTime::class)
 internal fun CoroutineScope.behandleLokaleSaker(database: Database) = launch {
     val log = logger()
-    lokaleSaker.filter { it.saksbehandler != null }.forEach { sak ->
+    lokaleSaker.filter { it.saksbehandler != null || it.arena != null }.forEach { sak ->
         val sakId = withTimeoutOrNull(60.seconds) {
             var sakId: UUID? = null
             while (sakId == null) {
@@ -288,16 +342,92 @@ internal fun CoroutineScope.behandleLokaleSaker(database: Database) = launch {
         }
         transaction(database) {
             behandlingseventer(sak, sakId.toString()).forEach { publishEventQueue(it) }
+            arenaeventer(sak).forEach { publishEventQueue(it) }
         }
     }
+}
+
+private fun arenaeventer(sak: LokalSak): List<EventData> {
+    val hendelse = sak.arena ?: return emptyList()
+    val soknad = findSoknadById(sak.soknadId, filterForArbeidsgiver = false) ?: return emptyList()
+    val lopenummer = sak.soknadId.toString().takeLast(4).toInt()
+    return listOf(
+        when (hendelse) {
+            ArenaHendelse.AVLYST -> EventData.SoknadAvlystIArena(
+                soknad = soknad,
+                tiltaksgjennomforingEndret = TiltaksgjennomforingEndret(
+                    tiltaksgjennomfoeringId = lopenummer,
+                    tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
+                    tiltakStatusKode = TiltaksgjennomforingEndret.TiltakStatusKode.AVLYST,
+                ),
+            )
+
+            ArenaHendelse.TILSKUDDSBREV -> EventData.TilskuddsbrevMottatt(
+                soknad = soknad,
+                tilsagnbrevId = lopenummer,
+                tilsagnData = lokalTilsagnData(sak, lopenummer),
+            )
+        }
+    )
+}
+
+private fun lokalTilsagnData(sak: LokalSak, lopenummer: Int): TilsagnData {
+    val idag = Clock.System.todayIn(TimeZone.currentSystemDefault())
+    val virksomhet = sak.virksomhet
+    val (fornavn, etternavn) = sak.ansattNavn.split(" ", limit = 2)
+    return TilsagnData(
+        tilsagnNummer = TilsagnData.TilsagnNummer(aar = idag.year, loepenrSak = lopenummer, loepenrTilsagn = 1),
+        tilsagnDato = idag.toString(),
+        periode = TilsagnData.Periode(fraDato = idag.toString(), tilDato = LocalDate(idag.year, 12, 31).toString()),
+        tiltakKode = EKSPERTBISTAND_TILTAKSKODE,
+        tiltakNavn = "Ekspertbistand",
+        administrasjonKode = "IND",
+        refusjonfristDato = LocalDate(idag.year + 1, 2, 28).toString(),
+        tiltakArrangor = TilsagnData.TiltakArrangor(
+            arbgiverNavn = virksomhet.navn,
+            landKode = "NO",
+            postAdresse = virksomhet.adresse,
+            postNummer = virksomhet.postnummer,
+            postSted = virksomhet.poststed,
+            orgNummerMorselskap = 123456789,
+            orgNummer = virksomhet.orgnr.toLong(),
+            kontoNummer = virksomhet.kontonummer.orEmpty(),
+            maalform = "NB",
+        ),
+        totaltTilskuddbelop = sak.estimertKostnad,
+        valutaKode = "NOK",
+        tilskuddListe = listOf(
+            TilsagnData.Tilskudd(
+                tilskuddType = "Ekspertbistand",
+                tilskuddBelop = sak.estimertKostnad,
+                visTilskuddProsent = false,
+                tilskuddProsent = null,
+            )
+        ),
+        deltaker = TilsagnData.Deltaker(fodselsnr = sak.ansattFnr, fornavn = fornavn, etternavn = etternavn),
+        antallDeltakere = 1,
+        antallTimeverk = 16,
+        navEnhet = TilsagnData.NavEnhet(
+            navKontor = virksomhet.enhet.nummer,
+            navKontorNavn = virksomhet.enhet.navn,
+            postAdresse = "Postboks 1",
+            postNummer = "0001",
+            postSted = "Oslo",
+            telefon = "55553333",
+            faks = null,
+        ),
+        beslutter = TilsagnData.Person(fornavn = "Beslutter", etternavn = "NN"),
+        saksbehandler = TilsagnData.Person(fornavn = "Saksbehandler", etternavn = "NN"),
+    )
 }
 
 @OptIn(ExperimentalTime::class)
 private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
     val saksbehandler = sak.saksbehandler ?: return emptyList()
     val soknadId = sak.soknadId.toString()
-    var tidspunkt: Instant = Clock.System.now() - 2.hours
-    fun neste() = tidspunkt.also { tidspunkt += 1.minutes }
+    // Saken er alt opprettet med Clock.System.now(), så eventene må komme etter for at saksloggen skal stå i rekkefølge.
+    var tidspunkt: Instant = Clock.System.now()
+    fun neste() = tidspunkt.also { tidspunkt += 1.seconds }
 
     val eventer = mutableListOf<EventData>(
         EventData.SakTildeltSaksbehandler(sakId, soknadId, saksbehandler.navIdent, saksbehandler.navn, neste()),

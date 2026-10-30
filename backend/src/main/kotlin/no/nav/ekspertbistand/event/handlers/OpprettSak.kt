@@ -118,10 +118,11 @@ class OpprettSak(
 
         /**
          * Oppretter sak for søknaden (`OPPRETTET`, kilde `EKSPERTBISTAND`) med [behandlendeEnhet], [kommunenummer],
-         * [adressebeskyttelse], [skjermet] og alle vilkår, og returnerer `sakId`. Idempotent på `soknad_id`: finnes saken
-         * allerede (for eksempel opprettet av [no.nav.ekspertbistand.event.projections.SakProjection]), settes enhet,
-         * kommune og flagg bare hvis enheten mangler. Returnerer null hvis søknaden ikke finnes. Må kalles i en pågående
-         * transaksjon.
+         * [adressebeskyttelse], [skjermet], et nytt saksnummer ([nesteSaksnummer]) og alle vilkår, og returnerer `sakId`.
+         * Idempotent på `soknad_id`: finnes saken allerede (for eksempel opprettet av
+         * [no.nav.ekspertbistand.event.projections.SakProjection]), settes enhet, kommune og flagg bare hvis enheten
+         * mangler, og saksnummeret endres ikke. Et nummer fra sekvensen går da tapt, og det gir bare et hull i serien.
+         * Returnerer null hvis søknaden ikke finnes. Må kalles i en pågående transaksjon.
          */
         fun opprettSakForSoknad(
             soknadId: UUID,
@@ -138,6 +139,7 @@ class OpprettSak(
                 it[SakTable.soknadId] = soknadId
                 it[status] = Saksstatus.OPPRETTET.name
                 it[kildeTilBehandling] = KildeTilBehandling.EKSPERTBISTAND.name
+                it[saksnummer] = nesteSaksnummer()
                 it[SakTable.behandlendeEnhet] = behandlendeEnhet
                 it[SakTable.kommunenummer] = kommunenummer
                 it[SakTable.adressebeskyttelse] = adressebeskyttelse?.name

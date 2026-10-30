@@ -6,15 +6,20 @@ metadata:
   labels:
     team: fager
 spec:
-  # Mock-backend for ekspertbistand-saksbehandling-mock. Kjører LocalApplication-oppsettet (MockApplication) med
-  # mockede eksterne tjenester. Databasen tømmes og fylles med testdata ved hver oppstart.
-  # Godtar faketoken, så den skal aldri ha ingress eller andre inbound-regler enn mock-BFF-en.
+  # Mock-backend for ekspertbistand-saksbehandling-mock og ekspertbistand-frontend-e2e-mock.
+  # Kjører LocalApplication-oppsettet (MockApplication) med mockede eksterne tjenester.
+  # Databasen tømmes og fylles med testdata ved hver oppstart.
+  # Godtar faketoken, så den skal aldri ha ingress eller andre inbound-regler enn mock-BFF-ene.
   image: {{ image }}
   port: 8080
 
   replicas:
     min: 1
     max: 1
+
+  # Ny pod tømmer databasen ved oppstart, så to versjoner kan ikke dele den. Gammel pod stoppes først.
+  strategy:
+    type: Recreate
 
   liveness:
     path: /internal/isalive
@@ -54,6 +59,7 @@ spec:
     inbound:
       rules:
         - application: ekspertbistand-saksbehandling-mock
+        - application: ekspertbistand-frontend-e2e-mock
     outbound:
       rules:
         - application: ekspertbistand-gotenberg

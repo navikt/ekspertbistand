@@ -1,10 +1,16 @@
-import { ArrowLeftIcon, CheckmarkCircleIcon, ChevronRightIcon } from "@navikt/aksel-icons";
+import {
+  ArrowLeftIcon,
+  CheckmarkCircleIcon,
+  ChevronRightIcon,
+  ExternalLinkIcon,
+} from "@navikt/aksel-icons";
 import {
   Accordion,
   Alert,
   BodyLong,
   BodyShort,
   Box,
+  Button,
   CopyButton,
   ExpansionCard,
   HGrid,
@@ -14,6 +20,7 @@ import {
   Link,
   Loader,
   Show,
+  Spacer,
   Tabs,
   VStack,
 } from "@navikt/ds-react";
@@ -56,7 +63,14 @@ import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import type { HttpError } from "../utils/http";
 import { IKKE_TILGANG_TEKST, feilIdTekst, tilgangAvvistTekst } from "../utils/tilgangsfeil";
-import { GOSYS_URL, MODIA_URL, OVERSIKT_PATH, isMockEnabled } from "../utils/constants";
+import {
+  GOSYS_URL,
+  MODIA_URL,
+  OVERSIKT_PATH,
+  arbeidsgiverSoknadUrl,
+  isLokalBrukerbytteMulig,
+  isMockEnabled,
+} from "../utils/constants";
 import styles from "./SakPage.module.css";
 
 function formatDate(iso: string) {
@@ -463,6 +477,23 @@ export default function SakPage() {
           <CopyButton copyText={ansatt.fnr} size="xsmall" />
           <AdressebeskyttelseTag adressebeskyttelse={sak.adressebeskyttelse} size="small" />
           <EgenAnsattTag skjermet={sak.skjermet} size="small" />
+          {isLokalBrukerbytteMulig() && !erArenaSak && (
+            <>
+              <Spacer />
+              <Button
+                as="a"
+                href={arbeidsgiverSoknadUrl(soknad.soknadId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="secondary"
+                size="small"
+                icon={<ExternalLinkIcon aria-hidden />}
+                iconPosition="right"
+              >
+                Se som arbeidsgiver
+              </Button>
+            </>
+          )}
         </HStack>
       </Box>
 
@@ -565,9 +596,14 @@ export default function SakPage() {
                             <Link
                               as="button"
                               type="button"
+                              className={styles.lenkeknapp}
                               onClick={() => setFane("forelopig-vedtak")}
                             >
-                              Fatte foreløpig vedtak
+                              {visesSomVedtak
+                                ? "Vedtak"
+                                : sak.status === "TIL_BESLUTNING"
+                                  ? "Foreløpig vedtak"
+                                  : "Fatte foreløpig vedtak"}
                               <ChevronRightIcon aria-hidden />
                             </Link>
                           </Box>

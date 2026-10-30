@@ -488,6 +488,7 @@ class ForelopigVedtakApiTest {
                 it[this.soknadId] = soknadId
                 it[this.status] = status.name
                 it[kildeTilBehandling] = kilde.name
+                it[saksnummer] = nesteSaksnummer()
                 it[this.behandlendeEnhet] = behandlendeEnhet
                 it[this.saksbehandlerIdent] = saksbehandlerIdent
                 it[saksbehandlerNavn] = saksbehandlerIdent?.let { "Navn $it" }
