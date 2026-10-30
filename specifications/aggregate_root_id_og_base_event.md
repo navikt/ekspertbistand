@@ -1,5 +1,10 @@
 # aggregateRootId og base-event i event-modellen
 
+> **Historikk.** Backfillen i denne spec-en endret eksisterende rader i `event_log`. Teamet har senere besluttet at
+> `event_log` aldri skal endres, heller ikke med backfill eller migrering. Alt i `event_log` skal ha kommet via
+> `event_queue` og vanlige kodestier. Bruk ikke denne spec-en som mal. Se «`event_log` endres aldri» i
+> [`event/README.md`](../backend/src/main/kotlin/no/nav/ekspertbistand/event/README.md#event_log-endres-aldri).
+
 ## Mål
 
 Innføre et felles `aggregateRootId` på alle events, slik at hver hendelse i `event_queue` og `event_log` kan knyttes
