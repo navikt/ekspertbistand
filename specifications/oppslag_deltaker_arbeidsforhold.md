@@ -183,14 +183,14 @@ Steg, i rekkefølge:
 | 6 | `DeltakerOppslagRateLimit.registrer(innloggetBruker, fnr)` | 429 `{ "kode": "FOR_MANGE_OPPSLAG" }` |
 | 7 | `AaregClient.hentArbeidsforhold(fnr, virksomhetsnummer)`. Treff er minst ett arbeidsforhold der `arbeidssted.identer` har `ident == virksomhetsnummer` | 422 `{ "kode": "INGEN_ARBEIDSFORHOLD" }` |
 | 8 | `PdlApiKlient.hentNavn(fnr)` | 503 `{ "kode": "OPPSLAG_FEILET" }` |
-| 9 | Lagrer på utkastet: `ansatt_fnr`, `ansatt_navn`, `virksomhetsnummer`, `ansatt_bekreftet_tidspunkt = now()` | – |
+| 9 | Lagrer på utkastet: `ansatt_fnr`, `ansatt_navn`, `virksomhetsnummer`, `virksomhetsnavn` (fra Altinn-hierarkiet, se under) og `ansatt_bekreftet_tidspunkt = now()` | – |
 
 Backend sjekker ikke om fødselsnummeret er innlogget brukers eget. Det gjør
 frontend før kallet, som et varsel til arbeidsgiver (se 7).
 
 Ved 200 svarer endepunktet med hele utkastet (`DTO.Utkast`), som PATCH.
 
-Ved 422 lagres `ansatt_fnr` og `virksomhetsnummer`, mens `ansatt_navn` og
+Ved 422 lagres `ansatt_fnr`, `virksomhetsnummer` og `virksomhetsnavn`, mens `ansatt_navn` og
 `ansatt_bekreftet_tidspunkt` settes til null. Utkastet viser da det arbeidsgiver
 skrev, og et tidligere bekreftet navn kan ikke bli stående på feil person.
 
@@ -213,14 +213,25 @@ ignorerer det.
 
 **PATCH `/{id}`:**
 
-- `ansatt.navn` ignoreres alltid.
-- `ansatt.fnr` lagres. Er det ulikt det lagrede fødselsnummeret, nullstilles
-  `ansatt_navn` og `ansatt_bekreftet_tidspunkt`.
-- `virksomhet.virksomhetsnummer` lagres som i dag. Er det ulikt det lagrede
-  virksomhetsnummeret, nullstilles `ansatt_navn` og `ansatt_bekreftet_tidspunkt`.
+- `ansatt` (fødselsnummer og navn) ignoreres alltid.
+- `virksomhet.virksomhetsnummer` og `virksomhet.virksomhetsnavn` ignoreres
+  alltid. Kontaktpersonen lagres som før.
+- PATCH sjekker ikke lenger Altinn-tilgang, siden den ikke skriver
+  virksomhetsnummer. Bare den som opprettet utkastet, kan endre det.
 
-Autolagring på steg 1 tar dermed vare på det arbeidsgiver skriver, uten at et
-navn kan bli stående på feil person eller virksomhet.
+Fødselsnummer, virksomhetsnummer og virksomhetsnavn settes bare av
+`valider-deltaker` (avgjort av Anders Vik Lysne 30. oktober 2026). Dermed kan
+bekreftelsen ikke komme ut av takt med det som er lagret. Et fødselsnummer blir
+heller ikke lagret før det er slått opp. Arbeidsgiver må skrive det inn på nytt
+hvis hen forlater steg 1 før «Neste».
+
+Virksomhetsnavnet hentes fra Altinn-tilgangene som endepunktet allerede slår
+opp: `AltinnTilgangerClientResponse.navn(orgnr)` søker gjennom hele hierarkiet,
+også underenheter. Det er samme kilde som virksomhetsvelgeren i frontend bruker.
+Klienten sender ikke navnet.
+
+`DTO.Utkast.virksomhet` er `null` til virksomhetsnummeret er satt. En
+kontaktperson som er lagret før det, vises derfor først etter oppslaget.
 
 **PUT `/{id}` (innsending):** før maks-sats-sjekken krever backend at
 
@@ -229,8 +240,8 @@ navn kan bli stående på feil person eller virksomhet.
 - `soknad.virksomhet.virksomhetsnummer` er likt lagret `virksomhetsnummer`.
 
 Feiler en av sjekkene, kaster backend `UgyldigInputException("ansatt.fnr",
-"deltaker er ikke bekreftet")`, som gir 400. `SoknadTable.ansattNavn` får
-verdien fra utkastet, ikke fra request-body.
+"deltaker er ikke bekreftet")`, som gir 400. `SoknadTable.ansattNavn` og
+`SoknadTable.virksomhetsnavn` får verdiene fra utkastet, ikke fra request-body.
 
 ### 6. Lokal utvikling og DI
 
@@ -337,7 +348,7 @@ på samme måte som feltfeil i dag sendes til riktig steg.
 **Mock (MSW).** `handlers.ts` får en enkel handler for `POST .../:id/valider-deltaker`.
 Den godtar alle fødselsnummer og alle virksomheter og svarer 200 med navnet
 «Mona Moonlight». Handleren lagrer resultatet på mock-utkastet. PATCH-handleren
-følger reglene i 5.
+ignorerer `ansatt`, `virksomhet.virksomhetsnummer` og `virksomhet.virksomhetsnavn`, som i 5.
 
 Feiltilfellene (409, 422, 429 og 503) testes med `server.use(...)` i den enkelte
 testen, ikke i den felles handleren.
@@ -367,7 +378,7 @@ Backend:
   kastes.
 - `ValiderDeltakerTest` (ny, `testApplicationWithDatabase`, falsk
   `DeltakerOppslag` som teller kall):
-  - treff gir 200 og lagret navn og bekreftelse;
+  - treff gir 200 og lagret navn, virksomhetsnavn (også for underenhet) og bekreftelse;
   - ingen arbeidsforhold gir 422, og navn og bekreftelse nullstilles;
   - arbeidsforhold i en annen virksomhet gir 422;
   - sjette ulike fødselsnummer gir 429;
@@ -377,12 +388,13 @@ Backend:
   - Aareg- og PDL-feil gir 503 og ingen endring;
   - ugyldig fødselsnummer gir 400;
   - manglende Altinn-tilgang gir 403;
-  - utkast opprettet av en annen bruker gir 403.
+  - utkast opprettet av en annen bruker gir 403;
+  - PATCH ignorerer fødselsnummer, navn, virksomhetsnummer og virksomhetsnavn, beholder
+    bekreftelsen og lagrer kontaktperson.
 - `SoknadTest`:
-  - PATCH ignorerer `ansatt.navn`;
-  - PATCH med nytt fødselsnummer eller ny virksomhet nullstiller bekreftelsen;
-  - PUT uten bekreftet deltaker gir 400 med `felt = ansatt.fnr`;
-  - PUT bruker navnet fra utkastet.
+  - PUT uten bekreftet deltaker, eller med et annet fødselsnummer enn det
+    bekreftede, gir 400 med `felt = ansatt.fnr`;
+  - PUT bruker deltakerens navn og virksomhetsnavnet fra utkastet.
   - Eksisterende tester som sender inn søknad, setter bekreftelsen først.
 
 Frontend (vitest og MSW):
@@ -429,6 +441,7 @@ E2E-testene i `e2e/` oppdateres bare hvis de brekker på de nye stegene.
 | `backend/.../soknad/DeltakerOppslagRateLimit.kt` (ny) | Rate limit |
 | `backend/.../soknad/DeltakerOppslag.kt` (ny) | Grensesnitt og Aareg/PDL-implementasjon |
 | `backend/.../soknad/Api.kt` | `validerDeltaker`, regler i PATCH og PUT, `DTO.Utkast.deltakerBekreftet` |
+| `backend/.../altinn/AltinnTilgangerClient.kt` | `navn(orgnr)` slår opp virksomhetsnavn i hierarkiet |
 | `backend/.../soknad/Routing.kt` | Ruten `POST /{id}/valider-deltaker`, opprydding i `deltaker_oppslag` |
 | `backend/.../infrastruktur/InputValidering.kt` | `erGyldigFodselsnummer` |
 | `backend/.../Application.kt` | DI og statuskoder |
@@ -454,8 +467,9 @@ E2E-testene i `e2e/` oppdateres bare hvis de brekker på de nye stegene.
 ## Kanttilfeller og feilmodus
 
 - **Arbeidsgiver endrer fødselsnummer eller virksomhet etter et vellykket
-  oppslag.** PATCH nullstiller navn og bekreftelse. «Neste» gjør et nytt
-  oppslag.
+  oppslag.** Det lagrede utkastet beholder det forrige oppslaget til «Neste»
+  gjør et nytt oppslag, som overskriver fødselsnummer, virksomhet, navn og
+  bekreftelse.
 - **Arbeidsgiver går frem og tilbake uten å endre noe.** Frontend kaller ikke
   endepunktet, og spørsmålet om egen deltakelse kommer ikke på nytt. Kalles
   endepunktet likevel, svarer steg 5 uten nytt oppslag, så grensen brukes ikke
@@ -510,7 +524,7 @@ E2E-testene i `e2e/` oppdateres bare hvis de brekker på de nye stegene.
 - [ ] Migreringen legger til bekreftelsen, fjerner navn fra eksisterende utkast og oppretter `deltaker_oppslag`
 - [ ] `POST /api/soknad/v1/{id}/valider-deltaker` sjekker eierskap, input, Altinn, rate limit, Aa-registeret og PDL, og lagrer resultatet
 - [ ] Et sjette ulike fødselsnummer innen 5 minutter gir 429, også på tvers av pods. Oppslag på et fødselsnummer som allerede er slått opp, gir ikke 429
-- [ ] PATCH kan ikke sette navn, og nullstiller bekreftelsen ved nytt fødselsnummer eller ny virksomhet
+- [ ] PATCH kan ikke endre fødselsnummer, navn, virksomhetsnummer eller virksomhetsnavn
 - [ ] Innsending uten bekreftet deltaker gir 400
 - [ ] Eget fødselsnummer gir en dialog. Oppslaget gjøres bare når arbeidsgiver bekrefter
 - [ ] Skjemaet har fire steg, med låste felter på steg 2 og feilmeldinger på steg 1 som i Figma
