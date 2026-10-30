@@ -598,10 +598,8 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(BestillTilsagnIOebs::class))
         register(dependencies.create(SettSoknadStatusVedtakFattet::class))
         register(dependencies.create(ReturnerForelopigVedtak::class))
-
-        register<EventData>("InlineAlEventsHandler") { event ->
-            // Inline handler example
-            log.debug("event handled: {} aggregateRooId={}", event.javaClass, event.aggregateRootId)
+        register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
+            // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
             EventHandledResult.Success()
         }
     }
