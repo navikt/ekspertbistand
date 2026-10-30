@@ -400,6 +400,9 @@ Backend:
 Frontend (vitest og MSW):
 
 - `schema.test.ts`: nye feltgrupper.
+- `validerDeltaker.test.ts` (ny): svar fra MSW-handleren, at PATCH ikke endrer
+  deltaker eller virksomhet, og at 400, 409, 422, 429, 503 og nettverksfeil
+  gjøres om til riktig feiltype.
 - `SkjemaSteg1Page.test.tsx` (ny):
   - treff går til steg 2;
   - 422 viser feiloppsummeringen med Altinn-lenke;
