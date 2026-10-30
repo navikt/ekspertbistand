@@ -84,6 +84,7 @@ class SoknadTest {
                     }
                 }
                 provide<EregService> { EregService(eregClient) }
+                provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 provide {
                     altinnTilgangerClient
                 }
@@ -268,6 +269,7 @@ class SoknadTest {
                     }
                 }
                 provide<EregService> { EregService(eregClient) }
+                provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 provide {
                     altinnTilgangerClient
                 }
@@ -552,6 +554,7 @@ class SoknadTest {
                     }
                 }
                 provide<EregService> { EregService(eregClient) }
+                provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 provide {
                     altinnTilgangerClient
                 }
@@ -713,6 +716,7 @@ class SoknadTest {
                     }
                 }
                 provide<EregService> { EregService(eregClient) }
+                provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 provide {
                     altinnTilgangerClient
                 }
@@ -797,6 +801,7 @@ class SoknadTest {
                         altinnTilgangerClient
                     }
                     provide<EregService> { EregService(eregClient) }
+                    provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 }
 
                 configureAuthentication()
@@ -914,6 +919,7 @@ class SoknadTest {
                     }
                     provide { altinnTilgangerClient }
                     provide<EregService> { EregService(eregClient) }
+                    provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 }
                 configureAuthentication()
                 configureServer()

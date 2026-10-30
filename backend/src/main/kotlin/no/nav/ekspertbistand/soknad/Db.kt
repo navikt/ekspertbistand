@@ -251,7 +251,8 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
         DTO.Nav(kontaktperson = kontaktperson)
     },
     opprettetAv = this[UtkastTable.opprettetAv],
-    opprettetTidspunkt = this[UtkastTable.opprettetTidspunkt].toString()
+    opprettetTidspunkt = this[UtkastTable.opprettetTidspunkt].toString(),
+    deltakerBekreftet = this[UtkastTable.ansattBekreftetTidspunkt] != null,
 )
 
 @OptIn(ExperimentalTime::class)
