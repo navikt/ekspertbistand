@@ -487,6 +487,8 @@ Dette kan skje samtidig:
 - Kjør `EventFlowDiagram` etter nye events, ikke rediger `event-flow.md`.
 - Én spec per kort i `specifications/`, som i dag. Specen er kontrakten
   mellom sporene.
+- Vurder å la bygget på branchen finne logiske konflikter i migreringer og
+  `EventData` automatisk, så vi slipper å rydde opp etter merge.
 
 ## Mangler på Trello
 

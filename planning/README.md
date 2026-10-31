@@ -37,10 +37,9 @@ sequenceDiagram
     actor SB as Saksbehandler
     actor BE as Beslutter
     participant EB as Ekspertbistand
-    participant OB as OeBS
 
     rect rgba(0, 103, 197, 0.08)
-    Note over AG,OB: 1. Søknad
+    Note over AG,EB: 1. Søknad 🟢🟢🟡🟡🔴🔴
     AG->>EB: 🟡 🪪 Oppgir deltaker, sjekkes mot Aa-reg
     EB-->>AG: 🔴 📨 Informerer om at deltaker får kopi
     AG->>EB: 🟢 Sender inn søknaden
@@ -51,7 +50,7 @@ sequenceDiagram
     end
 
     rect rgba(6, 137, 58, 0.08)
-    Note over AG,OB: 2. Saksbehandling
+    Note over AG,EB: 2. Saksbehandling 🟢🟢🟢🟢🟢🟢🟡🔴🔴
     SB->>EB: 🟢 Tildeler seg saken
     Note over EB: Sak UNDER_BEHANDLING
     EB->>EB: 🔴 ⚖️ Vilkåret om arbeidsforhold oppfylt fra Aa-reg
@@ -77,12 +76,12 @@ sequenceDiagram
     end
 
     rect rgba(255, 145, 0, 0.10)
-    Note over AG,OB: 3. Etter vedtak
+    Note over AG,EB: 3. Etter vedtak 🟢🟢🔴🔴🔴🔴🔴🔴🔴🔴🔴
     EB->>EB: 🔴 🗄️ Journalfører vedtaksbrevet
     EB-->>DT: 🔴 📬 Vedtaksbrevet (dokdist)
     alt Innvilget
-        EB->>OB: 🟢 🏦 Bestilling, setter av penger
-        OB-->>EB: 🟢 🏦 Kvittering, bestilling AKTIV
+        EB->>EB: 🟢 🏦 Bestiller hos OeBS, setter av penger
+        EB->>EB: 🟢 🏦 OeBS kvitterer, bestilling AKTIV
         EB->>EB: 🔴 📝 Lager og journalfører tilsagnsbrevet
         EB-->>AG: 🔴 🔔 Varsel om innvilget, lenke til tilsagnsbrevet
         AG->>EB: 🔴 🛤️ Åpner vedtaket på ny rute
@@ -97,7 +96,7 @@ sequenceDiagram
     end
 
     rect rgba(102, 52, 176, 0.08)
-    Note over AG,OB: 4. Gjennomføring og refusjonskrav
+    Note over AG,EB: 4. Gjennomføring og refusjonskrav 🟢🟡🟡🔴🔴
     Note over AG: Eksperten gjennomfører bistanden (utenfor løsningen)
     AG->>EB: 🟡 📤 Sender sluttrapport (bare dev)
     AG->>EB: 🟡 📤 Sender refusjonskrav med vedlegg (bare dev)
@@ -110,17 +109,17 @@ sequenceDiagram
     end
 
     rect rgba(195, 0, 0, 0.07)
-    Note over AG,OB: 5. Refusjonsbehandling og utbetaling
+    Note over AG,EB: 5. Refusjonsbehandling og utbetaling 🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴
     SB->>EB: 🔴 🧾 Tildeler seg refusjonsoppgaven
     SB->>EB: 🟡 📤 Ser refusjonskravet og sluttrapporten
     alt Godkjent
         SB->>EB: 🔴 🧾 Godkjenner (krever sluttrapport)
         Note over EB: Sak REFUSJON_GODKJENT
         EB-->>AG: 🔴 📣 Varsel om godkjent refusjon
-        EB->>OB: 🔴 💸 Faktura
-        OB-->>EB: 🔴 💸 Status FULLT_BETALT
+        EB->>EB: 🔴 💸 Sender faktura til OeBS
+        EB->>EB: 🔴 💸 OeBS melder FULLT_BETALT
         EB->>EB: 🔴 💸 Avslutter saken
-        Note over EB,OB: Sak AVSLUTTET · bestilling OPPGJORT
+        Note over EB: Sak AVSLUTTET · bestilling OPPGJORT
     else Avslag
         SB->>EB: 🔴 🧾 Innstiller avslag
         BE->>EB: 🔴 🧾 Avslår eller returnerer
@@ -132,7 +131,8 @@ sequenceDiagram
 
 🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 
-🟢 11 finnes · 🟡 6 delvis · 🔴 24 mangler, av 41 steg i diagrammet.
+🟢 11 finnes · 🟡 6 delvis · 🔴 24 mangler, av 41 steg i diagrammet. OeBS er ikke egen deltaker i
+diagrammet. Kall til og svar fra OeBS vises som steg i Ekspertbistand.
 
 Deltaker får ikke varsel om refusjonen. Bare arbeidsgiver varsles når
 refusjonen er godkjent.
