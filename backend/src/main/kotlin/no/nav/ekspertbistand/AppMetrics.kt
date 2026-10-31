@@ -26,6 +26,7 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.json.extract
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
@@ -34,45 +35,45 @@ class AppMetrics(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     meterRegistry: MeterRegistry = Metrics.meterRegistry,
 ) {
-    val eventQueueSizeGauge: MultiGauge = MultiGauge.builder("eventqueue.size")
-        .description("The number of items in eventqueue by status")
-        .register(meterRegistry)
+    val eventQueueSizeGauge = OppdaterbarMultiGauge(
+        "eventqueue.size", "The number of items in eventqueue by status", meterRegistry
+    )
 
-    val eventQueueRetriesPerEventType: MultiGauge = MultiGauge.builder("eventqueue.retries")
-        .description("The number of retries in eventqueue by event type")
-        .register(meterRegistry)
+    val eventQueueRetriesPerEventType = OppdaterbarMultiGauge(
+        "eventqueue.retries", "The number of retries in eventqueue by event type", meterRegistry
+    )
 
-    val processingEventsAgeGauge: MultiGauge = MultiGauge.builder("eventqueue.age")
-        .description("The number of items in processing state bucketed by age")
-        .register(meterRegistry)
+    val processingEventsAgeGauge = OppdaterbarMultiGauge(
+        "eventqueue.age", "The number of items in processing state bucketed by age", meterRegistry
+    )
 
-    val eventLogSizeGauge: MultiGauge = MultiGauge.builder("eventlog.size")
-        .description("The number of finalized items in event log by status")
-        .register(meterRegistry)
+    val eventLogSizeGauge = OppdaterbarMultiGauge(
+        "eventlog.size", "The number of finalized items in event log by status", meterRegistry
+    )
 
-    val eventHandlerStateGauge: MultiGauge = MultiGauge.builder("eventhandlerstate.size")
-        .description("The number of events being handled by status")
-        .register(meterRegistry)
+    val eventHandlerStateGauge = OppdaterbarMultiGauge(
+        "eventhandlerstate.size", "The number of events being handled by status", meterRegistry
+    )
 
-    val soknadBehandletForsinkelseGauge: MultiGauge = MultiGauge.builder("soknad.behandlet.age")
-        .description("The number of processed soknad bucketed by processing time")
-        .register(meterRegistry)
+    val soknadBehandletForsinkelseGauge = OppdaterbarMultiGauge(
+        "soknad.behandlet.age", "The number of processed soknad bucketed by processing time", meterRegistry
+    )
 
-    val tilskuddsbrevVistProsentGauge: MultiGauge = MultiGauge.builder("tilskuddsbrev.vist.prosent")
-        .description("Prosentandel tilskuddsbrev vist")
-        .register(meterRegistry)
+    val tilskuddsbrevVistProsentGauge = OppdaterbarMultiGauge(
+        "tilskuddsbrev.vist.prosent", "Prosentandel tilskuddsbrev vist", meterRegistry
+    )
 
-    val tilskuddsbrevVistAgeGauge: MultiGauge = MultiGauge.builder("tilskuddsbrev.vist.age")
-        .description("Aldersfordeling tilskuddsbrev vist")
-        .register(meterRegistry)
+    val tilskuddsbrevVistAgeGauge = OppdaterbarMultiGauge(
+        "tilskuddsbrev.vist.age", "Aldersfordeling tilskuddsbrev vist", meterRegistry
+    )
 
-    val projectionBuilderLagGauge: MultiGauge = MultiGauge.builder("projectionbuilder.lag")
-        .description("Lag per projection builder")
-        .register(meterRegistry)
+    val projectionBuilderLagGauge = OppdaterbarMultiGauge(
+        "projectionbuilder.lag", "Lag per projection builder", meterRegistry
+    )
 
-    val aggregateRootIdMissingGauge: MultiGauge = MultiGauge.builder("event.aggregaterootid.missing")
-        .description("Antall rader uten aggregate_root_id, per tabell")
-        .register(meterRegistry)
+    val aggregateRootIdMissingGauge = OppdaterbarMultiGauge(
+        "event.aggregaterootid.missing", "Antall rader uten aggregate_root_id, per tabell", meterRegistry
+    )
 
     fun queueSizeByStatus(): Map<ProcessingStatus, Double> = transaction {
         QueuedEvents
@@ -151,122 +152,59 @@ class AppMetrics(
     @OptIn(ExperimentalTime::class)
     suspend fun updateGaugesProcessingLoop(clock: Clock = Clock.System) = withContext(dispatcher) {
         while (isActiveAndNotTerminating) {
-            eventQueueSizeGauge.register(
-                queueSizeByStatus()
-                    .map { (status, count) ->
-                        MultiGauge.Row.of(
-                            Tags.of("status", status.name),
-                            count
-                        )
-                    },
-                true
-            )
-            eventLogSizeGauge.register(
-                logSizeByStatus()
-                    .map { (status, count) ->
-                        MultiGauge.Row.of(
-                            Tags.of("status", status.name),
-                            count
-                        )
-                    },
-                true
+            eventQueueSizeGauge.oppdater(
+                queueSizeByStatus().mapKeys { (status, _) -> Tags.of("status", status.name) }
             )
 
-            processingEventsAgeGauge.register(
-                processingEventsByAgeBucket(clock)
-                    .map { (ageBucket, count) ->
-                        MultiGauge.Row.of(
-                            Tags.of("age", ageBucket),
-                            count
-                        )
-                    },
-                true
+            eventLogSizeGauge.oppdater(
+                logSizeByStatus().mapKeys { (status, _) -> Tags.of("status", status.name) }
             )
 
-            eventHandlerStateGauge.register(
-                eventHandlerStates()
-                    .map { (key, count) ->
-                        val (handlerId, result) = key
-                        MultiGauge.Row.of(
-                            Tags.of(
-                                "handlerId", handlerId,
-                                "result", result.substringAfterLast(".")
-                            ),
-                            count
-                        )
-                    },
-                true
+            processingEventsAgeGauge.oppdater(
+                processingEventsByAgeBucket(clock).mapKeys { (ageBucket, _) -> Tags.of("age", ageBucket) }
             )
 
-            eventQueueRetriesPerEventType.register(
-                queueRetriesByEventType()
-                    .map { (eventType, retries) ->
-                        MultiGauge.Row.of(
-                            Tags.of("event", eventType),
-                            retries
-                        )
-                    },
-                true
-            )
-
-            soknadBehandletForsinkelseGauge.register(
-                SoknadBehandletForsinkelse.soknadBehandletForsinkelseByAgeBucket(clock)
-                    .map { (key, count) ->
-                        val (status, ageBucket) = key
-                        MultiGauge.Row.of(
-                            Tags.of(
-                                "status", status,
-                                "age", ageBucket
-                            ),
-                            count.toDouble()
-                        )
-                    },
-                true
-            )
-
-            tilskuddsbrevVistProsentGauge.register(
-                listOf(
-                    MultiGauge.Row.of(
-                        Tags.empty(),
-                        TilskuddsbrevVist.tilskuddsbrevVistProsent()
+            eventHandlerStateGauge.oppdater(
+                eventHandlerStates().mapKeys { (key, _) ->
+                    val (handlerId, result) = key
+                    Tags.of(
+                        "handlerId", handlerId,
+                        "result", result.substringAfterLast(".")
                     )
-                ),
-                true
+                }
             )
 
-            tilskuddsbrevVistAgeGauge.register(
+            eventQueueRetriesPerEventType.oppdater(
+                queueRetriesByEventType().mapKeys { (eventType, _) -> Tags.of("event", eventType) }
+            )
+
+            soknadBehandletForsinkelseGauge.oppdater(
+                SoknadBehandletForsinkelse.soknadBehandletForsinkelseByAgeBucket(clock)
+                    .mapKeys { (key, _) ->
+                        val (status, ageBucket) = key
+                        Tags.of(
+                            "status", status,
+                            "age", ageBucket
+                        )
+                    }
+            )
+
+            tilskuddsbrevVistProsentGauge.oppdater(
+                mapOf(Tags.empty() to TilskuddsbrevVist.tilskuddsbrevVistProsent())
+            )
+
+            tilskuddsbrevVistAgeGauge.oppdater(
                 TilskuddsbrevVist.tilskuddsbrevFoerstVistAlderFordelt()
-                    .map { (ageBucket, count) ->
-                        MultiGauge.Row.of(
-                            Tags.of("age", ageBucket),
-                            count.toDouble()
-                        )
-                    },
-                true
+                    .mapKeys { (ageBucket, _) -> Tags.of("age", ageBucket) }
             )
 
-            projectionBuilderLagGauge.register(
-                ProjectionBuilderState.lagPerBuilder()
-                    .map { (builderName, lag) ->
-                        MultiGauge.Row.of(
-                            Tags.of("builder", builderName),
-                            lag.toDouble()
-                        )
-                    },
-                true
+            projectionBuilderLagGauge.oppdater(
+                ProjectionBuilderState.lagPerBuilder().mapKeys { (builderName, _) -> Tags.of("builder", builderName) }
             )
 
-            aggregateRootIdMissingGauge.register(
-                aggregateRootIdMissingByTable()
-                    .map { (table, count) ->
-                        MultiGauge.Row.of(
-                            Tags.of("table", table),
-                            count
-                        )
-                    },
-                true
+            aggregateRootIdMissingGauge.oppdater(
+                aggregateRootIdMissingByTable().mapKeys { (table, _) -> Tags.of("table", table) }
             )
-
 
             delay(60.seconds)
         }
@@ -279,5 +217,32 @@ fun Application.configureAppMetrics() {
 
     launch {
         appMetrics.updateGaugesProcessingLoop()
+    }
+}
+
+/**
+ * [MultiGauge] der hver rad registreres én gang og leser siste verdi fra et map.
+ *
+ * `MultiGauge.register(rows, overwrite = true)` fjerner og registrerer hver rad på nytt. Er raden den eneste
+ * med det metrikknavnet, avregistreres Prometheus-collectoren og en ny registreres. Et scrape som pågår samtidig
+ * kan da få med begge og feiler med `DuplicateLabelsException`.
+ *
+ * Micrometer fikset en beslektet variant i 1.16.8/1.17.2, men bare for duplikater inne i én collector,
+ * ikke på tvers av en avregistrert og en ny collector.
+ *
+ * @see <a href="https://github.com/micrometer-metrics/micrometer/issues/6851">micrometer#6851</a>
+ * @see <a href="https://docs.micrometer.io/micrometer/reference/concepts/gauges.html#_multi_gauge">Micrometer: Multi-gauge</a>
+ */
+class OppdaterbarMultiGauge(name: String, description: String, meterRegistry: MeterRegistry) {
+    private val multiGauge = MultiGauge.builder(name).description(description).register(meterRegistry)
+    private val verdier = ConcurrentHashMap<Tags, Double>()
+
+    fun oppdater(nyeVerdier: Map<Tags, Number>) {
+        nyeVerdier.forEach { (tags, verdi) -> verdier[tags] = verdi.toDouble() }
+        multiGauge.register(
+            nyeVerdier.keys.map { tags -> MultiGauge.Row.of(tags) { verdier[tags] ?: Double.NaN } },
+            false
+        )
+        verdier.keys.retainAll(nyeVerdier.keys)
     }
 }

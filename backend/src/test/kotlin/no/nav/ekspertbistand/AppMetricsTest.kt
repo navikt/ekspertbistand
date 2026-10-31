@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand
 
+import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
@@ -19,8 +20,11 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
@@ -506,6 +510,39 @@ class AppMetricsTest {
         }
     }
 
+    @Test
+    fun `OppdaterbarMultiGauge oppdaterer verdier og fjerner rader som forsvinner`() {
+        val meterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+        val gauge = OppdaterbarMultiGauge("test.gauge", "test", meterRegistry)
+        val completed = Tags.of("status", "COMPLETED")
+        val failed = Tags.of("status", "FAILED")
 
+        gauge.oppdater(mapOf(completed to 1, failed to 2))
+        gauge.oppdater(mapOf(completed to 3))
 
+        assertEquals(3.0, meterRegistry.get("test.gauge").tags(completed).gauge().value())
+        assertNull(meterRegistry.find("test.gauge").tags(failed).gauge())
+    }
+
+    @Test
+    fun `OppdaterbarMultiGauge kan oppdateres mens Prometheus scraper`() {
+        val meterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+        // Mange collectorer gjør scrape tregt nok til at en avregistrert og en ny collector kan komme med i samme scrape
+        repeat(1_000) { meterRegistry.gauge("annen.gauge.$it", it) }
+        val gauge = OppdaterbarMultiGauge("test.gauge", "test", meterRegistry)
+        val tags = Tags.of("status", "COMPLETED")
+        gauge.oppdater(mapOf(tags to 0))
+
+        val ferdig = AtomicBoolean(false)
+        val oppdaterer = thread {
+            var i = 0
+            while (!ferdig.get()) gauge.oppdater(mapOf(tags to i++))
+        }
+        try {
+            repeat(500) { meterRegistry.scrape() }
+        } finally {
+            ferdig.set(true)
+            oppdaterer.join()
+        }
+    }
 }
