@@ -66,7 +66,7 @@
 <body>
 <h1>Tidslinje: ekspertbistand fram til 1. april 2027</h1>
 <p class="lead">Optimistisk plan for tre utviklere. Stolpene viser hva hvert spor jobber med uke for uke.
-Emojien er den samme som i <a href="lanseringsplan_2027-04-01.md">lanseringsplanen</a>, der du finner
+Emojien er den samme som i <a href="https://github.com/navikt/ekspertbistand/blob/main/planning/lanseringsplan_2027-04-01.md">lanseringsplanen</a>, der du finner
 status, størrelse og Trello-kort. Hold musepekeren over en stolpe for å se hele navnet.</p>
 
 <div class="scroll"><div class="chart" id="chart"></div></div>
@@ -83,7 +83,8 @@ const offsetOf = d => (d - START) / DAY / 7;
 
 const SPOR = {
   A: { navn: 'Spor A', tema: 'søknad og deltaker', steg: {
-    '🧹': 'PR-er og sikkerhetsfunn H1/H2',
+    '🧹': 'Fjerne utgiftsbeskrivelse',
+    '🛤️': 'Ny rute og visninger for arbeidsgiver',
     '🪪': 'Aa-reg i søknaden',
     '⚖️': 'Vilkår, automatisk arbeidsforhold',
     '📤': 'Refusjon og sluttrapport i prod',
@@ -98,8 +99,7 @@ const SPOR = {
     '📣': 'Varsel om godkjent refusjon',
     '📜': 'Oppslagslogg og event for alt' } },
   C: { navn: 'Spor C', tema: 'økonomi og refusjonsbehandling', steg: {
-    '🏦': 'OeBS og bestilling',
-    '🔢': 'Sak-ID som løpenummer',
+    '🏦': 'Test mot OeBS i T1',
     '🧾': 'Refusjonsbehandling',
     '💸': 'Utbetaling og avslutte sak',
     '🚦': 'Prod-manifest og generalprøve' } },
@@ -107,16 +107,16 @@ const SPOR = {
 
 // [emoji, første uke, siste uke]
 const PLAN = {
-  A: [['🧹',44,45],['🪪',46,49],['P1',50,50],['⚖️',51,51],['⚖️',1,2],['📤',3,5],['📡',6,7],['🛡️',8,9]],
+  A: [['🧹',44,44],['🛤️',45,46],['🪪',47,49],['P1',50,50],['⚖️',51,51],['⚖️',1,1],['🛤️',2,2],['📤',3,4],['📡',5,7],['🛡️',8,9]],
   B: [['📝',44,45],['📨',46,49],['P1',50,50],['🗄️',51,51],['🗄️',1,1],['📬',2,2],['🔔',3,3],['📝',4,5],['📜',6,8],['📣',9,9]],
-  C: [['🏦',44,46],['🧾',47,50],['💸',51,51],['💸',1,2],['🔢',3,3],['💸',4,5],['🚦',6,9]],
+  C: [['🧾',44,48],['💸',49,51],['💸',1,1],['🏦',2,2],['💸',3,4],['🚦',5,9]],
 };
 
 const MILEPAELER = [
-  ['M0 rydd bordet',44,45],['M1 vedtaket går ut · P1 tidlig i prod',46,51],
-  ['M2 refusjonen går ut',1,6],['M3 prodklar',7,9],['M4 go-live',10,11],['Buffer',12,13,'buffer'],
+  ['M0 rydd bordet',44,45],['P1 tidlig i prod',46,50],['M1 vedtaket går ut',51,5],
+  ['M2 refusjonen går ut',6,6],['M3 prodklar',7,9],['M4 go-live',10,11],['Buffer',12,13,'buffer'],
 ];
-const EKSTERNT = [[47,'📌 Aa-reg, dokdist'],[49,'📌 Salesforce/Modia, jurist',true],[2,'📌 OeBS'],[6,'📌 Entra']];
+const EKSTERNT = [[47,'📌 Aa-reg-tilgang, dokdist'],[49,'📌 Salesforce/Modia, jurist',true],[2,'📌 OeBS T1']];
 const FERIE = [[52,53,'Jul og nyttår'],[8,8,'Vinterferie (uke 8 eller 9)'],[12,12,'Påske'],[13,13.2,'2. påskedag']];
 const LINJER = [
   ['na', 'Nå', Math.max(0, Math.min(23, offsetOf(new Date())))],
@@ -162,13 +162,14 @@ MILEPAELER.forEach(([t, a, b, cls]) => { const bar = place(el('div', 'bar ms ' +
 const GOLIVE = [10, 11];
 for (const k of ['A', 'B', 'C']) {
   const s = SPOR[k]; const lane = row(s.navn, s.tema, 'tall');
-  const shade = {}; let n = 0;
+  let forrige = null, nyanse = 1;
   PLAN[k].forEach(([e, a, b]) => {
     let bar;
     if (e === 'P1') { bar = el('div', 'bar prod'); bar.title = 'P1: Aa-reg og varsel til deltaker i prod'; bar.appendChild(el('span', null, '🚀 P1')); }
     else {
-      if (!(e in shade)) shade[e] = n++ % 2;
-      bar = el('div', `bar ${k} s${shade[e]}`); bar.title = `${e} ${s.steg[e]} (uke ${a}–${b})`;
+      if (e !== forrige) nyanse = 1 - nyanse;
+      forrige = e;
+      bar = el('div', `bar ${k} s${nyanse}`); bar.title = `${e} ${s.steg[e]} (uke ${a}–${b})`;
       bar.appendChild(el('span', null, `${e} ${s.steg[e]}`));
     }
     lane.appendChild(place(bar, idx(a), idx(b) + 1));
