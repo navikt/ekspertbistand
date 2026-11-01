@@ -28,7 +28,6 @@ const refusjonStore = new Map<
   string,
   {
     belopKroner: number;
-    utgifter: string;
     opprettet: string;
     kontonummer: string | null;
     vedlegg: MockRefusjonVedlegg[];
@@ -639,13 +638,9 @@ export const handlers = [
     }
 
     const formData = await request.formData();
-    const utgifter = formData.get("utgifter");
     const belop = formData.get("belop");
     const filer = formData.getAll("filer").filter((f): f is File => f instanceof File);
 
-    if (typeof utgifter !== "string" || utgifter.trim() === "") {
-      return HttpResponse.json({ message: "Du må beskrive utgiftene" }, { status: 400 });
-    }
     if (typeof belop !== "string" || !/^\d+$/.test(belop)) {
       return HttpResponse.json({ message: "Ugyldig beløp" }, { status: 400 });
     }
@@ -666,10 +661,8 @@ export const handlers = [
         );
       }
     }
-
     refusjonStore.set(id, {
       belopKroner: Number(belop),
-      utgifter,
       opprettet: new Date().toISOString(),
       kontonummer: null,
       vedlegg: await Promise.all(
@@ -700,7 +693,6 @@ export const handlers = [
     return HttpResponse.json(
       {
         belopKroner: status.belopKroner,
-        utgifter: status.utgifter,
         opprettet: status.opprettet,
         kontonummer: status.kontonummer,
         vedlegg: status.vedlegg.map((v) => ({

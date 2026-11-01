@@ -25,7 +25,6 @@ object RefusjonskravTable : UUIDTable("refusjonskrav") {
     val soknadId = javaUUID("soknad_id")
     val sakId = javaUUID("sak_id").nullable()
     val belopOre = long("belop_ore")
-    val utgifter = text("utgifter")
     val status = text("status")
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
 }
@@ -37,7 +36,6 @@ class RefusjonDb(private val database: Database) {
     fun lagreRefusjonskrav(
         soknadId: UUID,
         belopOre: Long,
-        utgifter: String,
         filer: List<RefusjonsfilInput>,
     ): UUID = transaction(database) {
         val sakId = hentGodkjentSakIdForUpdate(soknadId)
@@ -45,7 +43,6 @@ class RefusjonDb(private val database: Database) {
             it[RefusjonskravTable.soknadId] = soknadId
             it[RefusjonskravTable.sakId] = sakId
             it[RefusjonskravTable.belopOre] = belopOre
-            it[RefusjonskravTable.utgifter] = utgifter
             it[status] = "MOTTATT"
         }.single()[RefusjonskravTable.id].value
 
@@ -64,7 +61,7 @@ class RefusjonDb(private val database: Database) {
     }
 
     /**
-     * Henter metadata om siste refusjonskrav for en søknad – beløp, utgifter, tidspunkt
+     * Henter metadata om siste refusjonskrav for en søknad: beløp, tidspunkt
      * og vedleggsliste (id + filnavn + størrelse). Filinnholdet (`innhold`) leses bevisst
      * ikke her; det hentes separat via [hentRefusjonsvedlegg] ved nedlasting.
      */
@@ -110,7 +107,6 @@ class RefusjonDb(private val database: Database) {
 
         RefusjonskravStatus(
             belopKroner = krav[RefusjonskravTable.belopOre] / 100,
-            utgifter = krav[RefusjonskravTable.utgifter],
             opprettet = krav[RefusjonskravTable.opprettet].toString(),
             // TODO: hent kontonummer fra SOKOS. Lagres ikke lokalt.
             kontonummer = null,
@@ -153,7 +149,6 @@ class RefusjonDb(private val database: Database) {
 
         RefusjonskravStatus(
             belopKroner = krav[RefusjonskravTable.belopOre] / 100,
-            utgifter = krav[RefusjonskravTable.utgifter],
             opprettet = krav[RefusjonskravTable.opprettet].toString(),
             // TODO: hent kontonummer fra SOKOS. Lagres ikke lokalt.
             kontonummer = null,
@@ -246,7 +241,6 @@ class RefusjonDb(private val database: Database) {
 
 data class RefusjonskravStatus(
     val belopKroner: Long,
-    val utgifter: String,
     val opprettet: String,
     val kontonummer: String?,
     val vedlegg: List<RefusjonsvedleggMeta>,
