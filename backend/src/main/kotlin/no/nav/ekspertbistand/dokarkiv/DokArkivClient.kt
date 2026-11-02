@@ -68,9 +68,9 @@ class DokArkivClient(
     }
 
     /**
-     * [journalfoerendeEnhet] er `9999` når journalføringen skjer automatisk uten en Nav-ansatt, og ellers
-     * enheten som fattet vedtaket. [navUserId] er identen til den ansatte, og sendes som [NAV_USER_ID] bare når
-     * den er satt.
+     * [journalfoerendeEnhet] er `9999` (automatisk journalføring) i alle kall i dag. En Nav-enhet her kan gi
+     * tilgangsstyring i Gosys og Joark som ikke matcher vår. [navUserId] er identen til den ansatte, og sendes
+     * som [NAV_USER_ID] bare når den er satt.
      */
     suspend fun opprettOgFerdigstillJournalpost(
         tittel: String,

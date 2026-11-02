@@ -122,7 +122,7 @@ class JournalfoerVedtaksbrevArbeidsgiver @OptIn(ExperimentalTime::class) constru
                 dokumentPdfAsBytes = pdf,
                 journalposttype = JournalpostType.UTGAAENDE,
                 avsenderMottaker = AvsenderMottaker.orgnr(virksomhetsnummer),
-                journalfoerendeEnhet = data.sak.behandlendeEnhet,
+                journalfoerendeEnhet = "9999",
                 navUserId = data.fattetAvIdent,
             )
         } catch (e: Exception) {

@@ -149,7 +149,7 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
             assertEquals("UTGAAENDE", request.journalposttype)
             assertEquals(OpprettJournalpostRequest.Ident("912345670", "ORGNR"), request.avsenderMottaker)
             assertEquals("912345670", request.bruker.id)
-            assertEquals("0315", request.journalfoerendeEnhet)
+            assertEquals("9999", request.journalfoerendeEnhet)
             assertEquals("${sak.soknadId}-vedtaksbrev-arbeidsgiver", request.eksternReferanseId)
             assertEquals(listOf<String?>(BESLUTTER_IDENT), dokarkiv.navUserIds)
 
