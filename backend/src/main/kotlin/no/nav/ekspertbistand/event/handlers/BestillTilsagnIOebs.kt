@@ -23,11 +23,10 @@ import no.nav.ekspertbistand.oebs.integration.Artskonto
 import no.nav.ekspertbistand.oebs.integration.Valuta
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
-import no.nav.ekspertbistand.saksbehandling.VedtakForEvent
 import no.nav.ekspertbistand.saksbehandling.bestillingFinnesForVedtak
 import no.nav.ekspertbistand.saksbehandling.hentBestillingGrunnlagForEvent
 import no.nav.ekspertbistand.saksbehandling.lagreBestilling
-import no.nav.ekspertbistand.saksbehandling.vedtakForEvent
+import no.nav.ekspertbistand.saksbehandling.vedtakKanFattes
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.reflect.KClass
@@ -43,8 +42,7 @@ private const val bestillingSubtask = "oebs_bestilling_vedtak"
  * Handlerne på [EventData.VedtakFattet] kjører hver for seg, så denne slår opp vedtaket [FattVedtak]
  * lagret for samme event:
  * - ikke lagret, men eventen kan fortsatt lagres: [FattVedtak] har ikke kjørt ennå, prøv igjen
- * - saken har et likt vedtak fra en annen event: den eventen bestiller, ingen bestilling her
- * - ellers ble vedtaket ikke fattet, og eventen feiler
+ * - ikke lagret, og eventen kan ikke lagres: [FattVedtak] avviste den, ingen bestilling
  * - avslått, eller vedtaket har allerede en bestilling: ingen bestilling
  *
  * Løpenummeret, outbox-raden, `sak_bestilling`, saksloggen og idempotens-raden skrives i samme
@@ -71,19 +69,12 @@ class BestillTilsagnIOebs @OptIn(ExperimentalTime::class) constructor(
             try {
                 val grunnlag = hentBestillingGrunnlagForEvent(event.id)
                 if (grunnlag == null) {
-                    return@transaction when (val vedtak = vedtakForEvent(event.data, event.id)) {
-                        VedtakForEvent.Venter -> transientError("Vedtaket for sak ${event.data.sakId} er ikke lagret ennå")
-                        is VedtakForEvent.Duplikat -> {
-                            log.info("Vedtaket for sak {} er likt vedtaket fra event {}, ingen bestilling", event.data.sakId, vedtak.eventId)
-                            idempotencyGuard.guard(event, bestillingSubtask)
-                            success()
-                        }
-
-                        is VedtakForEvent.Avvik ->
-                            unrecoverableError("Vedtaket for sak ${event.data.sakId} ble ikke fattet: ${vedtak.beskrivelse}")
-
-                        is VedtakForEvent.Lagret ->
-                            unrecoverableError("Fant ikke bestillingsgrunnlag for lagret vedtak på sak ${event.data.sakId}")
+                    return@transaction if (vedtakKanFattes(event.data)) {
+                        transientError("Vedtaket for sak ${event.data.sakId} er ikke lagret ennå")
+                    } else {
+                        log.info("Vedtaket for sak {} ble avvist, ingen bestilling", event.data.sakId)
+                        idempotencyGuard.guard(event, bestillingSubtask)
+                        success()
                     }
                 }
 

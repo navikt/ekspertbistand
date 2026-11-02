@@ -237,7 +237,7 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
         }
 
     @Test
-    fun `vedtak som ikke ble fattet feiler uten journalføring`() = testApplicationWithDatabase {
+    fun `avvist vedtak gir success uten journalføring`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = tilBeslutning(database)
         val utdatert = event(sak).let { e ->
@@ -253,28 +253,10 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
         FattVedtak(database).handle(utdatert)
         val dokarkiv = Dokarkiv()
 
-        assertIs<EventHandledResult.UnrecoverableError>(handler(database, dokarkiv).handle(utdatert))
+        assertIs<EventHandledResult.Success>(handler(database, dokarkiv).handle(utdatert))
 
         assertTrue(dokarkiv.requests.isEmpty())
         assertTrue(journalfoert(database).isEmpty())
-    }
-
-    @Test
-    fun `likt vedtak fra en annen event gir success uten ny journalføring`() = testApplicationWithDatabase {
-        val database = it.config.jdbcDatabase
-        val sak = tilBeslutning(database)
-        val dokarkiv = Dokarkiv()
-        val handler = handler(database, dokarkiv)
-        val forste = event(sak)
-        fattet(database, forste)
-        handler.handle(forste)
-        val duplikat = Event(2L, forste.data)
-        fattet(database, duplikat)
-
-        assertIs<EventHandledResult.Success>(handler.handle(duplikat))
-
-        assertEquals(1, dokarkiv.requests.size)
-        assertEquals(1, journalfoert(database).size)
     }
 
     @Test

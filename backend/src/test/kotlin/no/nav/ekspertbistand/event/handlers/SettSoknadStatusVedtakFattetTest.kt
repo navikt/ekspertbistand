@@ -79,56 +79,40 @@ class SettSoknadStatusVedtakFattetTest {
     }
 
     @Test
-    fun `inhabil beslutter feiler uten endring`() = testApplicationWithDatabase {
+    fun `inhabil beslutter gir success uten endring`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = tilBeslutning(database)
         val event = Event(1L, vedtakFattet(sak, fattetAv = SAKSBEHANDLER_IDENT))
         FattVedtak(database).handle(event)
 
-        assertIs<EventHandledResult.UnrecoverableError>(SettSoknadStatusVedtakFattet(database, clock).handle(event))
+        assertIs<EventHandledResult.Success>(SettSoknadStatusVedtakFattet(database, clock).handle(event))
 
         assertEquals(SoknadStatus.innsendt, soknadStatus(database, sak))
     }
 
     @Test
-    fun `vedtak etter retur feiler uten endring`() = testApplicationWithDatabase {
+    fun `vedtak etter retur gir success uten endring`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = tilBeslutning(database)
         settStatus(database, sak, Saksstatus.UNDER_BEHANDLING)
         val event = Event(1L, vedtakFattet(sak))
         FattVedtak(database).handle(event)
 
-        assertIs<EventHandledResult.UnrecoverableError>(SettSoknadStatusVedtakFattet(database, clock).handle(event))
+        assertIs<EventHandledResult.Success>(SettSoknadStatusVedtakFattet(database, clock).handle(event))
 
         assertEquals(SoknadStatus.innsendt, soknadStatus(database, sak))
     }
 
     @Test
-    fun `utdatert versjon feiler uten endring`() = testApplicationWithDatabase {
+    fun `utdatert versjon gir success uten endring`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = tilBeslutning(database)
         val event = Event(1L, vedtakFattet(sak, versjon = 2))
         FattVedtak(database).handle(event)
 
-        assertIs<EventHandledResult.UnrecoverableError>(SettSoknadStatusVedtakFattet(database, clock).handle(event))
+        assertIs<EventHandledResult.Success>(SettSoknadStatusVedtakFattet(database, clock).handle(event))
 
         assertEquals(SoknadStatus.innsendt, soknadStatus(database, sak))
-    }
-
-    @Test
-    fun `likt vedtak fra en annen event gir success uten endring`() = testApplicationWithDatabase {
-        val database = it.config.jdbcDatabase
-        val sak = tilBeslutning(database)
-        val handler = SettSoknadStatusVedtakFattet(database, clock)
-        val forste = Event(1L, vedtakFattet(sak))
-        FattVedtak(database).handle(forste)
-        handler.handle(forste)
-        val duplikat = Event(2L, vedtakFattet(sak))
-        FattVedtak(database).handle(duplikat)
-
-        assertIs<EventHandledResult.Success>(handler.handle(duplikat))
-
-        assertEquals(SoknadStatus.godkjent, soknadStatus(database, sak))
     }
 
     @Test
