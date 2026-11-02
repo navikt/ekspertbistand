@@ -237,7 +237,7 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
         }
 
     @Test
-    fun `avvist vedtak gir success uten journalføring`() = testApplicationWithDatabase {
+    fun `avvist vedtak feiler uten journalføring`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = tilBeslutning(database)
         val utdatert = event(sak).let { e ->
@@ -253,7 +253,7 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
         FattVedtak(database).handle(utdatert)
         val dokarkiv = Dokarkiv()
 
-        assertIs<EventHandledResult.Success>(handler(database, dokarkiv).handle(utdatert))
+        assertIs<EventHandledResult.UnrecoverableError>(handler(database, dokarkiv).handle(utdatert))
 
         assertTrue(dokarkiv.requests.isEmpty())
         assertTrue(journalfoert(database).isEmpty())

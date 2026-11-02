@@ -45,7 +45,7 @@ private val OSLO = TimeZone.of("Europe/Oslo")
  * Brevet bygges bare fra [EventData.VedtakFattet], ikke fra projeksjonene. Vedtaket [FattVedtak]
  * lagret for samme event avgjør om det skal journalføres:
  * - ikke lagret, men eventen kan fortsatt lagres: [FattVedtak] har ikke kjørt ennå, prøv igjen
- * - ikke lagret, og eventen kan ikke lagres: [FattVedtak] avviste den, ingen journalføring
+ * - ikke lagret, og eventen kan ikke lagres: [FattVedtak] avviste den, eventen feiler uten journalføring
  *
  * Deltakers navn sladdes ved kode 6 og 7, fordi tilgangskontrollen på person ikke gjelder i
  * arbeidsgivermappa. Innholdet i brevet logges ikke.
@@ -74,12 +74,11 @@ class JournalfoerVedtaksbrevArbeidsgiver @OptIn(ExperimentalTime::class) constru
             hentVedtakUtfallForEvent(event.id) to vedtakKanFattes(data)
         }
         if (lagretUtfall == null) {
-            if (kanFattes) {
-                return transientError("Vedtaket for sak ${data.sakId} er ikke lagret ennå")
+            return if (kanFattes) {
+                transientError("Vedtaket for sak ${data.sakId} er ikke lagret ennå")
+            } else {
+                unrecoverableError("Vedtaket for sak ${data.sakId} ble avvist, ingen journalføring av vedtaksbrev")
             }
-            log.info("Vedtaket for sak {} ble avvist, ingen journalføring av vedtaksbrev", data.sakId)
-            idempotencyGuard.guard(event, journalfoertSubtask)
-            return success()
         }
 
         val utfall = data.vedtak.utfall.tilForelopigUtfall()
