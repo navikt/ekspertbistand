@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.core.CustomFunction
 import org.jetbrains.exposed.v1.core.Expression
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.TextColumnType
@@ -269,19 +270,27 @@ fun hentSisteForelopigVedtak(sakId: UUID): ForelopigVedtakDTO? =
         .orderBy(ForelopigVedtakTable.versjon, SortOrder.DESC)
         .limit(1)
         .singleOrNull()
-        ?.let {
-            ForelopigVedtakDTO(
-                versjon = it[ForelopigVedtakTable.versjon],
-                utfall = ForelopigUtfall.valueOf(it[ForelopigVedtakTable.utfall]),
-                innvilgetBelop = it[ForelopigVedtakTable.innvilgetBelop],
-                tiltaksperiodeFra = it[ForelopigVedtakTable.tiltaksperiodeFra],
-                tiltaksperiodeTil = it[ForelopigVedtakTable.tiltaksperiodeTil],
-                begrunnelseDeltaker = it[ForelopigVedtakTable.begrunnelseDeltaker],
-                begrunnelseArbeidsgiver = it[ForelopigVedtakTable.begrunnelseArbeidsgiver],
-                innstiltAvIdent = it[ForelopigVedtakTable.innstiltAvIdent],
-                sendtTidspunkt = it[ForelopigVedtakTable.sendtTidspunkt],
-            )
-        }
+        ?.tilForelopigVedtakDTO()
+
+/** Versjon [versjon] av det foreløpige vedtaket, eller null. Må kalles i en pågående transaksjon. */
+fun hentForelopigVedtak(sakId: UUID, versjon: Int): ForelopigVedtakDTO? =
+    ForelopigVedtakTable.selectAll()
+        .where { (ForelopigVedtakTable.sakId eq sakId) and (ForelopigVedtakTable.versjon eq versjon) }
+        .singleOrNull()
+        ?.tilForelopigVedtakDTO()
+
+@OptIn(ExperimentalTime::class)
+private fun ResultRow.tilForelopigVedtakDTO() = ForelopigVedtakDTO(
+    versjon = this[ForelopigVedtakTable.versjon],
+    utfall = ForelopigUtfall.valueOf(this[ForelopigVedtakTable.utfall]),
+    innvilgetBelop = this[ForelopigVedtakTable.innvilgetBelop],
+    tiltaksperiodeFra = this[ForelopigVedtakTable.tiltaksperiodeFra],
+    tiltaksperiodeTil = this[ForelopigVedtakTable.tiltaksperiodeTil],
+    begrunnelseDeltaker = this[ForelopigVedtakTable.begrunnelseDeltaker],
+    begrunnelseArbeidsgiver = this[ForelopigVedtakTable.begrunnelseArbeidsgiver],
+    innstiltAvIdent = this[ForelopigVedtakTable.innstiltAvIdent],
+    sendtTidspunkt = this[ForelopigVedtakTable.sendtTidspunkt],
+)
 
 /** Det listen og habilitetssjekken trenger fra siste foreløpige vedtak. */
 data class ForelopigVedtakSammendrag(

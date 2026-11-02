@@ -4,7 +4,8 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.refusjon.refusjonsfrist
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SakDomain
+import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -67,10 +68,13 @@ fun vedtaksbrevMal(utfall: ForelopigUtfall, mottaker: Mottaker): String = when (
 
 /**
  * Bygger payloaden til brevet for [mottaker]. Bare begrunnelsen til [mottaker] kommer med.
- * Ved [ForelopigUtfall.INNVILGE] er beløpet søknadssummen, som i [publiserForelopigVedtak].
+ * Ved [ForelopigUtfall.INNVILGE] er beløpet [soknadssum], som i [publiserForelopigVedtak].
+ * Tar verdiene hver for seg, så brevet ikke avhenger av hvor søknaden kommer fra.
  */
 fun vedtaksbrevData(
-    soknad: DTO.Soknad,
+    deltakerNavn: String,
+    arbeidsgiver: VedtaksbrevData.Arbeidsgiver,
+    soknadssum: Int?,
     utfall: ForelopigUtfall,
     belop: Int?,
     begrunnelseDeltaker: String,
@@ -82,7 +86,6 @@ fun vedtaksbrevData(
     saksbehandler: String?,
     dato: LocalDate,
 ): VedtaksbrevData {
-    val soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad)
     val innvilgetBelop = when (utfall) {
         ForelopigUtfall.INNVILGE -> soknadssum
         ForelopigUtfall.INNVILGE_REDUSERT -> belop
@@ -95,11 +98,8 @@ fun vedtaksbrevData(
     }
     return VedtaksbrevData(
         dato = dato.somBrevdato(),
-        deltaker = VedtaksbrevData.Deltaker(navn = soknad.ansatt.navn),
-        arbeidsgiver = VedtaksbrevData.Arbeidsgiver(
-            navn = soknad.virksomhet.virksomhetsnavn,
-            orgnr = soknad.virksomhet.virksomhetsnummer,
-        ),
+        deltaker = VedtaksbrevData.Deltaker(navn = deltakerNavn),
+        arbeidsgiver = arbeidsgiver,
         soknadssum = soknadssum?.somBelop(),
         innvilgetBelop = innvilgetBelop?.somBelop(),
         tiltaksperiode = periode,
@@ -116,6 +116,31 @@ fun vedtaksbrevData(
 
 /** Søknadssummen er fritekst fra arbeidsgiver. Null når den ikke er et positivt heltall. */
 fun tolkSoknadssum(estimertKostnad: String): Int? = estimertKostnad.trim().toIntOrNull()?.takeIf { it > 0 }
+
+/**
+ * Navnet til saksbehandler i brevet, bare når det er saksbehandleren som innstilte som fortsatt har saken.
+ * Ellers viser hilsenen bare enheten.
+ */
+fun saksbehandlerForBrev(saksbehandlerIdent: String?, saksbehandlerNavn: String?, innstiltAvIdent: String): String? =
+    saksbehandlerNavn.takeIf { saksbehandlerIdent == innstiltAvIdent }
+
+/** Enhetsnavnet finnes bare hos innlogget, som har bestått [sjekkTilgangTilEnhet] for enheten. */
+fun AzureAdPrincipal.enhetsnavn(enhetsnummer: String?): String? =
+    enheter.find { it.enhetnummer == enhetsnummer }?.navn
+
+const val SLADDET_NAVN = "***********"
+
+/**
+ * Sladder deltakers navn ved kode 6 og 7, som Team Tiltak gjør i tilsagnsbrevet. Brukes bare på brevet som
+ * journalføres: arbeidsgivermappa ligger på orgnr, så tilgangskontrollen på person i Gosys og Joark beskytter
+ * ikke deltakeren der. Arbeidsgiver får brevet usladdet. Skjerming alene gir ingen sladding.
+ */
+fun VedtaksbrevData.sladdVedAdressebeskyttelse(adressebeskyttelse: SakDomain.Adressebeskyttelse?): VedtaksbrevData =
+    when (adressebeskyttelse) {
+        SakDomain.Adressebeskyttelse.FORTROLIG,
+        SakDomain.Adressebeskyttelse.STRENGT_FORTROLIG -> copy(deltaker = VedtaksbrevData.Deltaker(SLADDET_NAVN))
+        null -> this
+    }
 
 private val brevdatoFormat = DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale.forLanguageTag("nb-NO"))
 

@@ -20,18 +20,22 @@ import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.domain.SakDomain
+import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.encodeStringList
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -84,6 +88,42 @@ class BeslutterApiTest {
         assertEquals(navIdent, event.fattetAvIdent)
         assertTrue(event.fattetAvNavn.isNotBlank())
         assertIngenEndring(db, sakId)
+    }
+
+    @Test
+    fun `VedtakFattet har søknaden, saken og den godkjente versjonen av vedtaket`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSakTilBeslutning(db, utfall = ForelopigUtfall.INNVILGE_REDUSERT, versjoner = 2)
+        transaction(db.config.jdbcDatabase) {
+            SakTable.update({ SakTable.sakId eq sakId }) {
+                it[adressebeskyttelse] = Adressebeskyttelse.FORTROLIG.name
+            }
+            SaksvilkarTable.insert {
+                it[this.sakId] = sakId
+                it[vilkarId] = Vilkar.EKSPERT_HAR_KOMPETANSE.name
+                it[godkjent] = true
+                it[vurdertAvIdent] = saksbehandler
+            }
+        }
+        val oppsett = oppsett(db)
+
+        assertEquals(HttpStatusCode.Accepted, oppsett.send(vedtakUrl(sakId), vedtak(versjon = 2)).status)
+
+        val event = assertIs<EventData.VedtakFattet>(hentEvents(db).single())
+        assertEquals(2, event.vedtak.versjon)
+        assertEquals(VedtakDomain.Utfall.INNVILGE_REDUSERT, event.vedtak.utfall)
+        assertEquals(5000, event.vedtak.innvilgetBelop)
+        assertEquals(saksbehandler, event.vedtak.innstiltAvIdent)
+
+        assertEquals(egenEnhet, event.sak.behandlendeEnhet)
+        assertEquals("Nav Test", event.sak.behandlendeEnhetNavn)
+        assertEquals(navIdent, event.sak.beslutterIdent)
+        assertEquals(SakDomain.Adressebeskyttelse.FORTROLIG, event.sak.adressebeskyttelse)
+        val vilkar = event.sak.vilkarsvurderinger.single { it.vilkar == SakDomain.Vilkarsvurdering.Vilkar.EKSPERT_HAR_KOMPETANSE }
+        assertEquals(true, vilkar.godkjent)
+
+        assertEquals("Eksempel Bedrift AS", event.soknad.virksomhet.virksomhetsnavn)
+        assertEquals(fnr, event.soknad.ansatt.fnr)
+        assertEquals(listOf("Autorisert ergoterapeut"), event.soknad.ekspert.godkjentUtdanningEllerAutorisasjon)
     }
 
     @Test
@@ -374,6 +414,8 @@ class BeslutterApiTest {
                 it[ekspertNavn] = "Ekspert NN"
                 it[ekspertVirksomhet] = "ErgoConsult AS"
                 it[ekspertKompetanse] = "Ergoterapeut"
+                it[ekspertGodkjentUtdanningEllerAutorisasjon] = encodeStringList(listOf("Autorisert ergoterapeut"))
+                it[ekspertRelevantKompetanse] = encodeStringList(listOf("Arbeidsplassvurdering"))
                 it[behovForBistand] = "Arbeidsplassvurdering"
                 it[behovForBistandBegrunnelse] = "Langvarig skulderplage"
                 it[behovForBistandEstimertKostnad] = "9999"

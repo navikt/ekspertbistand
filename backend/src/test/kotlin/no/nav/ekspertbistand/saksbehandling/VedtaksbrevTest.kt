@@ -2,39 +2,13 @@ package no.nav.ekspertbistand.saksbehandling
 
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.infrastruktur.defaultJson
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SakDomain
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 class VedtaksbrevTest {
-
-    private val fnr = "01017012345"
-
-    private val soknad = DTO.Soknad(
-        virksomhet = DTO.Virksomhet(
-            virksomhetsnummer = "123456780",
-            virksomhetsnavn = "Eksempel Bedrift AS",
-            kontaktperson = DTO.Kontaktperson("Kontaktperson NN", "kontakt@bedrift.no", "41519999"),
-        ),
-        ansatt = DTO.Ansatt(fnr = fnr, navn = "Ansatt NN"),
-        ekspert = DTO.Ekspert(
-            navn = "Ekspert NN",
-            virksomhet = "ErgoConsult AS",
-            godkjentUtdanningEllerAutorisasjon = listOf("Ergoterapeut"),
-            relevantKompetanse = emptyList(),
-        ),
-        behovForBistand = DTO.BehovForBistand(
-            begrunnelse = "Skulderplage",
-            behov = "Arbeidsplassvurdering",
-            estimertKostnad = " 22000 ",
-            timer = "16",
-            tilrettelegging = "Høydejustert bord",
-            startdato = LocalDate(2026, 11, 22),
-        ),
-        nav = DTO.Nav(kontaktperson = "Navkontaktperson NN"),
-    )
 
     private fun data(
         utfall: ForelopigUtfall,
@@ -44,7 +18,9 @@ class VedtaksbrevTest {
         fra: LocalDate? = LocalDate(2026, 11, 22),
         til: LocalDate? = LocalDate(2026, 12, 31),
     ) = vedtaksbrevData(
-        soknad = soknad,
+        deltakerNavn = "Ansatt NN",
+        arbeidsgiver = VedtaksbrevData.Arbeidsgiver(navn = "Eksempel Bedrift AS", orgnr = "123456780"),
+        soknadssum = tolkSoknadssum(" 22000 "),
         utfall = utfall,
         belop = belop,
         begrunnelseDeltaker = "Til deltaker",
@@ -123,17 +99,29 @@ class VedtaksbrevTest {
     }
 
     @Test
-    fun `payloaden har ikke fødselsnummer`() {
-        Mottaker.entries.forEach { mottaker ->
-            assertFalse(defaultJson.encodeToString(data(ForelopigUtfall.INNVILGE, mottaker)).contains(fnr))
-        }
-    }
-
-    @Test
     fun `mottaker tolkes uavhengig av store og små bokstaver`() {
         assertEquals(Mottaker.DELTAKER, Mottaker.fra("deltaker"))
         assertEquals(Mottaker.ARBEIDSGIVER, Mottaker.fra("ARBEIDSGIVER"))
         assertNull(Mottaker.fra("ekspert"))
         assertNull(Mottaker.fra(null))
+    }
+
+    @Test
+    fun `saksbehandler står i brevet bare når den som innstilte fortsatt har saken`() {
+        assertEquals("Tore Tang", saksbehandlerForBrev("Z123456", "Tore Tang", innstiltAvIdent = "Z123456"))
+        assertNull(saksbehandlerForBrev("Z999999", "Annen Saksbehandler", innstiltAvIdent = "Z123456"))
+        assertNull(saksbehandlerForBrev(null, null, innstiltAvIdent = "Z123456"))
+    }
+
+    @Test
+    fun `deltakers navn sladdes ved kode 6 og 7, ellers ikke`() {
+        val data = data(ForelopigUtfall.AVSLAA, Mottaker.ARBEIDSGIVER, fra = null, til = null)
+
+        SakDomain.Adressebeskyttelse.entries.forEach {
+            val sladdet = data.sladdVedAdressebeskyttelse(it)
+            assertEquals(SLADDET_NAVN, sladdet.deltaker.navn, "$it")
+            assertEquals(data.copy(deltaker = sladdet.deltaker), sladdet, "bare navnet skal sladdes ved $it")
+        }
+        assertEquals(data, data.sladdVedAdressebeskyttelse(null))
     }
 }
