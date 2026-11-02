@@ -65,7 +65,7 @@ Fra før:
 - `VedtakFattet` publiseres av `POST …/vedtak`. `FattVedtak` lagrer raden i
   `vedtak` (unik på `event_id`) og setter saken til `INNVILGET` eller `AVSLATT`.
   `SettSoknadStatusVedtakFattet` lytter på samme event og slår opp vedtaket med
-  `hentVedtakUtfallForEvent` og `vedtakKanFattes`, fordi handlerne kjører hver
+  `vedtakForEvent`, fordi handlerne kjører hver
   for seg (`beslutter_vedtak.md`, *4b*).
 - `forelopig_vedtak` (V21) krever for innvilgelse `innvilget_belop > 0`, begge
   datoene i tiltaksperioden, `fra <= til` og at begge datoene er i samme år.
@@ -243,7 +243,8 @@ VedtakFattet ──> FattVedtak ── INSERT vedtak, UPDATE sak
             │
             └──> BestillTilsagnIOebs (samme event, kjører for seg)
                   ├─ vedtak for event_id mangler, men kan fattes ── transientError
-                  ├─ vedtak for event_id mangler, og er avvist ──── success, ingen endring
+                  ├─ likt vedtak fra en annen event ─────────────── success, ingen endring
+                  ├─ annet vedtak, eller kan ikke fattes ────────── unrecoverableError
                   ├─ AVSLATT ───────────────────────────────────── success, ingen endring
                   ├─ sak_bestilling finnes for vedtaket ─────────── success, ingen endring
                   └─ INNVILGET, i én transaksjon:
@@ -417,9 +418,12 @@ denne nøye.
 I én transaksjon:
 
 1. `hentBestillingGrunnlagForEvent(event.id)` er null:
-   - `vedtakKanFattes(event.data)`: `FattVedtak` har ikke kjørt ferdig.
+   - `vedtakForEvent` er `Venter`: `FattVedtak` har ikke kjørt ferdig.
      `transientError`.
-   - ellers: `FattVedtak` avviste eventen. Guard og `success`.
+   - `Duplikat`: saken har et likt vedtak fra en annen event, som bestiller.
+     Guard og `success`.
+   - ellers: vedtaket ble ikke fattet, eller saken har et annet vedtak.
+     `unrecoverableError`, ingen bestilling.
 2. `utfall == AVSLATT`: guard og `success`.
 3. `bestillingFinnesForVedtak(vedtakId)`: guard og `success`. Det skjer bare hvis
    guarden mangler etter en tidligere kjøring.
@@ -539,7 +543,8 @@ Kort 627:
 - bestillingsnummeret er `E-<sak.saksnummer>-1` og maks 20 tegn
 - `periode.slutt` er dagen etter `tiltaksperiode_til`
 - avslått vedtak gir ingen outbox-rad og ingen `sak_bestilling`
-- vedtak avvist av `FattVedtak` (retur først, inhabil) gir ingen endring og `success`
+- likt vedtak fra en annen event gir ingen endring og `success`
+- vedtak etter retur eller fra inhabil beslutter gir ingen endring og `UnrecoverableError`
 - `FattVedtak` ikke kjørt, saken i `TIL_BESLUTNING`: `TransientError`. Etter
   `FattVedtak` gir ny kjøring bestillingen
 - samme event to ganger gir én outbox-rad, og `oebs_lopenummer.neste_lopenr` er 2
