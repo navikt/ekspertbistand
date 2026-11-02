@@ -191,8 +191,8 @@ Disse er ikke avklart i kortet. De er valgt her og kan endres ved review:
   journalføres, sladdes. Grunnen er at arbeidsgivermappa ligger på orgnr, så
   tilgangskontrollen på person i Gosys og Joark ikke beskytter deltakeren mot
   Nav-ansatte. Arbeidsgiver vet allerede hvem søknaden gjelder, og får brevet
-  usladdet. Dette er avklart i ROS 2106 - 28079, som gjelder sladding av
-  deltaker mot arbeidsgiver. Begrunnelsen
+  usladdet. Dette er avklart i ROS 2106 - 28079, «Risiko for eksponering
+  av stedslokaliserende informasjon for Kode 6/7 brukere». Begrunnelsen
   sladdes ikke, fordi saksbehandler skriver den til arbeidsgiver. Skjermede
   (egne ansatte) sladdes ikke, som hos Team Tiltak.
 
