@@ -62,7 +62,6 @@ class JournalfoerTilskuddsbrevKildeAltinn(
                 dokumentPdfAsBytes = tilsagnPdf,
                 journalposttype = JournalpostType.UTGAAENDE,
                 avsenderMottaker = AvsenderMottaker.orgnr(event.data.tilsagnData.tiltakArrangor.orgNummer.toString()),
-                journalfoerendeEnhet = "9999",
             )
         } catch (e: Exception) {
             return transientError("Feil ved opprettelse av journalpost: ${e.message}", e)

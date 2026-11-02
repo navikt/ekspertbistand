@@ -52,7 +52,6 @@ class JournalfoerNotatArenaSakOpprettet(
                 dokumentPdfAsBytes = notatPdf,
                 journalposttype = JournalpostType.NOTAT,
                 avsenderMottaker = null,
-                journalfoerendeEnhet = "9999",
             )
         } catch (e: Exception) {
             return transientError(

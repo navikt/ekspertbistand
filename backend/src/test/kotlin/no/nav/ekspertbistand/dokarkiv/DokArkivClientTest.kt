@@ -69,37 +69,10 @@ class DokArkivClientTest {
             eksternReferanseId = "ekstern-ref-123",
             dokumentPdfAsBytes = dokumentPdfAsBytes,
             journalposttype = JournalpostType.INNGAAENDE,
-            avsenderMottaker = AvsenderMottaker.orgnr("123456789"),
-            journalfoerendeEnhet = "9999",
+            avsenderMottaker = AvsenderMottaker.orgnr("123456789")
         ).let {
             assertEquals("DOK123456", it.journalpostId)
         }
-    }
-
-    @Test
-    fun `sender enheten som gitt`() = testApplication {
-        mockDokArkiv { request ->
-            assertEquals("0315", request.journalfoerendeEnhet)
-            assertEquals("UTGAAENDE", request.journalposttype)
-            OpprettJournalpostResponse(
-                dokumenter = listOf(OpprettJournalpostDokument("DOC001")),
-                journalpostId = "DOK123456",
-                journalpostferdigstilt = true,
-            )
-        }
-        client = createClient { install(ContentNegotiation) { json() } }
-
-        DokArkivClient(azureAdTokenProvider = mockTokenProvider, defaultHttpClient = client)
-            .opprettOgFerdigstillJournalpost(
-                tittel = "Vedtak om tilskudd til ekspertbistand",
-                virksomhetsnummer = "123456789",
-                sak = Sak.FagSak("1234"),
-                eksternReferanseId = "ekstern-ref-456",
-                dokumentPdfAsBytes = ByteArray(10),
-                journalposttype = JournalpostType.UTGAAENDE,
-                avsenderMottaker = AvsenderMottaker.orgnr("123456789"),
-                journalfoerendeEnhet = "0315",
-            )
     }
 }
 

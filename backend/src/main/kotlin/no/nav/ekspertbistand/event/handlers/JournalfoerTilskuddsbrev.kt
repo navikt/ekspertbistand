@@ -66,7 +66,6 @@ class JournalfoerTilskuddsbrev(
                 dokumentPdfAsBytes = tilsagnPdf,
                 journalposttype = JournalpostType.UTGAAENDE,
                 avsenderMottaker = AvsenderMottaker.orgnr(soknad.virksomhet.virksomhetsnummer),
-                journalfoerendeEnhet = "9999",
             )
         } catch (e: Exception) {
             return transientError(

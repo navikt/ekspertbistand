@@ -166,9 +166,8 @@ Disse er ikke avklart i kortet. De er valgt her og kan endres ved review:
   men en Nav-enhet eller ansatt-ident her kan gi tilgangsstyring i Gosys og
   Joark som ikke gjør de samme sjekkene som vi, eller andre sideeffekter vi
   ikke ser. Team Tiltak og Mulighetsrommet journalfører vedtak med `9999` og
-  uten ident. `DokArkivClient` får `journalfoerendeEnhet: String` uten
-  standardverdi (Ken, 2026-11-01: vi foretrekker å være eksplisitte). Alle
-  kallene setter `"9999"` selv.
+  uten ident. `DokArkivClient` beholder `"9999"` for alle kall, med en
+  kommentar om at det er automatisk journalføring.
 - **Kanal er `NAV_NO`**, som i dag (Alexander).
 - **`eksternReferanseId = "<soknadId>-vedtaksbrev-arbeidsgiver"`.** Det er ett
   vedtak per søknad. Dokarkiv gir 409 og samme journalpost ved et nytt forsøk.
@@ -443,8 +442,7 @@ Lytter på `VedtakFattet`. Registreres for alle miljøer, etter
      `sak.adressebeskyttelse`.
    - `dokumentService.genererVedtaksbrevPdf(...)`. Feil gir `transientError`.
    - `dokArkivClient.opprettOgFerdigstillJournalpost(...)` med
-     `UTGAAENDE`, mottaker orgnr, fagsak fra `FagsakIdService` og
-     `journalfoerendeEnhet = "9999"`.
+     `UTGAAENDE`, mottaker orgnr og fagsak fra `FagsakIdService`.
      Feil eller ikke ferdigstilt gir `transientError`.
 4. I én transaksjon: publiser `VedtaksbrevArbeidsgiverJournalfoert` og
    `SakOppdatert`, og guard. Feil gir `rollback()` og `transientError`.
@@ -466,8 +464,8 @@ Ingen suspend-kall inne i `transaction {}`. Innholdet i brevet logges ikke.
     bruker den.
   - `enhetsnavn`, flyttet fra `SakDokumentApi.kt`.
   - Sladdingen ved adressebeskyttelse.
-- `dokarkiv/DokArkivClient.kt`: parameteren `journalfoerendeEnhet: String`,
-  uten standardverdi. Alle kallene, også den nye handleren, sender `"9999"`.
+- `dokarkiv/DokArkivClient.kt`: kommentar om at `"9999"` er automatisk
+  journalføring.
 
 ### 6. Lokal kjøring
 
@@ -507,7 +505,6 @@ og `BestillTilsagnIOebs`-testene.
   `success()` uten journalføring.
 - Feil fra Gotenberg eller Dokarkiv: `transientError`, ingen eventer.
 - Retry etter suksess: ingen nye kall og ingen nye eventer.
-- Ny parameter i `DokArkivClient`: enheten sendes som gitt.
 - `SakDokumentApiTest` og `VedtaksbrevTest` er grønne etter at
   `vedtaksbrevData` har fått nye parametere.
 - Ny event og utvidet `VedtakFattet` i `TestEventData.allEventSamples` og
@@ -524,9 +521,7 @@ og `BestillTilsagnIOebs`-testene.
 | `saksbehandling/Db.kt` | `hentForelopigVedtak(sakId, versjon)` |
 | `saksbehandling/Vedtaksbrev.kt` | `vedtaksbrevData` med egne parametere, `saksbehandlerForBrev`, `enhetsnavn` og sladding |
 | `saksbehandling/SakDokumentApi.kt` | Bruker de flyttede funksjonene |
-| `dokarkiv/DokArkivClient.kt` | `journalfoerendeEnhet` |
-| `event/handlers/JournalfoerInnsendtSoknad.kt`, `JournalfoerTilskuddsbrev.kt`, `JournalfoerTilskuddsbrevKildeAltinn.kt`, `JournalfoerNotatArenaSakOpprettet.kt` | Setter `"9999"` eksplisitt |
-| `test/.../DokArkivClientTest.kt` | Nye parametere |
+| `dokarkiv/DokArkivClient.kt` | Kommentar på `"9999"` |
 | `event/event-flow.md` | Generert |
 | `test/.../LokaleSaker.kt` | `VedtakFattet` med nye felt |
 | `test/.../BeslutterApiTest.kt` | Nye felt i eventen |

@@ -65,10 +65,6 @@ class DokArkivClient(
         const val API_PATH = "/rest/journalpostapi/v1/journalpost"
     }
 
-    /**
-     * [journalfoerendeEnhet] er `9999` (automatisk journalføring) i alle kall i dag. En Nav-enhet her kan gi
-     * tilgangsstyring i Gosys og Joark som ikke matcher vår.
-     */
     suspend fun opprettOgFerdigstillJournalpost(
         tittel: String,
         virksomhetsnummer: String,
@@ -77,13 +73,12 @@ class DokArkivClient(
         dokumentPdfAsBytes: ByteArray,
         journalposttype: JournalpostType,
         avsenderMottaker: AvsenderMottaker?,
-        journalfoerendeEnhet: String,
     ): OpprettJournalpostResponse {
         val journalpost = Journalpost(
             bruker = Bruker(id = virksomhetsnummer, idType = "ORGNR"),
             avsenderMottaker = avsenderMottaker,
             eksternReferanseId = eksternReferanseId,
-            journalfoerendeEnhet = journalfoerendeEnhet,
+            journalfoerendeEnhet = "9999", // automatisk journalføring
             tittel = tittel,
             dokumenter = listOf(
                 Dokument(
