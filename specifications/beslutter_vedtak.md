@@ -138,7 +138,6 @@ Kortet har ingen kommentarer, sjekklister eller vedlegg (sjekket 2026-10-14).
 | Ken, 2026-10-14 | Avslag gir ny søknadsstatus `avslatt`, ikke `avlyst`. `avlyst` fra Arena betyr enten avslått eller trukket av arbeidsgiver, og vi vet ikke hvilket. I ny løsning er avslått avslått. Trekking får eventuelt en egen status senere, lagt til eksplisitt. Se *4c*. |
 | Ken, 2026-10-14; Figma `224:18355`, `58:1795` | «Godkjenn» fatter vedtaket direkte, uten bekreftelsessteg. |
 | Ken, 2026-10-14 | Fanen heter «Vedtak» for tildelt beslutter og når vedtak er fattet, ellers «Foreløpig vedtak». |
-| Ken, 2026-11-02 | En `VedtakFattet` som `FattVedtak` ikke lagrer, er greit når saken har et likt vedtak (samme versjon og utfall) fra en annen event. Er vedtakene forskjellige, eller ble vedtaket ikke fattet, feiler handlerne med `unrecoverableError`. |
 
 ### Valg i spec-en
 
@@ -405,14 +404,10 @@ transaksjon og `IdempotencyGuard`.
 🔴 Rød sone: `godkjent` åpner for refusjon og vedlegg fra arbeidsgiver
 (`hentGodkjentSakIdForUpdate`). Søknaden skal derfor bare oppdateres når
 `FattVedtak` lagret vedtaket. Handlerne kjører hver for seg, og
-`FattVedtak` lagrer ikke eventen når saken allerede er besluttet. Det er greit
-når et likt vedtak er lagret fra en annen event, for eksempel fra to faner. Er
-vedtakene forskjellige, eller vant en retur, har beslutteren fått 202 for et
-vedtak som ikke ble fattet. Da skal handlerne feile. Handleren stoler derfor ikke
-på at den andre handleren har kjørt, og slår opp vedtaket med
-`vedtakForEvent(data, eventId)`:
+`FattVedtak` kan avvise eventen (retur kom først, ny versjon, inhabil). Handleren
+stoler derfor ikke på at den andre handleren har kjørt, og slår opp vedtaket:
 
-1. `Lagret`: `vedtak` med `event_id = event.id` finnes:
+1. `vedtak` med `event_id = event.id` finnes:
    `UPDATE soknad SET status = …, slette_tidspunkt = now + slettSøknadOm
    WHERE id = soknadId AND status = 'innsendt'`.
    - `INNVILGET` gir `godkjent`, `AVSLATT` gir `avslatt`.
@@ -420,20 +415,13 @@ på at den andre handleren har kjørt, og slår opp vedtaket med
      `SettGodkjentSoknadStatus`.
    - 0 rader og søknaden har allerede en annen status enn `innsendt`: `success`
      uten endring. Det skjer ved ny kjøring av samme event.
-2. `Venter`: vedtaket finnes ikke, men `FattVedtak` ville fortsatt lagret
-   eventen (`TIL_BESLUTNING`, samme versjon og habil beslutter). `FattVedtak`
-   har ikke kjørt ferdig. `transientError`, og eventen prøves igjen.
-   Habiliteten er med, ellers ville en inhabil event bli prøvd igjen i det
-   uendelige.
-3. `Duplikat`: saken har et vedtak fra en annen event med samme versjon og
-   utfall. `log.info` og `success` uten endring. Den andre eventen har
-   oppdatert søknaden.
-4. `Avvik`: saken har et vedtak med annen versjon eller annet utfall, eller kan
-   ikke få dette vedtaket (retur vant, ny versjon, inhabil).
-   `unrecoverableError` uten endring.
-
-`FattVedtak` bruker samme oppslag når `fattVedtak` gir `false`: `Duplikat` gir
-`log.info` og `success`, ellers `unrecoverableError`.
+2. Vedtaket finnes ikke, men `FattVedtak` ville fortsatt lagret eventen
+   (`vedtakKanFattes`: `TIL_BESLUTNING`, samme versjon og habil beslutter):
+   `FattVedtak` har ikke kjørt ferdig. `transientError`, og eventen prøves
+   igjen. Habiliteten er med, ellers ville en inhabil event bli prøvd igjen i
+   det uendelige.
+3. Vedtaket finnes ikke, og `FattVedtak` ville avvist eventen: `success` uten
+   endring.
 
 Handleren publiserer ikke `SakOppdatert`. Saksloggen har allerede linjen fra
 `FattVedtak`.
@@ -557,19 +545,15 @@ Når oppgavetypen er `SOKNAD_RETUR`:
 
 - status, `vedtak`/`sak_retur` og `SakOppdatert` som beskrevet
 - samme event to ganger gir én rad og én sakslogglinje
-- likt vedtak fra en annen event gir `success` uten ny rad
-- utdatert status eller versjon gir ingen endring og `UnrecoverableError` for
-  vedtak
-- inhabil i handleren gir ingen endring og `UnrecoverableError`
+- utdatert status eller versjon gir ingen endring
+- inhabil i handleren gir ingen endring
 - retur beholder `saksbehandler_ident` og `beslutter_ident`
 - retur, nytt foreløpig vedtak og vedtak gir versjon 2 og vedtak på versjon 2
 
 `SettSoknadStatusVedtakFattetTest.kt`:
 
 - innvilget gir `godkjent`, avslått gir `avslatt`, begge med `slette_tidspunkt`
-- likt vedtak fra en annen event gir `success` uten endring på søknaden
-- vedtak etter retur, med utdatert versjon eller fra inhabil beslutter gir
-  `UnrecoverableError` og ingen endring på søknaden
+- vedtak avvist av `FattVedtak` (retur først, inhabil) gir ingen endring på søknaden
 - `FattVedtak` ikke kjørt, saken i `TIL_BESLUTNING`: `TransientError`, og etter
   `FattVedtak` gir ny kjøring `godkjent`
 - søknad som ikke er `innsendt`, endres ikke
@@ -624,12 +608,10 @@ Frontend: `pnpm typecheck` og `pnpm lint` i begge frontender, `pnpm test:run` i
 ## Kanttilfeller og feilmodus
 
 - **Dobbeltklikk på «Godkjenn».** Knappen er `loading`. Kommer to kall, publiseres
-  to eventer. Den første setter `INNVILGET`. Den andre finner et likt vedtak
-  (`Duplikat`) og gjør ingenting. Én rad og én sakslogglinje.
+  to eventer. Den første setter `INNVILGET`, den andre ser feil status og gjør
+  ingenting. Én rad og én sakslogglinje.
 - **Retur og godkjenning samtidig** (to faner). Den som behandles først, vinner.
-  Vinner vedtaket, gjør returen ingenting. Vinner returen, feiler
-  `VedtakFattet` med `unrecoverableError`, fordi beslutteren fikk 202 for et
-  vedtak som ikke ble fattet. Frontend viser ny status etter revalidering.
+  Den andre gjør ingenting, og frontend viser ny status etter revalidering.
 - **Ny innstilling mellom visning og klikk.** Kan bare skje etter retur, og da er
   status `UNDER_BEHANDLING` (409). Versjonssjekken fanger resten.
 - **Beslutter tar over en sak der hen selv sendte det nye foreløpige vedtaket.**
@@ -637,7 +619,7 @@ Frontend: `pnpm typecheck` og `pnpm lint` i begge frontender, `pnpm test:run` i
   egen innsending, gir «Godkjenn» 403 `BESLUTTER_INHABIL`, og frontend viser
   forklaringen. Andre besluttere kan ta saken (`listevisning.md`).
 - **`innstilt_av_ident` mangler.** Skal ikke skje. Fail-closed: 403 i API,
-  ingen endring og `unrecoverableError` i handler.
+  ingen endring i handler.
 - **Saksbehandler frigjort før retur.** `saksbehandler_ident` er null, og saken
   ligger i «Oppgaver som venter» som «Søknad - retur» med «Tildel meg».
   `til_saksbehandler_ident` blir null.
@@ -648,8 +630,8 @@ Frontend: `pnpm typecheck` og `pnpm lint` i begge frontender, `pnpm test:run` i
 - **Vilkår etter vedtak.** `PATCH …/vilkarsvurdering` gir 409. Etter retur kan
   vilkårene endres igjen.
 - **Arena-saker.** 409 `SAK_UGYLDIG_KILDE`, knappene vises ikke.
-- **Retur og godkjenning samtidig, søknaden.** Vinner returen, lagrer ikke
-  `FattVedtak` eventen, og søknaden står fortsatt som `innsendt` (*4b*, punkt 4).
+- **Retur og godkjenning samtidig, søknaden.** Vinner returen, avviser
+  `FattVedtak` eventen, og søknaden står fortsatt som `innsendt` (*4b*, punkt 3).
 - **Arbeidsgiver etter innvilgelse.** Søknaden vises som «Godkjent», og
   arbeidsgiver kan sende refusjon. `KvitteringPage` henter tilskuddsbrev fra
   Arena-tilsagn og får en tom liste, fordi saken ikke har tilsagn i Arena.

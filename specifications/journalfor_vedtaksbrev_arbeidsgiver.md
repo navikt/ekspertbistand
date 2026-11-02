@@ -28,7 +28,7 @@ Fra før:
   `vedtak` med `forelopig_vedtak_id`, `fattet_av_navn`, `fattet_tidspunkt` og
   `event_id`. `SettSoknadStatusVedtakFattet` og `BestillTilsagnIOebs` kjører
   etter, og sjekker at vedtaket er lagret for samme event med
-  `vedtakForEvent`.
+  `hentVedtakUtfallForEvent` og `vedtakKanFattes`.
 - `VedtakFattet` har i dag bare `sakId`, `soknadId`, `forelopigVedtakVersjon`,
   `utfall` (`Saksstatus`), `fattetAvIdent`, `fattetAvNavn` og `tidspunkt`. Hva
   vedtaket sier, står i `ForelopigVedtakSendtTilBeslutter` og projeksjonen
@@ -93,10 +93,10 @@ Kortet har ingen sjekklister eller vedlegg (sjekket 2026-11-02).
 Disse er ikke avklart i kortet. De er valgt her og kan endres ved review:
 
 - **Lytter på `VedtakFattet`.** Handleren kjører etter
-  `SettSoknadStatusVedtakFattet`. Den bruker `vedtakForEvent` bare for å sjekke at
-  `FattVedtak` lagret eventen, som `BestillTilsagnIOebs` gjør. Det er ikke for å
-  hente data. Et duplikat av et lagret vedtak gir ikke et nytt brev, og et vedtak
-  som ikke ble fattet, gir `unrecoverableError` (`beslutter_vedtak.md`, *4b*).
+  `SettSoknadStatusVedtakFattet`. Den bruker `hentVedtakUtfallForEvent` og
+  `vedtakKanFattes` bare for å sjekke at `FattVedtak` godtok eventen, som
+  `BestillTilsagnIOebs` gjør. Det er ikke for å hente data. En `VedtakFattet` som
+  `FattVedtak` avviste (kappløp), skal ikke gi et vedtaksbrev.
 - **Domain-typene ligger i `event/domain/`**, sammen med funksjonene som
   oversetter fra API-DTO-er og tabellrader (`tilDomain()`). Oversettelsen er
   det eneste stedet som kjenner begge modellene. Handlere leser bare
@@ -430,9 +430,9 @@ Lytter på `VedtakFattet`. Registreres for alle miljøer, etter
 `SettSoknadStatusVedtakFattet`. `id = "Journalfoer vedtaksbrev arbeidsgiver"`.
 
 1. Guard på `vedtaksbrev_arbeidsgiver_journalfoert`. Er den satt, `success()`.
-2. I transaksjon: `vedtakForEvent(data, event.id)`. `Venter` gir
-   `transientError`. `Duplikat` gir `log.info`, guard og `success()` uten
-   journalføring. `Avvik` gir `unrecoverableError`.
+2. I transaksjon: `hentVedtakUtfallForEvent(event.id)`. Er den null, gir det
+   `transientError` når `vedtakKanFattes(data)`, ellers `success()` uten
+   journalføring.
 3. Utenfor transaksjon, bare med data fra eventen:
    - `vedtaksbrevData(..., mottaker = ARBEIDSGIVER, dato = tidspunkt)` med
      `soknad`, `sak` og `vedtak` fra eventen, og sladding ved
@@ -498,9 +498,8 @@ og `BestillTilsagnIOebs`-testene.
 - Kode 6 og 7: `deltaker.navn` er `***********` i dataene til malen for
   `STRENGT_FORTROLIG` og `FORTROLIG`. Det er ikke sladdet for en sak som bare
   er skjermet, eller uten gradering.
-- Vedtak ikke lagret, men kan fattes: `transientError`. Likt vedtak fra en
-  annen event: `success()` uten journalføring. Vedtak etter retur:
-  `unrecoverableError` uten journalføring.
+- Vedtak ikke lagret, men kan fattes: `transientError`. Kan ikke fattes:
+  `success()` uten journalføring.
 - Feil fra Gotenberg eller Dokarkiv: `transientError`, ingen eventer.
 - Retry etter suksess: ingen nye kall og ingen nye eventer.
 - `SakDokumentApiTest` og `VedtaksbrevTest` er grønne etter at
