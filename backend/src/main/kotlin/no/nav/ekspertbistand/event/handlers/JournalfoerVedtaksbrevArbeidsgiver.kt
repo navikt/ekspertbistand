@@ -22,12 +22,12 @@ import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.Mottaker
+import no.nav.ekspertbistand.saksbehandling.VedtakForEvent
 import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
-import no.nav.ekspertbistand.saksbehandling.hentVedtakUtfallForEvent
 import no.nav.ekspertbistand.saksbehandling.saksbehandlerForBrev
 import no.nav.ekspertbistand.saksbehandling.sladdVedAdressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.tolkSoknadssum
-import no.nav.ekspertbistand.saksbehandling.vedtakKanFattes
+import no.nav.ekspertbistand.saksbehandling.vedtakForEvent
 import no.nav.ekspertbistand.saksbehandling.vedtaksbrevData
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -45,7 +45,8 @@ private val OSLO = TimeZone.of("Europe/Oslo")
  * Brevet bygges bare fra [EventData.VedtakFattet], ikke fra projeksjonene. Vedtaket [FattVedtak]
  * lagret for samme event avgjør om det skal journalføres:
  * - ikke lagret, men eventen kan fortsatt lagres: [FattVedtak] har ikke kjørt ennå, prøv igjen
- * - ikke lagret, og eventen kan ikke lagres: [FattVedtak] avviste den, ingen journalføring
+ * - saken har et likt vedtak fra en annen event: den eventen journalfører, ingen journalføring her
+ * - ellers ble vedtaket ikke fattet, og eventen feiler
  *
  * Deltakers navn sladdes ved kode 6 og 7, fordi tilgangskontrollen på person ikke gjelder i
  * arbeidsgivermappa. Innholdet i brevet logges ikke.
@@ -70,16 +71,17 @@ class JournalfoerVedtaksbrevArbeidsgiver @OptIn(ExperimentalTime::class) constru
         }
 
         val data = event.data
-        val (lagretUtfall, kanFattes) = transaction(database) {
-            hentVedtakUtfallForEvent(event.id) to vedtakKanFattes(data)
-        }
-        if (lagretUtfall == null) {
-            if (kanFattes) {
-                return transientError("Vedtaket for sak ${data.sakId} er ikke lagret ennå")
+        when (val vedtak = transaction(database) { vedtakForEvent(data, event.id) }) {
+            is VedtakForEvent.Lagret -> Unit
+            VedtakForEvent.Venter -> return transientError("Vedtaket for sak ${data.sakId} er ikke lagret ennå")
+            is VedtakForEvent.Duplikat -> {
+                log.info("Vedtaket for sak {} er likt vedtaket fra event {}, ingen journalføring av vedtaksbrev", data.sakId, vedtak.eventId)
+                idempotencyGuard.guard(event, journalfoertSubtask)
+                return success()
             }
-            log.info("Vedtaket for sak {} ble avvist, ingen journalføring av vedtaksbrev", data.sakId)
-            idempotencyGuard.guard(event, journalfoertSubtask)
-            return success()
+
+            is VedtakForEvent.Avvik ->
+                return unrecoverableError("Vedtaket for sak ${data.sakId} ble ikke fattet: ${vedtak.beskrivelse}")
         }
 
         val utfall = data.vedtak.utfall.tilForelopigUtfall()

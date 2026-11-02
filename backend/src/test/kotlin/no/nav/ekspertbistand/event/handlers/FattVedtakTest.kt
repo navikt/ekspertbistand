@@ -134,54 +134,71 @@ class FattVedtakTest {
     }
 
     @Test
-    fun `utdatert versjon gir ingen endring`() = testApplicationWithDatabase {
+    fun `utdatert versjon feiler uten endring`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = tilBeslutning(database)
         val sakslogg = hentSakOppdatert(database).size
 
         val resultat = FattVedtak(database).handle(Event(1L, vedtakFattet(sak, versjon = 2)))
 
-        assertIs<EventHandledResult.Success>(resultat)
+        assertIs<EventHandledResult.UnrecoverableError>(resultat)
         assertEquals(Saksstatus.TIL_BESLUTNING.name, hentSak(database, sak)[SakTable.status])
         assertTrue(hentVedtakRader(database, sak).isEmpty())
         assertEquals(sakslogg, hentSakOppdatert(database).size)
     }
 
     @Test
-    fun `sak som ikke er TIL_BESLUTNING gir ingen endring`() = testApplicationWithDatabase {
+    fun `sak som ikke er TIL_BESLUTNING feiler uten endring`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = tilBeslutning(database)
         settStatus(database, sak, Saksstatus.UNDER_BEHANDLING)
 
-        assertIs<EventHandledResult.Success>(FattVedtak(database).handle(Event(1L, vedtakFattet(sak))))
+        assertIs<EventHandledResult.UnrecoverableError>(FattVedtak(database).handle(Event(1L, vedtakFattet(sak))))
 
         assertEquals(Saksstatus.UNDER_BEHANDLING.name, hentSak(database, sak)[SakTable.status])
         assertTrue(hentVedtakRader(database, sak).isEmpty())
     }
 
     @Test
-    fun `inhabil beslutter gir ingen endring`() = testApplicationWithDatabase {
+    fun `inhabil beslutter feiler uten endring`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = tilBeslutning(database)
         val sakslogg = hentSakOppdatert(database).size
 
         val resultat = FattVedtak(database).handle(Event(1L, vedtakFattet(sak, fattetAv = SAKSBEHANDLER_IDENT)))
 
-        assertIs<EventHandledResult.Success>(resultat)
+        assertIs<EventHandledResult.UnrecoverableError>(resultat)
         assertEquals(Saksstatus.TIL_BESLUTNING.name, hentSak(database, sak)[SakTable.status])
         assertTrue(hentVedtakRader(database, sak).isEmpty())
         assertEquals(sakslogg, hentSakOppdatert(database).size)
     }
 
     @Test
-    fun `nytt vedtak på allerede besluttet sak gir ingen ny rad`() = testApplicationWithDatabase {
+    fun `likt vedtak fra en annen event gir success uten ny rad`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = tilBeslutning(database)
         val handler = FattVedtak(database)
-
         handler.handle(Event(1L, vedtakFattet(sak)))
+        val sakslogg = hentSakOppdatert(database).size
+
         assertIs<EventHandledResult.Success>(handler.handle(Event(2L, vedtakFattet(sak))))
 
         assertEquals(1L, hentVedtakRader(database, sak).single()[VedtakTable.eventId])
+        assertEquals(sakslogg, hentSakOppdatert(database).size)
+    }
+
+    @Test
+    fun `annet vedtak på allerede besluttet sak feiler uten ny rad`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val sak = tilBeslutning(database)
+        val handler = FattVedtak(database)
+        handler.handle(Event(1L, vedtakFattet(sak)))
+
+        val resultat = handler.handle(Event(2L, vedtakFattet(sak, Saksstatus.AVSLATT)))
+
+        assertIs<EventHandledResult.UnrecoverableError>(resultat)
+        val vedtak = hentVedtakRader(database, sak).single()
+        assertEquals(1L, vedtak[VedtakTable.eventId])
+        assertEquals(Saksstatus.INNVILGET.name, vedtak[VedtakTable.utfall])
     }
 }

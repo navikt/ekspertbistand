@@ -10,8 +10,8 @@ import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
-import no.nav.ekspertbistand.saksbehandling.hentVedtakUtfallForEvent
-import no.nav.ekspertbistand.saksbehandling.vedtakKanFattes
+import no.nav.ekspertbistand.saksbehandling.VedtakForEvent
+import no.nav.ekspertbistand.saksbehandling.vedtakForEvent
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.arbeidsgiverTilgangVarighet
@@ -36,7 +36,8 @@ private const val settSoknadStatusSubtask = "soknadstatus_vedtak_satt"
  * lagret vedtaket for samme event. Handlerne kjører hver for seg, så denne slår opp vedtaket:
  * - lagret: søknaden oppdateres, men bare fra `innsendt`
  * - ikke lagret, men eventen kan fortsatt lagres: [FattVedtak] har ikke kjørt ennå, prøv igjen
- * - ikke lagret, og eventen kan ikke lagres: [FattVedtak] avviste den, ingen endring
+ * - saken har et likt vedtak fra en annen event: den eventen oppdaterer søknaden, ingen endring
+ * - ellers ble vedtaket ikke fattet, og eventen feiler
  */
 class SettSoknadStatusVedtakFattet @OptIn(ExperimentalTime::class) constructor(
     private val database: Database,
@@ -62,15 +63,19 @@ class SettSoknadStatusVedtakFattet @OptIn(ExperimentalTime::class) constructor(
 
         return transaction(database) {
             try {
-                val utfall = hentVedtakUtfallForEvent(event.id)
-                if (utfall == null) {
-                    return@transaction if (vedtakKanFattes(event.data)) {
-                        transientError("Vedtaket for søknad $soknadId er ikke lagret ennå")
-                    } else {
-                        log.info("Vedtaket for søknad {} ble avvist, søknadsstatus endres ikke", soknadId)
+                val utfall = when (val vedtak = vedtakForEvent(event.data, event.id)) {
+                    is VedtakForEvent.Lagret -> vedtak.utfall
+                    VedtakForEvent.Venter ->
+                        return@transaction transientError("Vedtaket for søknad $soknadId er ikke lagret ennå")
+
+                    is VedtakForEvent.Duplikat -> {
+                        log.info("Vedtaket for søknad {} er likt vedtaket fra event {}, søknadsstatus endres ikke", soknadId, vedtak.eventId)
                         idempotencyGuard.guard(event, settSoknadStatusSubtask)
-                        success()
+                        return@transaction success()
                     }
+
+                    is VedtakForEvent.Avvik ->
+                        return@transaction unrecoverableError("Vedtaket for søknad $soknadId ble ikke fattet: ${vedtak.beskrivelse}")
                 }
 
                 val nyStatus = when (utfall) {

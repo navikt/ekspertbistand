@@ -532,20 +532,59 @@ fun hentVedtakUtfallForEvent(eventId: Long): Saksstatus? =
         .singleOrNull()
         ?.let { Saksstatus.valueOf(it[VedtakTable.utfall]) }
 
+/** Hva [fattVedtak] har gjort, eller vil gjøre, med en [EventData.VedtakFattet]. */
+sealed interface VedtakForEvent {
+    data class Lagret(val utfall: Saksstatus) : VedtakForEvent
+
+    /** Ikke lagret, men saken kan fortsatt få vedtaket. [fattVedtak] har ikke kjørt ennå. */
+    data object Venter : VedtakForEvent
+
+    /** Saken har et likt vedtak (samme versjon og utfall) fra [eventId], for eksempel fra to faner. */
+    data class Duplikat(val eventId: Long) : VedtakForEvent
+
+    /** Saken har et annet vedtak, eller kan ikke få dette. Beslutteren fikk 202 for et vedtak som ikke ble fattet. */
+    data class Avvik(val beskrivelse: String) : VedtakForEvent
+}
+
 /**
- * Om [EventData.VedtakFattet] fortsatt kan lagres av [fattVedtak], slik saken står nå.
- * Må kalles i en pågående transaksjon.
+ * Slår opp vedtaket for [eventId]. Handlerne på [EventData.VedtakFattet] kjører hver for seg, og
+ * dette skiller «[fattVedtak] har ikke kjørt» fra et duplikat og fra et vedtak som ikke ble fattet.
+ * Se `specifications/beslutter_vedtak.md`, 4b. Må kalles i en pågående transaksjon.
  */
-fun vedtakKanFattes(data: EventData.VedtakFattet): Boolean {
+fun vedtakForEvent(data: EventData.VedtakFattet, eventId: Long): VedtakForEvent {
+    hentVedtakUtfallForEvent(eventId)?.let { return VedtakForEvent.Lagret(it) }
+
     val soknadId = UUID.fromString(data.soknadId)
     val sak = SakTable.select(SakTable.sakId, SakTable.status)
         .where { SakTable.soknadId eq soknadId }
         .singleOrNull()
-        ?: return false
-    val siste = hentSisteForelopigVedtakRef(sak[SakTable.sakId])
-    return beslutningHindring(
-        Saksstatus.valueOf(sak[SakTable.status]), siste, data.forelopigVedtakVersjon, data.fattetAvIdent,
-    ) == null
+        ?: return VedtakForEvent.Avvik("fant ikke sak for søknad $soknadId")
+    val sakId = sak[SakTable.sakId]
+
+    val lagret = VedtakTable
+        .join(ForelopigVedtakTable, JoinType.INNER, VedtakTable.forelopigVedtakId, ForelopigVedtakTable.id)
+        .select(VedtakTable.eventId, VedtakTable.utfall, ForelopigVedtakTable.versjon)
+        .where { VedtakTable.sakId eq sakId }
+        .singleOrNull()
+    if (lagret != null) {
+        val versjon = lagret[ForelopigVedtakTable.versjon]
+        val utfall = lagret[VedtakTable.utfall]
+        return if (versjon == data.forelopigVedtakVersjon && utfall == data.utfall.name) {
+            VedtakForEvent.Duplikat(lagret[VedtakTable.eventId])
+        } else {
+            VedtakForEvent.Avvik(
+                "sak $sakId har vedtak $utfall på versjon $versjon, eventen er ${data.utfall} på versjon ${data.forelopigVedtakVersjon}"
+            )
+        }
+    }
+
+    val hindring = beslutningHindring(
+        Saksstatus.valueOf(sak[SakTable.status]),
+        hentSisteForelopigVedtakRef(sakId),
+        data.forelopigVedtakVersjon,
+        data.fattetAvIdent,
+    ) ?: return VedtakForEvent.Venter
+    return VedtakForEvent.Avvik("sak $sakId kan ikke få vedtaket: $hindring")
 }
 
 /** Sakene blant [sakIder] som har minst én retur. Må kalles i en pågående transaksjon. */

@@ -128,30 +128,46 @@ class BestillTilsagnIOebsTest {
     }
 
     @Test
-    fun `vedtak avvist av FattVedtak etter retur gir ingen bestilling`() = testApplicationWithDatabase {
+    fun `vedtak etter retur feiler uten bestilling`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = innvilgetTilBeslutning(database)
         settStatus(database, sak, Saksstatus.UNDER_BEHANDLING)
         val event = Event(1L, vedtakFattet(sak))
         FattVedtak(database).handle(event)
 
-        assertIs<EventHandledResult.Success>(handler(database).handle(event))
+        assertIs<EventHandledResult.UnrecoverableError>(handler(database).handle(event))
 
         assertTrue(outbox(database).isEmpty())
         assertTrue(bestillinger(database).isEmpty())
     }
 
     @Test
-    fun `vedtak fra inhabil beslutter gir ingen bestilling`() = testApplicationWithDatabase {
+    fun `vedtak fra inhabil beslutter feiler uten bestilling`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
         val sak = innvilgetTilBeslutning(database)
         val event = Event(1L, vedtakFattet(sak, fattetAv = SAKSBEHANDLER_IDENT))
         FattVedtak(database).handle(event)
 
-        assertIs<EventHandledResult.Success>(handler(database).handle(event))
+        assertIs<EventHandledResult.UnrecoverableError>(handler(database).handle(event))
 
         assertTrue(outbox(database).isEmpty())
         assertTrue(bestillinger(database).isEmpty())
+    }
+
+    @Test
+    fun `likt vedtak fra en annen event gir success uten ny bestilling`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val sak = innvilgetTilBeslutning(database)
+        val forste = Event(1L, vedtakFattet(sak))
+        FattVedtak(database).handle(forste)
+        handler(database).handle(forste)
+        val duplikat = Event(2L, vedtakFattet(sak))
+        FattVedtak(database).handle(duplikat)
+
+        assertIs<EventHandledResult.Success>(handler(database).handle(duplikat))
+
+        assertEquals(1, outbox(database).size)
+        assertEquals(1, bestillinger(database).size)
     }
 
     @Test

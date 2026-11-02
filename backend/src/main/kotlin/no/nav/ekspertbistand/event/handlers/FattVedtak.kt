@@ -12,8 +12,10 @@ import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
+import no.nav.ekspertbistand.saksbehandling.VedtakForEvent
 import no.nav.ekspertbistand.saksbehandling.fattVedtak
 import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
+import no.nav.ekspertbistand.saksbehandling.vedtakForEvent
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
@@ -27,8 +29,9 @@ private const val fattVedtakSubtask = "vedtak_fattet"
  * [EventData.SakOppdatert] til saksloggen. Se `specifications/beslutter_vedtak.md`.
  *
  * Status, versjon og habilitet sjekkes på nytt på den låste saken, se
- * [no.nav.ekspertbistand.saksbehandling.beslutningHindring]. Avvises eventen, lagres ingenting og
- * saksloggen får ingen post. Lagringen, eventen og idempotens-raden skrives i samme transaksjon.
+ * [no.nav.ekspertbistand.saksbehandling.beslutningHindring]. Lagres ikke vedtaket, får saksloggen
+ * ingen post. Det er greit når saken har et likt vedtak fra en annen event, ellers feiler eventen.
+ * Lagringen, eventen og idempotens-raden skrives i samme transaksjon.
  */
 class FattVedtak(
     private val database: Database,
@@ -69,7 +72,11 @@ class FattVedtak(
                         )
                     )
                 } else {
-                    log.warn("Vedtak for sak {} ble ikke lagret: saken kan ikke lenger besluttes", sakId)
+                    val vedtak = vedtakForEvent(data, event.id)
+                    if (vedtak !is VedtakForEvent.Duplikat) {
+                        return@transaction unrecoverableError("Vedtak for sak $sakId ble ikke fattet: $vedtak")
+                    }
+                    log.info("Vedtak for sak {} er allerede fattet likt av event {}", sakId, vedtak.eventId)
                 }
                 idempotencyGuard.guard(event, fattVedtakSubtask)
                 success()
