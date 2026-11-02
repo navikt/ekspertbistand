@@ -503,9 +503,6 @@ og `BestillTilsagnIOebs`-testene.
   `opprettetTidspunkt`, og for en søknad med fritekst i `kompetanse` og tomme
   lister.
 - `SoknadStatus.utkast.tilDomain()` kaster `IllegalStateException`.
-- Handleren leser ikke projeksjonene: testen setter opp bare raden i `vedtak`
-  for eventen, ingen `forelopig_vedtak` eller søknad, og brevet får dataene
-  fra eventen.
 - Hvert av de tre utfallene gir riktig mal, `UTGAAENDE` til orgnr,
   `journalfoerendeEnhet` lik behandlende enhet, `Nav-User-Id` lik beslutter og
   én `VedtaksbrevArbeidsgiverJournalfoert` og én `SakOppdatert` i køen.
