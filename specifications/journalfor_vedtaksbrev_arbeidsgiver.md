@@ -96,7 +96,8 @@ Disse er ikke avklart i kortet. De er valgt her og kan endres ved review:
   `SettSoknadStatusVedtakFattet`. Den bruker `hentVedtakUtfallForEvent` og
   `vedtakKanFattes` bare for å sjekke at `FattVedtak` godtok eventen, som
   `BestillTilsagnIOebs` gjør. Det er ikke for å hente data. En `VedtakFattet` som
-  `FattVedtak` avviste (kappløp), skal ikke gi et vedtaksbrev.
+  `FattVedtak` avviste (kappløp), skal ikke gi et vedtaksbrev, og eventen feiler
+  med `unrecoverableError`.
 - **Domain-typene ligger i `event/domain/`**, sammen med funksjonene som
   oversetter fra API-DTO-er og tabellrader (`tilDomain()`). Oversettelsen er
   det eneste stedet som kjenner begge modellene. Handlere leser bare
@@ -431,7 +432,7 @@ Lytter på `VedtakFattet`. Registreres for alle miljøer, etter
 
 1. Guard på `vedtaksbrev_arbeidsgiver_journalfoert`. Er den satt, `success()`.
 2. I transaksjon: `hentVedtakUtfallForEvent(event.id)`. Er den null, gir det
-   `transientError` når `vedtakKanFattes(data)`, ellers `success()` uten
+   `transientError` når `vedtakKanFattes(data)`, ellers `unrecoverableError` uten
    journalføring.
 3. Utenfor transaksjon, bare med data fra eventen:
    - `vedtaksbrevData(..., mottaker = ARBEIDSGIVER, dato = tidspunkt)` med
@@ -499,7 +500,7 @@ og `BestillTilsagnIOebs`-testene.
   `STRENGT_FORTROLIG` og `FORTROLIG`. Det er ikke sladdet for en sak som bare
   er skjermet, eller uten gradering.
 - Vedtak ikke lagret, men kan fattes: `transientError`. Kan ikke fattes:
-  `success()` uten journalføring.
+  `unrecoverableError` uten journalføring.
 - Feil fra Gotenberg eller Dokarkiv: `transientError`, ingen eventer.
 - Retry etter suksess: ingen nye kall og ingen nye eventer.
 - `SakDokumentApiTest` og `VedtaksbrevTest` er grønne etter at
