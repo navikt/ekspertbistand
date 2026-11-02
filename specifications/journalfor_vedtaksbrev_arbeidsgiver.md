@@ -84,6 +84,7 @@ Kortet har ingen sjekklister eller vedlegg (sjekket 2026-11-02).
 | Kortbeskrivelsen og kommentarer, 2026-10-30 og 2026-11-02 | Brevet til arbeidsgiver journalføres når vedtaket er fattet. Henger sammen med `3moZGD2U` (vedtak og tilsagn) og `jRixpurm` (kode 6/7 og sladding i arbeidsgivermappa). Tre tilstander: innvilget, innvilget med redusert beløp og avslått. Løses før arbeidsgiver varsles. Visningen avhenger av kort 682 og skisser, som Hanna skal lage. |
 | Ken, 2026-10-30 til 2026-11-02 (også kort 645, `varsle_arbeidsgiver_vedtak.md`): omfang, varsel og visning | Bare backend. Visningen er skilt ut i kort 693 (`mmcwqp5V`). Alle vedtak varsles, også avslag, via notifikasjonsplattformen, ikke Altinn. Eventen etter journalføringen har nok data til varselet, uten databaseoppslag, og designes her. Arbeidsgiver får brevet usladdet, rendret med Gotenberg som forhåndsvisningen, og ser og laster det ned i vår løsning. PDF-er hentes aldri fra Joark til arbeidsgiver. En blob på saken kan vurderes. |
 | Ken, 2026-11-01 og 2026-11-02, ROS 2106 - 28079, `jRixpurm` og `navikt/tiltak-tilsagnsbrev` ([`Tilsagn.getSladdetVersjon`](https://github.com/navikt/tiltak-tilsagnsbrev/blob/e209755995fbdff10e4aaf3748afc023767433a7/src/main/java/no/nav/tag/tilsagnsbrev/dto/tilsagnsbrev/Tilsagn.java#L67), [`Oppgaver.opprettPdfDok`](https://github.com/navikt/tiltak-tilsagnsbrev/blob/e209755995fbdff10e4aaf3748afc023767433a7/src/main/java/no/nav/tag/tilsagnsbrev/behandler/Oppgaver.java), lest 2026-11-01): sladding | Deltaker sladdes i det journalførte brevet ved kode 6 og 7 med `***********`, som Team Tiltak. Team Tiltak lager to PDF-er: Joark-kopien sladdes ved `erKode6Eller7()` (navn, fødselsnummer og adresse), PDF-en til arbeidsgiver sladdes ikke. Skjerming gir ingen sladding. |
+| Ken, 2026-11-01 og 2026-11-02, Slack, Team Dokumentløsninger (<https://nav-it.slack.com/archives/C6W9E5GPJ/p1768916740867909>), Team Tiltak og Mulighetsrommet: journalpost | `journalfoerendeEnhet` er `9999` fordi journalføringen er automatisk, som hos Team Tiltak og Mulighetsrommet. Vi sender ingen `Nav-User-Id`. Kanal `NAV_NO` passer når dokumentet vises på nav.no og mottaker varsles (Alexander). Brevkoden er `nav_tiltak_ekspertbistand`. Dokumentløsninger har ingen sterke meninger om den. |
 | Ken, 2026-11-01 og 2026-11-02, og minne: eventmodell | `event_log` og eventkøen er masterdata, og en begrunnelse kan ligge i en event. `event_log` endres aldri, og eventer i prod endres aldri. `SakProjection` får ikke funksjonalitet for nye saker. `VedtakFattet` får søknaden, saken (med vilkårsvurderinger) og vedtaket, så handlere ikke leser projeksjonene. Det støtter også ikke-benekting. Eventer får egne domain-typer (`SoknadDomainV2`, `SakDomain`, `VedtakDomain`), ikke API-DTO-er, så API-et kan endres uten at eventene knekker. Domain-typene får også egne enums i `event/domain/`, og oversettelsen kaster når en verdi ikke kan oversettes. `SoknadDomainV2` følger en innsendt søknad, ikke nullbarheten for utkast. |
 | Ken, 2026-11-01, og spørring mot `event_log` i prod, 2026-11-01: søknadsdata | 14 360 rader i 9 eventtyper har `soknad`. Alle har `id`, `opprettetAv`, gyldig `opprettetTidspunkt` og `beliggenhetsadresse`. `status` er utelatt (`innsendt`) unntatt i `tilskuddsbrevVist` (`godkjent`, eller `soknad` lik null i 696 rader). `ekspert` har tre former: fritekst i `kompetanse` (før 2026-08-11), listene med `virksomhetNavn`/`virksomhetOrgnr`, og listene uten. `SoknadDomainV1` blir en nøyaktig kopi av `DTO.Soknad` for eventene i prod. JSON-en er lik, så typen kan byttes uten at `event_log` endres. Eget kort. |
 
@@ -161,13 +162,10 @@ Disse er ikke avklart i kortet. De er valgt her og kan endres ved review:
   `vedtak.innstiltAvIdent`, ellers null. Det er samme regel som
   `hentSaksbehandlerNavn` i forhåndsvisningen. Norg trengs ikke.
 - **`journalfoerendeEnhet` er `9999`, og vi sender ingen `Nav-User-Id`** (Ken,
-  2026-11-02). Vi vurderte sakens behandlende enhet og identen til beslutter,
-  men en Nav-enhet eller ansatt-ident her kan gi tilgangsstyring i Gosys og
-  Joark som ikke gjør de samme sjekkene som vi, eller andre sideeffekter vi
-  ikke ser. Team Tiltak og Mulighetsrommet journalfører vedtak med `9999` og
-  uten ident. `DokArkivClient` beholder `"9999"` for alle kall, med en
+  2026-11-02). Journalføringen er automatisk, som hos Team Tiltak og
+  Mulighetsrommet. `DokArkivClient` beholder `"9999"` for alle kall, med en
   kommentar om at det er automatisk journalføring.
-- **Kanal er `NAV_NO`**, som i dag.
+- **Kanal er `NAV_NO`**, som i dag (Alexander).
 - **`eksternReferanseId = "<soknadId>-vedtaksbrev-arbeidsgiver"`.** Det er ett
   vedtak per søknad. Dokarkiv gir 409 og samme journalpost ved et nytt forsøk.
 - **Tittel**: «Vedtak om tilskudd til ekspertbistand» ved innvilgelse og
