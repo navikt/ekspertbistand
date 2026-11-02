@@ -4,6 +4,10 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.event.domain.SakDomain
+import no.nav.ekspertbistand.event.domain.SoknadDomainV2
+import no.nav.ekspertbistand.event.domain.VedtakDomain
+import no.nav.ekspertbistand.event.domain.tilSaksstatus
 import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
@@ -97,14 +101,117 @@ object TestEventData {
 
     @OptIn(ExperimentalTime::class)
     val vedtakFattet by lazy {
-        EventData.VedtakFattet(
+        vedtakFattet(sakId = UUID.randomUUID().toString(), soknadId = sampleSoknad.id!!)
+    }
+
+    /** [EventData.VedtakFattet] med gyldige domain-felt. [utfall] gir også `utfall` på eventen. */
+    @OptIn(ExperimentalTime::class)
+    fun vedtakFattet(
+        sakId: String,
+        soknadId: String,
+        utfall: VedtakDomain.Utfall = VedtakDomain.Utfall.INNVILGE,
+        versjon: Int = 1,
+        fattetAvIdent: String = "B123456",
+        tidspunkt: Instant = Instant.parse("2026-04-04T09:00:00Z"),
+        soknad: SoknadDomainV2 = sampleSoknadDomain.copy(id = soknadId),
+        sak: SakDomain = sampleSakDomain.copy(sakId = sakId),
+        vedtak: VedtakDomain = sampleVedtakDomain(utfall).copy(versjon = versjon),
+    ) = EventData.VedtakFattet(
+        sakId = sakId,
+        soknadId = soknadId,
+        forelopigVedtakVersjon = versjon,
+        utfall = utfall.tilSaksstatus(),
+        fattetAvIdent = fattetAvIdent,
+        fattetAvNavn = "Beslutter Navn",
+        tidspunkt = tidspunkt,
+        soknad = soknad,
+        sak = sak,
+        vedtak = vedtak,
+    )
+
+    @OptIn(ExperimentalTime::class)
+    val vedtaksbrevArbeidsgiverJournalfoert by lazy {
+        EventData.VedtaksbrevArbeidsgiverJournalfoert(
             sakId = UUID.randomUUID().toString(),
             soknadId = sampleSoknad.id!!,
-            forelopigVedtakVersjon = 1,
-            utfall = Saksstatus.INNVILGET,
-            fattetAvIdent = "B123456",
-            fattetAvNavn = "Beslutter Navn",
-            tidspunkt = Instant.parse("2026-04-04T09:00:00Z"),
+            utfall = VedtakDomain.Utfall.INNVILGE,
+            virksomhetsnummer = "987654321",
+            virksomhetsnavn = "Testbedrift AS",
+            journalpostId = "123",
+            dokumentInfoId = "456",
+            tidspunkt = Instant.parse("2026-04-04T09:05:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val sampleSoknadDomain = SoknadDomainV2(
+        id = "00000000-0000-4000-8000-000000000001",
+        virksomhet = SoknadDomainV2.Virksomhet(
+            virksomhetsnummer = "987654321",
+            virksomhetsnavn = "Testbedrift AS",
+            kontaktperson = SoknadDomainV2.Kontaktperson("Kontakt Person", "kontakt@testbedrift.no", "12345678"),
+            beliggenhetsadresse = "Testveien 1, 0557 Oslo",
+        ),
+        ansatt = SoknadDomainV2.Ansatt(fnr = "01010112345", navn = "Ansatt Navn"),
+        ekspert = SoknadDomainV2.Ekspert(
+            navn = "Ekspert Navn",
+            virksomhet = "Ekspertselskap",
+            virksomhetNavn = "Ekspertselskap AS",
+            virksomhetOrgnr = "912345678",
+            godkjentUtdanningEllerAutorisasjon = listOf("Ergoterapeut"),
+            relevantKompetanse = listOf("Ergonomi"),
+        ),
+        behovForBistand = SoknadDomainV2.BehovForBistand(
+            begrunnelse = "Behov begrunnelse",
+            behov = "Behov",
+            estimertKostnad = "9000",
+            timer = "12",
+            tilrettelegging = "Tilrettelegging tekst",
+            startdato = LocalDate(2026, 4, 1),
+        ),
+        nav = SoknadDomainV2.Nav(kontaktperson = "Veileder Navn"),
+        opprettetAv = "42",
+        opprettetTidspunkt = Instant.parse("2026-03-01T09:00:00Z"),
+        status = SoknadDomainV2.Status.innsendt,
+    )
+
+    @OptIn(ExperimentalTime::class)
+    val sampleSakDomain = SakDomain(
+        sakId = "00000000-0000-4000-8000-0000000000aa",
+        status = SakDomain.Status.TIL_BESLUTNING,
+        kildeTilBehandling = SakDomain.KildeTilBehandling.EKSPERTBISTAND,
+        behandlendeEnhet = "0315",
+        behandlendeEnhetNavn = "Nav arbeidslivssenter Oslo",
+        saksbehandlerIdent = "Z123456",
+        saksbehandlerNavn = "Tore Tang",
+        beslutterIdent = "B123456",
+        beslutterNavn = "Beslutter Navn",
+        adressebeskyttelse = null,
+        skjermet = false,
+        vilkarsvurderinger = listOf(
+            SakDomain.Vilkarsvurdering(
+                vilkar = SakDomain.Vilkarsvurdering.Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD,
+                godkjent = true,
+                notat = null,
+                vurdertAvIdent = "Z123456",
+                vurdertTidspunkt = Instant.parse("2026-04-02T09:00:00Z"),
+            ),
+        ),
+    )
+
+    @OptIn(ExperimentalTime::class)
+    fun sampleVedtakDomain(utfall: VedtakDomain.Utfall = VedtakDomain.Utfall.INNVILGE): VedtakDomain {
+        val innvilget = utfall != VedtakDomain.Utfall.AVSLAA
+        return VedtakDomain(
+            versjon = 1,
+            utfall = utfall,
+            innvilgetBelop = 6000.takeIf { utfall == VedtakDomain.Utfall.INNVILGE_REDUSERT },
+            tiltaksperiodeFra = LocalDate(2026, 4, 1).takeIf { innvilget },
+            tiltaksperiodeTil = LocalDate(2026, 6, 30).takeIf { innvilget },
+            begrunnelseDeltaker = "Begrunnelse til deltaker",
+            begrunnelseArbeidsgiver = "Begrunnelse til arbeidsgiver".takeIf { utfall != VedtakDomain.Utfall.INNVILGE },
+            innstiltAvIdent = "Z123456",
+            sendtTidspunkt = Instant.parse("2026-04-03T09:00:00Z"),
         )
     }
 
@@ -316,5 +423,6 @@ object TestEventData {
         forelopigVedtakSendtTilBeslutter,
         vedtakFattet,
         forelopigVedtakReturnert,
+        vedtaksbrevArbeidsgiverJournalfoert,
     )
 }

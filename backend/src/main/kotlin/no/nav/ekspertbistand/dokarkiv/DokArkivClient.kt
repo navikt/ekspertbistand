@@ -7,6 +7,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.accept
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -63,8 +64,14 @@ class DokArkivClient(
         )
 
         const val API_PATH = "/rest/journalpostapi/v1/journalpost"
+        const val NAV_USER_ID = "Nav-User-Id"
     }
 
+    /**
+     * [journalfoerendeEnhet] er `9999` når journalføringen skjer automatisk uten en Nav-ansatt, og ellers
+     * enheten som fattet vedtaket. [navUserId] er identen til den ansatte, og sendes som [NAV_USER_ID] bare når
+     * den er satt.
+     */
     suspend fun opprettOgFerdigstillJournalpost(
         tittel: String,
         virksomhetsnummer: String,
@@ -73,12 +80,14 @@ class DokArkivClient(
         dokumentPdfAsBytes: ByteArray,
         journalposttype: JournalpostType,
         avsenderMottaker: AvsenderMottaker?,
+        journalfoerendeEnhet: String,
+        navUserId: String?,
     ): OpprettJournalpostResponse {
         val journalpost = Journalpost(
             bruker = Bruker(id = virksomhetsnummer, idType = "ORGNR"),
             avsenderMottaker = avsenderMottaker,
             eksternReferanseId = eksternReferanseId,
-            journalfoerendeEnhet = "9999",
+            journalfoerendeEnhet = journalfoerendeEnhet,
             tittel = tittel,
             dokumenter = listOf(
                 Dokument(
@@ -114,6 +123,7 @@ class DokArkivClient(
                     { throw Exception("Failed to get token: ${it.error}") }
                 )
             )
+            navUserId?.let { header(NAV_USER_ID, it) }
             setBody(journalpost)
         }
 

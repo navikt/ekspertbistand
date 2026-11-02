@@ -13,13 +13,14 @@ import no.nav.ekspertbistand.mocks.mockDokArkiv
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class DokArkivClientTest {
     @Test
     fun opprettJournalpost() = testApplication {
         val dokumentPdfAsBytes = ByteArray(10) { 0x1F.toByte() }
 
-        mockDokArkiv { request: OpprettJournalpostRequest ->
+        mockDokArkiv(onHeaders = { assertNull(it[DokArkivClient.NAV_USER_ID]) }) { request: OpprettJournalpostRequest ->
             assertEquals("Søknad om tilskudd til ekspertbistand", request.tittel)
             assertEquals("123456789", request.bruker.id)
             assertEquals("ORGNR", request.bruker.idType)
@@ -69,10 +70,42 @@ class DokArkivClientTest {
             eksternReferanseId = "ekstern-ref-123",
             dokumentPdfAsBytes = dokumentPdfAsBytes,
             journalposttype = JournalpostType.INNGAAENDE,
-            avsenderMottaker = AvsenderMottaker.orgnr("123456789")
+            avsenderMottaker = AvsenderMottaker.orgnr("123456789"),
+            journalfoerendeEnhet = "9999",
+            navUserId = null,
         ).let {
             assertEquals("DOK123456", it.journalpostId)
         }
+    }
+
+    @Test
+    fun `sender enheten som gitt og Nav-User-Id når den er satt`() = testApplication {
+        var navUserId: String? = null
+        mockDokArkiv(onHeaders = { navUserId = it[DokArkivClient.NAV_USER_ID] }) { request ->
+            assertEquals("0315", request.journalfoerendeEnhet)
+            assertEquals("UTGAAENDE", request.journalposttype)
+            OpprettJournalpostResponse(
+                dokumenter = listOf(OpprettJournalpostDokument("DOC001")),
+                journalpostId = "DOK123456",
+                journalpostferdigstilt = true,
+            )
+        }
+        client = createClient { install(ContentNegotiation) { json() } }
+
+        DokArkivClient(azureAdTokenProvider = mockTokenProvider, defaultHttpClient = client)
+            .opprettOgFerdigstillJournalpost(
+                tittel = "Vedtak om tilskudd til ekspertbistand",
+                virksomhetsnummer = "123456789",
+                sak = Sak.FagSak("1234"),
+                eksternReferanseId = "ekstern-ref-456",
+                dokumentPdfAsBytes = ByteArray(10),
+                journalposttype = JournalpostType.UTGAAENDE,
+                avsenderMottaker = AvsenderMottaker.orgnr("123456789"),
+                journalfoerendeEnhet = "0315",
+                navUserId = "Z123456",
+            )
+
+        assertEquals("Z123456", navUserId)
     }
 }
 

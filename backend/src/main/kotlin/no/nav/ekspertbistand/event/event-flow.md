@@ -46,6 +46,7 @@ flowchart TD
     e_TilskuddsbrevVist(["TilskuddsbrevVist"]):::event
     e_TiltaksgjennomforingOpprettet(["TiltaksgjennomforingOpprettet"]):::event
     e_VedtakFattet(["VedtakFattet"]):::event
+    e_VedtaksbrevArbeidsgiverJournalfoert(["VedtaksbrevArbeidsgiverJournalfoert"]):::event
     e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
     h_BestillTilsagnIOebs["BestillTilsagnIOebs"]:::handler
     h_FattVedtak["FattVedtak"]:::handler
@@ -54,6 +55,7 @@ flowchart TD
     h_JournalfoerNotatArenaSakOpprettet["JournalfoerNotatArenaSakOpprettet"]:::handler
     h_JournalfoerTilskuddsbrev["JournalfoerTilskuddsbrev"]:::handler
     h_JournalfoerTilskuddsbrevKildeAltinn["JournalfoerTilskuddsbrevKildeAltinn"]:::handler
+    h_JournalfoerVedtaksbrevArbeidsgiver["JournalfoerVedtaksbrevArbeidsgiver"]:::handler
     h_LagreForelopigVedtak["LagreForelopigVedtak"]:::handler
     h_LagreTilsagnsData["LagreTilsagnsData"]:::handler
     h_LagreTilsagnsDataKildeAltinn["LagreTilsagnsDataKildeAltinn"]:::handler
@@ -74,6 +76,7 @@ flowchart TD
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
     h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn["VarsleArbeidsgiverSoknadMottattBehandlesIAltinn"]:::handler
+    h_VedtaksbrevArbeidsgiverJournalfoertNoop["VedtaksbrevArbeidsgiverJournalfoertNoop"]:::handler
     p_SakProjection[["SakProjection"]]:::projection
     p_SaksbehandlingsstatistikkProjection[["SaksbehandlingsstatistikkProjection"]]:::projection
     p_SoknadBehandletForsinkelseProjection[["SoknadBehandletForsinkelseProjection"]]:::projection
@@ -92,6 +95,8 @@ flowchart TD
     h_JournalfoerInnsendtSoknad --> e_InnsendtSoknadJournalfoert
     h_JournalfoerTilskuddsbrev --> e_TilskuddsbrevJournalfoert
     h_JournalfoerTilskuddsbrevKildeAltinn --> e_TilskuddsbrevJournalfoertKildeAltinn
+    h_JournalfoerVedtaksbrevArbeidsgiver --> e_SakOppdatert
+    h_JournalfoerVedtaksbrevArbeidsgiver --> e_VedtaksbrevArbeidsgiverJournalfoert
     h_LagreForelopigVedtak --> e_SakOppdatert
     h_LagreTilsagnsData --> e_TilsagnsdataLagret
     h_OpprettSak --> e_SakOppdatert
@@ -113,6 +118,7 @@ flowchart TD
     e_TiltaksgjennomforingOpprettet --> h_JournalfoerNotatArenaSakOpprettet
     e_TilskuddsbrevMottatt --> h_JournalfoerTilskuddsbrev
     e_TilskuddsbrevMottattKildeAltinn --> h_JournalfoerTilskuddsbrevKildeAltinn
+    e_VedtakFattet --> h_JournalfoerVedtaksbrevArbeidsgiver
     e_ForelopigVedtakSendtTilBeslutter --> h_LagreForelopigVedtak
     e_TilskuddsbrevJournalfoert --> h_LagreTilsagnsData
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_LagreTilsagnsDataKildeAltinn
@@ -133,6 +139,7 @@ flowchart TD
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn
     e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn
+    e_VedtaksbrevArbeidsgiverJournalfoert --> h_VedtaksbrevArbeidsgiverJournalfoertNoop
     e_InnsendtSoknadJournalfoert -.-> p_SakProjection
     e_SakFrigjort -.-> p_SakProjection
     e_SakTildeltSaksbehandler -.-> p_SakProjection

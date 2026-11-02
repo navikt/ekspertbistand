@@ -72,6 +72,8 @@ class JournalfoerInnsendtSoknad(
                 dokumentPdfAsBytes = soknadPdf,
                 journalposttype = JournalpostType.INNGAAENDE,
                 avsenderMottaker = AvsenderMottaker.orgnr(soknad.virksomhet.virksomhetsnummer),
+                journalfoerendeEnhet = "9999",
+                navUserId = null,
             )
         }.getOrElse { e ->
             return transientError("Feil ved opprettelse av journalpost", e)

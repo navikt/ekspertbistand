@@ -9,12 +9,15 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.domain.hentSakDomain
+import no.nav.ekspertbistand.event.domain.tilDomain
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.UgyldigInputException
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import no.nav.ekspertbistand.infrastruktur.valider
+import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
@@ -60,8 +63,9 @@ suspend fun Application.configureBeslutterApiV1() {
         authenticate(AZURE_AD_PROVIDER) {
             route("/api/saksbehandling/v1/saker/{sakId}") {
                 post("/vedtak") {
-                    val (principal, sakId) = call.sjekkBeslutterTilgang(database, tilgangsmaskinClient)
+                    val (principal, sakId, sak) = call.sjekkBeslutterTilgang(database, tilgangsmaskinClient)
                         ?: return@post
+                    val behandlendeEnhetNavn = principal.enhetsnavn(sak.behandlendeEnhet)
                     val request = call.mottaGyldig<VedtakRequest>("ugyldig vedtak") ?: return@post
 
                     val resultat = transaction(database) {
@@ -70,6 +74,12 @@ suspend fun Application.configureBeslutterApiV1() {
                             forelopigVedtakVersjon = request.forelopigVedtakVersjon,
                             fattetAvIdent = principal.navIdent,
                         ) { soknadId, forelopigVedtak ->
+                            val vedtak = hentForelopigVedtak(sakId, forelopigVedtak.versjon)?.tilDomain()
+                                ?: return@publiserBeslutning null
+                            val sakDomain = hentSakDomain(sakId, behandlendeEnhetNavn)
+                                ?: return@publiserBeslutning null
+                            val soknad = findSoknadById(soknadId, filterForArbeidsgiver = false)?.tilDomain()
+                                ?: return@publiserBeslutning null
                             EventData.VedtakFattet(
                                 sakId = sakId.toString(),
                                 soknadId = soknadId.toString(),
@@ -78,6 +88,9 @@ suspend fun Application.configureBeslutterApiV1() {
                                 fattetAvIdent = principal.navIdent,
                                 fattetAvNavn = principal.navn,
                                 tidspunkt = Clock.System.now(),
+                                soknad = soknad,
+                                sak = sakDomain,
+                                vedtak = vedtak,
                             )
                         }
                     }
@@ -85,7 +98,7 @@ suspend fun Application.configureBeslutterApiV1() {
                 }
 
                 post("/retur") {
-                    val (principal, sakId) = call.sjekkBeslutterTilgang(database, tilgangsmaskinClient)
+                    val (principal, sakId, _) = call.sjekkBeslutterTilgang(database, tilgangsmaskinClient)
                         ?: return@post
                     val request = call.mottaGyldig<ReturRequest>("ugyldig retur")?.let(::validerRetur)
                         ?: return@post
@@ -115,6 +128,8 @@ suspend fun Application.configureBeslutterApiV1() {
     }
 }
 
+private data class BeslutterTilgang(val principal: AzureAdPrincipal, val sakId: UUID, val sak: SakTilgangsgrunnlag)
+
 /**
  * Rolle, enhet, Tilgangsmaskinen, kilde og tildeling, i den rekkefølgen. Svarer selv og
  * returnerer null ved avslag.
@@ -122,7 +137,7 @@ suspend fun Application.configureBeslutterApiV1() {
 private suspend fun ApplicationCall.sjekkBeslutterTilgang(
     database: Database,
     tilgangsmaskinClient: TilgangsmaskinClient,
-): Pair<AzureAdPrincipal, UUID>? {
+): BeslutterTilgang? {
     val principal = principalMedRolle(Role.BESLUTTER) ?: return null
     val sakId = sakIdParameter() ?: return null
 
@@ -141,7 +156,7 @@ private suspend fun ApplicationCall.sjekkBeslutterTilgang(
         return null
     }
     if (!sjekkErBeslutterPåSak(principal, sak)) return null
-    return principal to sakId
+    return BeslutterTilgang(principal, sakId, sak)
 }
 
 /** Leser og validerer kroppen. Svarer 400 og returnerer null hvis den ikke kan leses. */
@@ -180,13 +195,15 @@ sealed interface PubliserBeslutningResultat {
 /**
  * Låser saken, sjekker [beslutningHindring] og publiserer eventen fra [lagEvent] i kallerens
  * transaksjon. [fattetAvIdent] er null ved retur. [lagEvent] får søknaden og siste foreløpige vedtak.
+ * Returnerer [lagEvent] null, mangler data for eventen, og beslutningen avvises med
+ * [BeslutningHindring.FORELOPIG_VEDTAK_ENDRET] uten at noe publiseres.
  */
 @OptIn(ExperimentalTime::class)
 fun JdbcTransaction.publiserBeslutning(
     sakId: UUID,
     forelopigVedtakVersjon: Int,
     fattetAvIdent: String?,
-    lagEvent: (soknadId: UUID, forelopigVedtak: SisteForelopigVedtakRef) -> EventData,
+    lagEvent: (soknadId: UUID, forelopigVedtak: SisteForelopigVedtakRef) -> EventData?,
 ): PubliserBeslutningResultat {
     val sak = SakTable
         .select(SakTable.soknadId, SakTable.status)
@@ -206,7 +223,9 @@ fun JdbcTransaction.publiserBeslutning(
         return PubliserBeslutningResultat.Avvist(hindring ?: BeslutningHindring.FORELOPIG_VEDTAK_ENDRET)
     }
 
-    publishEventQueue(lagEvent(sak[SakTable.soknadId], siste))
+    val event = lagEvent(sak[SakTable.soknadId], siste)
+        ?: return PubliserBeslutningResultat.Avvist(BeslutningHindring.FORELOPIG_VEDTAK_ENDRET)
+    publishEventQueue(event)
     return PubliserBeslutningResultat.Publisert
 }
 
