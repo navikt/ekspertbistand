@@ -7,7 +7,6 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.accept
 import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -64,13 +63,11 @@ class DokArkivClient(
         )
 
         const val API_PATH = "/rest/journalpostapi/v1/journalpost"
-        const val NAV_USER_ID = "Nav-User-Id"
     }
 
     /**
      * [journalfoerendeEnhet] er `9999` (automatisk journalføring) i alle kall i dag. En Nav-enhet her kan gi
-     * tilgangsstyring i Gosys og Joark som ikke matcher vår. [navUserId] er identen til den ansatte, og sendes
-     * som [NAV_USER_ID] bare når den er satt.
+     * tilgangsstyring i Gosys og Joark som ikke matcher vår.
      */
     suspend fun opprettOgFerdigstillJournalpost(
         tittel: String,
@@ -81,7 +78,6 @@ class DokArkivClient(
         journalposttype: JournalpostType,
         avsenderMottaker: AvsenderMottaker?,
         journalfoerendeEnhet: String,
-        navUserId: String?,
     ): OpprettJournalpostResponse {
         val journalpost = Journalpost(
             bruker = Bruker(id = virksomhetsnummer, idType = "ORGNR"),
@@ -123,7 +119,6 @@ class DokArkivClient(
                     { throw Exception("Failed to get token: ${it.error}") }
                 )
             )
-            navUserId?.let { header(NAV_USER_ID, it) }
             setBody(journalpost)
         }
 

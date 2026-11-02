@@ -47,7 +47,6 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
 
     private class Dokarkiv {
         val requests = mutableListOf<OpprettJournalpostRequest>()
-        val navUserIds = mutableListOf<String?>()
     }
 
     private class Gotenberg {
@@ -62,10 +61,7 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
         dokarkivStatus: HttpStatusCode = HttpStatusCode.Created,
         ferdigstilt: Boolean = true,
     ): JournalfoerVedtaksbrevArbeidsgiver {
-        mockDokArkiv(
-            status = dokarkivStatus,
-            onHeaders = { dokarkiv.navUserIds += it[DokArkivClient.NAV_USER_ID] },
-        ) { request ->
+        mockDokArkiv(status = dokarkivStatus) { request ->
             dokarkiv.requests += request
             OpprettJournalpostResponse(
                 dokumenter = listOf(OpprettJournalpostDokument("9876")),
@@ -151,7 +147,6 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
             assertEquals("912345670", request.bruker.id)
             assertEquals("9999", request.journalfoerendeEnhet)
             assertEquals("${sak.soknadId}-vedtaksbrev-arbeidsgiver", request.eksternReferanseId)
-            assertEquals(listOf<String?>(BESLUTTER_IDENT), dokarkiv.navUserIds)
 
             val html = gotenberg.html.single()
             assertContains(html, mal)

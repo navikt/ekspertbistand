@@ -13,14 +13,13 @@ import no.nav.ekspertbistand.mocks.mockDokArkiv
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 
 class DokArkivClientTest {
     @Test
     fun opprettJournalpost() = testApplication {
         val dokumentPdfAsBytes = ByteArray(10) { 0x1F.toByte() }
 
-        mockDokArkiv(onHeaders = { assertNull(it[DokArkivClient.NAV_USER_ID]) }) { request: OpprettJournalpostRequest ->
+        mockDokArkiv { request: OpprettJournalpostRequest ->
             assertEquals("Søknad om tilskudd til ekspertbistand", request.tittel)
             assertEquals("123456789", request.bruker.id)
             assertEquals("ORGNR", request.bruker.idType)
@@ -72,16 +71,14 @@ class DokArkivClientTest {
             journalposttype = JournalpostType.INNGAAENDE,
             avsenderMottaker = AvsenderMottaker.orgnr("123456789"),
             journalfoerendeEnhet = "9999",
-            navUserId = null,
         ).let {
             assertEquals("DOK123456", it.journalpostId)
         }
     }
 
     @Test
-    fun `sender enheten som gitt og Nav-User-Id når den er satt`() = testApplication {
-        var navUserId: String? = null
-        mockDokArkiv(onHeaders = { navUserId = it[DokArkivClient.NAV_USER_ID] }) { request ->
+    fun `sender enheten som gitt`() = testApplication {
+        mockDokArkiv { request ->
             assertEquals("0315", request.journalfoerendeEnhet)
             assertEquals("UTGAAENDE", request.journalposttype)
             OpprettJournalpostResponse(
@@ -102,10 +99,7 @@ class DokArkivClientTest {
                 journalposttype = JournalpostType.UTGAAENDE,
                 avsenderMottaker = AvsenderMottaker.orgnr("123456789"),
                 journalfoerendeEnhet = "0315",
-                navUserId = "Z123456",
             )
-
-        assertEquals("Z123456", navUserId)
     }
 }
 

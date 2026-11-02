@@ -53,7 +53,6 @@ class JournalfoerNotatArenaSakOpprettet(
                 journalposttype = JournalpostType.NOTAT,
                 avsenderMottaker = null,
                 journalfoerendeEnhet = "9999",
-                navUserId = null,
             )
         } catch (e: Exception) {
             return transientError(

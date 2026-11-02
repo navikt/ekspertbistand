@@ -1,6 +1,5 @@
 package no.nav.ekspertbistand.mocks
 
-import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.*
@@ -53,7 +52,6 @@ data class OpprettJournalpostRequest(
 
 fun ApplicationTestBuilder.mockDokArkiv(
     status: HttpStatusCode = HttpStatusCode.Created,
-    onHeaders: (Headers) -> Unit = {},
     responseProvider: (OpprettJournalpostRequest) -> OpprettJournalpostResponse,
 ) {
     externalServices {
@@ -63,7 +61,6 @@ fun ApplicationTestBuilder.mockDokArkiv(
             }
             routing {
                 post(DokArkivClient.API_PATH) {
-                    onHeaders(call.request.headers)
                     val payload = call.receive<OpprettJournalpostRequest>()
                     val response = responseProvider(payload)
                     call.respond(status, response)

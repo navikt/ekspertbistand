@@ -123,7 +123,6 @@ class JournalfoerVedtaksbrevArbeidsgiver @OptIn(ExperimentalTime::class) constru
                 journalposttype = JournalpostType.UTGAAENDE,
                 avsenderMottaker = AvsenderMottaker.orgnr(virksomhetsnummer),
                 journalfoerendeEnhet = "9999",
-                navUserId = data.fattetAvIdent,
             )
         } catch (e: Exception) {
             return transientError("Feil ved journalføring av vedtaksbrev for sak ${data.sakId}", e)

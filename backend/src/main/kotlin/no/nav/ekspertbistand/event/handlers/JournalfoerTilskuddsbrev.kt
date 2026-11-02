@@ -67,7 +67,6 @@ class JournalfoerTilskuddsbrev(
                 journalposttype = JournalpostType.UTGAAENDE,
                 avsenderMottaker = AvsenderMottaker.orgnr(soknad.virksomhet.virksomhetsnummer),
                 journalfoerendeEnhet = "9999",
-                navUserId = null,
             )
         } catch (e: Exception) {
             return transientError(

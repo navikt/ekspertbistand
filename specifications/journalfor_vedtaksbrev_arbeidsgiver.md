@@ -84,7 +84,7 @@ Kortet har ingen sjekklister eller vedlegg (sjekket 2026-11-02).
 | Kortbeskrivelsen og kommentarer, 2026-10-30 og 2026-11-02 | Brevet til arbeidsgiver journalføres når vedtaket er fattet. Henger sammen med `3moZGD2U` (vedtak og tilsagn) og `jRixpurm` (kode 6/7 og sladding i arbeidsgivermappa). Tre tilstander: innvilget, innvilget med redusert beløp og avslått. Løses før arbeidsgiver varsles. Visningen avhenger av kort 682 og skisser, som Hanna skal lage. |
 | Ken, 2026-10-30 til 2026-11-02 (også kort 645, `varsle_arbeidsgiver_vedtak.md`): omfang, varsel og visning | Bare backend. Visningen er skilt ut i kort 693 (`mmcwqp5V`). Alle vedtak varsles, også avslag, via notifikasjonsplattformen, ikke Altinn. Eventen etter journalføringen har nok data til varselet, uten databaseoppslag, og designes her. Arbeidsgiver får brevet usladdet, rendret med Gotenberg som forhåndsvisningen, og ser og laster det ned i vår løsning. PDF-er hentes aldri fra Joark til arbeidsgiver. En blob på saken kan vurderes. |
 | Ken, 2026-11-01 og 2026-11-02, ROS 2106 - 28079, `jRixpurm` og `navikt/tiltak-tilsagnsbrev` ([`Tilsagn.getSladdetVersjon`](https://github.com/navikt/tiltak-tilsagnsbrev/blob/e209755995fbdff10e4aaf3748afc023767433a7/src/main/java/no/nav/tag/tilsagnsbrev/dto/tilsagnsbrev/Tilsagn.java#L67), [`Oppgaver.opprettPdfDok`](https://github.com/navikt/tiltak-tilsagnsbrev/blob/e209755995fbdff10e4aaf3748afc023767433a7/src/main/java/no/nav/tag/tilsagnsbrev/behandler/Oppgaver.java), lest 2026-11-01): sladding | Deltaker sladdes i det journalførte brevet ved kode 6 og 7 med `***********`, som Team Tiltak. Team Tiltak lager to PDF-er: Joark-kopien sladdes ved `erKode6Eller7()` (navn, fødselsnummer og adresse), PDF-en til arbeidsgiver sladdes ikke. Skjerming gir ingen sladding. |
-| Ken, 2026-11-01 og 2026-11-02, Slack, Team Dokumentløsninger (<https://nav-it.slack.com/archives/C6W9E5GPJ/p1768916740867909>), Team Tiltak og Mulighetsrommet: journalpost | `journalfoerendeEnhet` er `9999`, som Team Tiltak og Mulighetsrommet bruker på vedtak. Dokumentløsninger foreslo enheten som fattet vedtaket (Ida), men vi er usikre på om tilgangsstyringen i Gosys og Joark da gjør de samme sjekkene som vi. Brevet bør ha ident på den ansatte, gjerne i headeren `Nav-User-Id` (Ida). Kanal `NAV_NO` passer når dokumentet vises på nav.no og mottaker varsles (Alexander). Brevkoden er `nav_tiltak_ekspertbistand`. Dokumentløsninger har ingen sterke meninger om den. |
+| Ken, 2026-11-01 og 2026-11-02, Slack, Team Dokumentløsninger (<https://nav-it.slack.com/archives/C6W9E5GPJ/p1768916740867909>), Team Tiltak og Mulighetsrommet: journalpost | `journalfoerendeEnhet` er `9999`, som Team Tiltak og Mulighetsrommet bruker på vedtak. Dokumentløsninger foreslo enheten som fattet vedtaket og identen til den ansatte i headeren `Nav-User-Id` (Ida), men vi er usikre på om tilgangsstyringen i Gosys og Joark da gjør de samme sjekkene som vi. Vi sender derfor ingen ident. Kanal `NAV_NO` passer når dokumentet vises på nav.no og mottaker varsles (Alexander). Brevkoden er `nav_tiltak_ekspertbistand`. Dokumentløsninger har ingen sterke meninger om den. |
 | Ken, 2026-11-01 og 2026-11-02, og minne: eventmodell | `event_log` og eventkøen er masterdata, og en begrunnelse kan ligge i en event. `event_log` endres aldri, og eventer i prod endres aldri. `SakProjection` får ikke funksjonalitet for nye saker. `VedtakFattet` får søknaden, saken (med vilkårsvurderinger) og vedtaket, så handlere ikke leser projeksjonene. Det støtter også ikke-benekting. Eventer får egne domain-typer (`SoknadDomainV2`, `SakDomain`, `VedtakDomain`), ikke API-DTO-er, så API-et kan endres uten at eventene knekker. Domain-typene får også egne enums i `event/domain/`, og oversettelsen kaster når en verdi ikke kan oversettes. `SoknadDomainV2` følger en innsendt søknad, ikke nullbarheten for utkast. |
 | Ken, 2026-11-01, og spørring mot `event_log` i prod, 2026-11-01: søknadsdata | 14 360 rader i 9 eventtyper har `soknad`. Alle har `id`, `opprettetAv`, gyldig `opprettetTidspunkt` og `beliggenhetsadresse`. `status` er utelatt (`innsendt`) unntatt i `tilskuddsbrevVist` (`godkjent`, eller `soknad` lik null i 696 rader). `ekspert` har tre former: fritekst i `kompetanse` (før 2026-08-11), listene med `virksomhetNavn`/`virksomhetOrgnr`, og listene uten. `SoknadDomainV1` blir en nøyaktig kopi av `DTO.Soknad` for eventene i prod. JSON-en er lik, så typen kan byttes uten at `event_log` endres. Eget kort. |
 
@@ -161,19 +161,14 @@ Disse er ikke avklart i kortet. De er valgt her og kan endres ved review:
   bruker `sak.saksbehandlerNavn` når `sak.saksbehandlerIdent` er
   `vedtak.innstiltAvIdent`, ellers null. Det er samme regel som
   `hentSaksbehandlerNavn` i forhåndsvisningen. Norg trengs ikke.
-- **`journalfoerendeEnhet` er `9999`** (Ken, 2026-11-02). Vi vurderte sakens
-  behandlende enhet, men en Nav-enhet her kan gi tilgangsstyring i Gosys og
+- **`journalfoerendeEnhet` er `9999`, og vi sender ingen `Nav-User-Id`** (Ken,
+  2026-11-02). Vi vurderte sakens behandlende enhet og identen til beslutter,
+  men en Nav-enhet eller ansatt-ident her kan gi tilgangsstyring i Gosys og
   Joark som ikke gjør de samme sjekkene som vi, eller andre sideeffekter vi
-  ikke ser. Team Tiltak og Mulighetsrommet journalfører vedtak med `9999`.
-  `DokArkivClient` får `journalfoerendeEnhet` som parameter uten standardverdi
-  (Ken, 2026-11-01: vi foretrekker å være eksplisitte). Alle kallene setter
-  `"9999"` selv. Da står valget av enhet i hver handler.
-- **`Nav-User-Id` er identen til beslutter** (`VedtakFattet.fattetAvIdent`), som
-  Ida foreslo. Beslutter fattet vedtaket, og det er det som utløser brevet.
-  `DokArkivClient` får `navUserId: String?` uten standardverdi, av samme grunn.
-  Kallene som finnes i dag, sender `null`, og headeren sendes bare når den er
-  satt. Før implementeringen sjekker vi i API-dokumentasjonen til Dokarkiv at
-  headeren heter det og virker med systemtoken.
+  ikke ser. Team Tiltak og Mulighetsrommet journalfører vedtak med `9999` og
+  uten ident. `DokArkivClient` får `journalfoerendeEnhet: String` uten
+  standardverdi (Ken, 2026-11-01: vi foretrekker å være eksplisitte). Alle
+  kallene setter `"9999"` selv.
 - **Kanal er `NAV_NO`**, som i dag (Alexander).
 - **`eksternReferanseId = "<soknadId>-vedtaksbrev-arbeidsgiver"`.** Det er ett
   vedtak per søknad. Dokarkiv gir 409 og samme journalpost ved et nytt forsøk.
@@ -449,7 +444,7 @@ Lytter på `VedtakFattet`. Registreres for alle miljøer, etter
    - `dokumentService.genererVedtaksbrevPdf(...)`. Feil gir `transientError`.
    - `dokArkivClient.opprettOgFerdigstillJournalpost(...)` med
      `UTGAAENDE`, mottaker orgnr, fagsak fra `FagsakIdService` og
-     `journalfoerendeEnhet = "9999"` og `navUserId = fattetAvIdent`.
+     `journalfoerendeEnhet = "9999"`.
      Feil eller ikke ferdigstilt gir `transientError`.
 4. I én transaksjon: publiser `VedtaksbrevArbeidsgiverJournalfoert` og
    `SakOppdatert`, og guard. Feil gir `rollback()` og `transientError`.
@@ -471,11 +466,8 @@ Ingen suspend-kall inne i `transaction {}`. Innholdet i brevet logges ikke.
     bruker den.
   - `enhetsnavn`, flyttet fra `SakDokumentApi.kt`.
   - Sladdingen ved adressebeskyttelse.
-- `dokarkiv/DokArkivClient.kt`: parameterne `journalfoerendeEnhet: String` og
-  `navUserId: String?` (headeren `Nav-User-Id`), uten standardverdier.
-  `JournalfoerInnsendtSoknad`, `JournalfoerTilskuddsbrev`,
-  `JournalfoerTilskuddsbrevKildeAltinn` og `JournalfoerNotatArenaSakOpprettet`
-  sender `journalfoerendeEnhet = "9999"` og `navUserId = null`.
+- `dokarkiv/DokArkivClient.kt`: parameteren `journalfoerendeEnhet: String`,
+  uten standardverdi. Alle kallene, også den nye handleren, sender `"9999"`.
 
 ### 6. Lokal kjøring
 
@@ -505,7 +497,7 @@ og `BestillTilsagnIOebs`-testene.
   lister.
 - `SoknadStatus.utkast.tilDomain()` kaster `IllegalStateException`.
 - Hvert av de tre utfallene gir riktig mal, `UTGAAENDE` til orgnr,
-  `journalfoerendeEnhet` lik `9999`, `Nav-User-Id` lik beslutter og
+  `journalfoerendeEnhet` lik `9999` og
   én `VedtaksbrevArbeidsgiverJournalfoert` og én `SakOppdatert` i køen.
 - Brevdato er `VedtakFattet.tidspunkt`.
 - Kode 6 og 7: `deltaker.navn` er `***********` i dataene til malen for
@@ -515,8 +507,7 @@ og `BestillTilsagnIOebs`-testene.
   `success()` uten journalføring.
 - Feil fra Gotenberg eller Dokarkiv: `transientError`, ingen eventer.
 - Retry etter suksess: ingen nye kall og ingen nye eventer.
-- Nye parametere i `DokArkivClient`: enheten sendes som gitt, og headeren
-  sendes bare når `navUserId` ikke er null.
+- Ny parameter i `DokArkivClient`: enheten sendes som gitt.
 - `SakDokumentApiTest` og `VedtaksbrevTest` er grønne etter at
   `vedtaksbrevData` har fått nye parametere.
 - Ny event og utvidet `VedtakFattet` i `TestEventData.allEventSamples` og
@@ -533,8 +524,8 @@ og `BestillTilsagnIOebs`-testene.
 | `saksbehandling/Db.kt` | `hentForelopigVedtak(sakId, versjon)` |
 | `saksbehandling/Vedtaksbrev.kt` | `vedtaksbrevData` med egne parametere, `saksbehandlerForBrev`, `enhetsnavn` og sladding |
 | `saksbehandling/SakDokumentApi.kt` | Bruker de flyttede funksjonene |
-| `dokarkiv/DokArkivClient.kt` | `journalfoerendeEnhet`, `navUserId` |
-| `event/handlers/JournalfoerInnsendtSoknad.kt`, `JournalfoerTilskuddsbrev.kt`, `JournalfoerTilskuddsbrevKildeAltinn.kt`, `JournalfoerNotatArenaSakOpprettet.kt` | Setter `"9999"` og `null` eksplisitt |
+| `dokarkiv/DokArkivClient.kt` | `journalfoerendeEnhet` |
+| `event/handlers/JournalfoerInnsendtSoknad.kt`, `JournalfoerTilskuddsbrev.kt`, `JournalfoerTilskuddsbrevKildeAltinn.kt`, `JournalfoerNotatArenaSakOpprettet.kt` | Setter `"9999"` eksplisitt |
 | `test/.../DokArkivClientTest.kt` | Nye parametere |
 | `event/event-flow.md` | Generert |
 | `test/.../LokaleSaker.kt` | `VedtakFattet` med nye felt |
@@ -584,7 +575,7 @@ Ingen.
 - [ ] `VedtakFattet` har `soknad`, `sak` (med vilkårsvurderinger) og `vedtak`, fylt ut av `BeslutterApi`
 - [ ] Handleren bygger brevet bare fra eventen, uten å lese projeksjonene
 - [ ] Vedtak gir journalført brev til arbeidsgiver for alle tre utfall, med riktig mal, dato, enhet og saksbehandler
-- [ ] Journalposten er `UTGAAENDE`, i arbeidsgivermappa, på søknadens fagsak, med `journalfoerendeEnhet` `9999` og `Nav-User-Id` lik beslutter
+- [ ] Journalposten er `UTGAAENDE`, i arbeidsgivermappa, på søknadens fagsak, med `journalfoerendeEnhet` `9999`
 - [ ] `VedtaksbrevArbeidsgiverJournalfoert` publiseres med dataene kort 645 trenger, og en linje i saksloggen
 - [ ] Deltakers navn er `***********` i det journalførte brevet ved kode 6 og 7
 - [ ] Ingen dobbel journalpost eller dobbel event ved retry
