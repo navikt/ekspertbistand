@@ -23,6 +23,16 @@ import { BodyShort, Loader, VStack } from "@navikt/ds-react";
 import LoginRequiredPage from "./pages/LoginRequiredPage";
 import TilgangKunKOMMPage from "./pages/TilgangKunKOMMPage.tsx";
 import { isFeatureEnabled } from "./utils/featureFlags";
+import SkjemaV2Layout from "./v2/SkjemaLayout";
+import SoknadV2Page from "./v2/pages/SoknadPage";
+import SkjemaV2Steg1Page from "./v2/pages/SkjemaSteg1Page";
+import SkjemaV2Steg2Page from "./v2/pages/SkjemaSteg2Page";
+import OppsummeringV2Page from "./v2/pages/OppsummeringPage";
+import KvitteringV2Page from "./v2/pages/KvitteringPage";
+import SoknaderV2Page from "./v2/pages/SoknaderPage";
+import TilskuddsbrevV2Page from "./v2/pages/TilskuddsbrevPage";
+import SluttrapportV2Page from "./v2/pages/SluttrapportPage";
+import SokRefusjonV2Page from "./v2/pages/SokRefusjonPage";
 
 function SkjemaDraftRoute() {
   const { id } = useParams<{ id: string }>();
@@ -105,6 +115,28 @@ export default function App() {
             <Route path="/skjema" element={<Navigate to="/skjema/start" replace />} />
             <Route path="/skjema/start" element={<SoknadPage />} />
             <Route path="/skjema/:id/kvittering" element={<KvitteringPage />} />
+            {isFeatureEnabled("EKSPERTBISTAND_V2") && (
+              <Route path="/v2">
+                <Route index element={<Navigate to="/v2/soknader" replace />} />
+                <Route path="soknader" element={<SoknaderV2Page />} />
+                <Route path="skjema" element={<Navigate to="/v2/skjema/start" replace />} />
+                <Route path="skjema/start" element={<SoknadV2Page />} />
+                <Route path="skjema/:id/kvittering" element={<KvitteringV2Page />} />
+                <Route path="tilskuddsbrev/:tilsagnNummer" element={<TilskuddsbrevV2Page />} />
+                {isFeatureEnabled("EKSPERTBISTAND_SAKSBEHANDLING_BETA") && (
+                  <>
+                    <Route path="skjema/:id/sluttrapport" element={<SluttrapportV2Page />} />
+                    <Route path="skjema/:id/refusjon" element={<SokRefusjonV2Page />} />
+                  </>
+                )}
+                <Route path="skjema/:id" element={<SkjemaV2Layout />}>
+                  <Route path="steg-1" element={<SkjemaV2Steg1Page />} />
+                  <Route path="steg-2" element={<SkjemaV2Steg2Page />} />
+                  <Route path="oppsummering" element={<OppsummeringV2Page />} />
+                  <Route path="" element={<Navigate to="steg-1" replace />} />
+                </Route>
+              </Route>
+            )}
             <Route path="/tilskuddsbrev/:tilsagnNummer" element={<TilskuddsbrevPage />} />
             {isFeatureEnabled("EKSPERTBISTAND_SAKSBEHANDLING_BETA") && (
               <Route path="/skjema/:id/sluttrapport" element={<SluttrapportPage />} />

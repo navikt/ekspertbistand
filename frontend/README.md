@@ -28,6 +28,25 @@ Enkel oversikt over hvordan du kjører frontend lokalt.
 - Format: `pnpm format`
 - Typecheck: `pnpm typecheck`
 
+## Parallell arbeidsgiverflyt (v2)
+
+`frontend/client/src/v2/` inneholder egne visninger for oversikt, søknad, kvittering,
+tilskuddsbrev, sluttrapport og refusjon. Åpne `/v2/soknader`, eller bruk «Prøv ny løsning (v2)»
+fra dagens oversikt. Ved `BASE_PATH=/ekspertbistand` er adressen `/ekspertbistand/v2/soknader`.
+
+`EKSPERTBISTAND_V2` i `frontend/client/src/utils/featureFlags.ts` styrer inngangen og alle v2-rutene.
+Flagget er på lokalt og i dev, og av i prod og i ukjente miljøer. De interne sidene
+for refusjon og sluttrapport krever også `EKSPERTBISTAND_SAKSBEHANDLING_BETA`.
+Dagens eksterne lenker til refusjon og sluttrapport er uendret.
+
+V1 og v2 bruker samme backend, utkastformat og data. Oversikten i hver versjon åpner
+søknader i sin egen rutefamilie. Innloggingen er felles, og brukeren sendes fortsatt
+tilbake til dagens oversikt. Du deaktiverer v2 ved å sette `enabledIn` for
+`EKSPERTBISTAND_V2` til `[]`.
+
+Kjør nettlesertestene for begge flytene fra repo-roten:
+`pnpm --dir frontend/client exec playwright test e2e/v2.spec.ts e2e/routes.smoke.spec.ts`.
+
 ## Lokalt med Docker Compose
 
 - Kopier miljøvariabler: `cp .env.example .env` (rediger ved behov)
