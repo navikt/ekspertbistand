@@ -81,11 +81,12 @@ class VarsleArbeidsgiverSoknadAvlystTest {
 
         val kvitteringer = transaction(database) {
             QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                .filterIsInstance<EventData.ArbeidsgiverVarslet>()
+                .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadAvlyst>()
         }
         assertEquals(1, kvitteringer.size)
         assertEquals(soknad1.id, kvitteringer.single().soknadId)
-        assertEquals(EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_AVLYST, kvitteringer.single().varsel)
+        assertEquals("${soknad1.id}-soknad-avlyst", kvitteringer.single().eksternId)
+        assertEquals("Søknaden om ekspertbistand trukket eller avslått.", kvitteringer.single().tekst)
     }
 
     @Test
@@ -120,7 +121,7 @@ class VarsleArbeidsgiverSoknadAvlystTest {
             assertIs<EventHandledResult.TransientError>(handler.handle(event)) // Beskjed vellykket, Sakstatus feilet
             assertEquals(0, transaction(database) {
                 QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                    .filterIsInstance<EventData.ArbeidsgiverVarslet>().size
+                    .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadAvlyst>().size
             })
             assertIs<EventHandledResult.Success>(handler.handle(event)) // beskjed guardet, sakstatus velykket
         }

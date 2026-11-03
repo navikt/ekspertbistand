@@ -1,6 +1,5 @@
 package no.nav.ekspertbistand.event.handlers
 
-import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -26,7 +25,7 @@ import java.util.UUID
  * Når en søknad, innsendt via ekspertbistand på arbeidsgiver.nav.no,
  * er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
- * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarslet] som kvittering.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarsletSoknadGodkjent] som kvittering.
  */
 class VarsleArbeidsgiverSoknadGodkjent(
     private val produsentApiKlient: ProdusentApiKlient,
@@ -46,8 +45,11 @@ class VarsleArbeidsgiverSoknadGodkjent(
             return unrecoverableError("soknad.id kan ikke være null")
         }
 
+        val eksternId = "${soknad.id}-godkjent-${event.data.tilsagnData.tilsagnNummer.concat()}"
+        val tekst = beskjedTekst(soknad.id)
+
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
-            nyBeskjed(soknad, event.data.tilsagnData).fold(
+            nyBeskjed(soknad, eksternId, tekst).fold(
                 onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
                 onFailure = {
                     return transientError(
@@ -70,30 +72,34 @@ class VarsleArbeidsgiverSoknadGodkjent(
 
         transaction(database) {
             publishEventQueue(
-                EventData.ArbeidsgiverVarslet(
+                EventData.ArbeidsgiverVarsletSoknadGodkjent(
                     soknadId = soknad.id,
-                    varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_GODKJENT
+                    eksternId = eksternId,
+                    tekst = tekst,
                 )
             )
         }
         return success()
     }
 
-    private suspend fun nyBeskjed(soknad: DTO.Soknad, tilsagnData: TilsagnData): Result<String> {
+    private fun beskjedTekst(soknadId: String): String {
         val tilsagnsbrev = transaction(database) {
-            findTilsagnDataBySoknadId(UUID.fromString(soknad.id))
+            findTilsagnDataBySoknadId(UUID.fromString(soknadId))
         }
+        return if (tilsagnsbrev.size > 1) {
+            "Søknaden er godkjent på nytt, se oppdaterte opplysninger."
+        } else {
+            "Søknaden er godkjent og ekspertbistand kan nå tas i bruk."
+        }
+    }
 
+    private suspend fun nyBeskjed(soknad: DTO.Soknad, eksternId: String, tekst: String): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = soknad.id!!,
-                eksternId = "${soknad.id}-godkjent-${tilsagnData.tilsagnNummer.concat()}",
+                eksternId = eksternId,
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
-                tekst = if (tilsagnsbrev.size > 1) {
-                    "Søknaden er godkjent på nytt, se oppdaterte opplysninger."
-                } else {
-                    "Søknaden er godkjent og ekspertbistand kan nå tas i bruk."
-                },
+                tekst = tekst,
                 lenke = soknad.kvitteringsLenke,
                 eksternVarsel = EksterntVarsel(
                     epostTittel = "Nav – angående søknad om ekspertbistand",

@@ -27,6 +27,9 @@ flowchart TD
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
+    e_ArbeidsgiverVarsletSoknadAvlyst(["ArbeidsgiverVarsletSoknadAvlyst"]):::event
+    e_ArbeidsgiverVarsletSoknadGodkjent(["ArbeidsgiverVarsletSoknadGodkjent"]):::event
+    e_ArbeidsgiverVarsletSoknadMottatt(["ArbeidsgiverVarsletSoknadMottatt"]):::event
     e_ForelopigVedtakReturnert(["ForelopigVedtakReturnert"]):::event
     e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
@@ -47,6 +50,9 @@ flowchart TD
     e_TiltaksgjennomforingOpprettet(["TiltaksgjennomforingOpprettet"]):::event
     e_VedtakFattet(["VedtakFattet"]):::event
     e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
+    h_ArbeidsgiverVarsletSoknadAvlystNoop["ArbeidsgiverVarsletSoknadAvlystNoop"]:::handler
+    h_ArbeidsgiverVarsletSoknadGodkjentNoop["ArbeidsgiverVarsletSoknadGodkjentNoop"]:::handler
+    h_ArbeidsgiverVarsletSoknadMottattNoop["ArbeidsgiverVarsletSoknadMottattNoop"]:::handler
     h_FattVedtak["FattVedtak"]:::handler
     h_FrigjoerSak["FrigjoerSak"]:::handler
     h_JournalfoerInnsendtSoknad["JournalfoerInnsendtSoknad"]:::handler
@@ -68,10 +74,10 @@ flowchart TD
     h_TildelBeslutter["TildelBeslutter"]:::handler
     h_TildelSaksbehandler["TildelSaksbehandler"]:::handler
     h_TilskuddsbrevVistNoop["TilskuddsbrevVistNoop"]:::handler
-    h_VarsleArbeidsgiverSakOpprettet["VarsleArbeidsgiverSakOpprettet"]:::handler
     h_VarsleArbeidsgiverSoknadAvlyst["VarsleArbeidsgiverSoknadAvlyst"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
+    h_VarsleArbeidsgiverSoknadMottatt["VarsleArbeidsgiverSoknadMottatt"]:::handler
     h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn["VarsleArbeidsgiverSoknadMottattBehandlesIAltinn"]:::handler
     p_SakProjection[["SakProjection"]]:::projection
     p_SaksbehandlingsstatistikkProjection[["SaksbehandlingsstatistikkProjection"]]:::projection
@@ -103,7 +109,14 @@ flowchart TD
     h_TildelBeslutter --> e_SakOppdatert
     h_TildelSaksbehandler --> e_SakOppdatert
     s_TilsagnDataApi --> e_TilskuddsbrevVist
+    h_VarsleArbeidsgiverSoknadAvlyst --> e_ArbeidsgiverVarsletSoknadAvlyst
+    h_VarsleArbeidsgiverSoknadGodkjent --> e_ArbeidsgiverVarsletSoknadGodkjent
+    h_VarsleArbeidsgiverSoknadMottatt --> e_ArbeidsgiverVarsletSoknadMottatt
+    h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn --> e_ArbeidsgiverVarsletSoknadMottatt
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
+    e_ArbeidsgiverVarsletSoknadAvlyst --> h_ArbeidsgiverVarsletSoknadAvlystNoop
+    e_ArbeidsgiverVarsletSoknadGodkjent --> h_ArbeidsgiverVarsletSoknadGodkjentNoop
+    e_ArbeidsgiverVarsletSoknadMottatt --> h_ArbeidsgiverVarsletSoknadMottattNoop
     e_VedtakFattet --> h_FattVedtak
     e_SakFrigjort --> h_FrigjoerSak
     e_SoknadInnsendt --> h_JournalfoerInnsendtSoknad
@@ -125,10 +138,10 @@ flowchart TD
     e_SakTildeltBeslutter --> h_TildelBeslutter
     e_SakTildeltSaksbehandler --> h_TildelSaksbehandler
     e_TilskuddsbrevVist --> h_TilskuddsbrevVistNoop
-    e_SakOpprettet --> h_VarsleArbeidsgiverSakOpprettet
     e_SoknadAvlystIArena --> h_VarsleArbeidsgiverSoknadAvlyst
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn
+    e_SakOpprettet --> h_VarsleArbeidsgiverSoknadMottatt
     e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn
     e_InnsendtSoknadJournalfoert -.-> p_SakProjection
     e_SakFrigjort -.-> p_SakProjection

@@ -46,7 +46,7 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.Ugyldig
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentProdusent as NySakUkjentProdusent
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnysak.UkjentRolle as NySakUkjentRolle
 
-class VarsleArbeidsgiverSakOpprettetTest {
+class VarsleArbeidsgiverSoknadMottattBehandlesIAltinnTest {
 
     @Test
     fun `Event prosesseres og sak med beskjed opprettes korrekt`() = testApplicationWithDatabase {
@@ -58,24 +58,26 @@ class VarsleArbeidsgiverSakOpprettetTest {
         )
         startApplication()
 
-        val handler = application.dependencies.resolve<VarsleArbeidsgiverSakOpprettet>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
 
         val event = Event(
             id = 1L,
-            data = EventData.SakOpprettet(
+            data = EventData.TiltaksgjennomforingOpprettet(
                 soknad = soknad1,
-                sakId = UUID.randomUUID().toString(),
+                saksnummer = "202112341234",
+                tiltaksgjennomfoeringId = 123,
             )
         )
         assertIs<EventHandledResult.Success>(handler.handle(event))
 
         val kvitteringer = transaction(database) {
             QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                .filterIsInstance<EventData.ArbeidsgiverVarslet>()
+                .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadMottatt>()
         }
         assertEquals(1, kvitteringer.size)
         assertEquals(soknad1.id, kvitteringer.single().soknadId)
-        assertEquals(EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_MOTTATT, kvitteringer.single().varsel)
+        assertEquals("${soknad1.id}-soknad-mottatt", kvitteringer.single().eksternId)
+        assertEquals("Nav har mottatt deres søknad om ekspertbistand.", kvitteringer.single().tekst)
     }
 
     @Test
@@ -87,19 +89,20 @@ class VarsleArbeidsgiverSakOpprettetTest {
             mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") })
         )
         startApplication()
-        val handler = application.dependencies.resolve<VarsleArbeidsgiverSakOpprettet>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
 
         val event = Event(
             id = 1L,
-            data = EventData.SakOpprettet(
+            data = EventData.TiltaksgjennomforingOpprettet(
                 soknad = soknad1,
-                sakId = UUID.randomUUID().toString(),
+                saksnummer = "202112341234",
+                tiltaksgjennomfoeringId = 123,
             )
         )
         assertIs<EventHandledResult.TransientError>(handler.handle(event))
         val kvitteringer = transaction(database) {
             QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                .filterIsInstance<EventData.ArbeidsgiverVarslet>()
+                .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadMottatt>()
         }
         assertEquals(0, kvitteringer.size)
     }
@@ -114,19 +117,20 @@ class VarsleArbeidsgiverSakOpprettetTest {
                 mutableListOf({ throw Exception("Test feil") }, { NyBeskjedVellykket(id = "beskjed-456") })
             )
             startApplication()
-            val handler = application.dependencies.resolve<VarsleArbeidsgiverSakOpprettet>()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
 
             val event = Event(
                 id = 1L,
-                data = EventData.SakOpprettet(
+                data = EventData.TiltaksgjennomforingOpprettet(
                     soknad = soknad1,
-                    sakId = UUID.randomUUID().toString(),
+                    saksnummer = "202112341234",
+                    tiltaksgjennomfoeringId = 123,
                 )
             )
             assertIs<EventHandledResult.TransientError>(handler.handle(event)) // Sak velykket, beskjed feilet
             assertEquals(0, transaction(database) {
                 QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                    .filterIsInstance<EventData.ArbeidsgiverVarslet>().size
+                    .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadMottatt>().size
             })
             assertIs<EventHandledResult.Success>(handler.handle(event)) // Sak guardet, beskjed velykket
         }
@@ -182,7 +186,7 @@ private fun ApplicationTestBuilder.setupTestApplication(db: TestDatabase) {
                 successAzureAdTokenProvider
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
-            provide(VarsleArbeidsgiverSakOpprettet::class)
+            provide(VarsleArbeidsgiverSoknadMottattBehandlesIAltinn::class)
         }
         configureAuthentication()
     }

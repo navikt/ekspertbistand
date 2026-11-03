@@ -308,14 +308,20 @@ object TestEventData {
             tilsagnNummer = "1337:42:43",
             soknad = null,
         ),
-        EventData.ArbeidsgiverVarslet(
+        EventData.ArbeidsgiverVarsletSoknadMottatt(
             soknadId = sampleSoknad.id!!,
-            varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_GODKJENT,
+            eksternId = "${sampleSoknad.id}-soknad-mottatt",
+            tekst = "Nav har mottatt deres søknad om ekspertbistand.",
         ),
-        EventData.ArenaNotatJournalfoert(
+        EventData.ArbeidsgiverVarsletSoknadGodkjent(
             soknadId = sampleSoknad.id!!,
-            saksnummer = "2026202",
-            journalpostId = "1234",
+            eksternId = "${sampleSoknad.id}-godkjent-1337:42:43",
+            tekst = "Søknaden er godkjent og ekspertbistand kan nå tas i bruk.",
+        ),
+        EventData.ArbeidsgiverVarsletSoknadAvlyst(
+            soknadId = sampleSoknad.id!!,
+            eksternId = "${sampleSoknad.id}-soknad-avlyst",
+            tekst = "Søknaden om ekspertbistand trukket eller avslått.",
         ),
         sakOppdatert,
         sakTildeltSaksbehandler,

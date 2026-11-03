@@ -21,7 +21,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 /**
  * Når en søknad er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
- * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarslet] som kvittering.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarsletSoknadAvlyst] som kvittering.
  */
 class VarsleArbeidsgiverSoknadAvlyst(
     private val produsentApiKlient: ProdusentApiKlient,
@@ -65,9 +65,10 @@ class VarsleArbeidsgiverSoknadAvlyst(
 
         transaction(database) {
             publishEventQueue(
-                EventData.ArbeidsgiverVarslet(
+                EventData.ArbeidsgiverVarsletSoknadAvlyst(
                     soknadId = soknad.id,
-                    varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_AVLYST
+                    eksternId = eksternId(soknad),
+                    tekst = BESKJED_TEKST,
                 )
             )
         }
@@ -78,9 +79,9 @@ class VarsleArbeidsgiverSoknadAvlyst(
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = soknad.id!!,
-                eksternId = "${soknad.id}-soknad-avlyst",
+                eksternId = eksternId(soknad),
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
-                tekst = "Søknaden om ekspertbistand trukket eller avslått.",
+                tekst = BESKJED_TEKST,
                 lenke = soknad.kvitteringsLenke,
                 eksternVarsel = EksterntVarsel(
                     epostTittel = "Nav – angående søknad om ekspertbistand",
@@ -105,5 +106,11 @@ class VarsleArbeidsgiverSoknadAvlyst(
         } catch (ex: Exception) {
             Result.failure(ex)
         }
+    }
+
+    private fun eksternId(soknad: DTO.Soknad) = "${soknad.id}-soknad-avlyst"
+
+    private companion object {
+        const val BESKJED_TEKST = "Søknaden om ekspertbistand trukket eller avslått."
     }
 }

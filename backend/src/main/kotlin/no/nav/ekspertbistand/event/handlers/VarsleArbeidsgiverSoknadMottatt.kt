@@ -21,9 +21,9 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen om at søknad er mottatt
  * og under behandling. Varselet er identisk med det [VarsleArbeidsgiverSoknadMottattBehandlesIAltinn]
  * sender for saker som behandles i Arena.
- * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarslet] som kvittering.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarsletSoknadMottatt] som kvittering.
  */
-class VarsleArbeidsgiverSakOpprettet(
+class VarsleArbeidsgiverSoknadMottatt(
     private val produsentApiKlient: ProdusentApiKlient,
     private val database: Database
 ) : EventHandler<EventData.SakOpprettet> {
@@ -52,9 +52,10 @@ class VarsleArbeidsgiverSakOpprettet(
 
         transaction(database) {
             publishEventQueue(
-                EventData.ArbeidsgiverVarslet(
+                EventData.ArbeidsgiverVarsletSoknadMottatt(
                     soknadId = event.data.soknad.id!!,
-                    varsel = EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_MOTTATT
+                    eksternId = eksternId(event.data.soknad),
+                    tekst = BESKJED_TEKST,
                 )
             )
         }
@@ -79,14 +80,20 @@ class VarsleArbeidsgiverSakOpprettet(
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = soknad.id!!,
-                eksternId = "${soknad.id}-soknad-mottatt",
+                eksternId = eksternId(soknad),
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
-                tekst = "Nav har mottatt deres søknad om ekspertbistand.",
+                tekst = BESKJED_TEKST,
                 lenke = soknad.kvitteringsLenke,
             )
             Result.success("Opprettet beskjed for soknad ${soknad.id}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }
+    }
+
+    private fun eksternId(soknad: DTO.Soknad) = "${soknad.id}-soknad-mottatt"
+
+    private companion object {
+        const val BESKJED_TEKST = "Nav har mottatt deres søknad om ekspertbistand."
     }
 }

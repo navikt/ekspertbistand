@@ -32,6 +32,7 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.nystatussak.StatusOp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.opprettnybeskjed.*
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
@@ -76,11 +77,12 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
 
         val kvitteringer = transaction(database) {
             QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                .filterIsInstance<EventData.ArbeidsgiverVarslet>()
+                .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadGodkjent>()
         }
         assertEquals(1, kvitteringer.size)
         assertEquals(soknad1.id, kvitteringer.single().soknadId)
-        assertEquals(EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_GODKJENT, kvitteringer.single().varsel)
+        assertEquals("${soknad1.id}-godkjent-${sampleTilskuddsbrev().tilsagnNummer.concat()}", kvitteringer.single().eksternId)
+        assertEquals("Søknaden er godkjent og ekspertbistand kan nå tas i bruk.", kvitteringer.single().tekst)
     }
 
     @Test
@@ -104,7 +106,7 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
         assertIs<EventHandledResult.TransientError>(handler.handle(event))
         val kvitteringer = transaction(database) {
             QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                .filterIsInstance<EventData.ArbeidsgiverVarslet>()
+                .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadGodkjent>()
         }
         assertEquals(0, kvitteringer.size)
     }
@@ -137,7 +139,7 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
             assertIs<EventHandledResult.TransientError>(handler.handle(event)) // Beskjed vellykket, Sakstatus feilet
             assertEquals(0, transaction(database) {
                 QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                    .filterIsInstance<EventData.ArbeidsgiverVarslet>().size
+                    .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadGodkjent>().size
             })
             assertIs<EventHandledResult.Success>(handler.handle(event)) // beskjed guardet, sakstatus velykket
         }

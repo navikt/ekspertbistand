@@ -58,25 +58,25 @@ class VarsleArbeidsgiverSoknadMottattTest {
         )
         startApplication()
 
-        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
 
         val event = Event(
             id = 1L,
-            data = EventData.TiltaksgjennomforingOpprettet(
+            data = EventData.SakOpprettet(
                 soknad = soknad1,
-                saksnummer = "202112341234",
-                tiltaksgjennomfoeringId = 123,
+                sakId = UUID.randomUUID().toString(),
             )
         )
         assertIs<EventHandledResult.Success>(handler.handle(event))
 
         val kvitteringer = transaction(database) {
             QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                .filterIsInstance<EventData.ArbeidsgiverVarslet>()
+                .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadMottatt>()
         }
         assertEquals(1, kvitteringer.size)
         assertEquals(soknad1.id, kvitteringer.single().soknadId)
-        assertEquals(EventData.ArbeidsgiverVarslet.Varsel.SOKNAD_MOTTATT, kvitteringer.single().varsel)
+        assertEquals("${soknad1.id}-soknad-mottatt", kvitteringer.single().eksternId)
+        assertEquals("Nav har mottatt deres søknad om ekspertbistand.", kvitteringer.single().tekst)
     }
 
     @Test
@@ -88,20 +88,19 @@ class VarsleArbeidsgiverSoknadMottattTest {
             mutableListOf({ NyBeskjedUgyldigMerkelapp("Ugyldig merkelapp") })
         )
         startApplication()
-        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
+        val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
 
         val event = Event(
             id = 1L,
-            data = EventData.TiltaksgjennomforingOpprettet(
+            data = EventData.SakOpprettet(
                 soknad = soknad1,
-                saksnummer = "202112341234",
-                tiltaksgjennomfoeringId = 123,
+                sakId = UUID.randomUUID().toString(),
             )
         )
         assertIs<EventHandledResult.TransientError>(handler.handle(event))
         val kvitteringer = transaction(database) {
             QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                .filterIsInstance<EventData.ArbeidsgiverVarslet>()
+                .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadMottatt>()
         }
         assertEquals(0, kvitteringer.size)
     }
@@ -116,20 +115,19 @@ class VarsleArbeidsgiverSoknadMottattTest {
                 mutableListOf({ throw Exception("Test feil") }, { NyBeskjedVellykket(id = "beskjed-456") })
             )
             startApplication()
-            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottattBehandlesIAltinn>()
+            val handler = application.dependencies.resolve<VarsleArbeidsgiverSoknadMottatt>()
 
             val event = Event(
                 id = 1L,
-                data = EventData.TiltaksgjennomforingOpprettet(
+                data = EventData.SakOpprettet(
                     soknad = soknad1,
-                    saksnummer = "202112341234",
-                    tiltaksgjennomfoeringId = 123,
+                    sakId = UUID.randomUUID().toString(),
                 )
             )
             assertIs<EventHandledResult.TransientError>(handler.handle(event)) // Sak velykket, beskjed feilet
             assertEquals(0, transaction(database) {
                 QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
-                    .filterIsInstance<EventData.ArbeidsgiverVarslet>().size
+                    .filterIsInstance<EventData.ArbeidsgiverVarsletSoknadMottatt>().size
             })
             assertIs<EventHandledResult.Success>(handler.handle(event)) // Sak guardet, beskjed velykket
         }
@@ -185,7 +183,7 @@ private fun ApplicationTestBuilder.setupTestApplication(db: TestDatabase) {
                 successAzureAdTokenProvider
             }
             provide<ProdusentApiKlient> { ProdusentApiKlient(resolve<AzureAdTokenProvider>(), client) }
-            provide(VarsleArbeidsgiverSoknadMottattBehandlesIAltinn::class)
+            provide(VarsleArbeidsgiverSoknadMottatt::class)
         }
         configureAuthentication()
     }
