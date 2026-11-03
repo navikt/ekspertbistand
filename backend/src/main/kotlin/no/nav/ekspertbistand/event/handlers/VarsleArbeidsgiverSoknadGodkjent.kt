@@ -45,7 +45,8 @@ class VarsleArbeidsgiverSoknadGodkjent(
             return unrecoverableError("soknad.id kan ikke være null")
         }
 
-        val eksternId = "${soknad.id}-godkjent-${event.data.tilsagnData.tilsagnNummer.concat()}"
+        val tilsagnNummer = event.data.tilsagnData.tilsagnNummer.concat()
+        val eksternId = "${soknad.id}-godkjent-$tilsagnNummer"
         val tekst = beskjedTekst(soknad.id)
 
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
@@ -74,6 +75,7 @@ class VarsleArbeidsgiverSoknadGodkjent(
             publishEventQueue(
                 EventData.ArbeidsgiverVarsletSoknadGodkjent(
                     soknadId = soknad.id,
+                    tilsagnNummer = tilsagnNummer,
                     eksternId = eksternId,
                     tekst = tekst,
                 )

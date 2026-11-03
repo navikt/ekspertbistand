@@ -34,7 +34,7 @@ class EventDataAggregateRootIdTest {
             EventData.SoknadAvlystIArena(TestEventData.sampleSoknad, TestEventData.sampleTiltaksgjennomforingEndret) to soknadRoot,
             EventData.SaksbehandlingStartetIArena(TestEventData.sampleSoknad, TestEventData.sampleTiltakssakEndret) to soknadRoot,
             EventData.ArbeidsgiverVarsletSoknadMottatt(TestEventData.sampleSoknad.id!!, "e", "t") to soknadRoot,
-            EventData.ArbeidsgiverVarsletSoknadGodkjent(TestEventData.sampleSoknad.id!!, "e", "t") to soknadRoot,
+            EventData.ArbeidsgiverVarsletSoknadGodkjent(TestEventData.sampleSoknad.id!!, "1337:42:43", "e", "t") to soknadRoot,
             EventData.ArbeidsgiverVarsletSoknadAvlyst(TestEventData.sampleSoknad.id!!, "e", "t") to soknadRoot,
             EventData.TilsagnsdataLagret(TestEventData.sampleSoknad, TestEventData.sampleTilsagnData) to soknadRoot,
             EventData.TilskuddsbrevVist("1337:42:43", TestEventData.sampleSoknad) to soknadRoot,

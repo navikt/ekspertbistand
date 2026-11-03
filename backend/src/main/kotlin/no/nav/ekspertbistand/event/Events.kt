@@ -588,12 +588,16 @@ sealed interface EventData {
      * varslingsoppgavene har lyktes. [eksternId] og [tekst] er verdiene som ble sendt i beskjeden. Ved retry kan
      * hendelsen publiseres mer enn én gang, så konsumenter må tåle duplikater.
      *
+     * En søknad kan bli godkjent flere ganger, én gang per tilsagnsbrev. [tilsagnNummer] (`aar:loepenrSak:loepenrTilsagn`)
+     * viser hvilket tilsagn som utløste beskjeden.
+     *
      * Konsument: bare en no-op-handler som logger, per nå.
      */
     @Serializable
     @SerialName("arbeidsgiverVarsletSoknadGodkjent")
     data class ArbeidsgiverVarsletSoknadGodkjent(
         val soknadId: String,
+        val tilsagnNummer: String,
         val eksternId: String,
         val tekst: String,
     ) : EventData {

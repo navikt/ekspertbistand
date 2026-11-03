@@ -315,6 +315,7 @@ object TestEventData {
         ),
         EventData.ArbeidsgiverVarsletSoknadGodkjent(
             soknadId = sampleSoknad.id!!,
+            tilsagnNummer = "1337:42:43",
             eksternId = "${sampleSoknad.id}-godkjent-1337:42:43",
             tekst = "Søknaden er godkjent og ekspertbistand kan nå tas i bruk.",
         ),

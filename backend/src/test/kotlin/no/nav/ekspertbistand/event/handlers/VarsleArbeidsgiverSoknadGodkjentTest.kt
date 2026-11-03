@@ -81,6 +81,7 @@ class VarsleArbeidsgiverSoknadGodkjentTest {
         }
         assertEquals(1, kvitteringer.size)
         assertEquals(soknad1.id, kvitteringer.single().soknadId)
+        assertEquals(sampleTilskuddsbrev().tilsagnNummer.concat(), kvitteringer.single().tilsagnNummer)
         assertEquals("${soknad1.id}-godkjent-${sampleTilskuddsbrev().tilsagnNummer.concat()}", kvitteringer.single().eksternId)
         assertEquals("Søknaden er godkjent og ekspertbistand kan nå tas i bruk.", kvitteringer.single().tekst)
     }
