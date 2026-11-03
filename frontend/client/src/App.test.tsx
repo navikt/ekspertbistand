@@ -66,7 +66,7 @@ describe("App routes", () => {
       expect(screen.getByTestId("current-path")).toHaveTextContent(/^\/v2\/soknader$/);
     });
     expect(
-      screen.getByRole("link", { name: "Opprett søknad om tilskudd til ekspertbistand" })
+      await screen.findByRole("link", { name: "Opprett søknad om tilskudd til ekspertbistand" })
     ).toHaveAttribute("href", "/v2/skjema/start");
   });
 
@@ -79,7 +79,7 @@ describe("App routes", () => {
       expect(screen.getByTestId("current-path")).toHaveTextContent(/^\/v2\/soknader$/);
     });
     expect(
-      screen.getByRole("link", { name: "Opprett søknad om tilskudd til ekspertbistand" })
+      await screen.findByRole("link", { name: "Opprett søknad om tilskudd til ekspertbistand" })
     ).toHaveAttribute("href", "/v2/skjema/start");
   });
 

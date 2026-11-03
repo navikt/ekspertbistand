@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, Outlet, useParams } from "react-router";
 import HealthPage from "./pages/HealthPage";
 import SoknaderPage from "./pages/SoknaderPage.tsx";
@@ -23,16 +24,16 @@ import { BodyShort, Loader, VStack } from "@navikt/ds-react";
 import LoginRequiredPage from "./pages/LoginRequiredPage";
 import TilgangKunKOMMPage from "./pages/TilgangKunKOMMPage.tsx";
 import { isFeatureEnabled } from "./utils/featureFlags";
-import SkjemaV2Layout from "./v2/SkjemaLayout";
-import SoknadV2Page from "./v2/pages/SoknadPage";
-import SkjemaV2Steg1Page from "./v2/pages/SkjemaSteg1Page";
-import SkjemaV2Steg2Page from "./v2/pages/SkjemaSteg2Page";
-import OppsummeringV2Page from "./v2/pages/OppsummeringPage";
-import KvitteringV2Page from "./v2/pages/KvitteringPage";
-import SoknaderV2Page from "./v2/pages/SoknaderPage";
-import TilskuddsbrevV2Page from "./v2/pages/TilskuddsbrevPage";
-import SluttrapportV2Page from "./v2/pages/SluttrapportPage";
-import SokRefusjonV2Page from "./v2/pages/SokRefusjonPage";
+const SkjemaV2Layout = lazy(() => import("./v2/SkjemaLayout"));
+const SoknadV2Page = lazy(() => import("./v2/pages/SoknadPage"));
+const SkjemaV2Steg1Page = lazy(() => import("./v2/pages/SkjemaSteg1Page"));
+const SkjemaV2Steg2Page = lazy(() => import("./v2/pages/SkjemaSteg2Page"));
+const OppsummeringV2Page = lazy(() => import("./v2/pages/OppsummeringPage"));
+const KvitteringV2Page = lazy(() => import("./v2/pages/KvitteringPage"));
+const SoknaderV2Page = lazy(() => import("./v2/pages/SoknaderPage"));
+const TilskuddsbrevV2Page = lazy(() => import("./v2/pages/TilskuddsbrevPage"));
+const SluttrapportV2Page = lazy(() => import("./v2/pages/SluttrapportPage"));
+const SokRefusjonV2Page = lazy(() => import("./v2/pages/SokRefusjonPage"));
 
 function SkjemaDraftRoute() {
   const { id } = useParams<{ id: string }>();
@@ -86,6 +87,20 @@ function OrganisasjonerGate() {
   return <Outlet />;
 }
 
+function V2Suspense() {
+  return (
+    <Suspense
+      fallback={
+        <VStack align="center" padding="space-32">
+          <Loader size="large" title="Laster" />
+        </VStack>
+      }
+    >
+      <Outlet />
+    </Suspense>
+  );
+}
+
 function LoginGate() {
   const { authenticated, error, isLoading } = useSession();
   if (isLoading) {
@@ -116,7 +131,7 @@ export default function App() {
             <Route path="/skjema/start" element={<SoknadPage />} />
             <Route path="/skjema/:id/kvittering" element={<KvitteringPage />} />
             {isFeatureEnabled("EKSPERTBISTAND_V2") && (
-              <Route path="/v2">
+              <Route path="/v2" element={<V2Suspense />}>
                 <Route index element={<Navigate to="/v2/soknader" replace />} />
                 <Route path="soknader" element={<SoknaderV2Page />} />
                 <Route path="skjema" element={<Navigate to="/v2/skjema/start" replace />} />
