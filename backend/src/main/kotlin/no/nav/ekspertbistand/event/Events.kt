@@ -569,9 +569,8 @@ sealed interface EventData {
      * `SOKNAD_MOTTATT`, [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjent]
      * for `SOKNAD_GODKJENT` og
      * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst] for
-     * `SOKNAD_AVLYST`, etter at alle varslingsoppgavene har lyktes. Hendelsen publiseres én gang per
-     * beskjed-`eksternId` (`SOKNAD_GODKJENT` én gang per tilsagn), også ved retry og når den utløsende
-     * hendelsen kommer flere ganger. Se [KvitteringPublisert].
+     * `SOKNAD_AVLYST`, etter at alle varslingsoppgavene har lyktes. I sjeldne tilfeller kan
+     * hendelsen publiseres mer enn én gang ved retry, så framtidige konsumenter må tåle duplikater.
      *
      * Payload har bevisst bare id-er, ingen personopplysninger; tidspunktet står i event_log.
      * Konsument: bare en no-op-handler som logger, per nå.
@@ -591,8 +590,9 @@ sealed interface EventData {
     /**
      * Notatet om at saken er opprettet i Arena er journalført og ferdigstilt i DokArkiv.
      *
-     * Publiseres av [no.nav.ekspertbistand.event.handlers.JournalfoerNotatArenaSakOpprettet], én gang per
-     * `eksternReferanseId` i DokArkiv, også ved retry. Se [KvitteringPublisert].
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.JournalfoerNotatArenaSakOpprettet].
+     * I sjeldne tilfeller kan hendelsen publiseres mer enn én gang ved retry, så framtidige
+     * konsumenter må tåle duplikater.
      *
      * Konsument: bare en no-op-handler som logger, per nå.
      */
