@@ -1,7 +1,7 @@
 import { fnr, tnr } from "@navikt/fnrvalidator";
 import { z } from "zod";
 import type { Path } from "react-hook-form";
-import { startOfToday } from "../../../utils/date";
+import { startOfToday } from "../../utils/date";
 import { envSwitch } from "../../../utils/env";
 z.config(z.locales.no());
 

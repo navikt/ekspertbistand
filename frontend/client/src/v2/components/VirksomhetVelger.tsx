@@ -5,7 +5,7 @@ import {
   type Organisasjon,
 } from "@navikt/virksomhetsvelger";
 import "@navikt/virksomhetsvelger/dist/assets/style.css";
-import { useOrganisasjoner } from "../../hooks/useOrganisasjoner";
+import { useOrganisasjoner } from "../hooks/useOrganisasjoner";
 
 type VirksomhetPickerProps = {
   label: React.ReactNode;

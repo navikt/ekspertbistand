@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { fetchJson } from "../../utils/api";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
-import { formatDateToIso, startOfToday } from "../../utils/date";
+import { formatDateToIso, startOfToday } from "../utils/date";
 import { useMaksSats } from "./useMaksSats";
 
 vi.mock("../../utils/api", () => ({ fetchJson: vi.fn() }));

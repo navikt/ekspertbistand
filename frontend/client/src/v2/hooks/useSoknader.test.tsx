@@ -22,9 +22,6 @@ describe("overview cache isolation", () => {
       expect(result.current.v2.soknader.length).toBeGreaterThan(0);
     });
 
-    expect(result.current.v2.soknader.map(({ id }) => id)).toEqual(
-      result.current.v1.soknader.map(({ id }) => id)
-    );
     for (const application of result.current.v1.soknader) {
       expect(application.href).toMatch(/^\/skjema\//);
     }

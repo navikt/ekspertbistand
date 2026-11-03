@@ -39,9 +39,14 @@ Flagget er på lokalt og i dev, og av i prod og i ukjente miljøer. De interne s
 for refusjon og sluttrapport krever også `EKSPERTBISTAND_SAKSBEHANDLING_BETA`.
 Dagens eksterne lenker til refusjon og sluttrapport er uendret.
 
-V1 og v2 bruker samme backend, utkastformat og data. Oversikten i hver versjon åpner
-søknader i sin egen rutefamilie. Innloggingen er felles, og brukeren sendes fortsatt
-tilbake til dagens oversikt. Du deaktiverer v2 ved å sette `enabledIn` for
+V2 er en selvstendig kopi. Endringer i v2 skal ikke røre v1-filene. V2 deler bare
+`utils/api`, `utils/http` og `utils/env` med v1, og `src/v2/isolation.test.ts` feiler hvis v2
+importerer noe annet utenfor `src/v2/`. Trenger du å endre en delt modul for v2, kopierer du den
+inn i `src/v2/` først.
+
+V1 og v2 bruker samme backend, utkastformat og data. Nye felt i v2 krever derfor støtte i
+backend, og v1 må tåle utkast som v2 har lagret. Oversikten i hver versjon åpner søknader i
+sin egen rutefamilie. Innloggingen er felles. Du deaktiverer v2 ved å sette `enabledIn` for
 `EKSPERTBISTAND_V2` til `[]`.
 
 Kjør nettlesertestene for begge flytene fra repo-roten:

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createEmptyInputs, type SoknadInputs } from "./schema";
 import { draftDtoServerSchema, draftPayloadServerSchema } from "./server-schemas";
-import { ensureIsoDateString } from "../../../utils/date";
+import { ensureIsoDateString } from "../../utils/date";
 
 const normalizeStartdato = (value: SoknadInputs["behovForBistand"]["startdato"]): string =>
   ensureIsoDateString(typeof value === "string" ? value : null);

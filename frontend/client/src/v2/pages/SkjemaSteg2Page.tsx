@@ -14,19 +14,19 @@ import {
   DatePicker,
   useDatepicker,
 } from "@navikt/ds-react";
-import DecoratedPage from "../../components/DecoratedPage";
+import DecoratedPage from "../components/DecoratedPage";
 import type { SoknadInputs } from "../features/soknad/schema";
 import { sjekkSoknadssumMotMaks, STEP2_FIELDS } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { FORM_COLUMN_STYLE } from "../styles/forms";
-import { BackLink } from "../../components/BackLink";
+import { BackLink } from "../components/BackLink";
 import { useAttemptedSubmitRedirect } from "../hooks/useAttemptedSubmitRedirect";
-import { FormErrorSummary } from "../../components/FormErrorSummary";
-import { useErrorFocus } from "../../hooks/useErrorFocus";
+import { FormErrorSummary } from "../components/FormErrorSummary";
+import { useErrorFocus } from "../hooks/useErrorFocus";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
-import { formatDateToIso, parseIsoDate, startOfToday } from "../../utils/date";
+import { formatDateToIso, parseIsoDate, startOfToday } from "../utils/date";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 import { useMaksSats } from "../hooks/useMaksSats";
 

@@ -1,7 +1,7 @@
 import type { TagProps } from "@navikt/ds-react";
 import { z } from "zod";
 import { EKSPERTBISTAND_API_PATH } from "../../utils/constants";
-import { formatDateTime } from "../../../utils/date";
+import { formatDateTime } from "../../utils/date";
 import { fetchJson } from "../../../utils/api";
 import { ansattServerSchema, draftDtoServerSchema, virksomhetServerSchema } from "./server-schemas";
 

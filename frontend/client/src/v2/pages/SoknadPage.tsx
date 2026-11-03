@@ -18,11 +18,11 @@ import {
   Alert,
   VStack,
 } from "@navikt/ds-react";
-import DecoratedPage from "../../components/DecoratedPage";
-import { FormErrorSummary } from "../../components/FormErrorSummary";
-import { ApplicationPictogram } from "../../components/ApplicationPictogram";
+import DecoratedPage from "../components/DecoratedPage";
+import { FormErrorSummary } from "../components/FormErrorSummary";
+import { ApplicationPictogram } from "../components/ApplicationPictogram";
 import { EKSPERTBISTAND_API_PATH, EKSPERTBISTAND_INFO_URL, LOGIN_URL } from "../utils/constants";
-import { useErrorFocus } from "../../hooks/useErrorFocus";
+import { useErrorFocus } from "../hooks/useErrorFocus";
 import useSWRMutation from "swr/mutation";
 import { fetchJson } from "../../utils/api";
 import { resolveApiError, type ApiErrorInfo } from "../../utils/http";

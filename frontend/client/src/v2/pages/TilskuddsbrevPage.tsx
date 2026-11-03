@@ -1,8 +1,8 @@
 import { useParams } from "react-router";
 import { Alert, Box, Heading, Loader, VStack } from "@navikt/ds-react";
 import useSWR from "swr";
-import DecoratedPage from "../../components/DecoratedPage";
-import { BackLink } from "../../components/BackLink";
+import DecoratedPage from "../components/DecoratedPage";
+import { BackLink } from "../components/BackLink";
 import { fetchTilskuddsbrevHtmlForTilsagnNummer } from "../features/tilsagn/tilsagn";
 import { SOKNADER_PATH } from "../utils/constants";
 

@@ -16,13 +16,13 @@ import {
   type FileRejected,
 } from "@navikt/ds-react";
 import { FileTextIcon, PaperplaneIcon } from "@navikt/aksel-icons";
-import DecoratedPage from "../../components/DecoratedPage";
-import { BackLink } from "../../components/BackLink";
+import DecoratedPage from "../components/DecoratedPage";
+import { BackLink } from "../components/BackLink";
 import { useSoknad } from "../hooks/useSoknad";
 import { useSluttrapportStatus } from "../hooks/useSluttrapportStatus";
 import { formatDate } from "../components/summaryFormatters";
 import { EKSPERTBISTAND_SLUTTRAPPORT_PATH } from "../utils/constants";
-import { formatDateTime } from "../../utils/date";
+import { formatDateTime } from "../utils/date";
 import { resolveApiError, type ApiErrorInfo } from "../../utils/http";
 
 const MAX_FILES = 1;

@@ -2,7 +2,7 @@ import useSWR from "swr";
 import { z } from "zod";
 import { fetchJson } from "../../utils/api";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
-import { formatDateToIso, parseIsoDate, startOfToday } from "../../utils/date";
+import { formatDateToIso, parseIsoDate, startOfToday } from "../utils/date";
 
 const maksSatsSchema = z.object({
   gyldigFra: z.iso.date(),

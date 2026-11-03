@@ -1,5 +1,5 @@
 import type { SoknadInputs } from "../features/soknad/schema";
-import { parseIsoDate } from "../../utils/date";
+import { parseIsoDate } from "../utils/date";
 
 const numberFormatter = new Intl.NumberFormat("nb-NO");
 const shortDateFormatter = new Intl.DateTimeFormat("nb-NO", {

@@ -26,15 +26,15 @@ import {
   type FileRejected,
 } from "@navikt/ds-react";
 import { FileTextIcon, PaperplaneIcon, XMarkOctagonIcon } from "@navikt/aksel-icons";
-import DecoratedPage from "../../components/DecoratedPage";
-import { BackLink } from "../../components/BackLink";
-import { FormErrorSummary } from "../../components/FormErrorSummary";
+import DecoratedPage from "../components/DecoratedPage";
+import { BackLink } from "../components/BackLink";
+import { FormErrorSummary } from "../components/FormErrorSummary";
 import { useSoknad } from "../hooks/useSoknad";
 import { useRefusjonStatus } from "../hooks/useRefusjonStatus";
 import { useKontonummerFinnes } from "../hooks/useKontonummerFinnes";
 import { formatDate } from "../components/summaryFormatters";
-import { formatDateTime } from "../../utils/date";
-import { formatBytes } from "../../utils/format";
+import { formatDateTime } from "../utils/date";
+import { formatBytes } from "../utils/format";
 import {
   EKSPERTBISTAND_REFUSJON_PATH,
   EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH,
@@ -42,7 +42,7 @@ import {
   SOKNADER_PATH,
 } from "../utils/constants";
 import { resolveApiError, type ApiErrorInfo } from "../../utils/http";
-import { useErrorFocus } from "../../hooks/useErrorFocus";
+import { useErrorFocus } from "../hooks/useErrorFocus";
 import { isProd } from "../../utils/env";
 
 const MAX_FILES = 5;

@@ -1,3 +1,88 @@
-export * from "../../utils/constants";
+import { detectEnv, envSwitch } from "../../utils/env";
+
+export const APP_BASE_PATH = import.meta.env.VITE_APP_BASE_PATH || "/";
+
+const withBasePath = (path: `/${string}`) =>
+  APP_BASE_PATH === "/" ? path : `${APP_BASE_PATH}${path}`;
+
+export const isMockEnabled = () => {
+  if (detectEnv() === "prod") return false;
+  const flag = import.meta.env.VITE_ENABLE_MOCKS?.toLowerCase();
+  if (flag === "false") return false;
+  if (import.meta.env.DEV) return true;
+  return flag === "true";
+};
+
+/**
+ * ekspertbistand-frontend-e2e-mock bygges med VITE_LOKAL_INNLOGGING=true og går mot ekspertbistand-backend-mock,
+ * der BFF-en logger inn testbrukeren uten ID-porten.
+ */
+export const isLokalInnlogging = () =>
+  detectEnv() !== "prod" && import.meta.env.VITE_LOKAL_INNLOGGING?.toLowerCase() === "true";
+
+const utenIdporten = () => isMockEnabled() || isLokalInnlogging();
+
+export const TELEMETRY_COLLECTOR_URL = envSwitch({
+  prod: () => "https://telemetry.nav.no/collect",
+  dev: () => "https://telemetry.ekstern.dev.nav.no/collect",
+  local: () => undefined,
+  other: () => undefined,
+});
+
+export const MIN_SIDE_URL = envSwitch({
+  prod: () => "https://arbeidsgiver.nav.no/min-side-arbeidsgiver/",
+  dev: () =>
+    utenIdporten()
+      ? "https://arbeidsgiver-dev-like.ansatt.dev.nav.no/min-side-arbeidsgiver"
+      : "https://arbeidsgiver.intern.dev.nav.no/min-side-arbeidsgiver/",
+  local: () => "https://arbeidsgiver.intern.dev.nav.no/min-side-arbeidsgiver/",
+});
+
+export const EKSPERTBISTAND_URL = envSwitch({
+  prod: () => "https://arbeidsgiver.nav.no/ekspertbistand",
+  dev: () => "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand",
+  local: () => "https://arbeidsgiver.intern.dev.nav.no/ekspertbistand",
+});
+
+export const EKSPERTBISTAND_INFO_URL = "https://www.nav.no/arbeidsgiver/ekspertbistand";
+export const EKSPERTBISTAND_API_PATH = withBasePath("/ekspertbistand-backend/api/soknad/v1");
+export const EKSPERTBISTAND_SLUTTRAPPORT_PATH = (id: string) =>
+  withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/sluttrapport`);
+export const EKSPERTBISTAND_REFUSJON_PATH = (id: string) =>
+  withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/refusjon`);
+export const EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH = (id: string, vedleggId: string) =>
+  withBasePath(`/ekspertbistand-backend/api/soknad/v1/${id}/refusjon/vedlegg/${vedleggId}`);
+export const EKSPERTBISTAND_TILSKUDDSBREV_HTML_PATH = withBasePath(
+  "/ekspertbistand-backend/api/tilsagndata/v1"
+);
+export const EKSPERTBISTAND_ORGANISASJONER_PATH = withBasePath(
+  "/ekspertbistand-backend/api/organisasjoner/v1"
+);
+export const EKSPERTBISTAND_EREG_ADRESSE_PATH = withBasePath("/ekspertbistand-backend/api/ereg");
+export const EKSPERTBISTAND_EREG_ORGANISASJONER_PATH = withBasePath(
+  "/ekspertbistand-backend/api/ereg/organisasjoner"
+);
+export const EKSPERTBISTAND_EREG_ORGANISASJON_PATH = (orgnr: string) =>
+  withBasePath(`/ekspertbistand-backend/api/ereg/organisasjoner/${orgnr}`);
+export const EKSPERTBISTAND_KONTONUMMER_PATH = withBasePath(
+  "/ekspertbistand-backend/api/soknad/v1/virksomhet/kontonummer-finnes"
+);
+export const KONTONUMMER_REGISTRERING_URL = "https://www.nav.no/arbeidsgiver/endre-kontonummer";
 
 export const SOKNADER_PATH = "/v2/soknader";
+export const REFUSJON_URL = "https://www.nav.no/fyllut/nav761390?sub=paper";
+export const HENT_FORSTESIDE_URL =
+  "https://www.nav.no/fyllut-ettersending/lospost?tema=OPP&sub=paper";
+
+export const LOGIN_URL = envSwitch({
+  prod: () => `${withBasePath("/oauth2/login")}?redirect=${withBasePath(SOKNADER_PATH)}`,
+  dev: () =>
+    utenIdporten()
+      ? withBasePath(SOKNADER_PATH)
+      : `${withBasePath("/oauth2/login")}?redirect=${withBasePath(SOKNADER_PATH)}`,
+  local: () => withBasePath(SOKNADER_PATH),
+});
+
+export const SESSION_URL = withBasePath("/oauth2/session");
+
+export const TILGANGSSTYRING_URL = "https://www.nav.no/arbeidsgiver/tilganger";

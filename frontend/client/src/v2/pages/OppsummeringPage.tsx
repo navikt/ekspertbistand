@@ -12,13 +12,13 @@ import {
   HGrid,
   VStack,
 } from "@navikt/ds-react";
-import DecoratedPage from "../../components/DecoratedPage";
+import DecoratedPage from "../components/DecoratedPage";
 import { sjekkSoknadssumMotMaks, soknadSchema } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { buildSkjemaPayload } from "../features/soknad/payload";
 import { EKSPERTBISTAND_API_PATH, LOGIN_URL } from "../utils/constants";
-import { BackLink } from "../../components/BackLink";
+import { BackLink } from "../components/BackLink";
 import useSWRMutation from "swr/mutation";
 import { fetchJson } from "../../utils/api";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
@@ -35,7 +35,7 @@ import {
 } from "../components/summaryFormatters";
 import type { SoknadInputs } from "../features/soknad/schema";
 import { FormSummaryAnswer } from "@navikt/ds-react/FormSummary";
-import { useVirksomhetAdresse } from "../../hooks/useVirksomhetAdresse";
+import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
 import { useMaksSats } from "../hooks/useMaksSats";
 
 type SoknadSummaryProps = {

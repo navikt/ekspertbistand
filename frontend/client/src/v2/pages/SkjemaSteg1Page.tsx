@@ -14,7 +14,7 @@ import {
   TextField,
   VStack,
 } from "@navikt/ds-react";
-import DecoratedPage from "../../components/DecoratedPage";
+import DecoratedPage from "../components/DecoratedPage";
 import { FORM_COLUMN_STYLE } from "../styles/forms";
 import type { SoknadInputs } from "../features/soknad/schema";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
@@ -22,16 +22,16 @@ import { VirksomhetVelger } from "../components/VirksomhetVelger.tsx";
 import { EkspertVirksomhetVelger } from "../components/EkspertVirksomhetVelger.tsx";
 import { formaterVirksomhet } from "../components/formaterVirksomhet.ts";
 import { DraftActions } from "../components/DraftActions.tsx";
-import { useErrorFocus } from "../../hooks/useErrorFocus";
-import { BackLink } from "../../components/BackLink";
+import { useErrorFocus } from "../hooks/useErrorFocus";
+import { BackLink } from "../components/BackLink";
 import { useAttemptedSubmitRedirect } from "../hooks/useAttemptedSubmitRedirect";
-import { FormErrorSummary } from "../../components/FormErrorSummary";
+import { FormErrorSummary } from "../components/FormErrorSummary";
 import { STEP1_FIELDS } from "../features/soknad/schema";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
 import { SOKNADER_PATH } from "../utils/constants";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
-import { useVirksomhetAdresse } from "../../hooks/useVirksomhetAdresse";
+import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
 
 // Backend gjør disse om til statistikkoder (EkspertStatistikkoder.kt). Nye valg må legges inn der, ellers blir de ANNET.
 const GODKJENT_UTDANNING_ALTERNATIVER = [

@@ -15,7 +15,7 @@ import {
   Loader,
   VStack,
 } from "@navikt/ds-react";
-import DecoratedPage from "../../components/DecoratedPage";
+import DecoratedPage from "../components/DecoratedPage";
 import { draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
 import {
   fetchTilskuddsbrevHtmlForSkjema,
@@ -27,7 +27,7 @@ import {
   REFUSJON_URL,
   HENT_FORSTESIDE_URL,
 } from "../utils/constants";
-import { BackLink } from "../../components/BackLink";
+import { BackLink } from "../components/BackLink";
 import useSWR from "swr";
 import { type SoknadInputs } from "../features/soknad/schema";
 import {
