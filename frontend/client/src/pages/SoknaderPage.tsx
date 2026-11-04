@@ -7,6 +7,7 @@ import { ApplicationPictogram } from "../components/ApplicationPictogram";
 import { LOGIN_URL, MIN_SIDE_URL } from "../utils/constants";
 import { BackLink } from "../components/BackLink";
 import { useSoknader } from "../hooks/useSoknader.ts";
+import { isFeatureEnabled } from "../utils/featureFlags";
 
 export default function SoknaderPage() {
   const { soknader, error, loading, requiresLogin } = useSoknader();
@@ -97,6 +98,12 @@ export default function SoknaderPage() {
               </LinkCard.Anchor>
             </LinkCard.Title>
           </LinkCard>
+
+          {isFeatureEnabled("EKSPERTBISTAND_V2") && (
+            <Button as={RouterLink} role="link" to="/v2/soknader" variant="secondary">
+              Prøv ny løsning (v2)
+            </Button>
+          )}
 
           <Heading level="2" size="large">
             Søknader
