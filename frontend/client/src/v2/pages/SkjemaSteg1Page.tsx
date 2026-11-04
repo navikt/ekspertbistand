@@ -177,12 +177,14 @@ export default function SkjemaSteg1Page() {
           </VStack>
 
           <VStack gap="space-32">
-            <div id={VIRKSOMHETSVELGER_ID} tabIndex={-1} style={FORM_COLUMN_STYLE}>
+            <div style={FORM_COLUMN_STYLE}>
               <Controller
                 name="virksomhet.virksomhetsnummer"
                 control={control}
                 render={({ field, fieldState }) => (
                   <VirksomhetVelger
+                    id={VIRKSOMHETSVELGER_ID}
+                    ref={field.ref}
                     label="Velg underenhet"
                     description="Velg underenheten der den ansatte arbeider, dvs. der inntekten rapporteres i A-meldingen."
                     value={field.value ?? ""}

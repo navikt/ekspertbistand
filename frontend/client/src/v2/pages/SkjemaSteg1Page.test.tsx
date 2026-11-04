@@ -86,6 +86,10 @@ describe("SkjemaSteg1Page", () => {
     expect(
       screen.getByRole("link", { name: /Velg virksomheten som deltaker er ansatt i/ })
     ).toHaveAttribute("href", "#virksomhet.virksomhetsnummer");
+    expect(screen.getByRole("button", { name: /åpne virksomhetsmeny/ })).toHaveAttribute(
+      "id",
+      "virksomhet.virksomhetsnummer"
+    );
     expect(screen.getByRole("link", { name: /be om tilgang til enkelttjenesten/ })).toHaveAttribute(
       "href",
       TILGANGSSTYRING_URL
