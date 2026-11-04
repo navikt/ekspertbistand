@@ -98,4 +98,16 @@ describe("validerDeltaker", () => {
 
     expect(resultat).toEqual({ ok: false, feil: { type: "oppslagFeilet" } });
   });
+
+  it.each([
+    ["01819030037", { type: "ingenArbeidsforhold" }],
+    ["01819030118", { type: "forMangeOppslag" }],
+    ["01819030207", { type: "oppslagFeilet" }],
+  ])("mocken gir feilsvar for test-fødselsnummer %s", async (fnr, feil) => {
+    const utkast = await opprettUtkast();
+
+    const resultat = await validerDeltaker(utkast.id!, { fnr, virksomhetsnummer: ORGNR });
+
+    expect(resultat).toEqual({ ok: false, feil });
+  });
 });

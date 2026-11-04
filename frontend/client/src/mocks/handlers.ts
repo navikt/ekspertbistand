@@ -439,6 +439,13 @@ const mockUgyldigInput = (felt: string, message: string) =>
 
 const MOCK_DELTAKER_NAVN = "Mona Moonlight";
 
+// Disse fødselsnumrene gir feilsvar fra valider-deltaker, så feilvisningene kan testes i mocken.
+const MOCK_VALIDER_DELTAKER_FEIL: Record<string, { status: number; message: string }> = {
+  "01819030037": { status: 422, message: "Fant ikke aktivt arbeidsforhold i virksomheten." },
+  "01819030118": { status: 429, message: "For mange oppslag." },
+  "01819030207": { status: 503, message: "Oppslaget feilet." },
+};
+
 const finnOrganisasjonsnavn = (orgnr: string, liste = organisasjoner): string | null => {
   for (const org of liste) {
     if (org.orgnr === orgnr) return org.navn;
@@ -844,6 +851,10 @@ export const handlers = [
     }
     const fnr = payload.fnr ?? "";
     const virksomhetsnummer = payload.virksomhetsnummer ?? "";
+    const mockFeil = MOCK_VALIDER_DELTAKER_FEIL[fnr];
+    if (mockFeil) {
+      return HttpResponse.json({ message: mockFeil.message }, { status: mockFeil.status });
+    }
     const data = entry.data ?? createEmptyInputs();
     entry.data = {
       ...data,
