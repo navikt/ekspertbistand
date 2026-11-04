@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, Outlet, useParams } from "react-router";
 import HealthPage from "./pages/HealthPage";
 import SoknaderPage from "./pages/SoknaderPage.tsx";
@@ -24,6 +25,16 @@ import { BodyShort, Loader, VStack } from "@navikt/ds-react";
 import LoginRequiredPage from "./pages/LoginRequiredPage";
 import TilgangKunKOMMPage from "./pages/TilgangKunKOMMPage.tsx";
 import { isFeatureEnabled } from "./utils/featureFlags";
+const SkjemaV2Layout = lazy(() => import("./v2/SkjemaLayout"));
+const SoknadV2Page = lazy(() => import("./v2/pages/SoknadPage"));
+const SkjemaV2Steg1Page = lazy(() => import("./v2/pages/SkjemaSteg1Page"));
+const SkjemaV2Steg2Page = lazy(() => import("./v2/pages/SkjemaSteg2Page"));
+const OppsummeringV2Page = lazy(() => import("./v2/pages/OppsummeringPage"));
+const KvitteringV2Page = lazy(() => import("./v2/pages/KvitteringPage"));
+const SoknaderV2Page = lazy(() => import("./v2/pages/SoknaderPage"));
+const TilskuddsbrevV2Page = lazy(() => import("./v2/pages/TilskuddsbrevPage"));
+const SluttrapportV2Page = lazy(() => import("./v2/pages/SluttrapportPage"));
+const SokRefusjonV2Page = lazy(() => import("./v2/pages/SokRefusjonPage"));
 
 function SkjemaDraftRoute() {
   const { id } = useParams<{ id: string }>();
@@ -85,6 +96,20 @@ function OrganisasjonerGate() {
   return <Outlet />;
 }
 
+function V2Suspense() {
+  return (
+    <Suspense
+      fallback={
+        <VStack align="center" padding="space-32">
+          <Loader size="large" title="Laster" />
+        </VStack>
+      }
+    >
+      <Outlet />
+    </Suspense>
+  );
+}
+
 function LoginGate() {
   const { authenticated, error, isLoading } = useSession();
   if (isLoading) {
@@ -114,6 +139,28 @@ export default function App() {
             <Route path="/skjema" element={<Navigate to="/skjema/start" replace />} />
             <Route path="/skjema/start" element={<SoknadPage />} />
             <Route path="/skjema/:id/kvittering" element={<KvitteringPage />} />
+            {isFeatureEnabled("EKSPERTBISTAND_V2") && (
+              <Route path="/v2" element={<V2Suspense />}>
+                <Route index element={<Navigate to="/v2/soknader" replace />} />
+                <Route path="soknader" element={<SoknaderV2Page />} />
+                <Route path="skjema" element={<Navigate to="/v2/skjema/start" replace />} />
+                <Route path="skjema/start" element={<SoknadV2Page />} />
+                <Route path="skjema/:id/kvittering" element={<KvitteringV2Page />} />
+                <Route path="tilskuddsbrev/:tilsagnNummer" element={<TilskuddsbrevV2Page />} />
+                {isFeatureEnabled("EKSPERTBISTAND_SAKSBEHANDLING_BETA") && (
+                  <>
+                    <Route path="skjema/:id/sluttrapport" element={<SluttrapportV2Page />} />
+                    <Route path="skjema/:id/refusjon" element={<SokRefusjonV2Page />} />
+                  </>
+                )}
+                <Route path="skjema/:id" element={<SkjemaV2Layout />}>
+                  <Route path="steg-1" element={<SkjemaV2Steg1Page />} />
+                  <Route path="steg-2" element={<SkjemaV2Steg2Page />} />
+                  <Route path="oppsummering" element={<OppsummeringV2Page />} />
+                  <Route path="" element={<Navigate to="steg-1" replace />} />
+                </Route>
+              </Route>
+            )}
             <Route path="/tilskuddsbrev/:tilsagnNummer" element={<TilskuddsbrevPage />} />
             {isFeatureEnabled("EKSPERTBISTAND_SAKSBEHANDLING_BETA") && (
               <Route path="/skjema/:id/sluttrapport" element={<SluttrapportPage />} />

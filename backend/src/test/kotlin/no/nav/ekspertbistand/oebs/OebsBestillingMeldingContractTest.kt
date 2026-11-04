@@ -23,9 +23,9 @@ import kotlin.time.Instant
  * Vi **produserer** bestillingsmeldinger, så denne testen dekker encode-retningen. Deserialisering av
  * statusmeldinger (konsum-retningen) ligger i `OebsStatusMeldingTest`.
  *
- * Merk: `bestilling`-eksempelet fra VALP kommer fra en annen kilde og bruker tiltakskode
- * (`ARBEIDSMARKEDSOPPLAERING`) som vår restriktive modell ikke har. Vi sender tilskuddstype
- * `TILTAK_DRIFTSTILSKUDD` og tiltakskode `EKSPERTBISTAND`, så eksempelet er justert til våre
+ * Merk: `bestilling`-eksempelet fra VALP kommer fra en annen kilde og bruker artskonto
+ * (`ARBEIDSMARKEDSOPPLAERING`) som vår restriktive modell ikke har. Vi sender regnskapskonto
+ * `TILTAK_DRIFTSTILSKUDD` og artskonto `EKSPERTBISTAND`, så eksempelet er justert til våre
  * enum-verdier — resten av wire-formatet (feltnavn, diskriminatorer, `periode`, `Instant`) er uendret
  * fra VALP.
  */
@@ -41,8 +41,8 @@ class OebsBestillingMeldingContractTest {
         val melding = OebsBestillingMelding.Bestilling(
             OpprettBestilling(
                 bestillingsnummer = "A-2026/10315-1",
-                tilskuddstype = Tilskuddstype.TILTAK_DRIFTSTILSKUDD,
-                tiltakskode = Tiltakskode.EKSPERTBISTAND,
+                regnskapskonto = Regnskapskonto.TILTAK_DRIFTSTILSKUDD,
+                artskonto = Artskonto.EKSPERTBISTAND,
                 arrangor = OpprettBestilling.Arrangor.Norsk(Organisasjonsnummer("925236594")),
                 kostnadssted = NavEnhetNummer("0315"),
                 avtalenummer = null,
@@ -61,8 +61,8 @@ class OebsBestillingMeldingContractTest {
               "type": "BESTILLING",
               "payload": {
                 "bestillingsnummer": "A-2026/10315-1",
-                "tilskuddstype": "TILTAK_DRIFTSTILSKUDD",
-                "tiltakskode": "EKSPERTBISTAND",
+                "regnskapskonto": "TILTAK_DRIFTSTILSKUDD",
+                "artskonto": "EKSPERTBISTAND",
                 "arrangor": {
                   "type": "NORSK",
                   "organisasjonsnummer": "925236594"

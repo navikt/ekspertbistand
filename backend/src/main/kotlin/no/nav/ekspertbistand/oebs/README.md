@@ -231,5 +231,5 @@ implementert.
 - **OeBS** må gjøre funksjonelt og teknisk oppsett før vi kan teste bestilling i dev, og sier fra
   når de er klare. Fagsystembokstaven `E` og nummerserien er godtatt (OEBS-2283, 2026-10-28).
 - **VALP** må abonnere på `fager.ekspertbistand.bestillinger-v1` før meldinger godtas.
-  Enum-verdiene vi sender finnes allerede hos VALP (tiltakskode `EKSPERTBISTAND`,
-  `OkonomiFagsystem.EKSPERTBISTAND`, tilskuddstype `TILTAK_DRIFTSTILSKUDD`).
+  Enum-verdiene vi sender finnes allerede hos VALP (artskonto `EKSPERTBISTAND`,
+  `OkonomiFagsystem.EKSPERTBISTAND`, regnskapskonto `TILTAK_DRIFTSTILSKUDD`).

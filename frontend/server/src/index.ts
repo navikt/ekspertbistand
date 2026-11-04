@@ -28,6 +28,7 @@ const {
   GIT_COMMIT,
   NAIS_APP_IMAGE,
   LOKAL_INNLOGGING,
+  VITE_ENABLE_MOCKS,
 } = process.env;
 
 const port = Number(PORT);
@@ -40,7 +41,9 @@ const lokalInnlogging = LOKAL_INNLOGGING === "true";
 if (lokalInnlogging && tokenxEnabled) {
   throw new Error("LOKAL_INNLOGGING kan ikke kombineres med TokenX. Avslutter.");
 }
-if (NODE_ENV === "production" && !tokenxEnabled && !lokalInnlogging) {
+// ekspertbistand-frontend-mock bygges med VITE_ENABLE_MOCKS=true. MSW svarer i nettleseren, så BFF-en har ingen backend.
+const mockEnabled = VITE_ENABLE_MOCKS === "true";
+if (NODE_ENV === "production" && !tokenxEnabled && !lokalInnlogging && !mockEnabled) {
   throw new Error("TOKEN_X_ISSUER mangler i production. Avslutter for å unngå fail-open auth.");
 }
 if (tokenxEnabled && !EKSPERTBISTAND_API_AUDIENCE) {

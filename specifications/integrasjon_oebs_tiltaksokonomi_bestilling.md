@@ -75,8 +75,8 @@ sender dem videre til OeBS via HTTP/JSON, og publiserer status tilbake på egne 
 
   data class OpprettBestilling(
       val bestillingsnummer: String,          // <-- vår nummerserie havner her
-      val tilskuddstype: Tilskuddstype,       // enum – se under
-      val tiltakskode: Tiltakskode,           // enum – se under
+      val regnskapskonto: Regnskapskonto,     // enum – se under
+      val artskonto: Artskonto,               // enum – se under
       val arrangor: Arrangor,                 // Norsk(orgnr) | Utenlandsk(orgnr, navn, adresse …)
       val kostnadssted: NavEnhetNummer,
       val avtalenummer: String?,
@@ -91,9 +91,10 @@ sender dem videre til OeBS via HTTP/JSON, og publiserer status tilbake på egne 
   ```
 
 - **Enum-verdier (status etter VALP-oppdatering):**
-  - `Tilskuddstype` = `TILTAK_DRIFTSTILSKUDD`, `TILTAK_INVESTERINGER`, `TILTAK_OPPLAERING_TILSKUDD`.
+  - `Regnskapskonto` (het `Tilskuddstype` før mulighetsrommet#8485) = `TILTAK_DRIFTSTILSKUDD`, `TILTAK_INVESTERINGER`, `TILTAK_OPPLAERING_TILSKUDD`.
     Ekspertbistand sender **`TILTAK_DRIFTSTILSKUDD`** (avklart 2026-09-22) — ingen ny verdi trengs.
-  - `Tiltakskode` inneholder nå `EKSPERTBISTAND` (validert av VALP sin ekspertbistand-consumer).
+  - `Artskonto` (het `Tiltakskode` før mulighetsrommet#8485) inneholder `EKSPERTBISTAND`. VALP sin
+    ekspertbistand-consumer avviser andre verdier.
   - `OkonomiFagsystem` (kilde i `OkonomiPart.Fagsystem`) har nå `EKSPERTBISTAND`.
 
   Enum-avhengigheten mot VALP er dermed løst; gjenstående ekstern avhengighet er at VALP abonnerer
@@ -103,8 +104,8 @@ sender dem videre til OeBS via HTTP/JSON, og publiserer status tilbake på egne 
 
 ```json
 {
-  "tiltakskode": "EKSPERTBISTAND",
-  "tilskuddstype": "TILTAK_DRIFTSTILSKUDD",
+  "artskonto": "EKSPERTBISTAND",
+  "regnskapskonto": "TILTAK_DRIFTSTILSKUDD",
   "periode": "[2026-11-01,2099-01-01)",
   "statlig_regnskapskonto": "265076100000",
   "statlig_artskonto": "874007734610"
@@ -127,7 +128,7 @@ Fra kortbeskrivelsen (1–4) og avklaringer 2026-09-11 (5–10):
    (f.eks. `A-2026/10000-1-1`). Fakturanummeret korrelerer til bestillingen ved prefiks (én faktura
    hører til én bestilling; forventet 1:1, men format støtter 1:N). Bestillingsnummer maks 20 tegn,
    fakturanummer maks 50 tegn, begge må være unike (se Endring §4).
-4. **VALP legger inn** tiltakskode `EKSPERTBISTAND` og periode i sitt system (registrert). Tilskuddstype
+4. **VALP legger inn** artskonto `EKSPERTBISTAND` og periode i sitt system (registrert). Regnskapskonto
    bruker eksisterende `TILTAK_DRIFTSTILSKUDD`, og de statlige kontoene håndteres av VALP/OeBS.
 5. **Fagsystembokstav = `E` midlertidig, som kodekonstant.** Endelig bokstav/kildenavn venter
    fortsatt på svar fra OeBs-teamet; vi bruker `E` inntil videre, definert som en konstant i
