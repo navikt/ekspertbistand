@@ -90,6 +90,13 @@ data class AltinnTilgangerClientResponse(
         it == altinn3Ressursid
     } == true
 
+    /** Navnet på virksomheten [orgnr], søkt i hele hierarkiet (inkludert underenheter). */
+    fun navn(orgnr: String): String? {
+        fun finn(tilganger: List<AltinnTilgang>): String? =
+            tilganger.firstNotNullOfOrNull { if (it.orgnr == orgnr) it.navn else finn(it.underenheter) }
+        return finn(hierarki)
+    }
+
     val organisasjoner: Set<String>
         get() {
             return tilgangTilOrgNr[altinn3Ressursid] ?: emptySet()

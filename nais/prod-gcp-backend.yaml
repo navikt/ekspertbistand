@@ -61,6 +61,7 @@ spec:
         - host: pdl-api.prod-fss-pub.nais.io
         - host: dokarkiv.prod-fss-pub.nais.io
         - host: ereg-services.prod-fss-pub.nais.io
+        - host: aareg-services.prod-fss-pub.nais.io
         - host: entraproxy.intern.nav.no
         - host: sokos-kontoregister.prod-fss-pub.nais.io
       rules:

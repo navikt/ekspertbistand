@@ -41,6 +41,9 @@ import no.nav.ekspertbistand.pdl.PdlGraderingOppslag
 import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.*
 import no.nav.ekspertbistand.skjerming.SkjermingOppslag
+import no.nav.ekspertbistand.aareg.AaregClient
+import no.nav.ekspertbistand.soknad.AaregPdlDeltakerOppslag
+import no.nav.ekspertbistand.soknad.DeltakerOppslag
 import no.nav.ekspertbistand.soknad.configureSoknadApiV1
 import no.nav.ekspertbistand.sokos.KontoregisterClient
 import no.nav.ekspertbistand.sokos.configureKontoregisterApiV1
@@ -409,6 +412,8 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                         (request.body as TextContent).text.let { body ->
                             val ident = defaultJson.parseToJsonElement(body)
                                 .jsonObject["variables"]?.jsonObject?.get("ident")?.jsonPrimitive?.content
+                            val operationName = defaultJson.parseToJsonElement(body)
+                                .jsonObject["operationName"]?.jsonPrimitive?.content
                             if (body.contains("hentGeografiskTilknytning")) {
                                 respond(
                                     // language=JSON
@@ -418,6 +423,23 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                                             "hentGeografiskTilknytning": {
                                                 "gtType": "KOMMUNE",
                                                 "gtKommune": "0301"
+                                            }
+                                        }
+                                    }
+                                    """.trimIndent(),
+                                    HttpStatusCode.OK,
+                                    headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                                )
+                            } else if (operationName == "HentPersonNavn") {
+                                respond(
+                                    // language=JSON
+                                    """
+                                    {
+                                        "data": {
+                                            "hentPerson": {
+                                                "navn": [
+                                                    { "fornavn": "Mona", "mellomnavn": null, "etternavn": "Moonlight" }
+                                                ]
                                             }
                                         }
                                     }
@@ -510,6 +532,28 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                     })
                 )
             }
+            provide<AaregClient> {
+                AaregClient(
+                    tokenProvider = resolve<AzureAdTokenProvider>(),
+                    defaultHttpClient = HttpClient(MockEngine { request ->
+                        val fnr = request.headers["Nav-Personident"].orEmpty()
+                        val orgnr = request.headers["Nav-Arbeidsstedident"].orEmpty()
+                        // Fødselsnummer som slutter på 00000 har ingen arbeidsforhold.
+                        val body = if (fnr.endsWith("00000")) "[]" else
+                            // language=JSON
+                            """
+                            [
+                              {
+                                "arbeidssted": { "type": "Underenhet", "identer": [{ "type": "ORGANISASJONSNUMMER", "ident": "$orgnr" }] },
+                                "ansettelsesperiode": { "startdato": "2020-01-01" }
+                              }
+                            ]
+                            """.trimIndent()
+                        respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
+                    })
+                )
+            }
+            provide<DeltakerOppslag> { AaregPdlDeltakerOppslag(resolve(), resolve()) }
             provide<ArenaClient> {
                 val arenaSeq = generateSequence(1) { it + 1 }.iterator()
                 ArenaClient(
