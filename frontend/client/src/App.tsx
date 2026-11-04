@@ -29,6 +29,8 @@ const SkjemaV2Layout = lazy(() => import("./v2/SkjemaLayout"));
 const SoknadV2Page = lazy(() => import("./v2/pages/SoknadPage"));
 const SkjemaV2Steg1Page = lazy(() => import("./v2/pages/SkjemaSteg1Page"));
 const SkjemaV2Steg2Page = lazy(() => import("./v2/pages/SkjemaSteg2Page"));
+const SkjemaV2Steg3Page = lazy(() => import("./v2/pages/SkjemaSteg3Page"));
+const DeltakerBekreftetV2Gate = lazy(() => import("./v2/DeltakerBekreftetGate"));
 const OppsummeringV2Page = lazy(() => import("./v2/pages/OppsummeringPage"));
 const KvitteringV2Page = lazy(() => import("./v2/pages/KvitteringPage"));
 const SoknaderV2Page = lazy(() => import("./v2/pages/SoknaderPage"));
@@ -155,8 +157,11 @@ export default function App() {
                 )}
                 <Route path="skjema/:id" element={<SkjemaV2Layout />}>
                   <Route path="steg-1" element={<SkjemaV2Steg1Page />} />
-                  <Route path="steg-2" element={<SkjemaV2Steg2Page />} />
-                  <Route path="oppsummering" element={<OppsummeringV2Page />} />
+                  <Route element={<DeltakerBekreftetV2Gate />}>
+                    <Route path="steg-2" element={<SkjemaV2Steg2Page />} />
+                    <Route path="steg-3" element={<SkjemaV2Steg3Page />} />
+                    <Route path="oppsummering" element={<OppsummeringV2Page />} />
+                  </Route>
                   <Route path="" element={<Navigate to="steg-1" replace />} />
                 </Route>
               </Route>

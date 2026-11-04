@@ -16,8 +16,8 @@ const ansattListSchema = ansattServerSchema.partial();
 const baseSkjemaSchema = draftDtoServerSchema.extend({
   id: z.string().trim().min(1),
   status: z.string().trim().optional(),
-  virksomhet: virksomhetListSchema.optional(),
-  ansatt: ansattListSchema.optional(),
+  virksomhet: virksomhetListSchema.nullable().optional(),
+  ansatt: ansattListSchema.nullable().optional(),
   beslutning: z
     .object({
       status: z.string().trim().optional(),

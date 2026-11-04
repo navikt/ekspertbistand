@@ -87,3 +87,34 @@ describe("fetchSkjema", () => {
     ]);
   });
 });
+
+describe("fetchSkjema", () => {
+  it("viser utkast uten virksomhet og deltaker, slik backend sender dem med null", async () => {
+    vi.mocked(fetchJson)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: "utkast-uten-virksomhet",
+          status: "utkast",
+          virksomhet: null,
+          ansatt: null,
+          ekspert: null,
+          nav: null,
+          opprettetAv: "01819010001",
+          opprettetTidspunkt: "2026-11-02T10:00:00Z",
+          deltakerBekreftet: false,
+        },
+      ]);
+
+    const soknader = await fetchSkjema();
+
+    expect(soknader).toEqual([
+      expect.objectContaining({
+        id: "utkast-uten-virksomhet",
+        title: "Søknad om tilskudd til ekspertbistand",
+        description: "Virksomhetsinformasjon mangler.",
+        href: "/v2/skjema/utkast-uten-virksomhet",
+      }),
+    ]);
+  });
+});
