@@ -12,6 +12,10 @@ export default defineConfig(() => {
   return {
     base,
     plugins: [react()],
+    build: {
+      // Nais APM henter .map fra cdn.nav.no for å gi lesbare stack traces.
+      sourcemap: true,
+    },
     server: {
       proxy: {
         "/ekspertbistand-backend": {
