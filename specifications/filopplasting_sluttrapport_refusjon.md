@@ -91,7 +91,6 @@ CREATE INDEX idx_vedlegg_soknad_id ON vedlegg(soknad_id);
 CREATE TABLE refusjonskrav (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     soknad_id    UUID NOT NULL REFERENCES soknad(id) ON DELETE CASCADE,
-    beskrivelse  TEXT NOT NULL,
     belop        INT NOT NULL,
     sendt_inn    TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -24,7 +24,13 @@ const buildSummaryItems = <TFieldValues extends FieldValues>(
 ): SummaryItem[] =>
   fields.reduce<SummaryItem[]>((items, field) => {
     const fieldError = get(errors, field);
-    const message = typeof fieldError?.message === "string" ? fieldError.message : null;
+    const message =
+      typeof fieldError === "object" &&
+      fieldError !== null &&
+      "message" in fieldError &&
+      typeof fieldError.message === "string"
+        ? fieldError.message
+        : null;
     if (message) {
       items.push({ id: field, message });
     }

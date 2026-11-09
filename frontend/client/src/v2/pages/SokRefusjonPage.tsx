@@ -19,7 +19,6 @@ import {
   LinkCard,
   Loader,
   TextField,
-  Textarea,
   VStack,
   type FileAccepted,
   type FileObject,
@@ -47,7 +46,6 @@ import { isProd } from "../../utils/env";
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-const MAX_UTGIFTER_CHARS = 2000;
 
 // TODO: Vi må sjekke refusjonsbeløpet mot maksbeløpet i tilsagnsbrevet.
 // Maksbeløpet er ikke eksponert fra backend/tilsagnsbrev ennå – når det er på
@@ -55,10 +53,6 @@ const MAX_UTGIFTER_CHARS = 2000;
 // nedenfor. Da vil feltet vise feil og skjemaet blokkeres ved beløp over maks.
 const makeRefusjonSchema = (maksBelopKroner?: number) =>
   z.object({
-    utgifter: z
-      .string()
-      .min(1, "Du må beskrive hvilke utgifter tilskuddet skal dekke.")
-      .max(MAX_UTGIFTER_CHARS, `Beskrivelsen kan ikke være lengre enn ${MAX_UTGIFTER_CHARS} tegn.`),
     belop: z
       .string()
       .min(1, "Du må oppgi beløp for refusjonskravet.")
@@ -79,9 +73,7 @@ const makeRefusjonSchema = (maksBelopKroner?: number) =>
 
 type RefusjonInputs = z.infer<ReturnType<typeof makeRefusjonSchema>>;
 
-const FIELDS = ["utgifter", "belop", "bekreftUtgifter"] as const satisfies ReadonlyArray<
-  keyof RefusjonInputs
->;
+const FIELDS = ["belop", "bekreftUtgifter"] as const satisfies ReadonlyArray<keyof RefusjonInputs>;
 
 export default function SokRefusjonPage() {
   const { id } = useParams<{ id: string }>();
@@ -114,7 +106,7 @@ export default function SokRefusjonPage() {
     resolver: zodResolver(refusjonSchema),
     reValidateMode: "onBlur",
     shouldFocusError: false,
-    defaultValues: { utgifter: "", belop: "", bekreftUtgifter: false },
+    defaultValues: { belop: "", bekreftUtgifter: false },
   });
 
   const onSelect = (files: FileObject[]) => {
@@ -141,7 +133,6 @@ export default function SokRefusjonPage() {
     setIsSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append("utgifter", data.utgifter);
       formData.append("belop", data.belop);
       acceptedFiles.forEach((file) => formData.append("filer", file));
 
@@ -218,10 +209,6 @@ export default function SokRefusjonPage() {
                 <VStack gap="space-2">
                   <Label>Kontonummer</Label>
                   <BodyShort>{refusjon.kontonummer ?? "–"}</BodyShort>
-                </VStack>
-                <VStack gap="space-2">
-                  <Label>Hvilke utgifter skal tilskuddet dekke</Label>
-                  <BodyShort>{refusjon.utgifter}</BodyShort>
                 </VStack>
                 <VStack gap="space-2">
                   <Label>Beløp for refusjonskravet</Label>
@@ -344,14 +331,6 @@ export default function SokRefusjonPage() {
                     ? [{ id: "submit-error", message: submitError.message, href: "#submit-error" }]
                     : []),
                 ]}
-              />
-
-              <Textarea
-                id="utgifter"
-                label="Hvilke utgifter skal tilskuddet til ekspertbistand dekke?"
-                maxLength={MAX_UTGIFTER_CHARS}
-                error={errors.utgifter?.message}
-                {...register("utgifter")}
               />
 
               <TextField

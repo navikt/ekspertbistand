@@ -325,9 +325,13 @@ test("v2 refunds and final reports submit to the shared API and return to v2", a
   if (!approvedDraftId) throw new Error("The mock API did not include an approved application.");
 
   await page.goto(`/v2/skjema/${approvedDraftId}/refusjon`);
-  await page
-    .getByLabel("Hvilke utgifter skal tilskuddet til ekspertbistand dekke?")
-    .fill("Utgifter til ekspertbistand");
+  await expect(
+    page.getByLabel("Hvilke utgifter skal tilskuddet til ekspertbistand dekke?")
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Send inn", exact: true }).click();
+  await expect(page.getByText("Du må oppgi beløp for refusjonskravet.").first()).toBeVisible();
+  await expect(page.getByText("Du må bekrefte at utgiftene er betalt.").first()).toBeVisible();
+  await expect(page.getByText("Du må laste opp minst én fil.").first()).toBeVisible();
   await page.getByLabel("Beløp for refusjonskravet").fill("1000");
   await page.locator('input[type="file"]').setInputFiles({
     name: "kvittering.pdf",
@@ -337,14 +341,31 @@ test("v2 refunds and final reports submit to the shared API and return to v2", a
   await page
     .getByRole("checkbox", { name: "Jeg bekrefter at utgiftene som kreves refundert er betalt." })
     .check();
+  await page
+    .getByRole("checkbox", { name: "Jeg bekrefter at utgiftene som kreves refundert er betalt." })
+    .press("Tab");
+  await expect(page.getByText("Du må bekrefte at utgiftene er betalt.")).toHaveCount(0);
 
   const refundResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       new URL(response.url()).pathname === `${API_PATH}/${approvedDraftId}/refusjon`
   );
+  const refundStatusResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" &&
+      response.status() === 200 &&
+      new URL(response.url()).pathname === `${API_PATH}/${approvedDraftId}/refusjon`
+  );
   await page.getByRole("button", { name: "Send inn", exact: true }).click();
-  expect((await refundResponse).status()).toBe(201);
+  const submittedRefund = await refundResponse;
+  expect(submittedRefund.status()).toBe(201);
+  const refundStatus: unknown = await (await refundStatusResponse).json();
+  expect(refundStatus).toMatchObject({
+    belopKroner: 1000,
+    vedlegg: [expect.objectContaining({ filnavn: "kvittering.pdf" })],
+  });
+  expect(refundStatus).not.toHaveProperty("utgifter");
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));
   await expect(page.getByRole("heading", { name: "Søknaden godkjent", exact: true })).toBeVisible();
 
@@ -352,6 +373,8 @@ test("v2 refunds and final reports submit to the shared API and return to v2", a
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/refusjon$`));
   await expect(page.getByRole("heading", { name: "Refusjonskrav sendt inn" })).toBeVisible();
+  await expect(page.getByText("Hvilke utgifter skal tilskuddet dekke")).toHaveCount(0);
+  await expect(page.getByText("1 000 kr", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "kvittering.pdf" })).toHaveAttribute(
     "href",
     new RegExp(`${API_PATH}/${approvedDraftId}/refusjon/vedlegg/`)
