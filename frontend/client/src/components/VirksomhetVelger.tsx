@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { BodyShort, ErrorMessage, Label, Loader, VStack } from "@navikt/ds-react";
 import {
   Virksomhetsvelger as NavVirksomhetsvelger,
@@ -8,6 +8,8 @@ import "@navikt/virksomhetsvelger/dist/assets/style.css";
 import { useOrganisasjoner } from "../hooks/useOrganisasjoner";
 
 type VirksomhetPickerProps = {
+  id?: string;
+  ref?: React.Ref<HTMLButtonElement>;
   label: React.ReactNode;
   value: string;
   onChange: (organisasjonsnummer: string, virksomhet?: Organisasjon) => void;
@@ -16,6 +18,8 @@ type VirksomhetPickerProps = {
 };
 
 export function VirksomhetVelger({
+  id,
+  ref,
   label,
   value,
   onChange,
@@ -23,6 +27,7 @@ export function VirksomhetVelger({
   description,
 }: VirksomhetPickerProps) {
   const { organisasjoner, isLoading } = useOrganisasjoner();
+  const errorId = useId();
 
   return (
     <VStack gap="space-8">
@@ -36,6 +41,10 @@ export function VirksomhetVelger({
       )}
       {organisasjoner.length > 0 ? (
         <NavVirksomhetsvelger
+          ref={ref}
+          id={id}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
           organisasjoner={organisasjoner}
           initValgtOrgnr={value || undefined}
           onChange={(org) => {
@@ -44,7 +53,7 @@ export function VirksomhetVelger({
           friKomponent
         />
       ) : null}
-      {error ? <ErrorMessage>{error}</ErrorMessage> : null}
+      {error ? <ErrorMessage id={errorId}>{error}</ErrorMessage> : null}
     </VStack>
   );
 }

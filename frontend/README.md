@@ -28,6 +28,30 @@ Enkel oversikt over hvordan du kjører frontend lokalt.
 - Format: `pnpm format`
 - Typecheck: `pnpm typecheck`
 
+## Parallell arbeidsgiverflyt (v2)
+
+`frontend/client/src/v2/` inneholder egne visninger for oversikt, søknad, kvittering,
+tilskuddsbrev, sluttrapport og refusjon. Åpne `/v2/soknader`, eller bruk «Prøv ny løsning (v2)»
+fra dagens oversikt. Ved `BASE_PATH=/ekspertbistand` er adressen `/ekspertbistand/v2/soknader`.
+
+`EKSPERTBISTAND_V2` i `frontend/client/src/utils/featureFlags.ts` styrer inngangen og alle v2-rutene.
+Flagget er på lokalt og i dev, og av i prod og i ukjente miljøer. De interne sidene
+for refusjon og sluttrapport krever også `EKSPERTBISTAND_SAKSBEHANDLING_BETA`.
+Dagens eksterne lenker til refusjon og sluttrapport er uendret.
+
+V2 er en selvstendig kopi. Endringer i v2 skal ikke røre v1-filene. V2 deler bare
+`utils/api`, `utils/http` og `utils/env` med v1, og `src/v2/isolation.test.ts` feiler hvis v2
+importerer noe annet utenfor `src/v2/`. Trenger du å endre en delt modul for v2, kopierer du den
+inn i `src/v2/` først.
+
+V1 og v2 bruker samme backend, utkastformat og data. Nye felt i v2 krever derfor støtte i
+backend, og v1 må tåle utkast som v2 har lagret. Oversikten i hver versjon åpner søknader i
+sin egen rutefamilie. Innloggingen er felles. Du deaktiverer v2 ved å sette `enabledIn` for
+`EKSPERTBISTAND_V2` til `[]`.
+
+Kjør nettlesertestene for begge flytene fra repo-roten:
+`pnpm --dir frontend/client exec playwright test e2e/v2.spec.ts e2e/routes.smoke.spec.ts`.
+
 ## Lokalt med Docker Compose
 
 - Kopier miljøvariabler: `cp .env.example .env` (rediger ved behov)

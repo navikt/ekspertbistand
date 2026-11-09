@@ -11,3 +11,8 @@ if (typeof globalThis.ReadableStream === "undefined") {
 if (typeof globalThis.WritableStream === "undefined") {
   globalThis.WritableStream = WritableStream;
 }
+
+// jsdom defines scrollTo but only logs "Not implemented".
+if (typeof window !== "undefined") {
+  window.scrollTo = () => {};
+}

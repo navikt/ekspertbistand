@@ -27,7 +27,9 @@ suspend fun Application.configureSoknadApiV1() {
     val database = dependencies.resolve<Database>()
     val altinnTilgangerClient = dependencies.resolve<AltinnTilgangerClient>()
     val eregService = dependencies.resolve<EregService>()
-    val soknadApi = SoknadApi(database, altinnTilgangerClient, eregService)
+    val deltakerOppslag = dependencies.resolve<DeltakerOppslag>()
+    val deltakerOppslagRateLimit = DeltakerOppslagRateLimit(database)
+    val soknadApi = SoknadApi(database, altinnTilgangerClient, eregService, deltakerOppslag, deltakerOppslagRateLimit)
     val aggregateRetention = AggregateRetention(database)
 
     launch {
@@ -37,6 +39,12 @@ suspend fun Application.configureSoknadApiV1() {
             } catch (e: Exception) {
                 e.rethrowIfCancellation()
                 log.error("Feil ved sletting av gamle utkast", e)
+            }
+            try {
+                deltakerOppslagRateLimit.slettGamleOppslag()
+            } catch (e: Exception) {
+                e.rethrowIfCancellation()
+                log.error("Feil ved sletting av gamle deltakeroppslag", e)
             }
             delay(10.minutes)
         }
@@ -65,6 +73,7 @@ suspend fun Application.configureSoknadApiV1() {
              * GET /api/soknad/v1?status={status} => henter alle soknad med gitt status
              * DELETE /api/soknad/v1/{id} => sletter utkast (http 409 hvis utkast er sendt inn)
              * PUT /api/soknad/v1/{id} => sender inn soknad (payload valideres iht json schema)
+             * POST /api/soknad/v1/{id}/valider-deltaker => validerer deltaker, sjekker arbeidsforhold og henter navn
              */
             route("/api/soknad/v1") {
                 with(soknadApi) {
@@ -150,6 +159,18 @@ suspend fun Application.configureSoknadApiV1() {
                         }
 
                         sendInnSoknad(idParam)
+                    }
+
+                    post("/{id}/valider-deltaker") {
+                        val idParam: UUID = call.pathParameters.getRequired(
+                            name = "id",
+                            transform = UUID::fromString,
+                        ) {
+                            call.respond(status = HttpStatusCode.BadRequest, message = "ugyldig id")
+                            return@post
+                        }
+
+                        validerDeltaker(idParam)
                     }
                 }
             }

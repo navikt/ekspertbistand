@@ -1,0 +1,246 @@
+import { fnr, tnr } from "@navikt/fnrvalidator";
+import { z } from "zod";
+import type { Path } from "react-hook-form";
+import { startOfToday } from "../../utils/date";
+import { envSwitch } from "../../../utils/env";
+z.config(z.locales.no());
+
+const virksomhetsnummerPattern = /^\d{9}$/;
+const telephonePattern = /^\d{8}$/;
+const fnrPattern = /^\d{11}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const MAKS_TEKST_LENGDE = 10_000;
+
+// Speiler standardTekstSjekker i backend (InputValidering.kt), så brukeren får feilen på feltet
+// i stedet for at lagringen avvises med 400.
+const kontrolltegnPattern = /[^\P{Cc}\t\n\r]/u;
+const formattegnPattern = /\p{Cf}/u;
+
+const trimmedText = (message: string) =>
+  z
+    .string()
+    .refine((value) => !/[<>]/.test(value), { message: "Teksten kan ikke inneholde < eller >." })
+    .refine((value) => !kontrolltegnPattern.test(value) && !formattegnPattern.test(value), {
+      message:
+        "Teksten inneholder usynlige tegn. Skriv inn teksten på nytt i stedet for å lime den inn.",
+    })
+    .refine((value) => value.length <= MAKS_TEKST_LENGDE, {
+      message: "Teksten kan ikke være lengre enn 10 000 tegn.",
+    })
+    .trim()
+    .min(1, { message });
+
+const emailField = trimmedText("Du må fylle ut e-post.").refine(
+  (value) => emailPattern.test(value),
+  {
+    message: "Ugyldig e-postadresse.",
+  }
+);
+
+const phoneField = trimmedText("Du må fylle ut telefonnummer.").refine(
+  (value) => telephonePattern.test(value),
+  { message: "Telefonnummer må være 8 siffer." }
+);
+
+const orgnrField = trimmedText("Du må velge virksomhet.").refine(
+  (value) => virksomhetsnummerPattern.test(value),
+  { message: "Virksomhetsnummer må være 9 siffer." }
+);
+
+const isValidFnr = (value: string) => fnr(value).status === "valid";
+const isValidTnr = (value: string) => tnr(value).status === "valid";
+const isValidFnrOrTnr = (value: string) =>
+  envSwitch({
+    prod: () => isValidFnr(value),
+    dev: () => isValidFnr(value) || isValidTnr(value),
+    local: () => isValidFnr(value) || isValidTnr(value),
+  });
+
+const normalizeFnr = (value: string) => value.replace(/\D/g, "");
+
+const fnrField = trimmedText("Du må fylle ut fødselsnummer.")
+  .transform((value) => normalizeFnr(value))
+  .refine((value) => fnrPattern.test(value), { message: "Fødselsnummer må være 11 siffer." })
+  .refine((value) => isValidFnrOrTnr(value), {
+    message: "Fødselsnummer er ikke gyldig.",
+  });
+
+const timerSchema = z.string().superRefine((value, ctx) => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    ctx.addIssue({ code: "custom", message: "Du må anslå hvor mange timer dere trenger." });
+    return;
+  }
+
+  const numeric = Number(trimmed);
+  if (!Number.isFinite(numeric)) {
+    ctx.addIssue({ code: "custom", message: "Antall timer må være et tall." });
+    return;
+  }
+
+  if (numeric <= 0) {
+    ctx.addIssue({ code: "custom", message: "Antall timer må være større enn 0." });
+    return;
+  }
+
+  if (!Number.isInteger(numeric)) {
+    ctx.addIssue({ code: "custom", message: "Antall timer må være hele timer." });
+  }
+});
+
+const estimertKostnadSchema = z.string().superRefine((value, ctx) => {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    ctx.addIssue({ code: "custom", message: "Du må anslå kostnad." });
+    return;
+  }
+
+  if (tolkSoknadssum(trimmed) === null) {
+    ctx.addIssue({ code: "custom", message: "Søknadssummen må være et positivt heltall." });
+  }
+});
+
+function tolkSoknadssum(verdi: string): number | null {
+  const trimmed = verdi.trim();
+  if (!/^\+?\d+$/.test(trimmed)) return null;
+  const belop = Number(trimmed);
+  return Number.isInteger(belop) && belop > 0 && belop <= 2_147_483_647 ? belop : null;
+}
+
+export function sjekkSoknadssumMotMaks(verdi: string, maksBelop: number): string | null {
+  const belop = tolkSoknadssum(verdi);
+  if (belop === null) return "Søknadssummen må være et positivt heltall.";
+  return belop > maksBelop
+    ? `Søknadssummen kan ikke være høyere enn ${new Intl.NumberFormat("nb-NO").format(maksBelop)} kr.`
+    : null;
+}
+
+const startdatoSchema = z.union([z.string().trim(), z.null()]).superRefine((value, ctx) => {
+  if (!value) {
+    ctx.addIssue({ code: "custom", message: "Du må velge en dato." });
+    return;
+  }
+  // Basic ISO date pattern check.
+  const isoPattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+  if (!isoPattern.test(value)) {
+    ctx.addIssue({ code: "custom", message: "Ugyldig dato." });
+    return;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()) || value !== date.toISOString().slice(0, 10)) {
+    ctx.addIssue({ code: "custom", message: "Ugyldig dato." });
+    return;
+  }
+  if (date < startOfToday()) {
+    ctx.addIssue({ code: "custom", message: "Startdato kan ikke være i fortiden." });
+  }
+});
+
+export const soknadSchema = z.object({
+  virksomhet: z.object({
+    virksomhetsnavn: z.string(),
+    virksomhetsnummer: orgnrField,
+    kontaktperson: z.object({
+      navn: trimmedText("Du må fylle ut navn for kontaktperson."),
+      epost: emailField,
+      telefonnummer: phoneField,
+    }),
+    beliggenhetsadresse: z.string().nullable(),
+  }),
+  ansatt: z.object({
+    fnr: fnrField,
+    navn: trimmedText("Du må gå videre fra steg 1 for å hente navnet på deltakeren."),
+  }),
+  ekspert: z.object({
+    navn: trimmedText("Du må fylle ut navn på ekspert."),
+    virksomhet: trimmedText("Du må velge en tilknyttet virksomhet."),
+    virksomhetNavn: z.string().nullable(),
+    virksomhetOrgnr: z.string().nullable(),
+    godkjentUtdanningEllerAutorisasjon: z
+      .array(z.string())
+      .min(1, "Du må velge minst én utdanning eller autorisasjon."),
+    relevantKompetanse: z.array(z.string()).min(1, "Du må velge minst én relevant kompetanse."),
+  }),
+  behovForBistand: z.object({
+    begrunnelse: trimmedText(
+      "Beskriv arbeidssituasjonen og hva som er utfordrende (stilling, oppgaver, arbeidstid)."
+    ),
+    behov: trimmedText("Du må beskrive hva dere ønsker hjelp til fra eksperten."),
+    timer: timerSchema,
+    estimertKostnad: estimertKostnadSchema,
+    tilrettelegging: trimmedText("Du må beskrive tiltak for tilrettelegging."),
+    startdato: startdatoSchema,
+  }),
+  nav: z.object({
+    kontaktperson: trimmedText("Du må fylle ut hvem i Nav du har drøftet med."),
+  }),
+});
+
+export type SoknadInputs = z.infer<typeof soknadSchema>;
+
+// ansatt.navn hentes fra PDL når deltakeren valideres på steg 1, og er derfor ikke med i noen gruppe.
+export const STEP1_FIELDS = [
+  "virksomhet.virksomhetsnummer",
+  "virksomhet.virksomhetsnavn",
+  "virksomhet.beliggenhetsadresse",
+  "ansatt.fnr",
+] as const satisfies ReadonlyArray<Path<SoknadInputs>>;
+
+export const STEP2_FIELDS = [
+  "virksomhet.kontaktperson.navn",
+  "virksomhet.kontaktperson.epost",
+  "virksomhet.kontaktperson.telefonnummer",
+  "ekspert.navn",
+  "ekspert.virksomhet",
+  "ekspert.virksomhetNavn",
+  "ekspert.virksomhetOrgnr",
+  "ekspert.godkjentUtdanningEllerAutorisasjon",
+  "ekspert.relevantKompetanse",
+  "nav.kontaktperson",
+] as const satisfies ReadonlyArray<Path<SoknadInputs>>;
+
+export const STEP3_FIELDS = [
+  "behovForBistand.begrunnelse",
+  "behovForBistand.behov",
+  "behovForBistand.timer",
+  "behovForBistand.estimertKostnad",
+  "behovForBistand.tilrettelegging",
+  "behovForBistand.startdato",
+] as const satisfies ReadonlyArray<Path<SoknadInputs>>;
+
+export const createEmptyInputs = (): SoknadInputs => ({
+  virksomhet: {
+    virksomhetsnavn: "",
+    virksomhetsnummer: "",
+    kontaktperson: {
+      navn: "",
+      epost: "",
+      telefonnummer: "",
+    },
+    beliggenhetsadresse: null,
+  },
+  ansatt: {
+    fnr: "",
+    navn: "",
+  },
+  ekspert: {
+    navn: "",
+    virksomhet: "",
+    virksomhetNavn: null,
+    virksomhetOrgnr: null,
+    godkjentUtdanningEllerAutorisasjon: [],
+    relevantKompetanse: [],
+  },
+  behovForBistand: {
+    begrunnelse: "",
+    behov: "",
+    timer: "",
+    estimertKostnad: "",
+    tilrettelegging: "",
+    startdato: null,
+  },
+  nav: {
+    kontaktperson: "",
+  },
+});
