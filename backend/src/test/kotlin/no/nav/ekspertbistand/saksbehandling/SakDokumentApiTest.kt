@@ -722,7 +722,7 @@ class SakDokumentApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSakDokumentApiV1()
             configureServer()
         }

@@ -432,7 +432,7 @@ class ForelopigVedtakApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureForelopigVedtakApiV1()
             configureServer()
         }

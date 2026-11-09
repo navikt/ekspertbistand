@@ -89,7 +89,7 @@ class SoknadTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureServer()
             configureSoknadApiV1()
         }
@@ -273,7 +273,7 @@ class SoknadTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureServer()
             configureSoknadApiV1()
 
@@ -557,7 +557,7 @@ class SoknadTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureServer()
             configureSoknadApiV1()
         }
@@ -718,7 +718,7 @@ class SoknadTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureServer()
             configureSoknadApiV1()
         }
@@ -799,7 +799,7 @@ class SoknadTest {
                     provide<EregService> { EregService(eregClient) }
                 }
 
-                configureAuthentication()
+                configureTestAuthentication()
                 configureServer()
                 configureSoknadApiV1()
             }
@@ -915,7 +915,7 @@ class SoknadTest {
                     provide { altinnTilgangerClient }
                     provide<EregService> { EregService(eregClient) }
                 }
-                configureAuthentication()
+                configureTestAuthentication()
                 configureServer()
                 configureSoknadApiV1()
             }

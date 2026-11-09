@@ -1,6 +1,23 @@
 package no.nav.ekspertbistand.infrastruktur
 
+import io.ktor.server.application.*
+import io.ktor.server.plugins.di.*
 import kotlin.plus
+
+const val TEST_TOKENX_CLIENT_ID = "test:fager:ekspertbistand-frontend"
+const val TEST_AZP = "00000000-0000-0000-0000-00000000a2d0"
+
+/** Matcher standardverdiene for `client_id` og `azp` i fixturene under. */
+val testTillatteKlienter = TillatteKlienter(
+    tokenX = setOf(TEST_TOKENX_CLIENT_ID),
+    azureAd = setOf(TEST_AZP),
+)
+
+/** Autentisering som i prod, med [testTillatteKlienter] i stedet for oppslag i Nais-miljøet. */
+fun Application.configureTestAuthentication() {
+    dependencies { provide<TillatteKlienter> { testTillatteKlienter } }
+    configureAuthentication()
+}
 
 class MockTokenIntrospector(
     val mocks: (String) -> TokenIntrospectionResponse?,
@@ -19,7 +36,7 @@ val mockIntrospectionResponse = TokenIntrospectionResponse(
 )
     .withPid("0")
     .withAcr("idporten-loa-high")
-    .withClientId("test")
+    .withClientId(TEST_TOKENX_CLIENT_ID)
 
 fun TokenIntrospectionResponse.withPid(pid: String) = this.copy(other = this.other + ("pid" to pid))
 fun TokenIntrospectionResponse.withClientId(clientId: String) =
@@ -56,6 +73,16 @@ val mockAzureAdIntrospectionResponse = TokenIntrospectionResponse(
 )
     .withNavIdent("A123456")
     .withGroups(emptyList())
+    .withAzp(TEST_AZP)
+
+fun TokenIntrospectionResponse.withAzp(azp: String) =
+    this.copy(other = this.other + ("azp" to azp))
+
+fun TokenIntrospectionResponse.withoutClaim(claim: String) =
+    this.copy(other = this.other - claim)
+
+fun TokenIntrospectionResponse.withClaim(claim: String, value: Any?) =
+    this.copy(other = this.other + (claim to value))
 
 fun TokenIntrospectionResponse.withNavIdent(navIdent: String) =
     this.copy(other = this.other + ("NAVident" to navIdent))

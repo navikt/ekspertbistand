@@ -75,7 +75,7 @@ class SluttrapportStatusApiTest {
                 provide { altinnTilgangerClient }
                 provide { clamAvClient }
             }
-            configureAuthentication()
+            configureTestAuthentication()
             configureServer()
             configureVedleggApiV1()
         }

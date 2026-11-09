@@ -493,7 +493,7 @@ class VilkarsvurderingApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureVilkarsvurderingApiV1()
             configureServer()
         }

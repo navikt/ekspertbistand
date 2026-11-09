@@ -92,9 +92,11 @@ const val altinn3Ressursid = "nav_tiltak_ekspertbistand"
 @OptIn(ExperimentalTime::class)
 fun main() {
     val dbConfig = DbConfig.nais()
+    val tillatteKlienter = TillatteKlienter.nais()
 
     ktorServer {
         dependencies {
+            provide<TillatteKlienter> { tillatteKlienter }
             provide<Database> {
                 dbConfig.flywayAction {
                     migrate()
@@ -258,6 +260,11 @@ fun Application.configureServer() {
                             "felt" to cause.feltsti,
                         ),
                     )
+                }
+
+                is UkjentKlientException -> {
+                    // Logget og telt i configureAuthentication.
+                    call.respond(HttpStatusCode.Forbidden, mapOf("message" to "ingen tilgang"))
                 }
 
                 is EntraProxyUtilgjengeligException -> {

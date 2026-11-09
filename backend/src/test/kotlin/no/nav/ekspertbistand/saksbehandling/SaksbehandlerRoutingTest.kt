@@ -98,7 +98,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -141,7 +141,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -176,7 +176,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -211,13 +211,13 @@ class SaksbehandlerRoutingTest {
                         TokenIntrospectionResponse(
                             active = true,
                             error = null,
-                            other = mapOf("name" to "Tore Tang"),
+                            other = mapOf("name" to "Tore Tang", "azp" to TEST_AZP),
                         )
                     }
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -258,7 +258,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -302,7 +302,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -677,7 +677,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -723,7 +723,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }
@@ -768,7 +768,7 @@ class SaksbehandlerRoutingTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSaksbehandlerApiV1()
             configureServer()
         }

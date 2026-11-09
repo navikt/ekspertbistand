@@ -74,7 +74,7 @@ class EregApiTest {
                 provide<EregService> { EregService(resolve()) }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureEregApiV1()
             configureServer()
         }
@@ -128,7 +128,7 @@ class EregApiTest {
                 provide<EregService> { EregService(resolve()) }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureEregApiV1()
         }
 
@@ -192,7 +192,7 @@ class EregApiTest {
                 provide<EregService> { EregService(resolve()) }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureEregApiV1()
             configureServer()
         }
@@ -243,7 +243,7 @@ class EregApiTest {
                 provide<EregService> { EregService(resolve()) }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureEregApiV1()
             configureServer()
         }

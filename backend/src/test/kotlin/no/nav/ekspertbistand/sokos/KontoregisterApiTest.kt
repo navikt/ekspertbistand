@@ -94,7 +94,7 @@ class KontoregisterApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }
@@ -137,7 +137,7 @@ class KontoregisterApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }
@@ -180,7 +180,7 @@ class KontoregisterApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }
@@ -209,7 +209,7 @@ class KontoregisterApiTest {
                 provide<AzureAdTokenIntrospector> { MockAzureAdIntrospector { null } }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }
@@ -249,7 +249,7 @@ class KontoregisterApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }
@@ -291,7 +291,7 @@ class KontoregisterApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }
@@ -325,7 +325,7 @@ class KontoregisterApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }
@@ -360,7 +360,7 @@ class KontoregisterApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }
@@ -397,7 +397,7 @@ class KontoregisterApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }
@@ -427,7 +427,7 @@ class KontoregisterApiTest {
                 provide<TokenXTokenIntrospector> { MockTokenIntrospector { null } }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }
@@ -458,7 +458,7 @@ class KontoregisterApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureKontoregisterApiV1()
             configureServer()
         }

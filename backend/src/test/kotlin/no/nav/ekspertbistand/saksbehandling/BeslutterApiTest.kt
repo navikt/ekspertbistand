@@ -346,7 +346,7 @@ class BeslutterApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureBeslutterApiV1()
             configureServer()
         }

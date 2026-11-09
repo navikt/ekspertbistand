@@ -223,6 +223,28 @@ data class AzureAdPrincipal(
 
 const val AZURE_AD_PROVIDER = "AZURE_AD"
 
+/**
+ * Tokenet er gyldig, men kommer fra en app som ikke får kalle backend. Gir 403 via StatusPages.
+ * Ikke 401: frontendene sender brukeren til innlogging ved 401, og ny innlogging gir samme klient.
+ */
+class UkjentKlientException(val provider: String) : RuntimeException("Token fra ukjent klient ($provider)")
+
+private enum class KlientAvvisning(val metrikk: String) {
+    MANGLER("mangler"),
+    UKJENT("ukjent"),
+    M2M("m2m"),
+}
+
+private fun klientAvvist(provider: String, arsak: KlientAvvisning, klient: Any?) {
+    val beskrivelse = when (klient) {
+        null -> "mangler"
+        is String -> klient.take(100)
+        else -> "type=${klient.javaClass.simpleName}"
+    }
+    authLog.warn("Avviste token fra ukjent klient provider={} arsak={} klient={}", provider, arsak.metrikk, beskrivelse)
+    Metrics.meterRegistry.counter("auth_klient_avvist_total", "provider", provider, "arsak", arsak.metrikk).increment()
+}
+
 @OptIn(ExperimentalTime::class)
 fun Application.configureAuthentication() {
     install(Authentication) {
@@ -236,26 +258,29 @@ fun Application.configureAuthentication() {
                      * herfra til autentiseringsblokken i routing på modulen det gjelder
                      */
 
-                    val pid = other["pid"]!!
-                    val clientId = other["client_id"]!!
-                    val acr = other["acr"]!!
+                    val clientId = other["client_id"] as? String ?: run {
+                        klientAvvist(TOKENX_PROVIDER, KlientAvvisning.MANGLER, other["client_id"])
+                        return@authenticate null
+                    }
+                    if (clientId !in application.dependencies.resolve<TillatteKlienter>().tokenX) {
+                        klientAvvist(TOKENX_PROVIDER, KlientAvvisning.UKJENT, clientId)
+                        throw UkjentKlientException(TOKENX_PROVIDER)
+                    }
+
+                    val pid = other["pid"] as? String ?: return@authenticate null
+                    val acr = other["acr"] as? String ?: return@authenticate null
 
                     val acrValid = acr in listOf(
                         "idporten-loa-high",
                         "Level4",
                     )
+                    if (!acrValid) return@authenticate null
 
-                    if (acrValid && pid is String && clientId is String) {
-                        TokenXPrincipal(
-                            clientId = clientId,
-                            pid = pid,
-                            subjectToken = credentials.token
-                        )
-                    } else {
-                        null
-                    }
-
-
+                    TokenXPrincipal(
+                        clientId = clientId,
+                        pid = pid,
+                        subjectToken = credentials.token
+                    )
                 }
             }
         }
@@ -264,6 +289,22 @@ fun Application.configureAuthentication() {
             authenticate { credentials ->
                 with(application.dependencies.resolve<AzureAdTokenIntrospector>().introspect(credentials.token)) {
                     if (!active) return@authenticate null
+
+                    // Saksbehandlingsrutene krever en innlogget ansatt. Maskin-til-maskin-tokens slippes aldri inn.
+                    if (other["idtyp"] == "app") {
+                        klientAvvist(AZURE_AD_PROVIDER, KlientAvvisning.M2M, other["azp"])
+                        return@authenticate null
+                    }
+
+                    // Sjekkes før oppslaget mot entra-proxy, så ukjente klienter ikke gir kall videre.
+                    val azp = other["azp"] as? String ?: run {
+                        klientAvvist(AZURE_AD_PROVIDER, KlientAvvisning.MANGLER, other["azp"])
+                        return@authenticate null
+                    }
+                    if (azp !in application.dependencies.resolve<TillatteKlienter>().azureAd) {
+                        klientAvvist(AZURE_AD_PROVIDER, KlientAvvisning.UKJENT, azp)
+                        throw UkjentKlientException(AZURE_AD_PROVIDER)
+                    }
 
                     val navIdent = other["NAVident"] as? String
                         ?: return@authenticate null

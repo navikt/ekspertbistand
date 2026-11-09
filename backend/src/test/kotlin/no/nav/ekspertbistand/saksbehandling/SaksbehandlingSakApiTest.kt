@@ -1287,7 +1287,7 @@ class SaksbehandlingSakApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureSaksbehandlingSakApiV1()
             configureKommunefilterApiV1()
             configureServer()

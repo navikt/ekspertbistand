@@ -547,7 +547,7 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
             provide<SkjermingOppslag> { SkjermingOppslag { lokalBeskyttelse(it) == LokalBeskyttelse.SKJERMET } }
         }
         configureServer()
-        configureAuthentication()
+        configureTestAuthentication()
 
         // application modules
         configureSoknadApiV1()

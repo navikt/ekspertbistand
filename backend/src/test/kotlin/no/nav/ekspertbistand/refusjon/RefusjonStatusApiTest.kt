@@ -77,7 +77,7 @@ class RefusjonStatusApiTest {
                 provide { altinnTilgangerClient }
                 provide { clamAvClient }
             }
-            configureAuthentication()
+            configureTestAuthentication()
             configureServer()
             configureRefusjonApiV1()
         }

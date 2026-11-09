@@ -78,7 +78,7 @@ class TilskuddsbrevHtmlApiTest {
                 }
             }
 
-            configureAuthentication()
+            configureTestAuthentication()
             configureServer()
             configureTilsagnDataApiV1()
         }
@@ -123,6 +123,15 @@ class TilskuddsbrevHtmlApiTest {
                 tilskuddsbrevVist.size,
                 "html-for-soknad og html-for-tilsagnnummer skal begge publisere TilskuddsbrevVist"
             )
+        }
+
+        // Regresjon (#186): PDF-nedlasting med Arena-tilsagnsnummer med kolon i stien skal virke.
+        with(client.get("/api/tilsagndata/v1/tilskuddsbrev/$tilsagnNummer/tilskuddsbrev-pdf") {
+            bearerAuth("faketoken")
+        }) {
+            assertTrue(tilsagnNummer.contains(":"))
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals(ContentType.Application.Pdf, contentType()?.withoutParameters())
         }
     }
 
