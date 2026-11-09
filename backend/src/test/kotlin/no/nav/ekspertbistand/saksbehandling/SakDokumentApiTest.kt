@@ -27,7 +27,6 @@ import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
 import no.nav.ekspertbistand.refusjon.RefusjonDb
 import no.nav.ekspertbistand.refusjon.RefusjonStatusDto
-import no.nav.ekspertbistand.refusjon.RefusjonskravTable
 import no.nav.ekspertbistand.refusjon.RefusjonsfilInput
 import no.nav.ekspertbistand.sak.LagretSak
 import no.nav.ekspertbistand.sak.lagreSoknadOgSak
@@ -266,7 +265,7 @@ class SakDokumentApiTest {
         }
 
     @Test
-    fun `legacy parent uten sakId og vedlegg fra annen sak blir ikke tilgjengelig`() =
+    fun `legacy sluttrapport uten sakId og vedlegg fra annen sak blir ikke tilgjengelig`() =
         testApplicationWithDatabase { db ->
             val sak = godkjentSak(db)
             val annenSak = godkjentSak(db)
@@ -275,7 +274,7 @@ class SakDokumentApiTest {
                 belopOre = 123_00,
                 filer = listOf(RefusjonsfilInput("annen-sak.pdf", refusjonPdf)),
             )
-            val legacyIds = lagreLegacyDokumenter(db, sak)
+            lagreLegacySluttrapport(db, sak)
             val oppsett = oppsett(db)
 
             val sluttrapportMetadata =
@@ -295,13 +294,6 @@ class SakDokumentApiTest {
                     bearerAuth(gyldigToken)
                 }
             assertEquals(HttpStatusCode.NoContent, refusjonMetadata.status)
-
-            val legacyRefusjonsvedlegg = oppsett.client.get(
-                "/api/saksbehandling/v1/saker/${sak.sakId}/refusjon/vedlegg/${legacyIds.refusjonVedleggId}",
-            ) {
-                bearerAuth(gyldigToken)
-            }
-            assertEquals(HttpStatusCode.NotFound, legacyRefusjonsvedlegg.status)
 
             val annenSaksVedlegg = oppsett.client.get(
                 "/api/saksbehandling/v1/saker/${sak.sakId}/refusjon/vedlegg/$annenSaksVedleggId",
@@ -611,9 +603,7 @@ class SakDokumentApiTest {
         assertPdfResponse(sluttrapportForhandsvisning, "inline", "sluttrapport.pdf", sluttrapportPdf)
     }
 
-    private data class LegacyIds(val refusjonVedleggId: UUID)
-
-    private fun lagreLegacyDokumenter(db: TestDatabase, sak: LagretSak): LegacyIds =
+    private fun lagreLegacySluttrapport(db: TestDatabase, sak: LagretSak) {
         transaction(db.config.jdbcDatabase) {
             val legacySluttrapportId = SluttrapportTable.insertReturning(listOf(SluttrapportTable.id)) {
                 it[sakId] = null
@@ -627,26 +617,8 @@ class SakDokumentApiTest {
                 it[storrelse] = sluttrapportPdf.size
                 it[sluttrapportId] = legacySluttrapportId
             }
-
-            val legacyRefusjonskravId = RefusjonskravTable.insertReturning(
-                listOf(RefusjonskravTable.id),
-            ) {
-                it[soknadId] = sak.soknadId
-                it[sakId] = null
-                it[belopOre] = 100_00
-                it[status] = "MOTTATT"
-            }.single()[RefusjonskravTable.id].value
-            val refusjonVedleggId = VedleggTable.insertReturning(listOf(VedleggTable.id)) {
-                it[soknadId] = sak.soknadId
-                it[type] = VedleggType.REFUSJONSDOKUMENTASJON.name
-                it[filnavn] = "legacy-refusjon.pdf"
-                it[innhold] = refusjonPdf
-                it[storrelse] = refusjonPdf.size
-                it[refusjonskravId] = legacyRefusjonskravId
-            }.single()[VedleggTable.id].value
-
-            LegacyIds(refusjonVedleggId)
         }
+    }
 
     private fun godkjentSak(db: TestDatabase, behandlendeEnhet: String? = egenEnhet): LagretSak {
         val sak = lagreSoknadOgSak(db.config.jdbcDatabase)

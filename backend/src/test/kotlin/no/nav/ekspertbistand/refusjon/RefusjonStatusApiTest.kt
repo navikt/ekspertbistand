@@ -238,24 +238,16 @@ class RefusjonStatusApiTest {
             }
             val db = RefusjonDb(testDb.config.jdbcDatabase)
             db.lagreRefusjonskrav(soknadA, 100_000, listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())))
-            val refusjonskravIdB =
-                db.lagreRefusjonskrav(
-                    soknadB,
-                    100_000,
-                    listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())),
-                )
+            db.lagreRefusjonskrav(soknadB, 100_000, listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())))
             val vedleggIdB = db.finnRefusjonskravStatus(soknadB)!!.vedlegg.first().id
 
             transaction(testDb.config.jdbcDatabase) {
-                RefusjonskravTable.update({ RefusjonskravTable.id eq refusjonskravIdB }) {
-                    it[RefusjonskravTable.soknadId] = soknadA
-                }
                 VedleggTable.update({ VedleggTable.id eq UUID.fromString(vedleggIdB) }) {
                     it[VedleggTable.soknadId] = soknadA
                 }
             }
 
-            // Legacy-koblingene peker på A, men sak_id peker fortsatt på B.
+            // vedlegg.soknad_id peker på A, men refusjonskravet hører til Bs sak.
             with(client.get("/api/soknad/v1/$soknadA/refusjon/vedlegg/$vedleggIdB") { bearerAuth("faketoken") }) {
                 assertEquals(HttpStatusCode.NotFound, status)
             }
