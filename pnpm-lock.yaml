@@ -82,8 +82,8 @@ importers:
         specifier: ^3.7.3
         version: 3.7.3(html-react-parser@5.2.6(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)
       '@navikt/virksomhetsvelger':
-        specifier: ^2.0.4
-        version: 2.1.2(@navikt/ds-css@8.20.1)(@navikt/ds-react@8.20.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: ^2.2.0
+        version: 2.2.0(@navikt/ds-css@8.20.1)(@navikt/ds-react@8.20.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       react:
         specifier: ^19.2.8
         version: 19.3.1
@@ -893,6 +893,9 @@ packages:
       '@types/react': ^17.0.30 || ^18 || ^19
       react: ^17 || ^18 || ^19
       react-dom: ^17 || ^18 || ^19
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
 
   '@navikt/ds-tokens@8.20.1':
     resolution: {integrity: sha512-CXmAkJN345eqr5HywMdfcXd7tNgKu4vdpvGAM4he4DVoQkqrLc3bRS3w8KvH8nAl+CqCsEIVL/LYsnZmvIr/Pw==, tarball: https://npm.pkg.github.com/download/@navikt/ds-tokens/8.20.1/9add0e80e76b8b23f0b14dcb294d2d6fa42f302f}
@@ -906,6 +909,9 @@ packages:
     peerDependencies:
       html-react-parser: '>=5.x'
       react: '>=17.x'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@navikt/oasis@4.2.2':
     resolution: {integrity: sha512-EVMsF8uKbLPNRWuPfH1IKVJhqtibFzSTSyNkzj5mTCVMZV2QPS5W3uYMD4r0rXsmLx7nv0HnLovDphb3AFEjvw==, tarball: https://npm.pkg.github.com/download/@navikt/oasis/4.2.2/3c43e1e89bb2d46646a9a2aaf27972a024377a6f}
@@ -921,8 +927,8 @@ packages:
     resolution: {integrity: sha512-w/iTWLSdmvn2j2U3M+sJX9bSBvoV5UcMk+FuKs9EKz1QuaCoUksZrEfqX9/FtqyTUaOhwDnm/1iIuR6BudzFAg==, tarball: https://npm.pkg.github.com/download/@navikt/texas/4.2.2/862d743a1df21630a007a0d2d2a36a74dd8b5187}
     engines: {node: ^20.19.0 || >= 22.12.0 || 24.x || 25.x}
 
-  '@navikt/virksomhetsvelger@2.1.2':
-    resolution: {integrity: sha512-CVOY2smG9zVgOTQBqreicdczsmC9s8n/bNQ3pDQbCEnK0sz0JaJODCcBeI+FRrxlyaMVTmRsHNy2YSejKeXpSQ==, tarball: https://npm.pkg.github.com/download/@navikt/virksomhetsvelger/2.1.2/7eed757d6ea97da96046044f7d8eef96ebb3979f}
+  '@navikt/virksomhetsvelger@2.2.0':
+    resolution: {integrity: sha512-NNvMX1tr/AMs9FUXKkrjJ7HnfaicXt2YnUNwepx0nrzwbC/78sjffMWomEZq9jiBMxraS0RA39cHZcWYw0Hb5g==, tarball: https://npm.pkg.github.com/download/@navikt/virksomhetsvelger/2.2.0/d0b558ea7a64c3ac4b33e0ebaad415de488ce4db}
     peerDependencies:
       '@navikt/ds-css': '>=7'
       '@navikt/ds-react': '>=7'
@@ -4068,11 +4074,12 @@ snapshots:
       '@floating-ui/react-dom': 2.1.9(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@navikt/aksel-icons': 8.20.1
       '@navikt/ds-tokens': 8.20.1
-      '@types/react': 19.3.0
       date-fns: 4.4.0
       react: 19.3.1
       react-day-picker: 10.0.1(@types/react@19.3.0)(react@19.3.1)
       react-dom: 19.3.1(react@19.3.1)
+    optionalDependencies:
+      '@types/react': 19.3.0
 
   '@navikt/ds-tokens@8.20.1': {}
 
@@ -4083,6 +4090,7 @@ snapshots:
       csp-header: 6.3.1
       html-react-parser: 5.2.6(@types/react@19.3.0)(react@19.3.1)
       js-cookie: 3.0.7
+    optionalDependencies:
       react: 19.3.1
 
   '@navikt/oasis@4.2.2':
@@ -4101,7 +4109,7 @@ snapshots:
 
   '@navikt/texas@4.2.2': {}
 
-  '@navikt/virksomhetsvelger@2.1.2(@navikt/ds-css@8.20.1)(@navikt/ds-react@8.20.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@navikt/virksomhetsvelger@2.2.0(@navikt/ds-css@8.20.1)(@navikt/ds-react@8.20.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@navikt/ds-css': 8.20.1
       '@navikt/ds-react': 8.20.1(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)

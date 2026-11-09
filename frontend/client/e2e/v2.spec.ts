@@ -50,6 +50,10 @@ const createFormInputs = () => {
   };
 };
 
+// Navnet mocken for valider-deltaker setter på deltakeren.
+const MOCK_DELTAKER_NAVN = "Mona Moonlight";
+const MOCK_UNDERENHET = "123456780";
+
 const isDraftApiRequest = (request: Request, draftId: string, method: string) =>
   request.method() === method && new URL(request.url()).pathname === `${API_PATH}/${draftId}`;
 
@@ -152,18 +156,27 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   expect(draftId).toBeTruthy();
   if (!draftId) throw new Error("The v2 create-draft route did not contain a draft id.");
 
-  const seedResponse = await page.evaluate(
-    async ({ id, inputs }) => {
-      const response = await fetch(`/ekspertbistand-backend/api/soknad/v1/${id}`, {
+  const seedStatuses = await page.evaluate(
+    async ({ id, inputs, virksomhetsnummer }) => {
+      const patch = await fetch(`/ekspertbistand-backend/api/soknad/v1/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inputs),
       });
-      return response.status;
+      // PATCH setter ikke deltaker eller virksomhet. Det gjør bare valider-deltaker.
+      const validering = await fetch(
+        `/ekspertbistand-backend/api/soknad/v1/${id}/valider-deltaker`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fnr: inputs.ansatt.fnr, virksomhetsnummer }),
+        }
+      );
+      return [patch.status, validering.status];
     },
-    { id: draftId, inputs: createFormInputs() }
+    { id: draftId, inputs: createFormInputs(), virksomhetsnummer: MOCK_UNDERENHET }
   );
-  expect(seedResponse).toBe(200);
+  expect(seedStatuses).toEqual([200, 200]);
 
   await page.goto(`/v2/skjema/${draftId}`);
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
@@ -171,7 +184,7 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
 
   await page.goto("/v2/soknader");
   await ensureMockServiceWorkerReady(page);
-  const v2DraftLink = page.getByRole("link", { name: /Testperson/ });
+  const v2DraftLink = page.getByRole("link", { name: new RegExp(MOCK_DELTAKER_NAVN) });
   await expect(v2DraftLink).toHaveAttribute("href", `/v2/skjema/${draftId}`);
   await v2DraftLink.click();
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
@@ -179,7 +192,7 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
 
   await page.goto("/soknader");
   const v1DraftLink = page.getByRole("link", {
-    name: "Søknad om tilskudd til ekspertbistand – Testperson",
+    name: `Søknad om tilskudd til ekspertbistand – ${MOCK_DELTAKER_NAVN}`,
   });
   await expect(v1DraftLink).toHaveAttribute("href", `/skjema/${draftId}`);
   await v1DraftLink.click();
@@ -192,6 +205,8 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   ).toBeVisible();
   await page.getByRole("link", { name: /Endre/ }).first().click();
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
+  await page.getByRole("button", { name: "Neste steg" }).click();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-2$`));
 
   const patchResponsePromise = page.waitForResponse((response) =>
     isDraftApiRequest(response.request(), draftId, "PATCH")
@@ -201,10 +216,10 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   expect(patchResponse.ok()).toBe(true);
 
   await page.getByRole("button", { name: "Neste steg" }).click();
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-2$`));
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-3$`));
   await expect(page.getByRole("link", { name: "Forrige steg" })).toHaveAttribute(
     "href",
-    `/v2/skjema/${draftId}/steg-1`
+    `/v2/skjema/${draftId}/steg-2`
   );
   await expect(page.getByRole("heading", { name: "Behov for bistand" })).toBeVisible();
   await expect(page.getByText(/Maksgrensen er/)).toBeVisible();
@@ -212,7 +227,7 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/oppsummering$`));
   await expect(page.getByRole("link", { name: "Forrige steg" })).toHaveAttribute(
     "href",
-    `/v2/skjema/${draftId}/steg-2`
+    `/v2/skjema/${draftId}/steg-3`
   );
   await expect(page.getByText("Oppdatert kontakt")).toBeVisible();
 
@@ -247,11 +262,11 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/kvittering$`));
 
   await page.goto("/v2/soknader");
-  const v2ReceiptLink = page.getByRole("link", { name: /Testperson/ });
+  const v2ReceiptLink = page.getByRole("link", { name: new RegExp(MOCK_DELTAKER_NAVN) });
   await expect(v2ReceiptLink).toHaveAttribute("href", `/v2/skjema/${draftId}/kvittering`);
 
   await page.goto("/soknader");
-  const v1ReceiptLink = page.getByRole("link", { name: /Testperson/ });
+  const v1ReceiptLink = page.getByRole("link", { name: new RegExp(MOCK_DELTAKER_NAVN) });
   await expect(v1ReceiptLink).toHaveAttribute("href", `/skjema/${draftId}/kvittering`);
 });
 
@@ -373,6 +388,7 @@ test("production keeps v1 available and rejects every v2 route", async ({ browse
     "/v2/skjema/test-id",
     "/v2/skjema/test-id/steg-1",
     "/v2/skjema/test-id/steg-2",
+    "/v2/skjema/test-id/steg-3",
     "/v2/skjema/test-id/oppsummering",
     "/v2/skjema/test-id/kvittering",
     "/v2/tilskuddsbrev/2024-123-1",

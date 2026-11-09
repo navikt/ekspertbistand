@@ -149,3 +149,27 @@ fun tekstFeltStier(
     besokt.remove(kClass)
     return stier
 }
+
+private val fnrVekterK1 = intArrayOf(3, 7, 6, 1, 8, 9, 4, 5, 2)
+private val fnrVekterK2 = intArrayOf(5, 4, 3, 2, 7, 6, 5, 4, 3, 2)
+
+/**
+ * Sjekker at [fnr] er 11 siffer med gyldige kontrollsiffer (mod 11). Gjelder også D-nummer og syntetiske
+ * nummer fra Nav og Tenor, som har gyldige kontrollsiffer. Dato i nummeret sjekkes ikke.
+ */
+fun erGyldigFodselsnummer(fnr: String): Boolean {
+    if (fnr.length != 11 || !fnr.all { it in '0'..'9' }) return false
+    val siffer = fnr.map { it - '0' }
+    val k1 = kontrollsiffer(siffer, fnrVekterK1) ?: return false
+    val k2 = kontrollsiffer(siffer, fnrVekterK2) ?: return false
+    return siffer[9] == k1 && siffer[10] == k2
+}
+
+private fun kontrollsiffer(siffer: List<Int>, vekter: IntArray): Int? {
+    val rest = vekter.indices.sumOf { vekter[it] * siffer[it] } % 11
+    return when (val k = 11 - rest) {
+        11 -> 0
+        10 -> null
+        else -> k
+    }
+}
