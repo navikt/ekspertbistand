@@ -34,11 +34,9 @@ import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.vedlegg.SluttrapportStatusDto
 import no.nav.ekspertbistand.vedlegg.VedleggDb
-import no.nav.ekspertbistand.vedlegg.VedleggTable
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
@@ -191,25 +189,14 @@ class SakDokumentApiTest {
         }
 
     @Test
-    fun `metadata velger nyeste innsending og eldre refusjonsvedlegg kan ikke lastes ned`() =
+    fun `metadata velger nyeste sluttrapport`() =
         testApplicationWithDatabase { db ->
             val sak = godkjentSak(db)
             val vedleggDb = VedleggDb(db.config.jdbcDatabase)
-            val refusjonDb = RefusjonDb(db.config.jdbcDatabase)
 
             vedleggDb.lagreSluttrapport(sak.soknadId, "eldre-sluttrapport.pdf", sluttrapportPdf)
-            val eldreRefusjonId = refusjonDb.lagreRefusjonskrav(
-                soknadId = sak.soknadId,
-                belopOre = 100_00,
-                filer = listOf(RefusjonsfilInput("eldre-refusjon.pdf", refusjonPdf)),
-            )
             Thread.sleep(20)
             vedleggDb.lagreSluttrapport(sak.soknadId, "nyeste-sluttrapport.pdf", refusjonPdf)
-            val nyesteRefusjonId = refusjonDb.lagreRefusjonskrav(
-                soknadId = sak.soknadId,
-                belopOre = 200_00,
-                filer = listOf(RefusjonsfilInput("nyeste-refusjon.pdf", sluttrapportPdf)),
-            )
 
             val oppsett = oppsett(db)
             val sluttrapportMetadata =
@@ -222,37 +209,6 @@ class SakDokumentApiTest {
             assertEquals("nyeste-sluttrapport.pdf", sluttrapportStatus.filnavn)
             assertEquals(refusjonPdf.size, sluttrapportStatus.storrelse)
             assertNotNull(sluttrapportStatus.opprettet)
-
-            val refusjonMetadata =
-                oppsett.client.get("/api/saksbehandling/v1/saker/${sak.sakId}/refusjon") {
-                    bearerAuth(gyldigToken)
-                }
-            assertEquals(HttpStatusCode.OK, refusjonMetadata.status)
-            assertNoStoreAndNosniff(refusjonMetadata)
-            val refusjonStatus = refusjonMetadata.body<RefusjonStatusDto>()
-            assertEquals(200L, refusjonStatus.belopKroner)
-            assertEquals("nyeste-refusjon.pdf", refusjonStatus.vedlegg.single().filnavn)
-
-            val eldreVedleggId = transaction(db.config.jdbcDatabase) {
-                VedleggTable.select(VedleggTable.id)
-                    .where { VedleggTable.refusjonskravId eq eldreRefusjonId }
-                    .single()[VedleggTable.id].value
-            }
-
-            val nyesteVedleggId = refusjonStatus.vedlegg.single().id
-            val nyesteNedlasting = oppsett.client.get(
-                "/api/saksbehandling/v1/saker/${sak.sakId}/refusjon/vedlegg/$nyesteVedleggId",
-            ) {
-                bearerAuth(gyldigToken)
-            }
-            assertPdfResponse(nyesteNedlasting, "attachment", "nyeste-refusjon.pdf", sluttrapportPdf)
-
-            val eldreVedleggResponse = oppsett.client.get(
-                "/api/saksbehandling/v1/saker/${sak.sakId}/refusjon/vedlegg/$eldreVedleggId",
-            ) {
-                bearerAuth(gyldigToken)
-            }
-            assertEquals(HttpStatusCode.NotFound, eldreVedleggResponse.status)
 
             val nyesteSluttrapportFil =
                 oppsett.client.get("/api/saksbehandling/v1/saker/${sak.sakId}/sluttrapport/fil") {

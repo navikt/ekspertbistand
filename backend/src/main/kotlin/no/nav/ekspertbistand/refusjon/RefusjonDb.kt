@@ -29,6 +29,8 @@ object RefusjonskravTable : UUIDTable("refusjonskrav") {
 
 data class RefusjonsfilInput(val filnavn: String, val innhold: ByteArray)
 
+class RefusjonskravFinnesAlleredeException : RuntimeException("Saken har allerede et refusjonskrav")
+
 class RefusjonDb(private val database: Database) {
 
     fun lagreRefusjonskrav(
@@ -37,6 +39,10 @@ class RefusjonDb(private val database: Database) {
         filer: List<RefusjonsfilInput>,
     ): UUID = transaction(database) {
         val sakId = hentGodkjentSakIdForUpdate(soknadId)
+        // Saken er låst over, så sjekk og innsetting kan ikke kappe med en parallell innsending.
+        if (RefusjonskravTable.select(RefusjonskravTable.id).where { RefusjonskravTable.sakId eq sakId }.any()) {
+            throw RefusjonskravFinnesAlleredeException()
+        }
         val refusjonskravId = RefusjonskravTable.insertReturning {
             it[RefusjonskravTable.sakId] = sakId
             it[RefusjonskravTable.belopOre] = belopOre
@@ -45,7 +51,6 @@ class RefusjonDb(private val database: Database) {
 
         filer.forEach { fil ->
             VedleggTable.insert {
-                it[VedleggTable.soknadId] = soknadId
                 it[type] = VedleggType.REFUSJONSDOKUMENTASJON.name
                 it[filnavn] = fil.filnavn
                 it[innhold] = fil.innhold

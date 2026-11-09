@@ -18,7 +18,6 @@ import java.util.UUID
 
 @OptIn(kotlin.time.ExperimentalTime::class)
 object VedleggTable : UUIDTable("vedlegg") {
-    val soknadId = javaUUID("soknad_id")
     val type = text("type")
     val filnavn = text("filnavn")
     val innhold = binary("innhold")
@@ -52,7 +51,6 @@ class VedleggDb(private val database: Database) {
         }.single()[SluttrapportTable.id]
 
         VedleggTable.insertReturning {
-            it[VedleggTable.soknadId] = soknadId
             it[VedleggTable.type] = VedleggType.SLUTTRAPPORT.name
             it[VedleggTable.filnavn] = filnavn
             it[VedleggTable.innhold] = innhold
