@@ -33,14 +33,11 @@ import no.nav.ekspertbistand.sak.lagreSoknadOgSak
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.vedlegg.SluttrapportStatusDto
-import no.nav.ekspertbistand.vedlegg.SluttrapportTable
 import no.nav.ekspertbistand.vedlegg.VedleggDb
 import no.nav.ekspertbistand.vedlegg.VedleggTable
-import no.nav.ekspertbistand.vedlegg.VedleggType
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
-import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -265,29 +262,18 @@ class SakDokumentApiTest {
         }
 
     @Test
-    fun `legacy sluttrapport uten sakId og vedlegg fra annen sak blir ikke tilgjengelig`() =
+    fun `refusjonsvedlegg fra annen sak blir ikke tilgjengelig`() =
         testApplicationWithDatabase { db ->
             val sak = godkjentSak(db)
             val annenSak = godkjentSak(db)
-            val annenSaksVedleggId = RefusjonDb(db.config.jdbcDatabase).lagreRefusjonskrav(
+            val refusjonDb = RefusjonDb(db.config.jdbcDatabase)
+            refusjonDb.lagreRefusjonskrav(
                 soknadId = annenSak.soknadId,
                 belopOre = 123_00,
                 filer = listOf(RefusjonsfilInput("annen-sak.pdf", refusjonPdf)),
             )
-            lagreLegacySluttrapport(db, sak)
+            val annenSaksVedleggId = refusjonDb.finnRefusjonskravStatusForSak(annenSak.sakId)!!.vedlegg.single().id
             val oppsett = oppsett(db)
-
-            val sluttrapportMetadata =
-                oppsett.client.get("/api/saksbehandling/v1/saker/${sak.sakId}/sluttrapport") {
-                    bearerAuth(gyldigToken)
-                }
-            assertEquals(HttpStatusCode.NoContent, sluttrapportMetadata.status)
-
-            val sluttrapportFil =
-                oppsett.client.get("/api/saksbehandling/v1/saker/${sak.sakId}/sluttrapport/fil") {
-                    bearerAuth(gyldigToken)
-                }
-            assertEquals(HttpStatusCode.NotFound, sluttrapportFil.status)
 
             val refusjonMetadata =
                 oppsett.client.get("/api/saksbehandling/v1/saker/${sak.sakId}/refusjon") {
@@ -601,23 +587,6 @@ class SakDokumentApiTest {
                 bearerAuth(gyldigToken)
             }
         assertPdfResponse(sluttrapportForhandsvisning, "inline", "sluttrapport.pdf", sluttrapportPdf)
-    }
-
-    private fun lagreLegacySluttrapport(db: TestDatabase, sak: LagretSak) {
-        transaction(db.config.jdbcDatabase) {
-            val legacySluttrapportId = SluttrapportTable.insertReturning(listOf(SluttrapportTable.id)) {
-                it[sakId] = null
-                it[status] = "MOTTATT"
-            }.single()[SluttrapportTable.id]
-            VedleggTable.insert {
-                it[soknadId] = sak.soknadId
-                it[type] = VedleggType.SLUTTRAPPORT.name
-                it[filnavn] = "legacy-sluttrapport.pdf"
-                it[innhold] = sluttrapportPdf
-                it[storrelse] = sluttrapportPdf.size
-                it[sluttrapportId] = legacySluttrapportId
-            }
-        }
     }
 
     private fun godkjentSak(db: TestDatabase, behandlendeEnhet: String? = egenEnhet): LagretSak {

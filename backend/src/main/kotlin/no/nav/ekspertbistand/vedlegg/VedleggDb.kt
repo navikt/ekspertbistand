@@ -1,7 +1,7 @@
 package no.nav.ekspertbistand.vedlegg
 
 import no.nav.ekspertbistand.saksbehandling.hentGodkjentSakIdForUpdate
-import no.nav.ekspertbistand.saksbehandling.SakTable
+import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
@@ -31,7 +31,7 @@ object VedleggTable : UUIDTable("vedlegg") {
 @OptIn(kotlin.time.ExperimentalTime::class)
 object SluttrapportTable : Table("sluttrapport") {
     val id = javaUUID("sluttrapport_id").databaseGenerated()
-    val sakId = javaUUID("sak_id").nullable()
+    val sakId = javaUUID("sak_id")
     val status = text("status")
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
 
@@ -65,47 +65,9 @@ class VedleggDb(private val database: Database) {
      * Henter kun metadata for sluttrapporten (filnavn, størrelse og tidspunkt) – aldri selve
      * filinnholdet, som kan være personsensitivt. `innhold`-kolonnen leses bevisst ikke.
      */
-    @OptIn(kotlin.time.ExperimentalTime::class)
-    fun finnSluttrapportMetadata(soknadId: UUID): SluttrapportMetadata? = transaction(database) {
-        val sakId = SakTable
-            .select(SakTable.sakId)
-            .where { SakTable.soknadId eq soknadId }
-            .singleOrNull()
-            ?.get(SakTable.sakId)
-
-        val sluttrapportId = sakId?.let {
-            SluttrapportTable
-                .select(SluttrapportTable.id)
-                .where { SluttrapportTable.sakId eq it }
-                .orderBy(SluttrapportTable.opprettet, SortOrder.DESC)
-                .limit(1)
-                .singleOrNull()
-                ?.get(SluttrapportTable.id)
-        }
-
-        val metadata = sluttrapportId?.let {
-            VedleggTable
-                .select(VedleggTable.filnavn, VedleggTable.storrelse, VedleggTable.lastetOpp)
-                .where { VedleggTable.sluttrapportId eq it }
-                .singleOrNull()
-        }
-
-        (metadata ?: VedleggTable
-            .select(VedleggTable.filnavn, VedleggTable.storrelse, VedleggTable.lastetOpp)
-            .where {
-                (VedleggTable.soknadId eq soknadId) and
-                    (VedleggTable.type eq VedleggType.SLUTTRAPPORT.name)
-            }
-            .orderBy(VedleggTable.lastetOpp, SortOrder.DESC)
-            .limit(1)
-            .firstOrNull())
-            ?.let {
-                SluttrapportMetadata(
-                    filnavn = it[VedleggTable.filnavn],
-                    storrelse = it[VedleggTable.storrelse],
-                    lastetOpp = it[VedleggTable.lastetOpp].toString(),
-                )
-            }
+    fun finnSluttrapportMetadata(soknadId: UUID): SluttrapportMetadata? {
+        val sakId = transaction(database) { hentSakIdForSoknad(soknadId) } ?: return null
+        return finnSluttrapportMetadataForSak(sakId)
     }
 
     /** Henter metadata for sluttrapporten til nyeste parent for saken, uten å lese filinnholdet. */
