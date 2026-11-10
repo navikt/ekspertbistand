@@ -3,8 +3,10 @@ package no.nav.ekspertbistand.saksbehandling
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.refusjon.RefusjonskravTable
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.vedlegg.SluttrapportTable
 import org.jetbrains.exposed.v1.core.CustomFunction
 import org.jetbrains.exposed.v1.core.Expression
 import org.jetbrains.exposed.v1.core.JoinType
@@ -546,6 +548,30 @@ fun hentSakerMedRetur(sakIder: Collection<UUID>): Set<UUID> {
         .map { it[SakReturTable.sakId] }
         .toSet()
 }
+
+/**
+ * Refusjonskrav og nyeste sluttrapport med status `MOTTATT` for [sakIder], med én spørring per tabell.
+ * Saker uten slike innsendinger mangler i svaret. Må kalles i en pågående transaksjon.
+ */
+@OptIn(ExperimentalTime::class)
+fun hentMottatteInnsendinger(sakIder: Collection<UUID>): Map<UUID, MottatteInnsendinger> {
+    if (sakIder.isEmpty()) return emptyMap()
+    val refusjonskrav = RefusjonskravTable
+        .select(RefusjonskravTable.sakId, RefusjonskravTable.opprettet)
+        .where { (RefusjonskravTable.sakId inList sakIder) and (RefusjonskravTable.status eq INNSENDING_MOTTATT) }
+        .associate { it[RefusjonskravTable.sakId] to it[RefusjonskravTable.opprettet] }
+    val sluttrapport = SluttrapportTable
+        .select(SluttrapportTable.sakId, SluttrapportTable.opprettet)
+        .where { (SluttrapportTable.sakId inList sakIder) and (SluttrapportTable.status eq INNSENDING_MOTTATT) }
+        .groupBy({ it[SluttrapportTable.sakId] }, { it[SluttrapportTable.opprettet] })
+        .mapValues { (_, opprettet) -> opprettet.max() }
+    return (refusjonskrav.keys + sluttrapport.keys).associateWith {
+        MottatteInnsendinger(refusjonskrav = refusjonskrav[it], sluttrapport = sluttrapport[it])
+    }
+}
+
+/** Status på refusjonskrav og sluttrapport som venter på saksbehandler. */
+private const val INNSENDING_MOTTATT = "MOTTATT"
 
 /** Nyeste retur for saken, eller null. Må kalles i en pågående transaksjon. */
 @OptIn(ExperimentalTime::class)

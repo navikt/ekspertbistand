@@ -76,7 +76,7 @@ GET /saker ──> hentSakerForSaksbehandling
                  ├─ sak JOIN soknad (som før)
                  ├─ hentMottatteInnsendinger(sakIder): refusjonskrav og sluttrapport med status MOTTATT
                  └─ oppgaver(...) per sak ──> én SakListeElement per oppgave, sortert på mottatt
-POST /saker/{id}/tildeling ──> hentSakTilgangsgrunnlag (+ innsendinger) ──> tildelingHindring
+POST /saker/{id}/tildeling ──> hentSakTilgangsgrunnlag ──> hentMottatteInnsendinger ──> tildelingHindring
 ```
 
 ### 1. Backend: oppgavetype
@@ -118,8 +118,9 @@ fun oppgaver(
 
 ### 3. Backend: tildeling
 
-- `SakTilgangsgrunnlag` får `innsendinger: MottatteInnsendinger`, som
-  `hentSakTilgangsgrunnlag` fyller ut.
+- Tildelingsruten henter innsendingene med `hentMottatteInnsendinger` etter
+  tilgangssjekkene. `SakTilgangsgrunnlag` endres ikke, fordi de andre
+  tilgangssjekkene ikke trenger innsendingene.
 - `tildelingHindring(status, kilde, innsendinger, saksbehandlerIdent, principal)`
   bruker `oppgaver(...)`. Saken kan tildeles når en av oppgavene har rollen
   saksbehandler.
@@ -131,17 +132,33 @@ fun oppgaver(
 `hentSakForSaksbehandling` setter `oppgavetype` til den første oppgaven fra
 `oppgaver(...)`, og `kanTildeleMeg` fra den nye `tildelingHindring`.
 
+`SakDetaljer` får `innsendinger: { refusjonskrav, sluttrapport }`, med
+tidspunktet for mottatt innsending eller null. Feltet kommer fra
+`hentMottatteInnsendinger`, slik at oversikten og fanene i saken bygger på samme
+spørring. En egen liste med alle oppgaver i detaljen er ikke tatt med, fordi
+ingen visning trenger den.
+
 ### 5. Frontend
 
 - `useSaker.ts`: `Oppgavetype` får `REFUSJON` og `SLUTTRAPPORT`, og
   `rolleForOppgave` gir dem `saksbehandler`. `SakListeElement` får `mottatt`.
 - `OversiktPage.tsx`:
   - Merket følger oppgavetypen: «SØ» for søknad, «R» for refusjon og «SR» for
-    sluttrapport.
+    sluttrapport. Søknad har fargen `warning`, refusjon `meta-purple` og
+    sluttrapport `meta-lime`.
   - Teksten er «Refusjon» og «Sluttrapport».
   - Radnøkkelen er `sakId` + `oppgavetype`.
   - Kolonnen «Søknad mottatt» blir «Mottatt» og viser `mottatt`.
-- `mocks/handlers.ts` lager de samme radene.
+  - En rad for refusjon eller sluttrapport lenker til saken med
+    `?fane=refusjon` eller `?fane=sluttrapport`.
+- `SakPage.tsx`:
+  - Fanene «Sluttrapport» og «Refusjon» vises bare når `innsendinger` har et
+    tidspunkt.
+  - Valgt fane står i `?fane=` og oppdateres når saksbehandler bytter fane.
+    Uten gyldig fane vises «Søknad».
+  - Refusjonskrav og sluttrapport hentes først når fanen er valgt.
+- `mocks/handlers.ts` lager de samme radene og svarer med refusjonskrav og
+  sluttrapport for saker som har oppgaven.
 
 ### 6. Testdata
 

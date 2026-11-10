@@ -26,7 +26,7 @@ import {
 } from "@navikt/ds-react";
 import { useCallback, useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
-import { NavLink, useParams } from "react-router";
+import { NavLink, useParams, useSearchParams } from "react-router";
 import { AdressebeskyttelseTag } from "../components/AdressebeskyttelseTag";
 import { EgenAnsattTag } from "../components/EgenAnsattTag";
 import { DataRad, InfoKort } from "../components/InfoKort";
@@ -101,6 +101,9 @@ const DEMO_VEDLEGG: PdfFil[] = [
 
 type Fane = "vilkarsvurdering" | "forelopig-vedtak";
 type SaksFane = "soknad" | "sluttrapport" | "refusjon";
+
+const tilSaksFane = (verdi: string | null): SaksFane =>
+  verdi === "sluttrapport" || verdi === "refusjon" ? verdi : "soknad";
 type Kvitteringstype = "forelopig-vedtak" | "vedtak";
 
 const nyttSkjema = (sakId: string, startdato: string, returnertVedtak: ForelopigVedtak | null) =>
@@ -380,17 +383,36 @@ export default function SakPage() {
   const beslutning = useBeslutning(sakId ?? "");
   const innloggetAnsatt = useInnloggetAnsatt();
   const [valgtFane, setValgtFane] = useState<{ sakId: string; fane: Fane } | null>(null);
-  const [saksFane, setSaksFane] = useState<SaksFane>("soknad");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const visSluttrapportFane = !erArenaSak && !!sak?.innsendinger.sluttrapport;
+  const visRefusjonFane = !erArenaSak && !!sak?.innsendinger.refusjonskrav;
+  const ønsketSaksFane = tilSaksFane(searchParams.get("fane"));
+  // Fanen fra URL-en brukes bare når saken har noe å vise i den.
+  const saksFane: SaksFane =
+    (ønsketSaksFane === "sluttrapport" && visSluttrapportFane) ||
+    (ønsketSaksFane === "refusjon" && visRefusjonFane)
+      ? ønsketSaksFane
+      : "soknad";
+  const setSaksFane = (nyFane: SaksFane) =>
+    setSearchParams(
+      (forrige) => {
+        const neste = new URLSearchParams(forrige);
+        if (nyFane === "soknad") neste.delete("fane");
+        else neste.set("fane", nyFane);
+        return neste;
+      },
+      { replace: true }
+    );
   const {
     refusjon,
     error: refusjonError,
     isLoading: refusjonLaster,
-  } = useRefusjon(sakId ?? "", !!sak && !erArenaSak && saksFane === "refusjon");
+  } = useRefusjon(sakId ?? "", saksFane === "refusjon");
   const {
     sluttrapport,
     error: sluttrapportError,
     isLoading: sluttrapportLaster,
-  } = useSluttrapport(sakId ?? "", !!sak && !erArenaSak && saksFane === "sluttrapport");
+  } = useSluttrapport(sakId ?? "", saksFane === "sluttrapport");
   // Holdes her, fordi fanepanelene avmonteres når de ikke vises.
   const [skjema, setSkjema] = useState<ForelopigVedtakSkjemaTilstand | null>(null);
   const [kvittering, setKvittering] = useState<{ sakId: string; type: Kvitteringstype } | null>(
@@ -538,14 +560,11 @@ export default function SakPage() {
         </div>
       ) : (
         <div>
-          <Tabs
-            value={erArenaSak ? "soknad" : saksFane}
-            onChange={(value) => setSaksFane(value as SaksFane)}
-          >
+          <Tabs value={saksFane} onChange={(value) => setSaksFane(value as SaksFane)}>
             <Tabs.List aria-label="Saksinnhold">
               <Tabs.Tab value="soknad" label="Søknad" />
-              {!erArenaSak && <Tabs.Tab value="sluttrapport" label="Sluttrapport" />}
-              {!erArenaSak && <Tabs.Tab value="refusjon" label="Refusjon" />}
+              {visSluttrapportFane && <Tabs.Tab value="sluttrapport" label="Sluttrapport" />}
+              {visRefusjonFane && <Tabs.Tab value="refusjon" label="Refusjon" />}
             </Tabs.List>
             <Tabs.Panel value="soknad">
               <SaksinnholdLayout

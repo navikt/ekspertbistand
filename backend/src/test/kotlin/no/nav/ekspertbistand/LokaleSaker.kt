@@ -14,6 +14,7 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.logger
+import no.nav.ekspertbistand.refusjon.RefusjonskravTable
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Vilkar
@@ -23,9 +24,11 @@ import no.nav.ekspertbistand.saksbehandling.saksstatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.tilSoknadDTO
+import no.nav.ekspertbistand.vedlegg.SluttrapportTable
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
@@ -145,6 +148,7 @@ private data class LokalSak(
     val beslutning: Beslutning? = null,
     val beskyttelse: LokalBeskyttelse? = null,
     val arena: ArenaHendelse? = null,
+    val medInnsendinger: Boolean = false,
 )
 
 private val ola = lokaleAnsatte.single { it.navIdent == "A123456" }
@@ -282,6 +286,18 @@ private val lokaleSaker = listOf(
         estimertKostnad = 13000,
         arena = ArenaHendelse.AVLYST,
     ),
+    LokalSak(
+        soknadId = UUID.fromString("a1000000-0000-4000-8000-000000000015"),
+        virksomhet = lokaleVirksomheter[6],
+        ansattNavn = "Knut Kvalitet",
+        ansattFnr = "01019012315",
+        estimertKostnad = 21000,
+        saksbehandler = ola,
+        forslag = ForelopigUtfall.INNVILGE,
+        beslutter = kari,
+        beslutning = Beslutning.GODKJENN,
+        medInnsendinger = true,
+    ),
 )
 
 internal fun lokalBeskyttelse(fnr: String?) = lokaleSaker.find { it.ansattFnr == fnr }?.beskyttelse
@@ -343,6 +359,17 @@ internal fun CoroutineScope.behandleLokaleSaker(database: Database) = launch {
         transaction(database) {
             behandlingseventer(sak, sakId.toString()).forEach { publishEventQueue(it) }
             arenaeventer(sak).forEach { publishEventQueue(it) }
+            if (sak.medInnsendinger) {
+                RefusjonskravTable.insert {
+                    it[RefusjonskravTable.sakId] = sakId
+                    it[RefusjonskravTable.belopOre] = sak.estimertKostnad.toLong() * 100
+                    it[RefusjonskravTable.status] = "MOTTATT"
+                }
+                SluttrapportTable.insert {
+                    it[SluttrapportTable.sakId] = sakId
+                    it[SluttrapportTable.status] = "MOTTATT"
+                }
+            }
         }
     }
 }
