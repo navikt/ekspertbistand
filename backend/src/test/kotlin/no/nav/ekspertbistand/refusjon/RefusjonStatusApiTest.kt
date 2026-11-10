@@ -21,17 +21,16 @@ import no.nav.ekspertbistand.saksbehandling.nesteSaksnummer
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.vedlegg.VedleggTable
-import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.jetbrains.exposed.v1.jdbc.update
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -238,26 +237,35 @@ class RefusjonStatusApiTest {
             }
             val db = RefusjonDb(testDb.config.jdbcDatabase)
             db.lagreRefusjonskrav(soknadA, 100_000, listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())))
-            val refusjonskravIdB =
-                db.lagreRefusjonskrav(
-                    soknadB,
-                    100_000,
-                    listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())),
-                )
+            db.lagreRefusjonskrav(soknadB, 100_000, listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())))
             val vedleggIdB = db.finnRefusjonskravStatus(soknadB)!!.vedlegg.first().id
 
-            transaction(testDb.config.jdbcDatabase) {
-                RefusjonskravTable.update({ RefusjonskravTable.id eq refusjonskravIdB }) {
-                    it[RefusjonskravTable.soknadId] = soknadA
-                }
-                VedleggTable.update({ VedleggTable.id eq UUID.fromString(vedleggIdB) }) {
-                    it[VedleggTable.soknadId] = soknadA
-                }
-            }
-
-            // Legacy-koblingene peker på A, men sak_id peker fortsatt på B.
             with(client.get("/api/soknad/v1/$soknadA/refusjon/vedlegg/$vedleggIdB") { bearerAuth("faketoken") }) {
                 assertEquals(HttpStatusCode.NotFound, status)
+            }
+        }
+
+    @Test
+    fun `avviser nytt refusjonskrav når saken allerede har ett`() =
+        testApplicationWithDatabase { testDb ->
+            konfigurer(testDb.config.jdbcDatabase, tilgangTil(orgnrMedTilgang))
+
+            val soknadId = UUID.randomUUID()
+            transaction(testDb.config.jdbcDatabase) {
+                insertDummySoknad(soknadId, orgnrMedTilgang)
+            }
+            val db = RefusjonDb(testDb.config.jdbcDatabase)
+            db.lagreRefusjonskrav(soknadId, 100_000, listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())))
+
+            with(client.post("/api/soknad/v1/$soknadId/refusjon") { bearerAuth("faketoken") }) {
+                assertEquals(HttpStatusCode.Conflict, status)
+            }
+            assertFailsWith<RefusjonskravFinnesAlleredeException> {
+                db.lagreRefusjonskrav(soknadId, 200_000, listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())))
+            }
+            transaction(testDb.config.jdbcDatabase) {
+                assertEquals(1, RefusjonskravTable.selectAll().count())
+                assertEquals(1, VedleggTable.selectAll().count())
             }
         }
 

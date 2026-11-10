@@ -24,6 +24,7 @@ import java.util.UUID
 
 private const val MAKS_FIL_STORRELSE_BYTES = 10 * 1024 * 1024
 private const val MAKS_ANTALL_FILER = 5
+private const val REFUSJONSKRAV_FINNES_MELDING = "Refusjonskrav er allerede sendt inn for denne saken"
 
 private val refusjonMottattCounter = Metrics.meterRegistry.counter("refusjon_mottatt_total")
 private val refusjonStatusHentetCounter = Metrics.meterRegistry.counter("refusjon_status_hentet_total")
@@ -54,6 +55,11 @@ class RefusjonApi(
 
         if (soknad.status != SoknadStatus.godkjent) {
             call.respond(HttpStatusCode.Conflict, "Søknaden må være godkjent før du kan sende refusjonskrav")
+            return
+        }
+
+        if (refusjonDb.finnRefusjonskravStatus(soknadId) != null) {
+            call.respond(HttpStatusCode.Conflict, REFUSJONSKRAV_FINNES_MELDING)
             return
         }
 
@@ -131,6 +137,9 @@ class RefusjonApi(
             return
         } catch (_: SoknadIkkeGodkjentException) {
             call.respond(HttpStatusCode.Conflict, "Søknaden må være godkjent før du kan sende refusjonskrav")
+            return
+        } catch (_: RefusjonskravFinnesAlleredeException) {
+            call.respond(HttpStatusCode.Conflict, REFUSJONSKRAV_FINNES_MELDING)
             return
         }
 

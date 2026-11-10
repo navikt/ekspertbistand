@@ -2,13 +2,12 @@ package no.nav.ekspertbistand.refusjon
 
 import no.nav.ekspertbistand.vedlegg.VedleggTable
 import no.nav.ekspertbistand.vedlegg.VedleggType
-import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.hentGodkjentSakIdForUpdate
+import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.java.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
@@ -22,14 +21,15 @@ import java.util.UUID
 
 @OptIn(kotlin.time.ExperimentalTime::class)
 object RefusjonskravTable : UUIDTable("refusjonskrav") {
-    val soknadId = javaUUID("soknad_id")
-    val sakId = javaUUID("sak_id").nullable()
+    val sakId = javaUUID("sak_id")
     val belopOre = long("belop_ore")
     val status = text("status")
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
 }
 
 data class RefusjonsfilInput(val filnavn: String, val innhold: ByteArray)
+
+class RefusjonskravFinnesAlleredeException : RuntimeException("Saken har allerede et refusjonskrav")
 
 class RefusjonDb(private val database: Database) {
 
@@ -39,8 +39,11 @@ class RefusjonDb(private val database: Database) {
         filer: List<RefusjonsfilInput>,
     ): UUID = transaction(database) {
         val sakId = hentGodkjentSakIdForUpdate(soknadId)
+        // Saken er låst over, så sjekk og innsetting kan ikke kappe med en parallell innsending.
+        if (RefusjonskravTable.select(RefusjonskravTable.id).where { RefusjonskravTable.sakId eq sakId }.any()) {
+            throw RefusjonskravFinnesAlleredeException()
+        }
         val refusjonskravId = RefusjonskravTable.insertReturning {
-            it[RefusjonskravTable.soknadId] = soknadId
             it[RefusjonskravTable.sakId] = sakId
             it[RefusjonskravTable.belopOre] = belopOre
             it[status] = "MOTTATT"
@@ -48,7 +51,6 @@ class RefusjonDb(private val database: Database) {
 
         filer.forEach { fil ->
             VedleggTable.insert {
-                it[VedleggTable.soknadId] = soknadId
                 it[type] = VedleggType.REFUSJONSDOKUMENTASJON.name
                 it[filnavn] = fil.filnavn
                 it[innhold] = fil.innhold
@@ -65,53 +67,9 @@ class RefusjonDb(private val database: Database) {
      * og vedleggsliste (id + filnavn + størrelse). Filinnholdet (`innhold`) leses bevisst
      * ikke her; det hentes separat via [hentRefusjonsvedlegg] ved nedlasting.
      */
-    @OptIn(kotlin.time.ExperimentalTime::class)
-    fun finnRefusjonskravStatus(soknadId: UUID): RefusjonskravStatus? = transaction(database) {
-        val sakId = SakTable
-            .select(SakTable.sakId)
-            .where { SakTable.soknadId eq soknadId }
-            .singleOrNull()
-            ?.get(SakTable.sakId)
-
-        val kravForSak = sakId?.let {
-            RefusjonskravTable
-                .selectAll()
-                .where { RefusjonskravTable.sakId eq it }
-                .orderBy(RefusjonskravTable.opprettet, SortOrder.DESC)
-                .firstOrNull()
-        }
-
-        val krav = kravForSak ?: RefusjonskravTable
-            .selectAll()
-            .where {
-                (RefusjonskravTable.soknadId eq soknadId) and
-                    RefusjonskravTable.sakId.isNull()
-            }
-            .orderBy(RefusjonskravTable.opprettet, SortOrder.DESC)
-            .firstOrNull()
-            ?: return@transaction null
-
-        val refusjonskravId = krav[RefusjonskravTable.id].value
-
-        val vedlegg = VedleggTable
-            .select(VedleggTable.id, VedleggTable.filnavn, VedleggTable.storrelse)
-            .where { VedleggTable.refusjonskravId eq refusjonskravId }
-            .orderBy(VedleggTable.lastetOpp, SortOrder.ASC)
-            .map {
-                RefusjonsvedleggMeta(
-                    id = it[VedleggTable.id].value.toString(),
-                    filnavn = it[VedleggTable.filnavn],
-                    storrelse = it[VedleggTable.storrelse],
-                )
-            }
-
-        RefusjonskravStatus(
-            belopKroner = krav[RefusjonskravTable.belopOre] / 100,
-            opprettet = krav[RefusjonskravTable.opprettet].toString(),
-            // TODO: hent kontonummer fra SOKOS. Lagres ikke lokalt.
-            kontonummer = null,
-            vedlegg = vedlegg,
-        )
+    fun finnRefusjonskravStatus(soknadId: UUID): RefusjonskravStatus? {
+        val sakId = transaction(database) { hentSakIdForSoknad(soknadId) } ?: return null
+        return finnRefusjonskravStatusForSak(sakId)
     }
 
     /** Henter status og vedleggmetadata for nyeste refusjonskrav knyttet til saken. */
@@ -192,45 +150,29 @@ class RefusjonDb(private val database: Database) {
     }
 
     /**
-     * Henter filinnholdet for ett refusjonsvedlegg. Slår kun opp vedlegg som tilhører
-     * den oppgitte søknadens refusjonskrav – hindrer at man laster ned vedlegg på tvers
-     * av søknader (IDOR).
+     * Henter filinnholdet for ett refusjonsvedlegg. Slår kun opp vedlegg som tilhører et
+     * refusjonskrav på søknadens sak – hindrer at man laster ned vedlegg på tvers
+     * av saker (IDOR).
      */
     fun hentRefusjonsvedlegg(soknadId: UUID, vedleggId: UUID): RefusjonsvedleggInnhold? =
         transaction(database) {
-            val sakId = SakTable
-                .select(SakTable.sakId)
-                .where { SakTable.soknadId eq soknadId }
-                .singleOrNull()
-                ?.get(SakTable.sakId)
-                ?: return@transaction null
+            val sakId = hentSakIdForSoknad(soknadId) ?: return@transaction null
 
             val vedlegg = VedleggTable
-                .selectAll()
+                .select(VedleggTable.filnavn, VedleggTable.innhold, VedleggTable.refusjonskravId)
                 .where {
                     (VedleggTable.id eq vedleggId) and
                         (VedleggTable.type eq VedleggType.REFUSJONSDOKUMENTASJON.name)
                 }
-                .firstOrNull()
-                ?: return@transaction null
-
-            val refusjonskravId = vedlegg[VedleggTable.refusjonskravId]
-                ?: return@transaction null
-            val refusjonskrav = RefusjonskravTable
-                .select(RefusjonskravTable.sakId, RefusjonskravTable.soknadId)
-                .where { RefusjonskravTable.id eq refusjonskravId }
                 .singleOrNull()
                 ?: return@transaction null
 
-            val tilhorerSak = refusjonskrav[RefusjonskravTable.sakId] == sakId
-            val erLegacyForSoknad =
-                refusjonskrav[RefusjonskravTable.sakId] == null &&
-                    refusjonskrav[RefusjonskravTable.soknadId] == soknadId &&
-                    vedlegg[VedleggTable.soknadId] == soknadId
-
-            if (!tilhorerSak && !erLegacyForSoknad) {
-                return@transaction null
-            }
+            val refusjonskravId = vedlegg[VedleggTable.refusjonskravId] ?: return@transaction null
+            val tilhorerSak = RefusjonskravTable
+                .select(RefusjonskravTable.id)
+                .where { (RefusjonskravTable.id eq refusjonskravId) and (RefusjonskravTable.sakId eq sakId) }
+                .any()
+            if (!tilhorerSak) return@transaction null
 
             RefusjonsvedleggInnhold(
                 filnavn = vedlegg[VedleggTable.filnavn],
