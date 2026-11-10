@@ -29,6 +29,7 @@ import no.nav.ekspertbistand.refusjon.RefusjonDb
 import no.nav.ekspertbistand.refusjon.RefusjonStatusDto
 import no.nav.ekspertbistand.refusjon.RefusjonsfilInput
 import no.nav.ekspertbistand.sak.LagretSak
+import no.nav.ekspertbistand.sak.lagreFattetVedtak
 import no.nav.ekspertbistand.sak.lagreSoknadOgSak
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
@@ -554,6 +555,7 @@ class SakDokumentApiTest {
             SakTable.update({ SakTable.sakId eq sak.sakId }) {
                 it[SakTable.behandlendeEnhet] = behandlendeEnhet
             }
+            lagreFattetVedtak(sak.sakId, ForelopigUtfall.INNVILGE, 24_900)
         }
         return sak
     }

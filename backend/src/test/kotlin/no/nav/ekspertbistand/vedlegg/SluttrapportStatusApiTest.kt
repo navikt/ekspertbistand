@@ -16,6 +16,7 @@ import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
 import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
+import no.nav.ekspertbistand.saksbehandling.SakKildeArenaException
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.nesteSaksnummer
@@ -30,6 +31,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -196,12 +198,35 @@ class SluttrapportStatusApiTest {
                 assertTrue(VedleggTable.selectAll().empty())
             }
         }
+
+    @Test
+    fun `avviser sluttrapport for Arena-sak`() =
+        testApplicationWithDatabase { testDb ->
+            konfigurer(testDb.config.jdbcDatabase, tilgangTil(orgnrMedTilgang))
+
+            val soknadId = UUID.randomUUID()
+            transaction(testDb.config.jdbcDatabase) {
+                insertDummySoknad(soknadId, orgnrMedTilgang, kilde = KildeTilBehandling.ARENA)
+            }
+
+            assertFailsWith<SakKildeArenaException> {
+                VedleggDb(testDb.config.jdbcDatabase).lagreSluttrapport(soknadId, "a.pdf", "A".toByteArray())
+            }
+            with(client.post("/api/soknad/v1/$soknadId/sluttrapport") { bearerAuth("faketoken") }) {
+                assertEquals(HttpStatusCode.Conflict, status)
+            }
+            transaction(testDb.config.jdbcDatabase) {
+                assertTrue(SluttrapportTable.selectAll().empty())
+                assertTrue(VedleggTable.selectAll().empty())
+            }
+        }
 }
 
 private fun insertDummySoknad(
     soknadId: UUID,
     vnr: String,
     soknadStatus: SoknadStatus = SoknadStatus.godkjent,
+    kilde: KildeTilBehandling = KildeTilBehandling.EKSPERTBISTAND,
 ): UUID {
     SoknadTable.insert {
         it[id] = soknadId
@@ -230,7 +255,7 @@ private fun insertDummySoknad(
     return SakTable.insertReturning {
         it[SakTable.soknadId] = soknadId
         it[status] = Saksstatus.OPPRETTET.name
-        it[kildeTilBehandling] = KildeTilBehandling.EKSPERTBISTAND.name
+        it[kildeTilBehandling] = kilde.name
         it[saksnummer] = nesteSaksnummer()
     }.single()[SakTable.sakId]
 }

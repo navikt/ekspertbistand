@@ -5,14 +5,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import SokRefusjonPage from "./SokRefusjonPage";
 import { useSoknad } from "../hooks/useSoknad";
 import { useRefusjonStatus, type RefusjonStatus } from "../hooks/useRefusjonStatus";
+import { useMaksBelop } from "../hooks/useMaksBelop";
 import { useKontonummerFinnes } from "../hooks/useKontonummerFinnes";
 import { EKSPERTBISTAND_REFUSJON_PATH } from "../utils/constants";
+import { HttpError } from "../../utils/http";
 
 vi.mock("../hooks/useSoknad", () => ({ useSoknad: vi.fn() }));
 vi.mock("../hooks/useRefusjonStatus", () => ({ useRefusjonStatus: vi.fn() }));
+vi.mock("../hooks/useMaksBelop", () => ({ useMaksBelop: vi.fn() }));
 vi.mock("../hooks/useKontonummerFinnes", () => ({ useKontonummerFinnes: vi.fn() }));
 
-const renderPage = (refusjon: RefusjonStatus | null) => {
+const renderPage = (refusjon: RefusjonStatus | null, maksBelopError: Error | null = null) => {
   const refreshStatus = vi.fn(async () => undefined);
   vi.mocked(useSoknad).mockReturnValue({
     soknad: { virksomhet: { virksomhetsnummer: "123456789", virksomhetsnavn: "Eksempel AS" } },
@@ -24,6 +27,12 @@ const renderPage = (refusjon: RefusjonStatus | null) => {
     isLoading: false,
     error: null,
     mutate: refreshStatus,
+  });
+  vi.mocked(useMaksBelop).mockReturnValue({
+    maksBelopKroner: maksBelopError ? null : 24_900,
+    isLoading: false,
+    error: maksBelopError,
+    mutate: vi.fn(),
   });
   vi.mocked(useKontonummerFinnes).mockReturnValue({
     finnes: true,
@@ -81,6 +90,35 @@ describe("SokRefusjonPage", () => {
       "href",
       "/v2/skjema/sak-1/kvittering"
     );
+    expect(
+      screen.getByText("Du kan kreve inntil 24 900 kr. Oppgi beløp i hele kroner, f.eks. 12500.")
+    ).toBeInTheDocument();
+  });
+
+  it("viser feltfeil for beløp over innvilget beløp", async () => {
+    const user = userEvent.setup();
+    const submit = vi.spyOn(globalThis, "fetch");
+    renderPage(null);
+
+    await user.type(screen.getByLabelText("Beløp for refusjonskravet"), "24901");
+    await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
+
+    expect(
+      await screen.findAllByText("Beløpet kan ikke være høyere enn innvilget beløp (24 900 kr).")
+    ).toHaveLength(2);
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("viser melding i stedet for skjemaet når maksbeløpet ikke kan hentes", () => {
+    renderPage(
+      null,
+      new HttpError("Refusjonskrav for denne saken sendes ikke inn her", { status: 409 })
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Refusjonskrav for denne saken sendes ikke inn her"
+    );
+    expect(screen.queryByRole("button", { name: /^Send inn$/ })).not.toBeInTheDocument();
   });
 
   it("refreshes refund status on successful submission", async () => {

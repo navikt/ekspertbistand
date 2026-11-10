@@ -2,7 +2,12 @@ package no.nav.ekspertbistand.refusjon
 
 import no.nav.ekspertbistand.vedlegg.VedleggTable
 import no.nav.ekspertbistand.vedlegg.VedleggType
+import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
+import no.nav.ekspertbistand.saksbehandling.SakIkkeFunnetException
+import no.nav.ekspertbistand.saksbehandling.SakKildeArenaException
+import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.hentGodkjentSakIdForUpdate
+import no.nav.ekspertbistand.saksbehandling.hentInnvilgetBelopKroner
 import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
@@ -30,6 +35,9 @@ object RefusjonskravTable : UUIDTable("refusjonskrav") {
 data class RefusjonsfilInput(val filnavn: String, val innhold: ByteArray)
 
 class RefusjonskravFinnesAlleredeException : RuntimeException("Saken har allerede et refusjonskrav")
+class InnvilgetBelopManglerException : RuntimeException("Saken har ikke et innvilget beløp")
+class BelopOverInnvilgetException(val maksBelopKroner: Int) :
+    RuntimeException("Beløpet er høyere enn innvilget beløp")
 
 class RefusjonDb(private val database: Database) {
 
@@ -42,6 +50,10 @@ class RefusjonDb(private val database: Database) {
         // Saken er låst over, så sjekk og innsetting kan ikke kappe med en parallell innsending.
         if (RefusjonskravTable.select(RefusjonskravTable.id).where { RefusjonskravTable.sakId eq sakId }.any()) {
             throw RefusjonskravFinnesAlleredeException()
+        }
+        val maksBelopKroner = hentInnvilgetBelopKroner(sakId) ?: throw InnvilgetBelopManglerException()
+        if (belopOre > maksBelopKroner.toLong() * 100) {
+            throw BelopOverInnvilgetException(maksBelopKroner)
         }
         val refusjonskravId = RefusjonskravTable.insertReturning {
             it[RefusjonskravTable.sakId] = sakId
@@ -60,6 +72,25 @@ class RefusjonDb(private val database: Database) {
         }
 
         refusjonskravId
+    }
+
+    /**
+     * Maksbeløpet i kroner som kan kreves for søknaden: innvilget beløp fra vedtaket. Leser uten lås, så
+     * [lagreRefusjonskrav] kontrollerer beløpet på nytt.
+     *
+     * @throws SakIkkeFunnetException når søknaden ikke har sak
+     * @throws SakKildeArenaException for Arena-saker
+     * @throws InnvilgetBelopManglerException når saken ikke har innvilget beløp
+     */
+    fun hentMaksBelopKroner(soknadId: UUID): Int = transaction(database) {
+        val sak = SakTable.select(SakTable.sakId, SakTable.kildeTilBehandling)
+            .where { SakTable.soknadId eq soknadId }
+            .singleOrNull()
+            ?: throw SakIkkeFunnetException()
+        if (sak[SakTable.kildeTilBehandling] == KildeTilBehandling.ARENA.name) {
+            throw SakKildeArenaException()
+        }
+        hentInnvilgetBelopKroner(sak[SakTable.sakId]) ?: throw InnvilgetBelopManglerException()
     }
 
     /**

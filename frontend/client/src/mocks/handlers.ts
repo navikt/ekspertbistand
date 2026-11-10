@@ -17,6 +17,7 @@ const MOCK_MAKS_ANTALL_VEDLEGG = 5;
 const MOCK_MAKS_VEDLEGG_STORRELSE_BYTES = 10 * 1024 * 1024;
 const MOCK_MAKS_SATS_GYLDIG_FRA = "2026-01-01";
 const MOCK_MAKS_SATS_BELOP = 24900;
+const MOCK_REFUSJON_MAKS_BELOP = 24900;
 
 const sluttrapportStore = new Map<
   string,
@@ -660,6 +661,17 @@ export const handlers = [
     }
     return HttpResponse.json(status, { status: 200 });
   }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/refusjon/maksbelop`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    if (!skjemaStore.has(id)) {
+      return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
+    }
+    return HttpResponse.json({ maksBelopKroner: MOCK_REFUSJON_MAKS_BELOP }, { status: 200 });
+  }),
   http.post(`${EKSPERTBISTAND_API_PATH}/:id/refusjon`, async ({ params, request }) => {
     await ensureSkjemaStoreLoaded();
     const id = getParamValue(params.id);
@@ -676,6 +688,14 @@ export const handlers = [
 
     if (typeof belop !== "string" || !/^\d+$/.test(belop)) {
       return HttpResponse.json({ message: "Ugyldig beløp" }, { status: 400 });
+    }
+    if (Number(belop) > MOCK_REFUSJON_MAKS_BELOP) {
+      return HttpResponse.json(
+        {
+          message: `Beløpet kan ikke være høyere enn innvilget beløp (${MOCK_REFUSJON_MAKS_BELOP.toLocaleString("nb-NO")} kr)`,
+        },
+        { status: 400 }
+      );
     }
     if (filer.length === 0) {
       return HttpResponse.json({ message: "Minst én fil må lastes opp" }, { status: 400 });

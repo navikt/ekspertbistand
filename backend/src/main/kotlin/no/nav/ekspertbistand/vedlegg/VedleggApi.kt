@@ -7,9 +7,12 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.logger
+import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
 import no.nav.ekspertbistand.saksbehandling.SakIkkeFunnetException
+import no.nav.ekspertbistand.saksbehandling.SakKildeArenaException
 import no.nav.ekspertbistand.saksbehandling.SoknadIkkeFunnetException
 import no.nav.ekspertbistand.saksbehandling.SoknadIkkeGodkjentException
+import no.nav.ekspertbistand.saksbehandling.hentKildeForSoknad
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.subjectToken
@@ -20,6 +23,7 @@ import java.util.UUID
 
 private const val MAKS_FIL_STORRELSE_BYTES = 10 * 1024 * 1024
 private const val MAKS_ANTALL_FILER = 1
+private const val ARENA_MELDING = "Sluttrapport for denne saken sendes ikke inn her"
 
 private val vedleggLastetOppCounter = Metrics.meterRegistry.counter(
     "vedlegg_lastet_opp_total",
@@ -53,6 +57,12 @@ class VedleggApi(
 
         if (soknad.status != SoknadStatus.godkjent) {
             call.respond(HttpStatusCode.Conflict, "Søknaden må være godkjent før du kan sende sluttrapport")
+            return
+        }
+
+        // Tidlig sjekk før filen leses og skannes. lagreSluttrapport kontrollerer på nytt under lås.
+        if (transaction(database) { hentKildeForSoknad(soknadId) } == KildeTilBehandling.ARENA) {
+            call.respond(HttpStatusCode.Conflict, ARENA_MELDING)
             return
         }
 
@@ -121,6 +131,9 @@ class VedleggApi(
             return
         } catch (_: SoknadIkkeGodkjentException) {
             call.respond(HttpStatusCode.Conflict, "Søknaden må være godkjent før du kan sende sluttrapport")
+            return
+        } catch (_: SakKildeArenaException) {
+            call.respond(HttpStatusCode.Conflict, ARENA_MELDING)
             return
         }
 

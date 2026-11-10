@@ -90,14 +90,41 @@ fun JdbcTransaction.hentGodkjentSakIdForUpdate(soknadId: UUID): UUID {
         throw SoknadIkkeGodkjentException()
     }
 
-    return SakTable
+    val sak = SakTable
         .selectAll()
         .where { SakTable.soknadId eq soknadId }
         .forUpdate(ForUpdateOption.ForUpdate)
         .singleOrNull()
-        ?.get(SakTable.sakId)
         ?: throw SakIkkeFunnetException()
+
+    // Refusjon og sluttrapport for Arena-saker sendes ikke inn via denne løsningen.
+    if (sak[SakTable.kildeTilBehandling] == KildeTilBehandling.ARENA.name) {
+        throw SakKildeArenaException()
+    }
+
+    return sak[SakTable.sakId]
 }
+
+/** Kilden til saken for søknaden, eller null hvis søknaden ikke har sak. Må kalles i en transaksjon. */
+fun hentKildeForSoknad(soknadId: UUID): KildeTilBehandling? =
+    SakTable.select(SakTable.kildeTilBehandling)
+        .where { SakTable.soknadId eq soknadId }
+        .singleOrNull()
+        ?.let { KildeTilBehandling.valueOf(it[SakTable.kildeTilBehandling]) }
+
+/**
+ * Innvilget beløp i kroner fra beslutters vedtak på saken. Null når saken ikke har et innvilget vedtak
+ * med beløp større enn 0. Må kalles i en transaksjon.
+ */
+fun hentInnvilgetBelopKroner(sakId: UUID): Int? =
+    VedtakTable
+        .join(ForelopigVedtakTable, JoinType.INNER, VedtakTable.forelopigVedtakId, ForelopigVedtakTable.id)
+        .select(VedtakTable.utfall, ForelopigVedtakTable.innvilgetBelop)
+        .where { VedtakTable.sakId eq sakId }
+        .singleOrNull()
+        ?.takeIf { it[VedtakTable.utfall] == Saksstatus.INNVILGET.name }
+        ?.get(ForelopigVedtakTable.innvilgetBelop)
+        ?.takeIf { it > 0 }
 
 /** Må kalles i en transaksjon. Returnerer null hvis søknaden ikke har sak. */
 fun hentSakIdForSoknad(soknadId: UUID): UUID? =
@@ -676,6 +703,7 @@ enum class Vilkar {
 class SoknadIkkeFunnetException : RuntimeException()
 class SoknadIkkeGodkjentException : RuntimeException()
 class SakIkkeFunnetException : RuntimeException()
+class SakKildeArenaException : RuntimeException()
 
 /**
  * Hendelseslogg for en sak. Se `specifications/sakslogg.md`.
