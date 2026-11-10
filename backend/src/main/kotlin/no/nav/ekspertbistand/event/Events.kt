@@ -12,6 +12,7 @@ import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
 import no.nav.ekspertbistand.event.domain.VedtakDomain
+import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
 import no.nav.ekspertbistand.event.domain.tilSaksstatus
 import no.nav.ekspertbistand.event.handlers.*
 import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
@@ -581,11 +582,19 @@ sealed interface EventData {
 
     /**
      * Vedtaksbrevet til arbeidsgiver er journalført i arbeidsgivermappa. Kvitterer hvilket brev
-     * ([utfall]) som ble journalført, og til hvem.
+     * ([utfall]) som ble journalført, til hvem, og hva det sa.
      *
-     * Publiseres av [no.nav.ekspertbistand.event.handlers.JournalfoerVedtaksbrevArbeidsgiver]. Har bare
-     * organisasjonsdata. [journalpostId] er en kvittering, ikke en peker: arbeidsgiver får brevet rendret
-     * fra dataene, aldri fra Joark. Se `specifications/journalfor_vedtaksbrev_arbeidsgiver.md`.
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.JournalfoerVedtaksbrevArbeidsgiver].
+     * [vedtaksbrev] er brevet usladdet, slik arbeidsgiver skal se det, og rendres med malen for [utfall]
+     * og [no.nav.ekspertbistand.saksbehandling.Mottaker.ARBEIDSGIVER]. Den journalførte kopien er
+     * [vedtaksbrev] sladdet med [adressebeskyttelse] (`sladdVedAdressebeskyttelse`). Konsumenter trenger
+     * derfor verken projeksjonene eller [VedtakFattet] for å bygge brevet på nytt.
+     *
+     * [journalpostId] er en kvittering, ikke en peker: arbeidsgiver får brevet rendret fra dataene, aldri
+     * fra Joark. Se `specifications/journalfor_vedtaksbrev_arbeidsgiver.md`.
+     *
+     * Eventen har deltakers navn, adressebeskyttelse og begrunnelsen til arbeidsgiver, som kan ha
+     * helseopplysninger. Ingenting av dette skal logges utenfor teamLog.
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
      *
@@ -600,6 +609,8 @@ sealed interface EventData {
         val utfall: VedtakDomain.Utfall,
         val virksomhetsnummer: String,
         val virksomhetsnavn: String,
+        val vedtaksbrev: VedtaksbrevDomain,
+        val adressebeskyttelse: SakDomain.Adressebeskyttelse?,
         val journalpostId: String,
         val dokumentInfoId: String,
         val tidspunkt: Instant,

@@ -17,6 +17,7 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableErr
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.event.domain.VedtakDomain
+import no.nav.ekspertbistand.event.domain.tilDomain
 import no.nav.ekspertbistand.event.domain.tilForelopigUtfall
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.logger
@@ -42,7 +43,8 @@ private val OSLO = TimeZone.of("Europe/Oslo")
  * Journalfører vedtaksbrevet til arbeidsgiver i arbeidsgivermappa (orgnr), for alle utfall. Se
  * `specifications/journalfor_vedtaksbrev_arbeidsgiver.md`.
  *
- * Brevet bygges bare fra [EventData.VedtakFattet], ikke fra projeksjonene. Vedtaket [FattVedtak]
+ * Brevet bygges bare fra [EventData.VedtakFattet], ikke fra projeksjonene, og legges usladdet på
+ * [EventData.VedtaksbrevArbeidsgiverJournalfoert]. Vedtaket [FattVedtak]
  * lagret for samme event avgjør om det skal journalføres:
  * - ikke lagret, men eventen kan fortsatt lagres: [FattVedtak] har ikke kjørt ennå, prøv igjen
  * - ikke lagret, og eventen kan ikke lagres: [FattVedtak] avviste den, eventen feiler uten journalføring
@@ -103,10 +105,14 @@ class JournalfoerVedtaksbrevArbeidsgiver @OptIn(ExperimentalTime::class) constru
                 data.vedtak.innstiltAvIdent,
             ),
             dato = data.tidspunkt.toLocalDateTime(OSLO).date,
-        ).sladdVedAdressebeskyttelse(data.sak.adressebeskyttelse)
+        )
 
         val pdf = try {
-            dokumentService.genererVedtaksbrevPdf(utfall, Mottaker.ARBEIDSGIVER, brevdata)
+            dokumentService.genererVedtaksbrevPdf(
+                utfall,
+                Mottaker.ARBEIDSGIVER,
+                brevdata.sladdVedAdressebeskyttelse(data.sak.adressebeskyttelse),
+            )
         } catch (e: Exception) {
             return transientError("Klarte ikke generere vedtaksbrev-PDF for sak ${data.sakId}", e)
         }
@@ -141,6 +147,8 @@ class JournalfoerVedtaksbrevArbeidsgiver @OptIn(ExperimentalTime::class) constru
                         utfall = data.vedtak.utfall,
                         virksomhetsnummer = virksomhetsnummer,
                         virksomhetsnavn = data.soknad.virksomhet.virksomhetsnavn,
+                        vedtaksbrev = brevdata.tilDomain(),
+                        adressebeskyttelse = data.sak.adressebeskyttelse,
                         journalpostId = journalpost.journalpostId,
                         dokumentInfoId = dokumentInfoId,
                         tidspunkt = clock.now(),

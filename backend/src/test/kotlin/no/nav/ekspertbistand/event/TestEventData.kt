@@ -7,6 +7,7 @@ import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
 import no.nav.ekspertbistand.event.domain.VedtakDomain
+import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
 import no.nav.ekspertbistand.event.domain.tilSaksstatus
 import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
@@ -137,6 +138,19 @@ object TestEventData {
             utfall = VedtakDomain.Utfall.INNVILGE,
             virksomhetsnummer = "987654321",
             virksomhetsnavn = "Testbedrift AS",
+            vedtaksbrev = VedtaksbrevDomain(
+                dato = "4. april 2026",
+                deltaker = VedtaksbrevDomain.Deltaker(navn = "Ansatt Navn"),
+                arbeidsgiver = VedtaksbrevDomain.Arbeidsgiver(navn = "Testbedrift AS", orgnr = "987654321"),
+                soknadssum = "9\u00A0000",
+                innvilgetBelop = "9\u00A0000",
+                tiltaksperiode = VedtaksbrevDomain.Periode(fra = "1. april 2026", til = "30. juni 2026"),
+                refusjonsfrist = "30. august 2026",
+                begrunnelse = null,
+                navEnhet = "Nav arbeidslivssenter Oslo",
+                saksbehandler = "Tore Tang",
+            ),
+            adressebeskyttelse = null,
             journalpostId = "123",
             dokumentInfoId = "456",
             tidspunkt = Instant.parse("2026-04-04T09:05:00Z"),

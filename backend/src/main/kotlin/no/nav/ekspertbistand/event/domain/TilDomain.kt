@@ -6,6 +6,7 @@ import no.nav.ekspertbistand.saksbehandling.ForelopigVedtakDTO
 import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
+import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
 import no.nav.ekspertbistand.saksbehandling.Vilkar
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingDTO
 import no.nav.ekspertbistand.saksbehandling.hentVilkarsvurdering
@@ -136,6 +137,33 @@ fun ForelopigVedtakDTO.tilDomain() = VedtakDomain(
     begrunnelseArbeidsgiver = begrunnelseArbeidsgiver,
     innstiltAvIdent = innstiltAvIdent,
     sendtTidspunkt = sendtTidspunkt,
+)
+
+fun VedtaksbrevData.tilDomain() = VedtaksbrevDomain(
+    dato = dato,
+    deltaker = VedtaksbrevDomain.Deltaker(navn = deltaker.navn),
+    arbeidsgiver = VedtaksbrevDomain.Arbeidsgiver(navn = arbeidsgiver.navn, orgnr = arbeidsgiver.orgnr),
+    soknadssum = soknadssum,
+    innvilgetBelop = innvilgetBelop,
+    tiltaksperiode = tiltaksperiode?.let { VedtaksbrevDomain.Periode(fra = it.fra, til = it.til) },
+    refusjonsfrist = refusjonsfrist,
+    begrunnelse = begrunnelse,
+    navEnhet = navEnhet,
+    saksbehandler = saksbehandler,
+)
+
+/** Malene tar [VedtaksbrevData], så brevet må tilbake fra domain for å rendres på nytt. */
+fun VedtaksbrevDomain.tilVedtaksbrevData() = VedtaksbrevData(
+    dato = dato,
+    deltaker = VedtaksbrevData.Deltaker(navn = deltaker.navn),
+    arbeidsgiver = VedtaksbrevData.Arbeidsgiver(navn = arbeidsgiver.navn, orgnr = arbeidsgiver.orgnr),
+    soknadssum = soknadssum,
+    innvilgetBelop = innvilgetBelop,
+    tiltaksperiode = tiltaksperiode?.let { VedtaksbrevData.Periode(fra = it.fra, til = it.til) },
+    refusjonsfrist = refusjonsfrist,
+    begrunnelse = begrunnelse,
+    navEnhet = navEnhet,
+    saksbehandler = saksbehandler,
 )
 
 @OptIn(ExperimentalTime::class)

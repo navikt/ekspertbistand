@@ -14,6 +14,7 @@ import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.event.TestEventData
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.VedtakDomain
+import no.nav.ekspertbistand.event.domain.tilVedtaksbrevData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
@@ -23,7 +24,10 @@ import no.nav.ekspertbistand.mocks.mockDokArkiv
 import no.nav.ekspertbistand.sak.LagretSak
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
+import no.nav.ekspertbistand.saksbehandling.Mottaker
 import no.nav.ekspertbistand.saksbehandling.SLADDET_NAVN
+import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
+import no.nav.ekspertbistand.saksbehandling.sladdVedAdressebeskyttelse
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -125,6 +129,14 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
     private fun journalfoert(database: Database) =
         koen(database).filterIsInstance<EventData.VedtaksbrevArbeidsgiverJournalfoert>()
 
+    /** HTML-en til brevet rendret på nytt, uten annet enn dataene i [vedtaksbrev]. */
+    private suspend fun rendret(utfall: ForelopigUtfall, vedtaksbrev: VedtaksbrevData): String {
+        val gotenberg = Gotenberg()
+        DokumentService(StubPdfKonverterer(onConvert = { gotenberg.html += it }))
+            .genererVedtaksbrevPdf(utfall, Mottaker.ARBEIDSGIVER, vedtaksbrev)
+        return gotenberg.html.single()
+    }
+
     private fun sakslogg(database: Database) =
         koen(database).filterIsInstance<EventData.SakOppdatert>()
             .filter { it.notat == "Vedtaksbrev til arbeidsgiver journalført" }
@@ -163,11 +175,20 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
                     utfall = utfall,
                     virksomhetsnummer = "912345670",
                     virksomhetsnavn = "Fra Eventen AS",
+                    vedtaksbrev = kvittering.vedtaksbrev,
+                    adressebeskyttelse = null,
                     journalpostId = "1234",
                     dokumentInfoId = "9876",
                     tidspunkt = now,
                 ),
                 kvittering,
+            )
+            assertEquals("Deltaker Fra Eventen", kvittering.vedtaksbrev.deltaker.navn)
+            assertEquals("25. november 2026", kvittering.vedtaksbrev.dato)
+            assertEquals(
+                html,
+                rendret(forelopig, kvittering.vedtaksbrev.tilVedtaksbrevData()),
+                "brevet kan bygges på nytt fra eventen",
             )
             val logg = sakslogg(database).single()
             assertEquals(AktorRolle.SYSTEM, logg.utfortAvRolle)
@@ -205,6 +226,13 @@ class JournalfoerVedtaksbrevArbeidsgiverTest {
             val html = gotenberg.html.single()
             assertEquals(sladdet, SLADDET_NAVN in html)
             assertEquals(!sladdet, "Deltaker Fra Eventen" in html)
+
+            val kvittering = journalfoert(database).single()
+            assertEquals(adressebeskyttelse, kvittering.adressebeskyttelse)
+            assertEquals("Deltaker Fra Eventen", kvittering.vedtaksbrev.deltaker.navn, "eventen har brevet usladdet")
+            val journalfoertKopi = kvittering.vedtaksbrev.tilVedtaksbrevData()
+                .sladdVedAdressebeskyttelse(kvittering.adressebeskyttelse)
+            assertEquals(html, rendret(ForelopigUtfall.INNVILGE, journalfoertKopi))
         }
 
     @Test
