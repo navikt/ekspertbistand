@@ -53,7 +53,8 @@ sealed interface EventData {
      * Payload er hele søknaden slik den ble sendt inn, og er dermed sannheten om hva
      * arbeidsgiver faktisk søkte om — senere endringer i søknadstabellen påvirker ikke eventen.
      *
-     * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSoknad] og
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSoknad],
+     * [no.nav.ekspertbistand.event.handlers.JournalfoerSoknadKopiDeltaker] og
      * [no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelseProjection]
      * (starter måling av behandlingstid).
      */
@@ -95,6 +96,24 @@ sealed interface EventData {
         val behandlendeEnhetId: String,
         /** Se klassedokumentasjonen for når feltet er null. */
         val virksomhetKommunenummer: String? = null,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
+
+    /**
+     * En kopi av den innsendte søknaden, med infoskriv, er journalført på personmappen til deltakeren.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.JournalfoerSoknadKopiDeltaker]. Journalposten er
+     * utgående og ferdigstilt, men ikke distribuert. [journalpostId] brukes når den skal distribueres til
+     * deltakeren med dokdist.
+     *
+     * Konsumenter: ingen ennå. Distribusjon kommer i https://trello.com/c/2QCwaAJX
+     */
+    @Serializable
+    @SerialName("soknadKopiDeltakerJournalfoert")
+    data class SoknadKopiDeltakerJournalfoert(
+        val soknad: DTO.Soknad,
+        val journalpostId: Int,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
     }
@@ -566,6 +585,7 @@ suspend fun Application.configureEventHandlers() {
     val eventManager = EventManager {
         // Registrer all event handlers here
         register(dependencies.create(JournalfoerInnsendtSoknad::class))
+        register(dependencies.create(JournalfoerSoknadKopiDeltaker::class))
         basedOnEnvSuspending(
             prod = {
                 register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))

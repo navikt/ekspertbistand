@@ -250,6 +250,11 @@ object TestEventData {
         behandlendeEnhetId = "9876",
     )
 
+    val soknadKopiDeltakerJournalfoert = EventData.SoknadKopiDeltakerJournalfoert(
+        soknad = sampleSoknad,
+        journalpostId = 654322,
+    )
+
     /**
      * Ett eksempel per [EventData]-subklasse, brukt av modelltestene til å verifisere at
      * `aggregateRootId` er implementert og gir riktig verdi for hver type.
@@ -257,6 +262,7 @@ object TestEventData {
     val allEventSamples: List<EventData> = listOf(
         soknadInnsendt,
         innsendtSoknadJournalfoert,
+        soknadKopiDeltakerJournalfoert,
         EventData.SakOpprettet(
             sakId = "11111111-1111-1111-1111-111111111111",
             soknad = sampleSoknad,

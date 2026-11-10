@@ -38,6 +38,7 @@ flowchart TD
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
+    e_SoknadKopiDeltakerJournalfoert(["SoknadKopiDeltakerJournalfoert"]):::orphan
     e_TilsagnsdataLagret(["TilsagnsdataLagret"]):::event
     e_TilskuddsbrevJournalfoert(["TilskuddsbrevJournalfoert"]):::event
     e_TilskuddsbrevJournalfoertKildeAltinn(["TilskuddsbrevJournalfoertKildeAltinn"]):::event
@@ -52,6 +53,7 @@ flowchart TD
     h_FrigjoerSak["FrigjoerSak"]:::handler
     h_JournalfoerInnsendtSoknad["JournalfoerInnsendtSoknad"]:::handler
     h_JournalfoerNotatArenaSakOpprettet["JournalfoerNotatArenaSakOpprettet"]:::handler
+    h_JournalfoerSoknadKopiDeltaker["JournalfoerSoknadKopiDeltaker"]:::handler
     h_JournalfoerTilskuddsbrev["JournalfoerTilskuddsbrev"]:::handler
     h_JournalfoerTilskuddsbrevKildeAltinn["JournalfoerTilskuddsbrevKildeAltinn"]:::handler
     h_LagreForelopigVedtak["LagreForelopigVedtak"]:::handler
@@ -90,6 +92,7 @@ flowchart TD
     s_ForelopigVedtakApi --> e_ForelopigVedtakSendtTilBeslutter
     h_FrigjoerSak --> e_SakOppdatert
     h_JournalfoerInnsendtSoknad --> e_InnsendtSoknadJournalfoert
+    h_JournalfoerSoknadKopiDeltaker --> e_SoknadKopiDeltakerJournalfoert
     h_JournalfoerTilskuddsbrev --> e_TilskuddsbrevJournalfoert
     h_JournalfoerTilskuddsbrevKildeAltinn --> e_TilskuddsbrevJournalfoertKildeAltinn
     h_LagreForelopigVedtak --> e_SakOppdatert
@@ -111,6 +114,7 @@ flowchart TD
     e_SakFrigjort --> h_FrigjoerSak
     e_SoknadInnsendt --> h_JournalfoerInnsendtSoknad
     e_TiltaksgjennomforingOpprettet --> h_JournalfoerNotatArenaSakOpprettet
+    e_SoknadInnsendt --> h_JournalfoerSoknadKopiDeltaker
     e_TilskuddsbrevMottatt --> h_JournalfoerTilskuddsbrev
     e_TilskuddsbrevMottattKildeAltinn --> h_JournalfoerTilskuddsbrevKildeAltinn
     e_ForelopigVedtakSendtTilBeslutter --> h_LagreForelopigVedtak
@@ -158,3 +162,7 @@ flowchart TD
     e_TilskuddsbrevVist -.-> p_TilskuddsbrevVistProjection
     linkStyle default stroke:#555,stroke-width:2px
 ```
+
+Events markert i rødt mangler enten publiserer eller konsument:
+
+- `SoknadKopiDeltakerJournalfoert` – mangler konsument
