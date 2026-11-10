@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.soknad
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
@@ -27,7 +28,10 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.*
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 class SoknadTest {
 
     @Test
@@ -84,6 +88,7 @@ class SoknadTest {
                     }
                 }
                 provide<EregService> { EregService(eregClient) }
+                provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 provide {
                     altinnTilgangerClient
                 }
@@ -147,30 +152,7 @@ class SoknadTest {
             }
         }
 
-        // oppdater utkast, orgnr uten tilgang
-        with(
-            client.patch("/api/soknad/v1/$utkastId") {
-                bearerAuth("faketoken")
-                contentType(ContentType.Application.Json)
-                setBody(
-                    DTO.Utkast(
-                        virksomhet = DTO.Virksomhet(
-                            virksomhetsnummer = "314",
-                            virksomhetsnavn = "Andeby AS",
-                            kontaktperson = DTO.Kontaktperson(
-                                navn = "Donald Duck",
-                                epost = "donald@duck.co",
-                                telefonnummer = "12345678",
-                            )
-                        )
-                    )
-                )
-            }
-        ) {
-            assertEquals(HttpStatusCode.Forbidden, status)
-        }
-
-        // oppdater utkast, orgnr med tilgang
+        // oppdater utkast, virksomhetsnummer settes bare av valider-deltaker
         with(
             client.patch("/api/soknad/v1/$utkastId") {
                 bearerAuth("faketoken")
@@ -194,7 +176,7 @@ class SoknadTest {
             body<DTO.Utkast>().also { utkast ->
                 assertEquals(utkastId, utkast.id)
                 assertEquals("42", utkast.opprettetAv)
-                assertEquals("1337", utkast.virksomhet!!.virksomhetsnummer)
+                assertNull(utkast.virksomhet, "virksomhet vises ikke før virksomhetsnummer er satt")
             }
         }
 
@@ -205,6 +187,7 @@ class SoknadTest {
             }
         ) {
             assertEquals(HttpStatusCode.NoContent, status)
+            assertEquals("", bodyAsText())
         }
         with(
             client.get("/api/soknad/v1/$utkastId") {
@@ -268,6 +251,7 @@ class SoknadTest {
                     }
                 }
                 provide<EregService> { EregService(eregClient) }
+                provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 provide {
                     altinnTilgangerClient
                 }
@@ -340,6 +324,17 @@ class SoknadTest {
             UtkastTable.insertReturning {
                 it[virksomhetsnummer] = "1337"
                 it[virksomhetsnavn] = "foo bar AS"
+                it[ansattFnr] = "12345678910"
+                it[ansattNavn] = "Mona Moonlight"
+                it[ansattBekreftetTidspunkt] = Clock.System.now()
+                it[opprettetAv] = "42"
+            }.single().tilUtkastDTO()
+        }
+        val ubekreftetUtkast = transaction(testDb.config.jdbcDatabase) {
+            UtkastTable.insertReturning {
+                it[virksomhetsnummer] = "1337"
+                it[virksomhetsnavn] = "foo bar AS"
+                it[ansattFnr] = "12345678910"
                 it[opprettetAv] = "42"
             }.single().tilUtkastDTO()
         }
@@ -471,6 +466,20 @@ class SoknadTest {
             assertEquals("behovForBistand.startdato", body<Map<String, String>>()["felt"])
         }
 
+        // put uten bekreftet deltaker, eller med annen deltaker eller virksomhet enn bekreftet, gir 400
+        for ((utkastId, soknad) in listOf(
+            ubekreftetUtkast.id to gyldigSoknad,
+            eksisterendeUtkast.id to gyldigSoknad.copy(ansatt = gyldigSoknad.ansatt.copy(fnr = "10987654321")),
+        )) {
+            val response = client.put("/api/soknad/v1/$utkastId") {
+                bearerAuth("faketoken")
+                contentType(ContentType.Application.Json)
+                setBody(soknad)
+            }
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertEquals("ansatt.fnr", response.body<Map<String, String>>()["felt"])
+        }
+
         // put med gyldig payload gir 200 og soknad i retur
         with(
             client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
@@ -485,6 +494,8 @@ class SoknadTest {
                 assertEquals("42", soknad.opprettetAv)
                 assertEquals("1337", soknad.virksomhet.virksomhetsnummer)
                 assertEquals("Testveien 1, 0557 Oslo", soknad.virksomhet.beliggenhetsadresse)
+                // navnet kommer fra bekreftelsen på utkastet, ikke fra request-body
+                assertEquals("Mona Moonlight", soknad.ansatt.navn)
 
                 // opprettetTidspunkt skal være nytt
                 assertNotEquals(eksisterendeUtkast.opprettetTidspunkt, soknad.opprettetTidspunkt)
@@ -552,6 +563,7 @@ class SoknadTest {
                     }
                 }
                 provide<EregService> { EregService(eregClient) }
+                provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 provide {
                     altinnTilgangerClient
                 }
@@ -713,6 +725,7 @@ class SoknadTest {
                     }
                 }
                 provide<EregService> { EregService(eregClient) }
+                provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 provide {
                     altinnTilgangerClient
                 }
@@ -797,6 +810,7 @@ class SoknadTest {
                         altinnTilgangerClient
                     }
                     provide<EregService> { EregService(eregClient) }
+                    provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 }
 
                 configureAuthentication()
@@ -914,6 +928,7 @@ class SoknadTest {
                     }
                     provide { altinnTilgangerClient }
                     provide<EregService> { EregService(eregClient) }
+                    provide<DeltakerOppslag> { bekreftendeDeltakerOppslag }
                 }
                 configureAuthentication()
                 configureServer()

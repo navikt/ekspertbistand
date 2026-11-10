@@ -21,6 +21,7 @@ internal fun principal(navIdent: String, vararg roller: Role) = AzureAdPrincipal
     subjectToken = "token",
 )
 
+@OptIn(ExperimentalTime::class)
 class OppgavetypeTest {
 
     @Test
@@ -60,9 +61,54 @@ class OppgavetypeTest {
                 Oppgavetype.SOKNAD to Role.SAKSBEHANDLER,
                 Oppgavetype.SOKNAD_RETUR to Role.SAKSBEHANDLER,
                 Oppgavetype.SOKNAD_BESLUTTER to Role.BESLUTTER,
+                Oppgavetype.REFUSJON to Role.SAKSBEHANDLER,
+                Oppgavetype.SLUTTRAPPORT to Role.SAKSBEHANDLER,
             ),
             Oppgavetype.entries.associateWith { it.rolle },
         )
+    }
+
+    private val refusjonMottatt = Instant.parse("2026-11-01T10:00:00Z")
+    private val sluttrapportMottatt = Instant.parse("2026-11-02T10:00:00Z")
+    private val innsendinger = MottatteInnsendinger(refusjonMottatt, sluttrapportMottatt)
+
+    @Test
+    fun `innvilget sak fra ny løsning får én oppgave per innsending, refusjon først`() {
+        assertEquals(
+            listOf(Oppgave(Oppgavetype.REFUSJON, refusjonMottatt), Oppgave(Oppgavetype.SLUTTRAPPORT, sluttrapportMottatt)),
+            oppgaver(Saksstatus.INNVILGET, KildeTilBehandling.EKSPERTBISTAND, harRetur = false, innsendinger),
+        )
+        assertEquals(
+            listOf(Oppgave(Oppgavetype.REFUSJON, refusjonMottatt)),
+            oppgaver(Saksstatus.INNVILGET, KildeTilBehandling.EKSPERTBISTAND, harRetur = true, innsendinger.copy(sluttrapport = null)),
+        )
+        assertEquals(
+            listOf(Oppgave(Oppgavetype.SLUTTRAPPORT, sluttrapportMottatt)),
+            oppgaver(Saksstatus.INNVILGET, KildeTilBehandling.EKSPERTBISTAND, harRetur = false, innsendinger.copy(refusjonskrav = null)),
+        )
+    }
+
+    @Test
+    fun `uten innsending, utenfor innvilget eller fra Arena gir søknadsoppgaven som før`() {
+        KildeTilBehandling.entries.forEach { kilde ->
+            listOf(true, false).forEach { harRetur ->
+                Saksstatus.entries.forEach { status ->
+                    val forventet = listOfNotNull(oppgavetype(status, harRetur)?.let { Oppgave(it, mottatt = null) })
+                    assertEquals(
+                        forventet,
+                        oppgaver(status, kilde, harRetur, MottatteInnsendinger.INGEN),
+                        "kilde=$kilde status=$status harRetur=$harRetur",
+                    )
+                    if (kilde == KildeTilBehandling.ARENA || status != Saksstatus.INNVILGET) {
+                        assertEquals(
+                            forventet,
+                            oppgaver(status, kilde, harRetur, innsendinger),
+                            "med innsendinger: kilde=$kilde status=$status harRetur=$harRetur",
+                        )
+                    }
+                }
+            }
+        }
     }
 
     @Test
@@ -78,5 +124,7 @@ class OppgavetypeTest {
         assertTrue(harOppgaveFor(Oppgavetype.SOKNAD, begge))
         assertTrue(harOppgaveFor(Oppgavetype.SOKNAD_BESLUTTER, begge))
         assertFalse(harOppgaveFor(null, begge))
+        assertTrue(harOppgaveFor(Oppgavetype.REFUSJON, saksbehandler))
+        assertFalse(harOppgaveFor(Oppgavetype.SLUTTRAPPORT, beslutter))
     }
 }

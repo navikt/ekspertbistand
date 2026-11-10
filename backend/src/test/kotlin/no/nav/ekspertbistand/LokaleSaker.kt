@@ -17,6 +17,7 @@ import no.nav.ekspertbistand.event.domain.tilDomain
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.logger
+import no.nav.ekspertbistand.refusjon.RefusjonskravTable
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Vilkar
@@ -27,9 +28,14 @@ import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.encodeStringList
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.tilSoknadDTO
+import no.nav.ekspertbistand.mocks.enkelPdf
+import no.nav.ekspertbistand.vedlegg.SluttrapportTable
+import no.nav.ekspertbistand.vedlegg.VedleggTable
+import no.nav.ekspertbistand.vedlegg.VedleggType
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
@@ -149,6 +155,7 @@ private data class LokalSak(
     val beslutning: Beslutning? = null,
     val beskyttelse: LokalBeskyttelse? = null,
     val arena: ArenaHendelse? = null,
+    val medInnsendinger: Boolean = false,
 )
 
 private val ola = lokaleAnsatte.single { it.navIdent == "A123456" }
@@ -286,6 +293,18 @@ private val lokaleSaker = listOf(
         estimertKostnad = 13000,
         arena = ArenaHendelse.AVLYST,
     ),
+    LokalSak(
+        soknadId = UUID.fromString("a1000000-0000-4000-8000-000000000015"),
+        virksomhet = lokaleVirksomheter[6],
+        ansattNavn = "Knut Kvalitet",
+        ansattFnr = "01019012315",
+        estimertKostnad = 21000,
+        saksbehandler = ola,
+        forslag = ForelopigUtfall.INNVILGE,
+        beslutter = kari,
+        beslutning = Beslutning.GODKJENN,
+        medInnsendinger = true,
+    ),
 )
 
 internal fun lokalBeskyttelse(fnr: String?) = lokaleSaker.find { it.ansattFnr == fnr }?.beskyttelse
@@ -349,7 +368,49 @@ internal fun CoroutineScope.behandleLokaleSaker(database: Database) = launch {
         transaction(database) {
             behandlingseventer(sak, sakId.toString()).forEach { publishEventQueue(it) }
             arenaeventer(sak).forEach { publishEventQueue(it) }
+            if (sak.medInnsendinger) {
+                lagreLokaleInnsendinger(sakId, belopOre = sak.estimertKostnad.toLong() * 100)
+            }
         }
+    }
+}
+
+/** Som en ekte innsending: hver rad får en PDF i `vedlegg`, ellers finner saksbehandler ingenting å vise. */
+private fun lagreLokaleInnsendinger(sakId: UUID, belopOre: Long) {
+    val refusjonskravId = RefusjonskravTable.insertReturning {
+        it[RefusjonskravTable.sakId] = sakId
+        it[RefusjonskravTable.belopOre] = belopOre
+        it[RefusjonskravTable.status] = "MOTTATT"
+    }.single()[RefusjonskravTable.id].value
+    lagreLokaltVedlegg(
+        VedleggType.REFUSJONSDOKUMENTASJON, "kvittering-ekspert.pdf",
+        refusjonskravId = refusjonskravId, sluttrapportId = null,
+    )
+
+    val sluttrapportId = SluttrapportTable.insertReturning {
+        it[SluttrapportTable.sakId] = sakId
+        it[SluttrapportTable.status] = "MOTTATT"
+    }.single()[SluttrapportTable.id]
+    lagreLokaltVedlegg(
+        VedleggType.SLUTTRAPPORT, "sluttrapport.pdf",
+        refusjonskravId = null, sluttrapportId = sluttrapportId,
+    )
+}
+
+private fun lagreLokaltVedlegg(
+    type: VedleggType,
+    filnavn: String,
+    refusjonskravId: UUID?,
+    sluttrapportId: UUID?,
+) {
+    val innhold = enkelPdf("Lokalt testvedlegg: $filnavn")
+    VedleggTable.insert {
+        it[VedleggTable.type] = type.name
+        it[VedleggTable.filnavn] = filnavn
+        it[VedleggTable.innhold] = innhold
+        it[VedleggTable.storrelse] = innhold.size
+        it[VedleggTable.refusjonskravId] = refusjonskravId
+        it[VedleggTable.sluttrapportId] = sluttrapportId
     }
 }
 

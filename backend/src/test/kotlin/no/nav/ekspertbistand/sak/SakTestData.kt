@@ -1,11 +1,16 @@
 package no.nav.ekspertbistand.sak
 
+import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
+import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
+import no.nav.ekspertbistand.saksbehandling.ForelopigVedtakTable
 import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.SaksloggTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
+import no.nav.ekspertbistand.saksbehandling.VedtakTable
 import no.nav.ekspertbistand.saksbehandling.nesteSaksnummer
+import no.nav.ekspertbistand.saksbehandling.saksstatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.encodeStringList
 import org.jetbrains.exposed.v1.datetime.CurrentDate
@@ -77,5 +82,40 @@ fun lagreSaksloggInnslag(
         it[utfortAvIdent] = ident
         it[SaksloggTable.notat] = notat
         it[utfortAt] = tidspunkt
+    }
+}
+
+/**
+ * Lagrer et foreløpig vedtak og beslutters vedtak på saken. [innvilgetBelop] er null ved avslag.
+ * Må kalles i en transaksjon.
+ */
+@OptIn(ExperimentalTime::class)
+fun lagreFattetVedtak(
+    sakId: UUID,
+    utfall: ForelopigUtfall,
+    innvilgetBelop: Int?,
+) {
+    val tidspunkt = Instant.parse("2026-11-01T10:00:00Z")
+    val forelopigVedtakId = ForelopigVedtakTable.insert {
+        it[ForelopigVedtakTable.sakId] = sakId
+        it[versjon] = 1
+        it[eventId] = Random().nextLong(1, Long.MAX_VALUE)
+        it[ForelopigVedtakTable.utfall] = utfall.name
+        it[ForelopigVedtakTable.innvilgetBelop] = innvilgetBelop
+        it[tiltaksperiodeFra] = if (utfall == ForelopigUtfall.AVSLAA) null else LocalDate(2026, 11, 1)
+        it[tiltaksperiodeTil] = if (utfall == ForelopigUtfall.AVSLAA) null else LocalDate(2026, 12, 31)
+        it[begrunnelseDeltaker] = "Til deltaker"
+        it[begrunnelseArbeidsgiver] = if (utfall == ForelopigUtfall.INNVILGE) null else "Til arbeidsgiver"
+        it[innstiltAvIdent] = "Z111111"
+        it[sendtTidspunkt] = tidspunkt
+    }[ForelopigVedtakTable.id]
+    VedtakTable.insert {
+        it[VedtakTable.sakId] = sakId
+        it[VedtakTable.forelopigVedtakId] = forelopigVedtakId
+        it[VedtakTable.utfall] = utfall.saksstatus.name
+        it[fattetAvIdent] = "Z222222"
+        it[fattetAvNavn] = "Beslutter"
+        it[fattetTidspunkt] = tidspunkt
+        it[eventId] = Random().nextLong(1, Long.MAX_VALUE)
     }
 }

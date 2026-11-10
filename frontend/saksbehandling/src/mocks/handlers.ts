@@ -11,12 +11,13 @@ import type {
   SakDetaljer,
   Vedtak,
 } from "../hooks/useSak";
-import type {
-  Oppgavetype,
-  SakInfo,
-  SakListeElement,
-  Saksstatus,
-  SoknadStatus,
+import {
+  type Oppgavetype,
+  type SakInfo,
+  type SakListeElement,
+  type Saksstatus,
+  type SoknadStatus,
+  rolleForOppgave,
 } from "../hooks/useSaker";
 import { VILKAR_TEKSTER, type VilkarId, type VilkarsvurderingDTO } from "../hooks/useVilkår";
 import type { SaksloggInnslag, SaksloggResponse } from "../hooks/useSakslogg";
@@ -114,6 +115,7 @@ type DeltakerAvvisning =
 
 type MockSak = Pick<SakInfo, "sakId" | "status" | "saksbehandlerIdent" | "saksbehandlerNavn"> &
   Partial<SakInfo> & {
+    innsendingsoppgaver?: { oppgavetype: "REFUSJON" | "SLUTTRAPPORT"; mottatt: string }[];
     /** Uten verdi får saken en kommune i Agder ut fra rekkefølgen, eller ingen. */
     kommunenummer?: string | null;
     skjermet?: boolean;
@@ -200,6 +202,10 @@ const mockSaker: MockSak[] = [
   {
     sakId: "9c2f7a10-0000-4000-8000-000000002006",
     status: "INNVILGET",
+    innsendingsoppgaver: [
+      { oppgavetype: "REFUSJON", mottatt: "2026-11-09T14:15:00Z" },
+      { oppgavetype: "SLUTTRAPPORT", mottatt: "2026-11-08T10:30:00Z" },
+    ],
     saksbehandlerIdent: "O111222",
     saksbehandlerNavn: "Ola Oppdiktet",
     beslutterIdent: mockBeslutter.ident,
@@ -647,10 +653,25 @@ const vedtakStore = new Map<string, Vedtak>([
 ]);
 
 // Speiler tildelingHindring i backend: bare saker som venter på saksbehandler.
-const kanTildeles = (sak: Pick<SakInfo, "status" | "saksbehandlerIdent">) =>
-  oppgavetype(sak.status) === "SOKNAD" && sak.saksbehandlerIdent !== mockInnloggetAnsatt.id;
+// Speiler `tildelingHindring` i SakApi.kt: saken må ha en oppgave for saksbehandler.
+const kanTildeles = (sak: Pick<SakInfo, "oppgavetype" | "saksbehandlerIdent">) =>
+  rolleForOppgave(sak.oppgavetype) === "saksbehandler" &&
+  sak.saksbehandlerIdent !== mockInnloggetAnsatt.id;
 
 const mockRefusjonSakId = "9c2f7a10-0000-4000-8000-000000002010";
+const mockInnsendinger = (sakId: string): SakDetaljer["innsendinger"] => {
+  if (sakId === mockRefusjonSakId) {
+    return { refusjonskrav: mockRefusjon.opprettet, sluttrapport: mockSluttrapport.opprettet };
+  }
+  const oppgaver = mockSaker.find((s) => s.sakId === sakId)?.innsendingsoppgaver ?? [];
+  const mottatt = (type: "REFUSJON" | "SLUTTRAPPORT") =>
+    oppgaver.find((oppgave) => oppgave.oppgavetype === type)?.mottatt ?? null;
+  return { refusjonskrav: mottatt("REFUSJON"), sluttrapport: mottatt("SLUTTRAPPORT") };
+};
+const harMockInnsending = (sakId: string, type: "REFUSJON" | "SLUTTRAPPORT") => {
+  const innsendinger = mockInnsendinger(sakId);
+  return (type === "REFUSJON" ? innsendinger.refusjonskrav : innsendinger.sluttrapport) !== null;
+};
 const mockRefusjonsvedleggId = "b7fa1e19-6adc-4444-b592-1567343686f6";
 const mockPdfBytes = (() => {
   const objekter = [
@@ -675,7 +696,6 @@ const mockPdfBytes = (() => {
 })();
 const mockRefusjon = {
   belopKroner: 18400,
-  utgifter: "Kostnader for rådgivning og tilrettelegging på arbeidsplassen.",
   opprettet: "2026-10-30T13:25:00Z",
   vedlegg: [
     {
@@ -706,7 +726,11 @@ const oppgavetype = (status: Saksstatus, harRetur = false): Oppgavetype | null =
 };
 
 const harOppgaveForMeg = (type: Oppgavetype | null) =>
-  (mockRoller.saksbehandler && (type === "SOKNAD" || type === "SOKNAD_RETUR")) ||
+  (mockRoller.saksbehandler &&
+    (type === "SOKNAD" ||
+      type === "SOKNAD_RETUR" ||
+      type === "REFUSJON" ||
+      type === "SLUTTRAPPORT")) ||
   (mockRoller.beslutter && type === "SOKNAD_BESLUTTER");
 
 type BeslutterTildelingHindring =
@@ -750,8 +774,16 @@ const mockKommune = (index: number, kommunenummer: string | null | undefined, ar
 };
 
 const tilListeElement = (
-  { soknad, skjermet = false, deltakerAvvist, kommunenummer: oppgittKommune, ...mockSak }: MockSak,
-  index: number
+  {
+    soknad,
+    skjermet = false,
+    deltakerAvvist,
+    kommunenummer: oppgittKommune,
+    innsendingsoppgaver: _innsendingsoppgaver,
+    ...mockSak
+  }: MockSak,
+  index: number,
+  innsendingsoppgave?: { oppgavetype: "REFUSJON" | "SLUTTRAPPORT"; mottatt: string }
 ): MockListeElement => {
   const sak = {
     kildeTilBehandling: "EKSPERTBISTAND" as const,
@@ -764,12 +796,16 @@ const tilListeElement = (
   };
   const kommunenummer = mockKommune(index, oppgittKommune, sak.kildeTilBehandling === "ARENA");
   const vedtak = forelopigVedtakStore.get(sak.sakId);
-  const type = oppgavetype(sak.status, returStore.has(sak.sakId));
+  const type =
+    innsendingsoppgave?.oppgavetype ?? oppgavetype(sak.status, returStore.has(sak.sakId));
   return {
     ...sak,
+    // Speiler backend: søknadens beslutter vises ikke på rader for innsendinger.
+    ...(innsendingsoppgave ? { beslutterIdent: null, beslutterNavn: null } : {}),
+    mottatt: innsendingsoppgave?.mottatt ?? soknad.innsendtTidspunkt,
     kommunenummer,
     kommunenavn: kommunenummer ? (mockKommunenavn[kommunenummer] ?? null) : null,
-    kanTildeleMeg: sak.saksbehandlerIdent === null && kanTildeles(sak),
+    kanTildeleMeg: sak.saksbehandlerIdent === null && kanTildeles({ ...sak, oppgavetype: type }),
     oppgavetype: type,
     harOppgaveForMeg: harOppgaveForMeg(type),
     skjermet,
@@ -794,7 +830,12 @@ const tilListeElement = (
   };
 };
 
-const alleSaker = (): MockListeElement[] => mockSaker.map(tilListeElement);
+const alleSaker = (): MockListeElement[] =>
+  mockSaker.flatMap((sak, index) =>
+    sak.innsendingsoppgaver?.length
+      ? sak.innsendingsoppgaver.map((oppgave) => tilListeElement(sak, index, oppgave))
+      : [tilListeElement(sak, index)]
+  );
 
 // Speiler `utenDeltaker` i SakApi.kt.
 const utenDeltaker = (sak: MockListeElement): SakListeElement =>
@@ -852,6 +893,7 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: MockListeElement): SakDetal
   forelopigVedtak: forelopigVedtakStore.get(sak.sakId) ?? null,
   sisteRetur: returStore.get(sak.sakId) ?? null,
   vedtak: vedtakStore.get(sak.sakId) ?? null,
+  innsendinger: mockInnsendinger(sak.sakId),
   soknad: {
     soknadId: element.soknadId,
     status: element.status,
@@ -1093,7 +1135,7 @@ export const handlers = [
   http.get(SAKSBEHANDLING_REFUSJON_URL(":sakId"), ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;
-    if (sak.sakId !== mockRefusjonSakId || sak.kildeTilBehandling === "ARENA") {
+    if (!harMockInnsending(sak.sakId, "REFUSJON") || sak.kildeTilBehandling === "ARENA") {
       return new HttpResponse(null, { status: 204 });
     }
     return HttpResponse.json(mockRefusjon);
@@ -1101,7 +1143,10 @@ export const handlers = [
   http.get(SAKSBEHANDLING_REFUSJON_VEDLEGG_URL(":sakId", ":vedleggId"), ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;
-    if (sak.sakId !== mockRefusjonSakId || String(params.vedleggId) !== mockRefusjonsvedleggId) {
+    if (
+      !harMockInnsending(sak.sakId, "REFUSJON") ||
+      String(params.vedleggId) !== mockRefusjonsvedleggId
+    ) {
       return HttpResponse.json({ message: "Fant ikke vedlegget." }, { status: 404 });
     }
     return new HttpResponse(mockPdfBytes, {
@@ -1114,7 +1159,7 @@ export const handlers = [
   http.get(SAKSBEHANDLING_SLUTTRAPPORT_URL(":sakId"), ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;
-    if (sak.sakId !== mockRefusjonSakId || sak.kildeTilBehandling === "ARENA") {
+    if (!harMockInnsending(sak.sakId, "SLUTTRAPPORT") || sak.kildeTilBehandling === "ARENA") {
       return new HttpResponse(null, { status: 204 });
     }
     return HttpResponse.json(mockSluttrapport);
@@ -1122,7 +1167,7 @@ export const handlers = [
   http.get(SAKSBEHANDLING_SLUTTRAPPORT_FIL_URL(":sakId"), ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;
-    if (sak.sakId !== mockRefusjonSakId || sak.kildeTilBehandling === "ARENA") {
+    if (!harMockInnsending(sak.sakId, "SLUTTRAPPORT") || sak.kildeTilBehandling === "ARENA") {
       return HttpResponse.json({ message: "Fant ikke sluttrapporten." }, { status: 404 });
     }
     return new HttpResponse(mockPdfBytes, {
@@ -1331,7 +1376,7 @@ export const handlers = [
   http.post("/api/saksbehandling/v1/saker/:sakId/tildeling", ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;
-    if (oppgavetype(sak.status) !== "SOKNAD") {
+    if (rolleForOppgave(sak.oppgavetype) !== "saksbehandler") {
       return HttpResponse.json(
         {
           kode: "SAK_UGYLDIG_STATUS",
