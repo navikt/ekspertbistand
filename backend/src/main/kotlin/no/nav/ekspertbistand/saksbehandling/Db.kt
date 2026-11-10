@@ -61,8 +61,6 @@ object SakTable : Table("sak") {
     val foreslattUtfall = text("foreslatt_utfall").nullable()
     val arenaSakId = text("arena_sak_id").nullable()
     val saksnummer = text("saksnummer").nullable()
-    val refusjonId = javaUUID("refusjon_id").nullable()
-    val sluttrapportId = javaUUID("sluttrapport_id").nullable()
     val tildelingEventId = long("tildeling_event_id").nullable()
     val beslutterTildelingEventId = long("beslutter_tildeling_event_id").nullable()
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)

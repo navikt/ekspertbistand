@@ -50,6 +50,10 @@ const createFormInputs = () => {
   };
 };
 
+// Navnet mocken for valider-deltaker setter på deltakeren.
+const MOCK_DELTAKER_NAVN = "Mona Moonlight";
+const MOCK_UNDERENHET = "123456780";
+
 const isDraftApiRequest = (request: Request, draftId: string, method: string) =>
   request.method() === method && new URL(request.url()).pathname === `${API_PATH}/${draftId}`;
 
@@ -152,18 +156,27 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   expect(draftId).toBeTruthy();
   if (!draftId) throw new Error("The v2 create-draft route did not contain a draft id.");
 
-  const seedResponse = await page.evaluate(
-    async ({ id, inputs }) => {
-      const response = await fetch(`/ekspertbistand-backend/api/soknad/v1/${id}`, {
+  const seedStatuses = await page.evaluate(
+    async ({ id, inputs, virksomhetsnummer }) => {
+      const patch = await fetch(`/ekspertbistand-backend/api/soknad/v1/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inputs),
       });
-      return response.status;
+      // PATCH setter ikke deltaker eller virksomhet. Det gjør bare valider-deltaker.
+      const validering = await fetch(
+        `/ekspertbistand-backend/api/soknad/v1/${id}/valider-deltaker`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fnr: inputs.ansatt.fnr, virksomhetsnummer }),
+        }
+      );
+      return [patch.status, validering.status];
     },
-    { id: draftId, inputs: createFormInputs() }
+    { id: draftId, inputs: createFormInputs(), virksomhetsnummer: MOCK_UNDERENHET }
   );
-  expect(seedResponse).toBe(200);
+  expect(seedStatuses).toEqual([200, 200]);
 
   await page.goto(`/v2/skjema/${draftId}`);
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
@@ -171,7 +184,7 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
 
   await page.goto("/v2/soknader");
   await ensureMockServiceWorkerReady(page);
-  const v2DraftLink = page.getByRole("link", { name: /Testperson/ });
+  const v2DraftLink = page.getByRole("link", { name: new RegExp(MOCK_DELTAKER_NAVN) });
   await expect(v2DraftLink).toHaveAttribute("href", `/v2/skjema/${draftId}`);
   await v2DraftLink.click();
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
@@ -179,7 +192,7 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
 
   await page.goto("/soknader");
   const v1DraftLink = page.getByRole("link", {
-    name: "Søknad om tilskudd til ekspertbistand – Testperson",
+    name: `Søknad om tilskudd til ekspertbistand – ${MOCK_DELTAKER_NAVN}`,
   });
   await expect(v1DraftLink).toHaveAttribute("href", `/skjema/${draftId}`);
   await v1DraftLink.click();
@@ -192,6 +205,8 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   ).toBeVisible();
   await page.getByRole("link", { name: /Endre/ }).first().click();
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
+  await page.getByRole("button", { name: "Neste steg" }).click();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-2$`));
 
   const patchResponsePromise = page.waitForResponse((response) =>
     isDraftApiRequest(response.request(), draftId, "PATCH")
@@ -201,10 +216,10 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   expect(patchResponse.ok()).toBe(true);
 
   await page.getByRole("button", { name: "Neste steg" }).click();
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-2$`));
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-3$`));
   await expect(page.getByRole("link", { name: "Forrige steg" })).toHaveAttribute(
     "href",
-    `/v2/skjema/${draftId}/steg-1`
+    `/v2/skjema/${draftId}/steg-2`
   );
   await expect(page.getByRole("heading", { name: "Behov for bistand" })).toBeVisible();
   await expect(page.getByText(/Maksgrensen er/)).toBeVisible();
@@ -212,7 +227,7 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/oppsummering$`));
   await expect(page.getByRole("link", { name: "Forrige steg" })).toHaveAttribute(
     "href",
-    `/v2/skjema/${draftId}/steg-2`
+    `/v2/skjema/${draftId}/steg-3`
   );
   await expect(page.getByText("Oppdatert kontakt")).toBeVisible();
 
@@ -247,11 +262,11 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/kvittering$`));
 
   await page.goto("/v2/soknader");
-  const v2ReceiptLink = page.getByRole("link", { name: /Testperson/ });
+  const v2ReceiptLink = page.getByRole("link", { name: new RegExp(MOCK_DELTAKER_NAVN) });
   await expect(v2ReceiptLink).toHaveAttribute("href", `/v2/skjema/${draftId}/kvittering`);
 
   await page.goto("/soknader");
-  const v1ReceiptLink = page.getByRole("link", { name: /Testperson/ });
+  const v1ReceiptLink = page.getByRole("link", { name: new RegExp(MOCK_DELTAKER_NAVN) });
   await expect(v1ReceiptLink).toHaveAttribute("href", `/skjema/${draftId}/kvittering`);
 });
 
@@ -310,9 +325,13 @@ test("v2 refunds and final reports submit to the shared API and return to v2", a
   if (!approvedDraftId) throw new Error("The mock API did not include an approved application.");
 
   await page.goto(`/v2/skjema/${approvedDraftId}/refusjon`);
-  await page
-    .getByLabel("Hvilke utgifter skal tilskuddet til ekspertbistand dekke?")
-    .fill("Utgifter til ekspertbistand");
+  await expect(
+    page.getByLabel("Hvilke utgifter skal tilskuddet til ekspertbistand dekke?")
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Send inn", exact: true }).click();
+  await expect(page.getByText("Du må oppgi beløp for refusjonskravet.").first()).toBeVisible();
+  await expect(page.getByText("Du må bekrefte at utgiftene er betalt.").first()).toBeVisible();
+  await expect(page.getByText("Du må laste opp minst én fil.").first()).toBeVisible();
   await page.getByLabel("Beløp for refusjonskravet").fill("1000");
   await page.locator('input[type="file"]').setInputFiles({
     name: "kvittering.pdf",
@@ -322,14 +341,31 @@ test("v2 refunds and final reports submit to the shared API and return to v2", a
   await page
     .getByRole("checkbox", { name: "Jeg bekrefter at utgiftene som kreves refundert er betalt." })
     .check();
+  await page
+    .getByRole("checkbox", { name: "Jeg bekrefter at utgiftene som kreves refundert er betalt." })
+    .press("Tab");
+  await expect(page.getByText("Du må bekrefte at utgiftene er betalt.")).toHaveCount(0);
 
   const refundResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       new URL(response.url()).pathname === `${API_PATH}/${approvedDraftId}/refusjon`
   );
+  const refundStatusResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" &&
+      response.status() === 200 &&
+      new URL(response.url()).pathname === `${API_PATH}/${approvedDraftId}/refusjon`
+  );
   await page.getByRole("button", { name: "Send inn", exact: true }).click();
-  expect((await refundResponse).status()).toBe(201);
+  const submittedRefund = await refundResponse;
+  expect(submittedRefund.status()).toBe(201);
+  const refundStatus: unknown = await (await refundStatusResponse).json();
+  expect(refundStatus).toMatchObject({
+    belopKroner: 1000,
+    vedlegg: [expect.objectContaining({ filnavn: "kvittering.pdf" })],
+  });
+  expect(refundStatus).not.toHaveProperty("utgifter");
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));
   await expect(page.getByRole("heading", { name: "Søknaden godkjent", exact: true })).toBeVisible();
 
@@ -337,6 +373,8 @@ test("v2 refunds and final reports submit to the shared API and return to v2", a
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/refusjon$`));
   await expect(page.getByRole("heading", { name: "Refusjonskrav sendt inn" })).toBeVisible();
+  await expect(page.getByText("Hvilke utgifter skal tilskuddet dekke")).toHaveCount(0);
+  await expect(page.getByText("1 000 kr", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "kvittering.pdf" })).toHaveAttribute(
     "href",
     new RegExp(`${API_PATH}/${approvedDraftId}/refusjon/vedlegg/`)
@@ -373,6 +411,7 @@ test("production keeps v1 available and rejects every v2 route", async ({ browse
     "/v2/skjema/test-id",
     "/v2/skjema/test-id/steg-1",
     "/v2/skjema/test-id/steg-2",
+    "/v2/skjema/test-id/steg-3",
     "/v2/skjema/test-id/oppsummering",
     "/v2/skjema/test-id/kvittering",
     "/v2/tilskuddsbrev/2024-123-1",

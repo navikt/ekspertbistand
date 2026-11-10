@@ -85,11 +85,6 @@ export default function RefusjonskravVisning({
         </HGrid>
 
         <VStack gap="space-8">
-          <BodyShort weight="semibold">Oppgitte utgifter</BodyShort>
-          <BodyLong style={{ whiteSpace: "pre-wrap" }}>{refusjon.utgifter}</BodyLong>
-        </VStack>
-
-        <VStack gap="space-8">
           <Heading level="3" size="xsmall">
             Vedlegg
           </Heading>

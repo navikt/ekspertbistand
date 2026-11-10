@@ -24,7 +24,7 @@ import java.util.UUID
 
 private const val MAKS_FIL_STORRELSE_BYTES = 10 * 1024 * 1024
 private const val MAKS_ANTALL_FILER = 5
-private const val MAKS_UTGIFTER_LENGDE = 2000
+private const val REFUSJONSKRAV_FINNES_MELDING = "Refusjonskrav er allerede sendt inn for denne saken"
 
 private val refusjonMottattCounter = Metrics.meterRegistry.counter("refusjon_mottatt_total")
 private val refusjonStatusHentetCounter = Metrics.meterRegistry.counter("refusjon_status_hentet_total")
@@ -58,7 +58,12 @@ class RefusjonApi(
             return
         }
 
-        val opplasting = call.lesOpplasting(MAKS_ANTALL_FILER, MAKS_FIL_STORRELSE_BYTES, setOf("utgifter", "belop"))
+        if (refusjonDb.finnRefusjonskravStatus(soknadId) != null) {
+            call.respond(HttpStatusCode.Conflict, REFUSJONSKRAV_FINNES_MELDING)
+            return
+        }
+
+        val opplasting = call.lesOpplasting(MAKS_ANTALL_FILER, MAKS_FIL_STORRELSE_BYTES, setOf("belop"))
         val (filer, felter) = when (opplasting) {
             is Opplasting.Ok -> opplasting.filer to opplasting.felter
             is Opplasting.ForMangeFiler -> {
@@ -69,16 +74,6 @@ class RefusjonApi(
                 call.respond(HttpStatusCode.PayloadTooLarge, forStorFilMelding(opplasting.filnavn))
                 return
             }
-        }
-
-        val utgifterVerdi = felter["utgifter"]?.trim()
-        if (utgifterVerdi.isNullOrEmpty()) {
-            call.respond(HttpStatusCode.BadRequest, "Du må beskrive utgiftene")
-            return
-        }
-        if (utgifterVerdi.length > MAKS_UTGIFTER_LENGDE) {
-            call.respond(HttpStatusCode.BadRequest, "Beskrivelsen er for lang")
-            return
         }
 
         val belopOre = try {
@@ -132,7 +127,6 @@ class RefusjonApi(
             refusjonDb.lagreRefusjonskrav(
                 soknadId = soknadId,
                 belopOre = belopOre,
-                utgifter = utgifterVerdi,
                 filer = filer.map { RefusjonsfilInput(it.filnavn, it.innhold) },
             )
         } catch (_: SoknadIkkeFunnetException) {
@@ -144,6 +138,9 @@ class RefusjonApi(
         } catch (_: SoknadIkkeGodkjentException) {
             call.respond(HttpStatusCode.Conflict, "Søknaden må være godkjent før du kan sende refusjonskrav")
             return
+        } catch (_: RefusjonskravFinnesAlleredeException) {
+            call.respond(HttpStatusCode.Conflict, REFUSJONSKRAV_FINNES_MELDING)
+            return
         }
 
         log.info("Mottok refusjonskrav med {} vedlegg: soknadId={}, belopOre={}", filer.size, soknadId, belopOre)
@@ -153,7 +150,7 @@ class RefusjonApi(
     }
 
     /**
-     * Returnerer metadata om siste refusjonskrav (beløp, utgifter, tidspunkt, vedleggsliste).
+     * Returnerer metadata om siste refusjonskrav (beløp, tidspunkt, vedleggsliste).
      * Filinnhold følger ikke med – vedlegg lastes ned separat via [lastNedVedlegg].
      */
     suspend fun RoutingContext.hentRefusjonStatus(soknadId: UUID) {
@@ -180,7 +177,6 @@ class RefusjonApi(
         call.respond(
             RefusjonStatusDto(
                 belopKroner = status.belopKroner,
-                utgifter = status.utgifter,
                 opprettet = status.opprettet,
                 kontonummer = status.kontonummer,
                 vedlegg = status.vedlegg.map {
@@ -229,7 +225,6 @@ class RefusjonApi(
 @Serializable
 data class RefusjonStatusDto(
     val belopKroner: Long,
-    val utgifter: String,
     val opprettet: String,
     val kontonummer: String?,
     val vedlegg: List<RefusjonVedleggDto>,

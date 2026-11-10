@@ -51,7 +51,6 @@ describe("SokRefusjonPage", () => {
   it("shows submission date in the card and details without repeating the page title", () => {
     renderPage({
       belopKroner: 1000,
-      utgifter: "Utgifter til ekspertbistand",
       opprettet: "2026-05-20T12:00:00",
       kontonummer: null,
       vedlegg: [],
@@ -61,6 +60,8 @@ describe("SokRefusjonPage", () => {
       screen.getByRole("heading", { level: 1, name: "Refusjonskrav sendt inn" })
     ).toBeInTheDocument();
     expect(screen.getByText("Opplysninger om refusjonskravet")).toBeInTheDocument();
+    expect(screen.queryByText("Hvilke utgifter skal tilskuddet dekke")).not.toBeInTheDocument();
+    expect(screen.getByText("1 000 kr")).toBeInTheDocument();
     expect(screen.getAllByText("20.05.2026 kl. 12.00")).toHaveLength(2);
     expect(screen.getByText("Sendt inn til Nav")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Tilbake til avtalen/ })).toHaveAttribute(
@@ -73,6 +74,9 @@ describe("SokRefusjonPage", () => {
     renderPage(null);
 
     expect(screen.getByRole("heading", { level: 1, name: "Søk refusjon" })).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Hvilke utgifter skal tilskuddet til ekspertbistand dekke?")
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Tilbake til avtalen/ })).toHaveAttribute(
       "href",
       "/v2/skjema/sak-1/kvittering"
@@ -86,17 +90,13 @@ describe("SokRefusjonPage", () => {
       .mockResolvedValue(new Response(null, { status: 201 }));
     const { container, refreshStatus } = renderPage(null);
 
-    await user.type(
-      screen.getByLabelText("Hvilke utgifter skal tilskuddet til ekspertbistand dekke?"),
-      "Utgifter til ekspertbistand"
-    );
+    await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
+    expect(await screen.findAllByText("Du må oppgi beløp for refusjonskravet.")).toHaveLength(2);
     await user.type(screen.getByLabelText("Beløp for refusjonskravet"), "1000");
     const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]');
     if (!fileInput) throw new Error("Missing refund attachment input.");
-    await user.upload(
-      fileInput,
-      new File(["%PDF-1.4\n%%EOF\n"], "kvittering.pdf", { type: "application/pdf" })
-    );
+    const file = new File(["%PDF-1.4\n%%EOF\n"], "kvittering.pdf", { type: "application/pdf" });
+    await user.upload(fileInput, file);
     await user.click(
       screen.getByRole("checkbox", {
         name: "Jeg bekrefter at utgiftene som kreves refundert er betalt.",
@@ -110,7 +110,27 @@ describe("SokRefusjonPage", () => {
         body: expect.any(FormData),
       })
     );
+    const formData = submit.mock.calls[0][1]?.body;
+    expect(formData).toBeInstanceOf(FormData);
+    if (!(formData instanceof FormData)) throw new Error("Missing refund form data.");
+    expect(Array.from(formData.keys())).toEqual(["belop", "filer"]);
+    expect(formData.has("utgifter")).toBe(false);
+    expect(formData.get("belop")).toBe("1000");
+    expect(formData.getAll("filer")).toEqual([file]);
     expect(await screen.findByText("V2-kvittering")).toBeInTheDocument();
     expect(refreshStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps amount, paid-expense confirmation and attachment required", async () => {
+    const user = userEvent.setup();
+    const submit = vi.spyOn(globalThis, "fetch");
+    renderPage(null);
+
+    await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
+
+    expect(await screen.findAllByText("Du må oppgi beløp for refusjonskravet.")).toHaveLength(2);
+    expect(screen.getAllByText("Du må bekrefte at utgiftene er betalt.")).toHaveLength(2);
+    expect(screen.getAllByText("Du må laste opp minst én fil.")).toHaveLength(2);
+    expect(submit).not.toHaveBeenCalled();
   });
 });

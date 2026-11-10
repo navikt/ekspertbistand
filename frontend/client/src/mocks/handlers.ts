@@ -28,7 +28,6 @@ const refusjonStore = new Map<
   string,
   {
     belopKroner: number;
-    utgifter: string;
     opprettet: string;
     kontonummer: string | null;
     vedlegg: MockRefusjonVedlegg[];
@@ -142,13 +141,14 @@ type MockSkjema = {
   opprettetAv: string;
   opprettetTidspunkt: string;
   innsendtTidspunkt?: string;
+  deltakerBekreftet?: boolean;
   beslutning?: {
     status: string;
     tidspunkt?: string;
   };
 };
 
-const MOCK_BRUKER = "01020312345";
+const MOCK_BRUKER = "01819010001";
 const skjemaStore = new Map<string, MockSkjema>();
 
 const randomId = () => crypto.randomUUID();
@@ -387,6 +387,7 @@ const toUtkastDto = (entry: MockSkjema) => {
     nav: deepCopy(data.nav),
     opprettetAv: entry.opprettetAv,
     opprettetTidspunkt: entry.opprettetTidspunkt,
+    deltakerBekreftet: entry.deltakerBekreftet ?? false,
   };
 };
 
@@ -434,6 +435,37 @@ const isStrictIsoDate = (value: unknown): value is string => {
 
 const mockUgyldigInput = (felt: string, message: string) =>
   HttpResponse.json({ kode: "UGYLDIG_INPUT", felt, message }, { status: 400 });
+
+const MOCK_DELTAKER_NAVN = "Mona Moonlight";
+
+// Disse fødselsnumrene gir feilsvar fra valider-deltaker, så feilvisningene kan testes i mocken.
+const MOCK_VALIDER_DELTAKER_FEIL: Record<string, { status: number; message: string }> = {
+  "01819030037": { status: 422, message: "Fant ikke aktivt arbeidsforhold i virksomheten." },
+  "01819030118": { status: 429, message: "For mange oppslag." },
+  "01819030207": { status: 503, message: "Oppslaget feilet." },
+};
+
+const finnOrganisasjonsnavn = (orgnr: string, liste = organisasjoner): string | null => {
+  for (const org of liste) {
+    if (org.orgnr === orgnr) return org.navn;
+    const treff = finnOrganisasjonsnavn(orgnr, org.underenheter);
+    if (treff) return treff;
+  }
+  return null;
+};
+
+// Som i backend: deltaker og virksomhet settes bare av valider-deltaker.
+const utenDeltakerOgVirksomhet = (payload: Partial<SoknadInputs>): Partial<SoknadInputs> => {
+  const rest: Partial<SoknadInputs> = { ...payload };
+  delete rest.ansatt;
+  if (payload.virksomhet) {
+    const virksomhet = { ...payload.virksomhet } as Partial<SoknadInputs["virksomhet"]>;
+    delete virksomhet.virksomhetsnummer;
+    delete virksomhet.virksomhetsnavn;
+    rest.virksomhet = virksomhet as SoknadInputs["virksomhet"];
+  }
+  return rest;
+};
 
 const ugyldigInput = (verdi: unknown, sti = ""): Response | null => {
   if (typeof verdi === "string") {
@@ -639,13 +671,9 @@ export const handlers = [
     }
 
     const formData = await request.formData();
-    const utgifter = formData.get("utgifter");
     const belop = formData.get("belop");
     const filer = formData.getAll("filer").filter((f): f is File => f instanceof File);
 
-    if (typeof utgifter !== "string" || utgifter.trim() === "") {
-      return HttpResponse.json({ message: "Du må beskrive utgiftene" }, { status: 400 });
-    }
     if (typeof belop !== "string" || !/^\d+$/.test(belop)) {
       return HttpResponse.json({ message: "Ugyldig beløp" }, { status: 400 });
     }
@@ -666,10 +694,8 @@ export const handlers = [
         );
       }
     }
-
     refusjonStore.set(id, {
       belopKroner: Number(belop),
-      utgifter,
       opprettet: new Date().toISOString(),
       kontonummer: null,
       vedlegg: await Promise.all(
@@ -700,7 +726,6 @@ export const handlers = [
     return HttpResponse.json(
       {
         belopKroner: status.belopKroner,
-        utgifter: status.utgifter,
         opprettet: status.opprettet,
         kontonummer: status.kontonummer,
         vedlegg: status.vedlegg.map((v) => ({
@@ -792,7 +817,47 @@ export const handlers = [
     }
     const ugyldig = ugyldigInput(payload);
     if (ugyldig) return ugyldig;
-    entry.data = mergeInputs(entry.data as Partial<SoknadInputs>, payload);
+    entry.data = mergeInputs(
+      entry.data as Partial<SoknadInputs>,
+      utenDeltakerOgVirksomhet(payload)
+    );
+    skjemaStore.set(id, entry);
+    await persistSkjemaStore();
+    return HttpResponse.json(toUtkastDto(entry));
+  }),
+  http.post(`${EKSPERTBISTAND_API_PATH}/:id/valider-deltaker`, async ({ params, request }) => {
+    await ensureSkjemaStoreLoaded();
+    const id = getParamValue(params.id);
+    if (!id) {
+      return HttpResponse.json({ message: "ugyldig id" }, { status: 400 });
+    }
+    const entry = skjemaStore.get(id);
+    if (!entry || entry.status !== "utkast") {
+      return HttpResponse.json({ message: "skjema ikke i utkast-status" }, { status: 409 });
+    }
+    let payload: { fnr?: string; virksomhetsnummer?: string };
+    try {
+      payload = (await request.json()) as { fnr?: string; virksomhetsnummer?: string };
+    } catch {
+      return HttpResponse.json({ message: "ugyldig payload" }, { status: 400 });
+    }
+    const fnr = payload.fnr ?? "";
+    const virksomhetsnummer = payload.virksomhetsnummer ?? "";
+    const mockFeil = MOCK_VALIDER_DELTAKER_FEIL[fnr];
+    if (mockFeil) {
+      return HttpResponse.json({ message: mockFeil.message }, { status: mockFeil.status });
+    }
+    const data = entry.data ?? createEmptyInputs();
+    entry.data = {
+      ...data,
+      ansatt: { fnr, navn: MOCK_DELTAKER_NAVN },
+      virksomhet: {
+        ...data.virksomhet,
+        virksomhetsnummer,
+        virksomhetsnavn: finnOrganisasjonsnavn(virksomhetsnummer) ?? "",
+      },
+    };
+    entry.deltakerBekreftet = true;
     skjemaStore.set(id, entry);
     await persistSkjemaStore();
     return HttpResponse.json(toUtkastDto(entry));

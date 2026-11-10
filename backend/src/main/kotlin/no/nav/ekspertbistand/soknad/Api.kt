@@ -2,6 +2,7 @@ package no.nav.ekspertbistand.soknad
 
 import io.ktor.http.*
 import io.ktor.http.content.*
+import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -12,7 +13,9 @@ import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
+import no.nav.ekspertbistand.infrastruktur.erGyldigFodselsnummer
 import no.nav.ekspertbistand.infrastruktur.logger
+import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import no.nav.ekspertbistand.infrastruktur.UgyldigInputException
 import no.nav.ekspertbistand.infrastruktur.valider
 import no.nav.ekspertbistand.saksbehandling.gjeldendeMaksSats
@@ -35,7 +38,9 @@ import kotlin.time.ExperimentalTime
 class SoknadApi(
     private val database: Database,
     private val altinnTilgangerClient: AltinnTilgangerClient,
-    private val eregService: EregService
+    private val eregService: EregService,
+    private val deltakerOppslag: DeltakerOppslag,
+    private val deltakerOppslagRateLimit: DeltakerOppslagRateLimit,
 ) {
     val log = logger()
 
@@ -130,13 +135,9 @@ class SoknadApi(
             return
         }
 
-        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
         val oppdatertUtkast = call.receive<DTO.Utkast>().also { valider(it) }
 
-        val nyttOrgnr = oppdatertUtkast.virksomhet?.virksomhetsnummer
-        if (!erOpprettetAvInnlogget(eksisterende) ||
-            (nyttOrgnr != null && !tilganger.harTilgang(nyttOrgnr))
-        ) {
+        if (!erOpprettetAvInnlogget(eksisterende)) {
             call.respond(
                 status = HttpStatusCode.Forbidden,
                 message = "bruker har ikke tilgang til organisasjon"
@@ -148,16 +149,11 @@ class SoknadApi(
             UtkastTable.updateReturning(
                 where = { UtkastTable.id eq idParam }
             ) { utkast ->
+                // Deltaker (fnr, navn), virksomhetsnummer og virksomhetsnavn settes bare av valider-deltaker.
                 oppdatertUtkast.virksomhet?.also { v ->
-                    utkast[virksomhetsnummer] = v.virksomhetsnummer
-                    utkast[virksomhetsnavn] = v.virksomhetsnavn
                     utkast[kontaktpersonNavn] = v.kontaktperson.navn
                     utkast[kontaktpersonEpost] = v.kontaktperson.epost
                     utkast[kontaktpersonTelefon] = v.kontaktperson.telefonnummer
-                }
-                oppdatertUtkast.ansatt?.also { a ->
-                    utkast[ansattFnr] = a.fnr
-                    utkast[ansattNavn] = a.navn
                 }
                 oppdatertUtkast.ekspert?.also { e ->
                     utkast[ekspertNavn] = e.navn
@@ -239,6 +235,16 @@ class SoknadApi(
             return
         }
 
+        val bekreftetDeltakerNavn = eksisterende.ansatt?.navn
+        if (!eksisterende.deltakerBekreftet ||
+            bekreftetDeltakerNavn == null ||
+            eksisterende.ansatt.fnr != soknad.ansatt.fnr ||
+            eksisterende.virksomhet?.virksomhetsnummer != soknad.virksomhet.virksomhetsnummer ||
+            eksisterende.virksomhet?.virksomhetsnavn != soknad.virksomhet.virksomhetsnavn
+        ) {
+            throw UgyldigInputException("ansatt.fnr", "deltaker er ikke bekreftet")
+        }
+
         val sats = gjeldendeMaksSats(soknad.behovForBistand.startdato)
             ?: throw UgyldigInputException("behovForBistand.startdato", "ingen sats gjelder for startdato")
         val soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad)
@@ -259,7 +265,7 @@ class SoknadApi(
                 it[kontaktpersonTelefon] = soknad.virksomhet.kontaktperson.telefonnummer
                 it[beliggenhetsadresse] = adresse
                 it[ansattFnr] = soknad.ansatt.fnr
-                it[ansattNavn] = soknad.ansatt.navn
+                it[ansattNavn] = bekreftetDeltakerNavn
                 it[ekspertNavn] = soknad.ekspert.navn
                 it[ekspertVirksomhet] = soknad.ekspert.virksomhet
                 it[ekspertVirksomhetNavn] = soknad.ekspert.virksomhetNavn
@@ -289,6 +295,126 @@ class SoknadApi(
 
         call.respond(innsendt)
     }
+
+    /**
+     * Validerer deltakeren, sjekker aktivt arbeidsforhold i virksomheten og henter navnet.
+     * Se specifications/oppslag_deltaker_arbeidsforhold.md.
+     */
+    suspend fun RoutingContext.validerDeltaker(idParam: UUID) {
+        val utkast = transaction(database) {
+            findSoknadOrUtkastById(idParam)
+        }
+
+        if (utkast == null || utkast !is DTO.Utkast) {
+            call.respond(
+                status = HttpStatusCode.Conflict,
+                message = "soknad ikke i utkast-status"
+            )
+            return
+        }
+
+        if (!erOpprettetAvInnlogget(utkast)) {
+            call.respond(
+                status = HttpStatusCode.Forbidden,
+                message = "bruker har ikke tilgang til utkastet"
+            )
+            return
+        }
+
+        val request = call.receive<ValiderDeltakerRequest>().also { valider(it) }
+        if (!erGyldigFodselsnummer(request.fnr)) {
+            throw UgyldigInputException("fnr", "ugyldig fødselsnummer")
+        }
+        if (!request.virksomhetsnummer.matches(Regex("\\d{9}"))) {
+            throw UgyldigInputException("virksomhetsnummer", "må være 9 siffer")
+        }
+
+        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
+        if (!tilganger.harTilgang(request.virksomhetsnummer)) {
+            call.respond(
+                status = HttpStatusCode.Forbidden,
+                message = "bruker har ikke tilgang til organisasjon"
+            )
+            return
+        }
+        val virksomhetsnavn = tilganger.navn(request.virksomhetsnummer)
+
+        if (utkast.deltakerBekreftet &&
+            utkast.ansatt?.fnr == request.fnr &&
+            utkast.virksomhet?.virksomhetsnummer == request.virksomhetsnummer
+        ) {
+            call.respond(utkast)
+            return
+        }
+
+        if (!deltakerOppslagRateLimit.registrer(innloggetBruker, request.fnr)) {
+            call.respondFeil(
+                HttpStatusCode.TooManyRequests,
+                FOR_MANGE_OPPSLAG,
+                "for mange oppslag på ulike fødselsnummer, prøv igjen om noen minutter"
+            )
+            return
+        }
+
+        val harArbeidsforhold = try {
+            deltakerOppslag.harAktivtArbeidsforhold(request.fnr, request.virksomhetsnummer)
+        } catch (e: Exception) {
+            e.rethrowIfCancellation()
+            log.error("Oppslag av deltakers arbeidsforhold mot Aa-registeret feilet", e)
+            call.respondOppslagFeilet()
+            return
+        }
+
+        if (!harArbeidsforhold) {
+            lagreDeltaker(idParam, request, virksomhetsnavn, navn = null, ansattBekreftet = false)
+            call.respondFeil(
+                HttpStatusCode.UnprocessableEntity,
+                INGEN_ARBEIDSFORHOLD,
+                "fant ikke aktivt arbeidsforhold i virksomheten"
+            )
+            return
+        }
+
+        val navn = try {
+            deltakerOppslag.hentNavn(request.fnr)
+        } catch (e: Exception) {
+            e.rethrowIfCancellation()
+            log.error("Oppslag av deltakers navn mot PDL feilet", e)
+            call.respondOppslagFeilet()
+            return
+        }
+
+        call.respond(lagreDeltaker(idParam, request, virksomhetsnavn, navn, ansattBekreftet = true))
+    }
+
+    /**
+     * Lagrer deltaker og virksomhet. Med [ansattBekreftet] settes bekreftelsestidspunktet,
+     * ellers nullstilles det.
+     */
+    private fun lagreDeltaker(
+        idParam: UUID,
+        request: ValiderDeltakerRequest,
+        virksomhetsnavn: String?,
+        navn: String?,
+        ansattBekreftet: Boolean,
+    ): DTO.Utkast =
+        transaction(database) {
+            UtkastTable.updateReturning(
+                where = { UtkastTable.id eq idParam }
+            ) { utkast ->
+                utkast[ansattFnr] = request.fnr
+                utkast[ansattNavn] = navn
+                utkast[virksomhetsnummer] = request.virksomhetsnummer
+                utkast[UtkastTable.virksomhetsnavn] = virksomhetsnavn
+                utkast[ansattBekreftetTidspunkt] = if (ansattBekreftet) Clock.System.now() else null
+            }.single().tilUtkastDTO()
+        }
+
+    private suspend fun ApplicationCall.respondFeil(status: HttpStatusCode, kode: String, message: String) =
+        respond(status, mapOf("kode" to kode, "message" to message))
+
+    private suspend fun ApplicationCall.respondOppslagFeilet() =
+        respondFeil(HttpStatusCode.ServiceUnavailable, OPPSLAG_FEILET, "oppslag av deltaker feilet, prøv igjen senere")
 
     /** Utkast er private: bare den som opprettet utkastet kan se, endre, slette eller sende det inn. */
     private fun RoutingContext.erOpprettetAvInnlogget(utkast: DTO.Utkast): Boolean =
@@ -336,6 +462,8 @@ sealed interface DTO {
         val nav: Nav? = null,
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
+        /** Satt av backend når arbeidsforhold og navn er bekreftet. Ignoreres i innkommende utkast. */
+        val deltakerBekreftet: Boolean = false,
     ) : DTO {
         val status = SoknadStatus.utkast
     }
@@ -395,6 +523,16 @@ sealed interface DTO {
  */
 val DTO.Soknad.aggregateRootId: String
     get() = id ?: error("Soknad mangler id — event kan ikke publiseres før søknaden er persistert")
+
+@Serializable
+data class ValiderDeltakerRequest(
+    val fnr: String,
+    val virksomhetsnummer: String,
+)
+
+const val FOR_MANGE_OPPSLAG = "FOR_MANGE_OPPSLAG"
+const val INGEN_ARBEIDSFORHOLD = "INGEN_ARBEIDSFORHOLD"
+const val OPPSLAG_FEILET = "OPPSLAG_FEILET"
 
 @Suppress("EnumEntryName")
 enum class SoknadStatus {
