@@ -411,6 +411,8 @@ data class VedtaksbrevArbeidsgiverJournalfoert(
     val utfall: VedtakDomain.Utfall,
     val virksomhetsnummer: String,
     val virksomhetsnavn: String,
+    val vedtaksbrev: VedtaksbrevDomain,
+    val adressebeskyttelse: SakDomain.Adressebeskyttelse?,
     val journalpostId: String,
     val dokumentInfoId: String,
     val tidspunkt: Instant,
@@ -421,8 +423,19 @@ data class VedtaksbrevArbeidsgiverJournalfoert(
 
 - `journalpostId` og `dokumentInfoId` er `String`, slik Dokarkiv returnerer dem.
   Arena-eventene bruker `Int`.
+- `vedtaksbrev` er brevet usladdet, slik arbeidsgiver skal se det (Ken,
+  2026-11-10). Uten det måtte varslingen og visningen slå opp `VedtakFattet` i
+  `event_log` eller mellomlagre data i en annen handler for å bygge brevet på
+  nytt. `VedtaksbrevDomain` i `event/domain/` speiler `VedtaksbrevData`, med
+  `VedtaksbrevData.tilDomain()` og `VedtaksbrevDomain.tilVedtaksbrevData()` i
+  `TilDomain.kt`. Verdiene er ferdig formatert tekst, så brevet blir likt selv
+  om formateringen eller reglene for beløp og refusjonsfrist endres. Malen
+  velges med `utfall` og mottaker arbeidsgiver.
+- `adressebeskyttelse` er graderingen brevet ble sladdet med. Den journalførte
+  kopien er `vedtaksbrev.tilVedtaksbrevData().sladdVedAdressebeskyttelse(adressebeskyttelse)`.
 - KDoc: publisert av `JournalfoerVedtaksbrevArbeidsgiver`, konsument kommer i
-  kort 645. Ingen personopplysninger, bare organisasjonsdata.
+  kort 645. Deltakers navn, gradering og begrunnelsen skal ikke logges utenfor
+  teamLog.
 - Inline no-op-handler `VedtaksbrevArbeidsgiverJournalfoertNoop`.
 
 ### 4. `JournalfoerVedtaksbrevArbeidsgiver`
@@ -442,8 +455,8 @@ Lytter på `VedtakFattet`. Registreres for alle miljøer, etter
    - `dokArkivClient.opprettOgFerdigstillJournalpost(...)` med
      `UTGAAENDE`, mottaker orgnr og fagsak fra `FagsakIdService`.
      Feil eller ikke ferdigstilt gir `transientError`.
-4. I én transaksjon: publiser `VedtaksbrevArbeidsgiverJournalfoert` og
-   `SakOppdatert`, og guard. Feil gir `rollback()` og `transientError`.
+4. I én transaksjon: publiser `VedtaksbrevArbeidsgiverJournalfoert` med det
+   usladdede brevet og `SakOppdatert`, og guard. Feil gir `rollback()` og `transientError`.
 
 Ingen suspend-kall inne i `transaction {}`. Innholdet i brevet logges ikke.
 
@@ -499,6 +512,8 @@ og `BestillTilsagnIOebs`-testene.
 - Kode 6 og 7: `deltaker.navn` er `***********` i dataene til malen for
   `STRENGT_FORTROLIG` og `FORTROLIG`. Det er ikke sladdet for en sak som bare
   er skjermet, eller uten gradering.
+- Brevet rendret fra `vedtaksbrev` i eventen (sladdet med `adressebeskyttelse`)
+  er likt det journalførte, for alle utfall og graderinger. `vedtaksbrev` er usladdet.
 - Vedtak ikke lagret, men kan fattes: `transientError`. Kan ikke fattes:
   `unrecoverableError` uten journalføring.
 - Feil fra Gotenberg eller Dokarkiv: `transientError`, ingen eventer.
@@ -512,7 +527,7 @@ og `BestillTilsagnIOebs`-testene.
 
 | Fil | Endring |
 |-----|---------|
-| `event/domain/` | Ny: `SoknadDomainV2`, `SakDomain`, `VedtakDomain` med egne enums, `tilDomain()` for typer og enums, `tilSaksstatus()` og `hentSakDomain` |
+| `event/domain/` | Ny: `SoknadDomainV2`, `SakDomain`, `VedtakDomain` og `VedtaksbrevDomain` med egne enums, `tilDomain()` for typer og enums, `tilVedtaksbrevData()`, `tilSaksstatus()` og `hentSakDomain` |
 | `event/Events.kt` | Utvidet `VedtakFattet`, ny event, KDoc, registrering, no-op-handler |
 | `saksbehandling/BeslutterApi.kt` | Fyller ut `soknad`, `sak` og `vedtak` i `VedtakFattet` |
 | `event/handlers/JournalfoerVedtaksbrevArbeidsgiver.kt` | Ny |
@@ -570,6 +585,7 @@ Ingen.
 - [ ] Vedtak gir journalført brev til arbeidsgiver for alle tre utfall, med riktig mal, dato, enhet og saksbehandler
 - [ ] Journalposten er `UTGAAENDE`, i arbeidsgivermappa, på søknadens fagsak, med `journalfoerendeEnhet` `9999`
 - [ ] `VedtaksbrevArbeidsgiverJournalfoert` publiseres med dataene kort 645 trenger, og en linje i saksloggen
+- [ ] `VedtaksbrevArbeidsgiverJournalfoert` har brevet usladdet som `VedtaksbrevDomain`, så brevet kan bygges på nytt uten oppslag
 - [ ] Deltakers navn er `***********` i det journalførte brevet ved kode 6 og 7
 - [ ] Ingen dobbel journalpost eller dobbel event ved retry
 - [ ] `event-flow.md` er generert, og KDoc på `VedtakFattet` er oppdatert
