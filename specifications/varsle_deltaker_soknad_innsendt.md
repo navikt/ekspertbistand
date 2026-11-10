@@ -34,12 +34,12 @@ søknaden.
 | Kort 599, kommentar fra Ken, 2026-10-25 | Handleren distribuerer når journalposten er ferdigstilt, med distribusjonstidspunkt `KJERNETID`, og lagrer bestillingsId. Svarer dokdist 409, er journalposten allerede distribuert. Det regnes som suksess, så et nytt forsøk gir ikke dobbel utsending. |
 | Kort 599, kommentar fra Ken, 2026-10-25 | Dokdist med Azure-token i systemkontekst, etter samme mønster som dokarkiv-klienten. |
 | Kort 599, sjekkliste | Avklart: deltakere som har reservert seg mot digital kommunikasjon, får brevet i posten. Dokdist håndterer det. |
-| Kort 675, sjekkliste | Tre tekstendringer i søknadsskjemaet. Se avsnitt 4. |
+| Kort 675, sjekkliste | Tre tekstendringer i søknadsskjemaet. Se avsnitt 3. |
 | Anders, 2026-11-10 | Distribusjonstypen for kopien er `ANNET`. |
 | Anders, 2026-11-10 | `bestillendeFagsystem` og `dokumentProdApp` er fortsatt `EKSPERTBISTAND`. |
 | Anders, 2026-11-10 | Tekstendringene tas både i v1 (`pages/`) og v2 (`v2/pages/`) av skjemaet. |
 | Anders, 2026-11-10 | Ekspertbistand har ennå ikke tilgang til dokdistfordeling i prod. Handleren registreres bare i dev og lokalt. Prod slås på senere. |
-| Anders, 2026-11-10 | Dokdist krever navn på mottakeren (`avsenderMottaker.navn`). Det legges til i dette kortet. |
+| Anders, 2026-11-10 | Vi sender ikke navn på mottakeren. Dokdist krever `avsenderMottaker.navn` ([`JournalpostValidator`](https://github.com/navikt/dokdistfordeling/blob/master/rdist002/src/main/java/no/nav/dokdistfordeling/validate/JournalpostValidator.java#L46)), men dokarkiv henter navnet fra PDL når `idType` er `FNR` ([`AvsenderMottaker`](https://github.com/navikt/dokarkiv/blob/master/journalpost/src/main/java/no/nav/dokarkiv/journalpost/v1/api/AvsenderMottaker.java)). |
 
 ## Avgrensning
 
@@ -54,18 +54,7 @@ søknaden.
 🔴 Rød sone: personopplysninger. At brevet går til riktig person og bare én gang,
 må kontrolleres manuelt i review.
 
-### 1. `DokArkivClient`: navn på mottaker
-
-Dokdist avviser journalposter uten `avsenderMottaker.navn`
-(`JournalpostValidator` i dokdistfordeling).
-
-- `AvsenderMottaker` får `navn: String? = null`. `AvsenderMottaker.fnr(fnr, navn)`
-  tar navnet. `AvsenderMottaker.orgnr(...)` er uendret.
-- `JournalfoerSoknadKopiDeltaker` sender `soknad.ansatt.navn`.
-- `navn` serialiseres ikke når den er `null`, så journalpostene på
-  arbeidsgivermappen er uendret.
-
-### 2. `DokDistClient` inn i appen
+### 1. `DokDistClient` inn i appen
 
 - `Application.kt`: `provide(DokDistClient::class)`.
 - `LocalApplication`: en `DokDistClient` med `MockEngine` som svarer
@@ -73,7 +62,7 @@ Dokdist avviser journalposter uten `avsenderMottaker.navn`
 - `nais/dev-gcp-backend.yaml`: utgående til `dokdistfordeling.dev-fss-pub.nais.io`.
   Prod får ikke utgående trafikk før distribusjon slås på der.
 
-### 3. Ny handler `DistribuerSoknadKopiDeltaker`
+### 2. Ny handler `DistribuerSoknadKopiDeltaker`
 
 Lytter på `EventData.SoknadKopiDeltakerJournalfoert`.
 
@@ -106,7 +95,7 @@ Ingen handler lytter på den. Den vises derfor rødt i `event-flow.md`, slik
   Den kjører da i dev og lokalt, men ikke i prod. En kommentar sier at den flyttes
   ut når tilgangen i prod er på plass.
 
-### 4. Tekst i søknadsskjemaet
+### 3. Tekst i søknadsskjemaet
 
 Fra sjekklisten på kort 675. Endres likt i `frontend/client/src/pages/` og
 `frontend/client/src/v2/pages/`.
@@ -120,16 +109,14 @@ Fra sjekklisten på kort 675. Endres likt i `frontend/client/src/pages/` og
 Teksten i oppsummeringen har fått et komma etter «søknaden», ellers er den lik
 sjekklisten.
 
-### 5. Oppsett og dokumentasjon
+### 4. Oppsett og dokumentasjon
 
 - `Events.kt`: ny event med dokumentasjon, registrere handleren, oppdatere
   konsumentlisten til `SoknadKopiDeltakerJournalfoert`.
 - `event/event-flow.md`: genereres på nytt med `EventFlowDiagram`.
 
-### 6. Tester
+### 5. Tester
 
-- `DokArkivClientTest`: `navn` er med for FNR-mottaker og ikke med for orgnr.
-- `JournalfoerSoknadKopiDeltakerTest`: `avsenderMottaker.navn` er deltakerens navn.
 - Ny `DistribuerSoknadKopiDeltakerTest`: riktige felt mot dokdist, at eventen
   publiseres med bestillingsId, idempotens, 409 og transient feil.
 - `TestEventData` og `EventDataAggregateRootIdTest`: eksempel på den nye eventen.
@@ -139,8 +126,6 @@ sjekklisten.
 
 | Fil | Endring |
 |-----|---------|
-| `backend/.../dokarkiv/DokArkivClient.kt` | `AvsenderMottaker.navn` |
-| `backend/.../event/handlers/JournalfoerSoknadKopiDeltaker.kt` | Sender navnet |
 | `backend/.../event/handlers/DistribuerSoknadKopiDeltaker.kt` | Ny |
 | `backend/.../event/Events.kt` | Ny event, registrere handleren |
 | `backend/.../event/event-flow.md` | Generert på nytt |
@@ -185,7 +170,6 @@ sjekklisten.
 
 ## Ferdig når
 
-- [ ] Journalposten på personmappen har navnet til deltakeren som mottaker
 - [ ] `DokDistClient` er koblet inn i appen, lokalt og i dev
 - [ ] `DistribuerSoknadKopiDeltaker` distribuerer med `ANNET` og `KJERNETID`, og publiserer `SoknadKopiDeltakerDistribuert` med bestillingsId
 - [ ] Handleren er idempotent og tåler 409 fra dokdist
