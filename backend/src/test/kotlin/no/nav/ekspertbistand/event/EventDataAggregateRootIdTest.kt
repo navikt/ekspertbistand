@@ -45,6 +45,7 @@ class EventDataAggregateRootIdTest {
             TestEventData.vedtakFattet to soknadRoot,
             TestEventData.forelopigVedtakReturnert to soknadRoot,
             TestEventData.vedtaksbrevArbeidsgiverJournalfoert to soknadRoot,
+            TestEventData.vedtaksbrevVist to soknadRoot,
         )
 
         forventet.forEach { (event, expected) ->

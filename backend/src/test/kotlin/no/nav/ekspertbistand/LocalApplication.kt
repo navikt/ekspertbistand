@@ -54,6 +54,7 @@ import no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkSkriver
 import no.nav.ekspertbistand.tilgangsmaskin.*
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
+import no.nav.ekspertbistand.vedtaksbrev.configureVedtaksbrevApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.LoggerFactory
 import kotlin.time.Clock.System.now
@@ -596,6 +597,7 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
         // application modules
         configureSoknadApiV1()
         configureVedleggApiV1()
+        configureVedtaksbrevApiV1()
         configureRefusjonApiV1()
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()

@@ -26,6 +26,7 @@ flowchart TD
     s_SakApi[/"SakApi"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
+    s_VedtaksbrevApi[/"VedtaksbrevApi"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
     e_ForelopigVedtakReturnert(["ForelopigVedtakReturnert"]):::event
     e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
@@ -47,6 +48,7 @@ flowchart TD
     e_TiltaksgjennomforingOpprettet(["TiltaksgjennomforingOpprettet"]):::event
     e_VedtakFattet(["VedtakFattet"]):::event
     e_VedtaksbrevArbeidsgiverJournalfoert(["VedtaksbrevArbeidsgiverJournalfoert"]):::event
+    e_VedtaksbrevVist(["VedtaksbrevVist"]):::event
     e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
     h_BestillTilsagnIOebs["BestillTilsagnIOebs"]:::handler
     h_FattVedtak["FattVedtak"]:::handler
@@ -59,6 +61,7 @@ flowchart TD
     h_LagreForelopigVedtak["LagreForelopigVedtak"]:::handler
     h_LagreTilsagnsData["LagreTilsagnsData"]:::handler
     h_LagreTilsagnsDataKildeAltinn["LagreTilsagnsDataKildeAltinn"]:::handler
+    h_LagreVedtaksbrev["LagreVedtaksbrev"]:::handler
     h_MarkerSakUnderBehandlingIArena["MarkerSakUnderBehandlingIArena"]:::handler
     h_OppdaterVilkarsvurdering["OppdaterVilkarsvurdering"]:::handler
     h_OpprettSak["OpprettSak"]:::handler
@@ -76,7 +79,7 @@ flowchart TD
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
     h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn["VarsleArbeidsgiverSoknadMottattBehandlesIAltinn"]:::handler
-    h_VedtaksbrevArbeidsgiverJournalfoertNoop["VedtaksbrevArbeidsgiverJournalfoertNoop"]:::handler
+    h_VedtaksbrevVistNoop["VedtaksbrevVistNoop"]:::handler
     p_SakProjection[["SakProjection"]]:::projection
     p_SaksbehandlingsstatistikkProjection[["SaksbehandlingsstatistikkProjection"]]:::projection
     p_SoknadBehandletForsinkelseProjection[["SoknadBehandletForsinkelseProjection"]]:::projection
@@ -110,6 +113,7 @@ flowchart TD
     h_TildelBeslutter --> e_SakOppdatert
     h_TildelSaksbehandler --> e_SakOppdatert
     s_TilsagnDataApi --> e_TilskuddsbrevVist
+    s_VedtaksbrevApi --> e_VedtaksbrevVist
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
     e_VedtakFattet --> h_BestillTilsagnIOebs
     e_VedtakFattet --> h_FattVedtak
@@ -122,6 +126,7 @@ flowchart TD
     e_ForelopigVedtakSendtTilBeslutter --> h_LagreForelopigVedtak
     e_TilskuddsbrevJournalfoert --> h_LagreTilsagnsData
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_LagreTilsagnsDataKildeAltinn
+    e_VedtaksbrevArbeidsgiverJournalfoert --> h_LagreVedtaksbrev
     e_SaksbehandlingStartetIArena --> h_MarkerSakUnderBehandlingIArena
     e_VilkarsvurderingOppdatert --> h_OppdaterVilkarsvurdering
     e_InnsendtSoknadJournalfoert --> h_OpprettSak
@@ -139,7 +144,7 @@ flowchart TD
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn
     e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn
-    e_VedtaksbrevArbeidsgiverJournalfoert --> h_VedtaksbrevArbeidsgiverJournalfoertNoop
+    e_VedtaksbrevVist --> h_VedtaksbrevVistNoop
     e_InnsendtSoknadJournalfoert -.-> p_SakProjection
     e_SakFrigjort -.-> p_SakProjection
     e_SakTildeltSaksbehandler -.-> p_SakProjection

@@ -598,7 +598,7 @@ sealed interface EventData {
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
      *
-     * Konsument: ingen ennå. Varslingen av arbeidsgiver kommer i kort 645.
+     * Konsument: [no.nav.ekspertbistand.event.handlers.LagreVedtaksbrev]. Varslingen av arbeidsgiver kommer i kort 645.
      */
     @OptIn(ExperimentalTime::class)
     @Serializable
@@ -613,6 +613,30 @@ sealed interface EventData {
         val adressebeskyttelse: SakDomain.Adressebeskyttelse?,
         val journalpostId: String,
         val dokumentInfoId: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver har hentet vedtaksbrevet som PDF.
+     *
+     * Publiseres av [no.nav.ekspertbistand.vedtaksbrev.VedtaksbrevApi] ved hvert oppslag, og kan derfor
+     * forekomme mange ganger for samme vedtak. Har per nå bare en no-op-handler.
+     *
+     * [vistTil] er fødselsnummeret til personen som hentet brevet (`pid` fra TokenX). Det skal ikke logges.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("vedtaksbrevVist")
+    data class VedtaksbrevVist(
+        val sakId: String,
+        val soknadId: String,
+        val utfall: VedtakDomain.Utfall,
+        val virksomhetsnummer: String,
+        val vistTil: String,
         val tidspunkt: Instant,
     ) : EventData {
         override val aggregateRootId: String get() = soknadId
@@ -661,8 +685,9 @@ suspend fun Application.configureEventHandlers() {
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
             EventHandledResult.Success()
         }
-        register<EventData.VedtaksbrevArbeidsgiverJournalfoert>("VedtaksbrevArbeidsgiverJournalfoertNoop") {
-            // Lagres til varslingen av arbeidsgiver er på plass (kort 645)
+        register(dependencies.create(LagreVedtaksbrev::class))
+        register<EventData.VedtaksbrevVist>("VedtaksbrevVistNoop") { event ->
+            // Ingen konsument ennå. Metrikk og projeksjon kommer eventuelt i et eget kort.
             EventHandledResult.Success()
         }
     }

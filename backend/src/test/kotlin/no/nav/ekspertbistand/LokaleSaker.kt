@@ -305,6 +305,17 @@ private val lokaleSaker = listOf(
         beslutning = Beslutning.GODKJENN,
         medInnsendinger = true,
     ),
+    LokalSak(
+        soknadId = UUID.fromString("a1000000-0000-4000-8000-000000000016"),
+        virksomhet = lokaleVirksomheter[0],
+        ansattNavn = "Rune Redusert",
+        ansattFnr = "01019012316",
+        estimertKostnad = 28000,
+        saksbehandler = ola,
+        forslag = ForelopigUtfall.INNVILGE_REDUSERT,
+        beslutter = kari,
+        beslutning = Beslutning.GODKJENN,
+    ),
 )
 
 internal fun lokalBeskyttelse(fnr: String?) = lokaleSaker.find { it.ansattFnr == fnr }?.beskyttelse
@@ -522,7 +533,11 @@ private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
         sakId = sakId,
         soknadId = soknadId,
         utfall = forslag,
-        innvilgetBelop = sak.estimertKostnad.takeIf { innvilget },
+        innvilgetBelop = when (forslag) {
+            ForelopigUtfall.INNVILGE -> sak.estimertKostnad
+            ForelopigUtfall.INNVILGE_REDUSERT -> sak.estimertKostnad / 2
+            ForelopigUtfall.AVSLAA -> null
+        },
         tiltaksperiodeFra = idag.takeIf { innvilget },
         tiltaksperiodeTil = LocalDate(idag.year, 12, 31).takeIf { innvilget },
         begrunnelseDeltaker = if (innvilget) "Vilkårene er oppfylt" else "Arbeidsgiver har ikke prøvd tilrettelegging",

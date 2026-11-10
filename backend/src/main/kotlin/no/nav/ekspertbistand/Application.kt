@@ -81,6 +81,7 @@ import no.nav.ekspertbistand.statistikk.configureAdressebeskyttelseskontroll
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
 import no.nav.ekspertbistand.vedlegg.erForStorMultipartDel
+import no.nav.ekspertbistand.vedtaksbrev.configureVedtaksbrevApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
 import java.io.IOException
@@ -153,11 +154,12 @@ fun main() {
 
         // configure application modules and endpoints
         configureSoknadApiV1()
-        // Sluttrapport og refusjonskrav er ikke åpnet i prod ennå.
+        // Sluttrapport, refusjonskrav og vedtak til arbeidsgiver er ikke åpnet i prod ennå.
         basedOnEnvSuspending(
             prod = {},
             other = {
                 configureVedleggApiV1()
+                configureVedtaksbrevApiV1()
                 configureRefusjonApiV1()
             },
         )

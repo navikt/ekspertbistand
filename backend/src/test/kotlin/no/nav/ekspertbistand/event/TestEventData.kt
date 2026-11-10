@@ -158,6 +158,18 @@ object TestEventData {
     }
 
     @OptIn(ExperimentalTime::class)
+    val vedtaksbrevVist by lazy {
+        EventData.VedtaksbrevVist(
+            sakId = vedtaksbrevArbeidsgiverJournalfoert.sakId,
+            soknadId = sampleSoknad.id!!,
+            utfall = VedtakDomain.Utfall.INNVILGE,
+            virksomhetsnummer = "987654321",
+            vistTil = "42",
+            tidspunkt = Instant.parse("2026-04-05T10:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
     val sampleSoknadDomain = SoknadDomainV2(
         id = "00000000-0000-4000-8000-000000000001",
         virksomhet = SoknadDomainV2.Virksomhet(
@@ -438,5 +450,6 @@ object TestEventData {
         vedtakFattet,
         forelopigVedtakReturnert,
         vedtaksbrevArbeidsgiverJournalfoert,
+        vedtaksbrevVist,
     )
 }
