@@ -64,17 +64,15 @@ Kort 676 har ingen sjekklister eller vedlegg.
 🔴 Rød sone: personopplysninger. Hvem som får journalposten på personmappen, og
 at den ikke havner hos feil bruker, må kontrolleres manuelt i review.
 
-### 1. `DokArkivClient`: bruker og kanal
+### 1. `DokArkivClient`: bruker
 
-I dag er bruker alltid `ORGNR`, og `kanal` er alltid `NAV_NO`. Det endres slik:
+I dag er bruker alltid `ORGNR`. Det endres slik:
 
 - `opprettOgFerdigstillJournalpost` tar `bruker: Bruker` i stedet for
   `virksomhetsnummer: String`. `Bruker` blir offentlig med `Bruker.orgnr(...)` og
   `Bruker.fnr(...)`, på samme måte som `AvsenderMottaker`.
 - `AvsenderMottaker` får `AvsenderMottaker.fnr(...)` (`idType = "FNR"`).
-- `kanal` settes bare for `INNGAAENDE`. For `UTGAAENDE` utelates feltet, fordi
-  dokdist setter kanalen når journalposten distribueres. For `NOTAT` er det som i
-  dag.
+- `kanal` er fortsatt `NAV_NO` for alle journalposter (Anders, 2026-11-10).
 - De fire kallene som finnes nå, endres til `Bruker.orgnr(...)` og oppfører seg
   likt.
 
@@ -123,7 +121,7 @@ på arbeidsgivermappen.
 | `sak` | Samme `FagSak` som søknaden (`FagsakIdService`) |
 | `eksternReferanseId` | `"$soknadId-kopi-deltaker"`. Duplikatkontrollen i dokarkiv krever en annen verdi enn journalposten på arbeidsgivermappen. |
 | `tema`, `behandlingstema`, `journalfoerendeEnhet`, `brevkode` | Som i dag (`TIL`, `ab0423`, `9999`, `nav_tiltak_ekspertbistand`) |
-| `kanal` | Settes ikke (utgående) |
+| `kanal` | `NAV_NO`, som de andre journalpostene |
 
 Etter journalføringen publiseres en ny event:
 
@@ -147,7 +145,7 @@ dokarkiv 409 ved et nytt forsøk, brukes journalposten som finnes fra før.
 
 ### 5. Tester
 
-- `DokArkivClientTest`: `Bruker.fnr`, og at `kanal` mangler for `UTGAAENDE`.
+- `DokArkivClientTest`: `Bruker.fnr`, og `AvsenderMottaker.fnr`.
 - `JournalfoerInnsendtSkjemaTest`: oppdateres til `Bruker.orgnr`, ellers uendret.
 - Ny `JournalfoerSoknadKopiDeltakerTest`: riktige felt mot dokarkiv, event
   publiseres, idempotens og 409.
@@ -158,7 +156,7 @@ dokarkiv 409 ved et nytt forsøk, brukes journalposten som finnes fra før.
 
 | Fil | Endring |
 |-----|---------|
-| `backend/.../dokarkiv/DokArkivClient.kt` | `Bruker` offentlig, `AvsenderMottaker.fnr`, `kanal` bare for inngående |
+| `backend/.../dokarkiv/DokArkivClient.kt` | `Bruker` offentlig, `AvsenderMottaker.fnr` |
 | `backend/.../event/handlers/JournalfoerInnsendtSoknad.kt` | `Bruker.orgnr(...)` og TODO om sladding |
 | `backend/.../event/handlers/JournalfoerSoknadKopiDeltaker.kt` | Ny |
 | `backend/.../event/handlers/JournalfoerTilskuddsbrev.kt`, `JournalfoerTilskuddsbrevKildeAltinn.kt`, `JournalfoerNotatArenaSakOpprettet.kt` | `Bruker.orgnr(...)` |
