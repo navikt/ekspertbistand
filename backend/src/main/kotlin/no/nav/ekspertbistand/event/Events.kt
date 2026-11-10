@@ -107,13 +107,31 @@ sealed interface EventData {
      * utgående og ferdigstilt, men ikke distribuert. [journalpostId] brukes når den skal distribueres til
      * deltakeren med dokdist.
      *
-     * Konsumenter: ingen ennå. Distribusjon kommer i https://trello.com/c/2QCwaAJX
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.DistribuerSoknadKopiDeltaker].
      */
     @Serializable
     @SerialName("soknadKopiDeltakerJournalfoert")
     data class SoknadKopiDeltakerJournalfoert(
         val soknad: DTO.Soknad,
         val journalpostId: Int,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
+
+    /**
+     * Kopien av søknaden er sendt til dokdist for distribusjon til deltakeren.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.DistribuerSoknadKopiDeltaker]. [bestillingsId]
+     * er dokdist sin id for forsendelsen, og brukes ved feilsøking mot Team Dokumentløsninger.
+     *
+     * Konsumenter: ingen.
+     */
+    @Serializable
+    @SerialName("soknadKopiDeltakerDistribuert")
+    data class SoknadKopiDeltakerDistribuert(
+        val soknad: DTO.Soknad,
+        val journalpostId: Int,
+        val bestillingsId: String,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
     }
@@ -586,6 +604,7 @@ suspend fun Application.configureEventHandlers() {
         // Registrer all event handlers here
         register(dependencies.create(JournalfoerInnsendtSoknad::class))
         register(dependencies.create(JournalfoerSoknadKopiDeltaker::class))
+        register(dependencies.create(DistribuerSoknadKopiDeltaker::class))
         basedOnEnvSuspending(
             prod = {
                 register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))

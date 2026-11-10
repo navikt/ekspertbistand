@@ -38,7 +38,8 @@ flowchart TD
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
-    e_SoknadKopiDeltakerJournalfoert(["SoknadKopiDeltakerJournalfoert"]):::orphan
+    e_SoknadKopiDeltakerDistribuert(["SoknadKopiDeltakerDistribuert"]):::orphan
+    e_SoknadKopiDeltakerJournalfoert(["SoknadKopiDeltakerJournalfoert"]):::event
     e_TilsagnsdataLagret(["TilsagnsdataLagret"]):::event
     e_TilskuddsbrevJournalfoert(["TilskuddsbrevJournalfoert"]):::event
     e_TilskuddsbrevJournalfoertKildeAltinn(["TilskuddsbrevJournalfoertKildeAltinn"]):::event
@@ -49,6 +50,7 @@ flowchart TD
     e_VedtakFattet(["VedtakFattet"]):::event
     e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
     h_BestillTilsagnIOebs["BestillTilsagnIOebs"]:::handler
+    h_DistribuerSoknadKopiDeltaker["DistribuerSoknadKopiDeltaker"]:::handler
     h_FattVedtak["FattVedtak"]:::handler
     h_FrigjoerSak["FrigjoerSak"]:::handler
     h_JournalfoerInnsendtSoknad["JournalfoerInnsendtSoknad"]:::handler
@@ -88,6 +90,7 @@ flowchart TD
     s_BeslutterApi --> e_ForelopigVedtakReturnert
     s_BeslutterApi --> e_VedtakFattet
     h_BestillTilsagnIOebs --> e_SakOppdatert
+    h_DistribuerSoknadKopiDeltaker --> e_SoknadKopiDeltakerDistribuert
     h_FattVedtak --> e_SakOppdatert
     s_ForelopigVedtakApi --> e_ForelopigVedtakSendtTilBeslutter
     h_FrigjoerSak --> e_SakOppdatert
@@ -110,6 +113,7 @@ flowchart TD
     s_TilsagnDataApi --> e_TilskuddsbrevVist
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
     e_VedtakFattet --> h_BestillTilsagnIOebs
+    e_SoknadKopiDeltakerJournalfoert --> h_DistribuerSoknadKopiDeltaker
     e_VedtakFattet --> h_FattVedtak
     e_SakFrigjort --> h_FrigjoerSak
     e_SoknadInnsendt --> h_JournalfoerInnsendtSoknad
@@ -165,4 +169,4 @@ flowchart TD
 
 Events markert i rødt mangler enten publiserer eller konsument:
 
-- `SoknadKopiDeltakerJournalfoert` – mangler konsument
+- `SoknadKopiDeltakerDistribuert` – mangler konsument
