@@ -80,7 +80,7 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
                         emptyMap()
                     } else {
                         try {
-                            tilgangsmaskinClient.deltakerTilganger(principal, rader.map { it.ansattFnr })
+                            tilgangsmaskinClient.deltakerTilganger(principal, rader.map { it.ansattFnr }.distinct())
                         } catch (e: Exception) {
                             e.rethrowIfCancellation()
                             log.error("Tilgangskontroll for sakslisten feilet, skjuler deltaker og arbeidsgiver", e)
@@ -127,7 +127,10 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
                         val principal = call.principalMedRolle(Role.SAKSBEHANDLER) ?: return@post
                         val sak = call.hentSakForTildeling(database, tilgangsmaskinClient, principal) ?: return@post
 
-                        when (tildelingHindring(sak.status, sak.saksbehandlerIdent, principal)) {
+                        val innsendinger = transaction(database) {
+                            hentMottatteInnsendinger(listOf(sak.sakId))[sak.sakId] ?: MottatteInnsendinger.INGEN
+                        }
+                        when (tildelingHindring(sak.status, sak.kildeTilBehandling, innsendinger, sak.saksbehandlerIdent, principal)) {
                             null -> {
                                 transaction(database) {
                                     publishEventQueue(
@@ -253,17 +256,21 @@ enum class TildelingHindring {
  * Den ene regelen for om innlogget kan tildele seg en sak. Brukes av `POST …/tildeling` og til
  * `kanTildeleMeg` i listen og detaljoppslaget, slik at knappen og API-et svarer likt.
  * Enhetstilgang og Tilgangsmaskinen sjekkes utenfor, fordi listen og oppslaget gjør det ulikt.
- * Saken må vente på en oppgave for saksbehandler. Innvilgede saker kan derfor ikke tildeles før
- * refusjon får egen oppgavetype, se `specifications/tildeling_detaljvisning.md`.
+ * Saken må vente på en oppgave for saksbehandler. En innvilget sak gjør det bare med et mottatt
+ * refusjonskrav eller en mottatt sluttrapport, se `specifications/oversikt_refusjon_sluttrapport.md`.
+ * [innsendinger] må komme fra databasen. Retur påvirker ikke rollen, så den sjekkes ikke.
  * Returnerer null når innlogget kan tildele seg saken, ellers første hindring.
  */
 fun tildelingHindring(
     status: Saksstatus,
+    kilde: KildeTilBehandling,
+    innsendinger: MottatteInnsendinger,
     saksbehandlerIdent: String?,
     principal: AzureAdPrincipal,
 ): TildelingHindring? = when {
     !principal.harRolle(Role.SAKSBEHANDLER) -> TildelingHindring.MANGLER_ROLLE
-    oppgavetype(status, harRetur = false)?.rolle != Role.SAKSBEHANDLER -> TildelingHindring.UGYLDIG_STATUS
+    oppgaver(status, kilde, harRetur = false, innsendinger).none { it.type.rolle == Role.SAKSBEHANDLER } ->
+        TildelingHindring.UGYLDIG_STATUS
     saksbehandlerIdent == principal.navIdent -> TildelingHindring.HAR_SAKEN_ALLEREDE
     else -> null
 }
@@ -355,51 +362,66 @@ internal fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAd
     val sakIder = rader.map { it[SakTable.sakId] }
     val vedtak = hentSisteForelopigVedtakSammendrag(sakIder)
     val sakerMedRetur = hentSakerMedRetur(sakIder)
+    val innsendinger = hentMottatteInnsendinger(sakIder)
 
-    return rader.map { row ->
+    return rader.flatMap { row ->
+        val sakId = row[SakTable.sakId]
         val status = Saksstatus.valueOf(row[SakTable.status])
+        val kilde = KildeTilBehandling.valueOf(row[SakTable.kildeTilBehandling])
         val saksbehandlerIdent = row[SakTable.saksbehandlerIdent]
         val beslutterIdent = row[SakTable.beslutterIdent]
-        val sisteVedtak = vedtak[row[SakTable.sakId]]
-        val oppgavetype = oppgavetype(status, harRetur = row[SakTable.sakId] in sakerMedRetur)
-        SakListeRad(ansattFnr = row[SoknadTable.ansattFnr], sak = SakListeElement(
-            sakId = row[SakTable.sakId].toString(),
-            status = status,
-            kildeTilBehandling = KildeTilBehandling.valueOf(row[SakTable.kildeTilBehandling]),
-            behandlendeEnhet = row[SakTable.behandlendeEnhet],
-            saksbehandlerIdent = saksbehandlerIdent,
-            saksbehandlerNavn = row[SakTable.saksbehandlerNavn],
-            beslutterIdent = beslutterIdent,
-            beslutterNavn = row[SakTable.beslutterNavn],
-            arenaSakId = row[SakTable.arenaSakId],
-            oppgavetype = oppgavetype,
-            harOppgaveForMeg = harOppgaveFor(oppgavetype, principal),
-            // Listen viser ikke «Tildel meg» på saker tildelt en annen. Overtakelse gjøres fra saksdetaljen.
-            kanTildeleMeg = saksbehandlerIdent == null &&
-                    tildelingHindring(status, saksbehandlerIdent, principal) == null,
-            // Unntaket er en beslutter som selv har sendt siste foreløpige vedtak, og dermed er inhabil.
-            kanTildeleMegSomBeslutter = (beslutterIdent == null || beslutterIdent == sisteVedtak?.innstiltAvIdent) &&
-                    beslutterTildelingHindring(status, beslutterIdent, sisteVedtak?.innstiltAvIdent, principal) == null,
-            tiltaksperiodeFra = sisteVedtak?.tiltaksperiodeFra,
-            tiltaksperiodeTil = sisteVedtak?.tiltaksperiodeTil,
-            skjermet = row.skjermetVedOpprettelse(),
-            adressebeskyttelse = row.adressebeskyttelseVedOpprettelse(),
-            deltakerTilgang = null,
-            kommunenummer = row[SakTable.kommunenummer],
-            kommunenavn = null,
-            soknad = SakListeElement.Soknad(
-                soknadId = row[SoknadTable.id].toString(),
-                status = SoknadStatus.valueOf(row[SoknadTable.status]),
-                innsendtTidspunkt = row[SoknadTable.opprettetTidspunkt].toString(),
-                virksomhet = SakListeElement.Virksomhet(
-                    virksomhetsnummer = row[SoknadTable.virksomhetsnummer],
-                    virksomhetsnavn = row[SoknadTable.virksomhetsnavn],
+        val sisteVedtak = vedtak[sakId]
+        val sakensInnsendinger = innsendinger[sakId] ?: MottatteInnsendinger.INGEN
+        val soknadMottatt = row[SoknadTable.opprettetTidspunkt]
+        // Én rad per oppgave. Saker uten oppgave får én rad, der frontend viser saksstatusen.
+        val oppgaver = oppgaver(status, kilde, harRetur = sakId in sakerMedRetur, sakensInnsendinger)
+            .ifEmpty { listOf(null) }
+        oppgaver.map { oppgave ->
+            val mottatt = oppgave?.mottatt ?: soknadMottatt
+            // Beslutteren på saken er søknadens. Rader for refusjon og sluttrapport har ingen beslutter ennå.
+            val radensBeslutterIdent = beslutterIdent.takeIf { oppgave?.type?.gjelderSoknad ?: true }
+            mottatt to SakListeRad(ansattFnr = row[SoknadTable.ansattFnr], sak = SakListeElement(
+                sakId = row[SakTable.sakId].toString(),
+                status = status,
+                kildeTilBehandling = kilde,
+                behandlendeEnhet = row[SakTable.behandlendeEnhet],
+                saksbehandlerIdent = saksbehandlerIdent,
+                saksbehandlerNavn = row[SakTable.saksbehandlerNavn],
+                beslutterIdent = radensBeslutterIdent,
+                beslutterNavn = row[SakTable.beslutterNavn].takeIf { radensBeslutterIdent != null },
+                arenaSakId = row[SakTable.arenaSakId],
+                oppgavetype = oppgave?.type,
+                harOppgaveForMeg = harOppgaveFor(oppgave?.type, principal),
+                // Listen viser ikke «Tildel meg» på saker tildelt en annen. Overtakelse gjøres fra saksdetaljen.
+                kanTildeleMeg = saksbehandlerIdent == null &&
+                        tildelingHindring(status, kilde, sakensInnsendinger, saksbehandlerIdent, principal) == null,
+                // Unntaket er en beslutter som selv har sendt siste foreløpige vedtak, og dermed er inhabil.
+                kanTildeleMegSomBeslutter = (beslutterIdent == null || beslutterIdent == sisteVedtak?.innstiltAvIdent) &&
+                        beslutterTildelingHindring(status, beslutterIdent, sisteVedtak?.innstiltAvIdent, principal) == null,
+                tiltaksperiodeFra = sisteVedtak?.tiltaksperiodeFra,
+                tiltaksperiodeTil = sisteVedtak?.tiltaksperiodeTil,
+                skjermet = row.skjermetVedOpprettelse(),
+                adressebeskyttelse = row.adressebeskyttelseVedOpprettelse(),
+                deltakerTilgang = null,
+                kommunenummer = row[SakTable.kommunenummer],
+                kommunenavn = null,
+                mottatt = mottatt.toString(),
+                soknad = SakListeElement.Soknad(
+                    soknadId = row[SoknadTable.id].toString(),
+                    status = SoknadStatus.valueOf(row[SoknadTable.status]),
+                    innsendtTidspunkt = soknadMottatt.toString(),
+                    virksomhet = SakListeElement.Virksomhet(
+                        virksomhetsnummer = row[SoknadTable.virksomhetsnummer],
+                        virksomhetsnavn = row[SoknadTable.virksomhetsnavn],
+                    ),
+                    ansattNavn = row[SoknadTable.ansattNavn],
+                    startdato = row[SoknadTable.behovForBistandStartdato],
                 ),
-                ansattNavn = row[SoknadTable.ansattNavn],
-                startdato = row[SoknadTable.behovForBistandStartdato],
-            ),
-        ))
+            ))
+        }
     }
+        .sortedByDescending { (mottatt, _) -> mottatt }
+        .map { (_, rad) -> rad }
 }
 
 fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetaljer? =
@@ -415,20 +437,27 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
             val beslutterIdent = row[SakTable.beslutterIdent]
             val forelopigVedtak = hentSisteForelopigVedtak(sakId)
             val sisteRetur = hentSisteRetur(sakId)
+            val kilde = KildeTilBehandling.valueOf(row[SakTable.kildeTilBehandling])
+            val innsendinger = hentMottatteInnsendinger(listOf(sakId))[sakId] ?: MottatteInnsendinger.INGEN
             SakDetaljer(
                 sakId = sakId.toString(),
                 status = status,
-                kildeTilBehandling = KildeTilBehandling.valueOf(row[SakTable.kildeTilBehandling]),
+                kildeTilBehandling = kilde,
                 behandlendeEnhet = row[SakTable.behandlendeEnhet],
                 saksbehandlerIdent = saksbehandlerIdent,
                 saksbehandlerNavn = row[SakTable.saksbehandlerNavn],
                 beslutterIdent = beslutterIdent,
                 beslutterNavn = row[SakTable.beslutterNavn],
                 arenaSakId = row[SakTable.arenaSakId],
-                oppgavetype = oppgavetype(status, harRetur = sisteRetur != null),
+                // Første oppgave: refusjon foran sluttrapport foran søknadsoppgaven. Alle har rollen saksbehandler.
+                oppgavetype = oppgaver(status, kilde, harRetur = sisteRetur != null, innsendinger).firstOrNull()?.type,
+                innsendinger = SakDetaljer.Innsendinger(
+                    refusjonskrav = innsendinger.refusjonskrav?.toString(),
+                    sluttrapport = innsendinger.sluttrapport?.toString(),
+                ),
                 adressebeskyttelse = row.adressebeskyttelseVedOpprettelse(),
                 skjermet = row.skjermetVedOpprettelse(),
-                kanTildeleMeg = tildelingHindring(status, saksbehandlerIdent, principal) == null,
+                kanTildeleMeg = tildelingHindring(status, kilde, innsendinger, saksbehandlerIdent, principal) == null,
                 kanTildeleMegSomBeslutter = beslutterTildelingHindring(
                     status, beslutterIdent, forelopigVedtak?.innstiltAvIdent, principal,
                 ) == null,
@@ -494,6 +523,8 @@ data class SakListeElement(
     val kommunenummer: String?,
     /** Fra kodeverket i Norg. Null når navnet ikke er kjent. */
     val kommunenavn: String?,
+    /** Når innsendingen bak oppgaven kom, ellers når søknaden kom. Listen sorteres på denne. */
+    val mottatt: String,
     val soknad: Soknad,
 ) {
     @Serializable
@@ -525,7 +556,10 @@ data class SakDetaljer(
     val beslutterIdent: String?,
     val beslutterNavn: String?,
     val arenaSakId: String?,
+    /** Sakens første oppgave. En sak kan ha både refusjon og sluttrapport; da er dette refusjon. */
     val oppgavetype: Oppgavetype?,
+    /** Når refusjonskrav og sluttrapport ble mottatt. Null når ingenting er mottatt. */
+    val innsendinger: Innsendinger,
     val adressebeskyttelse: Adressebeskyttelse?,
     val skjermet: Boolean,
     val kanTildeleMeg: Boolean,
@@ -537,6 +571,9 @@ data class SakDetaljer(
     /** Null til beslutter har fattet vedtaket. */
     val vedtak: VedtakDTO?,
 ) {
+    @Serializable
+    data class Innsendinger(val refusjonskrav: String?, val sluttrapport: String?)
+
     @Serializable
     data class Soknad(
         val soknadId: String,

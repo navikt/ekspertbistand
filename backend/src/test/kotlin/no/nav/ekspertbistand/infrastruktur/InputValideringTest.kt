@@ -5,6 +5,7 @@ import no.nav.ekspertbistand.soknad.DTO
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -208,4 +209,41 @@ class InputValideringTest {
         assertNull(IngenVinkelparenteser.sjekk("helt vanlig tekst"))
         assertNull(IngenKontrolltegn.sjekk("tekst med\nlinjeskift"))
     }
+
+    @Test
+    fun `godtar fodselsnummer med gyldige kontrollsiffer`() {
+        assertTrue(erGyldigFodselsnummer(gyldigFnr("010190123")))
+        assertTrue(erGyldigFodselsnummer(gyldigFnr("410190123")), "D-nummer")
+        assertTrue(erGyldigFodselsnummer(gyldigFnr("018190123")), "syntetisk fra Tenor")
+    }
+
+    @Test
+    fun `avviser feil lengde, ikke-siffer og feil kontrollsiffer`() {
+        val gyldig = gyldigFnr("010190123")
+        assertFalse(erGyldigFodselsnummer(gyldig.dropLast(1)))
+        assertFalse(erGyldigFodselsnummer(gyldig + "0"))
+        assertFalse(erGyldigFodselsnummer(gyldig.replaceRange(0, 1, "a")))
+        assertFalse(erGyldigFodselsnummer(gyldig.dropLast(1) + ((gyldig.last() - '0' + 1) % 10)))
+        assertFalse(erGyldigFodselsnummer("12345678910"))
+        assertFalse(erGyldigFodselsnummer(""))
+    }
 }
+
+/** Lager et fødselsnummer med gyldige kontrollsiffer fra de ni første sifrene, eller prøver neste individnummer. */
+fun gyldigFnr(ni: String): String {
+    var kandidat = ni.toLong()
+    while (true) {
+        val siffer = kandidat.toString().padStart(9, '0').map { it - '0' }
+        val k1 = kontroll(siffer, intArrayOf(3, 7, 6, 1, 8, 9, 4, 5, 2))
+        val k2 = k1?.let { kontroll(siffer + it, intArrayOf(5, 4, 3, 2, 7, 6, 5, 4, 3, 2)) }
+        if (k1 != null && k2 != null) return siffer.joinToString("") + k1 + k2
+        kandidat++
+    }
+}
+
+private fun kontroll(siffer: List<Int>, vekter: IntArray): Int? =
+    when (val k = 11 - vekter.indices.sumOf { vekter[it] * siffer[it] } % 11) {
+        11 -> 0
+        10 -> null
+        else -> k
+    }
