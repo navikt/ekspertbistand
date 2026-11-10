@@ -359,7 +359,105 @@ const ensureSkjemaStoreLoaded = async () => {
     skjemaStore.set(avslattEntry.id, avslattEntry);
     await persistSkjemaStore();
   }
+  if (leggTilVedtakssoknader()) {
+    await persistSkjemaStore();
+  }
   skjemaStoreLoaded = true;
+};
+
+type MockVedtaksbrev = {
+  utfall: "INNVILGET" | "INNVILGET_REDUSERT" | "AVSLATT";
+  vedtaksdato: string;
+  innvilgetBelop: string | null;
+  soknadssum: string | null;
+  tiltaksperiode: { fra: string; til: string } | null;
+  refusjonsfrist: string | null;
+  deltakerNavn: string;
+  virksomhetsnavn: string;
+};
+
+export const MOCK_VEDTAK_SOKNAD_ID = {
+  INNVILGET: "7e0d5a00-0000-4000-8000-000000000691",
+  INNVILGET_REDUSERT: "7e0d5a00-0000-4000-8000-000000000692",
+  AVSLATT: "7e0d5a00-0000-4000-8000-000000000693",
+} as const;
+
+const mockVedtaksbrev: Record<string, MockVedtaksbrev> = {
+  [MOCK_VEDTAK_SOKNAD_ID.INNVILGET]: {
+    utfall: "INNVILGET",
+    vedtaksdato: "15. oktober 2026",
+    innvilgetBelop: "50 000",
+    soknadssum: "50 000",
+    tiltaksperiode: { fra: "1. november 2026", til: "31. januar 2027" },
+    refusjonsfrist: "31. juli 2027",
+    deltakerNavn: "Kari Innvilget",
+    virksomhetsnavn: "Eksempel Bedrift AS",
+  },
+  [MOCK_VEDTAK_SOKNAD_ID.INNVILGET_REDUSERT]: {
+    utfall: "INNVILGET_REDUSERT",
+    vedtaksdato: "15. oktober 2026",
+    innvilgetBelop: "40 000",
+    soknadssum: "50 000",
+    tiltaksperiode: { fra: "1. november 2026", til: "31. januar 2027" },
+    refusjonsfrist: "31. juli 2027",
+    deltakerNavn: "Per Redusert",
+    virksomhetsnavn: "Eksempel Bedrift AS",
+  },
+  [MOCK_VEDTAK_SOKNAD_ID.AVSLATT]: {
+    utfall: "AVSLATT",
+    vedtaksdato: "15. oktober 2026",
+    innvilgetBelop: null,
+    soknadssum: "50 000",
+    tiltaksperiode: null,
+    refusjonsfrist: null,
+    deltakerNavn: "Ola Avslått",
+    virksomhetsnavn: "Eksempel Bedrift AS",
+  },
+};
+
+// Faste id-er og eldre tidspunkt, så vedtakssøknadene kan åpnes direkte og havner etter de andre
+// godkjente søknadene i oversikten. Legges til også når cachen allerede har søknader.
+const leggTilVedtakssoknader = () => {
+  let lagtTil = false;
+  for (const [id, vedtak] of Object.entries(mockVedtaksbrev)) {
+    if (skjemaStore.has(id)) continue;
+    const inputs = createEmptyInputs();
+    inputs.virksomhet.virksomhetsnummer = "123456789";
+    inputs.virksomhet.virksomhetsnavn = vedtak.virksomhetsnavn;
+    inputs.virksomhet.beliggenhetsadresse = "Testveien 1, 0557 Oslo";
+    inputs.virksomhet.kontaktperson.navn = "Lise Kontakt";
+    inputs.virksomhet.kontaktperson.epost = "lise.kontakt@eksempel.no";
+    inputs.virksomhet.kontaktperson.telefonnummer = "99112233";
+    inputs.ansatt.fnr = MOCK_BRUKER;
+    inputs.ansatt.navn = vedtak.deltakerNavn;
+    inputs.ekspert.navn = "Eva Ekspert";
+    inputs.ekspert.virksomhet = "Ekspert & Co";
+    inputs.ekspert.godkjentUtdanningEllerAutorisasjon = ["Psykolog"];
+    inputs.ekspert.relevantKompetanse = ["Arbeidsplassvurdering"];
+    inputs.behovForBistand.begrunnelse = "Behov for tilrettelegging etter skade.";
+    inputs.behovForBistand.behov = "Kartlegging og råd om tilrettelegging.";
+    inputs.behovForBistand.timer = "40";
+    inputs.behovForBistand.estimertKostnad = "50000";
+    inputs.behovForBistand.tilrettelegging = "Tilrettelegging av arbeidsoppgaver.";
+    inputs.behovForBistand.startdato = "2026-11-01";
+    inputs.nav.kontaktperson = "Nav Kontakt";
+
+    const tidspunkt = "2026-10-01T10:00:00.000Z";
+    skjemaStore.set(id, {
+      id,
+      status: "innsendt",
+      data: inputs,
+      opprettetAv: MOCK_BRUKER,
+      opprettetTidspunkt: tidspunkt,
+      innsendtTidspunkt: tidspunkt,
+      beslutning: {
+        status: vedtak.utfall === "AVSLATT" ? "avslatt" : "godkjent",
+        tidspunkt: "2026-10-15T10:00:00.000Z",
+      },
+    });
+    lagtTil = true;
+  }
+  return lagtTil;
 };
 
 const toNumericString = (value: SoknadInputs["behovForBistand"]["timer"]): string => {
@@ -503,8 +601,28 @@ const loginSessionJson = {
   },
 };
 
-// Minimal valid PDF for local development mocking
-const mockPdfBytes = (): Uint8Array => new TextEncoder().encode("%PDF-1.4\n%%EOF\n");
+// Én blank A4-side, så pdf.js kan vise forhåndsvisningen.
+const mockPdfBytes = (): Uint8Array => {
+  const objekter = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> >>\nendobj\n",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsetter = [0];
+  for (const objekt of objekter) {
+    offsetter.push(pdf.length);
+    pdf += objekt;
+  }
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${offsetter.length}\n0000000000 65535 f \n`;
+  pdf += offsetter
+    .slice(1)
+    .map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
+    .join("");
+  pdf += `trailer\n<< /Size ${offsetter.length} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  return new TextEncoder().encode(pdf);
+};
 
 const createMockTilskuddsbrevHtml = () => [
   {
@@ -805,6 +923,26 @@ export const handlers = [
     return HttpResponse.json({
       gyldigFra: MOCK_MAKS_SATS_GYLDIG_FRA,
       belop: MOCK_MAKS_SATS_BELOP,
+    });
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/vedtak`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    const vedtak = mockVedtaksbrev[getParamValue(params.id) ?? ""];
+    if (!vedtak) {
+      return HttpResponse.json({ message: "vedtak ikke funnet" }, { status: 404 });
+    }
+    return HttpResponse.json(vedtak);
+  }),
+  http.get(`${EKSPERTBISTAND_API_PATH}/:id/vedtak/brev-pdf`, async ({ params }) => {
+    await ensureSkjemaStoreLoaded();
+    if (!mockVedtaksbrev[getParamValue(params.id) ?? ""]) {
+      return HttpResponse.json({ message: "vedtak ikke funnet" }, { status: 404 });
+    }
+    return new HttpResponse(mockPdfBytes(), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="Vedtaksbrev ekspertbistand.pdf"',
+      },
     });
   }),
   http.get(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params }) => {

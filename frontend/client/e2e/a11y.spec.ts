@@ -48,3 +48,42 @@ for (const route of routes) {
     await runAxe(page);
   });
 }
+
+// Faste id-er fra MOCK_VEDTAK_SOKNAD_ID i src/mocks/handlers.ts.
+const vedtak = [
+  { utfall: "innvilget", id: "7e0d5a00-0000-4000-8000-000000000691", status: "Søknad godkjent" },
+  {
+    utfall: "redusert beløp",
+    id: "7e0d5a00-0000-4000-8000-000000000692",
+    status: "Søknad godkjent med redusert beløp",
+  },
+  { utfall: "avslått", id: "7e0d5a00-0000-4000-8000-000000000693", status: "Søknad avslått" },
+];
+
+for (const { utfall, id, status } of vedtak) {
+  for (const apentKort of [false, true]) {
+    const beskrivelse = apentKort ? " with the vedtak card open" : "";
+    test(`v2 vedtak page (${utfall})${beskrivelse} has no detectable accessibility violations`, async ({
+      page,
+    }) => {
+      await page.goto("/v2/soknader");
+      await waitForAppReady(page);
+      await ensureMockServiceWorkerReady(page);
+
+      await page.goto(`/v2/skjema/${id}/vedtak`);
+      await waitForAppReady(page);
+      await expect(page.getByRole("heading", { level: 2, name: status })).toBeVisible();
+
+      if (apentKort) {
+        const kort = page.getByRole("region", { name: /^Vedtak om/ });
+        await kort.getByRole("button", { expanded: false }).click();
+        await expect(
+          kort.getByRole("link", { name: "Vedtaksbrev ekspertbistand.pdf" })
+        ).toBeVisible();
+        await expect(kort.locator("canvas").first()).toBeVisible();
+      }
+
+      await runAxe(page);
+    });
+  }
+}

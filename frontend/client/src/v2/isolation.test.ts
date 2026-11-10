@@ -25,7 +25,11 @@ describe("v2 application isolation", () => {
     const sourceFiles = Object.entries(v2SourceFiles).filter(
       ([file]) => !/\.test\.(?:ts|tsx)$/.test(file)
     );
-    const v2Modules = new Set(sourceFiles.map(([file]) => sourcePathFromGlobKey(file)));
+    const v2StyleFiles = Object.keys(import.meta.glob("./**/*.css"));
+    const v2Modules = new Set([
+      ...sourceFiles.map(([file]) => sourcePathFromGlobKey(file)),
+      ...v2StyleFiles.map((file) => `src/v2/${file.replace(/^\.\//, "")}`),
+    ]);
     // Only infrastructure is shared with v1. Copy anything else into v2 before changing it.
     const allowedSharedModules = new Set(["src/utils/api", "src/utils/env", "src/utils/http"]);
     const forbiddenImports: string[] = [];
@@ -44,7 +48,9 @@ describe("v2 application isolation", () => {
         if (!specifier.startsWith(".")) continue;
         const target = resolveV2RelativeImport(file, specifier);
         if (target.startsWith("src/v2/")) {
-          if (!v2Modules.has(target)) unresolvedV2Imports.push(`${file} -> ${specifier}`);
+          if (!v2Modules.has(target) && !v2Modules.has(`${target}/index`)) {
+            unresolvedV2Imports.push(`${file} -> ${specifier}`);
+          }
         } else if (!allowedSharedModules.has(target)) {
           forbiddenImports.push(`${file} -> ${specifier}`);
         }

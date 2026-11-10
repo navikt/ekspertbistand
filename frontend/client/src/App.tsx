@@ -33,6 +33,7 @@ const SkjemaV2Steg3Page = lazy(() => import("./v2/pages/SkjemaSteg3Page"));
 const DeltakerBekreftetV2Gate = lazy(() => import("./v2/DeltakerBekreftetGate"));
 const OppsummeringV2Page = lazy(() => import("./v2/pages/OppsummeringPage"));
 const KvitteringV2Page = lazy(() => import("./v2/pages/KvitteringPage"));
+const VedtakV2Page = lazy(() => import("./v2/pages/VedtakPage"));
 const SoknaderV2Page = lazy(() => import("./v2/pages/SoknaderPage"));
 const TilskuddsbrevV2Page = lazy(() => import("./v2/pages/TilskuddsbrevPage"));
 const SluttrapportV2Page = lazy(() => import("./v2/pages/SluttrapportPage"));
@@ -148,6 +149,7 @@ export default function App() {
                 <Route path="skjema" element={<Navigate to="/v2/skjema/start" replace />} />
                 <Route path="skjema/start" element={<SoknadV2Page />} />
                 <Route path="skjema/:id/kvittering" element={<KvitteringV2Page />} />
+                <Route path="skjema/:id/vedtak" element={<VedtakV2Page />} />
                 <Route path="tilskuddsbrev/:tilsagnNummer" element={<TilskuddsbrevV2Page />} />
                 {isFeatureEnabled("EKSPERTBISTAND_SAKSBEHANDLING_BETA") && (
                   <>
