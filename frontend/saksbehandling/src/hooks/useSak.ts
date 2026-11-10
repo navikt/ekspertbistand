@@ -42,6 +42,8 @@ export type SakDetaljer = SakInfo & {
   forelopigVedtak: ForelopigVedtak | null;
   sisteRetur: Retur | null;
   vedtak: Vedtak | null;
+  /** Når refusjonskrav og sluttrapport ble mottatt, eller null. */
+  innsendinger: { refusjonskrav: string | null; sluttrapport: string | null };
 };
 
 export type SoknadDetaljer = {

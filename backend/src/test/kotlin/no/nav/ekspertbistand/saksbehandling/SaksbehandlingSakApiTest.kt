@@ -44,6 +44,8 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.mocks.testAnsattJson
+import no.nav.ekspertbistand.refusjon.RefusjonskravTable
+import no.nav.ekspertbistand.vedlegg.SluttrapportTable
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import kotlin.test.assertIs
@@ -1053,6 +1055,177 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
+    fun `liste gir refusjonsoppgave med tidspunkt innsendingen`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        val mottatt = Instant.parse("2026-11-09T10:00:00Z")
+        lagreRefusjonskrav(db, sakId, opprettet = mottatt)
+        val oppsett = oppsett(db)
+
+        val rad = oppsett.hentListe().single()
+
+        assertEquals(Oppgavetype.REFUSJON, rad.oppgavetype)
+        assertEquals(mottatt.toString(), rad.mottatt)
+        assertTrue(rad.harOppgaveForMeg)
+    }
+
+    @Test
+    fun `liste gir sluttrapportoppgave med nyeste tidspunkt`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        lagreSluttrapport(db, sakId, opprettet = Instant.parse("2026-11-08T10:00:00Z"))
+        val nyeste = Instant.parse("2026-11-09T10:00:00Z")
+        lagreSluttrapport(db, sakId, opprettet = nyeste)
+        val oppsett = oppsett(db)
+
+        val rad = oppsett.hentListe().single()
+
+        assertEquals(Oppgavetype.SLUTTRAPPORT, rad.oppgavetype)
+        assertEquals(nyeste.toString(), rad.mottatt)
+    }
+
+    @Test
+    fun `liste gir én rad per innsending og tilgangsmaskinen får unike fnr`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        lagreRefusjonskrav(db, sakId, opprettet = Instant.parse("2026-11-08T10:00:00Z"))
+        lagreSluttrapport(db, sakId, opprettet = Instant.parse("2026-11-09T10:00:00Z"))
+        val oppsett = oppsett(db)
+
+        val rader = oppsett.hentListe()
+
+        assertEquals(2, rader.size)
+        assertEquals(setOf(sakId.toString()), rader.map { it.sakId }.toSet())
+        assertEquals(setOf(Oppgavetype.REFUSJON, Oppgavetype.SLUTTRAPPORT), rader.map { it.oppgavetype }.toSet())
+        val fnrKall = oppsett.bulkKall.single().map { it.brukerId }
+        assertEquals(listOf(fnr), fnrKall)
+        assertEquals(fnrKall.distinct(), fnrKall)
+    }
+
+    @Test
+    fun `liste viser ikke søknadens beslutter på rader for innsendinger`() = testApplicationWithDatabase { db ->
+        val medInnsending = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+            beslutterIdent = "Z888888",
+        )
+        lagreRefusjonskrav(db, medInnsending, opprettet = Instant.parse("2026-11-08T10:00:00Z"))
+        lagreSluttrapport(db, medInnsending, opprettet = Instant.parse("2026-11-09T10:00:00Z"))
+        val utenInnsending = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+            beslutterIdent = "Z888888",
+        )
+        val oppsett = oppsett(db)
+
+        val rader = oppsett.hentListe()
+
+        val innsendingsrader = rader.filter { it.sakId == medInnsending.toString() }
+        assertEquals(2, innsendingsrader.size)
+        innsendingsrader.forEach {
+            assertNull(it.beslutterIdent)
+            assertNull(it.beslutterNavn)
+        }
+        assertEquals("Z888888", rader.single { it.sakId == utenInnsending.toString() }.beslutterIdent)
+    }
+
+    @Test
+    fun `liste viser ikke innsending som ikke er mottatt`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        lagreRefusjonskrav(db, sakId, status = "GODKJENT", opprettet = Instant.parse("2026-11-09T10:00:00Z"))
+        val oppsett = oppsett(db)
+
+        val rad = oppsett.hentListe().single()
+
+        assertNull(rad.oppgavetype)
+    }
+
+    @Test
+    fun `liste viser ikke refusjonsoppgave for Arena-sak`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(db, lagreSoknad(db), status = Saksstatus.INNVILGET)
+        lagreRefusjonskrav(db, sakId, opprettet = Instant.parse("2026-11-09T10:00:00Z"))
+        val oppsett = oppsett(db)
+
+        val rad = oppsett.hentListe().single()
+
+        assertNull(rad.oppgavetype)
+    }
+
+    @Test
+    fun `listen sorteres etter mottatt innsendingstidspunkt`() = testApplicationWithDatabase { db ->
+        val eldreSoknad = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        val nyereSoknad = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        lagreRefusjonskrav(db, eldreSoknad, opprettet = Instant.parse("2030-01-01T10:00:00Z"))
+        val oppsett = oppsett(db)
+
+        val rader = oppsett.hentListe()
+
+        assertEquals(eldreSoknad.toString(), rader.first().sakId)
+        assertEquals(nyereSoknad.toString(), rader.last().sakId)
+        assertTrue(rader.first().mottatt > rader.last().mottatt)
+    }
+
+    @Test
+    fun `detalj viser refusjon først og kan tildele innvilget ny sak`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        lagreRefusjonskrav(db, sakId, opprettet = Instant.parse("2026-11-08T10:00:00Z"))
+        lagreSluttrapport(db, sakId, opprettet = Instant.parse("2026-11-09T10:00:00Z"))
+        val oppsett = oppsett(db)
+
+        val detalj = oppsett.hentDetalj(sakId)
+
+        assertEquals(Oppgavetype.REFUSJON, detalj.oppgavetype)
+        assertEquals(
+            SakDetaljer.Innsendinger(
+                refusjonskrav = "2026-11-08T10:00:00Z",
+                sluttrapport = "2026-11-09T10:00:00Z",
+            ),
+            detalj.innsendinger,
+        )
+        assertTrue(detalj.kanTildeleMeg)
+    }
+
+    @Test
+    fun `detalj uten mottatte innsendinger gir innsendinger uten tidspunkt`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        lagreSluttrapport(db, sakId, status = "UTKAST", opprettet = Instant.parse("2026-11-09T10:00:00Z"))
+        val oppsett = oppsett(db)
+
+        val detalj = oppsett.hentDetalj(sakId)
+
+        assertEquals(SakDetaljer.Innsendinger(refusjonskrav = null, sluttrapport = null), detalj.innsendinger)
+        assertEquals(null, detalj.oppgavetype)
+    }
+
+    @Test
+    fun `POST tildeling på innvilget sak med refusjonskrav publiserer event`() = testApplicationWithDatabase { db ->
+        val soknadId = lagreSoknad(db)
+        val sakId = lagreSak(
+            db, soknadId, status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        lagreRefusjonskrav(db, sakId, opprettet = Instant.parse("2026-11-09T10:00:00Z"))
+        val oppsett = oppsett(db)
+
+        assertEquals(HttpStatusCode.Accepted, oppsett.tildel(sakId).status)
+        val event = assertIs<EventData.SakTildeltSaksbehandler>(hentEvents(db).single())
+        assertEquals(sakId.toString(), event.sakId)
+        assertEquals(soknadId.toString(), event.soknadId)
+        assertEquals(navIdent, event.saksbehandlerIdent)
+        assertEquals("Innlogget Saksbehandler", event.saksbehandlerNavn)
+    }
+
+    @Test
     fun `liste og detalj gir SOKNAD_RETUR og sisteRetur etter retur, og vedtak når det er fattet`() =
         testApplicationWithDatabase { db ->
             val utenRetur = lagreSak(db, lagreSoknad(db), saksbehandlerIdent = kollega)
@@ -1355,6 +1528,7 @@ class SaksbehandlingSakApiTest {
         saksbehandlerIdent: String? = null,
         behandlendeEnhet: String? = egenEnhet,
         status: Saksstatus = Saksstatus.UNDER_BEHANDLING,
+        kilde: KildeTilBehandling = KildeTilBehandling.ARENA,
         beslutterIdent: String? = null,
         kommunenummer: String? = null,
         adressebeskyttelse: Adressebeskyttelse? = null,
@@ -1368,13 +1542,47 @@ class SaksbehandlingSakApiTest {
                 it[this.soknadId] = soknadId
                 it[this.status] = status.name
                 it[this.beslutterIdent] = beslutterIdent
-                it[kildeTilBehandling] = KildeTilBehandling.ARENA.name
+                it[kildeTilBehandling] = kilde.name
+                if (kilde == KildeTilBehandling.EKSPERTBISTAND) {
+                    it[saksnummer] = "2026/${UUID.randomUUID()}"
+                }
                 it[this.behandlendeEnhet] = behandlendeEnhet
                 it[this.saksbehandlerIdent] = saksbehandlerIdent
                 it[saksbehandlerNavn] = saksbehandlerIdent?.let { "Navn $it" }
                 it[beslutterNavn] = beslutterIdent?.let { "Navn $it" }
             }[SakTable.sakId]
         }
+
+    private fun lagreRefusjonskrav(
+        db: TestDatabase,
+        sakId: UUID,
+        status: String = "MOTTATT",
+        opprettet: Instant,
+    ) {
+        transaction(db.config.jdbcDatabase) {
+            RefusjonskravTable.insert {
+                it[RefusjonskravTable.sakId] = sakId
+                it[RefusjonskravTable.belopOre] = 999900
+                it[RefusjonskravTable.status] = status
+                it[RefusjonskravTable.opprettet] = opprettet
+            }
+        }
+    }
+
+    private fun lagreSluttrapport(
+        db: TestDatabase,
+        sakId: UUID,
+        status: String = "MOTTATT",
+        opprettet: Instant,
+    ) {
+        transaction(db.config.jdbcDatabase) {
+            SluttrapportTable.insert {
+                it[SluttrapportTable.sakId] = sakId
+                it[SluttrapportTable.status] = status
+                it[SluttrapportTable.opprettet] = opprettet
+            }
+        }
+    }
 
     private fun lagreForelopigVedtak(
         db: TestDatabase,

@@ -81,7 +81,7 @@ Avvik mellom kort og skisse:
 | Kortbeskrivelsen; Figma `836:28943` | Oppgavetypene «Søknad - beslutter» og «Refusjon - beslutter» viser beslutter. Menyen har «Overta som beslutter». |
 | Kortbeskrivelsen | Saker med status «Innvilget», «Avslått» eller «Avsluttet» viser verken saksbehandler eller beslutter, og kan ikke overtas fra menyen. |
 | Ken, 2026-10-07 (`tildel_meg_sak.md`) | `INNVILGET`-saker kan tildeles og overtas, fordi saken venter på refusjonskravet. **Overstyrt av kortet over**, som er nyere (opprettet 2026-10-13). Når refusjon får egen oppgavetype, kan en innvilget sak med refusjonskrav overtas igjen. |
-| Ken, 2026-10-13 | Innvilgede saker kan ikke tildeles eller overtas før refusjonskortet gir dem oppgavetypen «Refusjon». Backend avviser også, slik at knappen og API-et svarer likt. |
+| Ken, 2026-10-13 | Innvilgede saker kan ikke tildeles eller overtas før refusjonskortet gir dem oppgavetypen «Refusjon». Backend avviser også, slik at knappen og API-et svarer likt. Innvilgede saker fra ny løsning med mottatt refusjonskrav eller sluttrapport kan nå tildeles, se [`oversikt_refusjon_sluttrapport.md`](oversikt_refusjon_sluttrapport.md). |
 | Ken, 2026-10-13 | «Frigjør oppgave» skjules i frontend når saken ikke venter på saksbehandler. `DELETE …/tildeling` endres ikke. |
 | Ken, 2026-10-13 | Teksten er «Saksbehandler {navn}» også når innlogget har saken. |
 | `tildel_meg_sak.md` | «Frigjør oppgave» og navigering til oversikten etter frigjøring står. «Avvis søknad» og «Trekk søknad» kommer i et senere kort. |

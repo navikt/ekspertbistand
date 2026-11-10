@@ -30,8 +30,9 @@ import { BackLink } from "../components/BackLink";
 import { FormErrorSummary } from "../components/FormErrorSummary";
 import { useSoknad } from "../hooks/useSoknad";
 import { useRefusjonStatus } from "../hooks/useRefusjonStatus";
+import { useMaksBelop } from "../hooks/useMaksBelop";
 import { useKontonummerFinnes } from "../hooks/useKontonummerFinnes";
-import { formatDate } from "../components/summaryFormatters";
+import { formatCurrency, formatDate } from "../components/summaryFormatters";
 import { formatDateTime } from "../utils/date";
 import { formatBytes } from "../utils/format";
 import {
@@ -40,17 +41,13 @@ import {
   KONTONUMMER_REGISTRERING_URL,
   SOKNADER_PATH,
 } from "../utils/constants";
-import { resolveApiError, type ApiErrorInfo } from "../../utils/http";
+import { HttpError, resolveApiError, type ApiErrorInfo } from "../../utils/http";
 import { useErrorFocus } from "../hooks/useErrorFocus";
 import { isProd } from "../../utils/env";
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
-// TODO: Vi må sjekke refusjonsbeløpet mot maksbeløpet i tilsagnsbrevet.
-// Maksbeløpet er ikke eksponert fra backend/tilsagnsbrev ennå – når det er på
-// plass, hent det via useSoknad/tilsagn og send det inn til makeRefusjonSchema
-// nedenfor. Da vil feltet vise feil og skjemaet blokkeres ved beløp over maks.
 const makeRefusjonSchema = (maksBelopKroner?: number) =>
   z.object({
     belop: z
@@ -62,7 +59,7 @@ const makeRefusjonSchema = (maksBelopKroner?: number) =>
         if (Number(value) > maksBelopKroner) {
           ctx.addIssue({
             code: "custom",
-            message: `Beløpet kan ikke være høyere enn maksbeløpet i tilsagnsbrevet (${maksBelopKroner} kroner).`,
+            message: `Beløpet kan ikke være høyere enn innvilget beløp (${formatCurrency(maksBelopKroner)}).`,
           });
         }
       }),
@@ -81,6 +78,11 @@ export default function SokRefusjonPage() {
   const { soknad, isLoading, error: fetchError } = useSoknad(id);
   const { refusjon, isLoading: isLoadingStatus, mutate: mutateStatus } = useRefusjonStatus(id);
   const {
+    maksBelopKroner,
+    isLoading: isLoadingMaksBelop,
+    error: maksBelopError,
+  } = useMaksBelop(id);
+  const {
     finnes: kontonummerFinnes,
     isLoading: kontonummerLoading,
     error: kontonummerError,
@@ -93,10 +95,10 @@ export default function SokRefusjonPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { focusKey, bumpFocusKey } = useErrorFocus();
 
-  // TODO: Hent maksbeløpet fra tilsagnsbrevet når det er tilgjengelig fra backend.
-  // Så lenge dette er undefined gjøres ingen maks-sjekk.
-  const maksBelopKroner: number | undefined = undefined;
-  const refusjonSchema = useMemo(() => makeRefusjonSchema(maksBelopKroner), [maksBelopKroner]);
+  const refusjonSchema = useMemo(
+    () => makeRefusjonSchema(maksBelopKroner ?? undefined),
+    [maksBelopKroner]
+  );
 
   const {
     register,
@@ -141,7 +143,15 @@ export default function SokRefusjonPage() {
         body: formData,
       });
       if (!response.ok) {
-        throw new Error(`Feil ved innsending (${response.status})`);
+        const responseBody = (await response.text()).trim();
+        let message = responseBody;
+        try {
+          const parsed = JSON.parse(responseBody) as { message?: unknown };
+          if (typeof parsed.message === "string") message = parsed.message;
+        } catch {
+          // Feilmeldingen kan være ren tekst fra backend.
+        }
+        throw new Error(message || `Feil ved innsending (${response.status})`);
       }
       await mutateStatus();
       navigate(`/v2/skjema/${id}/kvittering`);
@@ -161,7 +171,7 @@ export default function SokRefusjonPage() {
     return <Navigate to={id ? `/v2/skjema/${id}/kvittering` : SOKNADER_PATH} replace />;
   }
 
-  if (isLoading || isLoadingStatus || kontonummerLoading) {
+  if (isLoading || isLoadingStatus || isLoadingMaksBelop || kontonummerLoading) {
     return (
       <DecoratedPage>
         <VStack align="center" gap="space-4" padding="space-32">
@@ -244,6 +254,19 @@ export default function SokRefusjonPage() {
             </ExpansionCard.Content>
           </ExpansionCard>
         </VStack>
+      </DecoratedPage>
+    );
+  }
+
+  if (maksBelopError) {
+    const isConflict = maksBelopError instanceof HttpError && maksBelopError.status === 409;
+    return (
+      <DecoratedPage>
+        <Alert variant={isConflict ? "warning" : "error"} role="alert">
+          {isConflict
+            ? maksBelopError.message
+            : "Kunne ikke hente maksbeløpet for refusjonskravet. Prøv å laste siden på nytt."}
+        </Alert>
       </DecoratedPage>
     );
   }
@@ -336,7 +359,7 @@ export default function SokRefusjonPage() {
               <TextField
                 id="belop"
                 label="Beløp for refusjonskravet"
-                description="Oppgi beløp i hele kroner, f.eks. 12500"
+                description={`Du kan kreve inntil ${formatCurrency(maksBelopKroner)}. Oppgi beløp i hele kroner, f.eks. 12500.`}
                 inputMode="numeric"
                 error={errors.belop?.message}
                 style={{ maxWidth: "16rem" }}
