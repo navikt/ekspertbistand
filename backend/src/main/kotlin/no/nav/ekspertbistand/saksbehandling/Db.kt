@@ -3,8 +3,10 @@ package no.nav.ekspertbistand.saksbehandling
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.refusjon.RefusjonskravTable
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.vedlegg.SluttrapportTable
 import org.jetbrains.exposed.v1.core.CustomFunction
 import org.jetbrains.exposed.v1.core.Expression
 import org.jetbrains.exposed.v1.core.JoinType
@@ -61,8 +63,6 @@ object SakTable : Table("sak") {
     val foreslattUtfall = text("foreslatt_utfall").nullable()
     val arenaSakId = text("arena_sak_id").nullable()
     val saksnummer = text("saksnummer").nullable()
-    val refusjonId = javaUUID("refusjon_id").nullable()
-    val sluttrapportId = javaUUID("sluttrapport_id").nullable()
     val tildelingEventId = long("tildeling_event_id").nullable()
     val beslutterTildelingEventId = long("beslutter_tildeling_event_id").nullable()
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
@@ -90,14 +90,41 @@ fun JdbcTransaction.hentGodkjentSakIdForUpdate(soknadId: UUID): UUID {
         throw SoknadIkkeGodkjentException()
     }
 
-    return SakTable
+    val sak = SakTable
         .selectAll()
         .where { SakTable.soknadId eq soknadId }
         .forUpdate(ForUpdateOption.ForUpdate)
         .singleOrNull()
-        ?.get(SakTable.sakId)
         ?: throw SakIkkeFunnetException()
+
+    // Refusjon og sluttrapport for Arena-saker sendes ikke inn via denne løsningen.
+    if (sak[SakTable.kildeTilBehandling] == KildeTilBehandling.ARENA.name) {
+        throw SakKildeArenaException()
+    }
+
+    return sak[SakTable.sakId]
 }
+
+/** Kilden til saken for søknaden, eller null hvis søknaden ikke har sak. Må kalles i en transaksjon. */
+fun hentKildeForSoknad(soknadId: UUID): KildeTilBehandling? =
+    SakTable.select(SakTable.kildeTilBehandling)
+        .where { SakTable.soknadId eq soknadId }
+        .singleOrNull()
+        ?.let { KildeTilBehandling.valueOf(it[SakTable.kildeTilBehandling]) }
+
+/**
+ * Innvilget beløp i kroner fra beslutters vedtak på saken. Null når saken ikke har et innvilget vedtak
+ * med beløp større enn 0. Må kalles i en transaksjon.
+ */
+fun hentInnvilgetBelopKroner(sakId: UUID): Int? =
+    VedtakTable
+        .join(ForelopigVedtakTable, JoinType.INNER, VedtakTable.forelopigVedtakId, ForelopigVedtakTable.id)
+        .select(VedtakTable.utfall, ForelopigVedtakTable.innvilgetBelop)
+        .where { VedtakTable.sakId eq sakId }
+        .singleOrNull()
+        ?.takeIf { it[VedtakTable.utfall] == Saksstatus.INNVILGET.name }
+        ?.get(ForelopigVedtakTable.innvilgetBelop)
+        ?.takeIf { it > 0 }
 
 /** Må kalles i en transaksjon. Returnerer null hvis søknaden ikke har sak. */
 fun hentSakIdForSoknad(soknadId: UUID): UUID? =
@@ -549,6 +576,30 @@ fun hentSakerMedRetur(sakIder: Collection<UUID>): Set<UUID> {
         .toSet()
 }
 
+/**
+ * Refusjonskrav og nyeste sluttrapport med status `MOTTATT` for [sakIder], med én spørring per tabell.
+ * Saker uten slike innsendinger mangler i svaret. Må kalles i en pågående transaksjon.
+ */
+@OptIn(ExperimentalTime::class)
+fun hentMottatteInnsendinger(sakIder: Collection<UUID>): Map<UUID, MottatteInnsendinger> {
+    if (sakIder.isEmpty()) return emptyMap()
+    val refusjonskrav = RefusjonskravTable
+        .select(RefusjonskravTable.sakId, RefusjonskravTable.opprettet)
+        .where { (RefusjonskravTable.sakId inList sakIder) and (RefusjonskravTable.status eq INNSENDING_MOTTATT) }
+        .associate { it[RefusjonskravTable.sakId] to it[RefusjonskravTable.opprettet] }
+    val sluttrapport = SluttrapportTable
+        .select(SluttrapportTable.sakId, SluttrapportTable.opprettet)
+        .where { (SluttrapportTable.sakId inList sakIder) and (SluttrapportTable.status eq INNSENDING_MOTTATT) }
+        .groupBy({ it[SluttrapportTable.sakId] }, { it[SluttrapportTable.opprettet] })
+        .mapValues { (_, opprettet) -> opprettet.max() }
+    return (refusjonskrav.keys + sluttrapport.keys).associateWith {
+        MottatteInnsendinger(refusjonskrav = refusjonskrav[it], sluttrapport = sluttrapport[it])
+    }
+}
+
+/** Status på refusjonskrav og sluttrapport som venter på saksbehandler. */
+private const val INNSENDING_MOTTATT = "MOTTATT"
+
 /** Nyeste retur for saken, eller null. Må kalles i en pågående transaksjon. */
 @OptIn(ExperimentalTime::class)
 fun hentSisteRetur(sakId: UUID): ReturDTO? =
@@ -652,6 +703,7 @@ enum class Vilkar {
 class SoknadIkkeFunnetException : RuntimeException()
 class SoknadIkkeGodkjentException : RuntimeException()
 class SakIkkeFunnetException : RuntimeException()
+class SakKildeArenaException : RuntimeException()
 
 /**
  * Hendelseslogg for en sak. Se `specifications/sakslogg.md`.

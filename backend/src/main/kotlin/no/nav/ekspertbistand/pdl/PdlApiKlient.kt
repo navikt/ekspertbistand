@@ -8,6 +8,7 @@ import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.pdl.graphql.generated.HentGeografiskTilknytning
 import no.nav.ekspertbistand.pdl.graphql.generated.HentPerson
+import no.nav.ekspertbistand.pdl.graphql.generated.HentPersonNavn
 import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
 import no.nav.ekspertbistand.pdl.graphql.generated.hentperson.Person
 import java.net.URI
@@ -56,6 +57,28 @@ class PdlApiKlient(
         }
 
         return Result.failure(response.getErrors())
+    }
+
+    /** Gjeldende navn som «fornavn [mellomnavn] etternavn». Tom navneliste gir [NotFound]. */
+    suspend fun hentNavn(fnr: String): Result<String> {
+        val token = token()
+        val response = client.execute(
+            HentPersonNavn(
+                HentPersonNavn.Variables(
+                    ident = fnr,
+                )
+            )
+        ) {
+            bearerAuth(token)
+            header("Behandlingsnummer", behandlingsNummer)
+        }
+
+        val person = response.data?.hentPerson ?: return Result.failure(response.getErrors())
+        val navn = person.navn.firstOrNull() ?: return Result.failure(NotFound())
+        return Result.success(
+            listOfNotNull(navn.fornavn, navn.mellomnavn?.takeIf { it.isNotBlank() }, navn.etternavn)
+                .joinToString(" ")
+        )
     }
 
     suspend fun hentGeografiskTilknytning(fnr: String): Result<GeografiskTilknytning> {

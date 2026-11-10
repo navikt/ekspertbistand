@@ -20,14 +20,14 @@ class AaregClient(
 ) {
     companion object {
         val targetAudience = basedOnEnv(
-            prod = "api://prod-gcp.arbeidsforhold.aareg-services-nais/.default",
-            dev = "api://dev-gcp.arbeidsforhold.aareg-services-nais/.default",
+            prod = "api://prod-fss.arbeidsforhold.aareg-services-nais/.default",
+            dev = "api://dev-fss.arbeidsforhold.aareg-services-nais/.default",
             other = "api://mock.aareg-services/.default",
         )
 
         val ingress = basedOnEnv(
-            prod = "https://aareg-services.intern.nav.no",
-            dev = "https://aareg-services.intern.dev.nav.no",
+            prod = "https://aareg-services.prod-fss-pub.nais.io",
+            dev = "https://aareg-services.dev-fss-pub.nais.io",
             other = "http://aareg-services.mock.svc.cluster.local",
         )
 
@@ -58,10 +58,14 @@ class AaregClient(
             header("Nav-Personident", fnr)
             header("Nav-Arbeidsstedident", orgnr)
             bearerAuth(
-                tokenProvider.token(targetAudience).fold(
-                    { it.accessToken },
-                    { throw Exception("Failed to get token: ${it.error}") }
+                tokenProvider.token(
+                    targetAudience,
+                    mapOf("scope" to "read")
                 )
+                    .fold(
+                        { it.accessToken },
+                        { throw Exception("Failed to get token: ${it.error}") }
+                    )
             )
         }.body()
 }

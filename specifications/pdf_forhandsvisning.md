@@ -40,6 +40,8 @@ Fil: `lvEwrzOupYmavMI2QmsMPI` (Ekspertbistand). Lest med Figma MCP 2026-10-12.
 | `506:27626` | [refusjonskrav, send til utbetaling](https://www.figma.com/design/lvEwrzOupYmavMI2QmsMPI/Ekspertbistand?node-id=506-27626) | Saksbildet med fanen «Refusjon». Midtkolonnen har beløp, tiltaksperiode, kontonummer, utgifter, beløp for refusjonskravet og «Sendt inn til Nav». Under står «Vedlegg» med to miniatyrbilder av første side (cirka 364×514 px), side om side, uten tekst. |
 | `506:27687` | [vedlegg, lenkeliste](https://www.figma.com/design/lvEwrzOupYmavMI2QmsMPI/Ekspertbistand?node-id=506-27687) | Overskriften «Vedlegg» og to kolonner med PDF-ikon, filnavn som lenke og filstørrelse under («256kb»). Laget ligger bak miniatyrbildene (`506:27757`, `506:27758`), så de dekker det i den samlede skissen. |
 
+Utgiftsbeskrivelsen i skissen er fjernet fra løsningen.
+
 Skissen har realistiske testdata (navn, fødselsnummer). De er ikke kopiert hit.
 
 Avvik mellom kort og skisse:

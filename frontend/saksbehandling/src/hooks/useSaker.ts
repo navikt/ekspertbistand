@@ -10,7 +10,8 @@ export type Saksstatus =
 export type KildeTilBehandling = "EKSPERTBISTAND" | "ARENA";
 
 /** Null på saken betyr at den ikke har noen oppgave. */
-export type Oppgavetype = "SOKNAD" | "SOKNAD_RETUR" | "SOKNAD_BESLUTTER";
+export type Oppgavetype =
+  "SOKNAD" | "SOKNAD_RETUR" | "SOKNAD_BESLUTTER" | "REFUSJON" | "SLUTTRAPPORT";
 
 export type Tildelingsrolle = "saksbehandler" | "beslutter";
 
@@ -19,6 +20,8 @@ export const rolleForOppgave = (oppgavetype: Oppgavetype | null): Tildelingsroll
   switch (oppgavetype) {
     case "SOKNAD":
     case "SOKNAD_RETUR":
+    case "REFUSJON":
+    case "SLUTTRAPPORT":
       return "saksbehandler";
     case "SOKNAD_BESLUTTER":
       return "beslutter";
@@ -60,6 +63,8 @@ export type DeltakerTilgang = {
 };
 
 export type SakListeElement = SakInfo & {
+  /** Når innsendingen bak oppgaven kom, ellers når søknaden kom. */
+  mottatt: string;
   harOppgaveForMeg: boolean;
   /** Null når Tilgangsmaskinen innvilger, eller når sjekken feilet. */
   deltakerTilgang: DeltakerTilgang | null;

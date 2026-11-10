@@ -121,6 +121,8 @@ Valg i spec-en:
   `sak_retur` (Ken, 2026-10-12). Bygd i [`beslutter_vedtak.md`](beslutter_vedtak.md).
 - Oppgavetypene «Refusjon», «Refusjon - beslutter» og «Sluttrapport». De kommer
   med kortene for refusjon og sluttrapport. `Oppgavetype` utvides da.
+  «Refusjon» og «Sluttrapport» er bygd i
+  [`oversikt_refusjon_sluttrapport.md`](oversikt_refusjon_sluttrapport.md).
 - Sortering på kolonnene.
 - Handlingsmenyen endres ikke.
 

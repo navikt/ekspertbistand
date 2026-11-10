@@ -1,135 +1,90 @@
-import { useCallback, useEffect, useMemo, useRef, type FormEvent } from "react";
-import { useFormContext, useWatch } from "react-hook-form";
+import { type FormEvent } from "react";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
-  Alert,
+  BodyShort,
   Button,
+  UNSAFE_Combobox,
+  ErrorMessage,
+  Fieldset,
   HGrid,
   Heading,
+  Label,
+  Loader,
   TextField,
-  Textarea,
   VStack,
-  Fieldset,
-  Box,
-  DatePicker,
-  useDatepicker,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
-import type { SoknadInputs } from "../features/soknad/schema";
-import { sjekkSoknadssumMotMaks, STEP2_FIELDS } from "../features/soknad/schema";
-import { useSoknadDraft } from "../context/SoknadDraftContext";
-import { DraftActions } from "../components/DraftActions.tsx";
 import { FORM_COLUMN_STYLE } from "../styles/forms";
+import type { SoknadInputs } from "../features/soknad/schema";
+import { useSoknadDraft } from "../context/SoknadDraftContext";
+import { EkspertVirksomhetVelger } from "../components/EkspertVirksomhetVelger.tsx";
+import { formaterVirksomhet } from "../components/formaterVirksomhet.ts";
+import { DraftActions } from "../components/DraftActions.tsx";
+import { useErrorFocus } from "../hooks/useErrorFocus";
 import { BackLink } from "../components/BackLink";
 import { useAttemptedSubmitRedirect } from "../hooks/useAttemptedSubmitRedirect";
 import { FormErrorSummary } from "../components/FormErrorSummary";
-import { useErrorFocus } from "../hooks/useErrorFocus";
+import { STEP2_FIELDS } from "../features/soknad/schema";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
 import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
-import { formatDateToIso, parseIsoDate, startOfToday } from "../utils/date";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
-import { useMaksSats } from "../hooks/useMaksSats";
+import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
+
+// Backend gjør disse om til statistikkoder (EkspertStatistikkoder.kt). Nye valg må legges inn der, ellers blir de ANNET.
+const GODKJENT_UTDANNING_ALTERNATIVER = [
+  "Ergoterapeut",
+  "Fysioterapeut",
+  "Karriereveileder",
+  "Psykolog",
+  "Sykepleier",
+];
+
+const RELEVANT_KOMPETANSE_ALTERNATIVER = [
+  "Relasjoner og kommunikasjon på arbeidsplassen",
+  "Tilrettelegging på arbeidsplassen",
+  "Konflikthåndtering",
+  "Omstillingsarbeid (endring i arbeidslivet)",
+  "Arbeidsplassvurdering",
+  "God kjennskap til offentlige virkemidler",
+  "Karriereveiledning",
+];
 
 export default function SkjemaSteg2Page() {
-  const todayDate = useMemo(() => startOfToday(), []);
-
   const form = useFormContext<SoknadInputs>();
-  const { register, setValue, getValues, setError, clearErrors, formState } = form;
+  const { control, register, setValue, formState } = form;
   const { errors } = formState;
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
-  const startdato = useWatch({ name: "behovForBistand.startdato" }) as
-    SoknadInputs["behovForBistand"]["startdato"] | undefined;
-  const estimertKostnad = useWatch({ name: "behovForBistand.estimertKostnad" });
-  const {
-    maksSats,
-    dato: satsDato,
-    isLoading: satsLoading,
-    error: satsError,
-    mutate: hentSats,
-  } = useMaksSats(startdato);
-  const syncingDateRef = useRef(false);
-  const { draftId, clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
-  const { goToSoknader, goToSoknaderWithSaveNotice, goToStep1, goToSummary, createLinkHandler } =
-    useSkjemaNavigation();
-  const handleStepOneLink = createLinkHandler(goToStep1);
-  const handleSummaryLink = createLinkHandler(goToSummary);
 
-  useEffect(() => {
-    register("behovForBistand.startdato");
-  }, [register]);
+  const { draftId, clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
+  const {
+    goToSoknader,
+    goToSoknaderWithSaveNotice,
+    goToStep1,
+    goToStep3,
+    goToSummary,
+    createLinkHandler,
+  } = useSkjemaNavigation();
+  const [fnr, navn, virksomhetsnummer, virksomhetsnavn] = useWatch({
+    control,
+    name: [
+      "ansatt.fnr",
+      "ansatt.navn",
+      "virksomhet.virksomhetsnummer",
+      "virksomhet.virksomhetsnavn",
+    ],
+  });
+  const {
+    adresse,
+    isLoading: adresseLoading,
+    error: adresseError,
+  } = useVirksomhetAdresse(virksomhetsnummer);
 
   useAttemptedSubmitRedirect(form, { fields: STEP2_FIELDS, onValidationFailed: bumpFocusKey });
 
-  const parsedStartdato = useMemo(() => parseIsoDate(startdato) ?? undefined, [startdato]);
-
-  const handleDateChange = useCallback(
-    (date?: Date) => {
-      if (syncingDateRef.current) {
-        syncingDateRef.current = false;
-        return;
-      }
-      setValue("behovForBistand.startdato", date ? formatDateToIso(date) : null, {
-        shouldDirty: true,
-        shouldValidate: Boolean(errors.behovForBistand?.startdato),
-      });
-    },
-    [errors.behovForBistand?.startdato, setValue]
-  );
-
-  const { datepickerProps, inputProps, setSelected, selectedDay } = useDatepicker({
-    defaultSelected: parsedStartdato,
-    defaultMonth: parsedStartdato ?? todayDate,
-    fromDate: todayDate,
-    onDateChange: handleDateChange,
-  });
-
-  useEffect(() => {
-    if (!parsedStartdato) {
-      if (selectedDay) {
-        syncingDateRef.current = true;
-        setSelected(undefined);
-      }
-      return;
-    }
-    const currentSelectedTime = selectedDay?.getTime();
-    if (currentSelectedTime === parsedStartdato.getTime()) {
-      return;
-    }
-    syncingDateRef.current = true;
-    setSelected(parsedStartdato);
-  }, [parsedStartdato, selectedDay, setSelected]);
-
-  const timerReg = register("behovForBistand.timer");
-  const kostnadReg = register("behovForBistand.estimertKostnad");
-
-  useEffect(() => {
-    if (!maksSats || satsLoading || satsError) return;
-    const belop = estimertKostnad ?? "";
-    if (!belop.trim()) {
-      if (errors.behovForBistand?.estimertKostnad?.type === "maksSats") {
-        clearErrors("behovForBistand.estimertKostnad");
-      }
-      return;
-    }
-    const feil = sjekkSoknadssumMotMaks(belop, maksSats.belop);
-    if (feil && errors.behovForBistand?.estimertKostnad?.message !== feil) {
-      setError("behovForBistand.estimertKostnad", { type: "maksSats", message: feil });
-    } else if (
-      !feil &&
-      ["maksSats", "server"].includes(errors.behovForBistand?.estimertKostnad?.type ?? "")
-    ) {
-      clearErrors("behovForBistand.estimertKostnad");
-    }
-  }, [
-    maksSats,
-    satsLoading,
-    satsError,
-    estimertKostnad,
-    setError,
-    clearErrors,
-    errors.behovForBistand?.estimertKostnad?.message,
-    errors.behovForBistand?.estimertKostnad?.type,
-  ]);
+  const handleStepOneLink = createLinkHandler(goToStep1);
+  const handleStepThreeLink = createLinkHandler(goToStep3);
+  const handleSummaryLink = createLinkHandler(goToSummary);
 
   const handleSubmitStep2 = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -138,30 +93,12 @@ export default function SkjemaSteg2Page() {
       bumpFocusKey();
       return;
     }
-    if (
-      !maksSats ||
-      satsLoading ||
-      satsError ||
-      getValues("behovForBistand.startdato") !== satsDato
-    ) {
-      bumpFocusKey();
-      return;
-    }
-    const feil = sjekkSoknadssumMotMaks(
-      getValues("behovForBistand.estimertKostnad"),
-      maksSats.belop
-    );
-    if (feil) {
-      setError("behovForBistand.estimertKostnad", { type: "maksSats", message: feil });
-      bumpFocusKey();
-      return;
-    }
-    goToSummary();
+    goToStep3();
   };
 
   return (
     <DecoratedPage>
-      <form onSubmit={handleSubmitStep2} autoComplete="off">
+      <form onSubmit={handleSubmitStep2} noValidate autoComplete="off">
         <VStack gap="space-32">
           <Heading level="1" size="xlarge">
             Søknadsskjema – ekspertbistand
@@ -174,104 +111,160 @@ export default function SkjemaSteg2Page() {
             <SkjemaFormProgress
               activeStep={2}
               onStep1={handleStepOneLink}
+              onStep3={handleStepThreeLink}
               onSummary={handleSummaryLink}
             />
           </VStack>
 
-          <Alert variant="warning">
-            <Heading size="xsmall" level="2" spacing>
-              Unngå sensitive personopplysninger
-            </Heading>
-            For eksempel arbeidstakerens diagnose eller sensitive opplysninger om arbeidstakerens
-            familie eller andre ansatte. Husk at den ansatte har innsynsrett i det du skriver i
-            søknaden.
-          </Alert>
-
-          <Heading level="2" size="large">
-            Behov for bistand
-          </Heading>
-          <Fieldset legend="Behov for bistand" hideLegend style={FORM_COLUMN_STYLE}>
-            <VStack gap="space-24">
-              <Textarea
-                id="behovForBistand.begrunnelse"
-                label="Beskriv den ansattes arbeidssituasjon"
-                description="F.eks stilling, arbeidsoppgaver og arbeidstid."
-                error={errors.behovForBistand?.begrunnelse?.message}
-                {...register("behovForBistand.begrunnelse")}
-                aria-invalid={errors.behovForBistand?.begrunnelse ? true : undefined}
-                style={FORM_COLUMN_STYLE}
-              />
-              <Textarea
-                id="behovForBistand.tilrettelegging"
-                label="Beskriv den ansattes sykefravær, og hvilken oppfølging og tilrettelegging dere allerede har tilbudt/prøvd ut?"
-                description="Si noe om omfang på sykefraværet og tilrettelegging som f.eks i arbeidsoppgaver, arbeidstid, opplæring, hjelpemiddler og ekstra oppfølging."
-                error={errors.behovForBistand?.tilrettelegging?.message}
-                {...register("behovForBistand.tilrettelegging")}
-                aria-invalid={errors.behovForBistand?.tilrettelegging ? true : undefined}
-                style={FORM_COLUMN_STYLE}
-              />
-              <Textarea
-                id="behovForBistand.behov"
-                label="Hva skal eksperten hjelpe dere med?"
-                description="F.eks. kartlegging, arbeidsplassvurdering. Tilskuddet gis ikke til behandling."
-                error={errors.behovForBistand?.behov?.message}
-                {...register("behovForBistand.behov")}
-                aria-invalid={errors.behovForBistand?.behov ? true : undefined}
-                style={FORM_COLUMN_STYLE}
-              />
-              <TextField
-                id="behovForBistand.timer"
-                label="Hvor mange timer skal eksperten hjelpe dere?"
-                inputMode="numeric"
-                error={errors.behovForBistand?.timer?.message}
-                {...timerReg}
-                aria-invalid={errors.behovForBistand?.timer ? true : undefined}
-                style={FORM_COLUMN_STYLE}
-              />
-              <TextField
-                id="behovForBistand.estimertKostnad"
-                label="Søknadssum"
-                inputMode="numeric"
-                description={
-                  maksSats
-                    ? `Maksgrensen er ${new Intl.NumberFormat("nb-NO").format(maksSats.belop)} kr. Kontakt Nav hvis du er usikker på hvor mye du skal søke om.`
-                    : satsLoading
-                      ? "Henter maksgrensen ..."
-                      : "Maksgrensen kan ikke vises før en gyldig startdato og sats er tilgjengelig."
-                }
-                error={errors.behovForBistand?.estimertKostnad?.message}
-                {...kostnadReg}
-                aria-invalid={errors.behovForBistand?.estimertKostnad ? true : undefined}
-                style={FORM_COLUMN_STYLE}
-              />
-              {satsError && (
-                <Alert variant="error">
-                  Kunne ikke hente maksgrensen for startdatoen. Prøv igjen før du fortsetter.
-                  <Button type="button" variant="secondary" onClick={() => void hentSats()}>
-                    Prøv igjen
-                  </Button>
-                </Alert>
-              )}
+          <Fieldset legend="Deltaker" style={FORM_COLUMN_STYLE}>
+            <VStack gap="space-16">
+              <TextField id="ansatt.fnr.laast" label="Fødselsnummer" value={fnr} readOnly />
+              <TextField id="ansatt.navn.laast" label="Navn" value={navn} readOnly />
               <div>
-                <Box style={FORM_COLUMN_STYLE}>
-                  <DatePicker {...datepickerProps}>
-                    <DatePicker.Input
-                      {...inputProps}
-                      id="behovForBistand.startdato"
-                      label="Startdato"
-                      description="Før dere begynner, må dere ha mottatt skriftlig svar om at søknaden er godkjent."
-                      error={errors.behovForBistand?.startdato?.message}
-                      onBlur={(e) => {
-                        inputProps.onBlur?.(e);
-                        if (errors.behovForBistand?.startdato) {
-                          void form.trigger("behovForBistand.startdato");
-                        }
-                      }}
-                    />
-                  </DatePicker>
-                </Box>
+                <TextField
+                  id="virksomhet.laast"
+                  label="Virksomheten som deltakeren er ansatt i"
+                  description={`Org.nr. ${virksomhetsnummer}`}
+                  value={virksomhetsnavn}
+                  readOnly
+                />
+                <VStack gap="space-8" style={{ marginBlockStart: "var(--ax-space-16)" }}>
+                  <Label>Beliggenhetsadresse (hentet fra brreg.no)</Label>
+                  {adresseLoading ? (
+                    <BodyShort size="small">
+                      <Loader size="small" title="Laster beliggenhetsadresse" aria-live="polite" />{" "}
+                      Laster beliggenhetsadresse ...
+                    </BodyShort>
+                  ) : null}
+                  {!adresseLoading && !adresseError ? (
+                    <BodyShort size="small">
+                      {adresse ?? "Fant ikke beliggenhetsadresse."}
+                    </BodyShort>
+                  ) : null}
+                  {adresseError ? (
+                    <ErrorMessage>Kunne ikke hente beliggenhetsadresse.</ErrorMessage>
+                  ) : null}
+                </VStack>
               </div>
             </VStack>
+          </Fieldset>
+
+          <Fieldset
+            legend="Kontaktperson i virksomheten"
+            description="Den som følger opp den ansatte under ekspertbistanden, vanligvis nærmeste leder."
+            style={FORM_COLUMN_STYLE}
+          >
+            <TextField
+              id="virksomhet.kontaktperson.navn"
+              label="Navn"
+              error={errors.virksomhet?.kontaktperson?.navn?.message}
+              {...register("virksomhet.kontaktperson.navn")}
+            />
+            <TextField
+              id="virksomhet.kontaktperson.epost"
+              label="E-post"
+              type="email"
+              error={errors.virksomhet?.kontaktperson?.epost?.message}
+              {...register("virksomhet.kontaktperson.epost")}
+            />
+            <TextField
+              id="virksomhet.kontaktperson.telefonnummer"
+              label="Telefonnummer"
+              inputMode="numeric"
+              htmlSize={8}
+              error={errors.virksomhet?.kontaktperson?.telefonnummer?.message}
+              {...register("virksomhet.kontaktperson.telefonnummer")}
+            />
+          </Fieldset>
+
+          <Fieldset
+            legend="Ekspert"
+            description="Må ha offentlig godkjent utdanning eller autorisasjon. Bedriftshelsetjenesten kan bare brukes som ekspert hvis hjelpen går utover det som vanligvis inngår i avtalen."
+            style={FORM_COLUMN_STYLE}
+          >
+            <VStack gap="space-16">
+              <TextField
+                id="ekspert.navn"
+                label="Navn"
+                description="Personen som skal utføre oppdraget."
+                error={errors.ekspert?.navn?.message}
+                {...register("ekspert.navn")}
+              />
+              <Controller
+                name="ekspert.virksomhet"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <EkspertVirksomhetVelger
+                    value={field.value ?? ""}
+                    onChange={(organisasjon) => {
+                      field.onChange(formaterVirksomhet(organisasjon?.navn, organisasjon?.orgnr));
+                      setValue("ekspert.virksomhetNavn", organisasjon?.navn ?? null, {
+                        shouldDirty: true,
+                      });
+                      setValue("ekspert.virksomhetOrgnr", organisasjon?.orgnr ?? null, {
+                        shouldDirty: true,
+                      });
+                    }}
+                    error={fieldState.error?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="ekspert.godkjentUtdanningEllerAutorisasjon"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <UNSAFE_Combobox
+                    id="ekspert.godkjentUtdanningEllerAutorisasjon"
+                    label="Offentlig godkjent utdanning eller autorisasjon"
+                    description={"Velg i listen eller skriv inn egen."}
+                    options={GODKJENT_UTDANNING_ALTERNATIVER}
+                    isMultiSelect
+                    allowNewValues
+                    selectedOptions={field.value}
+                    onToggleSelected={(option, isSelected) => {
+                      field.onChange(
+                        isSelected
+                          ? [...field.value, option]
+                          : field.value.filter((v) => v !== option)
+                      );
+                    }}
+                    error={fieldState.error?.message}
+                  />
+                )}
+              />
+              <Controller
+                name="ekspert.relevantKompetanse"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <UNSAFE_Combobox
+                    id="ekspert.relevantKompetanse"
+                    label="Relevant kompetanse for denne saken"
+                    description={"Velg i listen eller skriv inn egen."}
+                    options={RELEVANT_KOMPETANSE_ALTERNATIVER}
+                    isMultiSelect
+                    allowNewValues
+                    selectedOptions={field.value}
+                    onToggleSelected={(option, isSelected) => {
+                      field.onChange(
+                        isSelected
+                          ? [...field.value, option]
+                          : field.value.filter((v) => v !== option)
+                      );
+                    }}
+                    error={fieldState.error?.message}
+                  />
+                )}
+              />
+            </VStack>
+          </Fieldset>
+
+          <Fieldset legend="Nav" style={FORM_COLUMN_STYLE} hideLegend>
+            <TextField
+              id="nav.kontaktperson"
+              label="Hvem i Nav har du drøftet behovet om ekspertbistand i denne saken med?"
+              error={errors.nav?.kontaktperson?.message}
+              {...register("nav.kontaktperson")}
+            />
           </Fieldset>
 
           <FormErrorSummary

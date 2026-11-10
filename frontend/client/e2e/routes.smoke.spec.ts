@@ -34,6 +34,15 @@ test("smoke: skjema steg-2 route", async ({ page }) => {
   const draftId = await createDraftId(page);
 
   await page.goto(`/skjema/${draftId}/steg-2`);
+  await expect(page.getByRole("group", { name: "Kontaktperson i virksomheten" })).toBeVisible();
+});
+
+test("smoke: skjema steg-3 route", async ({ page }) => {
+  await page.goto("/");
+  await ensureMockServiceWorkerReady(page);
+  const draftId = await createDraftId(page);
+
+  await page.goto(`/skjema/${draftId}/steg-3`);
   await expect(page.getByRole("heading", { name: "Behov for bistand" })).toBeVisible();
 });
 

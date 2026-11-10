@@ -54,14 +54,28 @@ const oppgavetypeTekst: Record<Oppgavetype, string> = {
   SOKNAD: "Søknad",
   SOKNAD_RETUR: "Søknad - retur",
   SOKNAD_BESLUTTER: "Søknad - beslutter",
+  REFUSJON: "Refusjon",
+  SLUTTRAPPORT: "Sluttrapport",
+};
+
+const oppgavemerke: Record<
+  Oppgavetype,
+  { tekst: string; farge: "warning" | "meta-purple" | "meta-lime" }
+> = {
+  SOKNAD: { tekst: "SØ", farge: "warning" },
+  SOKNAD_RETUR: { tekst: "SØ", farge: "warning" },
+  SOKNAD_BESLUTTER: { tekst: "SØ", farge: "warning" },
+  REFUSJON: { tekst: "R", farge: "meta-purple" },
+  SLUTTRAPPORT: { tekst: "SR", farge: "meta-lime" },
 };
 
 function OppgavetypeCelle({ sak }: { sak: SakListeElement }) {
   if (!sak.oppgavetype) return saksstatusTekst[sak.status];
+  const merke = oppgavemerke[sak.oppgavetype];
   return (
     <HStack gap="space-8" align="center" wrap={false}>
-      <Tag size="xsmall" variant="outline" data-color="warning" aria-hidden>
-        SØ
+      <Tag size="xsmall" variant="outline" data-color={merke.farge} aria-hidden>
+        {merke.tekst}
       </Tag>
       {oppgavetypeTekst[sak.oppgavetype]}
     </HStack>
@@ -125,12 +139,21 @@ function erAvsluttet(sak: SakListeElement) {
   return ferdigeSaksstatuser.includes(sak.status);
 }
 
+const sakLenke = (sak: Pick<SakListeElement, "sakId" | "oppgavetype">) => {
+  const sti = `${OVERSIKT_PATH}/${sak.sakId}`;
+  if (sak.oppgavetype === "REFUSJON") return `${sti}?fane=refusjon`;
+  if (sak.oppgavetype === "SLUTTRAPPORT") return `${sti}?fane=sluttrapport`;
+  return sti;
+};
+
 function TildelMegKnapp({
   sakId,
+  lenke,
   rolle,
   onError,
 }: {
   sakId: string;
+  lenke: string;
   rolle: Tildelingsrolle;
   onError: (e: Error) => void;
 }) {
@@ -144,7 +167,7 @@ function TildelMegKnapp({
       loading={isSaving}
       onClick={async (e) => {
         e.stopPropagation();
-        if (await tildelMeg()) navigate(`${OVERSIKT_PATH}/${sakId}`);
+        if (await tildelMeg()) navigate(lenke);
       }}
     >
       Tildel meg
@@ -283,21 +306,22 @@ export default function OversiktPage() {
                         <Table.ColumnHeader>Deltaker</Table.ColumnHeader>
                         <Table.ColumnHeader>Kommune</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Tiltaksperiode</Table.ColumnHeader>
-                        <Table.ColumnHeader sortable>Søknad mottatt</Table.ColumnHeader>
+                        <Table.ColumnHeader sortable>Mottatt</Table.ColumnHeader>
                         <Table.ColumnHeader>Handlinger</Table.ColumnHeader>
                       </Table.Row>
                     </Table.Header>
                     <Table.Body>
                       {filter().map((sak) => (
                         <Table.Row
-                          key={sak.sakId}
+                          key={`${sak.sakId}-${sak.oppgavetype ?? "status"}`}
                           style={{ cursor: "pointer" }}
-                          onClick={() => navigate(`${OVERSIKT_PATH}/${sak.sakId}`)}
+                          onClick={() => navigate(sakLenke(sak))}
                         >
                           <Table.DataCell>
                             {kanTildeleMegSomSaksbehandler(sak) ? (
                               <TildelMegKnapp
                                 sakId={sak.sakId}
+                                lenke={sakLenke(sak)}
                                 rolle="saksbehandler"
                                 onError={setTildelingsfeil}
                               />
@@ -309,6 +333,7 @@ export default function OversiktPage() {
                             {sak.kanTildeleMegSomBeslutter ? (
                               <TildelMegKnapp
                                 sakId={sak.sakId}
+                                lenke={sakLenke(sak)}
                                 rolle="beslutter"
                                 onError={setTildelingsfeil}
                               />
@@ -329,9 +354,7 @@ export default function OversiktPage() {
                           <Table.DataCell style={{ whiteSpace: "nowrap" }}>
                             {tiltaksperiode(sak)}
                           </Table.DataCell>
-                          <Table.DataCell>
-                            {formatDate(sak.soknad.innsendtTidspunkt)}
-                          </Table.DataCell>
+                          <Table.DataCell>{formatDate(sak.mottatt)}</Table.DataCell>
                           <Table.DataCell>
                             <ActionMenu>
                               <ActionMenu.Trigger>
