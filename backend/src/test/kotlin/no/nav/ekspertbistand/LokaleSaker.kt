@@ -541,7 +541,11 @@ private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
         tiltaksperiodeFra = idag.takeIf { innvilget },
         tiltaksperiodeTil = LocalDate(idag.year, 12, 31).takeIf { innvilget },
         begrunnelseDeltaker = if (innvilget) "Vilkårene er oppfylt" else "Arbeidsgiver har ikke prøvd tilrettelegging",
-        begrunnelseArbeidsgiver = if (innvilget) null else "Prøv tilrettelegging først, og søk på nytt om behovet består",
+        begrunnelseArbeidsgiver = when (forslag) {
+            ForelopigUtfall.INNVILGE -> null
+            ForelopigUtfall.INNVILGE_REDUSERT -> "Vi dekker halvparten av timene, som er nok til å kartlegge behovet"
+            ForelopigUtfall.AVSLAA -> "Prøv tilrettelegging først, og søk på nytt om behovet består"
+        },
         innstiltAvIdent = saksbehandler.navIdent,
         tidspunkt = neste(),
     )
