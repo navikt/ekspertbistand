@@ -1,5 +1,9 @@
 package no.nav.ekspertbistand.refusjon
 
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.domain.VedleggDomain
+import no.nav.ekspertbistand.event.publishEventQueue
+import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.vedlegg.VedleggTable
 import no.nav.ekspertbistand.vedlegg.VedleggType
 import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
@@ -17,7 +21,7 @@ import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -43,6 +47,8 @@ class RefusjonDb(private val database: Database) {
 
     fun lagreRefusjonskrav(
         soknadId: UUID,
+        virksomhetsnummer: String,
+        innsendtAv: String,
         belopOre: Long,
         filer: List<RefusjonsfilInput>,
     ): UUID = transaction(database) {
@@ -55,23 +61,15 @@ class RefusjonDb(private val database: Database) {
         if (belopOre > maksBelopKroner.toLong() * 100) {
             throw BelopOverInnvilgetException(maksBelopKroner)
         }
-        val refusjonskravId = RefusjonskravTable.insertReturning {
-            it[RefusjonskravTable.sakId] = sakId
-            it[RefusjonskravTable.belopOre] = belopOre
-            it[status] = "MOTTATT"
-        }.single()[RefusjonskravTable.id].value
-
-        filer.forEach { fil ->
-            VedleggTable.insert {
-                it[type] = VedleggType.REFUSJONSDOKUMENTASJON.name
-                it[filnavn] = fil.filnavn
-                it[innhold] = fil.innhold
-                it[storrelse] = fil.innhold.size
-                it[VedleggTable.refusjonskravId] = refusjonskravId
-            }
-        }
-
-        refusjonskravId
+        registrerRefusjonskrav(
+            sakId,
+            soknadId,
+            virksomhetsnummer,
+            innsendtAv,
+            belopOre,
+            maksBelopKroner,
+            filer,
+        )
     }
 
     /**
@@ -210,6 +208,67 @@ class RefusjonDb(private val database: Database) {
                 innhold = vedlegg[VedleggTable.innhold],
             )
         }
+}
+
+@OptIn(kotlin.time.ExperimentalTime::class)
+internal fun JdbcTransaction.registrerRefusjonskrav(
+    sakId: UUID,
+    soknadId: UUID,
+    virksomhetsnummer: String,
+    innsendtAv: String,
+    belopOre: Long,
+    innvilgetBelopKroner: Int,
+    filer: List<RefusjonsfilInput>,
+): UUID {
+    val refusjonskrav = RefusjonskravTable.insertReturning(
+        listOf(RefusjonskravTable.id, RefusjonskravTable.opprettet)
+    ) {
+        it[RefusjonskravTable.sakId] = sakId
+        it[RefusjonskravTable.belopOre] = belopOre
+        it[status] = "MOTTATT"
+    }.single()
+    val refusjonskravId = refusjonskrav[RefusjonskravTable.id].value
+    val opprettet = refusjonskrav[RefusjonskravTable.opprettet]
+
+    val vedlegg = filer.map { fil ->
+        val rad = VedleggTable.insertReturning(listOf(VedleggTable.id)) {
+            it[type] = VedleggType.REFUSJONSDOKUMENTASJON.name
+            it[filnavn] = fil.filnavn
+            it[innhold] = fil.innhold
+            it[storrelse] = fil.innhold.size
+            it[VedleggTable.refusjonskravId] = refusjonskravId
+        }.single()
+        VedleggDomain(
+            vedleggId = rad[VedleggTable.id].value.toString(),
+            filnavn = fil.filnavn,
+            storrelse = fil.innhold.size,
+        )
+    }
+
+    publishEventQueue(
+        EventData.RefusjonskravMottatt(
+            refusjonskravId = refusjonskravId.toString(),
+            sakId = sakId.toString(),
+            soknadId = soknadId.toString(),
+            virksomhetsnummer = virksomhetsnummer,
+            innsendtAv = innsendtAv,
+            belopOre = belopOre,
+            innvilgetBelopKroner = innvilgetBelopKroner,
+            vedlegg = vedlegg,
+            tidspunkt = opprettet,
+        )
+    )
+    publishEventQueue(
+        EventData.SakOppdatert(
+            sakId = sakId.toString(),
+            soknadId = soknadId.toString(),
+            utfortAvRolle = AktorRolle.SYSTEM,
+            utfortAvIdent = null,
+            notat = "Refusjonskrav mottatt fra arbeidsgiver",
+            tidspunkt = opprettet,
+        )
+    )
+    return refusjonskravId
 }
 
 data class RefusjonskravStatus(

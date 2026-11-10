@@ -23,19 +23,23 @@ flowchart TD
     s_ArenaTiltakssakEndretProcessor[/"ArenaTiltakssakEndretProcessor"/]:::source
     s_BeslutterApi[/"BeslutterApi"/]:::source
     s_ForelopigVedtakApi[/"ForelopigVedtakApi"/]:::source
+    s_RefusjonDb[/"RefusjonDb"/]:::source
     s_SakApi[/"SakApi"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
+    s_VedleggDb[/"VedleggDb"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
     e_ForelopigVedtakReturnert(["ForelopigVedtakReturnert"]):::event
     e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
+    e_RefusjonskravMottatt(["RefusjonskravMottatt"]):::orphan
     e_SakFrigjort(["SakFrigjort"]):::event
     e_SakOppdatert(["SakOppdatert"]):::event
     e_SakOpprettet(["SakOpprettet"]):::event
     e_SakTildeltBeslutter(["SakTildeltBeslutter"]):::event
     e_SakTildeltSaksbehandler(["SakTildeltSaksbehandler"]):::event
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
+    e_SluttrapportMottatt(["SluttrapportMottatt"]):::orphan
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
     e_TilsagnsdataLagret(["TilsagnsdataLagret"]):::event
@@ -97,6 +101,8 @@ flowchart TD
     h_OpprettSak --> e_SakOppdatert
     h_OpprettSak --> e_SakOpprettet
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
+    s_RefusjonDb --> e_RefusjonskravMottatt
+    s_RefusjonDb --> e_SakOppdatert
     h_ReturnerForelopigVedtak --> e_SakOppdatert
     s_SakApi --> e_SakFrigjort
     s_SakApi --> e_SakTildeltBeslutter
@@ -105,6 +111,8 @@ flowchart TD
     h_TildelBeslutter --> e_SakOppdatert
     h_TildelSaksbehandler --> e_SakOppdatert
     s_TilsagnDataApi --> e_TilskuddsbrevVist
+    s_VedleggDb --> e_SakOppdatert
+    s_VedleggDb --> e_SluttrapportMottatt
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
     e_VedtakFattet --> h_BestillTilsagnIOebs
     e_VedtakFattet --> h_FattVedtak
@@ -158,3 +166,8 @@ flowchart TD
     e_TilskuddsbrevVist -.-> p_TilskuddsbrevVistProjection
     linkStyle default stroke:#555,stroke-width:2px
 ```
+
+Events markert i rødt mangler enten publiserer eller konsument:
+
+- `RefusjonskravMottatt` – mangler konsument
+- `SluttrapportMottatt` – mangler konsument

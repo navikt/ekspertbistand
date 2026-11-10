@@ -9,6 +9,7 @@ import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.event.domain.VedleggDomain
 import no.nav.ekspertbistand.event.handlers.*
 import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
 import kotlinx.datetime.LocalDate
@@ -351,6 +352,57 @@ sealed interface EventData {
             }
         }
 
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver har sendt inn et refusjonskrav.
+     *
+     * Publiseres av [no.nav.ekspertbistand.refusjon.RefusjonDb.registrerRefusjonskrav] i samme
+     * transaksjon som lagringen. Det finnes ingen konsument ennå; event_log er masterdata.
+     * [innsendtAv] er fødselsnummer og skal aldri logges. Filinnholdet ligger i vedlegg-tabellen.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("refusjonskravMottatt")
+    data class RefusjonskravMottatt(
+        val refusjonskravId: String,
+        val sakId: String,
+        val soknadId: String,
+        val virksomhetsnummer: String,
+        val innsendtAv: String,
+        val belopOre: Long,
+        val innvilgetBelopKroner: Int,
+        val vedlegg: List<VedleggDomain>,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver har sendt inn en sluttrapport. En sak kan få flere sluttrapporter, og hver
+     * innsending gir én event.
+     *
+     * Publiseres av [no.nav.ekspertbistand.vedlegg.VedleggDb.registrerSluttrapport] i samme
+     * transaksjon som lagringen. Det finnes ingen konsument ennå; event_log er masterdata.
+     * [innsendtAv] er fødselsnummer og skal aldri logges. Filinnholdet ligger i vedlegg-tabellen.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("sluttrapportMottatt")
+    data class SluttrapportMottatt(
+        val sluttrapportId: String,
+        val sakId: String,
+        val soknadId: String,
+        val virksomhetsnummer: String,
+        val innsendtAv: String,
+        val vedlegg: VedleggDomain,
+        val tidspunkt: Instant,
+    ) : EventData {
         override val aggregateRootId: String get() = soknadId
     }
 

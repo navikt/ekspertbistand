@@ -14,7 +14,8 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.logger
-import no.nav.ekspertbistand.refusjon.RefusjonskravTable
+import no.nav.ekspertbistand.refusjon.RefusjonsfilInput
+import no.nav.ekspertbistand.refusjon.registrerRefusjonskrav
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Vilkar
@@ -25,13 +26,10 @@ import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.tilSoknadDTO
 import no.nav.ekspertbistand.mocks.enkelPdf
-import no.nav.ekspertbistand.vedlegg.SluttrapportTable
-import no.nav.ekspertbistand.vedlegg.VedleggTable
-import no.nav.ekspertbistand.vedlegg.VedleggType
+import no.nav.ekspertbistand.vedlegg.registrerSluttrapport
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
@@ -363,49 +361,56 @@ internal fun CoroutineScope.behandleLokaleSaker(database: Database) = launch {
             behandlingseventer(sak, sakId.toString()).forEach { publishEventQueue(it) }
             arenaeventer(sak).forEach { publishEventQueue(it) }
             if (sak.medInnsendinger) {
-                lagreLokaleInnsendinger(sakId, belopOre = sak.estimertKostnad.toLong() * 100)
+                lagreLokaleInnsendinger(
+                    sakId = sakId,
+                    soknadId = sak.soknadId,
+                    belopOre = sak.estimertKostnad.toLong() * 100,
+                    innvilgetBelopKroner = sak.estimertKostnad,
+                )
             }
         }
     }
 }
 
-/** Som en ekte innsending: hver rad får en PDF i `vedlegg`, ellers finner saksbehandler ingenting å vise. */
-private fun lagreLokaleInnsendinger(sakId: UUID, belopOre: Long) {
-    val refusjonskravId = RefusjonskravTable.insertReturning {
-        it[RefusjonskravTable.sakId] = sakId
-        it[RefusjonskravTable.belopOre] = belopOre
-        it[RefusjonskravTable.status] = "MOTTATT"
-    }.single()[RefusjonskravTable.id].value
-    lagreLokaltVedlegg(
-        VedleggType.REFUSJONSDOKUMENTASJON, "kvittering-ekspert.pdf",
-        refusjonskravId = refusjonskravId, sluttrapportId = null,
-    )
-
-    val sluttrapportId = SluttrapportTable.insertReturning {
-        it[SluttrapportTable.sakId] = sakId
-        it[SluttrapportTable.status] = "MOTTATT"
-    }.single()[SluttrapportTable.id]
-    lagreLokaltVedlegg(
-        VedleggType.SLUTTRAPPORT, "sluttrapport.pdf",
-        refusjonskravId = null, sluttrapportId = sluttrapportId,
-    )
-}
-
-private fun lagreLokaltVedlegg(
-    type: VedleggType,
-    filnavn: String,
-    refusjonskravId: UUID?,
-    sluttrapportId: UUID?,
+/**
+ * Som en ekte innsending: bruker de samme transaksjonshjelperne som API-et, slik at lokale data også får
+ * hendelser og sakslogg.
+ */
+private fun JdbcTransaction.lagreLokaleInnsendinger(
+    sakId: UUID,
+    soknadId: UUID,
+    belopOre: Long,
+    innvilgetBelopKroner: Int,
 ) {
-    val innhold = enkelPdf("Lokalt testvedlegg: $filnavn")
-    VedleggTable.insert {
-        it[VedleggTable.type] = type.name
-        it[VedleggTable.filnavn] = filnavn
-        it[VedleggTable.innhold] = innhold
-        it[VedleggTable.storrelse] = innhold.size
-        it[VedleggTable.refusjonskravId] = refusjonskravId
-        it[VedleggTable.sluttrapportId] = sluttrapportId
+    val soknad = checkNotNull(findSoknadById(soknadId, filterForArbeidsgiver = false)) {
+        "Fant ikke søknad for lokal innsending"
     }
+    val innsendtAv = checkNotNull(soknad.opprettetAv) { "Søknaden mangler opprettetAv" }
+    val virksomhetsnummer = soknad.virksomhet.virksomhetsnummer
+
+    registrerRefusjonskrav(
+        sakId = sakId,
+        soknadId = soknadId,
+        virksomhetsnummer = virksomhetsnummer,
+        innsendtAv = innsendtAv,
+        belopOre = belopOre,
+        innvilgetBelopKroner = innvilgetBelopKroner,
+        filer = listOf(
+            RefusjonsfilInput(
+                filnavn = "kvittering-ekspert.pdf",
+                innhold = enkelPdf("Lokalt testvedlegg: kvittering-ekspert.pdf"),
+            )
+        ),
+    )
+
+    registrerSluttrapport(
+        sakId = sakId,
+        soknadId = soknadId,
+        virksomhetsnummer = virksomhetsnummer,
+        innsendtAv = innsendtAv,
+        filnavn = "sluttrapport.pdf",
+        innhold = enkelPdf("Lokalt testvedlegg: sluttrapport.pdf"),
+    )
 }
 
 private fun arenaeventer(sak: LokalSak): List<EventData> {

@@ -14,6 +14,7 @@ import no.nav.ekspertbistand.saksbehandling.SoknadIkkeFunnetException
 import no.nav.ekspertbistand.saksbehandling.SoknadIkkeGodkjentException
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.findSoknadById
+import no.nav.ekspertbistand.soknad.innloggetBruker
 import no.nav.ekspertbistand.soknad.subjectToken
 import no.nav.ekspertbistand.vedlegg.Opplasting
 import no.nav.ekspertbistand.vedlegg.erGyldigPdf
@@ -159,6 +160,8 @@ class RefusjonApi(
         try {
             refusjonDb.lagreRefusjonskrav(
                 soknadId = soknadId,
+                virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
+                innsendtAv = innloggetBruker,
                 belopOre = belopOre,
                 filer = filer.map { RefusjonsfilInput(it.filnavn, it.innhold) },
             )
