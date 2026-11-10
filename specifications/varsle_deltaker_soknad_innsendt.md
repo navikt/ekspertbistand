@@ -38,14 +38,12 @@ søknaden.
 | Anders, 2026-11-10 | Distribusjonstypen for kopien er `ANNET`. |
 | Anders, 2026-11-10 | `bestillendeFagsystem` og `dokumentProdApp` er fortsatt `EKSPERTBISTAND`. |
 | Anders, 2026-11-10 | Tekstendringene tas både i v1 (`pages/`) og v2 (`v2/pages/`) av skjemaet. |
-| Anders, 2026-11-10 | Ekspertbistand har ennå ikke tilgang til dokdistfordeling i prod. Handleren registreres bare i dev og lokalt. Prod slås på senere. |
+| Anders, 2026-11-10 | Ekspertbistand har tilgang til dokdistfordeling i både dev og prod. Handleren registreres i alle miljøer, uten feature toggle. |
 | Anders, 2026-11-10 | Vi sender ikke navn på mottakeren. Dokdist krever `avsenderMottaker.navn` ([`JournalpostValidator`](https://github.com/navikt/dokdistfordeling/blob/master/rdist002/src/main/java/no/nav/dokdistfordeling/validate/JournalpostValidator.java#L46)), men dokarkiv henter navnet fra PDL når `idType` er `FNR` ([`AvsenderMottaker`](https://github.com/navikt/dokarkiv/blob/master/journalpost/src/main/java/no/nav/dokarkiv/journalpost/v1/api/AvsenderMottaker.java)). |
 
 ## Avgrensning
 
 - Varsel ved vedtak (kort 599, punkt 2). Det kommer når ny saksbehandling er live.
-- Å slå på distribusjon i prod. Det krever tilgang fra Team Dokumentløsninger
-  (`ENTRA_ID_PREAUTH` i dokdistfordeling).
 - Nytt varsel når brevet ikke er åpnet. Se åpne spørsmål.
 - Søknader som er sendt inn før dette. Vi distribuerer ikke bakover i tid.
 
@@ -59,8 +57,8 @@ må kontrolleres manuelt i review.
 - `Application.kt`: `provide(DokDistClient::class)`.
 - `LocalApplication`: en `DokDistClient` med `MockEngine` som svarer
   `{"bestillingsId": "..."}`, som for `DokArkivClient`.
-- `nais/dev-gcp-backend.yaml`: utgående til `dokdistfordeling.dev-fss-pub.nais.io`.
-  Prod får ikke utgående trafikk før distribusjon slås på der.
+- `nais/dev-gcp-backend.yaml` og `nais/prod-gcp-backend.yaml`: utgående til
+  `dokdistfordeling.{dev,prod}-fss-pub.nais.io`.
 
 ### 2. Ny handler `DistribuerSoknadKopiDeltaker`
 
@@ -91,9 +89,7 @@ Ingen handler lytter på den. Den vises derfor rødt i `event-flow.md`, slik
 - 409 fra dokdist håndteres av `DokDistClient` og gir suksess med bestillingsId
   fra svaret.
 - Andre feil fra dokdist gir transient feil og nytt forsøk.
-- I `Events.kt` registreres handleren i `basedOnEnvSuspending(other = { ... })`.
-  Den kjører da i dev og lokalt, men ikke i prod. En kommentar sier at den flyttes
-  ut når tilgangen i prod er på plass.
+- I `Events.kt` registreres handleren i alle miljøer.
 
 ### 3. Tekst i søknadsskjemaet
 
@@ -138,8 +134,7 @@ sjekklisten.
 ## Kanttilfeller og feilmodus
 
 - **Ingen tilgang til dokdist.** Dokdist svarer 401 eller 403. Handleren gir
-  transient feil og prøver på nytt. Derfor kjører den ikke i prod før tilgangen er
-  på plass.
+  transient feil og prøver på nytt.
 - **Nytt forsøk etter at dokdist har tatt imot bestillingen.** Dokdist svarer 409
   med bestillingsId. Det regnes som suksess, og deltakeren får ikke brevet to ganger.
 - **Deltakeren er død eller har ukjent adresse.** Dokdist svarer 410 Gone eller
@@ -148,32 +143,21 @@ sjekklisten.
   håndterer adressebeskyttelse. Vi sender ingen adresse.
 - **Deltakeren har reservert seg mot digital kommunikasjon.** Dokdist sender
   papirbrev (sjekklisten på kort 599).
-- **Prod.** `SoknadKopiDeltakerJournalfoert` publiseres i prod uten at noen
-  distribuerer. Når handleren slås på i prod, plukker den bare opp nye events.
-  Journalposter fra før det må distribueres manuelt, eller det må avklares at
-  de ikke skal sendes.
-- **Tekst før varsel.** Skjemaet lover kopi også i prod, før distribusjonen er
-  slått på der. Kopien journalføres likevel og vises under «Dine saker» på
-  nav.no, men deltakeren får ikke varsel.
+- **Journalføring og distribusjon går i prod sammen.** Kort 676 og 675 ligger
+  på samme branch, så ingen kopier blir journalført i prod uten å bli
+  distribuert. Teksten i skjemaet går ut samtidig med varselet, slik Ken ba om.
 
 ## Åpne spørsmål
 
 1. **Nytt varsel når brevet ikke er åpnet.** Etterlevelse krever nytt varsel
    (kort 599). Dekker dokdist det for `ANNET`? Avklares med Team
    Dokumentløsninger.
-2. **Tekst i prod før distribusjonen.** Skal tekstendringene vente til
-   distribusjonen er slått på i prod (Ken: teksten må i prod samtidig med
-   varselet)? Eller er det greit at de går ut nå, siden kopien journalføres og
-   vises på nav.no?
-3. **Journalposter fra før distribusjonen i prod er på.** Skal de distribueres
-   i etterkant?
 
 ## Ferdig når
 
-- [ ] `DokDistClient` er koblet inn i appen, lokalt og i dev
+- [ ] `DokDistClient` er koblet inn i appen, lokalt, i dev og i prod
 - [ ] `DistribuerSoknadKopiDeltaker` distribuerer med `ANNET` og `KJERNETID`, og publiserer `SoknadKopiDeltakerDistribuert` med bestillingsId
 - [ ] Handleren er idempotent og tåler 409 fra dokdist
-- [ ] Handleren kjører i dev og lokalt, ikke i prod
 - [ ] Tekstendringene fra sjekklisten er gjort i v1 og v2 av skjemaet
 - [ ] `event-flow.md` er oppdatert
 - [ ] Backend- og frontend-testene er grønne
