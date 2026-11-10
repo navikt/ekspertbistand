@@ -1106,6 +1106,31 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
+    fun `liste viser ikke søknadens beslutter på rader for innsendinger`() = testApplicationWithDatabase { db ->
+        val medInnsending = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+            beslutterIdent = "Z888888",
+        )
+        lagreRefusjonskrav(db, medInnsending, opprettet = Instant.parse("2026-11-08T10:00:00Z"))
+        lagreSluttrapport(db, medInnsending, opprettet = Instant.parse("2026-11-09T10:00:00Z"))
+        val utenInnsending = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+            beslutterIdent = "Z888888",
+        )
+        val oppsett = oppsett(db)
+
+        val rader = oppsett.hentListe()
+
+        val innsendingsrader = rader.filter { it.sakId == medInnsending.toString() }
+        assertEquals(2, innsendingsrader.size)
+        innsendingsrader.forEach {
+            assertNull(it.beslutterIdent)
+            assertNull(it.beslutterNavn)
+        }
+        assertEquals("Z888888", rader.single { it.sakId == utenInnsending.toString() }.beslutterIdent)
+    }
+
+    @Test
     fun `liste viser ikke innsending som ikke er mottatt`() = testApplicationWithDatabase { db ->
         val sakId = lagreSak(
             db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,

@@ -800,6 +800,8 @@ const tilListeElement = (
     innsendingsoppgave?.oppgavetype ?? oppgavetype(sak.status, returStore.has(sak.sakId));
   return {
     ...sak,
+    // Speiler backend: søknadens beslutter vises ikke på rader for innsendinger.
+    ...(innsendingsoppgave ? { beslutterIdent: null, beslutterNavn: null } : {}),
     mottatt: innsendingsoppgave?.mottatt ?? soknad.innsendtTidspunkt,
     kommunenummer,
     kommunenavn: kommunenummer ? (mockKommunenavn[kommunenummer] ?? null) : null,

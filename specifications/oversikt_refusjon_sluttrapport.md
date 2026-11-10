@@ -115,6 +115,10 @@ fun oppgaver(
 - Nytt felt `mottatt`: innsendingens `opprettet`, ellers søknadens
   `opprettetTidspunkt`. Listen sorteres på `mottatt` synkende.
 - Ruten sender hvert fødselsnummer bare én gang til Tilgangsmaskinen.
+- Rader for refusjon og sluttrapport får `beslutterIdent` og `beslutterNavn`
+  lik null. Beslutteren på saken er søknadens, og innsendingene har ingen
+  beslutter før «Refusjon - beslutter». Da tar heller ikke «Mine saker» med
+  radene for søknadens beslutter.
 
 ### 3. Backend: tildeling
 
@@ -163,8 +167,8 @@ ingen visning trenger den.
 ### 6. Testdata
 
 `LokaleSaker.kt` får én innvilget sak fra ny løsning med refusjonskrav og
-sluttrapport, satt inn direkte i tabellene som opplastingen gjør. Saken får ingen
-Arena-hendelser.
+sluttrapport, satt inn direkte i tabellene som opplastingen gjør. Hver innsending
+får et PDF-vedlegg, som ved ekte innsending. Saken får ingen Arena-hendelser.
 
 ## Tester
 
@@ -179,6 +183,7 @@ Arena-hendelser.
     samme sak.
   - En Arena-sak med innsending gir ingen ny rad.
   - `mottatt` og sorteringen følger innsendingen.
+  - Rader for innsendinger har ingen beslutter. Rader for søknaden beholder den.
   - Tilgangsmaskinen får hvert fødselsnummer én gang.
   - `POST …/tildeling` på en innvilget sak med innsending gir 202, uten
     innsending 409.

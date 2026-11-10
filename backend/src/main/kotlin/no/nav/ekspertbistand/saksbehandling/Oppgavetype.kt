@@ -29,6 +29,16 @@ val Oppgavetype.rolle: Role
     }
 
 /**
+ * Om oppgaven gjelder søknaden. Bare søknaden har beslutter så langt, så listen viser beslutteren
+ * bare på disse radene. Refusjon og sluttrapport får beslutter med «Refusjon - beslutter».
+ */
+val Oppgavetype.gjelderSoknad: Boolean
+    get() = when (this) {
+        Oppgavetype.SOKNAD, Oppgavetype.SOKNAD_RETUR, Oppgavetype.SOKNAD_BESLUTTER -> true
+        Oppgavetype.REFUSJON, Oppgavetype.SLUTTRAPPORT -> false
+    }
+
+/**
  * Null betyr at saken ikke har noen oppgave. [harRetur] er om saken har en rad i `sak_retur`.
  * En sak er bare `UNDER_BEHANDLING` med retur etter at beslutter har sendt den tilbake.
  */

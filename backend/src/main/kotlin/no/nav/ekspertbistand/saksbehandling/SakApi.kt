@@ -378,6 +378,8 @@ internal fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAd
             .ifEmpty { listOf(null) }
         oppgaver.map { oppgave ->
             val mottatt = oppgave?.mottatt ?: soknadMottatt
+            // Beslutteren på saken er søknadens. Rader for refusjon og sluttrapport har ingen beslutter ennå.
+            val radensBeslutterIdent = beslutterIdent.takeIf { oppgave?.type?.gjelderSoknad ?: true }
             mottatt to SakListeRad(ansattFnr = row[SoknadTable.ansattFnr], sak = SakListeElement(
                 sakId = row[SakTable.sakId].toString(),
                 status = status,
@@ -385,8 +387,8 @@ internal fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAd
                 behandlendeEnhet = row[SakTable.behandlendeEnhet],
                 saksbehandlerIdent = saksbehandlerIdent,
                 saksbehandlerNavn = row[SakTable.saksbehandlerNavn],
-                beslutterIdent = beslutterIdent,
-                beslutterNavn = row[SakTable.beslutterNavn],
+                beslutterIdent = radensBeslutterIdent,
+                beslutterNavn = row[SakTable.beslutterNavn].takeIf { radensBeslutterIdent != null },
                 arenaSakId = row[SakTable.arenaSakId],
                 oppgavetype = oppgave?.type,
                 harOppgaveForMeg = harOppgaveFor(oppgave?.type, principal),
