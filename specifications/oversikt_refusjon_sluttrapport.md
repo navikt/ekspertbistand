@@ -29,7 +29,8 @@ Oversikten bygges uten nye hendelser. Oppgavene utledes av tabellene
 - `sluttrapport` har `sak_id` (obligatorisk fra V34), `status` (standard
   `MOTTATT`) og `opprettet`. En sak kan ha flere sluttrapporter.
   Saksdetaljen viser den nyeste.
-- Innsendingene publiserer ingen hendelse og endrer ikke saksstatusen.
+- Innsendingene endrer ikke saksstatusen. Hendelsene for dem er beskrevet i
+  `hendelser_refusjon_sluttrapport.md`.
 - `tildelingHindring` avviser innvilgede saker, fordi de ikke har noen oppgave
   for saksbehandler (`tildeling_detaljvisning.md`, Ken 2026-10-13).
 - Tildelingen ligger på saken (`sak.saksbehandler_ident`). Saksbehandleren fra
@@ -62,7 +63,8 @@ Valg i spesifikasjonen:
 
 ## Avgrensning
 
-- Hendelser for innsendt refusjonskrav og sluttrapport. Det er neste kort.
+- Hendelser for innsendt refusjonskrav og sluttrapport. Se
+  `hendelser_refusjon_sluttrapport.md`.
 - Avslutning av oppgavene og behandling av refusjonskravet.
 - «Refusjon - beslutter».
 - Sortering på kolonnene i frontend. API-et sorterer.
