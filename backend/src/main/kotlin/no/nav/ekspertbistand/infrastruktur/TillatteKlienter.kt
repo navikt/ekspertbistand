@@ -34,7 +34,18 @@ data class TillatteKlienter(
          * `accessPolicy.inbound`. En app som ikke står i inbound, får dermed ingen UUID og blir avvist.
          */
         fun fra(cluster: String?, preAuthorizedAppsJson: String?): TillatteKlienter {
-            val appnavn = when (cluster) {
+            val appnavn = appnavnFor(cluster)
+            val azureAdApper = lesPreAuthorizedApps(preAuthorizedAppsJson).filter { it.name in appnavn.azureAd }
+            loggTillatteKlienter(appnavn, azureAdApper)
+
+            return TillatteKlienter(
+                tokenX = appnavn.tokenX,
+                azureAd = azureAdApper.map { it.clientId }.toSet(),
+            )
+        }
+
+        private fun appnavnFor(cluster: String?): Appnavn =
+            when (cluster) {
                 "dev-gcp" -> Appnavn(
                     tokenX = setOf("dev-gcp:fager:ekspertbistand-frontend"),
                     azureAd = setOf(
@@ -52,24 +63,21 @@ data class TillatteKlienter(
                 else -> error("Ukjent cluster '$cluster'. Kan ikke avgjøre hvilke klienter som får kalle backend.")
             }
 
+        /** Alle apper i `accessPolicy.inbound`. Feil format stopper oppstarten. */
+        private fun lesPreAuthorizedApps(preAuthorizedAppsJson: String?): List<PreAuthorizedApp> {
             requireNotNull(preAuthorizedAppsJson) { "AZURE_APP_PRE_AUTHORIZED_APPS mangler" }
-            val preAuthorized = json.decodeFromString<List<PreAuthorizedApp>>(preAuthorizedAppsJson)
-            preAuthorized.forEach {
+            return json.decodeFromString<List<PreAuthorizedApp>>(preAuthorizedAppsJson).onEach {
                 require(it.clientId.isNotBlank()) { "AZURE_APP_PRE_AUTHORIZED_APPS har tom clientId for '${it.name}'" }
             }
+        }
 
-            val funnet = preAuthorized.filter { it.name in appnavn.azureAd }
-            val funnetNavn = funnet.map { it.name }.toSet()
+        private fun loggTillatteKlienter(appnavn: Appnavn, azureAdApper: List<PreAuthorizedApp>) {
+            val funnetNavn = azureAdApper.map { it.name }.toSet()
             log.info(
                 "Tillatte klienter: tokenX={}, azureAd={}, azureAd uten clientId={}",
                 appnavn.tokenX,
                 funnetNavn,
                 appnavn.azureAd - funnetNavn,
-            )
-
-            return TillatteKlienter(
-                tokenX = appnavn.tokenX,
-                azureAd = funnet.map { it.clientId }.toSet(),
             )
         }
     }
