@@ -87,19 +87,19 @@ const SPOR = {
     '🛤️': 'Ny rute og visninger for arbeidsgiver',
     '🪪': 'Aa-reg i søknaden',
     '⚖️': 'Vilkår, automatisk arbeidsforhold',
-    '📤': 'Refusjon og sluttrapport i prod',
+    '📤': 'Refusjon og sluttrapport etter Figma, åpne i prod',
     '📡': 'Salesforce og Modia',
     '🛡️': 'Personvern: stanse og slette' } },
   B: { navn: 'Spor B', tema: 'brev, journalføring og varsel', steg: {
-    '📨': 'Varsel til deltaker ved innsending',
-    '📝': 'Brevmaler og tilsagnsbrev',
-    '🗄️': 'Journalføring med sladding',
+    '📨': 'Kopi av søknaden til deltaker',
+    '📝': 'Brevmaler, QA med fag',
+    '🗄️': 'Journalføring og sladding',
     '📬': 'Varsle deltaker om vedtak',
     '🔔': 'Varsle arbeidsgiver om vedtak',
     '📣': 'Varsel om godkjent refusjon',
     '📜': 'Oppslagslogg og event for alt' } },
   C: { navn: 'Spor C', tema: 'økonomi og refusjonsbehandling', steg: {
-    '🏦': 'Test mot OeBS i T1',
+    '🏦': 'Test mot OeBS i T1, økonomisystem',
     '🧾': 'Refusjonsbehandling',
     '💸': 'Utbetaling og avslutte sak',
     '🚦': 'Prod-manifest og generalprøve' } },
@@ -107,16 +107,16 @@ const SPOR = {
 
 // [emoji, første uke, siste uke]
 const PLAN = {
-  A: [['🧹',44,44],['🛤️',45,46],['🪪',47,49],['P1',50,50],['⚖️',51,51],['⚖️',1,1],['🛤️',2,2],['📤',3,4],['📡',5,7],['🛡️',8,9]],
-  B: [['📝',44,45],['📨',46,49],['P1',50,50],['🗄️',51,51],['🗄️',1,1],['📬',2,2],['🔔',3,3],['📝',4,5],['📜',6,8],['📣',9,9]],
-  C: [['🧾',44,48],['💸',49,51],['💸',1,1],['🏦',2,2],['💸',3,4],['🚦',5,9]],
+  A: [['🧹',44,44],['🪪',45,45],['P1',46,46],['🛤️',47,47],['⚖️',48,49],['📤',50,51],['📤',1,1],['📡',2,4],['🛡️',5,6]],
+  B: [['🗄️',44,45],['P1',46,46],['🔔',47,47],['📝',48,48],['📬',49,50],['🗄️',51,51],['🗄️',1,1],['📜',2,4],['📣',5,5]],
+  C: [['🧾',44,50],['💸',51,51],['💸',1,2],['🏦',3,3],['💸',4,4],['🚦',5,9]],
 };
 
 const MILEPAELER = [
-  ['M0 rydd bordet',44,45],['P1 tidlig i prod',46,50],['M1 vedtaket går ut',51,5],
-  ['M2 refusjonen går ut',6,6],['M3 prodklar',7,9],['M4 go-live',10,11],['Buffer',12,13,'buffer'],
+  ['M0 rydd bordet',44,45],['P1 i prod ✓',46,46],['M1 vedtaket går ut',47,3],
+  ['M2 refusjonen går ut',4,6],['M3 prodklar',7,9],['M4 go-live',10,11],['Buffer',12,13,'buffer'],
 ];
-const EKSTERNT = [[47,'📌 Aa-reg-tilgang, dokdist'],[49,'📌 Salesforce/Modia, jurist',true],[2,'📌 OeBS T1']];
+const EKSTERNT = [[47,'📌 Jurist: varseltekst'],[49,'📌 Salesforce/Modia, revarsling i dokdist',true],[2,'📌 OeBS T1']];
 const FERIE = [[52,53,'Jul og nyttår'],[8,8,'Vinterferie (uke 8 eller 9)'],[12,12,'Påske'],[13,13.2,'2. påskedag']];
 const LINJER = [
   ['na', 'Nå', Math.max(0, Math.min(23, offsetOf(new Date())))],
@@ -165,7 +165,7 @@ for (const k of ['A', 'B', 'C']) {
   let forrige = null, nyanse = 1;
   PLAN[k].forEach(([e, a, b]) => {
     let bar;
-    if (e === 'P1') { bar = el('div', 'bar prod'); bar.title = 'P1: Aa-reg og varsel til deltaker i prod'; bar.appendChild(el('span', null, '🚀 P1')); }
+    if (e === 'P1') { bar = el('div', 'bar prod'); bar.title = 'P1 i prod 9.–11.11.: Aa-reg og kopi av søknaden til deltaker'; bar.appendChild(el('span', null, '🚀 P1')); }
     else {
       if (e !== forrige) nyanse = 1 - nyanse;
       forrige = e;

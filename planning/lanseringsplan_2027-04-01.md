@@ -1,31 +1,37 @@
 # Lanseringsplan ekspertbistand: frist 1. april 2027
 
-Status per 31.10.2026. Grunnlaget er Trello-tavla «Team FAGER» (listene
-`Ekspertbistand`, `DOING`, `Weekly commits` og `Backlog`), åpne PR-er og
-koden på `main`.
+Status per 11.11.2026. Grunnlaget er Trello-tavla «Team FAGER» (listene
+`Ekspertbistand`, `DOING`, `Weekly commits`, `Huskeliste ekspertbistand` og
+`Backlog`), åpne PR-er og koden på `main`.
 
 Planen gir oversikt. Detaljer i hver oppgave tar vi i teamet, kort for kort.
 
 ## Kort fortalt
 
 - Søknad → sak → vilkårsvurdering → foreløpig vedtak → beslutter fatter
-  vedtak er bygget og kjører i dev. Det som mangler, er alt som skjer
-  **etter** at vedtaket er fattet: brev, journalføring, varsling, penger og
-  refusjon.
+  vedtak er bygget og kjører i dev. Etter vedtaket journalføres brevet til
+  arbeidsgiver, pengene settes av i OeBS, og arbeidsgiver ser vedtaket på ny
+  rute. Det som mangler, er vedtaksbrevet til deltaker, varslene,
+  refusjonsbehandlingen og utbetalingen.
+- **P1 er i prod (9.–11.11.), fem uker før planen.** Aa-reg-sjekken i
+  søknaden, kopi av søknaden til deltaker med dokdist og teksten om kopien i
+  søknadsskjemaet er i prod, i dagens Arena-flyt.
 - Alle søknader som sendes inn etter go-live, behandles i vår løsning. Saker
   som er opprettet i Arena, behandles ferdig der. Vi synker ingenting mellom
   oss og Arena. Arena stenger for nye saker når vi går live, senest 1. april,
   og Salesforce og Modia må få data om nye saker fra samme dag.
-- Aa-reg-sjekken og varsel til deltaker ved innsending går i prod så snart de
-  er klare. De fungerer selv om saksbehandlingen fortsatt skjer i Arena.
 - Den reelle fristen er **fredag 19. mars 2027 (uke 11)**. Påskedag er
   28. mars, og 1. april er torsdagen etter påske. Vi bør ikke prodsette i
   påskeuka.
-- Vi har cirka 18 arbeidsuker (uke 45–51 og uke 1–11) for tre utviklere,
-  minus ferie. Det holder hvis vi starter de eksterne avklaringene nå og
-  jobber i tre spor som ikke tråkker på hverandre.
-- Største risikoer er eksterne: at OeBS får T1 klart for test, tilgang til
-  dokdist og hvordan Salesforce og Modia skal få data om nye saker.
+- Vi har cirka 16 arbeidsuker (uke 47–51 og uke 1–11) for tre utviklere,
+  minus ferie. Det holder hvis vi jobber i tre spor som ikke tråkker på
+  hverandre.
+- Største risikoer er eksterne: at OeBS får T1 klart for test, og hvordan
+  Salesforce og Modia skal få data om nye saker. Tilgang til Aa-reg og
+  dokdist er på plass.
+- Ny scope uten avklaring: omgjøring av vedtak
+  ([689](https://trello.com/c/KwIMHZP9)). Den er ikke regnet med, se
+  [Åpne spørsmål](#åpne-spørsmål).
 
 ## Statusoversikt
 
@@ -53,10 +59,10 @@ andre. Antall blokker viser størrelsen:
 For 🟡 gjelder anslaget det som gjenstår. Summene regner M som 2,5 dager
 og XL som 10 dager.
 
-**Totalt cirka 120 utviklerdager** (24 utvikleruker). Frigjøring av beslutter
-er ikke med. Kapasiteten er cirka 204 dager: 18 uker × 3
-utviklere, minus vinterferie, ganger 80 %. Det gir rom for at anslagene
-sprekker med rundt 70 %, men ikke for mye ny scope.
+**Totalt cirka 98 utviklerdager** (20 utvikleruker). Frigjøring av beslutter
+og omgjøring av vedtak er ikke med. Kapasiteten er cirka 180 dager: 16 uker ×
+3 utviklere, minus vinterferie, ganger 80 %. Det gir rom for at anslagene
+sprekker med rundt 80 %, men ikke for mye ny scope.
 
 ### Søknad (arbeidsgiver)
 
@@ -66,19 +72,20 @@ sprekker med rundt 70 %, men ikke for mye ny scope.
 | 🟢 | – | – | Varsle arbeidsgiver ved mottatt søknad | [475](https://trello.com/c/GC5c2wJi) |
 | 🟢 | – | – | Kall mot aareg-services i stedet for arbeidsgiver-innsyn-aareg | [478](https://trello.com/c/nhonb0wT) |
 | 🟢 | – | – | 🧹 Makssats per startdato | [651](https://trello.com/c/3zvmjKiu) |
-| 🟡 | M0 | `S  ■` | 🧹 Fjerne utgiftsbeskrivelse (PR #190 lukket, branch finnes) | [620](https://trello.com/c/NoJhv4wi) |
-| 🔴 | M1 | `M  ■■` | 🛤️ Ny rute bak feature toggle for søknaden og funksjonene i ny løsning. Dagens sider beholdes uendret. | [682](https://trello.com/c/cEJ38zjf) |
-| 🔴 | M1 | `S  ■` | 🛤️ Kvitteringssiden i ekspansjonskort på ny rute, med samme innhold som i dag | [680](https://trello.com/c/RZqSZ8p3) |
-| 🟡 | P1 | `L  ■■■` | 🪪 Aa-reg-sjekk av deltaker i søknaden (klient finnes, hjemmel avklart). Går i prod før overgangen. | [601](https://trello.com/c/3Oq7KiFc) |
-| 🔴 | P1 | `M  ■■` | 📨 Varsle deltaker om innsendt søknad: kopi av søknaden journalført som utgående og distribuert med dokdist. Går i prod før overgangen. | [599](https://trello.com/c/QA5bXVrf) |
-| 🔴 | P1 | `S  ■` | 📨 Fortelle arbeidsgiver i søknadsskjemaet at deltaker får varsel og kopi av søknaden. Må i prod samtidig med varselet. | Mangler kort |
-| 🔴 | P1 | `S  ■` | Behandlingskatalog for tilgang til Aa-reg | [534](https://trello.com/c/MWtJNaH0) |
+| 🟢 | – | – | 🧹 Fjerne utgiftsbeskrivelse (#234) | [620](https://trello.com/c/NoJhv4wi) |
+| 🟢 | – | – | 🛤️ Ny rute bak feature toggle (`EKSPERTBISTAND_V2`) for søknaden og funksjonene i ny løsning (#238). Dagens sider beholdes uendret. | [682](https://trello.com/c/cEJ38zjf) |
+| 🟡 | M1 | `XS ▪` | 🛤️ Kvitteringen i ekspansjonskort på ny rute. Ferdig på vedtakssida (#250). Gjenstår på kvitteringssida før vedtak. | [680](https://trello.com/c/RZqSZ8p3) |
+| 🟢 | – | – | 🛤️ Tilskuddsbrevet (vedtaksbrevet i nye saker) i ekspansjonskort på ny rute, med tittel per utfall (#250) | [681](https://trello.com/c/H7jYzwos) |
+| 🟢 | – | – | 🪪 Aa-reg-sjekk av deltaker i søknaden, i v1 og v2 (#230, i prod) | [601](https://trello.com/c/3Oq7KiFc) |
+| 🟢 | – | – | 📨 Kopi av søknaden til deltaker: journalført som utgående på personmappa og distribuert med dokdist (#251, i prod) | [676](https://trello.com/c/khxsoU0N), [675](https://trello.com/c/2QCwaAJX), [692](https://trello.com/c/LU0D56cu) |
+| 🟢 | – | – | 📨 Arbeidsgiver får beskjed i søknadsskjemaet om at deltaker får kopi, og infoskriv til deltaker (i prod) | [675](https://trello.com/c/2QCwaAJX), [695](https://trello.com/c/lPVEHuKB) |
+| 🟢 | – | – | Behandlingskatalog for tilgang til Aa-reg | [534](https://trello.com/c/MWtJNaH0) |
 | 🟢 | – | – | Lagre adressebeskyttelse og skjerming ved opprettelse | [661](https://trello.com/c/6L5KVmvN) |
 | 🟢 | – | – | Sletterutiner, 10 år og 1 år for arbeidsgiver | [583](https://trello.com/c/gzIhkeip) |
 | 🔴 | M3 | `XS ▪` | Informere arbeidsgiver om at søknader fjernes etter 1 år | [595](https://trello.com/c/9pex2Tgp) |
 | 🟢 | – | – | 🧹 Sikkerhetsfunn H1 og H2 | [664](https://trello.com/c/3qjMQJdw) |
 
-Gjenstår: cirka 14 dager.
+Gjenstår: cirka 2 timer.
 
 ### Saksbehandling fram til vedtak
 
@@ -92,32 +99,32 @@ Gjenstår: cirka 14 dager.
 | 🟢 | – | – | Oppdatert tekst på vilkårsvurdering | [474](https://trello.com/c/AR3hzcce) |
 | 🟢 | – | – | Foreløpig vedtak med forhåndsvisning av brev | [473](https://trello.com/c/M6Ei4UAR), [468](https://trello.com/c/gh8l45zx) |
 | 🟢 | – | – | Beslutter fatter vedtak eller sender i retur | [476](https://trello.com/c/4kkrg41a) |
-| 🟡 | M0 | `XS ▪` | 📝 Brevmaler for vedtak (ferdige, venter på finpuss fra fag) | [563](https://trello.com/c/3moZGD2U) |
-| 🟡 | M0 | `S  ■` | 📜 Event for alt som skjer (PR #201) | [598](https://trello.com/c/2HQeHav3) |
+| 🟡 | M1 | `S  ■` | 📝 Brevmaler for vedtak. QA på tekstene med fag pågår. Deltaker skal ikke få vite tilskuddsbeløpet, så brevene til deltaker endres (Hanna, 4.11.). | [563](https://trello.com/c/3moZGD2U), [678](https://trello.com/c/EXPjdaDS) |
+| 🟡 | M1 | `S  ■` | 📜 Event for alt som skjer (PR #201) | [598](https://trello.com/c/2HQeHav3) |
 | 🟢 | – | – | Entra-grupper og tilgangsrutine i prod (STS-56018) | [506](https://trello.com/c/9wiRRC1M), [532](https://trello.com/c/WB9G2Pxx) |
-| 🔴 | M1 | `M  ■■` | ⚖️ Vilkåret «deltaker har arbeidsforhold» automatisk oppfylt fra Aa-reg | Mangler kort |
-| 🔴 | M1 | `S  ■` | ⚖️ «Automatisk»-tag på «Deltaker er enig» | [655](https://trello.com/c/WCMkpira) |
-| 🔴 | M1 | `M  ■■` | ⚖️ To nye vilkår | [656](https://trello.com/c/hLd2jDAj) |
+| 🔴 | M1 | `M  ■■` | ⚖️ «Automatisk»-tag og oppfylt som standard på «Deltaker er enig» og «Arbeidsforhold» (fra Aa-reg). Saksbehandler kan overstyre. | [655](https://trello.com/c/WCMkpira) |
+| 🔴 | M1 | `M  ■■` | ⚖️ Tre nye vilkår | [656](https://trello.com/c/hLd2jDAj) |
 | 🔴 | M1 | `S  ■` | Beslutter kan ikke endre vilkår (GUI) | [636](https://trello.com/c/eUsR2C7t) |
 | 🔴 | M1 | `XS ▪` | «Nytt beløp» blir «Beløp» | [652](https://trello.com/c/fQeOJnTi) |
 | 🔴 | M1 | `S  ■` | Breadcrumb med arbeidsgiver og deltaker | [653](https://trello.com/c/ulp1r0W4) |
+| 🔴 | M3 | `M  ■■` | Idempotens og samtidighet i saksbehandlings-API-ene: to raske kall får begge 202, men bare det ene får effekt | [694](https://trello.com/c/kVXWdoeJ) |
 | 🔴 | Etter | `M  ■■` | Frigjør beslutter og tildel annen beslutter (kan vente) | [648](https://trello.com/c/Nouutlp7) |
 
-Gjenstår: cirka 9 dager, uten frigjøring av beslutter.
+Gjenstår: cirka 12 dager, uten frigjøring av beslutter.
 
 ### Etter vedtak: brev, journalføring og varsel
 
 | Status | Milepæl | Størrelse | Leveranse | Trello |
 |:------:|---------|-----------|-----------|--------|
-| 🔴 | M1 | `L  ■■■` | 🗄️ Journalføre vedtaksbrev og tilsagnsbrev | [646](https://trello.com/c/4qcIiWBB), [691](https://trello.com/c/is5SjNKk) |
-| 🔴 | M1 | `M  ■■` | 🗄️ Sladde kode 6/7 ved journalføring på arbeidsgivermappa | [592](https://trello.com/c/jRixpurm) |
-| 🔴 | M1 | `M  ■■` | 📬 Gjøre vedtaksbrev og tilsagnsbrev tilgjengelig (arbeidsgiver på ny rute, se 🛤️, deltaker under «Dine saker» på nav.no). Krever journalføring med deltaker som bruker, i dag støtter klienten bare orgnr. | [647](https://trello.com/c/6l4XA2H5) |
-| 🔴 | M1 | `M  ■■` | 🛤️ Arbeidsgiver ser vedtaket på ny rute: innvilget, innvilget med redusert beløp eller avslått, med tilsagnsbrev eller avslagsbrev. Må være klar før varselet. Skisser mangler. | [691](https://trello.com/c/is5SjNKk), [682](https://trello.com/c/cEJ38zjf) |
-| 🔴 | M1 | `S  ■` | 🔔 Varsle arbeidsgiver om vedtak | [645](https://trello.com/c/XZvrwKjG) |
-| 🔴 | M1 | `S  ■` | 📬 Distribuere vedtaksbrevet til deltaker med dokdist (gjenbruker klienten fra varsel ved innsending) | [599](https://trello.com/c/QA5bXVrf) |
-| 🟡 | M1 | `M  ■■` | 📝 Opprette tilsagnsbrev for nye saker med tilsagnsdata fra vedtaket og OeBS-bestillingen. Malen er ferdig og venter på finpuss fra fag. Journalføringen ligger i 🗄️. | Mangler kort |
+| 🟢 | – | – | 🗄️📝 Lage og journalføre vedtaksbrevet til arbeidsgiver (tilsagnsbrevet i nye saker) for innvilget, redusert beløp og avslått, med sladding ved kode 6/7 på arbeidsgivermappa (#237, bare dev) | [691](https://trello.com/c/is5SjNKk) |
+| 🟢 | – | – | 🛤️ Arbeidsgiver ser vedtaket og brevet på ny rute, rendret usladdet med Gotenberg (#250, bare dev) | [693](https://trello.com/c/mmcwqp5V) |
+| 🟡 | M1 | `XS ▪` | 🔔 Varsle arbeidsgiver om vedtak, med lenke til vedtaket på ny rute (PR #252) | [645](https://trello.com/c/XZvrwKjG) |
+| 🔴 | M1 | `M  ■■` | 🗄️ Journalføre vedtaksbrevet til deltaker på personmappa | [646](https://trello.com/c/4qcIiWBB) |
+| 🔴 | M1 | `S  ■` | 📬 Distribuere vedtaksbrevet til deltaker med dokdist (klienten finnes). Avklar nytt varsel når brevet ikke er åpnet. | [599](https://trello.com/c/QA5bXVrf) |
+| 🔴 | M1 | `S  ■` | 🗄️ Sladde deltaker ved kode 6/7 i søknaden som journalføres på arbeidsgivermappa. Gjenbruk sladdingen fra 691. I dag ligger en TODO i `JournalfoerInnsendtSoknad`. | [703](https://trello.com/c/NBU7M75w) |
 
-Gjenstår: cirka 17 dager.
+Gjenstår: cirka 5 dager. Kortet «Send ut vedtaksbrev og tilsagnsbrev»
+([647](https://trello.com/c/6l4XA2H5)) dekkes av egne kort (Hanna, 30.10.).
 
 ### Økonomi (OeBS)
 
@@ -128,25 +135,31 @@ Gjenstår: cirka 17 dager.
 | 🟢 | – | – | 🔢 Sak-ID som løpenummer | [627](https://trello.com/c/NxvZl7bH) |
 | 🟢 | – | – | 🏦 Avklare startdato og sluttdato med OeBS | [625](https://trello.com/c/znIGenFd) |
 | 🔴 | M1 | `S  ■` | 🏦 Teste bestilling mot OeBS i T1. Nummerserien er godkjent, T1 er ikke klart for test ennå. | Mangler kort |
-| 🔴 | M2 | `XL ■■■■` | 💸 Utbetale (faktura) og motta status | Mangler kort |
+| 🔴 | M2 | `XL ■■■■` | 💸 Fakturere i OeBS når refusjonskravet er godkjent, og gjøre opp bestillingen i samme melding. Avslag gir ingen faktura. | [679](https://trello.com/c/Cue4nB5k) |
+| 🔴 | M3 | `S  ■` | 🏦 Registrere ekspertbistand som økonomisystem (blant annet i Ardoq) | [690](https://trello.com/c/c6qNIdJK) |
 
-Gjenstår: cirka 11 dager.
+Gjenstår: cirka 12 dager.
 
 ### Refusjon og sluttrapport
 
 | Status | Milepæl | Størrelse | Leveranse | Trello |
 |:------:|---------|-----------|-----------|--------|
 | 🟢 | – | – | Sluttrapport vises i saksbehandling | [477](https://trello.com/c/YJI9Yf9G) |
-| 🟡 | M2 | `M  ■■` | 📤 Arbeidsgiver sender inn refusjonskrav og sluttrapport (bare dev) | – |
-| 🟡 | M2 | `S  ■` | 📤 Saksbehandler henter refusjon og sluttrapport (rydding av `sak_id` gjenstår) | [620](https://trello.com/c/NoJhv4wi) |
-| 🔴 | M2 | `M  ■■` | 🛤️ Arbeidsgiver ser innsendt sluttrapport (bare filnavn) og refusjonskrav i ekspansjonskort på ny rute | [683](https://trello.com/c/omYxyPPP), [684](https://trello.com/c/hxzNc8Z4) |
-| 🟢 | – | – | 📤 Refusjonskravet kan ikke overstige innvilget beløp | [620](https://trello.com/c/NoJhv4wi) |
+| 🟢 | – | – | 📤 Refusjonskrav og sluttrapport knyttet bare til saken, ett krav per sak (#247) | [620](https://trello.com/c/NoJhv4wi) |
+| 🟢 | – | – | 🧾 Refusjon og sluttrapport som oppgaver i oversikten for saksbehandler (#248, bare dev) | – |
+| 🟢 | – | – | 📤 Refusjonskravet kan ikke overstige innvilget beløp, og Arena-saker avvises | [620](https://trello.com/c/NoJhv4wi) |
 | 🟢 | – | – | 📤 Sikkerhetsfunn M4: minne ved opplasting | [664](https://trello.com/c/3qjMQJdw) |
-| 🔴 | M2 | `XL ■■■■` | 🧾 Behandle refusjonskrav: godkjenn, avslå via beslutter, oppgavetype. Ett krav per sak, sluttrapport må være mottatt. | Mangler kort |
+| 🔴 | M2 | `M  ■■` | 📤 Justere refusjonskravet etter Figma: vis avsatt beløp og fristen | [685](https://trello.com/c/ZY79MovZ) |
+| 🔴 | M2 | `S  ■` | 📤 Justere innsending av sluttrapport (beskrivelse mangler) | [686](https://trello.com/c/W4cdyLLf) |
+| 🔴 | M2 | `M  ■■` | 🛤️ Arbeidsgiver ser innsendt sluttrapport (bare filnavn) og refusjonskrav i ekspansjonskort på ny rute | [683](https://trello.com/c/omYxyPPP), [684](https://trello.com/c/hxzNc8Z4) |
+| 🟡 | M2 | `S  ■` | 🧾 Hendelser for refusjonskrav og sluttrapport. Mottatt er i PR #249. «Send til utbetaling» og «bekreft mottatt» gjenstår. | [702](https://trello.com/c/TK7W0dt3) |
+| 🔴 | M2 | `L  ■■■` | 🧾 Behandle refusjonskrav: godkjenn, eller avslå via beslutter. Statuser og GUI etter Figma. Sluttrapporten må være mottatt. | Mangler kort |
+| 🔴 | M2 | `M  ■■` | 🗄️ Journalføre sluttrapporten på personmappa når den er mottatt | [701](https://trello.com/c/fHjZ4Yue) |
 | 🔴 | M3 | `S  ■` | 📣 Varsle arbeidsgiver når refusjonen er godkjent | Mangler kort |
 | 🔴 | M2 | `M  ■■` | 💸 Avslutte saken etter utbetaling og sluttrapport | Mangler kort |
+| 🔴 | M3 | `S  ■` | 📤 Åpne innsending av refusjon og sluttrapport for arbeidsgiver i prod (i dag bare utenfor prod) | – |
 
-Gjenstår: cirka 20 dager.
+Gjenstår: cirka 19 dager.
 
 ### Prodsetting og overgang fra Arena
 
@@ -157,6 +170,7 @@ Gjenstår: cirka 20 dager.
 | 🔴 | M3 | `L  ■■■` | 📡 Salesforce får arbeidsgiveraktivitet for nye saker fra go-live (i dag Kafka fra Arena) | [552](https://trello.com/c/6mVfQgod) |
 | 🔴 | M3 | `L  ■■■` | 📡 Modia viser tiltaket for nye saker fra go-live (i dag fra Arena) | [596](https://trello.com/c/bgtBcIzk) |
 | 🔴 | M3 | `L  ■■■` | 🧪 Akseptansetest og opplæring med saksbehandlere | Mangler kort |
+| 🔴 | M4 | `XS ▪` | 🚦 Gjøre Entra-gruppene synlige i prod og bestille visning i Mine tilganger | [687](https://trello.com/c/zAfM9svq) |
 
 Gjenstår: cirka 20 dager. Salesforce og Modia er grove anslag til vi vet
 hvordan de vil ta imot data.
@@ -169,7 +183,7 @@ hvordan de vil ta imot data.
 | 🟡 | M3 | `M  ■■` | Trusselmodell, verdivurdering og livsløp ferdig. ROS gjenstår, også at arbeidsgiver ser navnet på deltaker med fortrolig adresse. | [582](https://trello.com/c/80W3GhIB) |
 | 🟡 | M3 | `M  ■■` | Juridisk logg (ikke-benekt), avklaring pågår | [555](https://trello.com/c/94yFdkSX) |
 | 🟡 | M3 | `S  ■` | Begrense hver frontend til sin del av backend-API-et | [603](https://trello.com/c/XED3wgnm) |
-| 🔴 | M3 | `S  ■` | Validere klient-claim i backend | [633](https://trello.com/c/jdsNoa2n) |
+| 🟡 | M3 | `S  ■` | Validere klient-claim i backend (PR #245 lukket uten merge, kortet er i DOING) | [633](https://trello.com/c/jdsNoa2n) |
 | 🔴 | M3 | `L  ■■■` | 📜 Oppslagslogg og ArcSight (sikkerhetsfunn M2, M3) | [553](https://trello.com/c/s5v5Occl), [664](https://trello.com/c/3qjMQJdw) |
 | 🔴 | M3 | `M  ■■` | Auditlogging av databaseendringer (uavklart om det gjelder oss) | [554](https://trello.com/c/y5GXvQ7x) |
 | 🔴 | M3 | `L  ■■■` | 🛡️ Stanse behandling og slette | [584](https://trello.com/c/ft1q5B6v) |
@@ -178,8 +192,9 @@ hvordan de vil ta imot data.
 | 🔴 | M3 | `M  ■■` | Disaster recovery-plan, testet | [591](https://trello.com/c/4xGXShb5) |
 | 🔴 | M3 | `S  ■` | Alerts som `PrometheusRule` | [619](https://trello.com/c/VBAPFZPH) |
 | 🔴 | M3 | `M  ■■` | UU-tester i bygg for saksbehandling | [593](https://trello.com/c/Flaq2NEE) |
+| 🔴 | M3 | `S  ■` | Vise tydelig i saksbehandling at deltaker har adressebeskyttelse (krav 255) | [592](https://trello.com/c/jRixpurm) |
 
-Gjenstår: cirka 29 dager.
+Gjenstår: cirka 30 dager.
 
 ## Hva må være med i første release
 
@@ -192,12 +207,12 @@ Tilbakekreving er også utenfor scope. Økonomi gjør det manuelt.
 |-----|--------|
 | Søknadsskjema, innsending, journalføring | 🟢 Ferdig, i prod |
 | 🧹 Makssats per startdato (24 900 kr) | 🟢 Ferdig |
-| 🧹 Fjerne «Hvilke utgifter skal tilskuddet dekke?» | 🟡 PR #190 er lukket uten merge. Branchen `refusjon-fjern-utgiftsbeskrivelse` finnes. |
-| 🪪 **Aa-reg: deltaker må ha arbeidsforhold hos valgt virksomhet.** Arbeidsgiver taster fnr, vi slår opp i Aa-reg og viser navn fra PDL. Uten arbeidsforhold kan søknaden ikke sendes inn. Backend validerer på nytt ved innsending. Arbeidsgiver ser navnet også når deltaker har fortrolig adresse, og det må stå i ROS og etterlevelse. Går i prod før overgangen. | 🟡 `AaregClient` finnes, men brukes ikke. Kort i DOING. Hjemmelen er avklart. Figma-skisser finnes. |
-| 🛤️ **Ny rute bak feature toggle.** Søknaden og alt arbeidsgiver ser i ny løsning, lages som nye sider på en egen rute. Dagens sider beholdes uendret for Arena-saker. Det er enklere å lage nye visninger på en rute med feature toggle enn å toggle funksjoner i sider som er i prod. | 🔴 Kort finnes, ikke startet. Kvitteringssiden i ekspansjonskort har eget kort. |
+| 🧹 Fjerne «Hvilke utgifter skal tilskuddet dekke?» | 🟢 Ferdig (#234) |
+| 🪪 **Aa-reg: deltaker må ha arbeidsforhold hos valgt virksomhet.** Arbeidsgiver taster fnr, vi slår opp i Aa-reg og viser navn fra PDL. Uten arbeidsforhold kan søknaden ikke sendes inn. Backend validerer på nytt ved innsending. Arbeidsgiver ser navnet også når deltaker har fortrolig adresse, og det må stå i ROS og etterlevelse. | 🟢 I prod fra 9.11. (#230), i både v1 og v2 av skjemaet. Arbeidsgiver kan legge inn seg selv, men må bekrefte det. |
+| 🛤️ **Ny rute bak feature toggle.** Søknaden og alt arbeidsgiver ser i ny løsning, lages som nye sider på en egen rute. Dagens sider beholdes uendret for Arena-saker. Det er enklere å lage nye visninger på en rute med feature toggle enn å toggle funksjoner i sider som er i prod. | 🟢 Ruta finnes (#238), bak `EKSPERTBISTAND_V2`, bare utenfor prod. 🔴 Kvitteringssiden og tilskuddsbrevet i ekspansjonskort har egne kort. |
 | Lagre adressebeskyttelse og skjerming ved opprettelse | 🟢 Ferdig |
-| 📨 **Varsle deltaker når søknaden er sendt inn, med kopi av søknaden.** Krever bekreftet deltaker fra Aa-reg. Går i prod før overgangen, også mens saksbehandlingen skjer i Arena. | 🔴 Del av kortet om varsel til deltaker. Dokdist, se under. |
-| 📨 **Arbeidsgiver får beskjed i søknadsskjemaet** om at deltaker får varsel og innsyn i en kopi av søknaden, før søknaden sendes inn. | 🔴 Ikke på Trello. Teksten avklares med fag og jurist. |
+| 📨 **Varsle deltaker når søknaden er sendt inn, med kopi av søknaden.** Kopien journalføres som utgående på personmappa og distribueres med dokdist. | 🟢 I prod fra 11.11. (#251), i dagens Arena-flyt. |
+| 📨 **Arbeidsgiver får beskjed i søknadsskjemaet** om at deltaker får kopi av søknaden, før søknaden sendes inn. | 🟢 I prod, i v1 og v2 |
 | 🧹 Sikkerhetsfunn H1 (andres utkast kan leses/endres) og H2 (sletting stopper ved vedtak) | 🟢 Ferdig |
 | 📤 Sikkerhetsfunn M4: minnebruk ved opplasting av sluttrapport og refusjon | 🟢 Ferdig |
 
@@ -208,65 +223,50 @@ Tilbakekreving er også utenfor scope. Økonomi gjør det manuelt.
 | Innlogging, roller, enheter, Tilgangsmaskinen (KJERNE) | 🟢 Ferdig i dev |
 | Ruting via Norg, egne ansatte og kode 6/7 | 🟢 Ferdig |
 | Listevisning, tildeling, sakslogg, foreløpig vedtak, beslutter, retur | 🟢 Ferdig i dev |
-| 📝 Brevmaler for vedtak (seks maler) | 🟡 Ferdige. Venter på finpuss fra fag. |
-| ⚖️ Vilkåret «deltaker har arbeidsforhold» settes **automatisk oppfylt** fra Aa-reg, med taggen «Automatisk». Saksbehandler kan overstyre. | 🔴 Ikke startet. Samme mønster som kortet for «Deltaker er enig». |
-| ⚖️ To nye vilkår, «Automatisk»-tag på «Deltaker er enig» | 🔴 Kort i Weekly commits |
-| Småfiks i GUI: beslutter kan ikke endre vilkår, «Beløp», breadcrumb med arbeidsgiver og deltaker | 🔴 Kort i `Ekspertbistand` |
+| 📝 Brevmaler for vedtak (seks maler) | 🟡 QA på tekstene med fag pågår (678). Brevene til deltaker skal ikke vise tilskuddsbeløpet. |
+| ⚖️ Vilkårene «Deltaker er enig» og «Arbeidsforhold» settes **automatisk oppfylt**, med taggen «Automatisk». Saksbehandler kan overstyre, og da forsvinner taggen. | 🔴 Ett kort for begge (655), i Weekly commits |
+| ⚖️ Tre nye vilkår | 🔴 Kort i Weekly commits |
+| Småfiks i GUI: beslutter kan ikke endre vilkår, «Beløp», breadcrumb med arbeidsgiver og deltaker | 🔴 Kort i Weekly commits |
+| Idempotens og samtidighet: to raske kall mot samme sak får begge 202, men bare det ene får effekt | 🔴 Kort finnes (694). Oppdaget i arbeidet med 691. |
 | Frigjør beslutter / tildel annen beslutter | 🔴 Kort finnes. Kan vente hvis tida blir knapp. |
-| 📜 «Opprett event for alt som skjer» | 🟡 PR #201 åpen |
+| 📜 «Opprett event for alt som skjer» | 🟡 PR #201 åpen siden 3.11. |
 
 ### 3. Etter vedtak: brev, journalføring og varsel
 
-Ingenting skjer i dag når `VedtakFattet` publiseres, bortsett fra status på
-saken og søknaden.
+Når beslutter fatter vedtaket i dev, lages og journalføres brevet til
+arbeidsgiver, pengene settes av i OeBS, og arbeidsgiver ser vedtaket på ny
+rute. Varsel til arbeidsgiver og alt til deltaker mangler.
 
 | Hva | Status |
 |-----|--------|
-| 🗄️ Lage og journalføre vedtaksbrev til deltaker (personmappe) og tilsagnsbrev til arbeidsgiver (arbeidsgivermappe) | 🔴 Kort finnes, ikke startet |
-| 🗄️ Sladde personopplysninger for kode 6/7 i brev som journalføres på arbeidsgivermappa | 🔴 Kort i backlog, ikke startet |
-| 🔔 **Varsle arbeidsgiver om vedtak** (innvilget og avslag) via notifikasjonsplattformen | 🔴 Kort finnes. Tekst i e-post/SMS venter på jurist. Varselet lenker til vedtaket på ny rute. |
-| 🛤️ **Arbeidsgiver ser vedtaket på ny rute:** innvilget, innvilget med redusert beløp eller avslått, med brevet. Dagens visning av tilsagnsbrevet beholdes for Arena-saker. | 🔴 Kort finnes, ikke startet. Venter på ny rute og skisser for de tre utfallene. |
-| 📬 **Varsle deltaker om vedtak.** Vedtaksbrevet journalføres som utgående til deltaker og vises under «Dine saker» på nav.no. | 🔴 Kort finnes. Distribueres med dokdist, samme klient som ved innsending (avsnitt 1). |
-| 📝 Tilsagnsbrev for nye saker | 🟡 Malen er ferdig og venter på finpuss fra fag. Gjenstår å opprette brevet med tilsagnsdata (tilsagnsnummer, beløp, refusjonsfrist) fra vedtaket og OeBS-bestillingen, og å journalføre det. Ikke på Trello. |
+| 🗄️📝 Lage og journalføre vedtaksbrevet til arbeidsgiver på arbeidsgivermappa. I nye saker er dette tilsagnsbrevet, med beløp og refusjonsfrist. | 🟢 Ferdig i dev (#237) |
+| 🗄️ Sladde deltaker ved kode 6/7 i vedtaksbrevet som journalføres på arbeidsgivermappa | 🟢 Ferdig i dev (#237), som Team Tiltak. Arbeidsgiver ser brevet usladdet. |
+| 🗄️ Sladde deltaker ved kode 6/7 i søknaden som journalføres på arbeidsgivermappa | 🔴 Kort finnes (703). TODO i `JournalfoerInnsendtSoknad`. |
+| 🗄️ Journalføre vedtaksbrevet til deltaker på personmappa | 🔴 Kort finnes (646). `DokArkivClient` støtter person som bruker. |
+| 🔔 **Varsle arbeidsgiver om vedtak** (innvilget og avslag) via notifikasjonsplattformen | 🟡 PR #252 åpen. Varselet lenker til vedtaket på ny rute. |
+| 🛤️ **Arbeidsgiver ser vedtaket på ny rute:** innvilget, innvilget med redusert beløp eller avslått, med brevet. Dagens visning av tilsagnsbrevet beholdes for Arena-saker. | 🟢 Ferdig i dev (#250) |
+| 📬 **Varsle deltaker om vedtak.** Vedtaksbrevet distribueres med dokdist og vises under «Dine saker» på nav.no. | 🔴 Kort finnes (599). Klienten finnes. Avklar nytt varsel når brevet ikke er åpnet (etterlevelseskrav 204). |
 
-Arbeidsgiver får tilsagnsbrevet slik som i dag. Vi journalfører det på
-arbeidsgivermappa, og beskjeden på notifikasjonsplattformen lenker til
-vedtaket i søknadsløsningen. For nye saker starter flyten på `VedtakFattet`
-i stedet for tilsagnet fra Arena, og arbeidsgiver ser vedtaket på den nye
-ruta. Dagens visning beholdes for Arena-saker.
+Arbeidsgiver får vedtaksbrevet i vår løsning, rendret usladdet med Gotenberg.
+Vi henter aldri PDF fra Joark til arbeidsgiver. Beskjeden på
+notifikasjonsplattformen lenker til vedtaket på ny rute. Dagens visning
+beholdes for Arena-saker.
 
 Deltaker får kopi av søknaden og vedtaksbrevet med dokdist, slik Team Tiltak
-sender vedtak til deltaker. Vi lager en utgående journalpost og distribuerer
-den.
+sender vedtak til deltaker. Kopien av søknaden er i prod, og vedtaksbrevet
+gjenbruker det samme:
 
-- Brev og kopi av søknaden journalføres som **utgående** journalpost med
-  deltaker som bruker og mottaker. Da vises dokumentet også under «Dine
-  saker» på nav.no.
-- Søknaden journalføres i dag som inngående fra arbeidsgiver. Deltaker ser
-  da at dokumentet finnes, men får ikke åpne det, fordi noen andre har
-  sendt det inn. Kopien til deltaker må derfor være en egen utgående
-  journalpost.
-- `DokArkivClient` har allerede `forsoekFerdigstill`, journalførende
-  enhet 9999, fagsaksystem og brevkode. Den mangler støtte for FNR som
-  bruker.
-- Den ferdigstilte journalposten sendes til
+- Brevet journalføres som **utgående** journalpost med deltaker som bruker og
+  mottaker. Da vises det under «Dine saker» på nav.no. Dokarkiv henter navnet
+  på mottakeren fra PDL.
+- `DokDistClient` sender den ferdigstilte journalposten til
   [dokdistfordeling](https://github.com/navikt/dokdistfordeling) med
-  `POST /rest/v1/distribuerjournalpost`: `journalpostId`,
-  `bestillendeFagsystem`, `dokumentProdApp`, `distribusjonstype` og
-  `distribusjonstidspunkt = KJERNETID`. Svaret er en `bestillingsId`.
-- `distribusjonstype` er `VEDTAK` for vedtaksbrevet. Kopien av søknaden
-  er trolig `VIKTIG` eller `ANNET`.
-- Dokdist slår opp KRR og velger kanal: digital postkasse, Nav med SMS- eller
-  e-postvarsel, eller papirbrev. Adressen hentes fra PDL, og Dokumentløsninger
-  håndterer returpost.
-- Vi skriver vår egen `DokdistClient` etter mønsteret til `DokArkivClient`,
-  med Azure-token. En handler i `event/handlers/` distribuerer etter at
-  journalposten er ferdigstilt.
-- Et nytt kall på samme journalpost gir samme `bestillingsId`, med 200 eller
-  409. Handleren behandler 409 som suksess, så retry gir ikke dobbel
-  utsending.
-- Team Dokumentløsninger gir tilgang og bekrefter verdien for
-  `bestillendeFagsystem`. Spør i `#team_dokumentløsninger`.
+  `distribusjonstidspunkt = KJERNETID`. `bestillendeFagsystem` og
+  `dokumentProdApp` er `EKSPERTBISTAND`.
+- `distribusjonstype` er `ANNET` for kopien av søknaden og `VEDTAK` for
+  vedtaksbrevet.
+- Dokdist velger kanal etter KRR, også papirbrev. Svarer dokdist 409, er
+  journalposten allerede distribuert, og handleren regner det som suksess.
 
 ### 4. Økonomi (OeBS via tiltaksøkonomi)
 
@@ -277,21 +277,26 @@ den.
 | 🏦 Teste bestilling mot OeBS i T1 | 🔴 **Venter på at T1 blir klart for test** |
 | 🔢 Sak-ID som løpenummer som matcher OeBS | 🟢 Ferdig |
 | 🏦 Sette av penger (bestilling) når vedtaket er innvilget | 🟢 Ferdig |
-| 💸 Utbetale (faktura) når refusjonskravet er godkjent | 🔴 Ikke på Trello |
+| 💸 Utbetale (faktura) når refusjonskravet er godkjent, og gjøre opp bestillingen i samme melding | 🔴 Kort finnes (679) |
+| 🏦 Registrere ekspertbistand som økonomisystem (blant annet i Ardoq) | 🔴 Kort finnes (690) |
 | Tiltakskode og konto registrert hos Team VALP | 🟡 Avtalt, men ikke bekreftet levert |
 
 ### 5. Refusjon og sluttrapport
 
 | Hva | Status |
 |-----|--------|
-| 📤 Arbeidsgiver sender inn refusjonskrav og sluttrapport | 🟡 Bygget, bare i dev (feature-flagg `EKSPERTBISTAND_SAKSBEHANDLING_BETA`) |
-| 🛤️ Arbeidsgiver ser innsendt sluttrapport og refusjonskrav i ekspansjonskort på ny rute. Sluttrapporten vises bare med filnavn, fordi den kan inneholde sensitive personopplysninger. | 🔴 Kort finnes, ikke startet. Åpent på kortet: skal kontonummeret vises? |
-| Saksbehandler ser refusjonskrav, sluttrapport og vedlegg | 🟢 Ferdig i dev |
-| 📤 Rydde `soknad_id` → `sak_id` på refusjon og vedlegg | 🟡 Sjekkliste på kortet, ikke ferdig |
+| 📤 Arbeidsgiver sender inn refusjonskrav og sluttrapport | 🟡 Bygget, bare utenfor prod. Ett krav per sak, knyttet bare til saken (#247). |
 | 📤 Beløp i refusjonskravet kan ikke overstige innvilget beløp | 🟢 Ferdig |
-| 🧾 **Behandle refusjonskrav:** godkjenn → send til utbetaling (ingen beslutter). Avslå → via beslutter. Egen oppgavetype i lista. Én sak har ett refusjonskrav, som kan ha flere vedlegg. Sluttrapporten må være mottatt før kravet kan godkjennes (dobbeltsjekkes). | 🔴 Figma finnes. Ikke på Trello som eget kort, ingen events eller statuser for det. `Oppgavetype` har bare søknad. |
-| 📣 Varsle arbeidsgiver når refusjonen er godkjent (ikke deltaker) | 🔴 Ikke på Trello |
+| 📤 Justere refusjonskravet og sluttrapporten etter Figma: vis avsatt beløp og fristen | 🔴 Kort finnes (685, 686) |
+| 🛤️ Arbeidsgiver ser innsendt sluttrapport og refusjonskrav i ekspansjonskort på ny rute. Sluttrapporten vises bare med filnavn, fordi den kan inneholde sensitive personopplysninger. | 🔴 Kort finnes (683, 684). Åpent på kortet: skal kontonummeret vises? |
+| Saksbehandler ser refusjonskrav, sluttrapport og vedlegg | 🟢 Ferdig i dev |
+| 🧾 Refusjon og sluttrapport som egne oppgaver i oversikten | 🟢 Ferdig i dev (#248) |
+| 🧾 Hendelser for refusjonskrav og sluttrapport | 🟡 Mottatt er i PR #249 (702). «Send til utbetaling» og «bekreft mottatt» gjenstår. |
+| 🧾 **Behandle refusjonskrav:** godkjenn → send til utbetaling (ingen beslutter). Avslå → via beslutter. Én sak har ett refusjonskrav, som kan ha flere vedlegg. Sluttrapporten må være mottatt før kravet kan godkjennes (dobbeltsjekkes). | 🔴 Figma finnes. Ikke på Trello som eget kort. |
+| 🗄️ Journalføre sluttrapporten på personmappa | 🔴 Kort finnes (701) |
+| 📣 Varsle arbeidsgiver når refusjonen er godkjent (ikke deltaker) | 🔴 Ikke på Trello. Om deltaker skal varsles, er et åpent spørsmål (688). |
 | 💸 Avslutte saken når utbetalingen er gjort (`AVSLUTTET`) | 🔴 Ikke på Trello |
+| 📤 Åpne innsending av refusjon og sluttrapport i prod | 🔴 Rutene er stengt i prod i dag |
 
 Refusjon har naturlig slakk. Første refusjonskrav på en ny sak kommer først
 når ekspertbistanden er gjennomført, altså uker til måneder etter første
@@ -306,6 +311,7 @@ refusjonsbehandling noen uker etter. Det er en nødplan, ikke målet.
 | 🚦 Bytte prod fra Arena-flyten til `OpprettSak` (`basedOnEnvSuspending` i `configureEventHandlers`). Søknader sendt inn etter go-live går til oss, eldre saker blir i Arena. Ingen synk. | 🔴 Ikke på Trello |
 | Entra-grupper i prod og rutine for å be om tilgang (STS-56018, Mine tilganger) | 🟢 Ferdig |
 | 📡 **Salesforce og Modia får data om nye saker fra go-live.** Salesforce leser i dag arbeidsgiveraktivitet fra et Kafka-topic i Arena, og Modia viser tiltaket fra Arena. | 🔴 Krav for overgangen. Kort finnes, mottaket er ikke avklart. |
+| 🚦 Gjøre Entra-gruppene synlige i prod og bestille visning i Mine tilganger | 🔴 Kort finnes (687). Gjøres rett før go-live. |
 | 🧪 Akseptansetest og opplæring med saksbehandlere | 🔴 Ikke på Trello |
 
 ### 7. Etterlevelse, sikkerhet og drift (krav før prod)
@@ -321,7 +327,8 @@ refusjonsbehandling noen uker etter. Det er en nødplan, ikke målet.
 | Disaster recovery-plan, testet | 🔴 Ikke startet |
 | Alerts som `PrometheusRule` i stedet for Grafana | 🔴 Ikke startet |
 | UU-tester i bygg for saksbehandling | 🔴 Ikke startet |
-| Validere klient-claim i backend (hindre kryssing mellom apper) | 🔴 Kort i Weekly commits |
+| Validere klient-claim i backend (hindre kryssing mellom apper) | 🟡 Kort i DOING. PR #245 ble lukket uten merge. |
+| Vise tydelig i saksbehandling at deltaker har adressebeskyttelse (krav 255) | 🔴 Kort finnes (592) |
 
 ### Kan vente til etter lansering
 
@@ -368,24 +375,24 @@ ferdig i tidslinjen. Sikkerhetsfunn M2–M4 er noe annet enn milepælene M2–M4
 
 | Ferdig innen | Milepæl | Steg | Ferdig når |
 |--------------|---------|------|------------|
-| Uke 45 (6.11.) | **M0: rydd bordet** | 🧹 📝 📜 | Utgiftsbeskrivelsen er fjernet. Brevmalene er finpusset med fag. PR #201 er merget. Alle eksterne avklaringer under har en eier og en dato. |
-| Uke 50 (11.12.) | **P1: tidlig i prod** | 🪪 📨 | I prod, i dagens Arena-flyt: Aa-reg-sjekk i søknaden, varsel til deltaker ved innsending med kopi av søknaden, og tekst om kopien til arbeidsgiver i søknadsskjemaet. Krever tilgang til Aa-reg og dokdist. |
-| Uke 5 (5.2.) | **M1: vedtaket går ut** | 🛤️ ⚖️ 🗄️ 📬 🔔 📝 🏦 | I dev: arbeidsgiver ser vedtaket på ny rute. Vilkåret om arbeidsforhold settes automatisk. Vedtaket gir journalført vedtaksbrev og tilsagnsbrev. Deltaker får vedtaksbrevet via dokdist, og arbeidsgiver får varsel. OeBS-bestillingen er testet i T1. |
-| Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute. Saksbehandler godkjenner, eller avslår via beslutter. Utbetaling via OeBS, og saken avsluttes. |
-| Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonen er godkjent. Oppslagslogg og ArcSight, personvern, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
-| Uke 11 (19.3.) | **M4: go-live** | 🚦 | Arena stenger for nye ekspertbistand-saker. Søknader sendt inn etter go-live behandles hos oss. Arena behandler ferdig sakene som ligger der. Salesforce og Modia får data om nye saker fra samme dag. |
+| Uke 45 (6.11.) | **M0: rydd bordet** 🟡 | 🧹 | 🟢 Utgiftsbeskrivelsen er fjernet, og de eksterne avklaringene har eier. 📝 Brevmalene og 📜 PR #201 ble ikke ferdige og er flyttet til M1. |
+| Uke 46 (11.11.) | **P1: tidlig i prod** 🟢 | 🪪 📨 | 🟢 Nådd fem uker før planen. I prod, i dagens Arena-flyt: Aa-reg-sjekk i søknaden, kopi av søknaden til deltaker med dokdist, og tekst om kopien til arbeidsgiver i søknadsskjemaet. |
+| Uke 3 (22.1.) | **M1: vedtaket går ut** | 🛤️ ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: arbeidsgiver ser kvitteringen i ekspansjonskort på ny rute og får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. Søknaden sladdes på arbeidsgivermappa. PR #201 er merget. OeBS-bestillingen er testet i T1. |
+| Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler godkjenner, eller avslår via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, og saken avsluttes. |
+| Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 📤 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonen er godkjent. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
+| Uke 11 (19.3.) | **M4: go-live** | 🚦 | Entra-gruppene er synlige i Mine tilganger. Arena stenger for nye ekspertbistand-saker. Søknader sendt inn etter go-live behandles hos oss. Arena behandler ferdig sakene som ligger der. Salesforce og Modia får data om nye saker fra samme dag. |
 | Uke 12–13 | Buffer | – | Påske. Ingen planlagte prodsettinger. |
 
-Vinterferien (uke 8 eller 9) ligger i M3. Juleferien (uke 52–53) er ikke
-regnet med.
+M1 er flyttet fra uke 5 til uke 3. P1 ble ferdig tidlig, og det meste som
+gjenstår i M1, er små kort. M2 og M3 står fast. Vinterferien (uke 8 eller 9)
+ligger i M3. Juleferien (uke 52–53) er ikke regnet med.
 
 ### Siste dato for eksterne svar
 
 | Avhengighet | Trengs innen | Hvis ikke |
 |-------------|--------------|-----------|
-| 🪪 Tilgang til Aa-reg og behandlingskatalog (hjemmelen er avklart) | Uke 47 | Aa-reg-sjekken og varsel til deltaker kan ikke prodsettes, verken i P1 eller ved go-live. Vilkåret må vurderes manuelt. |
-| 📨 Tilgang til dokdist og verdi for `bestillendeFagsystem` (Team Dokumentløsninger) | Uke 47 | Varsel til deltaker blir ikke klart til P1. |
-| 🔔 Tekst i varsel til arbeidsgiver (jurist) | Uke 49 | Vi bruker nøytral tekst uten «ekspertbistand». |
+| 🔔 Tekst i varsel til arbeidsgiver om vedtak (jurist). PR #252 gjenbruker e-posttittelen og SMS-teksten fra varselet om mottatt søknad, som er i prod. | Uke 47 | Vi merger med teksten fra varselet om mottatt søknad. |
+| 📬 Om dokdist kan varsle deltaker på nytt når brevet ikke er åpnet (etterlevelseskrav 204, Team Dokumentløsninger) | Uke 49 | Vi må lage revarslingen selv, eller avklare kravet med etterlevelse. |
 | 🏦 OeBS T1 klart for test (nummerserien er godkjent) | Uke 2 | Bestilling og utbetaling blir ikke testet mot OeBS før prod. Eskaler i uke 50. |
 | 📡 Hvordan Salesforce og Modia vil ta imot data om nye saker | Uke 49 | Vi rekker ikke å bygge det til M3. Uten data kan vi ikke gå live, fordi Salesforce og Modia skal ha nye saker fra go-live. |
 
@@ -402,48 +409,50 @@ fra backend til frontend, så ingen venter på en annen for å få noe ferdig.
 Eier `frontend/client`, `soknad/`, `aareg/`, `vedlegg/` og arbeidsgiversiden
 av `refusjon/`.
 
-1. 🧹 Fjern utgiftsbeskrivelsen (gjenåpne #190 eller ny PR).
-2. 🛤️ Ny rute bak feature toggle, med kvitteringssiden i ekspansjonskort.
-   Dagens sider beholdes uendret.
-3. 🪪 Aa-reg i søknaden på ny rute: oppslag, navn fra PDL, feilmeldinger,
-   validering ved innsending. Søknaden får en bekreftet deltaker. Prodsettes
-   i Arena-flyten (P1).
-4. ⚖️ Automatisk vilkår for arbeidsforhold og «Deltaker er enig», og de to nye
-   vilkårene.
-5. 🛤️ Vedtaket for arbeidsgiver på ny rute: innvilget, redusert beløp og
-   avslått. Må være klar før spor B varsler arbeidsgiver (🔔).
-6. 📤 Rydde `sak_id`, visning av sluttrapport og refusjonskrav på ny rute, skru på
-   refusjon og sluttrapport for arbeidsgiver i prod.
-7. 📡 Data om nye saker til Salesforce og Modia fra go-live.
-8. 🛡️ Personvern: stanse behandling, sletting når deltaker trekker seg.
+Ferdig: 🧹 utgiftsbeskrivelsen er fjernet, 🛤️ ny rute og vedtaket på ny rute,
+🪪 Aa-reg i prod.
+
+1. 🛤️ Kvitteringen i ekspansjonskort på kvitteringssida før vedtak (680).
+2. ⚖️ Automatisk vilkår for arbeidsforhold og «Deltaker er enig» (655), og de
+   tre nye vilkårene (656).
+3. 📤 Refusjonskrav og sluttrapport etter Figma (685, 686), visning på ny rute
+   (683, 684). Åpne refusjon og sluttrapport for arbeidsgiver i prod.
+4. 📡 Data om nye saker til Salesforce og Modia fra go-live.
+5. 🛡️ Personvern: stanse behandling, sletting når deltaker trekker seg.
 
 ### Spor B: brev, journalføring og varsel
 
-Eier `dokument/`, `dokarkiv/`, ny `dokdist/`-klient, `notifikasjon/` og
+Eier `dokument/`, `dokarkiv/`, `dokdist/`, `notifikasjon/` og
 varsel-handlerne i `event/handlers/`.
 
-1. 📨 Varsel til deltaker ved innsending: dokdist-klient, kopi av
-   søknaden journalført som utgående til deltaker og tekst til arbeidsgiver i
-   søknadsskjemaet om at deltaker får kopi. Handleren registreres i
-   Arena-flyten for P1 og i ny flyt for go-live.
-2. 📝 Finpuss av brevmalene med fag. Opprett tilsagnsbrev for nye saker.
-3. 🗄️ Journalfør vedtaksbrev og tilsagnsbrev på `VedtakFattet`, med sladding for
-   kode 6/7 på arbeidsgivermappa.
-4. 📬 Distribuer vedtaksbrevet til deltaker med dokdist, som i punkt 1.
-5. 🔔 Varsle arbeidsgiver om vedtak.
-6. 📣 Senere: varsle arbeidsgiver når refusjonen er godkjent.
-7. 📜 Oppslagslogg og ArcSight (sikkerhetsfunn M2 og M3), «event for alt som skjer».
+Ferdig: 📨 kopi av søknaden til deltaker med dokdist i prod, 🗄️📝 vedtaksbrevet
+til arbeidsgiver journalført med sladding.
+
+1. 🔔 Varsle arbeidsgiver om vedtak (645, PR #252).
+2. 📝 QA av brevmalene med fag. Brevene til deltaker uten tilskuddsbeløp (678).
+3. 🗄️📬 Journalfør vedtaksbrevet til deltaker og distribuer det med dokdist,
+   som kopien av søknaden (646, 599).
+4. 🗄️ Sladd søknaden på arbeidsgivermappa (703). Journalfør sluttrapporten
+   (701).
+5. 📜 Merge PR #201. Oppslagslogg og ArcSight (sikkerhetsfunn M2 og M3).
+6. 📣 Varsle arbeidsgiver når refusjonen er godkjent.
 
 ### Spor C: økonomi og refusjonsbehandling
 
 Eier `oebs/`, saksbehandlersiden av `refusjon/`, `Saksstatus`/`Oppgavetype`
 og refusjonsfanen i `frontend/saksbehandling`.
 
-1. 🧾 Refusjonsbehandling: statuser, oppgavetype, events, godkjenn og avslå via
-   beslutter, GUI etter Figma.
-2. 💸 Utbetaling (faktura) og statuser tilbake fra OeBS. Avslutt saken.
-3. 🏦 Test bestilling og utbetaling mot OeBS i T1 når det er klart.
-4. 🚦 Prod-manifest for saksbehandling, overgang fra Arena-flyten.
+Ferdig: 🏦 bestilling i OeBS, refusjon knyttet bare til saken og 🧾 refusjon
+som oppgave i oversikten.
+
+1. 🧾 Hendelser for refusjonskrav og sluttrapport (702, PR #249). Behandle
+   refusjonskrav: statuser, godkjenn, avslå via beslutter, GUI etter Figma.
+2. 💸 Faktura og status tilbake fra OeBS (679). Avslutt saken.
+3. 🏦 Test bestilling og utbetaling mot OeBS i T1 når det er klart. Registrer
+   ekspertbistand som økonomisystem (690).
+4. Idempotens og samtidighet i saksbehandlings-API-ene (694).
+5. 🚦 Prod-manifest for saksbehandling, overgang fra Arena-flyten, Entra-gruppene
+   synlige i prod (687).
 
 ### Felles arbeid
 
@@ -454,13 +463,11 @@ leveranse i sporet.
 ### Dette må skje i rekkefølge
 
 ```
-Aa-reg-tilgang ──> Aa-reg i søknad ──> automatisk vilkår
-                         └──────────> varsel til deltaker ved innsending i prod (P1)
+Aa-reg i søknad (i prod) ──> automatisk vilkår
 
-VedtakFattet (ferdig) ──> journalfør brev ──> distribuer til deltaker
-                    ├──> varsle arbeidsgiver
-                    └──> OeBS-bestilling ──> tilsagnsnummer i tilsagnsbrev
-                                     └──> refusjon godkjent ──> utbetaling ──> sak avsluttet
+VedtakFattet ──> vedtaksbrev til arbeidsgiver (ferdig) ──> varsle arbeidsgiver
+           ├──> vedtaksbrev til deltaker ──> distribuer med dokdist
+           └──> OeBS-bestilling (ferdig) ──> refusjon godkjent ──> utbetaling ──> sak avsluttet
 
 OeBS T1 klart ──> bestilling og utbetaling testet ──> økonomi i prod
 
@@ -470,10 +477,10 @@ M2/M3 + akseptansetest ───────────────────
 
 Dette kan skje samtidig:
 
-- Spor A sin Aa-reg-jobb og spor B sin brev- og varseljobb. Varselet til
-  deltaker bygges mot fnr i søknaden. Aa-reg trengs først når det skal i prod.
-- Refusjonsbehandling (C) og innsending av refusjon i prod (A). Kontrakten
-  er tabellene og API-et som finnes i dag.
+- Brev og varsel til deltaker (B) og visningene på ny rute (A). Kontrakten er
+  vedtaket og brevet som finnes i dag (#237, #250).
+- Refusjonsbehandling (C) og innsending av refusjon etter Figma (A).
+  Kontrakten er tabellene og API-et som finnes, og hendelsene i PR #249.
 
 ### Unngå kollisjoner i koden
 
@@ -494,31 +501,33 @@ Dette kan skje samtidig:
 
 Disse bør bli kort:
 
-1. 🧾 Behandle refusjonskrav: godkjenn, avslå via beslutter, oppgavetype
-2. 💸 Utbetale via OeBS (faktura) og motta status
-3. 📣 Varsle arbeidsgiver når refusjonen er godkjent
-4. 💸 Avslutte saken etter utbetaling og sluttrapport
-5. 📝 Opprette og journalføre tilsagnsbrev for nye saker (uten Arena)
-6. ⚖️ Automatisk vilkår «deltaker har arbeidsforhold» fra Aa-reg
-7. 🚦 Prod-manifest for saksbehandling og overgang fra Arena-flyten i prod
-8. 🧪 Akseptansetest og opplæring med saksbehandlere
-9. 🏦 Teste bestilling og utbetaling mot OeBS i T1
-10. 📨 Del kortet om varsel til deltaker i to: ved innsending (P1) og ved vedtak
-11. 📨 Tekst i søknadsskjemaet om at deltaker får varsel og kopi av søknaden
+1. 🧾 Behandle refusjonskrav: godkjenn, avslå via beslutter, statuser
+2. 📣 Varsle arbeidsgiver når refusjonen er godkjent
+3. 💸 Avslutte saken etter utbetaling og sluttrapport
+4. 🚦 Prod-manifest for saksbehandling og overgang fra Arena-flyten i prod
+5. 🧪 Akseptansetest og opplæring med saksbehandlere
+6. 🏦 Teste bestilling og utbetaling mot OeBS i T1
 
 ## Avklart
 
 - **Go-live:** All saksbehandling av søknader som sendes inn etter go-live,
   skjer i ny løsning. Saker opprettet i Arena behandles ferdig der. Ingen
   synk mellom oss og Arena.
-- **Varsel til deltaker:** Aa-reg-sjekken og 📨 varsel om mottatt søknad går
-  i prod så snart de er klare, uten å vente på go-live. 📬 Varsel om vedtak
-  kommer først når den nye saksbehandlingsløsningen er live, fordi vedtak i
-  Arena-saker ikke går via oss. Kanalen er dokdist, som Team Tiltak bruker
-  for vedtak til deltaker. Arbeidsgiver skal få beskjed i søknadsskjemaet om
-  at deltaker får innsyn i og kopi av søknaden.
-- **Tilsagnsbrev til arbeidsgiver:** Samme flyt som i dag, uten dokdist. Bare
-  triggeren endres fra tilsagnet i Arena til vedtaket i ny løsning.
+- **Varsel til deltaker:** Aa-reg-sjekken og 📨 kopi av søknaden gikk i prod
+  før go-live (P1). 📬 Vedtaksbrevet til deltaker kommer først når den nye
+  saksbehandlingsløsningen er live, fordi vedtak i Arena-saker ikke går via
+  oss. Kanalen er dokdist, som Team Tiltak bruker for vedtak til deltaker.
+- **Dokdist (Anders, 10.11.):** Vi har tilgang i dev og prod.
+  `bestillendeFagsystem` er `EKSPERTBISTAND`, og kopien av søknaden har
+  `distribusjonstype` `ANNET`. Handleren kjører i alle miljøer uten toggle.
+- **Vedtaksbrev til deltaker (Hanna, 4.11.):** Deltaker skal ikke se
+  tilskuddsbeløpet. Brevene til deltaker endres i QA-runden med fag.
+- **Vedtaksbrev til arbeidsgiver:** I nye saker er vedtaksbrevet
+  tilsagnsbrevet. Arbeidsgiver ser det i vår løsning, rendret usladdet med
+  Gotenberg. Vi journalfører det sladdet på arbeidsgivermappa ved kode 6/7.
+  Vi henter aldri PDF fra Joark til arbeidsgiver.
+- **«Send ut vedtaksbrev og tilsagnsbrev» (Hanna, 30.10.):** Dekkes av egne
+  kort ([647](https://trello.com/c/6l4XA2H5)).
 - **Refusjon:** Én sak har ett refusjonskrav, som kan ha flere vedlegg.
   Sluttrapporten må være mottatt før kravet godkjennes. Det siste skal
   dobbeltsjekkes.
@@ -531,10 +540,11 @@ Disse bør bli kort:
   live, senest 1. april. Salesforce og Modia må få data fra samme dag.
 - **Oversikt over refusjonsstatus:** Ikke et krav. Fag fører egne Excel-lister.
   Lavthengende frukt hvis vi har tid.
-- **Aa-reg (31.10.):** Hjemmelen er avklart.
+- **Aa-reg (31.10.):** Hjemmelen er avklart, og oppslaget er i prod fra 9.11.
 - **OeBS (31.10.):** Nummerserien og kildesystemet er godkjent (OEBS-2283),
   og klienten vår er klar. Vi venter på at T1 blir klart for test.
-- **Entra-grupper (31.10.):** På plass i prod (STS-56018).
+- **Entra-grupper (31.10.):** På plass i prod (STS-56018). Gruppene må gjøres
+  synlige og bestilles i Mine tilganger før go-live (687).
 
 ## Åpne spørsmål
 
@@ -546,6 +556,13 @@ Disse bør bli kort:
    krav? Se [funn 4](README.md#funn).
 4. Får arbeidsgiver brev og varsel når refusjonskravet avslås, og skal
    bestillingen da annulleres? Se [funn 5](README.md#funn).
+5. Skal omgjøring av vedtak ([689](https://trello.com/c/KwIMHZP9)) være med
+   i første release? Kortet har ingen beskrivelse, og det er ikke regnet med.
+6. Skal deltaker varsles ved refusjon, sluttrapport og trukket søknad
+   ([688](https://trello.com/c/TobxmCHI))? Planen regner bare med varsel til
+   arbeidsgiver ved godkjent refusjon.
+7. Kan dokdist varsle deltaker på nytt når vedtaksbrevet ikke er åpnet
+   (etterlevelseskrav 204, [599](https://trello.com/c/QA5bXVrf))?
 
 ## Endringslogg
 
@@ -561,3 +578,4 @@ og avstanden øker uke for uke.
 |----:|------|---------:|------------------------:|---------:|----------------:|--------|-------------|
 | 43 | 25.10. | 138 | – | – | 215 | 🟢 64 % | Første plan. |
 | 44 | 31.10. | 120 | −27 | +9 | 204 | 🟢 59 % | Ferdig: makssats, adressebeskyttelse, sletterutiner, H1 og H2, Entra-grupper i prod, OeBS-klient og bestilling, sak-ID, M4 og beløpsgrense på refusjonskrav. Brevmalene venter bare på fag. Ny: 🛤️ nye ruter og visninger for arbeidsgiver, 🏦 test mot OeBS i T1. |
+| 46 | 11.11. | 98 | −35 | +13 | 180 | 🟢 54 % | Gjelder uke 45 og 46. **P1 er i prod**, fem uker før planen: Aa-reg-sjekk og kopi av søknaden til deltaker med dokdist. Ferdig i dev: utgiftsbeskrivelsen fjernet, 🛤️ ny rute, vedtaksbrevet til arbeidsgiver journalført med sladding og vist på ny rute, refusjon knyttet bare til saken og som oppgave i oversikten. Vedtakssida (#250) løste også tilskuddsbrevet i ekspansjonskort (681) og det meste av kvitteringen (680). M1 flyttes fra uke 5 til uke 3. Ny: 685, 686, 694, 701, 703, 690, 687, 592 og QA av brevene til deltaker (678). Omgjøring av vedtak (689) er ikke regnet med. |

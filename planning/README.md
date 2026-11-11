@@ -27,7 +27,7 @@ Hvert steg er merket med status:
 - 🔴 mangler
 
 Emojien etter statusen er steget i [lanseringsplanen](lanseringsplan_2027-04-01.md),
-for eksempel 🧾 for refusjonsbehandling. Statusene er fra 31.10.2026.
+for eksempel 🧾 for refusjonsbehandling. Statusene er fra 11.11.2026.
 
 ```mermaid
 sequenceDiagram
@@ -39,14 +39,14 @@ sequenceDiagram
     participant EB as Ekspertbistand
 
     rect rgba(0, 103, 197, 0.08)
-    Note over AG,EB: 1. Søknad 🟢🟢🟡🟡🔴🔴
-    AG->>EB: 🟡 🪪 Oppgir deltaker, sjekkes mot Aa-reg
-    EB-->>AG: 🔴 📨 Informerer om at deltaker får kopi
+    Note over AG,EB: 1. Søknad 🟢🟢🟢🟢🟢🟡
+    AG->>EB: 🟢 🪪 Oppgir deltaker, sjekkes mot Aa-reg
+    EB-->>AG: 🟢 📨 Informerer om at deltaker får kopi
     AG->>EB: 🟢 Sender inn søknaden
     EB->>EB: 🟡 Journalfører søknaden og oppretter sak (bare dev)
     Note over EB: Søknad innsendt · Sak OPPRETTET
     EB-->>AG: 🟢 Varsel om mottatt søknad
-    EB-->>DT: 🔴 📨 Kopi av søknaden (dokdist)
+    EB-->>DT: 🟢 📨 Kopi av søknaden (dokdist)
     end
 
     rect rgba(6, 137, 58, 0.08)
@@ -54,7 +54,7 @@ sequenceDiagram
     SB->>EB: 🟢 Tildeler seg saken
     Note over EB: Sak UNDER_BEHANDLING
     EB->>EB: 🔴 ⚖️ Vilkåret om arbeidsforhold oppfylt fra Aa-reg
-    SB->>EB: 🟡 ⚖️ Vurderer vilkårene (to nye vilkår mangler)
+    SB->>EB: 🟡 ⚖️ Vurderer vilkårene (tre nye vilkår mangler)
     opt Deltaker er uenig i arbeidsforholdet
         DT->>SB: Tar kontakt med Nav (utenfor løsningen)
         SB->>EB: 🟢 Overstyrer vilkåret
@@ -76,32 +76,32 @@ sequenceDiagram
     end
 
     rect rgba(255, 145, 0, 0.10)
-    Note over AG,EB: 3. Etter vedtak 🟢🟢🔴🔴🔴🔴🔴🔴🔴🔴🔴
-    EB->>EB: 🔴 🗄️ Journalfører vedtaksbrevet
+    Note over AG,EB: 3. Etter vedtak 🟢🟢🟢🟢🟢🟢🟢🟡🟡🔴🔴
+    EB->>EB: 🟢 🗄️📝 Journalfører vedtaksbrevet på arbeidsgivermappa, sladdet ved kode 6/7
+    EB->>EB: 🔴 🗄️ Journalfører vedtaksbrevet på personmappa
     EB-->>DT: 🔴 📬 Vedtaksbrevet (dokdist)
     alt Innvilget
         EB->>EB: 🟢 🏦 Bestiller hos OeBS, setter av penger
         EB->>EB: 🟢 🏦 OeBS kvitterer, bestilling AKTIV
-        EB->>EB: 🔴 📝 Lager og journalfører tilsagnsbrevet
-        EB-->>AG: 🔴 🔔 Varsel om innvilget, lenke til tilsagnsbrevet
-        AG->>EB: 🔴 🛤️ Åpner vedtaket på ny rute
-        EB-->>AG: 🔴 🛤️ Viser innvilget beløp og tilsagnsbrevet
+        EB-->>AG: 🟡 🔔 Varsel om innvilget, lenke til vedtaket
+        AG->>EB: 🟢 🛤️ Åpner vedtaket på ny rute
+        EB-->>AG: 🟢 🛤️ Viser innvilget beløp og vedtaksbrevet
         Note over AG,EB: Søknad godkjent
     else Avslått
-        EB-->>AG: 🔴 🔔 Varsel om avslag
-        AG->>EB: 🔴 🛤️ Åpner vedtaket på ny rute
-        EB-->>AG: 🔴 🛤️ Viser avslaget og avslagsbrevet
+        EB-->>AG: 🟡 🔔 Varsel om avslag
+        AG->>EB: 🟢 🛤️ Åpner vedtaket på ny rute
+        EB-->>AG: 🟢 🛤️ Viser avslaget og avslagsbrevet
         Note over AG,EB: Søknad avslatt. Saken er ferdig.
     end
     end
 
     rect rgba(102, 52, 176, 0.08)
-    Note over AG,EB: 4. Gjennomføring og refusjonskrav 🟢🟡🟡🔴🔴
+    Note over AG,EB: 4. Gjennomføring og refusjonskrav 🟢🟡🟡🟡🔴
     Note over AG: Eksperten gjennomfører bistanden (utenfor løsningen)
     AG->>EB: 🟡 📤 Sender sluttrapport (bare dev)
     AG->>EB: 🟡 📤 Sender refusjonskrav med vedlegg (bare dev)
     EB->>EB: 🟢 📤 Avviser krav over innvilget beløp
-    EB->>EB: 🔴 🧾 Publiserer event og lager oppgave til saksbehandler
+    EB->>EB: 🟡 🧾 Publiserer event og lager oppgave til saksbehandler
     Note over EB: Refusjonskrav MOTTATT · Sak REFUSJON_MOTTATT
     opt Refusjonsfristen går ut uten krav
         EB->>EB: 🔴 Avslutter saken og annullerer bestillingen (avklares)
@@ -109,9 +109,9 @@ sequenceDiagram
     end
 
     rect rgba(195, 0, 0, 0.07)
-    Note over AG,EB: 5. Refusjonsbehandling og utbetaling 🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴
-    SB->>EB: 🔴 🧾 Tildeler seg refusjonsoppgaven
-    SB->>EB: 🟡 📤 Ser refusjonskravet og sluttrapporten
+    Note over AG,EB: 5. Refusjonsbehandling og utbetaling 🟢🟢🔴🔴🔴🔴🔴🔴🔴🔴
+    SB->>EB: 🟢 🧾 Tildeler seg refusjonsoppgaven
+    SB->>EB: 🟢 📤 Ser refusjonskravet og sluttrapporten
     alt Godkjent
         SB->>EB: 🔴 🧾 Godkjenner (krever sluttrapport)
         Note over EB: Sak REFUSJON_GODKJENT
@@ -129,9 +129,9 @@ sequenceDiagram
     end
 ```
 
-🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
+🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 
-🟢 11 finnes · 🟡 6 delvis · 🔴 24 mangler, av 41 steg i diagrammet. OeBS er ikke egen deltaker i
+🟢 21 finnes · 🟡 7 delvis · 🔴 13 mangler, av 41 steg i diagrammet. OeBS er ikke egen deltaker i
 diagrammet. Kall til og svar fra OeBS vises som steg i Ekspertbistand.
 
 Deltaker får ikke varsel om refusjonen. Bare arbeidsgiver varsles når
@@ -193,14 +193,14 @@ Hver aktør ser sin egen status. Tabellen viser hvordan de henger sammen.
 Kartleggingen viser disse hullene i tillegg til det som står i
 lanseringsplanen:
 
-1. **Refusjonskravet og sluttrapporten går ikke via event-køen.**
-   `RefusjonApi` lagrer direkte i tabellene. Saksloggen, statistikken og
-   oppgavelista ser dem derfor ikke. Innsendingen må publisere events og ha
-   handlere, som resten av saken. Det hører til 🧾.
-2. **Saken har ingen tilstander etter `INNVILGET`.** `Oppgavetype` har bare
-   oppgaver for søknaden. `AVSLUTTET` finnes, men ingenting setter den. Vi må
-   velge om refusjonsstatusene skal ligge i `Saksstatus`, som oppgavetypen
-   utledes fra i dag, eller på refusjonskravet.
+1. **Refusjonskravet og sluttrapporten går ikke via event-køen ennå.**
+   `RefusjonApi` lagrer direkte i tabellene. Oppgavelista utleder oppgavene
+   fra tabellene (#248), men saksloggen og statistikken ser dem ikke. PR #249
+   publiserer hendelser når kravet og rapporten er mottatt. Det hører til 🧾.
+2. **Saken har ingen tilstander etter `INNVILGET`.** `Oppgavetype` har fått
+   `REFUSJON` og `SLUTTRAPPORT` (#248), men oppgavene avsluttes ikke ennå.
+   `AVSLUTTET` finnes, men ingenting setter den. Vi må velge om
+   refusjonsstatusene skal ligge i `Saksstatus` eller på refusjonskravet.
 3. **Arbeidsgiver ser bare `MOTTATT` på refusjonskravet.** Visningen av
    refusjonskravet på ny rute må vise godkjent, avslått og utbetalt.
 4. **Fristen går ut uten refusjonskrav.** Hva skjer med saken og
