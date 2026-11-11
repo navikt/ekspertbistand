@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from "react";
 import { Link as RouterLink, Navigate, useParams } from "react-router";
-import { ArrowRedoIcon, ClockIcon, FileTextIcon } from "@navikt/aksel-icons";
+import { ArrowRedoIcon, ClockIcon } from "@navikt/aksel-icons";
 import {
   Alert,
   Bleed,
@@ -20,7 +20,7 @@ import useSWR from "swr";
 import DecoratedPage from "../components/DecoratedPage";
 import { ApplicationPictogram } from "../components/ApplicationPictogram";
 import { BackLink } from "../components/BackLink";
-import { KvitteringSummary } from "../components/KvitteringSummary";
+import { SoknadSendtInnKort } from "../components/SoknadSendtInnKort";
 import { PdfForhandsvisning } from "../components/pdf";
 import { A4_FORHOLD } from "../components/pdf/types";
 import { formatSubmittedDateOrNull } from "../components/summaryFormatters";
@@ -190,29 +190,7 @@ export default function VedtakPage() {
             </ExpansionCard>
 
             {soknad && (
-              <ExpansionCard size="small" aria-label="Søknad sendt inn">
-                <ExpansionCard.Header>
-                  <HStack wrap={false} gap="space-16" align="center">
-                    <FileTextIcon aria-hidden fontSize="2rem" />
-                    <div>
-                      <ExpansionCard.Title as="h2" size="small">
-                        Søknad sendt inn
-                      </ExpansionCard.Title>
-                      {innsendtTekst && (
-                        <ExpansionCard.Description>{innsendtTekst}</ExpansionCard.Description>
-                      )}
-                    </div>
-                  </HStack>
-                </ExpansionCard.Header>
-                <ExpansionCard.Content>
-                  <KvitteringSummary
-                    data={soknad}
-                    saksnummer={id}
-                    innsendtTekst={innsendtTekst}
-                    headingLevel="3"
-                  />
-                </ExpansionCard.Content>
-              </ExpansionCard>
+              <SoknadSendtInnKort soknad={soknad} saksnummer={id} innsendtTekst={innsendtTekst} />
             )}
           </VStack>
         </VStack>

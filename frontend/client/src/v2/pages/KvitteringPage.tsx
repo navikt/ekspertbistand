@@ -29,7 +29,7 @@ import {
 import { BackLink } from "../components/BackLink";
 import useSWR from "swr";
 import { formatSubmittedDateOrNull } from "../components/summaryFormatters";
-import { KvitteringSummary } from "../components/KvitteringSummary";
+import { SoknadSendtInnKort } from "../components/SoknadSendtInnKort";
 import { useVedtak } from "../hooks/useVedtak";
 
 type KvitteringMetadata = {
@@ -298,7 +298,7 @@ export default function KvitteringPage() {
         )}
 
         {!isLoading && !errorMessage && formData && (
-          <KvitteringSummary data={formData} saksnummer={id} innsendtTekst={innsendtTekst} />
+          <SoknadSendtInnKort soknad={formData} saksnummer={id} innsendtTekst={innsendtTekst} />
         )}
 
         {!isLoading && !errorMessage && !formData && (
