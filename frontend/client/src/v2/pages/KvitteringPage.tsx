@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { ArrowRightIcon, FilePdfIcon } from "@navikt/aksel-icons";
 import {
   Alert,
+  Bleed,
   BodyShort,
   BodyLong,
   Box,
@@ -26,10 +27,12 @@ import {
   REFUSJON_URL,
   HENT_FORSTESIDE_URL,
 } from "../utils/constants";
+import { ApplicationPictogram } from "../components/ApplicationPictogram";
 import { BackLink } from "../components/BackLink";
+import { Nokkeldata } from "../components/Nokkeldata";
 import useSWR from "swr";
-import { formatSubmittedDateOrNull } from "../components/summaryFormatters";
-import { KvitteringSummary } from "../components/KvitteringSummary";
+import { formatDate, formatSubmittedDateOrNull } from "../components/summaryFormatters";
+import { SoknadSendtInnKort } from "../components/SoknadSendtInnKort";
 import { useVedtak } from "../hooks/useVedtak";
 
 type KvitteringMetadata = {
@@ -138,69 +141,98 @@ export default function KvitteringPage() {
   }
 
   return (
-    <DecoratedPage>
-      <VStack gap="space-32">
-        {isApproved ? (
-          <HStack
-            align="center"
-            justify="space-between"
-            wrap={false}
-            style={{ alignItems: "baseline" }}
+    <DecoratedPage blockProps={{ width: "text" }}>
+      <VStack gap="space-12">
+        <Bleed asChild marginInline={{ lg: "space-128" }}>
+          <Box
+            width={{ xs: "64px", lg: "96px" }}
+            height={{ xs: "64px", lg: "96px" }}
+            asChild
+            position={{ xs: "relative", lg: "absolute" }}
           >
-            <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
-            <VStack gap="space-4" align="end">
-              <BodyShort size="small">
-                <strong>Snarveier</strong>
-              </BodyShort>
-              <BodyLong>
-                <Link href={REFUSJON_URL}>
+            <ApplicationPictogram />
+          </Box>
+        </Bleed>
+        <Heading level="1" size="xlarge">
+          Tilskudd til ekspertbistand
+        </Heading>
+      </VStack>
+
+      {isApproved ? (
+        <HStack
+          align="center"
+          justify="space-between"
+          wrap={false}
+          style={{ alignItems: "baseline" }}
+        >
+          <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
+          <VStack gap="space-4" align="end">
+            <BodyShort size="small">
+              <strong>Snarveier</strong>
+            </BodyShort>
+            <BodyLong>
+              <Link href={REFUSJON_URL}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                  Søk refusjon
+                  <ArrowRightIcon aria-hidden focusable="false" />
+                </span>
+              </Link>
+            </BodyLong>
+            <BodyLong>
+              {HENT_FORSTESIDE_URL ? (
+                <Link href={HENT_FORSTESIDE_URL}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-                    Søk refusjon
+                    Førsteside til sluttrapport
                     <ArrowRightIcon aria-hidden focusable="false" />
                   </span>
                 </Link>
-              </BodyLong>
-              <BodyLong>
-                {HENT_FORSTESIDE_URL ? (
-                  <Link href={HENT_FORSTESIDE_URL}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
-                      Førsteside til sluttrapport
-                      <ArrowRightIcon aria-hidden focusable="false" />
-                    </span>
-                  </Link>
-                ) : (
-                  "Hent førsteside"
-                )}
-              </BodyLong>
-            </VStack>
-          </HStack>
-        ) : (
-          <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
-        )}
+              ) : (
+                "Hent førsteside"
+              )}
+            </BodyLong>
+          </VStack>
+        </HStack>
+      ) : (
+        <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
+      )}
 
-        {showSubmittedAlert && !isApproved && !isRejected && !isAvslatt && (
-          <Alert variant="success" role="status">
-            Du har sendt søknaden
-          </Alert>
-        )}
+      {showSubmittedAlert && !isApproved && !isRejected && !isAvslatt && (
+        <Alert variant="success" role="status">
+          Du har sendt søknaden
+        </Alert>
+      )}
 
-        <Heading level="1" size="large">
-          Søknad om tilskudd til ekspertbistand
-        </Heading>
+      {isLoading && (
+        <Box aria-live="polite">
+          <Loader size="large" title="Laster kvittering" />
+        </Box>
+      )}
 
+      {errorMessage && (
+        <Alert variant="error" role="alert">
+          {errorMessage}
+        </Alert>
+      )}
+
+      <VStack gap="space-24">
         {!isApproved && !isRejected && !isAvslatt && (
-          <VStack gap="space-12" align="center">
-            <Box background="neutral-moderate" padding="space-16">
-              <Heading level="2" size="medium" align="center">
+          <>
+            <Box background="info-moderate" padding="space-24">
+              <Heading level="2" size="large" align="center">
+                Til behandling
+              </Heading>
+            </Box>
+            <div>
+              <Heading level="3" size="small">
                 Nav har mottatt søknaden
               </Heading>
-              <BodyLong align="center">
+              <BodyLong>
                 Saksbehandlingstiden er vanligvis en uke, og du kan følge saken her. Du får beskjed
                 på e-post når søknaden er behandlet. Vent med å ta tiltaket i bruk til du har
                 mottatt svar.
               </BodyLong>
-            </Box>
-          </VStack>
+            </div>
+          </>
         )}
         {isApproved && (
           <VStack gap="space-8">
@@ -238,6 +270,22 @@ export default function KvitteringPage() {
               </BodyLong>
             </Box>
           </VStack>
+        )}
+
+        {!isLoading && !errorMessage && formData && (
+          <Nokkeldata
+            rader={[
+              [
+                "Startdato",
+                formData.behovForBistand.startdato
+                  ? formatDate(formData.behovForBistand.startdato)
+                  : null,
+              ],
+              ["Deltaker", formData.ansatt.navn],
+              ["Ekspert", formData.ekspert.navn],
+              ["Arbeidsgiver", formData.virksomhet.virksomhetsnavn],
+            ]}
+          />
         )}
 
         {!tilskuddsbrevLoading && !tilsagnErrorMessage && shouldLoadTilsagn && tilsagnCount > 0 && (
@@ -285,20 +333,8 @@ export default function KvitteringPage() {
           </Alert>
         )}
 
-        {isLoading && (
-          <Box aria-live="polite">
-            <Loader size="large" title="Laster kvittering" />
-          </Box>
-        )}
-
-        {errorMessage && (
-          <Alert variant="error" role="alert">
-            {errorMessage}
-          </Alert>
-        )}
-
         {!isLoading && !errorMessage && formData && (
-          <KvitteringSummary data={formData} saksnummer={id} innsendtTekst={innsendtTekst} />
+          <SoknadSendtInnKort soknad={formData} saksnummer={id} innsendtTekst={innsendtTekst} />
         )}
 
         {!isLoading && !errorMessage && !formData && (
@@ -306,8 +342,6 @@ export default function KvitteringPage() {
             Fant ikke kvitteringen akkurat nå. Prøv igjen senere fra oversikten.
           </Alert>
         )}
-
-        <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
       </VStack>
     </DecoratedPage>
   );
