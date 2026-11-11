@@ -67,7 +67,7 @@ class DokArkivClient(
 
     suspend fun opprettOgFerdigstillJournalpost(
         tittel: String,
-        virksomhetsnummer: String,
+        bruker: Bruker,
         sak: Sak,
         eksternReferanseId: String,
         dokumentPdfAsBytes: ByteArray,
@@ -75,7 +75,7 @@ class DokArkivClient(
         avsenderMottaker: AvsenderMottaker?,
     ): OpprettJournalpostResponse {
         val journalpost = Journalpost(
-            bruker = Bruker(id = virksomhetsnummer, idType = "ORGNR"),
+            bruker = bruker,
             avsenderMottaker = avsenderMottaker,
             eksternReferanseId = eksternReferanseId,
             journalfoerendeEnhet = "9999", // automatisk journalføring
@@ -176,6 +176,7 @@ data class AvsenderMottaker(
 ) {
     companion object {
         fun orgnr(orgnummer: String) = AvsenderMottaker(id = orgnummer, idType = "ORGNR")
+        fun fnr(fnr: String) = AvsenderMottaker(id = fnr, idType = "FNR")
     }
 }
 
@@ -198,10 +199,15 @@ sealed interface Sak {
 }
 
 @Serializable
-private data class Bruker(
+data class Bruker(
     val id: String,
     val idType: String,
-)
+) {
+    companion object {
+        fun orgnr(orgnummer: String) = Bruker(id = orgnummer, idType = "ORGNR")
+        fun fnr(fnr: String) = Bruker(id = fnr, idType = "FNR")
+    }
+}
 
 @Serializable
 private data class Dokument(

@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.event.handlers
 
 import no.nav.ekspertbistand.dokarkiv.AvsenderMottaker
+import no.nav.ekspertbistand.dokarkiv.Bruker
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
@@ -56,7 +57,7 @@ class JournalfoerTilskuddsbrevKildeAltinn(
         val journalpostResponse = try {
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = tittel,
-                virksomhetsnummer = event.data.tilsagnData.tiltakArrangor.orgNummer.toString(),
+                bruker = Bruker.orgnr(event.data.tilsagnData.tiltakArrangor.orgNummer.toString()),
                 sak = Sak.GenerellSak(),
                 eksternReferanseId = event.data.tilsagnData.tilsagnNummer.concat(),
                 dokumentPdfAsBytes = tilsagnPdf,

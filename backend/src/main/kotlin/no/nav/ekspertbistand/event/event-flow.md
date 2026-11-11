@@ -38,6 +38,8 @@ flowchart TD
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
+    e_SoknadKopiDeltakerDistribuert(["SoknadKopiDeltakerDistribuert"]):::event
+    e_SoknadKopiDeltakerJournalfoert(["SoknadKopiDeltakerJournalfoert"]):::event
     e_TilsagnsdataLagret(["TilsagnsdataLagret"]):::event
     e_TilskuddsbrevJournalfoert(["TilskuddsbrevJournalfoert"]):::event
     e_TilskuddsbrevJournalfoertKildeAltinn(["TilskuddsbrevJournalfoertKildeAltinn"]):::event
@@ -49,10 +51,12 @@ flowchart TD
     e_VedtaksbrevArbeidsgiverJournalfoert(["VedtaksbrevArbeidsgiverJournalfoert"]):::event
     e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
     h_BestillTilsagnIOebs["BestillTilsagnIOebs"]:::handler
+    h_DistribuerSoknadKopiDeltaker["DistribuerSoknadKopiDeltaker"]:::handler
     h_FattVedtak["FattVedtak"]:::handler
     h_FrigjoerSak["FrigjoerSak"]:::handler
     h_JournalfoerInnsendtSoknad["JournalfoerInnsendtSoknad"]:::handler
     h_JournalfoerNotatArenaSakOpprettet["JournalfoerNotatArenaSakOpprettet"]:::handler
+    h_JournalfoerSoknadKopiDeltaker["JournalfoerSoknadKopiDeltaker"]:::handler
     h_JournalfoerTilskuddsbrev["JournalfoerTilskuddsbrev"]:::handler
     h_JournalfoerTilskuddsbrevKildeAltinn["JournalfoerTilskuddsbrevKildeAltinn"]:::handler
     h_JournalfoerVedtaksbrevArbeidsgiver["JournalfoerVedtaksbrevArbeidsgiver"]:::handler
@@ -68,6 +72,7 @@ flowchart TD
     h_SettGodkjentSoknadStatus["SettGodkjentSoknadStatus"]:::handler
     h_SettSoknadStatusVedtakFattet["SettSoknadStatusVedtakFattet"]:::handler
     h_SkrivSakslogg["SkrivSakslogg"]:::handler
+    h_SoknadKopiDeltakerDistribuertNoop["SoknadKopiDeltakerDistribuertNoop"]:::handler
     h_TildelBeslutter["TildelBeslutter"]:::handler
     h_TildelSaksbehandler["TildelSaksbehandler"]:::handler
     h_TilskuddsbrevVistNoop["TilskuddsbrevVistNoop"]:::handler
@@ -89,10 +94,12 @@ flowchart TD
     s_BeslutterApi --> e_ForelopigVedtakReturnert
     s_BeslutterApi --> e_VedtakFattet
     h_BestillTilsagnIOebs --> e_SakOppdatert
+    h_DistribuerSoknadKopiDeltaker --> e_SoknadKopiDeltakerDistribuert
     h_FattVedtak --> e_SakOppdatert
     s_ForelopigVedtakApi --> e_ForelopigVedtakSendtTilBeslutter
     h_FrigjoerSak --> e_SakOppdatert
     h_JournalfoerInnsendtSoknad --> e_InnsendtSoknadJournalfoert
+    h_JournalfoerSoknadKopiDeltaker --> e_SoknadKopiDeltakerJournalfoert
     h_JournalfoerTilskuddsbrev --> e_TilskuddsbrevJournalfoert
     h_JournalfoerTilskuddsbrevKildeAltinn --> e_TilskuddsbrevJournalfoertKildeAltinn
     h_JournalfoerVedtaksbrevArbeidsgiver --> e_SakOppdatert
@@ -112,10 +119,12 @@ flowchart TD
     s_TilsagnDataApi --> e_TilskuddsbrevVist
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
     e_VedtakFattet --> h_BestillTilsagnIOebs
+    e_SoknadKopiDeltakerJournalfoert --> h_DistribuerSoknadKopiDeltaker
     e_VedtakFattet --> h_FattVedtak
     e_SakFrigjort --> h_FrigjoerSak
     e_SoknadInnsendt --> h_JournalfoerInnsendtSoknad
     e_TiltaksgjennomforingOpprettet --> h_JournalfoerNotatArenaSakOpprettet
+    e_SoknadInnsendt --> h_JournalfoerSoknadKopiDeltaker
     e_TilskuddsbrevMottatt --> h_JournalfoerTilskuddsbrev
     e_TilskuddsbrevMottattKildeAltinn --> h_JournalfoerTilskuddsbrevKildeAltinn
     e_VedtakFattet --> h_JournalfoerVedtaksbrevArbeidsgiver
@@ -131,6 +140,7 @@ flowchart TD
     e_TilskuddsbrevJournalfoert --> h_SettGodkjentSoknadStatus
     e_VedtakFattet --> h_SettSoknadStatusVedtakFattet
     e_SakOppdatert --> h_SkrivSakslogg
+    e_SoknadKopiDeltakerDistribuert --> h_SoknadKopiDeltakerDistribuertNoop
     e_SakTildeltBeslutter --> h_TildelBeslutter
     e_SakTildeltSaksbehandler --> h_TildelSaksbehandler
     e_TilskuddsbrevVist --> h_TilskuddsbrevVistNoop

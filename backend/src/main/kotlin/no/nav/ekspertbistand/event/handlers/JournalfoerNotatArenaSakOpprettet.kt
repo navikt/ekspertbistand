@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.event.handlers
 
 import no.nav.ekspertbistand.dokarkiv.AvsenderMottaker
+import no.nav.ekspertbistand.dokarkiv.Bruker
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
@@ -46,7 +47,7 @@ class JournalfoerNotatArenaSakOpprettet(
         val journalpostResponse = try {
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = "Saken er opprettet i Arena under saksnummer: ${event.data.saksnummer}",
-                virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
+                bruker = Bruker.orgnr(soknad.virksomhet.virksomhetsnummer),
                 sak = Sak.FagSak(fagsakId = fagsakIdService.opprettEllerHentFagsakId(soknadId = soknad.id)),
                 eksternReferanseId = "notat-${event.data.saksnummer}-${event.data.tiltaksgjennomfoeringId}",
                 dokumentPdfAsBytes = notatPdf,

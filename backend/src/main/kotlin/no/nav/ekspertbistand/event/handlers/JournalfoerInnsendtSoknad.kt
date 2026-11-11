@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.event.handlers
 
 import no.nav.ekspertbistand.dokarkiv.AvsenderMottaker
+import no.nav.ekspertbistand.dokarkiv.Bruker
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
@@ -66,7 +67,7 @@ class JournalfoerInnsendtSoknad(
         val journalpostResponse = runCatching {
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = tittel,
-                virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
+                bruker = Bruker.orgnr(soknad.virksomhet.virksomhetsnummer),
                 sak = Sak.FagSak(fagsakId = fagsakIdService.opprettEllerHentFagsakId(soknadId = soknadId)),
                 eksternReferanseId = soknadId,
                 dokumentPdfAsBytes = soknadPdf,

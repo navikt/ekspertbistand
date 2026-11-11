@@ -132,7 +132,8 @@ export default function SoknadPage() {
                 notere hvem du har drøftet det med.
               </List.Item>
               <List.Item>
-                Du, den ansatte og Nav er enige om at det er hensiktsmessig med ekspertbistand.
+                Du, den ansatte og Nav er enige om at det er hensiktsmessig med ekspertbistand. Den
+                ansatte får kopi av søknaden du sender inn.
               </List.Item>
               <List.Item>
                 Du vet hvilken ekspert du ønsker å bruke og hvilken hjelp denne kan tilby.
