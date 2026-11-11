@@ -38,7 +38,7 @@ flowchart TD
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
-    e_SoknadKopiDeltakerDistribuert(["SoknadKopiDeltakerDistribuert"]):::orphan
+    e_SoknadKopiDeltakerDistribuert(["SoknadKopiDeltakerDistribuert"]):::event
     e_SoknadKopiDeltakerJournalfoert(["SoknadKopiDeltakerJournalfoert"]):::event
     e_TilsagnsdataLagret(["TilsagnsdataLagret"]):::event
     e_TilskuddsbrevJournalfoert(["TilskuddsbrevJournalfoert"]):::event
@@ -70,6 +70,7 @@ flowchart TD
     h_SettGodkjentSoknadStatus["SettGodkjentSoknadStatus"]:::handler
     h_SettSoknadStatusVedtakFattet["SettSoknadStatusVedtakFattet"]:::handler
     h_SkrivSakslogg["SkrivSakslogg"]:::handler
+    h_SoknadKopiDeltakerDistribuertNoop["SoknadKopiDeltakerDistribuertNoop"]:::handler
     h_TildelBeslutter["TildelBeslutter"]:::handler
     h_TildelSaksbehandler["TildelSaksbehandler"]:::handler
     h_TilskuddsbrevVistNoop["TilskuddsbrevVistNoop"]:::handler
@@ -133,6 +134,7 @@ flowchart TD
     e_TilskuddsbrevJournalfoert --> h_SettGodkjentSoknadStatus
     e_VedtakFattet --> h_SettSoknadStatusVedtakFattet
     e_SakOppdatert --> h_SkrivSakslogg
+    e_SoknadKopiDeltakerDistribuert --> h_SoknadKopiDeltakerDistribuertNoop
     e_SakTildeltBeslutter --> h_TildelBeslutter
     e_SakTildeltSaksbehandler --> h_TildelSaksbehandler
     e_TilskuddsbrevVist --> h_TilskuddsbrevVistNoop
@@ -166,7 +168,3 @@ flowchart TD
     e_TilskuddsbrevVist -.-> p_TilskuddsbrevVistProjection
     linkStyle default stroke:#555,stroke-width:2px
 ```
-
-Events markert i rødt mangler enten publiserer eller konsument:
-
-- `SoknadKopiDeltakerDistribuert` – mangler konsument

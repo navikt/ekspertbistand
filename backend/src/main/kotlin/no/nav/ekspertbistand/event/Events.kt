@@ -124,7 +124,7 @@ sealed interface EventData {
      * Publiseres av [no.nav.ekspertbistand.event.handlers.DistribuerSoknadKopiDeltaker]. [bestillingsId]
      * er dokdist sin id for forsendelsen, og brukes ved feilsøking mot Team Dokumentløsninger.
      *
-     * Konsumenter: ingen.
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
      */
     @Serializable
     @SerialName("soknadKopiDeltakerDistribuert")
@@ -639,6 +639,10 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(ReturnerForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
+            EventHandledResult.Success()
+        }
+        register<EventData.SoknadKopiDeltakerDistribuert>("SoknadKopiDeltakerDistribuertNoop") { _ ->
+            // SoknadKopiDeltakerDistribuert lagrer bestillingsId fra dokdist i eventloggen. Ingen konsumenter per nå.
             EventHandledResult.Success()
         }
     }
