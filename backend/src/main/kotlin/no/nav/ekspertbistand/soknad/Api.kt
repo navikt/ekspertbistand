@@ -206,7 +206,7 @@ class SoknadApi(
             UtkastTable.deleteWhere { UtkastTable.id eq idParam }
         }
 
-        call.respond(status = HttpStatusCode.NoContent, NullBody)
+        call.respond(HttpStatusCode.NoContent)
     }
 
     suspend fun RoutingContext.sendInnSoknad(idParam: UUID) {
