@@ -27,9 +27,11 @@
     "@navikt/fnrvalidator": "^2.2.1",
     "@navikt/nav-dekoratoren-moduler": "^3.7.3",
     "@navikt/virksomhetsvelger": "^2.2.0",
+    "pdfjs-dist": "6.3.289",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-hook-form": "^7.84.0",
+    "react-pdf": "^11.0.0",
     "react-router": "^8.3.0",
     "swr": "^2.5.0",
     "zod": "^4.4.3"

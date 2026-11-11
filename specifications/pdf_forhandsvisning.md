@@ -243,6 +243,11 @@ og manuelt i dev med MSW:
 3. **Deling med `client`.** Skal komponenten brukes i `client` senere? I så fall
    bør den flyttes til `frontend/shared`, og det bør bli et eget kort.
 
+   Merknad: I kort 693 (`vis_vedtak_arbeidsgiver.md`) ble komponenten kopiert
+   til `client/src/v2/components/pdf/`, ikke flyttet til `frontend/shared`.
+   Visningene i saksbehandling og søknad kan fort trenge å skille seg, så vi
+   venter med en delt komponent til den har tre brukere.
+
 ## Ferdig når
 
 - [ ] `PdfForhandsvisning` og `PdfForhandsvisningListe` er eksportert fra `src/components/pdf`, og pdf.js lastes bare når komponenten brukes
