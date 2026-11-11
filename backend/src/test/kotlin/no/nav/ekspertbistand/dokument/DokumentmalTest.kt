@@ -10,6 +10,8 @@ import no.nav.ekspertbistand.dokument.pdf.HandlebarsConfig
 import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.Mottaker
+import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
+import no.nav.ekspertbistand.saksbehandling.tolkSoknadssum
 import no.nav.ekspertbistand.saksbehandling.vedtaksbrevData
 import no.nav.ekspertbistand.soknad.DTO
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -103,8 +105,14 @@ class DokumentmalTest {
                         var html: String? = null
                         val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }), strictRenderer)
                         val avslag = utfall == ForelopigUtfall.AVSLAA
+                        val soknad = sampleSoknad()
                         val data = vedtaksbrevData(
-                            soknad = sampleSoknad(),
+                            deltakerNavn = soknad.ansatt.navn,
+                            arbeidsgiver = VedtaksbrevData.Arbeidsgiver(
+                                navn = soknad.virksomhet.virksomhetsnavn,
+                                orgnr = soknad.virksomhet.virksomhetsnummer,
+                            ),
+                            soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad),
                             utfall = utfall,
                             belop = if (utfall == ForelopigUtfall.INNVILGE_REDUSERT) 7000 else null,
                             begrunnelseDeltaker = "Begrunnelse til deltaker",

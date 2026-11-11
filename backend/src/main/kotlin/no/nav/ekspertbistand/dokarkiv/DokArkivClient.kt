@@ -78,7 +78,7 @@ class DokArkivClient(
             bruker = bruker,
             avsenderMottaker = avsenderMottaker,
             eksternReferanseId = eksternReferanseId,
-            journalfoerendeEnhet = "9999",
+            journalfoerendeEnhet = "9999", // automatisk journalføring
             tittel = tittel,
             dokumenter = listOf(
                 Dokument(

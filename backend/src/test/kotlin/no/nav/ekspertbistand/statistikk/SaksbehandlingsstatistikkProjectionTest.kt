@@ -5,6 +5,7 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventQueue
 import no.nav.ekspertbistand.event.TestEventData
+import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.event.projections.ProjectionBuilderState
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
@@ -374,13 +375,12 @@ class SaksbehandlingsstatistikkProjectionTest {
     )
 
     private fun vedtak(soknad: DTO.Soknad, versjon: Int, utfall: Saksstatus, ident: String, tidspunkt: Instant) =
-        EventData.VedtakFattet(
+        TestEventData.vedtakFattet(
             sakId = UUID.randomUUID().toString(),
             soknadId = soknad.id!!,
-            forelopigVedtakVersjon = versjon,
-            utfall = utfall,
+            utfall = if (utfall == Saksstatus.AVSLATT) VedtakDomain.Utfall.AVSLAA else VedtakDomain.Utfall.INNVILGE,
+            versjon = versjon,
             fattetAvIdent = ident,
-            fattetAvNavn = "Navn $ident",
             tidspunkt = tidspunkt,
         )
 }

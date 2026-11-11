@@ -166,7 +166,12 @@ suspend fun Application.configureSakDokumentApiV1() {
                     }
 
                     val data = vedtaksbrevData(
-                        soknad = soknad,
+                        deltakerNavn = soknad.ansatt.navn,
+                        arbeidsgiver = VedtaksbrevData.Arbeidsgiver(
+                            navn = soknad.virksomhet.virksomhetsnavn,
+                            orgnr = soknad.virksomhet.virksomhetsnummer,
+                        ),
+                        soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad),
                         utfall = vedtak.utfall,
                         belop = vedtak.innvilgetBelop,
                         begrunnelseDeltaker = vedtak.begrunnelseDeltaker,
@@ -202,7 +207,12 @@ suspend fun Application.configureSakDokumentApiV1() {
                     val (vedtak, soknad, saksbehandlerNavn) = lagret
 
                     val data = vedtaksbrevData(
-                        soknad = soknad,
+                        deltakerNavn = soknad.ansatt.navn,
+                        arbeidsgiver = VedtaksbrevData.Arbeidsgiver(
+                            navn = soknad.virksomhet.virksomhetsnavn,
+                            orgnr = soknad.virksomhet.virksomhetsnummer,
+                        ),
+                        soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad),
                         utfall = vedtak.utfall,
                         belop = vedtak.innvilgetBelop,
                         begrunnelseDeltaker = vedtak.begrunnelseDeltaker,
@@ -233,17 +243,12 @@ private suspend fun ApplicationCall.mottakerParameter(verdi: String?): Mottaker?
     return mottaker
 }
 
-/** Enhetsnavnet finnes bare hos innlogget, som har bestått [sjekkTilgangTilEnhet] for enheten. */
-private fun AzureAdPrincipal.enhetsnavn(enhetsnummer: String?): String? =
-    enheter.find { it.enhetnummer == enhetsnummer }?.navn
-
 /** Navnet til saksbehandler på saken, bare når det er [ident] som har saken. */
 private fun hentSaksbehandlerNavn(sakId: UUID, ident: String): String? =
     SakTable.select(SakTable.saksbehandlerIdent, SakTable.saksbehandlerNavn)
         .where { SakTable.sakId eq sakId }
         .singleOrNull()
-        ?.takeIf { it[SakTable.saksbehandlerIdent] == ident }
-        ?.get(SakTable.saksbehandlerNavn)
+        ?.let { saksbehandlerForBrev(it[SakTable.saksbehandlerIdent], it[SakTable.saksbehandlerNavn], ident) }
 
 /** Svarer 503 og returnerer null når PDF-en ikke kan lages. Innholdet i brevet logges ikke. */
 private suspend fun ApplicationCall.genererVedtaksbrev(
