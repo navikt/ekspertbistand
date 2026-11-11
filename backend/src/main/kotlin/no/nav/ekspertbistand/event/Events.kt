@@ -173,7 +173,7 @@ sealed interface EventData {
      * på at vi er kilde til saken.
      *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerNotatArenaSakOpprettet] og
-     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIAltinn].
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIArena].
      */
     @Serializable
     @SerialName("tiltaksgjennomforingOpprettet")
@@ -691,7 +691,7 @@ suspend fun Application.configureEventHandlers() {
             prod = {
                 register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))
                 register(dependencies.create(JournalfoerNotatArenaSakOpprettet::class))
-                register(dependencies.create(VarsleArbeidsgiverSoknadMottattBehandlesIAltinn::class))
+                register(dependencies.create(VarsleArbeidsgiverSoknadMottattBehandlesIArena::class))
             },
             other = {
                 register(dependencies.create(OpprettSak::class))

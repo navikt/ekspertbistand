@@ -17,7 +17,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
  * Når vi har opprettet sak for en søknad, publiseres [EventData.SakOpprettet].
  *
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen om at søknad er mottatt
- * og under behandling. Varselet er identisk med det [VarsleArbeidsgiverSoknadMottattBehandlesIAltinn]
+ * og under behandling. Varselet er identisk med det [VarsleArbeidsgiverSoknadMottattBehandlesIArena]
  * sender for saker som behandles i Arena.
  */
 class VarsleArbeidsgiverSakOpprettet(

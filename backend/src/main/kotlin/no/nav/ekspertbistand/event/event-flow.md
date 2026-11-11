@@ -83,7 +83,7 @@ flowchart TD
     h_VarsleArbeidsgiverSoknadAvlyst["VarsleArbeidsgiverSoknadAvlyst"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
-    h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn["VarsleArbeidsgiverSoknadMottattBehandlesIAltinn"]:::handler
+    h_VarsleArbeidsgiverSoknadMottattBehandlesIArena["VarsleArbeidsgiverSoknadMottattBehandlesIArena"]:::handler
     h_VedtaksbrevVistNoop["VedtaksbrevVistNoop"]:::handler
     p_SakProjection[["SakProjection"]]:::projection
     p_SaksbehandlingsstatistikkProjection[["SaksbehandlingsstatistikkProjection"]]:::projection
@@ -153,7 +153,7 @@ flowchart TD
     e_SoknadAvlystIArena --> h_VarsleArbeidsgiverSoknadAvlyst
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn
-    e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn
+    e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottattBehandlesIArena
     e_VedtaksbrevVist --> h_VedtaksbrevVistNoop
     e_InnsendtSoknadJournalfoert -.-> p_SakProjection
     e_SakFrigjort -.-> p_SakProjection
