@@ -8,21 +8,24 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 
 /**
  * Når en søknad er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarsletSoknadAvlyst] som kvittering.
  */
 class VarsleArbeidsgiverSoknadAvlyst(
     private val produsentApiKlient: ProdusentApiKlient,
-    database: Database
+    private val database: Database
 ) : EventHandler<EventData.SoknadAvlystIArena> {
     override val id: String = "Varsle Arbeidsgiver Soknad Avlyst"
     override val eventType = EventData.SoknadAvlystIArena::class
@@ -60,6 +63,15 @@ class VarsleArbeidsgiverSoknadAvlyst(
             )
         }
 
+        transaction(database) {
+            publishEventQueue(
+                EventData.ArbeidsgiverVarsletSoknadAvlyst(
+                    soknadId = soknad.id,
+                    eksternId = eksternId(soknad),
+                    tekst = BESKJED_TEKST,
+                )
+            )
+        }
         return success()
     }
 
@@ -67,9 +79,9 @@ class VarsleArbeidsgiverSoknadAvlyst(
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = soknad.id!!,
-                eksternId = "${soknad.id}-soknad-avlyst",
+                eksternId = eksternId(soknad),
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
-                tekst = "Søknaden om ekspertbistand trukket eller avslått.",
+                tekst = BESKJED_TEKST,
                 lenke = soknad.kvitteringsLenke,
                 eksternVarsel = EksterntVarsel(
                     epostTittel = "Nav – angående søknad om ekspertbistand",
@@ -94,5 +106,11 @@ class VarsleArbeidsgiverSoknadAvlyst(
         } catch (ex: Exception) {
             Result.failure(ex)
         }
+    }
+
+    private fun eksternId(soknad: DTO.Soknad) = "${soknad.id}-soknad-avlyst"
+
+    private companion object {
+        const val BESKJED_TEKST = "Søknaden om ekspertbistand trukket eller avslått."
     }
 }

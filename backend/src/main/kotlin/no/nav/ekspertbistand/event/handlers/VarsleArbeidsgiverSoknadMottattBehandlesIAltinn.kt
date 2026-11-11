@@ -7,10 +7,12 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 
 /**
@@ -18,10 +20,11 @@ import org.jetbrains.exposed.v1.jdbc.Database
  * Dette resulterer i eventen [no.nav.ekspertbistand.event.EventData.TiltaksgjennomforingOpprettet]
  *
  * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen om at søknad er mottatt og under behandling.
+ * Når alt har lyktes, publiserer handleren [EventData.ArbeidsgiverVarsletSoknadMottatt] som kvittering.
  */
 class VarsleArbeidsgiverSoknadMottattBehandlesIAltinn(
     private val produsentApiKlient: ProdusentApiKlient,
-    database: Database
+    private val database: Database
 ) : EventHandler<EventData.TiltaksgjennomforingOpprettet> {
 
     override val id: String = "VarsleArbeidsgiverSoknadMottatt"
@@ -46,6 +49,15 @@ class VarsleArbeidsgiverSoknadMottattBehandlesIAltinn(
             )
         }
 
+        transaction(database) {
+            publishEventQueue(
+                EventData.ArbeidsgiverVarsletSoknadMottatt(
+                    soknadId = event.data.soknad.id!!,
+                    eksternId = eksternId(event.data.soknad),
+                    tekst = BESKJED_TEKST,
+                )
+            )
+        }
         return success()
     }
 
@@ -67,15 +79,21 @@ class VarsleArbeidsgiverSoknadMottattBehandlesIAltinn(
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = soknad.id!!,
-                eksternId = "${soknad.id}-soknad-mottatt",
+                eksternId = eksternId(soknad),
                 virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
-                tekst = "Nav har mottatt deres søknad om ekspertbistand.",
+                tekst = BESKJED_TEKST,
                 lenke = soknad.kvitteringsLenke,
             )
             Result.success("Opprettet beskjed for soknad ${soknad.id}")
         } catch (ex: Exception) {
             Result.failure(ex)
         }
+    }
+
+    private fun eksternId(soknad: DTO.Soknad) = "${soknad.id}-soknad-mottatt"
+
+    private companion object {
+        const val BESKJED_TEKST = "Nav har mottatt deres søknad om ekspertbistand."
     }
 }
 

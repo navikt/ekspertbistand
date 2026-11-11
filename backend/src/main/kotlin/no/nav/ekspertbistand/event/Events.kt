@@ -145,7 +145,7 @@ sealed interface EventData {
      * [adressebeskyttelse] og [skjermet] er deltakerens adressebeskyttelse i PDL og skjerming i
      * `skjermede-personer-pip` da saken ble opprettet. De oppdateres ikke senere. Defaultene gjelder eldre events.
      *
-     * Konsumenter: [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSakOpprettet] og
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottatt] og
      * [no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkProjection].
      */
     @Serializable
@@ -596,6 +596,71 @@ sealed interface EventData {
 
         override val aggregateRootId: String get() = soknadId
     }
+
+    /**
+     * Arbeidsgiver har fått beskjed i Notifikasjonsplattform om at søknaden er mottatt. Hendelsen bekrefter at
+     * Notifikasjonsplattform har tatt imot beskjeden, ikke at arbeidsgiver har lest den.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottatt] og
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIAltinn] etter at alle
+     * varslingsoppgavene har lyktes. [eksternId] og [tekst] er verdiene som ble sendt i beskjeden. Ved retry kan
+     * hendelsen publiseres mer enn én gang, så konsumenter må tåle duplikater.
+     *
+     * Konsument: bare en no-op-handler som logger, per nå.
+     */
+    @Serializable
+    @SerialName("arbeidsgiverVarsletSoknadMottatt")
+    data class ArbeidsgiverVarsletSoknadMottatt(
+        val soknadId: String,
+        val eksternId: String,
+        val tekst: String,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver har fått beskjed i Notifikasjonsplattform om at søknaden er godkjent, én per tilsagn.
+     * Hendelsen bekrefter at Notifikasjonsplattform har tatt imot beskjeden, ikke at arbeidsgiver har lest den.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjent] etter at alle
+     * varslingsoppgavene har lyktes. [eksternId] og [tekst] er verdiene som ble sendt i beskjeden. Ved retry kan
+     * hendelsen publiseres mer enn én gang, så konsumenter må tåle duplikater.
+     *
+     * En søknad kan bli godkjent flere ganger, én gang per tilsagnsbrev. [tilsagnNummer] (`aar:loepenrSak:loepenrTilsagn`)
+     * viser hvilket tilsagn som utløste beskjeden.
+     *
+     * Konsument: bare en no-op-handler som logger, per nå.
+     */
+    @Serializable
+    @SerialName("arbeidsgiverVarsletSoknadGodkjent")
+    data class ArbeidsgiverVarsletSoknadGodkjent(
+        val soknadId: String,
+        val tilsagnNummer: String,
+        val eksternId: String,
+        val tekst: String,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver har fått beskjed i Notifikasjonsplattform om at søknaden er trukket eller avslått. Hendelsen
+     * bekrefter at Notifikasjonsplattform har tatt imot beskjeden, ikke at arbeidsgiver har lest den.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst] etter at alle
+     * varslingsoppgavene har lyktes. [eksternId] og [tekst] er verdiene som ble sendt i beskjeden. Ved retry kan
+     * hendelsen publiseres mer enn én gang, så konsumenter må tåle duplikater.
+     *
+     * Konsument: bare en no-op-handler som logger, per nå.
+     */
+    @Serializable
+    @SerialName("arbeidsgiverVarsletSoknadAvlyst")
+    data class ArbeidsgiverVarsletSoknadAvlyst(
+        val soknadId: String,
+        val eksternId: String,
+        val tekst: String,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -613,7 +678,7 @@ suspend fun Application.configureEventHandlers() {
             },
             other = {
                 register(dependencies.create(OpprettSak::class))
-                register(dependencies.create(VarsleArbeidsgiverSakOpprettet::class))
+                register(dependencies.create(VarsleArbeidsgiverSoknadMottatt::class))
             }
         )
 
@@ -643,6 +708,18 @@ suspend fun Application.configureEventHandlers() {
         }
         register<EventData.SoknadKopiDeltakerDistribuert>("SoknadKopiDeltakerDistribuertNoop") { _ ->
             // SoknadKopiDeltakerDistribuert lagrer bestillingsId fra dokdist i eventloggen. Ingen konsumenter per nå.
+            EventHandledResult.Success()
+        }
+        register<EventData.ArbeidsgiverVarsletSoknadMottatt>("ArbeidsgiverVarsletSoknadMottattNoop") { event ->
+            log.info("Arbeidsgiver varslet om mottatt søknad: soknadId={}, eksternId={}", event.data.soknadId, event.data.eksternId)
+            EventHandledResult.Success()
+        }
+        register<EventData.ArbeidsgiverVarsletSoknadGodkjent>("ArbeidsgiverVarsletSoknadGodkjentNoop") { event ->
+            log.info("Arbeidsgiver varslet om godkjent søknad: soknadId={}, eksternId={}", event.data.soknadId, event.data.eksternId)
+            EventHandledResult.Success()
+        }
+        register<EventData.ArbeidsgiverVarsletSoknadAvlyst>("ArbeidsgiverVarsletSoknadAvlystNoop") { event ->
+            log.info("Arbeidsgiver varslet om avlyst søknad: soknadId={}, eksternId={}", event.data.soknadId, event.data.eksternId)
             EventHandledResult.Success()
         }
     }
