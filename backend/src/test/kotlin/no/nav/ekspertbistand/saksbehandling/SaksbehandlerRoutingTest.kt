@@ -211,7 +211,7 @@ class SaksbehandlerRoutingTest {
                         TokenIntrospectionResponse(
                             active = true,
                             error = null,
-                            other = mapOf("name" to "Tore Tang"),
+                            other = mapOf("name" to "Tore Tang", "azp_name" to NaisEnvironment.saksbehandlingFrackend),
                         )
                     }
                 }
