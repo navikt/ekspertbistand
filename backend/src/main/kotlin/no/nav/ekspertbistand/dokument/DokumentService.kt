@@ -2,10 +2,12 @@ package no.nav.ekspertbistand.dokument
 
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
@@ -18,6 +20,7 @@ import no.nav.ekspertbistand.infrastruktur.defaultJson
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.Mottaker
 import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
+import no.nav.ekspertbistand.saksbehandling.somBrevdato
 import no.nav.ekspertbistand.saksbehandling.vedtaksbrevMal
 import no.nav.ekspertbistand.soknad.DTO
 import kotlin.time.Clock
@@ -42,6 +45,25 @@ class DokumentService(
     suspend fun genererSoknadPdf(soknad: DTO.Soknad): ByteArray {
         val data = defaultJson.encodeToJsonElement(SoknadRequest.from(soknad)).jsonObject
         return renderPdf("soknad", data)
+    }
+
+    /**
+     * Kopi av søknaden til deltakeren: infoskriv først, deretter søknaden slik den ble sendt inn.
+     * Ingenting skjules, heller ikke når deltakeren har adressebeskyttelse.
+     */
+    @OptIn(ExperimentalTime::class)
+    suspend fun genererSoknadKopiDeltakerPdf(
+        soknad: DTO.Soknad,
+        dato: LocalDate = Clock.System.now().toLocalDateTime(TimeZone.of("Europe/Oslo")).date,
+    ): ByteArray {
+        val soknadData = defaultJson.encodeToJsonElement(SoknadRequest.from(soknad)).jsonObject
+        val data = JsonObject(
+            soknadData + mapOf(
+                "dato" to JsonPrimitive(dato.somBrevdato()),
+                "deltaker" to buildJsonObject { put("navn", soknad.ansatt.navn) },
+            )
+        )
+        return renderPdf("soknadKopiDeltaker", data)
     }
 
     suspend fun genererTilskuddsbrevPdf(tilsagnData: TilsagnData): ByteArray {

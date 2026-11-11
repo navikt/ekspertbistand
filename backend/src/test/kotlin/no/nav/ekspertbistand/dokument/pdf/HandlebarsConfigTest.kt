@@ -24,6 +24,17 @@ class HandlebarsConfigTest {
     }
 
     @Test
+    fun `brevdato skriver dato med maanedsnavn paa bokmaal`() {
+        val html = strict.render(
+            "brevdato",
+            "{{brevdato dato}}",
+            buildJsonObject { put("dato", "2024-12-01") },
+        )
+
+        assertEquals("1. desember 2024", html)
+    }
+
+    @Test
     fun `strict feiler fortsatt paa manglende felt`() {
         val feil = assertFailsWith<HandlebarsException> {
             strict.render("manglende", "{{finnesIkke}}", buildJsonObject { put("dato", "2026-10-01") })

@@ -53,7 +53,8 @@ sealed interface EventData {
      * Payload er hele søknaden slik den ble sendt inn, og er dermed sannheten om hva
      * arbeidsgiver faktisk søkte om — senere endringer i søknadstabellen påvirker ikke eventen.
      *
-     * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSoknad] og
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSoknad],
+     * [no.nav.ekspertbistand.event.handlers.JournalfoerSoknadKopiDeltaker] og
      * [no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelseProjection]
      * (starter måling av behandlingstid).
      */
@@ -95,6 +96,42 @@ sealed interface EventData {
         val behandlendeEnhetId: String,
         /** Se klassedokumentasjonen for når feltet er null. */
         val virksomhetKommunenummer: String? = null,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
+
+    /**
+     * En kopi av den innsendte søknaden, med infoskriv, er journalført på personmappen til deltakeren.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.JournalfoerSoknadKopiDeltaker]. Journalposten er
+     * utgående og ferdigstilt, men ikke distribuert. [journalpostId] brukes når den skal distribueres til
+     * deltakeren med dokdist.
+     *
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.DistribuerSoknadKopiDeltaker].
+     */
+    @Serializable
+    @SerialName("soknadKopiDeltakerJournalfoert")
+    data class SoknadKopiDeltakerJournalfoert(
+        val soknad: DTO.Soknad,
+        val journalpostId: Int,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
+
+    /**
+     * Kopien av søknaden er sendt til dokdist for distribusjon til deltakeren.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.DistribuerSoknadKopiDeltaker]. [bestillingsId]
+     * er dokdist sin id for forsendelsen, og brukes ved feilsøking mot Team Dokumentløsninger.
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @Serializable
+    @SerialName("soknadKopiDeltakerDistribuert")
+    data class SoknadKopiDeltakerDistribuert(
+        val soknad: DTO.Soknad,
+        val journalpostId: Int,
+        val bestillingsId: String,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
     }
@@ -566,6 +603,8 @@ suspend fun Application.configureEventHandlers() {
     val eventManager = EventManager {
         // Registrer all event handlers here
         register(dependencies.create(JournalfoerInnsendtSoknad::class))
+        register(dependencies.create(JournalfoerSoknadKopiDeltaker::class))
+        register(dependencies.create(DistribuerSoknadKopiDeltaker::class))
         basedOnEnvSuspending(
             prod = {
                 register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))
@@ -600,6 +639,10 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(ReturnerForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
+            EventHandledResult.Success()
+        }
+        register<EventData.SoknadKopiDeltakerDistribuert>("SoknadKopiDeltakerDistribuertNoop") { _ ->
+            // SoknadKopiDeltakerDistribuert lagrer bestillingsId fra dokdist i eventloggen. Ingen konsumenter per nå.
             EventHandledResult.Success()
         }
     }
