@@ -24,6 +24,8 @@ import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
+import no.nav.ekspertbistand.ereg.OrganisasjonSammendrag
+import no.nav.ekspertbistand.ereg.OrganisasjonSammendragResultat
 import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
@@ -154,6 +156,35 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
         )
     })
     val mockEregServer = HttpClient(MockEngine { request ->
+        if (request.url.encodedPath == EregClient.FINN_API_PATH) {
+            val navn = request.url.parameters["organisasjonsnavn"].orEmpty()
+            val antall = request.url.parameters["antall"]?.toIntOrNull() ?: Int.MAX_VALUE
+            val treff = lokaleVirksomheter.filter { it.navn.contains(navn, ignoreCase = true) }
+            return@MockEngine respond(
+                defaultJson.encodeToString(
+                    OrganisasjonSammendragResultat(
+                        totalAntallTreff = treff.size,
+                        organisasjonSammendrag = treff.take(antall).map {
+                            OrganisasjonSammendrag(
+                                organisasjonsnummer = it.orgnr,
+                                enhetstype = "BEDR",
+                                sammensattnavn = it.navn,
+                                navnelinje1 = it.navn,
+                                adresselinje1 = it.adresse,
+                                postnummer = it.postnummer,
+                                poststed = it.poststed,
+                                kommunenummer = it.kommunenummer,
+                                kommunenavn = it.kommunenavn,
+                                landkode = "NO",
+                                opphoert = false,
+                            )
+                        },
+                    )
+                ),
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
         val virksomhet = lokalVirksomhet(request.url.encodedPath.substringAfterLast('/'))
         respond(
             // language=JSON
