@@ -1,163 +1,247 @@
 # Varsle arbeidsgiver om vedtak
 
-Trello: https://trello.com/c/XZvrwKjG/645-varsle-arbeidsgiver-om-vedtak
+Trello: https://trello.com/c/XZvrwKjG/645-varsle-arbeidsgiver-om-vedtak-i-ny-l%C3%B8sning
 Kort-ID: `6acf883cff6b65a16442444e`
 
-Status: utkast, pauset til journalføringen av vedtaksbrevet til arbeidsgiver er
-spesifisert (kort 691). Se *Rekkefølge*.
+Henger sammen med:
+
+- Kort 691, [journalfor_vedtaksbrev_arbeidsgiver.md](journalfor_vedtaksbrev_arbeidsgiver.md).
+  Publiserer `VedtaksbrevArbeidsgiverJournalfoert`, som varselet lytter på.
+- Kort 693, [vis_vedtak_arbeidsgiver.md](vis_vedtak_arbeidsgiver.md). Siden
+  `/v2/skjema/:id/vedtak`, som varselet lenker til.
+- Kort 4kkrg41a, «Beslutter fatter vedtak på søknaden el. sender tilbake»
+  ([beslutter_vedtak.md](beslutter_vedtak.md)). Kortet er skilt ut derfra.
 
 ## Mål
 
-Arbeidsgiver skal få beskjed på Min side – arbeidsgiver, og e-post eller SMS,
-for alle vedtak beslutter fatter i ny saksbehandling: innvilgelse, innvilgelse
-med redusert beløp og avslag. Saken i notifikasjonsplattformen settes til
-`FERDIG` med en statustekst for utfallet.
+Når beslutter har fattet vedtak i ny saksbehandling, får arbeidsgiver en beskjed
+på Min side – arbeidsgiver og et eksternt varsel på e-post eller SMS. Det
+gjelder alle tre utfall: innvilget, innvilget med redusert beløp og avslått.
+Saken i notifikasjonsplattformen settes til `FERDIG` med statusteksten fra
+vedtakssiden, og lenken på saken flyttes til kvitteringen i v2.
 
-Varselet sendes når vedtaksbrevet til arbeidsgiver er journalført, slik at
-arbeidsgiver finner brevet når hen følger lenken. Journalføringen er ikke en
-del av dette kortet. Se *Rekkefølge*.
+Varselet sendes når vedtaksbrevet til arbeidsgiver er journalført. Handleren
+`VarsleArbeidsgiverVedtakFattet` lytter på `VedtaksbrevArbeidsgiverJournalfoert`
+og tar alt den trenger fra eventen.
 
-Vi kvitterer hva vi varslet. Handleren publiserer eventen
-`ArbeidsgiverVarsletVedtakFattet` med teksten, lenken og det eksterne varselet
-slik de ble bestilt, og en linje i saksloggen.
+Vi kvitterer hva vi varslet. Når notifikasjonsplattformen har tatt imot
+beskjeden og statusen, publiserer handleren `ArbeidsgiverVarsletVedtakFattet`.
+Eventen har det nye domain-objektet `ArbeidsgiverVarselDomain`, som er det vi
+sendte. Feiler kallet mot notifikasjonsplattformen, publiseres ingen
+kvittering. Eventen har bare en no-op-handler.
 
 Kvitteringen beslutter ser, sier allerede «Arbeidsgiver og deltaker vil bli
-varslet om vedtaket.» (`beslutter_vedtak.md`).
+varslet om vedtaket.» (`beslutter_vedtak.md`). Kortet må derfor være ute før
+lansering.
 
 ## Bakgrunn
 
 Fra før:
 
-- `VarsleArbeidsgiverSakOpprettet` (ikke prod) oppretter sak og beskjed i
+- **`VedtaksbrevArbeidsgiverJournalfoert`** (kort 691) publiseres av
+  `JournalfoerVedtaksbrevArbeidsgiver` etter at brevet er journalført i
+  arbeidsgivermappa. Eventen har `sakId`, `soknadId`,
+  `utfall: VedtakDomain.Utfall` (`INNVILGE`, `INNVILGE_REDUSERT`, `AVSLAA`),
+  `virksomhetsnummer`, `virksomhetsnavn`, `vedtaksbrev`, `adressebeskyttelse`,
+  `journalpostId`, `dokumentInfoId` og `tidspunkt`. Den publiseres bare for
+  saker med kilde `EKSPERTBISTAND`. KDoc-en sier at varslingen kommer i kort 645.
+- **`LagreVedtaksbrev`** (kort 693) lytter på samme event og lagrer raden i
+  `vedtaksbrev`, som vedtakssiden leser.
+- **Vedtakssiden** `/v2/skjema/:id/vedtak` (kort 693) viser vedtaket og brevet.
+  Svarer API-et 404, sender siden videre til `/v2/skjema/:id/kvittering`.
+  Kvitteringen i v2 sender til vedtakssiden når vedtaket finnes. v2 er bare
+  på lokalt og i dev (`EKSPERTBISTAND_V2`). I prod går en `/v2`-URL til `/`.
+- **`VarsleArbeidsgiverSakOpprettet`** (ikke prod) oppretter sak og beskjed i
   notifikasjonsplattformen når en sak opprettes i ny løsning, med
-  `grupperingsid = soknadId` (`opprett_sak.md`).
-- `VedtakFattet` publiseres av vedtaks-API-et. `FattVedtak` lagrer vedtaket i
-  `vedtak`, `SettSoknadStatusVedtakFattet` setter søknaden til
-  `godkjent`/`avslatt` og `arbeidsgiver_tilgang_til` til nå + 455 dager, og
-  `BestillTilsagnIOebs` bestiller midler ved innvilgelse.
-- Malene `vedtakArbeidsgiverInnvilget`, `vedtakArbeidsgiverInnvilgetRedusert`
-  og `vedtakArbeidsgiverAvslag` ligger i
-  `backend/src/main/resources/dokumentmaler/templates/`
-  (`forelopig_vedtak_brev.md`). Ingen kode journalfører dem ennå.
-- For Arena-saker varsler `VarsleArbeidsgiverSoknadGodkjent` (på
-  `TilsagnsdataLagret`, etter at tilskuddsbrevet er journalført) og
-  `VarsleArbeidsgiverSoknadAvlyst` (på `SoknadAvlystIArena`). Begge sender
-  beskjed og setter saken til `FERDIG`, med to idempotens-subtasks:
-  `notifikasjonsplatform_ny_beskjed` og `notifikasjonsplatform_ny_status_sak`.
-- `ProdusentApiKlient.opprettNyBeskjed` er idempotent på `eksternId`
+  `grupperingsid = soknadId` og lenke til v1-kvitteringen
+  (`DTO.Soknad.kvitteringsLenke`, `soknad/Api.kt`).
+- **For Arena-saker** varsler `VarsleArbeidsgiverSoknadGodkjent` (på
+  `TilsagnsdataLagret`) og `VarsleArbeidsgiverSoknadAvlyst` (på
+  `SoknadAvlystIArena`). Begge sender beskjed og setter saken til `FERDIG`, med
+  idempotens-subtaskene `notifikasjonsplatform_ny_beskjed` og
+  `notifikasjonsplatform_ny_status_sak`.
+- **`ProdusentApiKlient`.** `opprettNyBeskjed` er idempotent på `eksternId`
   (`DuplikatEksternIdOgMerkelapp` hoppes over). `nyStatusSak` bruker
   idempotencyKey `"$grupperingsid-$statusTekst"`, setter hard delete til 455
-  dager og kaster på `SakFinnesIkke`. Eksterne varsler sendes i sendevinduet
-  `NKS_AAPNINGSTID`.
-- `SkrivSakslogg` skriver `SakOppdatert` til `sakslogg`. `BestillTilsagnIOebs`
-  publiserer `SakOppdatert` med `AktorRolle.SYSTEM` for systemhendelser.
-- `EventManager` gir `TransientError` for eventer uten registrert handler, og
-  lagrer handlerstatus på `handler.id`.
+  dager og kaster på `SakFinnesIkke`. Mutasjonen `NyStatusSak.graphql` har
+  variabelen `$nyLenkeTilSak`, men klienten sender den ikke. Null betyr at
+  lenken på saken står uendret. Merkelappen (`"Ekspertbistand"`), mottakeren
+  (Altinn-ressursen `altinn3Ressursid`) og sendevinduet (`NKS_AAPNINGSTID`) er
+  faste i klienten. Merkelappen er en privat konstant, og sendevinduet står
+  i `EksterntVarsel.tilVarsel()`.
+- **Kvittering med no-op-handler.** `SoknadKopiDeltakerDistribuert` er
+  mønsteret: eventen lagrer det vi gjorde i eventloggen, og har en inline
+  no-op-handler i `configureEventHandlers`. `EventManager` gir `TransientError`
+  for eventer uten handler.
+- **Saksloggen.** `SkrivSakslogg` skriver `SakOppdatert` til `sakslogg`.
+  `BestillTilsagnIOebs` og `JournalfoerVedtaksbrevArbeidsgiver` publiserer
+  `SakOppdatert` med `AktorRolle.SYSTEM`.
+- **Omdøpingen fra forrige utkast er ikke gjort.**
+  `VarsleArbeidsgiverSoknadMottattBehandlesIAltinn` heter fortsatt det.
 
 ## Skisser
 
-Kortet har ingen Figma-lenker. Varselet vises i notifikasjonsplattformen sin
-egen visning. Lenken går til kvitteringssiden for søknaden. Hvordan
-vedtaksbrevet vises der, kommer i nye skisser (Ken, 2026-10-30), og hører til
-kvitteringssiden, ikke til dette kortet.
+Kortet har ingen Figma-lenker. Beskjeden vises i notifikasjonsplattformens egen
+visning. Lenken går til vedtakssiden fra kort 693, med skissene som står i
+`vis_vedtak_arbeidsgiver.md`.
 
 ## Beslutninger
 
-Kortet har ingen kommentarer eller vedlegg (sjekket 2026-10-30). Sjekklisten
-har ett åpent punkt om teksten i e-post og SMS (Hanna lager forslag og sjekker
-med jurist).
+Kortet har ingen kommentarer eller vedlegg (sjekket 2026-11-11). Beslutningene
+kommer fra kortbeskrivelsen, fra Kens svar på utkastene av denne spec-en
+(2026-10-30 og 2026-11-11) og fra spec-ene for kort 691 og 693.
 
 | Kilde | Beslutning |
 |-------|-----------|
 | Kortbeskrivelsen | Arbeidsgiver varsles både ved innvilgelse og avslag. Må være på plass før lansering. |
-| Ken, 2026-10-30 | Vi bruker dagens tekster for beskjed, statustekst, e-post og SMS. Sjekklistepunktet om tekst løses ikke i dette kortet. |
-| Ken, 2026-10-30 | Alle vedtak varsles. Vedtaksbrevet til arbeidsgiver, også ved avslag, journalføres og gjøres tilgjengelig i søknadsløsningen. Nye skisser kommer for visningen. |
-| Ken, 2026-10-30 | Varselet venter på at vedtaksbrevet til arbeidsgiver er journalført, som for Arena-saker i dag. Journalføring av tilsagnsbrevet er kort 691 (<https://trello.com/c/is5SjNKk>). |
-| Ken, 2026-10-30 | Vi kvitterer hva vi varslet, for ikke-benekting: ny event `ArbeidsgiverVarsletVedtakFattet`. |
-| Ken, 2026-10-30 | Journalføringseventen skal ha nok data til at varselet kan sendes uten å hente utfallet fra databasen. |
-| Ken, 2026-10-30 | Kortet pauses. Journalføringen løses først, og eventen designes der. |
+| Kortbeskrivelsen (sist endret av Ken, 2026-11-11) | Vi varsler på samme måte som ved `TilsagnsdataLagret`, men lytter på `VedtaksbrevArbeidsgiverJournalfoert`. |
+| Kortbeskrivelsen (sist endret av Ken, 2026-11-11) | For ikke-benekting publiserer vi en event med det som ble varslet til arbeidsgiver, med en no-op-handler. Et nytt domain-objekt tar vare på det vi sendte. Eventen publiseres ikke hvis kallet mot notifikasjonsplattformen feiler. |
+| Kortets sjekkliste (åpen) | Teksten i e-post og SMS skal avklares. Kan vi nevne tilskudd til ekspertbistand? Hanna lager forslag og sjekker med jurist. |
+| Ken, 2026-10-30 | Vi bruker dagens tekster for beskjed, statustekst, e-post og SMS. Sjekklistepunktet løses ikke i dette kortet. |
+| Ken, 2026-10-30 | Alle vedtak varsles, også avslag. |
+| Ken, 2026-10-30 | Varselet venter på at vedtaksbrevet til arbeidsgiver er journalført, som for Arena-saker. |
+| Ken, 2026-10-30 | Journalføringseventen skal ha nok data til at varselet sendes uten databaseoppslag. Løst i kort 691. |
 | Ken, 2026-10-30 | `VarsleArbeidsgiverSoknadMottattBehandlesIAltinn` er feilnavngitt og skal hete `VarsleArbeidsgiverSoknadMottattBehandlesIArena`. |
-| Ken, 2026-10-25 (`QA5bXVrf`) | Deltaker varsles via dokdist i eget kort. Ikke en del av dette. |
-| Hanna, 2026-10-30 (`6l4XA2H5`) | Utsending av brev dekkes av egne kort. |
-| Minne | `SakProjection` skal ikke få funksjonalitet for nye saker. `event_log` endres aldri, og eventer i prod endres aldri. |
+| Ken, 2026-10-25 (kort 599) | Deltaker varsles via dokdist i eget kort. Ikke en del av dette. |
+| Ken, 2026-11-01 (kort 691) | Arbeidsgiver ser brevet i vår løsning, rendret med Gotenberg. Ikke Altinn-meldinger, og aldri PDF fra Joark. |
+| Kort 693, valg i spec-en | Vedtaket vises når brevet er journalført, så siden er klar når arbeidsgiver får varselet. |
+| Ken, 2026-11-11 | Lenken i beskjeden kan inneholde `/v2`. Ved lansering blir v2 trolig standard, eller så legger vi på redirects. |
+| Ken, 2026-11-11 | Statusteksten på saken følger vedtakssiden, også ved redusert beløp. |
+| Ken, 2026-11-11 | Lenken på saken oppdateres til kvitteringen i v2 med `nyLenkeTilSak` i `nyStatusSak`-mutasjonen. |
+| Minne: kodekonvensjoner | Nye parametere på delte klienter får ingen standardverdi. Eksisterende kall sender verdien selv. |
+| Minne: eventmodell | Nye eventfelt bruker domain-typer i `event/domain/` med egne enums, ikke API-DTO-er eller enums fra andre lag. Eventer i prod endres aldri. |
 
 ### Valg i spec-en
 
 Disse er ikke avklart i kortet. De er valgt her og kan endres ved review:
 
-- **Én handler på journalføringseventen.** `VarsleArbeidsgiverVedtakFattet`
-  lytter på eventen som sier at vedtaksbrevet til arbeidsgiver er journalført,
-  og tar alt den trenger fra eventen. Alternativet, en handler på `VedtakFattet` som
-  venter med `transientError` til brevet er journalført, ble forkastet: den gir
-  retries uten øvre grense hvis journalføringen feiler.
-- **Én journalføringsevent for alle utfall.** Navnet og feltene avgjøres i
-  spec-en for journalføringen. Se *Åpne spørsmål*.
-- **Saksloggen via `SakOppdatert`.** Handleren publiserer `SakOppdatert`
-  (`SYSTEM`, notat «Arbeidsgiver varslet om vedtak») i samme transaksjon som
-  kvitteringen, som `BestillTilsagnIOebs`. Kvitteringseventen er kilden til hva
-  som ble sendt. Saksloggen viser bare at det skjedde.
+- **Domain-objektet bygges før vi sender, og vi sender fra det.**
+  `arbeidsgiverVarsel(data)` er en ren funksjon som lager
+  `ArbeidsgiverVarselDomain` fra `VedtaksbrevArbeidsgiverJournalfoert`.
+  Handleren kaller notifikasjonsplattformen med verdiene i objektet og
+  publiserer det samme objektet. Da er kvitteringen lik det som ble sendt.
+  Samme event gir samme objekt, så et nytt forsøk sender det samme.
+- **Domain-objektet har også det klienten bestemmer:** merkelapp,
+  Altinn-ressurs og sendevindu. De avgjør hvem som får varselet og når, og hører
+  derfor med i ikke-benektingen. Klienten gjør merkelappen og sendevinduet til
+  `internal`-konstanter, og domain-objektet leser dem derfra. Klienten endrer
+  ikke oppførsel.
+- **Egne enums i domain-objektet**, `Saksstatus` (`FERDIG`) og `Sendevindu`
+  (`NKS_AAPNINGSTID`). Handleren oversetter dem til de genererte GraphQL-enumene
+  med uttømmende `when`. Eventen er da uavhengig av GraphQL-skjemaet.
 - **Kvitteringen beskriver bestillingen, ikke leveransen.**
   Notifikasjonsplattformen sender e-post og SMS senere, i sendevinduet. Vi
   lagrer det vi ba om å sende, med tidspunktet bestillingen lyktes.
+- **Lenke direkte til vedtakssiden**, `/ekspertbistand/v2/skjema/<soknadId>/vedtak`.
+  Kvitteringen i v2 sender videre til den samme siden, men en direkte lenke
+  sier hva beskjeden gjelder.
+- **Lenken på saken går til kvitteringen i v2**, `/ekspertbistand/v2/skjema/<soknadId>/kvittering`,
+  ikke til vedtakssiden. Saken gjelder hele søknaden, og kvitteringen sender
+  videre til vedtakssiden når vedtaket finnes. Lenken står i
+  `saksstatus.nyLenkeTilSak` i domain-objektet, fordi den er en del av det vi
+  sendte.
 - **Deterministisk `eksternId`**: `<soknadId>-vedtak`. Det er ett vedtak per
-  søknad. En retry gir samme beskjed, ikke en ny.
+  søknad. Et nytt forsøk gir samme beskjed, ikke en ny.
+- **Saksloggen via `SakOppdatert`.** Handleren publiserer `SakOppdatert`
+  (`SYSTEM`, notat «Arbeidsgiver varslet om vedtak») i samme transaksjon som
+  kvitteringen. Kvitteringseventen er kilden til hva som ble sendt. Saksloggen
+  viser bare at det skjedde.
+- **Inline no-op-handler** `ArbeidsgiverVarsletVedtakFattetNoop`, som
+  `SoknadKopiDeltakerDistribuertNoop`. Forrige utkast hadde en egen fil. Det
+  gjør ikke de andre no-op-handlerne.
 - **Klassen får nytt navn, `id` beholdes.** `id =
   "VarsleArbeidsgiverSoknadMottatt"` står, så eventer i kø i prod ikke kjøres
   på nytt.
-
-## Rekkefølge
-
-**Kortet er satt på pause** (Ken, 2026-10-30) til journalføringen av
-vedtaksbrevet til arbeidsgiver er løst. Eventen derfra lages i det kortet, og
-denne spec-en tilpasses etterpå.
-
-Kort 691 heter «Journalfør tilsagnsbrev til arbeidsgiver» og dekker etter
-navnet bare innvilgelse. Forslag: kort 691 utvides til «Journalfør vedtaksbrev
-til arbeidsgiver», med alle tre malene.
-
-- **Nå:** omdøpingen (*0*). Den er uavhengig.
-- **Etter kort 691:** eventen, handleren og testene (*1*–*5*).
-
-### Krav til journalføringseventen
-
-Handleren skal ikke slå opp i databasen for å varsle. Eventen fra
-journalføringen må derfor ha minst:
-
-- `sakId` og `soknadId`
-- utfallet: `INNVILGET` eller `AVSLATT`
-- `virksomhetsnummer` og `virksomhetsnavn`
-- `journalpostId`, så kvitteringen kan peke på brevet arbeidsgiver ble varslet
-  om
 
 ## Avgrensning
 
 Ikke i dette kortet:
 
-- Ny tekst i beskjed, e-post og SMS. Sjekklistepunktet står åpent på kortet.
-- Journalføring av vedtaksbrevet: kort 691 (<https://trello.com/c/is5SjNKk>).
-- Visning av vedtaksbrevet i søknadsløsningen. Nye skisser kommer. Henger
-  sammen med «Oppdatere kvitteringssiden for arbeidsgiver»
-  (<https://trello.com/c/RZqSZ8p3>) og «Oppdatere tilskuddsbrev for
-  arbeidsgiver» (<https://trello.com/c/H7jYzwos>).
-- Varsling av deltaker: <https://trello.com/c/QA5bXVrf>.
+- Ny tekst i beskjed, e-post og SMS. Sjekklistepunktet står åpent på kortet, og
+  tekstene ligger ett sted så de er enkle å bytte.
+- Lenken som `VarsleArbeidsgiverSakOpprettet` setter når saken opprettes. Den
+  går fortsatt til v1-kvitteringen til vedtaket er fattet.
+- Redirects fra `/v2` ved lansering.
+- Varsling av deltaker: kort 599 (<https://trello.com/c/QA5bXVrf>).
 - Varsel ved ny vurdering, klage eller endret vedtak. Vi har ett vedtak per
-  søknad i dag.
+  søknad.
 - Leveransestatus for e-post og SMS.
-- Arena-saker. De varsles som før.
+- Arena-saker. De varsles som før, og Arena-handlerne endres ikke.
 
 ## Tilnærming
+
+```
+VedtaksbrevArbeidsgiverJournalfoert ─┬─> LagreVedtaksbrev (fra før)
+                                     └─> VarsleArbeidsgiverVedtakFattet
+                                           ├─ opprettNyBeskjed   (guard: notifikasjonsplatform_ny_beskjed)
+                                           ├─ nyStatusSak FERDIG (guard: notifikasjonsplatform_ny_status_sak)
+                                           └─ transaksjon        (guard: arbeidsgiver_varslet_kvittert)
+                                                ├─> ArbeidsgiverVarsletVedtakFattet ─> no-op
+                                                └─> SakOppdatert ─> SkrivSakslogg
+```
 
 ### 0. Omdøping (egen commit)
 
 - `VarsleArbeidsgiverSoknadMottattBehandlesIAltinn` →
   `VarsleArbeidsgiverSoknadMottattBehandlesIArena`, fil og klasse.
   `id = "VarsleArbeidsgiverSoknadMottatt"` endres ikke.
-- Oppdater referansene i `Events.kt` (KDoc for `TiltaksgjennomforingOpprettet`
-  og `register`), KDoc i `VarsleArbeidsgiverSakOpprettet`,
+- Oppdater referansene i `Events.kt`, KDoc i `VarsleArbeidsgiverSakOpprettet`,
   `VarsleArbeidsgiverSoknadMottattTest.kt` og `opprett_sak.md`.
 - Generer `event-flow.md` på nytt.
 
-### 1. Ny event
+### 1. `ArbeidsgiverVarselDomain`
+
+Ny fil `event/domain/ArbeidsgiverVarselDomain.kt`:
+
+```kotlin
+/**
+ * Et varsel til arbeidsgiver i notifikasjonsplattformen, slik vi bestilte det. Har bare
+ * organisasjonsdata og faste tekster.
+ */
+@Serializable
+data class ArbeidsgiverVarselDomain(
+    val merkelapp: String,
+    val mottaker: Mottaker,
+    val virksomhetsnummer: String,
+    val grupperingsid: String,
+    val beskjed: Beskjed,
+    val saksstatus: Saksstatus,
+) {
+    @Serializable
+    data class Mottaker(val altinnRessursId: String)
+
+    @Serializable
+    data class Beskjed(
+        val eksternId: String,
+        val tekst: String,
+        val lenke: String,
+        val eksterntVarsel: EksterntVarsel,
+    )
+
+    @Serializable
+    data class EksterntVarsel(
+        val epostTittel: String,
+        val epostHtmlBody: String,
+        val smsTekst: String,
+        val sendevindu: Sendevindu,
+    )
+
+    @Serializable
+    data class Saksstatus(
+        val status: Status,
+        val statusTekst: String,
+        val nyLenkeTilSak: String,
+    )
+
+    @Serializable
+    enum class Status { FERDIG }
+
+    @Serializable
+    enum class Sendevindu { NKS_AAPNINGSTID }
+}
+```
+
+### 2. Ny event
 
 ```kotlin
 @Serializable
@@ -165,88 +249,99 @@ Ikke i dette kortet:
 data class ArbeidsgiverVarsletVedtakFattet(
     val sakId: String,
     val soknadId: String,
-    val utfall: Saksstatus,
-    val virksomhetsnummer: String,
-    val merkelapp: String,
-    val grupperingsid: String,
-    val eksternId: String,
+    val utfall: VedtakDomain.Utfall,
     val journalpostId: String,
-    val beskjedTekst: String,
-    val lenke: String,
-    val statusTekst: String,
-    val epostTittel: String,
-    val epostHtmlBody: String,
-    val smsTekst: String,
+    val varsel: ArbeidsgiverVarselDomain,
     val tidspunkt: Instant,
 ) : EventData {
     override val aggregateRootId: String get() = soknadId
 }
 ```
 
-- `init` krever `utfall` `INNVILGET` eller `AVSLATT`, som `VedtakFattet`.
-- KDoc: hvem publiserer, og at feltene er det som ble bestilt.
-- Eventen får en no-op-handler, `ArbeidsgiverVarsletVedtakFattetKvittert`,
-  fordi `EventManager` ellers gir `TransientError`.
-- Ingen personopplysninger: virksomhetsnummer og virksomhetsnavn er
-  organisasjonsdata.
+- `journalpostId` er vedtaksbrevet arbeidsgiver ble varslet om, fra
+  `VedtaksbrevArbeidsgiverJournalfoert`.
+- KDoc: publiseres av `VarsleArbeidsgiverVedtakFattet` når
+  notifikasjonsplattformen har tatt imot beskjeden og statusen. Feltene er det
+  som ble bestilt. Konsumenter: ingen, registrert med en no-op-handler.
+- Ingen personopplysninger. Virksomhetsnummer og virksomhetsnavn (i e-post og
+  SMS) er organisasjonsdata.
 
-### 2. `VarsleArbeidsgiverVedtakFattet`
+### 3. `VarsleArbeidsgiverVedtakFattet`
 
-Lytter på journalføringseventen fra kort 691. Registreres for alle miljøer.
+Lytter på `VedtaksbrevArbeidsgiverJournalfoert`. Registreres i alle miljøer,
+etter `LagreVedtaksbrev`. `id = "VarsleArbeidsgiverVedtakFattet"`.
 
-1. Les utfall, søknad og virksomhet fra eventen. Handleren slår ikke opp i
-   `vedtak` eller `soknad`. Hvilke felter eventen må ha, står i *Krav til
-   journalføringseventen*.
+1. `val varsel = arbeidsgiverVarsel(event.data)`. Ingen databaseoppslag.
 2. Utenfor transaksjon, guardet på `notifikasjonsplatform_ny_beskjed`:
-   `opprettNyBeskjed` med `grupperingsid = soknadId`,
-   `eksternId = "<soknadId>-vedtak"` og lenke til kvitteringssiden
-   (`/ekspertbistand/skjema/<soknadId>/kvittering`). `kvitteringsLenke` er en
-   extension på `DTO.Soknad` og må få en variant som tar `soknadId`.
+   `opprettNyBeskjed` med `grupperingsid`, `eksternId`, `virksomhetsnummer`,
+   `tekst`, `lenke` og `EksterntVarsel` fra `varsel`. Feil gir `transientError`.
 3. Utenfor transaksjon, guardet på `notifikasjonsplatform_ny_status_sak`:
-   `nyStatusSak(FERDIG, statusTekst)`.
+   `nyStatusSak` med `status`, `statusTekst` og `nyLenkeTilSak` fra
+   `varsel.saksstatus`. Feil gir `transientError`.
 4. I én transaksjon, guardet på `arbeidsgiver_varslet_kvittert`: publiser
    `ArbeidsgiverVarsletVedtakFattet` og `SakOppdatert`, og guard. Feil gir
    `rollback()` og `transientError`.
 
-Ingen suspend-kall inne i `transaction {}`.
+Ingen suspend-kall inne i `transaction {}`. `Clock` injiseres, som i
+`JournalfoerVedtaksbrevArbeidsgiver`.
 
-### 3. Tekster
+Lenkene lages av to nye funksjoner ved siden av `kvitteringsLenke` i
+`soknad/Api.kt`, med samme domener per miljø:
 
-Fra Arena-handlerne. Innvilget er uendret. Arena sier «trukket eller avslått»
-fordi `avlyst` kan bety begge. I ny løsning er avslått avslått (Ken,
-2026-10-14), så avslag bruker samme tekst uten «trukket», og statusteksten
-«Søknad avslått» fra kvitteringssiden. Innvilgelse med redusert beløp er
-`INNVILGET` og får samme tekst som innvilgelse.
+- `vedtakLenke(soknadId: String)`: `/ekspertbistand/v2/skjema/<soknadId>/vedtak`
+- `kvitteringsLenkeV2(soknadId: String)`: `/ekspertbistand/v2/skjema/<soknadId>/kvittering`
 
-| | Innvilget | Avslått |
-|-|-----------|---------|
-| Beskjed | «Søknaden er godkjent og ekspertbistand kan nå tas i bruk.» | «Søknaden om ekspertbistand er avslått.» (Arena: «Søknaden om ekspertbistand trukket eller avslått.») |
-| Statustekst | «Søknad godkjent» | «Søknad avslått» |
-| E-posttittel | «Nav – angående søknad om ekspertbistand» | samme |
-| E-post og SMS | «<virksomhetsnavn> har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.» | samme |
+### 4. Tekster
 
-Tekstene ligger som konstanter ett sted. Arena-handlerne endres ikke.
+Beskjed, e-post og SMS er fra Arena-handlerne. Avslag bruker Arena-teksten uten
+«trukket», fordi avslått er avslått i ny løsning. Statusteksten er statusbanneret
+på vedtakssiden (Ken, 2026-11-11). Tekstene ligger som konstanter i handlerfila,
+valgt med uttømmende `when` på `VedtakDomain.Utfall`.
 
-### 4. Dokumentasjon
+| | `INNVILGE` | `INNVILGE_REDUSERT` | `AVSLAA` |
+|-|-----------|---------|---------|
+| Beskjed | «Søknaden er godkjent og ekspertbistand kan nå tas i bruk.» | samme som `INNVILGE` | «Søknaden om ekspertbistand er avslått.» |
+| Statustekst | «Søknad godkjent» | «Søknad godkjent med redusert beløp» | «Søknad avslått» |
+| E-posttittel | «Nav – angående søknad om ekspertbistand» | samme | samme |
+| E-post og SMS | «<virksomhetsnavn> har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.» | samme | samme |
 
-- KDoc på journalføringseventen: legg til `VarsleArbeidsgiverVedtakFattet` som
-  konsument.
+### 5. `ProdusentApiKlient`
+
+- `merkelapp` blir `internal const val`.
+- Ny `internal val sendevindu = Sendevindu.NKS_AAPNINGSTID`, brukt i
+  `EksterntVarsel.tilVarsel()`.
+- `nyStatusSak` får parameteren `nyLenkeTilSak: String?`, uten standardverdi,
+  og sender den som `$nyLenkeTilSak`.
+- `VarsleArbeidsgiverSoknadGodkjent`, `VarsleArbeidsgiverSoknadGodkjentKildeAltinn`,
+  `VarsleArbeidsgiverSoknadAvlyst` og `ProdusentApiKlientTest` sender
+  `nyLenkeTilSak = null`. Arena-sakene beholder lenken sin.
+
+### 6. Oppsett og dokumentasjon
+
+- `Events.kt`: ny event med KDoc, registrere handleren og no-op-handleren.
+  KDoc på `VedtaksbrevArbeidsgiverJournalfoert`: legg til
+  `VarsleArbeidsgiverVedtakFattet` som konsument, og fjern «Varslingen av
+  arbeidsgiver kommer i kort 645».
 - `event-flow.md` genereres med `EventFlowDiagram.kt`.
 
-### 5. Tester
+### 7. Tester
 
 Mønster fra `VarsleArbeidsgiverSoknadGodkjentTest` (`setProdusentApiResultat`)
-og `SettSoknadStatusVedtakFattetTest`, med `testApplicationWithDatabase`.
+og `JournalfoerVedtaksbrevArbeidsgiverTest`, med `testApplicationWithDatabase`.
 
-- Innvilget og avslått: beskjed og `FERDIG` med riktige tekster og
-  `eksternId`, og én `ArbeidsgiverVarsletVedtakFattet` og én `SakOppdatert` i
+- Alle tre utfall: beskjed og `FERDIG` med riktige tekster, lenker og
+  `eksternId`, `nyLenkeTilSak` til kvitteringen i v2, og én `ArbeidsgiverVarsletVedtakFattet` og én `SakOppdatert` i
   køen.
-- Ingen databaseoppslag: handleren varsler med data fra eventen alene.
-- Feil fra `nyStatusSak` etter vellykket beskjed: retry sender ikke ny
+- Kvitteringen er lik det som ble sendt: feltene i `varsel` mot variablene i
+  GraphQL-kallene.
+- Feil fra `opprettNyBeskjed`: ingen kvittering i køen, og `transientError`.
+- Feil fra `nyStatusSak` etter vellykket beskjed: nytt forsøk sender ikke ny
   beskjed, og kvitteringen publiseres én gang.
-- Retry etter suksess: ingen nye kall og ingen nye eventer.
+- Nytt forsøk etter suksess: ingen nye kall og ingen nye eventer.
 - `ArbeidsgiverVarsletVedtakFattet` i `TestEventData.allEventSamples` og
   `EventDataAggregateRootIdTest`.
+- `ProdusentApiKlientTest`: `nyLenkeTilSak` sendes med i `nyStatusSak`.
+- Arena-testene: `nyStatusSak` sender `nyLenkeTilSak = null`.
 
 ## Berørte filer
 
@@ -254,50 +349,58 @@ og `SettSoknadStatusVedtakFattetTest`, med `testApplicationWithDatabase`.
 |-----|---------|
 | `event/handlers/VarsleArbeidsgiverSoknadMottattBehandlesIAltinn.kt` | Omdøpt til `...IArena.kt` |
 | `event/handlers/VarsleArbeidsgiverSakOpprettet.kt` | KDoc-referanse |
-| `event/Events.kt` | Ny event, KDoc, registrering |
+| `event/domain/ArbeidsgiverVarselDomain.kt` | Ny |
 | `event/handlers/VarsleArbeidsgiverVedtakFattet.kt` | Ny |
-| `event/handlers/ArbeidsgiverVarsletVedtakFattetKvittert.kt` | Ny: no-op-handler |
-| `soknad/Api.kt` | Kvitteringslenke fra `soknadId` |
+| `event/Events.kt` | Ny event, KDoc, registrering |
+| `notifikasjon/ProdusentApiKlient.kt` | `merkelapp` og `sendevindu` som `internal`, `nyLenkeTilSak` på `nyStatusSak` |
+| `event/handlers/VarsleArbeidsgiverSoknadGodkjent.kt`, `...GodkjentKildeAltinn.kt`, `...SoknadAvlyst.kt` | `nyLenkeTilSak = null` |
+| `soknad/Api.kt` | `vedtakLenke(soknadId)` og `kvitteringsLenkeV2(soknadId)` |
 | `event/event-flow.md` | Generert |
 | `test/.../VarsleArbeidsgiverSoknadMottattTest.kt` | Klassenavn |
 | `test/.../VarsleArbeidsgiverVedtakFattetTest.kt` | Ny |
 | `test/.../TestEventData.kt`, `EventDataAggregateRootIdTest.kt` | Ny event |
+| `test/.../ProdusentApiKlientTest.kt` | `nyLenkeTilSak` |
 | `specifications/opprett_sak.md` | Klassenavn |
 
 ## Kanttilfeller og feilmodus
 
 - **Saken finnes ikke i notifikasjonsplattformen.** `nyStatusSak` kaster
   `SakFinnesIkke`, og handleren gir `transientError`. Det skjer hvis
-  `VarsleArbeidsgiverSakOpprettet` ikke har kjørt. Retry løser det når saken
-  kommer.
-- **Retry etter delvis suksess.** Hver subtask er guardet, og `eksternId` og
-  idempotencyKey er faste. Arbeidsgiver får én beskjed og ett eksternt varsel.
+  `VarsleArbeidsgiverSakOpprettet` ikke har kjørt. Nytt forsøk løser det når
+  saken kommer. Beskjeden er sendt allerede, og kvitteringen venter til begge
+  kallene har lyktes.
+- **Nytt forsøk etter delvis suksess.** Hver subtask er guardet, og `eksternId`
+  og idempotencyKey er faste. Arbeidsgiver får én beskjed og ett eksternt
+  varsel.
 - **Kvitteringen feiler etter at varselet er sendt.** Transaksjonen rulles
-  tilbake, og retry publiserer kvitteringen uten å varsle på nytt. Vinduet der
-  varselet er sendt uten kvittering, er kort og lukkes av retry.
+  tilbake, og et nytt forsøk publiserer kvitteringen uten å varsle på nytt.
+- **Deploy med nye tekster mellom sending og kvittering.** Kvitteringen bygges
+  på nytt og får de nye tekstene, mens beskjeden har de gamle. Vinduet er kort.
+  Vi godtar det.
+- **Varselet kommer før `LagreVedtaksbrev` har lagret raden.** Begge lytter på
+  samme event. Følger arbeidsgiver lenken før raden finnes, sender
+  vedtakssiden videre til kvitteringen. Det eksterne varselet går i
+  sendevinduet, så i praksis er raden lagret før arbeidsgiver ser varselet.
 - **Journalføringen feiler.** Ingen varsel. Feilen hører til
-  journalføringshandleren og synes der.
-- **Arena-saker.** Journalføringseventen publiseres bare for saker med kilde
-  `EKSPERTBISTAND`. Arena-varslene er uendret.
-- **Vedtak før kort 691 er ute.** Ingen varsel. Kvitteringen til beslutter
-  lover varsel, så begge kortene må være ute før lansering.
-- **Personopplysninger.** Varselet og kvitteringen har bare organisasjonsdata
-  og faste tekster. Ingen begrunnelse, ingen identer.
+  `JournalfoerVedtaksbrevArbeidsgiver` og synes der.
+- **Arena-saker.** `VedtaksbrevArbeidsgiverJournalfoert` publiseres bare for
+  saker med kilde `EKSPERTBISTAND`. Arena-varslene er uendret.
+- **Personopplysninger.** Varselet og kvitteringen har bare organisasjonsdata,
+  `soknadId` i lenken og faste tekster. Ingen begrunnelse, ingen navn, ingen
+  identer.
 
 ## Åpne spørsmål
 
-1. **Utvides kort 691 til alle vedtaksbrev til arbeidsgiver**, også avslag?
-   Ellers trengs et eget kort for journalføring av avslagsbrevet.
-2. **Journalføringseventen.** Navn og felter avgjøres i spec-en for 691, med
-   kravene i *Krav til journalføringseventen*.
-3. **Lenken i beskjeden.** Kvitteringssiden i dag. Peker de nye skissene et
-   annet sted, for eksempel til vedtaksbrevet, endres lenken da.
+Ingen. Spørsmålene om `/v2` i lenken, statusteksten ved redusert beløp og
+lenken på saken er besvart av Ken 2026-11-11 (se Beslutninger).
 
 ## Ferdig når
 
 - [ ] `VarsleArbeidsgiverSoknadMottattBehandlesIAltinn` heter `...IArena`, med uendret `id`, i egen commit
-- [ ] `ArbeidsgiverVarsletVedtakFattet` finnes, med det som ble bestilt, og er med i eventtestene
-- [ ] Innvilgelse og avslag gir beskjed, `FERDIG` med riktig statustekst, kvittering og linje i saksloggen, etter at vedtaksbrevet er journalført, idempotent
-- [ ] Ingen dobbel beskjed eller dobbelt eksternt varsel ved retry
-- [ ] `event-flow.md` er generert, og KDoc på journalføringseventen er oppdatert
+- [ ] `ArbeidsgiverVarselDomain` og `ArbeidsgiverVarsletVedtakFattet` finnes, og eventen er med i eventtestene
+- [ ] Alle tre utfall gir beskjed med lenke til vedtakssiden, `FERDIG` med statusteksten fra vedtakssiden, lenke på saken til kvitteringen i v2, kvittering og linje i saksloggen
+- [ ] `nyStatusSak` tar `nyLenkeTilSak` uten standardverdi, og Arena-handlerne sender `null`
+- [ ] Kvitteringen er lik det som ble sendt, og publiseres ikke når notifikasjonsplattformen feiler
+- [ ] Ingen dobbel beskjed, dobbelt eksternt varsel eller dobbel kvittering ved nytt forsøk
+- [ ] `event-flow.md` er generert, og KDoc på `VedtaksbrevArbeidsgiverJournalfoert` er oppdatert
 - [ ] `mvn -B package` er grønn
