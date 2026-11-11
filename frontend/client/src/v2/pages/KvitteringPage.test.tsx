@@ -14,10 +14,10 @@ describe("KvitteringPage", () => {
     renderSkjema(kvitteringen(MOCK_VEDTAK_SOKNAD_ID.INNVILGET));
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Tilskudd til ekspertbistand" })
+      await screen.findByRole("heading", { level: 2, name: "Søknad godkjent" })
     ).toBeInTheDocument();
     expect(
-      await screen.findByRole("heading", { level: 2, name: "Søknad godkjent" })
+      screen.getByRole("heading", { level: 1, name: "Tilskudd til ekspertbistand" })
     ).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Søknaden godkjent" })).not.toBeInTheDocument();
   });
@@ -32,7 +32,7 @@ describe("KvitteringPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Søknaden godkjent" })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { level: 1, name: "Søknad om tilskudd til ekspertbistand" })
+      screen.getByRole("heading", { level: 1, name: "Tilskudd til ekspertbistand" })
     ).toBeInTheDocument();
     expect(
       await screen.findByRole("heading", {
@@ -50,7 +50,10 @@ describe("KvitteringPage", () => {
         HttpResponse.json({
           id,
           status: "innsendt",
+          virksomhet: { virksomhetsnavn: "Bygg & Anlegg AS" },
           ansatt: { fnr: "12345678910", navn: "Kari Ansatt" },
+          ekspert: { navn: "Eva Ekspert" },
+          behovForBistand: { startdato: "2026-01-15" },
           opprettetTidspunkt: "2026-10-01T10:00:00.000Z",
           innsendtTidspunkt: "2026-10-01T10:00:00.000Z",
         })
@@ -59,9 +62,23 @@ describe("KvitteringPage", () => {
     renderSkjema(kvitteringen(id));
 
     expect(
-      await screen.findByRole("heading", { level: 2, name: "Nav har mottatt søknaden" })
+      await screen.findByRole("heading", { level: 2, name: "Til behandling" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Nav har mottatt søknaden" })
     ).toBeInTheDocument();
     const kort = await screen.findByRole("region", { name: "Søknad sendt inn" });
+    const nokkeldata = Object.fromEntries(
+      screen
+        .getAllByRole("term")
+        .map((term) => [term.textContent, term.nextElementSibling?.textContent])
+    );
+    expect(nokkeldata).toEqual({
+      Startdato: "15. jan. 2026",
+      Deltaker: "Kari Ansatt",
+      Ekspert: "Eva Ekspert",
+      Arbeidsgiver: "Bygg & Anlegg AS",
+    });
     expect(
       within(kort).getByRole("heading", { level: 2, name: "Søknad sendt inn" })
     ).toBeInTheDocument();

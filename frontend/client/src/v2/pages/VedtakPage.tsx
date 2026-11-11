@@ -1,11 +1,10 @@
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link as RouterLink, Navigate, useParams } from "react-router";
 import { ArrowRedoIcon, ClockIcon } from "@navikt/aksel-icons";
 import {
   Alert,
   Bleed,
   BodyLong,
-  BodyShort,
   Box,
   Button,
   ExpansionCard,
@@ -20,6 +19,7 @@ import useSWR from "swr";
 import DecoratedPage from "../components/DecoratedPage";
 import { ApplicationPictogram } from "../components/ApplicationPictogram";
 import { BackLink } from "../components/BackLink";
+import { Nokkeldata, type NokkeldataRad } from "../components/Nokkeldata";
 import { SoknadSendtInnKort } from "../components/SoknadSendtInnKort";
 import { PdfForhandsvisning } from "../components/pdf";
 import { A4_FORHOLD } from "../components/pdf/types";
@@ -123,7 +123,7 @@ export default function VedtakPage() {
             </Heading>
           )}
 
-          <Nokkeldata vedtak={vedtak} ekspert={soknad?.ekspert.navn} />
+          <VedtakNokkeldata vedtak={vedtak} ekspert={soknad?.ekspert.navn} />
 
           {vedtak.utfall !== "AVSLATT" && (
             <>
@@ -199,8 +199,8 @@ export default function VedtakPage() {
   );
 }
 
-function Nokkeldata({ vedtak, ekspert }: { vedtak: Vedtaksbrev; ekspert?: string }) {
-  const rader: Array<[string, string | null | undefined]> = [
+function VedtakNokkeldata({ vedtak, ekspert }: { vedtak: Vedtaksbrev; ekspert?: string }) {
+  const rader: NokkeldataRad[] = [
     [
       "Tiltaksperiode",
       vedtak.tiltaksperiode && `${vedtak.tiltaksperiode.fra} – ${vedtak.tiltaksperiode.til}`,
@@ -214,28 +214,5 @@ function Nokkeldata({ vedtak, ekspert }: { vedtak: Vedtaksbrev; ekspert?: string
     ],
   ];
 
-  return (
-    <dl
-      style={{
-        display: "grid",
-        gridTemplateColumns: "max-content 1fr",
-        columnGap: "var(--ax-space-24)",
-        rowGap: "var(--ax-space-4)",
-        margin: 0,
-      }}
-    >
-      {rader
-        .filter((rad): rad is [string, string] => Boolean(rad[1]))
-        .map(([label, verdi]) => (
-          <Fragment key={label}>
-            <BodyShort as="dt" size="large" weight="semibold">
-              {label}
-            </BodyShort>
-            <BodyShort as="dd" size="large" style={{ margin: 0 }}>
-              {verdi}
-            </BodyShort>
-          </Fragment>
-        ))}
-    </dl>
-  );
+  return <Nokkeldata rader={rader} />;
 }
