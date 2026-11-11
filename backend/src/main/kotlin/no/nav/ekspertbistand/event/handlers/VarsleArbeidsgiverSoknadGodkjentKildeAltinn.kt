@@ -81,7 +81,8 @@ class VarsleArbeidsgiverSoknadGodkjentKildeAltinn(
             produsentApiKlient.nyStatusSak(
                 grupperingsid = tilsagnData.tilsagnNummer.concat(),
                 status = SaksStatus.FERDIG,
-                statusTekst = "Søknad godkjent"
+                statusTekst = "Søknad godkjent",
+                nyLenkeTilSak = null,
             )
             Result.success("Oppdaterte sakstatus for tilsagn ${tilsagnData.tilsagnNummer.concat()}")
         } catch (ex: Exception) {

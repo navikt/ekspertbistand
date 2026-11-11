@@ -28,6 +28,7 @@ flowchart TD
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
     s_VedtaksbrevApi[/"VedtaksbrevApi"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
+    e_ArbeidsgiverVarsletVedtakFattet(["ArbeidsgiverVarsletVedtakFattet"]):::event
     e_ForelopigVedtakReturnert(["ForelopigVedtakReturnert"]):::event
     e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
@@ -52,6 +53,7 @@ flowchart TD
     e_VedtaksbrevArbeidsgiverJournalfoert(["VedtaksbrevArbeidsgiverJournalfoert"]):::event
     e_VedtaksbrevVist(["VedtaksbrevVist"]):::event
     e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
+    h_ArbeidsgiverVarsletVedtakFattetNoop["ArbeidsgiverVarsletVedtakFattetNoop"]:::handler
     h_BestillTilsagnIOebs["BestillTilsagnIOebs"]:::handler
     h_DistribuerSoknadKopiDeltaker["DistribuerSoknadKopiDeltaker"]:::handler
     h_FattVedtak["FattVedtak"]:::handler
@@ -84,6 +86,7 @@ flowchart TD
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
     h_VarsleArbeidsgiverSoknadMottattBehandlesIArena["VarsleArbeidsgiverSoknadMottattBehandlesIArena"]:::handler
+    h_VarsleArbeidsgiverVedtakFattet["VarsleArbeidsgiverVedtakFattet"]:::handler
     h_VedtaksbrevVistNoop["VedtaksbrevVistNoop"]:::handler
     p_SakProjection[["SakProjection"]]:::projection
     p_SaksbehandlingsstatistikkProjection[["SaksbehandlingsstatistikkProjection"]]:::projection
@@ -120,8 +123,11 @@ flowchart TD
     h_TildelBeslutter --> e_SakOppdatert
     h_TildelSaksbehandler --> e_SakOppdatert
     s_TilsagnDataApi --> e_TilskuddsbrevVist
+    h_VarsleArbeidsgiverVedtakFattet --> e_ArbeidsgiverVarsletVedtakFattet
+    h_VarsleArbeidsgiverVedtakFattet --> e_SakOppdatert
     s_VedtaksbrevApi --> e_VedtaksbrevVist
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
+    e_ArbeidsgiverVarsletVedtakFattet --> h_ArbeidsgiverVarsletVedtakFattetNoop
     e_VedtakFattet --> h_BestillTilsagnIOebs
     e_SoknadKopiDeltakerJournalfoert --> h_DistribuerSoknadKopiDeltaker
     e_VedtakFattet --> h_FattVedtak
@@ -154,6 +160,7 @@ flowchart TD
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn
     e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottattBehandlesIArena
+    e_VedtaksbrevArbeidsgiverJournalfoert --> h_VarsleArbeidsgiverVedtakFattet
     e_VedtaksbrevVist --> h_VedtaksbrevVistNoop
     e_InnsendtSoknadJournalfoert -.-> p_SakProjection
     e_SakFrigjort -.-> p_SakProjection

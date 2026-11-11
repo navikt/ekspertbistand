@@ -12,6 +12,8 @@ import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingDTO
 import no.nav.ekspertbistand.saksbehandling.hentVilkarsvurdering
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus as GraphQLSaksStatus
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.Sendevindu as GraphQLSendevindu
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
@@ -124,6 +126,18 @@ fun VedtakDomain.Utfall.tilForelopigUtfall(): ForelopigUtfall = when (this) {
 fun VedtakDomain.Utfall.tilSaksstatus(): Saksstatus = when (this) {
     VedtakDomain.Utfall.INNVILGE, VedtakDomain.Utfall.INNVILGE_REDUSERT -> Saksstatus.INNVILGET
     VedtakDomain.Utfall.AVSLAA -> Saksstatus.AVSLATT
+}
+
+fun GraphQLSendevindu.tilDomain(): ArbeidsgiverVarselDomain.Sendevindu = when (this) {
+    GraphQLSendevindu.NKS_AAPNINGSTID -> ArbeidsgiverVarselDomain.Sendevindu.NKS_AAPNINGSTID
+    GraphQLSendevindu.DAGTID_IKKE_SOENDAG,
+    GraphQLSendevindu.LOEPENDE,
+    GraphQLSendevindu.__UNKNOWN_VALUE -> error("Sendevindu $this har ikke motstykke i ArbeidsgiverVarselDomain")
+}
+
+/** Varselet sendes med statusen fra domain, så her går oversettelsen andre veien. */
+fun ArbeidsgiverVarselDomain.Status.tilSaksStatus(): GraphQLSaksStatus = when (this) {
+    ArbeidsgiverVarselDomain.Status.FERDIG -> GraphQLSaksStatus.FERDIG
 }
 
 @OptIn(ExperimentalTime::class)

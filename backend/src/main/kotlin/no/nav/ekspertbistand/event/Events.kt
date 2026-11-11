@@ -9,6 +9,7 @@ import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
 import no.nav.ekspertbistand.event.domain.VedtakDomain
@@ -635,7 +636,8 @@ sealed interface EventData {
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
      *
-     * Konsument: [no.nav.ekspertbistand.event.handlers.LagreVedtaksbrev]. Varslingen av arbeidsgiver kommer i kort 645.
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.LagreVedtaksbrev] og
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverVedtakFattet].
      */
     @OptIn(ExperimentalTime::class)
     @Serializable
@@ -650,6 +652,33 @@ sealed interface EventData {
         val adressebeskyttelse: SakDomain.Adressebeskyttelse?,
         val journalpostId: String,
         val dokumentInfoId: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver er varslet om vedtaket i notifikasjonsplattformen: beskjed med eksternt varsel, og saken
+     * satt til ferdig. Kvitterer hva vi bestilte, ikke at e-post og SMS er levert. Plattformen sender dem senere,
+     * i [ArbeidsgiverVarselDomain.EksterntVarsel.sendevindu].
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverVedtakFattet] når plattformen har tatt
+     * imot både beskjeden og statusen. [varsel] er det som ble sendt. [journalpostId] er vedtaksbrevet arbeidsgiver
+     * ble varslet om, fra [VedtaksbrevArbeidsgiverJournalfoert].
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("arbeidsgiverVarsletVedtakFattet")
+    data class ArbeidsgiverVarsletVedtakFattet(
+        val sakId: String,
+        val soknadId: String,
+        val utfall: VedtakDomain.Utfall,
+        val journalpostId: String,
+        val varsel: ArbeidsgiverVarselDomain,
         val tidspunkt: Instant,
     ) : EventData {
         override val aggregateRootId: String get() = soknadId
@@ -725,6 +754,11 @@ suspend fun Application.configureEventHandlers() {
             EventHandledResult.Success()
         }
         register(dependencies.create(LagreVedtaksbrev::class))
+        register(dependencies.create(VarsleArbeidsgiverVedtakFattet::class))
+        register<EventData.ArbeidsgiverVarsletVedtakFattet>("ArbeidsgiverVarsletVedtakFattetNoop") { _ ->
+            // Kvitterer hva arbeidsgiver ble varslet om, i eventloggen. Ingen konsumenter per nå.
+            EventHandledResult.Success()
+        }
         register<EventData.VedtaksbrevVist>("VedtaksbrevVistNoop") { event ->
             // Ingen konsument ennå. Metrikk og projeksjon kommer eventuelt i et eget kort.
             EventHandledResult.Success()
