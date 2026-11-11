@@ -357,10 +357,10 @@ release, og å skyve den noen uker er bare en nødplan (se avsnitt 5).
 ## Tidslinje
 
 Tidslinjen ligger som Gantt-diagram i
-[lanseringsplan_2027-04-01.html](https://htmlpreview.github.io/?https://github.com/navikt/ekspertbistand/blob/main/planning/lanseringsplan_2027-04-01.html),
+[lanseringsplan_2027-04-01.html](https://htmlpreview.github.io/?https://github.com/navikt/ekspertbistand/blob/lanseringsplan/planning/lanseringsplan_2027-04-01.html),
 med ett spor per rad og uke for uke fram til 1. april. Lenken går via
 htmlpreview.github.io, fordi GitHub bare viser kildekoden. Den viser versjonen
-på `main`. Hvert steg har samme emoji i diagrammet som i
+på branchen `lanseringsplan`. Hvert steg har samme emoji i diagrammet som i
 statusoversikten, i
 [Hva må være med i første release](#hva-må-være-med-i-første-release), i
 sporene og i [Mangler på Trello](#mangler-på-trello). Endrer vi planen, må

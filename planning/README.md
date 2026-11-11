@@ -15,7 +15,7 @@ Andre dokumenter i mappa:
 
 - [Lanseringsplan](lanseringsplan_2027-04-01.md): status, rekkefølge, spor og
   endringslogg fram til 1. april 2027
-- [Tidslinje](https://htmlpreview.github.io/?https://github.com/navikt/ekspertbistand/blob/main/planning/lanseringsplan_2027-04-01.html):
+- [Tidslinje](https://htmlpreview.github.io/?https://github.com/navikt/ekspertbistand/blob/lanseringsplan/planning/lanseringsplan_2027-04-01.html):
   Gantt-diagram over sporene uke for uke
 
 ## Interaksjoner
