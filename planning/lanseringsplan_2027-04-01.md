@@ -74,7 +74,7 @@ sprekker med rundt 80 %, men ikke for mye ny scope.
 | 🟢 | – | – | 🧹 Makssats per startdato | [651](https://trello.com/c/3zvmjKiu) |
 | 🟢 | – | – | 🧹 Fjerne utgiftsbeskrivelse (#234) | [620](https://trello.com/c/NoJhv4wi) |
 | 🟢 | – | – | 🛤️ Ny rute bak feature toggle (`EKSPERTBISTAND_V2`) for søknaden og funksjonene i ny løsning (#238). Dagens sider beholdes uendret. | [682](https://trello.com/c/cEJ38zjf) |
-| 🟡 | M1 | `XS ▪` | 🛤️ Kvitteringen i ekspansjonskort på ny rute. Ferdig på vedtakssida (#250). Gjenstår på kvitteringssida før vedtak. | [680](https://trello.com/c/RZqSZ8p3) |
+| 🟢 | – | – | 🛤️ Kvitteringen i ekspansjonskort på ny rute, før og etter vedtak (#250, #253) | [680](https://trello.com/c/RZqSZ8p3) |
 | 🟢 | – | – | 🛤️ Tilskuddsbrevet (vedtaksbrevet i nye saker) i ekspansjonskort på ny rute, med tittel per utfall (#250) | [681](https://trello.com/c/H7jYzwos) |
 | 🟢 | – | – | 🪪 Aa-reg-sjekk av deltaker i søknaden, i v1 og v2 (#230, i prod) | [601](https://trello.com/c/3Oq7KiFc) |
 | 🟢 | – | – | 📨 Kopi av søknaden til deltaker: journalført som utgående på personmappa og distribuert med dokdist (#251, i prod) | [676](https://trello.com/c/khxsoU0N), [675](https://trello.com/c/2QCwaAJX), [692](https://trello.com/c/LU0D56cu) |
@@ -85,7 +85,7 @@ sprekker med rundt 80 %, men ikke for mye ny scope.
 | 🔴 | M3 | `XS ▪` | Informere arbeidsgiver om at søknader fjernes etter 1 år | [595](https://trello.com/c/9pex2Tgp) |
 | 🟢 | – | – | 🧹 Sikkerhetsfunn H1 og H2 | [664](https://trello.com/c/3qjMQJdw) |
 
-Gjenstår: cirka 2 timer.
+Gjenstår: cirka 1 time.
 
 ### Saksbehandling fram til vedtak
 
@@ -377,7 +377,7 @@ ferdig i tidslinjen. Sikkerhetsfunn M2–M4 er noe annet enn milepælene M2–M4
 |--------------|---------|------|------------|
 | Uke 45 (6.11.) | **M0: rydd bordet** 🟡 | 🧹 | 🟢 Utgiftsbeskrivelsen er fjernet, og de eksterne avklaringene har eier. 📝 Brevmalene og 📜 PR #201 ble ikke ferdige og er flyttet til M1. |
 | Uke 46 (11.11.) | **P1: tidlig i prod** 🟢 | 🪪 📨 | 🟢 Nådd fem uker før planen. I prod, i dagens Arena-flyt: Aa-reg-sjekk i søknaden, kopi av søknaden til deltaker med dokdist, og tekst om kopien til arbeidsgiver i søknadsskjemaet. |
-| Uke 3 (22.1.) | **M1: vedtaket går ut** | 🛤️ ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: arbeidsgiver ser kvitteringen i ekspansjonskort på ny rute og får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. Søknaden sladdes på arbeidsgivermappa. PR #201 er merget. OeBS-bestillingen er testet i T1. |
+| Uke 3 (22.1.) | **M1: vedtaket går ut** | ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: arbeidsgiver får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. Søknaden sladdes på arbeidsgivermappa. PR #201 er merget. OeBS-bestillingen er testet i T1. |
 | Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler godkjenner, eller avslår via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, og saken avsluttes. |
 | Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 📤 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonen er godkjent. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
 | Uke 11 (19.3.) | **M4: go-live** | 🚦 | Entra-gruppene er synlige i Mine tilganger. Arena stenger for nye ekspertbistand-saker. Søknader sendt inn etter go-live behandles hos oss. Arena behandler ferdig sakene som ligger der. Salesforce og Modia får data om nye saker fra samme dag. |
@@ -409,16 +409,15 @@ fra backend til frontend, så ingen venter på en annen for å få noe ferdig.
 Eier `frontend/client`, `soknad/`, `aareg/`, `vedlegg/` og arbeidsgiversiden
 av `refusjon/`.
 
-Ferdig: 🧹 utgiftsbeskrivelsen er fjernet, 🛤️ ny rute og vedtaket på ny rute,
-🪪 Aa-reg i prod.
+Ferdig: 🧹 utgiftsbeskrivelsen er fjernet, 🛤️ ny rute med kvitteringen og
+vedtaket i ekspansjonskort, 🪪 Aa-reg i prod.
 
-1. 🛤️ Kvitteringen i ekspansjonskort på kvitteringssida før vedtak (680).
-2. ⚖️ Automatisk vilkår for arbeidsforhold og «Deltaker er enig» (655), og de
+1. ⚖️ Automatisk vilkår for arbeidsforhold og «Deltaker er enig» (655), og de
    tre nye vilkårene (656).
-3. 📤 Refusjonskrav og sluttrapport etter Figma (685, 686), visning på ny rute
+2. 📤 Refusjonskrav og sluttrapport etter Figma (685, 686), visning på ny rute
    (683, 684). Åpne refusjon og sluttrapport for arbeidsgiver i prod.
-4. 📡 Data om nye saker til Salesforce og Modia fra go-live.
-5. 🛡️ Personvern: stanse behandling, sletting når deltaker trekker seg.
+3. 📡 Data om nye saker til Salesforce og Modia fra go-live.
+4. 🛡️ Personvern: stanse behandling, sletting når deltaker trekker seg.
 
 ### Spor B: brev, journalføring og varsel
 
@@ -578,4 +577,4 @@ og avstanden øker uke for uke.
 |----:|------|---------:|------------------------:|---------:|----------------:|--------|-------------|
 | 43 | 25.10. | 138 | – | – | 215 | 🟢 64 % | Første plan. |
 | 44 | 31.10. | 120 | −27 | +9 | 204 | 🟢 59 % | Ferdig: makssats, adressebeskyttelse, sletterutiner, H1 og H2, Entra-grupper i prod, OeBS-klient og bestilling, sak-ID, M4 og beløpsgrense på refusjonskrav. Brevmalene venter bare på fag. Ny: 🛤️ nye ruter og visninger for arbeidsgiver, 🏦 test mot OeBS i T1. |
-| 46 | 11.11. | 98 | −35 | +13 | 180 | 🟢 54 % | Gjelder uke 45 og 46. **P1 er i prod**, fem uker før planen: Aa-reg-sjekk og kopi av søknaden til deltaker med dokdist. Ferdig i dev: utgiftsbeskrivelsen fjernet, 🛤️ ny rute, vedtaksbrevet til arbeidsgiver journalført med sladding og vist på ny rute, refusjon knyttet bare til saken og som oppgave i oversikten. Vedtakssida (#250) løste også tilskuddsbrevet i ekspansjonskort (681) og det meste av kvitteringen (680). M1 flyttes fra uke 5 til uke 3. Ny: 685, 686, 694, 701, 703, 690, 687, 592 og QA av brevene til deltaker (678). Omgjøring av vedtak (689) er ikke regnet med. |
+| 46 | 11.11. | 98 | −35 | +13 | 180 | 🟢 54 % | Gjelder uke 45 og 46. **P1 er i prod**, fem uker før planen: Aa-reg-sjekk og kopi av søknaden til deltaker med dokdist. Ferdig i dev: utgiftsbeskrivelsen fjernet, 🛤️ ny rute, vedtaksbrevet til arbeidsgiver journalført med sladding og vist på ny rute, refusjon knyttet bare til saken og som oppgave i oversikten. Vedtakssida (#250) løste også tilskuddsbrevet i ekspansjonskort (681), og #253 gjorde ferdig kvitteringssida (680). M1 flyttes fra uke 5 til uke 3. Ny: 685, 686, 694, 701, 703, 690, 687, 592 og QA av brevene til deltaker (678). Omgjøring av vedtak (689) er ikke regnet med. |
