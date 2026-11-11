@@ -34,6 +34,7 @@ import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
+import no.nav.ekspertbistand.dokdist.DokDistClient
 import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.dokument.gotenberg.GotenbergClient
 import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
@@ -118,6 +119,7 @@ fun main() {
             provide<PdfKonverterer>(GotenbergClient::class)
             provide<DokumentService> { DokumentService(resolve()) }
             provide(DokArkivClient::class)
+            provide(DokDistClient::class)
             provide(EregClient::class)
             provide(EregService::class)
             provide(NorgKlient::class)

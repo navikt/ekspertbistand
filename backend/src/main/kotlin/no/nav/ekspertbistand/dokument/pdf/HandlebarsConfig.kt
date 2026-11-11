@@ -17,6 +17,7 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.longOrNull
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -41,6 +42,7 @@ class HandlebarsConfig(
     ).with(HtmlEscapingStrategy).apply {
         registerHelper("dateFormat", dateFormatHelper)
         registerHelper("norwegian-date", norwegianDateHelper)
+        registerHelper("brevdato", brevdatoHelper)
         registerHelper("add", addHelper)
         registerHelper("eq", eqHelper)
     }
@@ -67,6 +69,9 @@ class HandlebarsConfig(
         private val ISO_INPUT = DateTimeFormatter.ISO_LOCAL_DATE
         private val NORWEGIAN = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
+        // Dato i brødtekst etter Aksels visuelle retningslinjer for brev, f.eks. "1. desember 2024".
+        private val BREVDATO = DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale.forLanguageTag("nb-NO"))
+
         private val dateFormatHelper = Helper<Any?> { context, options ->
             val pattern = options.param(0, "dd.MM.yyyy") as String
             formatIsoDate(context?.toString(), DateTimeFormatter.ofPattern(pattern))
@@ -74,6 +79,10 @@ class HandlebarsConfig(
 
         private val norwegianDateHelper = Helper<Any?> { context, _ ->
             formatIsoDate(context?.toString(), NORWEGIAN)
+        }
+
+        private val brevdatoHelper = Helper<Any?> { context, _ ->
+            formatIsoDate(context?.toString(), BREVDATO)
         }
 
         private val addHelper = Helper<Any?> { context, options ->

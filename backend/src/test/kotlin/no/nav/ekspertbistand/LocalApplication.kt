@@ -18,6 +18,7 @@ import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
+import no.nav.ekspertbistand.dokdist.DokDistClient
 import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
@@ -199,6 +200,17 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
             )
         })
     )
+    val mockDokDistClient = DokDistClient(
+        azureAdTokenProvider = successAzureAdTokenProvider,
+        defaultHttpClient = HttpClient(MockEngine {
+            respond(
+                // language=JSON
+                """{"bestillingsId": "3333"}""",
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        })
+    )
 
     ktorServer {
         dependencies {
@@ -340,6 +352,7 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
             provide<EregService> { EregService(resolve()) }
             provide { mockDokumentService }
             provide { mockDokArkivClient }
+            provide { mockDokDistClient }
             provide<ClamAvClient> {
                 ClamAvClient(HttpClient(MockEngine {
                     respond(

@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.event.handlers
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import no.nav.ekspertbistand.dokarkiv.AvsenderMottaker
+import no.nav.ekspertbistand.dokarkiv.Bruker
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
 import no.nav.ekspertbistand.dokarkiv.JournalpostType
@@ -121,7 +122,7 @@ class JournalfoerVedtaksbrevArbeidsgiver @OptIn(ExperimentalTime::class) constru
         val journalpost = try {
             dokArkivClient.opprettOgFerdigstillJournalpost(
                 tittel = tittel(data.vedtak.utfall),
-                virksomhetsnummer = virksomhetsnummer,
+                bruker = Bruker.orgnr(virksomhetsnummer),
                 sak = Sak.FagSak(fagsakIdService.opprettEllerHentFagsakId(soknadId = data.soknadId)),
                 eksternReferanseId = "${data.soknadId}-vedtaksbrev-arbeidsgiver",
                 dokumentPdfAsBytes = pdf,
