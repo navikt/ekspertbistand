@@ -91,6 +91,9 @@ Valg i spesifikasjonen:
   transaksjon, så de er alltid like, og en projeksjon ville ikke gitt noe nytt.
 - Hendelsen publiseres i samme transaksjon, ikke etter commit. Da kan en lagret
   innsending aldri mangle hendelse, og `event_log` skal ikke backfilles.
+- Hver hendelse har en noop-handler (`RefusjonskravMottattNoop`,
+  `SluttrapportMottattNoop`). Uten handler gir `EventManager` `TransientError`,
+  og hendelsen blir liggende i køen.
 
 ## Avgrensning
 

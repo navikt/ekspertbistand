@@ -359,7 +359,7 @@ sealed interface EventData {
      * Arbeidsgiver har sendt inn et refusjonskrav.
      *
      * Publiseres av [no.nav.ekspertbistand.refusjon.RefusjonDb.registrerRefusjonskrav] i samme
-     * transaksjon som lagringen. Det finnes ingen konsument ennå; event_log er masterdata.
+     * transaksjon som lagringen. Ingen konsument ennå, bare en noop-handler slik at eventen ferdigbehandles; event_log er masterdata.
      * [innsendtAv] er fødselsnummer og skal aldri logges. Filinnholdet ligger i vedlegg-tabellen.
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
@@ -386,7 +386,7 @@ sealed interface EventData {
      * innsending gir én event.
      *
      * Publiseres av [no.nav.ekspertbistand.vedlegg.VedleggDb.registrerSluttrapport] i samme
-     * transaksjon som lagringen. Det finnes ingen konsument ennå; event_log er masterdata.
+     * transaksjon som lagringen. Ingen konsument ennå, bare en noop-handler slik at eventen ferdigbehandles; event_log er masterdata.
      * [innsendtAv] er fødselsnummer og skal aldri logges. Filinnholdet ligger i vedlegg-tabellen.
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
@@ -652,6 +652,14 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(ReturnerForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
+            EventHandledResult.Success()
+        }
+        register<EventData.RefusjonskravMottatt>("RefusjonskravMottattNoop") { _ ->
+            // Ingen konsument ennå; saksloggen skrives via SakOppdatert som publiseres sammen med denne
+            EventHandledResult.Success()
+        }
+        register<EventData.SluttrapportMottatt>("SluttrapportMottattNoop") { _ ->
+            // Ingen konsument ennå; saksloggen skrives via SakOppdatert som publiseres sammen med denne
             EventHandledResult.Success()
         }
     }

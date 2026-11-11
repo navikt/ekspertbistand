@@ -32,14 +32,14 @@ flowchart TD
     e_ForelopigVedtakReturnert(["ForelopigVedtakReturnert"]):::event
     e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
-    e_RefusjonskravMottatt(["RefusjonskravMottatt"]):::orphan
+    e_RefusjonskravMottatt(["RefusjonskravMottatt"]):::event
     e_SakFrigjort(["SakFrigjort"]):::event
     e_SakOppdatert(["SakOppdatert"]):::event
     e_SakOpprettet(["SakOpprettet"]):::event
     e_SakTildeltBeslutter(["SakTildeltBeslutter"]):::event
     e_SakTildeltSaksbehandler(["SakTildeltSaksbehandler"]):::event
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
-    e_SluttrapportMottatt(["SluttrapportMottatt"]):::orphan
+    e_SluttrapportMottatt(["SluttrapportMottatt"]):::event
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
     e_TilsagnsdataLagret(["TilsagnsdataLagret"]):::event
@@ -65,11 +65,13 @@ flowchart TD
     h_OppdaterVilkarsvurdering["OppdaterVilkarsvurdering"]:::handler
     h_OpprettSak["OpprettSak"]:::handler
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad["OpprettTiltaksgjennomfoeringForInnsendtSoknad"]:::handler
+    h_RefusjonskravMottattNoop["RefusjonskravMottattNoop"]:::handler
     h_ReturnerForelopigVedtak["ReturnerForelopigVedtak"]:::handler
     h_SettAvlystSoknadStatus["SettAvlystSoknadStatus"]:::handler
     h_SettGodkjentSoknadStatus["SettGodkjentSoknadStatus"]:::handler
     h_SettSoknadStatusVedtakFattet["SettSoknadStatusVedtakFattet"]:::handler
     h_SkrivSakslogg["SkrivSakslogg"]:::handler
+    h_SluttrapportMottattNoop["SluttrapportMottattNoop"]:::handler
     h_TildelBeslutter["TildelBeslutter"]:::handler
     h_TildelSaksbehandler["TildelSaksbehandler"]:::handler
     h_TilskuddsbrevVistNoop["TilskuddsbrevVistNoop"]:::handler
@@ -128,11 +130,13 @@ flowchart TD
     e_VilkarsvurderingOppdatert --> h_OppdaterVilkarsvurdering
     e_InnsendtSoknadJournalfoert --> h_OpprettSak
     e_InnsendtSoknadJournalfoert --> h_OpprettTiltaksgjennomfoeringForInnsendtSoknad
+    e_RefusjonskravMottatt --> h_RefusjonskravMottattNoop
     e_ForelopigVedtakReturnert --> h_ReturnerForelopigVedtak
     e_SoknadAvlystIArena --> h_SettAvlystSoknadStatus
     e_TilskuddsbrevJournalfoert --> h_SettGodkjentSoknadStatus
     e_VedtakFattet --> h_SettSoknadStatusVedtakFattet
     e_SakOppdatert --> h_SkrivSakslogg
+    e_SluttrapportMottatt --> h_SluttrapportMottattNoop
     e_SakTildeltBeslutter --> h_TildelBeslutter
     e_SakTildeltSaksbehandler --> h_TildelSaksbehandler
     e_TilskuddsbrevVist --> h_TilskuddsbrevVistNoop
@@ -166,8 +170,3 @@ flowchart TD
     e_TilskuddsbrevVist -.-> p_TilskuddsbrevVistProjection
     linkStyle default stroke:#555,stroke-width:2px
 ```
-
-Events markert i rødt mangler enten publiserer eller konsument:
-
-- `RefusjonskravMottatt` – mangler konsument
-- `SluttrapportMottatt` – mangler konsument
