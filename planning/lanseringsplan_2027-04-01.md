@@ -59,7 +59,7 @@ andre. Antall blokker viser størrelsen:
 For 🟡 gjelder anslaget det som gjenstår. Summene regner M som 2,5 dager
 og XL som 10 dager.
 
-**Totalt cirka 98 utviklerdager** (20 utvikleruker). Frigjøring av beslutter
+**Totalt cirka 97 utviklerdager** (20 utvikleruker). Frigjøring av beslutter
 og omgjøring av vedtak er ikke med. Kapasiteten er cirka 180 dager: 16 uker ×
 3 utviklere, minus vinterferie, ganger 80 %. Det gir rom for at anslagene
 sprekker med rundt 80 %, men ikke for mye ny scope.
@@ -100,7 +100,7 @@ Gjenstår: cirka 1 time.
 | 🟢 | – | – | Foreløpig vedtak med forhåndsvisning av brev | [473](https://trello.com/c/M6Ei4UAR), [468](https://trello.com/c/gh8l45zx) |
 | 🟢 | – | – | Beslutter fatter vedtak eller sender i retur | [476](https://trello.com/c/4kkrg41a) |
 | 🟡 | M1 | `S  ■` | 📝 Brevmaler for vedtak. QA på tekstene med fag pågår. Deltaker skal ikke få vite tilskuddsbeløpet, så brevene til deltaker endres (Hanna, 4.11.). | [563](https://trello.com/c/3moZGD2U), [678](https://trello.com/c/EXPjdaDS) |
-| 🟡 | M1 | `S  ■` | 📜 Event for alt som skjer (PR #201) | [598](https://trello.com/c/2HQeHav3) |
+| 🔴 | M1 | `S  ■` | 📜 Kvitteringshendelser for varsler til arbeidsgiver som mangler i dag: søknad mottatt, godkjent og avlyst. Noop-handlere, ingen backfill. Starter på nytt fra `main`, PR #201 videreføres ikke. | [598](https://trello.com/c/2HQeHav3) |
 | 🟢 | – | – | Entra-grupper og tilgangsrutine i prod (STS-56018) | [506](https://trello.com/c/9wiRRC1M), [532](https://trello.com/c/WB9G2Pxx) |
 | 🔴 | M1 | `M  ■■` | ⚖️ «Automatisk»-tag og oppfylt som standard på «Deltaker er enig» og «Arbeidsforhold» (fra Aa-reg). Saksbehandler kan overstyre. | [655](https://trello.com/c/WCMkpira) |
 | 🔴 | M1 | `M  ■■` | ⚖️ Tre nye vilkår | [656](https://trello.com/c/hLd2jDAj) |
@@ -183,7 +183,7 @@ hvordan de vil ta imot data.
 | 🟡 | M3 | `M  ■■` | Trusselmodell, verdivurdering og livsløp ferdig. ROS gjenstår, også at arbeidsgiver ser navnet på deltaker med fortrolig adresse. | [582](https://trello.com/c/80W3GhIB) |
 | 🟡 | M3 | `M  ■■` | Juridisk logg (ikke-benekt), avklaring pågår | [555](https://trello.com/c/94yFdkSX) |
 | 🟡 | M3 | `S  ■` | Begrense hver frontend til sin del av backend-API-et | [603](https://trello.com/c/XED3wgnm) |
-| 🟡 | M3 | `S  ■` | Validere klient-claim i backend (PR #245 lukket uten merge, kortet er i DOING) | [633](https://trello.com/c/jdsNoa2n) |
+| 🟡 | M3 | `XS ▪` | Validere klient i token i backend: TokenX `client_id` og Entra `azp_name` (PR #254 venter på review) | [633](https://trello.com/c/jdsNoa2n) |
 | 🔴 | M3 | `L  ■■■` | 📜 Oppslagslogg og ArcSight (sikkerhetsfunn M2, M3) | [553](https://trello.com/c/s5v5Occl), [664](https://trello.com/c/3qjMQJdw) |
 | 🔴 | M3 | `M  ■■` | Auditlogging av databaseendringer (uavklart om det gjelder oss) | [554](https://trello.com/c/y5GXvQ7x) |
 | 🔴 | M3 | `L  ■■■` | 🛡️ Stanse behandling og slette | [584](https://trello.com/c/ft1q5B6v) |
@@ -194,7 +194,7 @@ hvordan de vil ta imot data.
 | 🔴 | M3 | `M  ■■` | UU-tester i bygg for saksbehandling | [593](https://trello.com/c/Flaq2NEE) |
 | 🔴 | M3 | `S  ■` | Vise tydelig i saksbehandling at deltaker har adressebeskyttelse (krav 255) | [592](https://trello.com/c/jRixpurm) |
 
-Gjenstår: cirka 30 dager.
+Gjenstår: cirka 29 dager.
 
 ## Hva må være med i første release
 
@@ -229,7 +229,7 @@ Tilbakekreving er også utenfor scope. Økonomi gjør det manuelt.
 | Småfiks i GUI: beslutter kan ikke endre vilkår, «Beløp», breadcrumb med arbeidsgiver og deltaker | 🔴 Kort i Weekly commits |
 | Idempotens og samtidighet: to raske kall mot samme sak får begge 202, men bare det ene får effekt | 🔴 Kort finnes (694). Oppdaget i arbeidet med 691. |
 | Frigjør beslutter / tildel annen beslutter | 🔴 Kort finnes. Kan vente hvis tida blir knapp. |
-| 📜 «Opprett event for alt som skjer» | 🟡 PR #201 åpen siden 3.11. |
+| 📜 Hendelser som viser hva arbeidsgiver ble varslet om (ikke-benekt), der de mangler i dag | 🔴 Kort finnes (598). Startes på nytt fra `main`, bygger på kvitteringshendelsen fra 645. |
 
 ### 3. Etter vedtak: brev, journalføring og varsel
 
@@ -327,7 +327,7 @@ refusjonsbehandling noen uker etter. Det er en nødplan, ikke målet.
 | Disaster recovery-plan, testet | 🔴 Ikke startet |
 | Alerts som `PrometheusRule` i stedet for Grafana | 🔴 Ikke startet |
 | UU-tester i bygg for saksbehandling | 🔴 Ikke startet |
-| Validere klient-claim i backend (hindre kryssing mellom apper) | 🟡 Kort i DOING. PR #245 ble lukket uten merge. |
+| Validere klient i token i backend (hindre kryssing mellom apper) | 🟡 PR #254 venter på review |
 | Vise tydelig i saksbehandling at deltaker har adressebeskyttelse (krav 255) | 🔴 Kort finnes (592) |
 
 ### Kan vente til etter lansering
@@ -375,9 +375,9 @@ ferdig i tidslinjen. Sikkerhetsfunn M2–M4 er noe annet enn milepælene M2–M4
 
 | Ferdig innen | Milepæl | Steg | Ferdig når |
 |--------------|---------|------|------------|
-| Uke 45 (6.11.) | **M0: rydd bordet** 🟡 | 🧹 | 🟢 Utgiftsbeskrivelsen er fjernet, og de eksterne avklaringene har eier. 📝 Brevmalene og 📜 PR #201 ble ikke ferdige og er flyttet til M1. |
+| Uke 45 (6.11.) | **M0: rydd bordet** 🟡 | 🧹 | 🟢 Utgiftsbeskrivelsen er fjernet, og de eksterne avklaringene har eier. 📝 Brevmalene og 📜 hendelsene (598) ble ikke ferdige og er flyttet til M1. |
 | Uke 46 (11.11.) | **P1: tidlig i prod** 🟢 | 🪪 📨 | 🟢 Nådd fem uker før planen. I prod, i dagens Arena-flyt: Aa-reg-sjekk i søknaden, kopi av søknaden til deltaker med dokdist, og tekst om kopien til arbeidsgiver i søknadsskjemaet. |
-| Uke 3 (22.1.) | **M1: vedtaket går ut** | ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: arbeidsgiver får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. Søknaden sladdes på arbeidsgivermappa. PR #201 er merget. OeBS-bestillingen er testet i T1. |
+| Uke 3 (22.1.) | **M1: vedtaket går ut** | ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: arbeidsgiver får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. Søknaden sladdes på arbeidsgivermappa. Hendelsene for varsler til arbeidsgiver finnes (598). OeBS-bestillingen er testet i T1. |
 | Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler godkjenner, eller avslår via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, og saken avsluttes. |
 | Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 📤 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonen er godkjent. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
 | Uke 11 (19.3.) | **M4: go-live** | 🚦 | Entra-gruppene er synlige i Mine tilganger. Arena stenger for nye ekspertbistand-saker. Søknader sendt inn etter go-live behandles hos oss. Arena behandler ferdig sakene som ligger der. Salesforce og Modia får data om nye saker fra samme dag. |
@@ -433,7 +433,8 @@ til arbeidsgiver journalført med sladding.
    som kopien av søknaden (646, 599).
 4. 🗄️ Sladd søknaden på arbeidsgivermappa (703). Journalfør sluttrapporten
    (701).
-5. 📜 Merge PR #201. Oppslagslogg og ArcSight (sikkerhetsfunn M2 og M3).
+5. 📜 Hendelser for varsler til arbeidsgiver (598). Oppslagslogg og ArcSight
+   (sikkerhetsfunn M2 og M3).
 6. 📣 Varsle arbeidsgiver når refusjonen er godkjent.
 
 ### Spor C: økonomi og refusjonsbehandling
@@ -577,4 +578,4 @@ og avstanden øker uke for uke.
 |----:|------|---------:|------------------------:|---------:|----------------:|--------|-------------|
 | 43 | 25.10. | 138 | – | – | 215 | 🟢 64 % | Første plan. |
 | 44 | 31.10. | 120 | −27 | +9 | 204 | 🟢 59 % | Ferdig: makssats, adressebeskyttelse, sletterutiner, H1 og H2, Entra-grupper i prod, OeBS-klient og bestilling, sak-ID, M4 og beløpsgrense på refusjonskrav. Brevmalene venter bare på fag. Ny: 🛤️ nye ruter og visninger for arbeidsgiver, 🏦 test mot OeBS i T1. |
-| 46 | 11.11. | 98 | −35 | +13 | 180 | 🟢 54 % | Gjelder uke 45 og 46. **P1 er i prod**, fem uker før planen: Aa-reg-sjekk og kopi av søknaden til deltaker med dokdist. Ferdig i dev: utgiftsbeskrivelsen fjernet, 🛤️ ny rute, vedtaksbrevet til arbeidsgiver journalført med sladding og vist på ny rute, refusjon knyttet bare til saken og som oppgave i oversikten. Vedtakssida (#250) løste også tilskuddsbrevet i ekspansjonskort (681), og #253 gjorde ferdig kvitteringssida (680). M1 flyttes fra uke 5 til uke 3. Ny: 685, 686, 694, 701, 703, 690, 687, 592 og QA av brevene til deltaker (678). Omgjøring av vedtak (689) er ikke regnet med. |
+| 46 | 11.11. | 97 | −36 | +13 | 180 | 🟢 54 % | Gjelder uke 45 og 46. **P1 er i prod**, fem uker før planen: Aa-reg-sjekk og kopi av søknaden til deltaker med dokdist. Ferdig i dev: utgiftsbeskrivelsen fjernet, 🛤️ ny rute, vedtaksbrevet til arbeidsgiver journalført med sladding og vist på ny rute, refusjon knyttet bare til saken og som oppgave i oversikten. Vedtakssida (#250) løste også tilskuddsbrevet i ekspansjonskort (681), og #253 gjorde ferdig kvitteringssida (680). 598 er avgrenset til hendelser for varsler til arbeidsgiver og starter på nytt. Validering av klient i token er i PR #254. M1 flyttes fra uke 5 til uke 3. Ny: 685, 686, 694, 701, 703, 690, 687, 592 og QA av brevene til deltaker (678). Omgjøring av vedtak (689) er ikke regnet med. |
