@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.soknad
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
@@ -186,6 +187,7 @@ class SoknadTest {
             }
         ) {
             assertEquals(HttpStatusCode.NoContent, status)
+            assertEquals("", bodyAsText())
         }
         with(
             client.get("/api/soknad/v1/$utkastId") {
