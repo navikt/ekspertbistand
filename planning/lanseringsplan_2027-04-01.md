@@ -26,9 +26,9 @@ Planen gir oversikt. Detaljer i hver oppgave tar vi i teamet, kort for kort.
 - Vi har cirka 16 arbeidsuker (uke 47–51 og uke 1–11) for tre utviklere,
   minus ferie. Det holder hvis vi jobber i tre spor som ikke tråkker på
   hverandre.
-- Største risikoer er eksterne: at OeBS får T1 klart for test, og hvordan
-  Salesforce og Modia skal få data om nye saker. Tilgang til Aa-reg og
-  dokdist er på plass.
+- Største eksterne risiko er hvordan Salesforce og Modia skal få data om nye
+  saker. OeBS T1 er klart for test, og tilgang til Aa-reg og dokdist er på
+  plass.
 - Ny scope uten avklaring: omgjøring av vedtak
   ([689](https://trello.com/c/KwIMHZP9)). Den er ikke regnet med, se
   [Åpne spørsmål](#åpne-spørsmål).
@@ -134,7 +134,9 @@ Gjenstår: cirka 5 dager. Kortet «Send ut vedtaksbrev og tilsagnsbrev»
 | 🟢 | – | – | 🏦 Sette av penger når vedtaket er innvilget | [650](https://trello.com/c/abzeX7gO) |
 | 🟢 | – | – | 🔢 Sak-ID som løpenummer | [627](https://trello.com/c/NxvZl7bH) |
 | 🟢 | – | – | 🏦 Avklare startdato og sluttdato med OeBS | [625](https://trello.com/c/znIGenFd) |
-| 🔴 | M1 | `S  ■` | 🏦 Teste bestilling mot OeBS i T1. Nummerserien er godkjent, T1 er ikke klart for test ennå. | Mangler kort |
+| 🔴 | M1 | `S  ■` | 🏦 Skru på OeBS-integrasjonen hos oss og Valp. T1 er klart fra 11.11., og ballen ligger hos oss. Start outbox-polleren og status-consumeren i `main()`, og få lesetilgang til status-topicene hos Valp. | [704](https://trello.com/c/zUU0nQvu) |
+| 🔴 | M1 | `XS ▪` | 🏦 Teste bestilling og kvittering mot OeBS i T1. Kan tas så snart 704 er ferdig. | [705](https://trello.com/c/HShDcuFH) |
+| 🔴 | M3 | `XS ▪` | 🏦 Teste annullering mot OeBS i T1. Ingen flyt annullerer ennå. Enten venter vi på en flyt som annullerer (for eksempel 584), eller så deployer vi et hardkodet annulleringskall i dev og tar den i M1. Utbetaling testes etter 💸. | [706](https://trello.com/c/qnJXAfzO) |
 | 🔴 | M2 | `XL ■■■■` | 💸 Fakturere i OeBS når refusjonskravet er godkjent, og gjøre opp bestillingen i samme melding. Avslag gir ingen faktura. | [679](https://trello.com/c/Cue4nB5k) |
 | 🔴 | M3 | `S  ■` | 🏦 Registrere ekspertbistand som økonomisystem (blant annet i Ardoq) | [690](https://trello.com/c/c6qNIdJK) |
 
@@ -272,9 +274,12 @@ gjenbruker det samme:
 
 | Hva | Status |
 |-----|--------|
-| 🏦 Klient, outbox, producer, status-consumer, topic-manifester | 🟢 Ferdig |
+| 🏦 Klient, outbox, producer, status-consumer, topic-manifester | 🟢 Ferdig, men ikke startet i `main()` |
 | 🔢 Egen nummerserie og kildesystem hos OeBS (OEBS-2283) | 🟢 Godkjent |
-| 🏦 Teste bestilling mot OeBS i T1 | 🔴 **Venter på at T1 blir klart for test** |
+| 🏦 Valp leser bestillingene våre (ACL på topicet vårt, consumer hos Valp) | 🟢 Ferdig |
+| 🏦 Lesetilgang for oss til status-topicene hos Valp | 🔴 **PR i mulighetsrommet eller bestilling på Slack** (704) |
+| 🏦 Teste bestilling og kvittering mot OeBS i T1 | 🔴 T1 er klart fra 11.11. Ballen ligger hos oss (705). |
+| 🏦 Teste annullering mot OeBS i T1 | 🔴 Ingen flyt annullerer ennå (706) |
 | 🔢 Sak-ID som løpenummer som matcher OeBS | 🟢 Ferdig |
 | 🏦 Sette av penger (bestilling) når vedtaket er innvilget | 🟢 Ferdig |
 | 💸 Utbetale (faktura) når refusjonskravet er godkjent, og gjøre opp bestillingen i samme melding | 🔴 Kort finnes (679) |
@@ -377,9 +382,9 @@ ferdig i tidslinjen. Sikkerhetsfunn M2–M4 er noe annet enn milepælene M2–M4
 |--------------|---------|------|------------|
 | Uke 45 (6.11.) | **M0: rydd bordet** 🟡 | 🧹 | 🟢 Utgiftsbeskrivelsen er fjernet, og de eksterne avklaringene har eier. 📝 Brevmalene og 📜 hendelsene (598) ble ikke ferdige og er flyttet til M1. |
 | Uke 46 (11.11.) | **P1: tidlig i prod** 🟢 | 🪪 📨 | 🟢 Nådd fem uker før planen. I prod, i dagens Arena-flyt: Aa-reg-sjekk i søknaden, kopi av søknaden til deltaker med dokdist, og tekst om kopien til arbeidsgiver i søknadsskjemaet. |
-| Uke 3 (22.1.) | **M1: vedtaket går ut** | ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: arbeidsgiver får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. Søknaden sladdes på arbeidsgivermappa. Hendelsene for varsler til arbeidsgiver finnes (598). OeBS-bestillingen er testet i T1. |
+| Uke 3 (22.1.) | **M1: vedtaket går ut** | ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: arbeidsgiver får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. Søknaden sladdes på arbeidsgivermappa. Hendelsene for varsler til arbeidsgiver finnes (598). Bestilling og kvittering er testet mot OeBS i T1. |
 | Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler godkjenner, eller avslår via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, og saken avsluttes. |
-| Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 📤 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonen er godkjent. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
+| Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 📤 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonen er godkjent. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem, og annullering er testet mot OeBS i T1. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
 | Uke 11 (19.3.) | **M4: go-live** | 🚦 | Entra-gruppene er synlige i Mine tilganger. Arena stenger for nye ekspertbistand-saker. Søknader sendt inn etter go-live behandles hos oss. Arena behandler ferdig sakene som ligger der. Salesforce og Modia får data om nye saker fra samme dag. |
 | Uke 12–13 | Buffer | – | Påske. Ingen planlagte prodsettinger. |
 
@@ -393,7 +398,7 @@ ligger i M3. Juleferien (uke 52–53) er ikke regnet med.
 |-------------|--------------|-----------|
 | 🔔 Tekst i varsel til arbeidsgiver om vedtak (jurist). PR #252 gjenbruker e-posttittelen og SMS-teksten fra varselet om mottatt søknad, som er i prod. | Uke 47 | Vi merger med teksten fra varselet om mottatt søknad. |
 | 📬 Om dokdist kan varsle deltaker på nytt når brevet ikke er åpnet (etterlevelseskrav 204, Team Dokumentløsninger) | Uke 49 | Vi må lage revarslingen selv, eller avklare kravet med etterlevelse. |
-| 🏦 OeBS T1 klart for test (nummerserien er godkjent) | Uke 2 | Bestilling og utbetaling blir ikke testet mot OeBS før prod. Eskaler i uke 50. |
+| 🏦 Lesetilgang for `ekspertbistand-backend` til `tiltaksokonomi.bestilling-status-v1` og `faktura-status-v1` (Valp). T1 er klart fra 11.11. | Uke 48 | Vi får ikke kvitteringer fra OeBS og kan ikke teste kvittering og annullering. Eskaler i #samarbeid-valp-oebs. |
 | 📡 Hvordan Salesforce og Modia vil ta imot data om nye saker | Uke 49 | Vi rekker ikke å bygge det til M3. Uten data kan vi ikke gå live, fordi Salesforce og Modia skal ha nye saker fra go-live. |
 
 Hanna og Ida driver avklaringene, men en utvikler bør ha teknisk eierskap til
@@ -442,16 +447,19 @@ til arbeidsgiver journalført med sladding.
 Eier `oebs/`, saksbehandlersiden av `refusjon/`, `Saksstatus`/`Oppgavetype`
 og refusjonsfanen i `frontend/saksbehandling`.
 
-Ferdig: 🏦 bestilling i OeBS, refusjon knyttet bare til saken og 🧾 refusjon
-som oppgave i oversikten.
+Ferdig: 🏦 bestilling i OeBS i koden (ikke startet ennå), refusjon knyttet
+bare til saken og 🧾 refusjon som oppgave i oversikten.
 
-1. 🧾 Hendelser for refusjonskrav og sluttrapport (702, PR #249). Behandle
+1. 🏦 Skru på OeBS-integrasjonen i uke 47, mens T1 er ferskt hos Valp
+   (704), og test bestilling og kvittering i T1 (705). Annullering (706)
+   tas når vi har valgt hvordan.
+2. 🧾 Hendelser for refusjonskrav og sluttrapport (702, PR #249). Behandle
    refusjonskrav: statuser, godkjenn, avslå via beslutter, GUI etter Figma.
-2. 💸 Faktura og status tilbake fra OeBS (679). Avslutt saken.
-3. 🏦 Test bestilling og utbetaling mot OeBS i T1 når det er klart. Registrer
-   ekspertbistand som økonomisystem (690).
-4. Idempotens og samtidighet i saksbehandlings-API-ene (694).
-5. 🚦 Prod-manifest for saksbehandling, overgang fra Arena-flyten, Entra-gruppene
+3. 💸 Faktura og status tilbake fra OeBS (679). Avslutt saken.
+4. 🏦 Test utbetaling mot OeBS i T1. Registrer ekspertbistand som
+   økonomisystem (690).
+5. Idempotens og samtidighet i saksbehandlings-API-ene (694).
+6. 🚦 Prod-manifest for saksbehandling, overgang fra Arena-flyten, Entra-gruppene
    synlige i prod (687).
 
 ### Felles arbeid
@@ -469,7 +477,9 @@ VedtakFattet ──> vedtaksbrev til arbeidsgiver (ferdig) ──> varsle arbeid
            ├──> vedtaksbrev til deltaker ──> distribuer med dokdist
            └──> OeBS-bestilling (ferdig) ──> refusjon godkjent ──> utbetaling ──> sak avsluttet
 
-OeBS T1 klart ──> bestilling og utbetaling testet ──> økonomi i prod
+OeBS T1 klart (11.11.) ──> koble på Valp (704) ──> bestilling testet (705)
+                                               └──> annullering testet (706, etter valg)
+                       └──> utbetaling (💸) ──> utbetaling testet ──> økonomi i prod
 
 Salesforce/Modia-mottak avklart ──> data om nye saker ──┐
 M2/M3 + akseptansetest ─────────────────────────────────┴──> saksbehandling i prod ──> go-live
@@ -506,7 +516,7 @@ Disse bør bli kort:
 3. 💸 Avslutte saken etter utbetaling og sluttrapport
 4. 🚦 Prod-manifest for saksbehandling og overgang fra Arena-flyten i prod
 5. 🧪 Akseptansetest og opplæring med saksbehandlere
-6. 🏦 Teste bestilling og utbetaling mot OeBS i T1
+6. 🏦 Teste utbetaling mot OeBS i T1 (kan bli del av 679)
 
 ## Avklart
 
@@ -541,8 +551,10 @@ Disse bør bli kort:
 - **Oversikt over refusjonsstatus:** Ikke et krav. Fag fører egne Excel-lister.
   Lavthengende frukt hvis vi har tid.
 - **Aa-reg (31.10.):** Hjemmelen er avklart, og oppslaget er i prod fra 9.11.
-- **OeBS (31.10.):** Nummerserien og kildesystemet er godkjent (OEBS-2283),
-  og klienten vår er klar. Vi venter på at T1 blir klart for test.
+- **OeBS (11.11.):** Nummerserien og kildesystemet er godkjent (OEBS-2283).
+  EKSPBIST er installert i T1, og Hilde-Mari har fått opprettet bestillinger
+  fra fiktive tilsagn. Kvitteringer må testes nøyere, og annullering er ikke
+  testet. Hun ber oss sende tilsagn og annullering av tilsagn.
 - **Entra-grupper (31.10.):** På plass i prod (STS-56018). Gruppene må gjøres
   synlige og bestilles i Mine tilganger før go-live (687).
 
@@ -563,6 +575,12 @@ Disse bør bli kort:
    arbeidsgiver ved godkjent refusjon.
 7. Kan dokdist varsle deltaker på nytt når vedtaksbrevet ikke er åpnet
    (etterlevelseskrav 204, [599](https://trello.com/c/QA5bXVrf))?
+8. Tiltaksøkonomi i dev går mot `oebs-po-ap-api-q1`. Er det den som går mot
+   T1 nå? Spør Hilde-Mari.
+9. Ingen flyt annullerer bestillinger ennå. Skal vi teste annullering
+   ([706](https://trello.com/c/qnJXAfzO)) med et hardkodet kall i dev nå,
+   eller vente på en flyt som annullerer, for eksempel når søknaden trekkes
+   eller fristen går ut (spørsmål 3 og 4)?
 
 ## Endringslogg
 
@@ -578,4 +596,4 @@ og avstanden øker uke for uke.
 |----:|------|---------:|------------------------:|---------:|----------------:|--------|-------------|
 | 43 | 25.10. | 138 | – | – | 215 | 🟢 64 % | Første plan. |
 | 44 | 31.10. | 120 | −27 | +9 | 204 | 🟢 59 % | Ferdig: makssats, adressebeskyttelse, sletterutiner, H1 og H2, Entra-grupper i prod, OeBS-klient og bestilling, sak-ID, M4 og beløpsgrense på refusjonskrav. Brevmalene venter bare på fag. Ny: 🛤️ nye ruter og visninger for arbeidsgiver, 🏦 test mot OeBS i T1. |
-| 46 | 11.11. | 97 | −36 | +13 | 180 | 🟢 54 % | Gjelder uke 45 og 46. **P1 er i prod**, fem uker før planen: Aa-reg-sjekk og kopi av søknaden til deltaker med dokdist. Ferdig i dev: utgiftsbeskrivelsen fjernet, 🛤️ ny rute, vedtaksbrevet til arbeidsgiver journalført med sladding og vist på ny rute, refusjon knyttet bare til saken og som oppgave i oversikten. Vedtakssida (#250) løste også tilskuddsbrevet i ekspansjonskort (681), og #253 gjorde ferdig kvitteringssida (680). 598 er avgrenset til hendelser for varsler til arbeidsgiver og starter på nytt. Validering av klient i token er i PR #254. M1 flyttes fra uke 5 til uke 3. Ny: 685, 686, 694, 701, 703, 690, 687, 592 og QA av brevene til deltaker (678). Omgjøring av vedtak (689) er ikke regnet med. |
+| 46 | 11.11. | 97 | −36 | +13 | 180 | 🟢 54 % | Gjelder uke 45 og 46. **P1 er i prod**, fem uker før planen: Aa-reg-sjekk og kopi av søknaden til deltaker med dokdist. Ferdig i dev: utgiftsbeskrivelsen fjernet, 🛤️ ny rute, vedtaksbrevet til arbeidsgiver journalført med sladding og vist på ny rute, refusjon knyttet bare til saken og som oppgave i oversikten. Vedtakssida (#250) løste også tilskuddsbrevet i ekspansjonskort (681), og #253 gjorde ferdig kvitteringssida (680). 598 er avgrenset til hendelser for varsler til arbeidsgiver og starter på nytt. Validering av klient i token er i PR #254. M1 flyttes fra uke 5 til uke 3. Ny: 685, 686, 694, 701, 703, 690, 687, 592 og QA av brevene til deltaker (678). Omgjøring av vedtak (689) er ikke regnet med. OeBS T1 er klart 11.11., og ballen ligger hos oss: vi mangler lesetilgang til status-topicene hos Valp og har ikke skrudd på OeBS-integrasjonen. Nye kort: skru på (704), test bestilling (705) og test annullering (706). 🏦 flyttes fra uke 3 til uke 47. |

@@ -76,13 +76,13 @@ sequenceDiagram
     end
 
     rect rgba(255, 145, 0, 0.10)
-    Note over AG,EB: 3. Etter vedtak 🟢🟢🟢🟢🟢🟢🟢🟡🟡🔴🔴
+    Note over AG,EB: 3. Etter vedtak 🟢🟢🟢🟢🟢🟡🟡🟡🟡🔴🔴
     EB->>EB: 🟢 🗄️📝 Journalfører vedtaksbrevet på arbeidsgivermappa, sladdet ved kode 6/7
     EB->>EB: 🔴 🗄️ Journalfører vedtaksbrevet på personmappa
     EB-->>DT: 🔴 📬 Vedtaksbrevet (dokdist)
     alt Innvilget
-        EB->>EB: 🟢 🏦 Bestiller hos OeBS, setter av penger
-        EB->>EB: 🟢 🏦 OeBS kvitterer, bestilling AKTIV
+        EB->>EB: 🟡 🏦 Bestiller hos OeBS, setter av penger
+        EB->>EB: 🟡 🏦 OeBS kvitterer, bestilling AKTIV
         EB-->>AG: 🟡 🔔 Varsel om innvilget, lenke til vedtaket
         AG->>EB: 🟢 🛤️ Åpner vedtaket på ny rute
         EB-->>AG: 🟢 🛤️ Viser innvilget beløp og vedtaksbrevet
@@ -129,9 +129,9 @@ sequenceDiagram
     end
 ```
 
-🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
+🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 
-🟢 21 finnes · 🟡 7 delvis · 🔴 13 mangler, av 41 steg i diagrammet. OeBS er ikke egen deltaker i
+🟢 19 finnes · 🟡 9 delvis · 🔴 13 mangler, av 41 steg i diagrammet. OeBS er ikke egen deltaker i
 diagrammet. Kall til og svar fra OeBS vises som steg i Ekspertbistand.
 
 Deltaker får ikke varsel om refusjonen. Bare arbeidsgiver varsles når
@@ -210,3 +210,11 @@ lanseringsplanen:
    brev og varsel. Vi må også avklare om bestillingen skal annulleres.
 6. **`AVSLUTTET` dekker tre utfall:** utbetalt, avslått krav og utløpt frist.
    Trenger fag eller statistikken å skille dem?
+7. **OeBS-integrasjonen kjører ikke ennå.** Bestillingen legges i
+   `oebs_outbox`, men `startOebsProsessering` er ikke koblet inn i `main()`.
+   Derfor sendes ingenting til Valp, og vi leser ikke kvitteringer. Vi
+   mangler også lesetilgang til status-topicene hos Valp. Valp leser
+   allerede topicet vårt. `annullerBestilling` finnes, men ingen flyt kaller
+   den. Kort: [704](https://trello.com/c/zUU0nQvu),
+   [705](https://trello.com/c/HShDcuFH) og
+   [706](https://trello.com/c/qnJXAfzO).
