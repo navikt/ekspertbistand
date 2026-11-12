@@ -3,7 +3,6 @@ package no.nav.ekspertbistand.vedlegg
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.domain.VedleggDomain
 import no.nav.ekspertbistand.event.publishEventQueue
-import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.hentGodkjentSakIdForUpdate
 import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -176,16 +175,6 @@ internal fun JdbcTransaction.registrerSluttrapport(
             virksomhetsnummer = virksomhetsnummer,
             innsendtAv = innsendtAv,
             vedlegg = vedlegg,
-            tidspunkt = opprettet,
-        )
-    )
-    publishEventQueue(
-        EventData.SakOppdatert(
-            sakId = sakId.toString(),
-            soknadId = soknadId.toString(),
-            utfortAvRolle = AktorRolle.SYSTEM,
-            utfortAvIdent = null,
-            notat = "Sluttrapport mottatt fra arbeidsgiver",
             tidspunkt = opprettet,
         )
     )

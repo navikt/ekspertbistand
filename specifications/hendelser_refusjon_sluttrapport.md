@@ -52,8 +52,11 @@ slettes sammen med resten av søknaden.
 
 ### Sakslogg
 
-- Samme transaksjon publiserer `SakOppdatert(SYSTEM, null, notat)`.
-  `SkrivSakslogg` skriver posten.
+- `SkrivSaksloggForRefusjonskrav` og `SkrivSaksloggForSluttrapport` behandler
+  mottatt-hendelsene og publiserer `SakOppdatert(SYSTEM, null, notat)`.
+  `SkrivSakslogg` skriver posten asynkront.
+- Publisering og idempotensvern lagres i samme transaksjon. Ny behandling av
+  samme hendelse gir ikke flere `SakOppdatert`.
 - Notat: «Refusjonskrav mottatt fra arbeidsgiver» og «Sluttrapport mottatt fra
   arbeidsgiver».
 - `AktorRolle` får ikke en ny verdi. `SakOppdatert` er i prod og endres ikke.
@@ -91,9 +94,8 @@ Valg i spesifikasjonen:
   transaksjon, så de er alltid like, og en projeksjon ville ikke gitt noe nytt.
 - Hendelsen publiseres i samme transaksjon, ikke etter commit. Da kan en lagret
   innsending aldri mangle hendelse, og `event_log` skal ikke backfilles.
-- Hver hendelse har en noop-handler (`RefusjonskravMottattNoop`,
-  `SluttrapportMottattNoop`). Uten handler gir `EventManager` `TransientError`,
-  og hendelsen blir liggende i køen.
+- Mottatt-hendelsene driver saksloggen via egne handlere, ikke noop-handlere.
+  Lagringskoden publiserer bare mottatt-hendelsen.
 
 ## Avgrensning
 

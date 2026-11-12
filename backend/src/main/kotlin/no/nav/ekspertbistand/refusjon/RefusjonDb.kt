@@ -3,7 +3,6 @@ package no.nav.ekspertbistand.refusjon
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.domain.VedleggDomain
 import no.nav.ekspertbistand.event.publishEventQueue
-import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.vedlegg.VedleggTable
 import no.nav.ekspertbistand.vedlegg.VedleggType
 import no.nav.ekspertbistand.saksbehandling.KildeTilBehandling
@@ -255,16 +254,6 @@ internal fun JdbcTransaction.registrerRefusjonskrav(
             belopOre = belopOre,
             innvilgetBelopKroner = innvilgetBelopKroner,
             vedlegg = vedlegg,
-            tidspunkt = opprettet,
-        )
-    )
-    publishEventQueue(
-        EventData.SakOppdatert(
-            sakId = sakId.toString(),
-            soknadId = soknadId.toString(),
-            utfortAvRolle = AktorRolle.SYSTEM,
-            utfortAvIdent = null,
-            notat = "Refusjonskrav mottatt fra arbeidsgiver",
             tidspunkt = opprettet,
         )
     )

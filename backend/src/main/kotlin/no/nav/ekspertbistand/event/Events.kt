@@ -402,7 +402,7 @@ sealed interface EventData {
      * Arbeidsgiver har sendt inn et refusjonskrav.
      *
      * Publiseres av [no.nav.ekspertbistand.refusjon.RefusjonDb.registrerRefusjonskrav] i samme
-     * transaksjon som lagringen. Ingen konsument ennå, bare en noop-handler slik at eventen ferdigbehandles; event_log er masterdata.
+     * transaksjon som lagringen. [SkrivSaksloggForRefusjonskrav] publiserer [SakOppdatert].
      * [innsendtAv] er fødselsnummer og skal aldri logges. Filinnholdet ligger i vedlegg-tabellen.
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
@@ -429,7 +429,7 @@ sealed interface EventData {
      * innsending gir én event.
      *
      * Publiseres av [no.nav.ekspertbistand.vedlegg.VedleggDb.registrerSluttrapport] i samme
-     * transaksjon som lagringen. Ingen konsument ennå, bare en noop-handler slik at eventen ferdigbehandles; event_log er masterdata.
+     * transaksjon som lagringen. [SkrivSaksloggForSluttrapport] publiserer [SakOppdatert].
      * [innsendtAv] er fødselsnummer og skal aldri logges. Filinnholdet ligger i vedlegg-tabellen.
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
@@ -819,14 +819,8 @@ suspend fun Application.configureEventHandlers() {
             // SoknadKopiDeltakerDistribuert lagrer bestillingsId fra dokdist i eventloggen. Ingen konsumenter per nå.
             EventHandledResult.Success()
         }
-        register<EventData.RefusjonskravMottatt>("RefusjonskravMottattNoop") { _ ->
-            // Ingen konsument ennå; saksloggen skrives via SakOppdatert som publiseres sammen med denne
-            EventHandledResult.Success()
-        }
-        register<EventData.SluttrapportMottatt>("SluttrapportMottattNoop") { _ ->
-            // Ingen konsument ennå; saksloggen skrives via SakOppdatert som publiseres sammen med denne
-            EventHandledResult.Success()
-        }
+        register(dependencies.create(SkrivSaksloggForRefusjonskrav::class))
+        register(dependencies.create(SkrivSaksloggForSluttrapport::class))
     }
 
     // Start event processing loop

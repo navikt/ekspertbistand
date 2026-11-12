@@ -1,9 +1,15 @@
 package no.nav.ekspertbistand.refusjon
 
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.event.domain.VedleggDomain
+import no.nav.ekspertbistand.event.handlers.SkrivSakslogg
+import no.nav.ekspertbistand.event.handlers.SkrivSaksloggForRefusjonskrav
+import no.nav.ekspertbistand.event.handlers.SkrivSaksloggForSluttrapport
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.sak.LagretSak
 import no.nav.ekspertbistand.sak.lagreFattetVedtak
@@ -12,6 +18,7 @@ import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
+import no.nav.ekspertbistand.saksbehandling.SaksloggTable
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.vedlegg.SluttrapportTable
 import no.nav.ekspertbistand.vedlegg.VedleggDb
@@ -45,7 +52,7 @@ class InnsendingHendelserTest {
     }
 
     @Test
-    fun `lagring av refusjonskrav publiserer hendelse og saksloggoppdatering`() {
+    fun `mottatt refusjonskrav gir sakslogg via handler uten duplikater`() = runBlocking {
         val sak = godkjentSoknad()
         val filer = listOf(
             RefusjonsfilInput("kvittering.pdf", "PDF-kvittering".toByteArray()),
@@ -85,18 +92,32 @@ class InnsendingHendelserTest {
         assertEquals(vedlegg.toSet(), refusjonskravMottatt.vedlegg.toSet())
         assertEquals(opprettet, refusjonskravMottatt.tidspunkt)
 
-        val sakOppdatert = events.filterIsInstance<EventData.SakOppdatert>().single()
+        assertEquals(1, events.size)
+        assertEquals(listOf(sak.soknadId.toString()), aggregateRootIds)
+        val event = queuedEvent<EventData.RefusjonskravMottatt>()
+        val handler = SkrivSaksloggForRefusjonskrav(db)
+        assertIs<EventHandledResult.Success>(handler.handle(event))
+        assertIs<EventHandledResult.Success>(handler.handle(event))
+
+        val sakOppdatert = hentHendelser().first.filterIsInstance<EventData.SakOppdatert>().single()
         assertEquals(sak.sakId.toString(), sakOppdatert.sakId)
         assertEquals(sak.soknadId.toString(), sakOppdatert.soknadId)
         assertEquals(AktorRolle.SYSTEM, sakOppdatert.utfortAvRolle)
         assertEquals(null, sakOppdatert.utfortAvIdent)
         assertEquals("Refusjonskrav mottatt fra arbeidsgiver", sakOppdatert.notat)
         assertEquals(opprettet, sakOppdatert.tidspunkt)
-        assertEquals(listOf(sak.soknadId.toString(), sak.soknadId.toString()), aggregateRootIds)
+        assertEquals(List(2) { sak.soknadId.toString() }, hentHendelser().second)
+        skrivSakslogg()
+        transaction(db) {
+            val rad = SaksloggTable.selectAll().single()
+            assertEquals(sak.sakId, rad[SaksloggTable.sakId])
+            assertEquals(sakOppdatert.notat, rad[SaksloggTable.notat])
+            assertEquals(opprettet, rad[SaksloggTable.utfortAt])
+        }
     }
 
     @Test
-    fun `hver sluttrapport publiserer hendelse og saksloggoppdatering`() {
+    fun `hver sluttrapport gir sakslogg via handler uten duplikater`() = runBlocking {
         val sak = godkjentSoknad()
         val vedleggDb = VedleggDb(db)
         val vedleggId1 = vedleggDb.lagreSluttrapport(
@@ -146,7 +167,19 @@ class InnsendingHendelserTest {
             assertEquals(report[SluttrapportTable.opprettet], event.tidspunkt)
             assertEquals(attachments.getValue(report[SluttrapportTable.id]), event.vedlegg)
         }
-        val sakOppdatert = events.filterIsInstance<EventData.SakOppdatert>()
+        assertEquals(2, events.size)
+        assertEquals(List(2) { sak.soknadId.toString() }, aggregateRootIds)
+        val handler = SkrivSaksloggForSluttrapport(db)
+        val receivedEvents = transaction(db) {
+            QueuedEvents.selectAll().map { row ->
+                Event(row[QueuedEvents.id], assertIs<EventData.SluttrapportMottatt>(row[QueuedEvents.eventData]))
+            }
+        }
+        receivedEvents.forEach { event ->
+            assertIs<EventHandledResult.Success>(handler.handle(event))
+            assertIs<EventHandledResult.Success>(handler.handle(event))
+        }
+        val sakOppdatert = hentHendelser().first.filterIsInstance<EventData.SakOppdatert>()
         assertEquals(2, sakOppdatert.size)
         sakOppdatert.forEach { event ->
             assertEquals(sak.sakId.toString(), event.sakId)
@@ -160,8 +193,56 @@ class InnsendingHendelserTest {
             reports.map { it[SluttrapportTable.opprettet] }.toSet(),
             sakOppdatert.map { it.tidspunkt }.toSet(),
         )
-        assertEquals(4, events.size)
-        assertEquals(List(4) { sak.soknadId.toString() }, aggregateRootIds)
+        assertEquals(4, hentHendelser().first.size)
+        assertEquals(List(4) { sak.soknadId.toString() }, hentHendelser().second)
+        skrivSakslogg()
+        transaction(db) {
+            val rows = SaksloggTable.selectAll().toList()
+            assertEquals(2, rows.size)
+            assertTrue(rows.all { it[SaksloggTable.sakId] == sak.sakId })
+            assertTrue(rows.all { it[SaksloggTable.notat] == "Sluttrapport mottatt fra arbeidsgiver" })
+            assertEquals(
+                reports.map { it[SluttrapportTable.opprettet] }.toSet(),
+                rows.map { it[SaksloggTable.utfortAt] }.toSet(),
+            )
+        }
+    }
+
+    @Test
+    fun `rollback ruller tilbake saksloggpublisering og idempotensvern for begge handlere`() = runBlocking {
+        val sak = godkjentSoknad()
+        RefusjonDb(db).lagreRefusjonskrav(
+            soknadId = sak.soknadId,
+            virksomhetsnummer = VIRKSOMHETSNUMMER,
+            innsendtAv = INNSENDT_AV,
+            belopOre = BELOP_ORE,
+            filer = listOf(RefusjonsfilInput("kvittering.pdf", "PDF".toByteArray())),
+        )
+        VedleggDb(db).lagreSluttrapport(
+            soknadId = sak.soknadId,
+            virksomhetsnummer = VIRKSOMHETSNUMMER,
+            innsendtAv = INNSENDT_AV,
+            filnavn = "sluttrapport.pdf",
+            innhold = "PDF".toByteArray(),
+        )
+        val refusjonskrav = queuedEvent<EventData.RefusjonskravMottatt>()
+        val sluttrapport = queuedEvent<EventData.SluttrapportMottatt>()
+        val refusjonskravHandler = SkrivSaksloggForRefusjonskrav(db)
+        val sluttrapportHandler = SkrivSaksloggForSluttrapport(db)
+
+        transaction(db) {
+            runBlocking {
+                assertIs<EventHandledResult.Success>(refusjonskravHandler.handle(refusjonskrav))
+                assertIs<EventHandledResult.Success>(sluttrapportHandler.handle(sluttrapport))
+            }
+            assertEquals(2, QueuedEvents.selectAll().count { it[QueuedEvents.eventData] is EventData.SakOppdatert })
+            rollback()
+        }
+        assertTrue(hentHendelser().first.none { it is EventData.SakOppdatert })
+
+        assertIs<EventHandledResult.Success>(refusjonskravHandler.handle(refusjonskrav))
+        assertIs<EventHandledResult.Success>(sluttrapportHandler.handle(sluttrapport))
+        assertEquals(2, hentHendelser().first.filterIsInstance<EventData.SakOppdatert>().size)
     }
 
     @Test
@@ -202,7 +283,7 @@ class InnsendingHendelserTest {
         transaction(db) {
             assertEquals(1, RefusjonskravTable.selectAll().count())
             assertEquals(1, VedleggTable.selectAll().count())
-            assertEquals(2, QueuedEvents.selectAll().count())
+            assertEquals(1, QueuedEvents.selectAll().count())
         }
     }
 
@@ -262,6 +343,25 @@ class InnsendingHendelserTest {
     private fun hentHendelser(): Pair<List<EventData>, List<String>> = transaction(db) {
         val rows = QueuedEvents.selectAll().toList()
         rows.map { it[QueuedEvents.eventData] } to rows.map { it[QueuedEvents.aggregateRootId] }
+    }
+
+    private inline fun <reified T : EventData> queuedEvent(): Event<T> = transaction(db) {
+        val row = QueuedEvents.selectAll().single { it[QueuedEvents.eventData] is T }
+        Event(row[QueuedEvents.id], assertIs<T>(row[QueuedEvents.eventData]))
+    }
+
+    private suspend fun skrivSakslogg() {
+        val events = transaction(db) {
+            QueuedEvents.selectAll().mapNotNull { row ->
+                val data = row[QueuedEvents.eventData]
+                if (data is EventData.SakOppdatert) Event(row[QueuedEvents.id], data) else null
+            }
+        }
+        val handler = SkrivSakslogg(db)
+        events.forEach { event ->
+            assertIs<EventHandledResult.Success>(handler.handle(event))
+            assertIs<EventHandledResult.Success>(handler.handle(event))
+        }
     }
 
     private companion object {
