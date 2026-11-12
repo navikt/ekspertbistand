@@ -36,14 +36,14 @@ class KlientvalideringTest {
 
     @Test
     fun `TokenX-token fra annen klient gir 401`() = testApplication {
-        oppsett(tokenX = mockIntrospectionResponse.withClientId(NaisEnvironment.saksbehandlingFrackend))
+        oppsett(tokenX = mockIntrospectionResponse.withClientId(NaisEnvironment.saksbehandlingFrontend))
 
         assertEquals(HttpStatusCode.Unauthorized, client.get("/tokenx") { bearerAuth("token") }.status)
     }
 
     @Test
     fun `Entra-token fra annen klient gir 401`() = testApplication {
-        oppsett(azureAd = mockAzureAdIntrospectionResponse.withAzpName(NaisEnvironment.soknadFrackend))
+        oppsett(azureAd = mockAzureAdIntrospectionResponse.withAzpName(NaisEnvironment.soknadFrontend))
 
         assertEquals(HttpStatusCode.Unauthorized, client.get("/azure") { bearerAuth("token") }.status)
     }

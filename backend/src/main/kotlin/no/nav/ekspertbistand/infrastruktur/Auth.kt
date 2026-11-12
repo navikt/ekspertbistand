@@ -240,7 +240,7 @@ fun Application.configureAuthentication() {
                     val clientId = other["client_id"]!!
                     val acr = other["acr"]!!
 
-                    if (clientId != NaisEnvironment.soknadFrackend) {
+                    if (clientId != NaisEnvironment.soknadFrontend) {
                         authLog.error("Avviste TokenX-token fra klient {}", clientId)
                         return@authenticate null
                     }
@@ -275,7 +275,7 @@ fun Application.configureAuthentication() {
                      * `accessPolicy.inbound` får token til backend, og Nais gir dem navn på formen `<cluster>:<namespace>:<app>`.
                      */
                     val azpName = other["azp_name"]
-                    if (azpName != NaisEnvironment.saksbehandlingFrackend) {
+                    if (azpName != NaisEnvironment.saksbehandlingFrontend) {
                         authLog.error("Avviste Entra-token fra klient {}", azpName)
                         return@authenticate null
                     }
