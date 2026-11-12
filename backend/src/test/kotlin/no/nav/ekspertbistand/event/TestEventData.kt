@@ -9,6 +9,7 @@ import no.nav.ekspertbistand.event.domain.SoknadDomainV2
 import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
 import no.nav.ekspertbistand.event.domain.tilSaksstatus
+import no.nav.ekspertbistand.event.handlers.arbeidsgiverVarsel
 import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
@@ -154,6 +155,18 @@ object TestEventData {
             journalpostId = "123",
             dokumentInfoId = "456",
             tidspunkt = Instant.parse("2026-04-04T09:05:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletVedtakFattet by lazy {
+        EventData.ArbeidsgiverVarsletVedtakFattet(
+            sakId = vedtaksbrevArbeidsgiverJournalfoert.sakId,
+            soknadId = sampleSoknad.id!!,
+            utfall = VedtakDomain.Utfall.INNVILGE,
+            journalpostId = vedtaksbrevArbeidsgiverJournalfoert.journalpostId,
+            varsel = arbeidsgiverVarsel(vedtaksbrevArbeidsgiverJournalfoert),
+            tidspunkt = Instant.parse("2026-04-04T09:06:00Z"),
         )
     }
 
@@ -463,6 +476,7 @@ object TestEventData {
         vedtakFattet,
         forelopigVedtakReturnert,
         vedtaksbrevArbeidsgiverJournalfoert,
+        arbeidsgiverVarsletVedtakFattet,
         vedtaksbrevVist,
     )
 }

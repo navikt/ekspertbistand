@@ -102,7 +102,8 @@ class VarsleArbeidsgiverSoknadGodkjent(
             produsentApiKlient.nyStatusSak(
                 grupperingsid = soknad.id!!,
                 status = SaksStatus.FERDIG,
-                statusTekst = "Søknad godkjent"
+                statusTekst = "Søknad godkjent",
+                nyLenkeTilSak = null,
             )
             Result.success("Oppdaterte sakstatus for søknad ${soknad.id}")
         } catch (ex: Exception) {

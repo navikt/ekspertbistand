@@ -88,7 +88,8 @@ class VarsleArbeidsgiverSoknadAvlyst(
             produsentApiKlient.nyStatusSak(
                 grupperingsid = soknad.id!!,
                 status = SaksStatus.FERDIG,
-                statusTekst = "Søknad trukket eller avslått"
+                statusTekst = "Søknad trukket eller avslått",
+                nyLenkeTilSak = null,
             )
             Result.success("Oppdaterte sakstatus for soknad ${soknad.id}")
         } catch (ex: Exception) {

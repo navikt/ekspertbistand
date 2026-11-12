@@ -551,8 +551,17 @@ enum class SoknadStatusQueryParam {
 }
 
 val DTO.Soknad.kvitteringsLenke: String
+    get() = "$arbeidsgiverDomene/ekspertbistand/skjema/$id/kvittering"
+
+fun kvitteringsLenkeV2(soknadId: String): String =
+    "$arbeidsgiverDomene/ekspertbistand/v2/skjema/$soknadId/kvittering"
+
+fun vedtakLenke(soknadId: String): String =
+    "$arbeidsgiverDomene/ekspertbistand/v2/skjema/$soknadId/vedtak"
+
+private val arbeidsgiverDomene: String
     get() = basedOnEnv(
         prod = "https://arbeidsgiver.nav.no",
         dev = "https://arbeidsgiver.intern.dev.nav.no",
         other = "https://arbeidsgiver.intern.dev.nav.no",
-    ).let { domain -> "$domain/ekspertbistand/skjema/$id/kvittering" }
+    )
