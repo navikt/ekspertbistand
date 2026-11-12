@@ -256,7 +256,7 @@ fun Application.configureServer() {
                 }
 
                 is UgyldigInputException -> {
-                    log.error("Avviste ugyldig input i felt '{}': {}", cause.feltsti, cause.aarsak)
+                    log.warn("Avviste ugyldig input i felt '{}': {}", cause.feltsti, cause.aarsak)
                     call.respond(
                         HttpStatusCode.BadRequest,
                         mapOf(
