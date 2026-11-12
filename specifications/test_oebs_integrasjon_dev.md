@@ -56,7 +56,7 @@ Kafka-credentials, og topic-manifestet gir oss skrivetilgang og VALP lesetilgang
 |------|-------------|
 | Polleren startes bare i dev, i kode | Samme mønster som `basedOnEnvSuspending` ellers i `main()`. Når testen er godkjent, er polleren allerede på i dev for neste steg (koble til saksgangen). Prod åpnes i et eget kort. |
 | Testmeldingene legges rett i `oebs_outbox` | Vi tester integrasjonen uten å være avhengige av saksbehandlingsflyten. Polleren, revisjonssporet og status-consumeren kjører som vanlig. |
-| Saksnummer `2026/9000001` og oppover | `saksnummer_seq` starter på 1 000 000 og når aldri 9 000 000. Testnumrene kolliderer ikke med ekte saker i VALP og OeBS T1, der testdataene blir liggende. |
+| Saksnummer `2026/900001` til `2026/900009` | Under starten på `saksnummer_seq` (1 000 000), så ingen ekte sak kan få nummeret. Arena-tilsagn i OeBS har ikke `E-`-prefiks. Testnumrene kolliderer derfor ikke med ekte bestillinger i VALP og OeBS T1, der testdataene blir liggende. `LIKE 'E-2026/90000_-%'` treffer bare disse ni numrene. |
 | Arrangør `925236594`, kostnadssted `0315`, kontonummer `10002427740`, identer `Z993433` og `Z990079` | Verdiene står i VALP sine eksempelmeldinger fra dev (`OebsBestillingMeldingContractTest`). Vi vet derfor at de går gjennom Brreg/Ereg-oppslaget og konteringen hos VALP. Ingen personopplysninger. |
 | Periode `[2026-11-16, 2026-12-16)` | Konteringen hos VALP gjelder fra 2026-11-01. Perioden spenner over to måneder, så fakturaen treffer en bestillingslinje. |
 
@@ -139,7 +139,7 @@ følge `OebsBestillingMelding`, ikke VALP sin modell (se *Kontraktsavvik*).
 Rekkefølgen er viktig. VALP godtar faktura, oppgjør og annullering bare når
 bestillingen har status `AKTIV`. Vent på forventet status før neste steg.
 
-#### T1: Bestilling `E-2026/9000001-1`
+#### T1: Bestilling `E-2026/900001-1`
 
 ```sql
 INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json)
@@ -147,7 +147,7 @@ SELECT m -> 'payload' ->> 'bestillingsnummer', m ->> 'type', m
 FROM (VALUES ('{
   "type": "BESTILLING",
   "payload": {
-    "bestillingsnummer": "E-2026/9000001-1",
+    "bestillingsnummer": "E-2026/900001-1",
     "regnskapskonto": "TILTAK_DRIFTSTILSKUDD",
     "artskonto": "EKSPERTBISTAND",
     "arrangor": { "type": "NORSK", "organisasjonsnummer": "925236594" },
@@ -174,7 +174,7 @@ Kjør `INSERT`-en fra T1 en gang til når statusen er `AKTIV`.
 Forventet: en ny rad i `oebs_sendt_melding` og en ny statusmelding med `AKTIV` i
 `oebs_mottatt_status`. VALP oppretter ingenting nytt.
 
-#### T3: Faktura `E-2026/9000001-1-1`
+#### T3: Faktura `E-2026/900001-1-1`
 
 Kjør når T1 har status `AKTIV`.
 
@@ -184,8 +184,8 @@ SELECT m -> 'payload' ->> 'bestillingsnummer', m ->> 'type', m
 FROM (VALUES ('{
   "type": "FAKTURA",
   "payload": {
-    "fakturanummer": "E-2026/9000001-1-1",
-    "bestillingsnummer": "E-2026/9000001-1",
+    "fakturanummer": "E-2026/900001-1-1",
+    "bestillingsnummer": "E-2026/900001-1",
     "betalingsinformasjon": { "type": "BBAN", "kontonummer": "10002427740", "kid": null },
     "belop": 400,
     "periode": { "start": "2026-11-16", "slutt": "2026-12-01" },
@@ -194,7 +194,7 @@ FROM (VALUES ('{
     "besluttetAv": { "type": "NAV_ANSATT", "navIdent": "Z990079" },
     "besluttetTidspunkt": "2026-11-12T13:05:00Z",
     "gjorOppBestilling": false,
-    "beskrivelse": "Ekspertbistand test E-2026/9000001-1-1",
+    "beskrivelse": "Ekspertbistand test E-2026/900001-1-1",
     "valuta": "NOK"
   }
 }'::jsonb)) AS v(m);
@@ -206,7 +206,7 @@ FROM (VALUES ('{
 Forventet: fakturastatus `SENDT`, deretter `IKKE_BETALT` eller `FULLT_BETALT` når
 OeBS kvitterer. Statusen lagres i `oebs_bestilling_status` på fakturanummeret.
 
-#### T4: Gjør opp `E-2026/9000001-1`
+#### T4: Gjør opp `E-2026/900001-1`
 
 Kjør når fakturaen i T3 har fått kvittering (ikke lenger `SENDT`).
 
@@ -216,7 +216,7 @@ SELECT m -> 'payload' ->> 'bestillingsnummer', m ->> 'type', m
 FROM (VALUES ('{
   "type": "GJOR_OPP_BESTILLING",
   "payload": {
-    "bestillingsnummer": "E-2026/9000001-1",
+    "bestillingsnummer": "E-2026/900001-1",
     "behandletAv": { "type": "NAV_ANSATT", "navIdent": "Z993433" },
     "behandletTidspunkt": "2026-11-12T14:00:00Z",
     "besluttetAv": { "type": "NAV_ANSATT", "navIdent": "Z990079" },
@@ -226,9 +226,9 @@ FROM (VALUES ('{
 ```
 
 Forventet: bestillingsstatus `OPPGJORT`. VALP sender oppgjøret som en faktura
-`E-2026/9000001-1-X` til OeBS, men publiserer ikke fakturastatus for den.
+`E-2026/900001-1-X` til OeBS, men publiserer ikke fakturastatus for den.
 
-#### T5: Bestilling `E-2026/9000002-1` og annullering
+#### T5: Bestilling `E-2026/900002-1` og annullering
 
 T5 er uavhengig av T1–T4 og kan kjøres samtidig. Send bestillingen:
 
@@ -238,7 +238,7 @@ SELECT m -> 'payload' ->> 'bestillingsnummer', m ->> 'type', m
 FROM (VALUES ('{
   "type": "BESTILLING",
   "payload": {
-    "bestillingsnummer": "E-2026/9000002-1",
+    "bestillingsnummer": "E-2026/900002-1",
     "regnskapskonto": "TILTAK_DRIFTSTILSKUDD",
     "artskonto": "EKSPERTBISTAND",
     "arrangor": { "type": "NORSK", "organisasjonsnummer": "925236594" },
@@ -263,7 +263,7 @@ SELECT m -> 'payload' ->> 'bestillingsnummer', m ->> 'type', m
 FROM (VALUES ('{
   "type": "ANNULLERING",
   "payload": {
-    "bestillingsnummer": "E-2026/9000002-1",
+    "bestillingsnummer": "E-2026/900002-1",
     "behandletAv": { "type": "NAV_ANSATT", "navIdent": "Z993433" },
     "behandletTidspunkt": "2026-11-12T15:00:00Z",
     "besluttetAv": { "type": "NAV_ANSATT", "navIdent": "Z990079" },
@@ -278,11 +278,11 @@ Forventet: `ANNULLERING_SENDT`, deretter `ANNULLERT`.
 
 Vi har ingen kjent måte å få `FEILET` fra OeBS på uten å avtale det med OeBS. Et
 ugyldig kostnadssted (for eksempel `9999` i en kopi av T1 med
-`E-2026/9000003-1`) gir sannsynligvis avvist kvittering. Kjør bare hvis OeBS og
+`E-2026/900003-1`) gir sannsynligvis avvist kvittering. Kjør bare hvis OeBS og
 VALP er enige.
 
 Forventet: `trenger_manuell_oppfolging = true` i `oebs_bestilling_status` og
-`log.error` «Status for E-2026/9000003-1 er FEILET og krever manuell oppfølging».
+`log.error` «Status for E-2026/900003-1 er FEILET og krever manuell oppfølging».
 Detaljene står i teamLogs.
 
 ### 4. Følg med
@@ -293,25 +293,25 @@ Etter hver `INSERT`:
 -- Utgående: forventer PUBLISHED innen noen sekunder
 SELECT id, bestillingsnummer, meldingstype, status, attempts, updated_at
 FROM oebs_outbox
-WHERE bestillingsnummer LIKE 'E-2026/900000%'
+WHERE bestillingsnummer LIKE 'E-2026/90000_-%'
 ORDER BY id;
 
 -- Revisjonsspor for det vi sendte, med Kafka-koordinater
 SELECT bestillingsnummer, meldingstype, kafka_partition, kafka_offset, sendt_tidspunkt
 FROM oebs_sendt_melding
-WHERE bestillingsnummer LIKE 'E-2026/900000%'
+WHERE bestillingsnummer LIKE 'E-2026/90000_-%'
 ORDER BY id;
 
 -- Alle svar fra VALP
 SELECT bestillingsnummer, kafka_topic, raw_json, mottatt_tidspunkt
 FROM oebs_mottatt_status
-WHERE bestillingsnummer LIKE 'E-2026/900000%'
+WHERE bestillingsnummer LIKE 'E-2026/90000_-%'
 ORDER BY id;
 
 -- Siste status per bestilling og faktura
 SELECT bestillingsnummer, status, trenger_manuell_oppfolging, mottatt_tidspunkt
 FROM oebs_bestilling_status
-WHERE bestillingsnummer LIKE 'E-2026/900000%'
+WHERE bestillingsnummer LIKE 'E-2026/90000_-%'
 ORDER BY bestillingsnummer;
 ```
 
@@ -331,10 +331,10 @@ append-only i prod, men i dev er dette testdata vi selv har lagt inn.
 
 ```sql
 BEGIN;
-DELETE FROM oebs_outbox            WHERE bestillingsnummer LIKE 'E-2026/900000%';
-DELETE FROM oebs_sendt_melding     WHERE bestillingsnummer LIKE 'E-2026/900000%';
-DELETE FROM oebs_mottatt_status    WHERE bestillingsnummer LIKE 'E-2026/900000%';
-DELETE FROM oebs_bestilling_status WHERE bestillingsnummer LIKE 'E-2026/900000%';
+DELETE FROM oebs_outbox            WHERE bestillingsnummer LIKE 'E-2026/90000_-%';
+DELETE FROM oebs_sendt_melding     WHERE bestillingsnummer LIKE 'E-2026/90000_-%';
+DELETE FROM oebs_mottatt_status    WHERE bestillingsnummer LIKE 'E-2026/90000_-%';
+DELETE FROM oebs_bestilling_status WHERE bestillingsnummer LIKE 'E-2026/90000_-%';
 COMMIT;
 ```
 
