@@ -11,6 +11,9 @@ import no.nav.ekspertbistand.arena.EKSPERTBISTAND_TILTAKSKODE
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.domain.SakDomain
+import no.nav.ekspertbistand.event.domain.VedtakDomain
+import no.nav.ekspertbistand.event.domain.tilDomain
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
 import no.nav.ekspertbistand.infrastruktur.logger
@@ -23,6 +26,7 @@ import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import no.nav.ekspertbistand.saksbehandling.saksstatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.encodeStringList
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.tilSoknadDTO
 import no.nav.ekspertbistand.mocks.enkelPdf
@@ -299,6 +303,17 @@ private val lokaleSaker = listOf(
         beslutning = Beslutning.GODKJENN,
         medInnsendinger = true,
     ),
+    LokalSak(
+        soknadId = UUID.fromString("a1000000-0000-4000-8000-000000000016"),
+        virksomhet = lokaleVirksomheter[0],
+        ansattNavn = "Rune Redusert",
+        ansattFnr = "01019012316",
+        estimertKostnad = 28000,
+        saksbehandler = ola,
+        forslag = ForelopigUtfall.INNVILGE_REDUSERT,
+        beslutter = kari,
+        beslutning = Beslutning.GODKJENN,
+    ),
 )
 
 internal fun lokalBeskyttelse(fnr: String?) = lokaleSaker.find { it.ansattFnr == fnr }?.beskyttelse
@@ -321,6 +336,8 @@ internal fun lagreLokaleSoknader(database: Database) {
                 it[ekspertNavn] = "Ekspert NN"
                 it[ekspertVirksomhet] = "ErgoConsult AS"
                 it[ekspertKompetanse] = "Ergoterapeut, autorisasjon HPR 1337"
+                it[ekspertGodkjentUtdanningEllerAutorisasjon] = encodeStringList(listOf("Ergoterapeut, autorisasjon HPR 1337"))
+                it[ekspertRelevantKompetanse] = encodeStringList(listOf("Arbeidsplassvurdering", "Ergonomi"))
                 it[behovForBistand] = "Arbeidsplassvurdering og ergonomisk veiledning"
                 it[behovForBistandBegrunnelse] = "Langvarig skulderplage med 50% sykefravær"
                 it[behovForBistandEstimertKostnad] = sak.estimertKostnad.toString()
@@ -500,7 +517,7 @@ private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
     )
     val forslag = sak.forslag ?: return eventer
 
-    eventer += Vilkar.entries.map { vilkar ->
+    val vurderinger = Vilkar.entries.map { vilkar ->
         val godkjent = forslag != ForelopigUtfall.AVSLAA || vilkar != Vilkar.ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING
         EventData.VilkarsvurderingOppdatert(
             sakId = sakId,
@@ -514,20 +531,30 @@ private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
             tidspunkt = neste(),
         )
     }
+    eventer += vurderinger
     val idag = Clock.System.todayIn(TimeZone.currentSystemDefault())
     val innvilget = forslag != ForelopigUtfall.AVSLAA
-    eventer += EventData.ForelopigVedtakSendtTilBeslutter(
+    val forelopigVedtak = EventData.ForelopigVedtakSendtTilBeslutter(
         sakId = sakId,
         soknadId = soknadId,
         utfall = forslag,
-        innvilgetBelop = sak.estimertKostnad.takeIf { innvilget },
+        innvilgetBelop = when (forslag) {
+            ForelopigUtfall.INNVILGE -> sak.estimertKostnad
+            ForelopigUtfall.INNVILGE_REDUSERT -> sak.estimertKostnad / 2
+            ForelopigUtfall.AVSLAA -> null
+        },
         tiltaksperiodeFra = idag.takeIf { innvilget },
         tiltaksperiodeTil = LocalDate(idag.year, 12, 31).takeIf { innvilget },
         begrunnelseDeltaker = if (innvilget) "Vilkårene er oppfylt" else "Arbeidsgiver har ikke prøvd tilrettelegging",
-        begrunnelseArbeidsgiver = if (innvilget) null else "Prøv tilrettelegging først, og søk på nytt om behovet består",
+        begrunnelseArbeidsgiver = when (forslag) {
+            ForelopigUtfall.INNVILGE -> null
+            ForelopigUtfall.INNVILGE_REDUSERT -> "Vi dekker halvparten av timene, som er nok til å kartlegge behovet"
+            ForelopigUtfall.AVSLAA -> "Prøv tilrettelegging først, og søk på nytt om behovet består"
+        },
         innstiltAvIdent = saksbehandler.navIdent,
         tidspunkt = neste(),
     )
+    eventer += forelopigVedtak
     val beslutter = sak.beslutter ?: return eventer
 
     eventer += EventData.SakTildeltBeslutter(sakId, soknadId, beslutter.navIdent, beslutter.navn, neste())
@@ -540,6 +567,44 @@ private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
             fattetAvIdent = beslutter.navIdent,
             fattetAvNavn = beslutter.navn,
             tidspunkt = neste(),
+            soknad = checkNotNull(findSoknadById(sak.soknadId, filterForArbeidsgiver = false)).tilDomain(),
+            sak = SakDomain(
+                sakId = sakId,
+                status = SakDomain.Status.TIL_BESLUTNING,
+                kildeTilBehandling = SakDomain.KildeTilBehandling.EKSPERTBISTAND,
+                behandlendeEnhet = sak.virksomhet.enhet.nummer,
+                behandlendeEnhetNavn = sak.virksomhet.enhet.navn,
+                saksbehandlerIdent = saksbehandler.navIdent,
+                saksbehandlerNavn = saksbehandler.navn,
+                beslutterIdent = beslutter.navIdent,
+                beslutterNavn = beslutter.navn,
+                adressebeskyttelse = when (sak.beskyttelse) {
+                    LokalBeskyttelse.FORTROLIG -> SakDomain.Adressebeskyttelse.FORTROLIG
+                    LokalBeskyttelse.STRENGT_FORTROLIG -> SakDomain.Adressebeskyttelse.STRENGT_FORTROLIG
+                    LokalBeskyttelse.SKJERMET, null -> null
+                },
+                skjermet = sak.beskyttelse == LokalBeskyttelse.SKJERMET,
+                vilkarsvurderinger = vurderinger.map {
+                    SakDomain.Vilkarsvurdering(
+                        vilkar = it.vurdering.vilkar.tilDomain(),
+                        godkjent = it.vurdering.godkjent,
+                        notat = it.vurdering.notat,
+                        vurdertAvIdent = it.vurdertAvIdent,
+                        vurdertTidspunkt = it.tidspunkt,
+                    )
+                },
+            ),
+            vedtak = VedtakDomain(
+                versjon = 1,
+                utfall = forslag.tilDomain(),
+                innvilgetBelop = forelopigVedtak.innvilgetBelop,
+                tiltaksperiodeFra = forelopigVedtak.tiltaksperiodeFra,
+                tiltaksperiodeTil = forelopigVedtak.tiltaksperiodeTil,
+                begrunnelseDeltaker = forelopigVedtak.begrunnelseDeltaker,
+                begrunnelseArbeidsgiver = forelopigVedtak.begrunnelseArbeidsgiver,
+                innstiltAvIdent = forelopigVedtak.innstiltAvIdent,
+                sendtTidspunkt = forelopigVedtak.tidspunkt,
+            ),
         )
 
         Beslutning.RETURNER -> EventData.ForelopigVedtakReturnert(

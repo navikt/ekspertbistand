@@ -4,6 +4,8 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.TestEventData
+import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
@@ -70,13 +72,12 @@ internal fun vedtakFattet(
     utfall: Saksstatus = Saksstatus.INNVILGET,
     versjon: Int = 1,
     fattetAv: String = BESLUTTER_IDENT,
-) = EventData.VedtakFattet(
+) = TestEventData.vedtakFattet(
     sakId = sak.sakId.toString(),
     soknadId = sak.soknadId.toString(),
-    forelopigVedtakVersjon = versjon,
-    utfall = utfall,
+    utfall = if (utfall == Saksstatus.AVSLATT) VedtakDomain.Utfall.AVSLAA else VedtakDomain.Utfall.INNVILGE,
+    versjon = versjon,
     fattetAvIdent = fattetAv,
-    fattetAvNavn = "Beslutter Navn",
     tidspunkt = Instant.parse("2026-11-24T09:00:00Z"),
 )
 

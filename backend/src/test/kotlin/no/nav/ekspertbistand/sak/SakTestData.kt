@@ -12,6 +12,7 @@ import no.nav.ekspertbistand.saksbehandling.VedtakTable
 import no.nav.ekspertbistand.saksbehandling.nesteSaksnummer
 import no.nav.ekspertbistand.saksbehandling.saksstatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.soknad.encodeStringList
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -51,6 +52,8 @@ fun lagreSoknadOgSak(
         it[ekspertNavn] = ""
         it[ekspertVirksomhet] = ""
         it[ekspertKompetanse] = ""
+        it[ekspertGodkjentUtdanningEllerAutorisasjon] = encodeStringList(listOf("Ergoterapeut"))
+        it[ekspertRelevantKompetanse] = encodeStringList(listOf("Tilrettelegging"))
         it[navKontaktPerson] = ""
         it[status] = "innsendt"
     }

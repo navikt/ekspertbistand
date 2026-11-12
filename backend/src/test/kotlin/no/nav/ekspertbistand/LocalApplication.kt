@@ -18,11 +18,14 @@ import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
+import no.nav.ekspertbistand.dokdist.DokDistClient
 import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
+import no.nav.ekspertbistand.ereg.OrganisasjonSammendrag
+import no.nav.ekspertbistand.ereg.OrganisasjonSammendragResultat
 import no.nav.ekspertbistand.ereg.configureEregApiV1
 import no.nav.ekspertbistand.event.configureEventHandlers
 import no.nav.ekspertbistand.event.projections.configureProjectionBuilders
@@ -54,6 +57,7 @@ import no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkSkriver
 import no.nav.ekspertbistand.tilgangsmaskin.*
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
+import no.nav.ekspertbistand.vedtaksbrev.configureVedtaksbrevApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.LoggerFactory
 import kotlin.time.Clock.System.now
@@ -152,6 +156,35 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
         )
     })
     val mockEregServer = HttpClient(MockEngine { request ->
+        if (request.url.encodedPath == EregClient.FINN_API_PATH) {
+            val navn = request.url.parameters["organisasjonsnavn"].orEmpty()
+            val antall = request.url.parameters["antall"]?.toIntOrNull() ?: Int.MAX_VALUE
+            val treff = lokaleVirksomheter.filter { it.navn.contains(navn, ignoreCase = true) }
+            return@MockEngine respond(
+                defaultJson.encodeToString(
+                    OrganisasjonSammendragResultat(
+                        totalAntallTreff = treff.size,
+                        organisasjonSammendrag = treff.take(antall).map {
+                            OrganisasjonSammendrag(
+                                organisasjonsnummer = it.orgnr,
+                                enhetstype = "BEDR",
+                                sammensattnavn = it.navn,
+                                navnelinje1 = it.navn,
+                                adresselinje1 = it.adresse,
+                                postnummer = it.postnummer,
+                                poststed = it.poststed,
+                                kommunenummer = it.kommunenummer,
+                                kommunenavn = it.kommunenavn,
+                                landkode = "NO",
+                                opphoert = false,
+                            )
+                        },
+                    )
+                ),
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
         val virksomhet = lokalVirksomhet(request.url.encodedPath.substringAfterLast('/'))
         respond(
             // language=JSON
@@ -194,6 +227,17 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                   "journalpostferdigstilt": true
                 }""",
                 HttpStatusCode.Created,
+                headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        })
+    )
+    val mockDokDistClient = DokDistClient(
+        azureAdTokenProvider = successAzureAdTokenProvider,
+        defaultHttpClient = HttpClient(MockEngine {
+            respond(
+                // language=JSON
+                """{"bestillingsId": "3333"}""",
+                HttpStatusCode.OK,
                 headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             )
         })
@@ -339,6 +383,7 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
             provide<EregService> { EregService(resolve()) }
             provide { mockDokumentService }
             provide { mockDokArkivClient }
+            provide { mockDokDistClient }
             provide<ClamAvClient> {
                 ClamAvClient(HttpClient(MockEngine {
                     respond(
@@ -596,6 +641,7 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
         // application modules
         configureSoknadApiV1()
         configureVedleggApiV1()
+        configureVedtaksbrevApiV1()
         configureRefusjonApiV1()
         configureOrganisasjonerApiV1()
         configureTilsagnDataApiV1()

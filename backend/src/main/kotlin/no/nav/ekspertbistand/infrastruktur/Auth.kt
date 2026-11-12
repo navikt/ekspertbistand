@@ -240,6 +240,11 @@ fun Application.configureAuthentication() {
                     val clientId = other["client_id"]!!
                     val acr = other["acr"]!!
 
+                    if (clientId != NaisEnvironment.soknadFrontend) {
+                        authLog.error("Avviste TokenX-token fra klient {}", clientId)
+                        return@authenticate null
+                    }
+
                     val acrValid = acr in listOf(
                         "idporten-loa-high",
                         "Level4",
@@ -264,6 +269,16 @@ fun Application.configureAuthentication() {
             authenticate { credentials ->
                 with(application.dependencies.resolve<AzureAdTokenIntrospector>().introspect(credentials.token)) {
                     if (!active) return@authenticate null
+
+                    /**
+                     * Nais fraråder `azp_name` til autorisasjon fordi navnet ikke er unikt i Entra. Bare apper i
+                     * `accessPolicy.inbound` får token til backend, og Nais gir dem navn på formen `<cluster>:<namespace>:<app>`.
+                     */
+                    val azpName = other["azp_name"]
+                    if (azpName != NaisEnvironment.saksbehandlingFrontend) {
+                        authLog.error("Avviste Entra-token fra klient {}", azpName)
+                        return@authenticate null
+                    }
 
                     val navIdent = other["NAVident"] as? String
                         ?: return@authenticate null

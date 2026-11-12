@@ -20,6 +20,8 @@ class EventDataAggregateRootIdTest {
         val forventet: Map<EventData, String> = mapOf(
             EventData.SoknadInnsendt(TestEventData.sampleSoknad) to soknadRoot,
             TestEventData.innsendtSoknadJournalfoert to soknadRoot,
+            TestEventData.soknadKopiDeltakerJournalfoert to soknadRoot,
+            TestEventData.soknadKopiDeltakerDistribuert to soknadRoot,
             EventData.SakOpprettet(
                 "11111111-1111-1111-1111-111111111111",
                 TestEventData.sampleSoknad,
@@ -46,6 +48,9 @@ class EventDataAggregateRootIdTest {
             TestEventData.forelopigVedtakSendtTilBeslutter to soknadRoot,
             TestEventData.vedtakFattet to soknadRoot,
             TestEventData.forelopigVedtakReturnert to soknadRoot,
+            TestEventData.vedtaksbrevArbeidsgiverJournalfoert to soknadRoot,
+            TestEventData.arbeidsgiverVarsletVedtakFattet to soknadRoot,
+            TestEventData.vedtaksbrevVist to soknadRoot,
         )
 
         forventet.forEach { (event, expected) ->

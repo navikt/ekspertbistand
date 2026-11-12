@@ -10,6 +10,8 @@ import no.nav.ekspertbistand.dokument.pdf.HandlebarsConfig
 import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.Mottaker
+import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
+import no.nav.ekspertbistand.saksbehandling.tolkSoknadssum
 import no.nav.ekspertbistand.saksbehandling.vedtaksbrevData
 import no.nav.ekspertbistand.soknad.DTO
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -103,8 +105,14 @@ class DokumentmalTest {
                         var html: String? = null
                         val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }), strictRenderer)
                         val avslag = utfall == ForelopigUtfall.AVSLAA
+                        val soknad = sampleSoknad()
                         val data = vedtaksbrevData(
-                            soknad = sampleSoknad(),
+                            deltakerNavn = soknad.ansatt.navn,
+                            arbeidsgiver = VedtaksbrevData.Arbeidsgiver(
+                                navn = soknad.virksomhet.virksomhetsnavn,
+                                orgnr = soknad.virksomhet.virksomhetsnummer,
+                            ),
+                            soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad),
                             utfall = utfall,
                             belop = if (utfall == ForelopigUtfall.INNVILGE_REDUSERT) 7000 else null,
                             begrunnelseDeltaker = "Begrunnelse til deltaker",
@@ -148,6 +156,32 @@ class DokumentmalTest {
         validerHtml(requireNotNull(pdfHtml), medHeaderFooter = true)
         validerHtml(html, medHeaderFooter = false)
         assertTrue("Deltakeren:" !in html)
+    }
+
+    @Test
+    fun `kopi av soknad til deltaker har infoskriv, navn og hele soknaden fra ekte payload`() {
+        var kopiHtml: String? = null
+        var soknadHtml: String? = null
+        val kopiService = DokumentService(StubPdfKonverterer(onConvert = { h -> kopiHtml = h }), strictRenderer)
+        val soknadService = DokumentService(StubPdfKonverterer(onConvert = { h -> soknadHtml = h }), strictRenderer)
+
+        kotlinx.coroutines.runBlocking {
+            kopiService.genererSoknadKopiDeltakerPdf(sampleSoknad(), dato = LocalDate(2026, 11, 10))
+            soknadService.genererSoknadPdf(sampleSoknad())
+        }
+
+        val kopi = requireNotNull(kopiHtml)
+        validerHtml(kopi, medHeaderFooter = true)
+        assertTrue("Kopi av søknad om tilskudd til ekspertbistand" in kopi, "mangler infoskrivet")
+        assertTrue("Til Ansatt Navn" in kopi, "mangler deltakerens navn i brevhodet")
+        assertTrue("10. november 2026" in kopi, "mangler dato i brevhodet")
+        assertTrue("<h2>Hva er tilskudd til ekspertbistand?</h2>" in kopi, "infoskrivet skal bruke H2 for seksjoner")
+        assertTrue("1. desember 2024" in kopi, "startdato skal skrives som dato i brødtekst")
+        assertTrue("2024-12-01" !in kopi, "startdato skal ikke vises i ISO-format")
+
+        val soknadTekst = Jsoup.parse(requireNotNull(soknadHtml)).body().text()
+        val kopiTekst = Jsoup.parse(kopi).body().text()
+        assertTrue(soknadTekst in kopiTekst, "kopien skal inneholde hele søknaden uendret")
     }
 
     @Test

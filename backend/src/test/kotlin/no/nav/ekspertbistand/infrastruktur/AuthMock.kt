@@ -19,7 +19,7 @@ val mockIntrospectionResponse = TokenIntrospectionResponse(
 )
     .withPid("0")
     .withAcr("idporten-loa-high")
-    .withClientId("test")
+    .withClientId(NaisEnvironment.soknadFrontend)
 
 fun TokenIntrospectionResponse.withPid(pid: String) = this.copy(other = this.other + ("pid" to pid))
 fun TokenIntrospectionResponse.withClientId(clientId: String) =
@@ -56,6 +56,10 @@ val mockAzureAdIntrospectionResponse = TokenIntrospectionResponse(
 )
     .withNavIdent("A123456")
     .withGroups(emptyList())
+    .withAzpName(NaisEnvironment.saksbehandlingFrontend)
+
+fun TokenIntrospectionResponse.withAzpName(azpName: String) =
+    this.copy(other = this.other + ("azp_name" to azpName))
 
 fun TokenIntrospectionResponse.withNavIdent(navIdent: String) =
     this.copy(other = this.other + ("NAVident" to navIdent))

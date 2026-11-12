@@ -64,7 +64,7 @@ class DokArkivClientTest {
 
         dokArkivClient.opprettOgFerdigstillJournalpost(
             tittel = "Søknad om tilskudd til ekspertbistand",
-            virksomhetsnummer = "123456789",
+            bruker = Bruker.orgnr("123456789"),
             sak = Sak.FagSak("1234"),
             eksternReferanseId = "ekstern-ref-123",
             dokumentPdfAsBytes = dokumentPdfAsBytes,
@@ -72,6 +72,45 @@ class DokArkivClientTest {
             avsenderMottaker = AvsenderMottaker.orgnr("123456789")
         ).let {
             assertEquals("DOK123456", it.journalpostId)
+        }
+    }
+
+    @Test
+    fun `utgaaende journalpost paa person`() = testApplication {
+        mockDokArkiv { request: OpprettJournalpostRequest ->
+            assertEquals("12345678910", request.bruker.id)
+            assertEquals("FNR", request.bruker.idType)
+            assertEquals("12345678910", request.avsenderMottaker!!.id)
+            assertEquals("FNR", request.avsenderMottaker.idType)
+            assertEquals("UTGAAENDE", request.journalposttype)
+            assertEquals("NAV_NO", request.kanal)
+
+            OpprettJournalpostResponse(
+                dokumenter = listOf(OpprettJournalpostDokument("DOC002")),
+                journalpostId = "DOK654321",
+                journalpostferdigstilt = true
+            )
+        }
+
+        client = createClient {
+            install(ContentNegotiation) {
+                json()
+            }
+        }
+
+        DokArkivClient(
+            azureAdTokenProvider = mockTokenProvider,
+            defaultHttpClient = client
+        ).opprettOgFerdigstillJournalpost(
+            tittel = "Kopi av søknad om tilskudd til ekspertbistand",
+            bruker = Bruker.fnr("12345678910"),
+            sak = Sak.FagSak("1234"),
+            eksternReferanseId = "ekstern-ref-123-kopi-deltaker",
+            dokumentPdfAsBytes = ByteArray(10),
+            journalposttype = JournalpostType.UTGAAENDE,
+            avsenderMottaker = AvsenderMottaker.fnr("12345678910"),
+        ).let {
+            assertEquals("DOK654321", it.journalpostId)
         }
     }
 }

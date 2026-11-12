@@ -9,7 +9,13 @@ import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
+import no.nav.ekspertbistand.event.domain.SakDomain
+import no.nav.ekspertbistand.event.domain.SoknadDomainV2
 import no.nav.ekspertbistand.event.domain.VedleggDomain
+import no.nav.ekspertbistand.event.domain.VedtakDomain
+import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
+import no.nav.ekspertbistand.event.domain.tilSaksstatus
 import no.nav.ekspertbistand.event.handlers.*
 import no.nav.ekspertbistand.infrastruktur.basedOnEnvSuspending
 import kotlinx.datetime.LocalDate
@@ -54,7 +60,8 @@ sealed interface EventData {
      * Payload er hele søknaden slik den ble sendt inn, og er dermed sannheten om hva
      * arbeidsgiver faktisk søkte om — senere endringer i søknadstabellen påvirker ikke eventen.
      *
-     * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSoknad] og
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerInnsendtSoknad],
+     * [no.nav.ekspertbistand.event.handlers.JournalfoerSoknadKopiDeltaker] og
      * [no.nav.ekspertbistand.event.projections.SoknadBehandletForsinkelseProjection]
      * (starter måling av behandlingstid).
      */
@@ -101,6 +108,42 @@ sealed interface EventData {
     }
 
     /**
+     * En kopi av den innsendte søknaden, med infoskriv, er journalført på personmappen til deltakeren.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.JournalfoerSoknadKopiDeltaker]. Journalposten er
+     * utgående og ferdigstilt, men ikke distribuert. [journalpostId] brukes når den skal distribueres til
+     * deltakeren med dokdist.
+     *
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.DistribuerSoknadKopiDeltaker].
+     */
+    @Serializable
+    @SerialName("soknadKopiDeltakerJournalfoert")
+    data class SoknadKopiDeltakerJournalfoert(
+        val soknad: DTO.Soknad,
+        val journalpostId: Int,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
+
+    /**
+     * Kopien av søknaden er sendt til dokdist for distribusjon til deltakeren.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.DistribuerSoknadKopiDeltaker]. [bestillingsId]
+     * er dokdist sin id for forsendelsen, og brukes ved feilsøking mot Team Dokumentløsninger.
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @Serializable
+    @SerialName("soknadKopiDeltakerDistribuert")
+    data class SoknadKopiDeltakerDistribuert(
+        val soknad: DTO.Soknad,
+        val journalpostId: Int,
+        val bestillingsId: String,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknad.aggregateRootId
+    }
+
+    /**
      * Det er opprettet sak for søknaden i ekspertbistand.
      *
      * Publiseres av [no.nav.ekspertbistand.event.handlers.OpprettSak] i samme transaksjon som saken
@@ -132,7 +175,7 @@ sealed interface EventData {
      * på at vi er kilde til saken.
      *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerNotatArenaSakOpprettet] og
-     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIAltinn].
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIArena].
      */
     @Serializable
     @SerialName("tiltaksgjennomforingOpprettet")
@@ -549,14 +592,22 @@ sealed interface EventData {
      *
      * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/vedtak` etter at tilgang, kilde,
      * status, versjon og habilitet er sjekket. [utfall] er [Saksstatus.INNVILGET] eller
-     * [Saksstatus.AVSLATT]. [fattetAvIdent] og [fattetAvNavn] skal ikke logges utenfor teamLog.
-     * Se `specifications/beslutter_vedtak.md`.
+     * [Saksstatus.AVSLATT]. Se `specifications/beslutter_vedtak.md`.
+     *
+     * [soknad], [sak] og [vedtak] er dataene slik de var da vedtaket ble fattet, lest under samme
+     * lås som sjekken av versjonen. Handlere skal bruke dem i stedet for å lete i projeksjonene.
+     * [sak] har statusen før vedtaket ([SakDomain.Status.TIL_BESLUTNING]), og [vedtak] er det
+     * foreløpige vedtaket beslutter godkjente. Se `specifications/journalfor_vedtaksbrev_arbeidsgiver.md`.
+     *
+     * Eventen har fødselsnummer og navn på deltaker, identer, navn, notater fra vilkårsvurderingen og
+     * begrunnelser som kan ha helseopplysninger. Ingenting av dette skal logges utenfor teamLog.
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
      *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.FattVedtak],
-     * [no.nav.ekspertbistand.event.handlers.SettSoknadStatusVedtakFattet] og
-     * [no.nav.ekspertbistand.event.handlers.BestillTilsagnIOebs].
+     * [no.nav.ekspertbistand.event.handlers.SettSoknadStatusVedtakFattet],
+     * [no.nav.ekspertbistand.event.handlers.BestillTilsagnIOebs] og
+     * [no.nav.ekspertbistand.event.handlers.JournalfoerVedtaksbrevArbeidsgiver].
      */
     @OptIn(ExperimentalTime::class)
     @Serializable
@@ -569,11 +620,18 @@ sealed interface EventData {
         val fattetAvIdent: String,
         val fattetAvNavn: String,
         val tidspunkt: Instant,
+        val soknad: SoknadDomainV2,
+        val sak: SakDomain,
+        val vedtak: VedtakDomain,
     ) : EventData {
         init {
             require(utfall == Saksstatus.INNVILGET || utfall == Saksstatus.AVSLATT) {
                 "utfall må være INNVILGET eller AVSLATT, var $utfall"
             }
+            require(vedtak.versjon == forelopigVedtakVersjon) { "vedtak.versjon må være forelopigVedtakVersjon" }
+            require(vedtak.utfall.tilSaksstatus() == utfall) { "vedtak.utfall må gi utfall $utfall" }
+            require(soknad.id == soknadId) { "soknad.id må være soknadId" }
+            require(sak.sakId == sakId) { "sak.sakId må være sakId" }
         }
 
         override val aggregateRootId: String get() = soknadId
@@ -611,6 +669,96 @@ sealed interface EventData {
 
         override val aggregateRootId: String get() = soknadId
     }
+
+    /**
+     * Vedtaksbrevet til arbeidsgiver er journalført i arbeidsgivermappa. Kvitterer hvilket brev
+     * ([utfall]) som ble journalført, til hvem, og hva det sa.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.JournalfoerVedtaksbrevArbeidsgiver].
+     * [vedtaksbrev] er brevet usladdet, slik arbeidsgiver skal se det, og rendres med malen for [utfall]
+     * og [no.nav.ekspertbistand.saksbehandling.Mottaker.ARBEIDSGIVER]. Den journalførte kopien er
+     * [vedtaksbrev] sladdet med [adressebeskyttelse] (`sladdVedAdressebeskyttelse`). Konsumenter trenger
+     * derfor verken projeksjonene eller [VedtakFattet] for å bygge brevet på nytt.
+     *
+     * [journalpostId] er en kvittering, ikke en peker: arbeidsgiver får brevet rendret fra dataene, aldri
+     * fra Joark. Se `specifications/journalfor_vedtaksbrev_arbeidsgiver.md`.
+     *
+     * Eventen har deltakers navn, adressebeskyttelse og begrunnelsen til arbeidsgiver, som kan ha
+     * helseopplysninger. Ingenting av dette skal logges utenfor teamLog.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.LagreVedtaksbrev] og
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverVedtakFattet].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("vedtaksbrevArbeidsgiverJournalfoert")
+    data class VedtaksbrevArbeidsgiverJournalfoert(
+        val sakId: String,
+        val soknadId: String,
+        val utfall: VedtakDomain.Utfall,
+        val virksomhetsnummer: String,
+        val virksomhetsnavn: String,
+        val vedtaksbrev: VedtaksbrevDomain,
+        val adressebeskyttelse: SakDomain.Adressebeskyttelse?,
+        val journalpostId: String,
+        val dokumentInfoId: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver er varslet om vedtaket i notifikasjonsplattformen: beskjed med eksternt varsel, og saken
+     * satt til ferdig. Kvitterer hva vi bestilte, ikke at e-post og SMS er levert. Plattformen sender dem senere,
+     * i [ArbeidsgiverVarselDomain.EksterntVarsel.sendevindu].
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverVedtakFattet] når plattformen har tatt
+     * imot både beskjeden og statusen. [varsel] er det som ble sendt. [journalpostId] er vedtaksbrevet arbeidsgiver
+     * ble varslet om, fra [VedtaksbrevArbeidsgiverJournalfoert].
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("arbeidsgiverVarsletVedtakFattet")
+    data class ArbeidsgiverVarsletVedtakFattet(
+        val sakId: String,
+        val soknadId: String,
+        val utfall: VedtakDomain.Utfall,
+        val journalpostId: String,
+        val varsel: ArbeidsgiverVarselDomain,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver har hentet vedtaksbrevet som PDF.
+     *
+     * Publiseres av [no.nav.ekspertbistand.vedtaksbrev.VedtaksbrevApi] ved hvert oppslag, og kan derfor
+     * forekomme mange ganger for samme vedtak. Har per nå bare en no-op-handler.
+     *
+     * [vistTil] er fødselsnummeret til personen som hentet brevet (`pid` fra TokenX). Det skal ikke logges.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("vedtaksbrevVist")
+    data class VedtaksbrevVist(
+        val sakId: String,
+        val soknadId: String,
+        val utfall: VedtakDomain.Utfall,
+        val virksomhetsnummer: String,
+        val vistTil: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -618,11 +766,13 @@ suspend fun Application.configureEventHandlers() {
     val eventManager = EventManager {
         // Registrer all event handlers here
         register(dependencies.create(JournalfoerInnsendtSoknad::class))
+        register(dependencies.create(JournalfoerSoknadKopiDeltaker::class))
+        register(dependencies.create(DistribuerSoknadKopiDeltaker::class))
         basedOnEnvSuspending(
             prod = {
                 register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))
                 register(dependencies.create(JournalfoerNotatArenaSakOpprettet::class))
-                register(dependencies.create(VarsleArbeidsgiverSoknadMottattBehandlesIAltinn::class))
+                register(dependencies.create(VarsleArbeidsgiverSoknadMottattBehandlesIArena::class))
             },
             other = {
                 register(dependencies.create(OpprettSak::class))
@@ -649,9 +799,24 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(FattVedtak::class))
         register(dependencies.create(BestillTilsagnIOebs::class))
         register(dependencies.create(SettSoknadStatusVedtakFattet::class))
+        register(dependencies.create(JournalfoerVedtaksbrevArbeidsgiver::class))
         register(dependencies.create(ReturnerForelopigVedtak::class))
         register<EventData.TilskuddsbrevVist>("TilskuddsbrevVistNoop") { event ->
             // TilskuddsbrevVist brukes kun i projection builder for bruksmetrikk per nå
+            EventHandledResult.Success()
+        }
+        register(dependencies.create(LagreVedtaksbrev::class))
+        register(dependencies.create(VarsleArbeidsgiverVedtakFattet::class))
+        register<EventData.ArbeidsgiverVarsletVedtakFattet>("ArbeidsgiverVarsletVedtakFattetNoop") { _ ->
+            // Kvitterer hva arbeidsgiver ble varslet om, i eventloggen. Ingen konsumenter per nå.
+            EventHandledResult.Success()
+        }
+        register<EventData.VedtaksbrevVist>("VedtaksbrevVistNoop") { event ->
+            // Ingen konsument ennå. Metrikk og projeksjon kommer eventuelt i et eget kort.
+            EventHandledResult.Success()
+        }
+        register<EventData.SoknadKopiDeltakerDistribuert>("SoknadKopiDeltakerDistribuertNoop") { _ ->
+            // SoknadKopiDeltakerDistribuert lagrer bestillingsId fra dokdist i eventloggen. Ingen konsumenter per nå.
             EventHandledResult.Success()
         }
         register<EventData.RefusjonskravMottatt>("RefusjonskravMottattNoop") { _ ->

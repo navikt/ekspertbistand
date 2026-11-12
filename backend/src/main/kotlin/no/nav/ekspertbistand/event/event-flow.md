@@ -23,25 +23,25 @@ flowchart TD
     s_ArenaTiltakssakEndretProcessor[/"ArenaTiltakssakEndretProcessor"/]:::source
     s_BeslutterApi[/"BeslutterApi"/]:::source
     s_ForelopigVedtakApi[/"ForelopigVedtakApi"/]:::source
-    s_RefusjonDb[/"RefusjonDb"/]:::source
     s_SakApi[/"SakApi"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
-    s_VedleggDb[/"VedleggDb"/]:::source
+    s_VedtaksbrevApi[/"VedtaksbrevApi"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
+    e_ArbeidsgiverVarsletVedtakFattet(["ArbeidsgiverVarsletVedtakFattet"]):::event
     e_ForelopigVedtakReturnert(["ForelopigVedtakReturnert"]):::event
     e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
-    e_RefusjonskravMottatt(["RefusjonskravMottatt"]):::event
     e_SakFrigjort(["SakFrigjort"]):::event
     e_SakOppdatert(["SakOppdatert"]):::event
     e_SakOpprettet(["SakOpprettet"]):::event
     e_SakTildeltBeslutter(["SakTildeltBeslutter"]):::event
     e_SakTildeltSaksbehandler(["SakTildeltSaksbehandler"]):::event
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
-    e_SluttrapportMottatt(["SluttrapportMottatt"]):::event
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
+    e_SoknadKopiDeltakerDistribuert(["SoknadKopiDeltakerDistribuert"]):::event
+    e_SoknadKopiDeltakerJournalfoert(["SoknadKopiDeltakerJournalfoert"]):::event
     e_TilsagnsdataLagret(["TilsagnsdataLagret"]):::event
     e_TilskuddsbrevJournalfoert(["TilskuddsbrevJournalfoert"]):::event
     e_TilskuddsbrevJournalfoertKildeAltinn(["TilskuddsbrevJournalfoertKildeAltinn"]):::event
@@ -50,28 +50,34 @@ flowchart TD
     e_TilskuddsbrevVist(["TilskuddsbrevVist"]):::event
     e_TiltaksgjennomforingOpprettet(["TiltaksgjennomforingOpprettet"]):::event
     e_VedtakFattet(["VedtakFattet"]):::event
+    e_VedtaksbrevArbeidsgiverJournalfoert(["VedtaksbrevArbeidsgiverJournalfoert"]):::event
+    e_VedtaksbrevVist(["VedtaksbrevVist"]):::event
     e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
+    h_ArbeidsgiverVarsletVedtakFattetNoop["ArbeidsgiverVarsletVedtakFattetNoop"]:::handler
     h_BestillTilsagnIOebs["BestillTilsagnIOebs"]:::handler
+    h_DistribuerSoknadKopiDeltaker["DistribuerSoknadKopiDeltaker"]:::handler
     h_FattVedtak["FattVedtak"]:::handler
     h_FrigjoerSak["FrigjoerSak"]:::handler
     h_JournalfoerInnsendtSoknad["JournalfoerInnsendtSoknad"]:::handler
     h_JournalfoerNotatArenaSakOpprettet["JournalfoerNotatArenaSakOpprettet"]:::handler
+    h_JournalfoerSoknadKopiDeltaker["JournalfoerSoknadKopiDeltaker"]:::handler
     h_JournalfoerTilskuddsbrev["JournalfoerTilskuddsbrev"]:::handler
     h_JournalfoerTilskuddsbrevKildeAltinn["JournalfoerTilskuddsbrevKildeAltinn"]:::handler
+    h_JournalfoerVedtaksbrevArbeidsgiver["JournalfoerVedtaksbrevArbeidsgiver"]:::handler
     h_LagreForelopigVedtak["LagreForelopigVedtak"]:::handler
     h_LagreTilsagnsData["LagreTilsagnsData"]:::handler
     h_LagreTilsagnsDataKildeAltinn["LagreTilsagnsDataKildeAltinn"]:::handler
+    h_LagreVedtaksbrev["LagreVedtaksbrev"]:::handler
     h_MarkerSakUnderBehandlingIArena["MarkerSakUnderBehandlingIArena"]:::handler
     h_OppdaterVilkarsvurdering["OppdaterVilkarsvurdering"]:::handler
     h_OpprettSak["OpprettSak"]:::handler
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad["OpprettTiltaksgjennomfoeringForInnsendtSoknad"]:::handler
-    h_RefusjonskravMottattNoop["RefusjonskravMottattNoop"]:::handler
     h_ReturnerForelopigVedtak["ReturnerForelopigVedtak"]:::handler
     h_SettAvlystSoknadStatus["SettAvlystSoknadStatus"]:::handler
     h_SettGodkjentSoknadStatus["SettGodkjentSoknadStatus"]:::handler
     h_SettSoknadStatusVedtakFattet["SettSoknadStatusVedtakFattet"]:::handler
     h_SkrivSakslogg["SkrivSakslogg"]:::handler
-    h_SluttrapportMottattNoop["SluttrapportMottattNoop"]:::handler
+    h_SoknadKopiDeltakerDistribuertNoop["SoknadKopiDeltakerDistribuertNoop"]:::handler
     h_TildelBeslutter["TildelBeslutter"]:::handler
     h_TildelSaksbehandler["TildelSaksbehandler"]:::handler
     h_TilskuddsbrevVistNoop["TilskuddsbrevVistNoop"]:::handler
@@ -79,7 +85,9 @@ flowchart TD
     h_VarsleArbeidsgiverSoknadAvlyst["VarsleArbeidsgiverSoknadAvlyst"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjent["VarsleArbeidsgiverSoknadGodkjent"]:::handler
     h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn["VarsleArbeidsgiverSoknadGodkjentKildeAltinn"]:::handler
-    h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn["VarsleArbeidsgiverSoknadMottattBehandlesIAltinn"]:::handler
+    h_VarsleArbeidsgiverSoknadMottattBehandlesIArena["VarsleArbeidsgiverSoknadMottattBehandlesIArena"]:::handler
+    h_VarsleArbeidsgiverVedtakFattet["VarsleArbeidsgiverVedtakFattet"]:::handler
+    h_VedtaksbrevVistNoop["VedtaksbrevVistNoop"]:::handler
     p_SakProjection[["SakProjection"]]:::projection
     p_SaksbehandlingsstatistikkProjection[["SaksbehandlingsstatistikkProjection"]]:::projection
     p_SoknadBehandletForsinkelseProjection[["SoknadBehandletForsinkelseProjection"]]:::projection
@@ -92,19 +100,21 @@ flowchart TD
     s_BeslutterApi --> e_ForelopigVedtakReturnert
     s_BeslutterApi --> e_VedtakFattet
     h_BestillTilsagnIOebs --> e_SakOppdatert
+    h_DistribuerSoknadKopiDeltaker --> e_SoknadKopiDeltakerDistribuert
     h_FattVedtak --> e_SakOppdatert
     s_ForelopigVedtakApi --> e_ForelopigVedtakSendtTilBeslutter
     h_FrigjoerSak --> e_SakOppdatert
     h_JournalfoerInnsendtSoknad --> e_InnsendtSoknadJournalfoert
+    h_JournalfoerSoknadKopiDeltaker --> e_SoknadKopiDeltakerJournalfoert
     h_JournalfoerTilskuddsbrev --> e_TilskuddsbrevJournalfoert
     h_JournalfoerTilskuddsbrevKildeAltinn --> e_TilskuddsbrevJournalfoertKildeAltinn
+    h_JournalfoerVedtaksbrevArbeidsgiver --> e_SakOppdatert
+    h_JournalfoerVedtaksbrevArbeidsgiver --> e_VedtaksbrevArbeidsgiverJournalfoert
     h_LagreForelopigVedtak --> e_SakOppdatert
     h_LagreTilsagnsData --> e_TilsagnsdataLagret
     h_OpprettSak --> e_SakOppdatert
     h_OpprettSak --> e_SakOpprettet
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
-    s_RefusjonDb --> e_RefusjonskravMottatt
-    s_RefusjonDb --> e_SakOppdatert
     h_ReturnerForelopigVedtak --> e_SakOppdatert
     s_SakApi --> e_SakFrigjort
     s_SakApi --> e_SakTildeltBeslutter
@@ -113,30 +123,35 @@ flowchart TD
     h_TildelBeslutter --> e_SakOppdatert
     h_TildelSaksbehandler --> e_SakOppdatert
     s_TilsagnDataApi --> e_TilskuddsbrevVist
-    s_VedleggDb --> e_SakOppdatert
-    s_VedleggDb --> e_SluttrapportMottatt
+    h_VarsleArbeidsgiverVedtakFattet --> e_ArbeidsgiverVarsletVedtakFattet
+    h_VarsleArbeidsgiverVedtakFattet --> e_SakOppdatert
+    s_VedtaksbrevApi --> e_VedtaksbrevVist
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
+    e_ArbeidsgiverVarsletVedtakFattet --> h_ArbeidsgiverVarsletVedtakFattetNoop
     e_VedtakFattet --> h_BestillTilsagnIOebs
+    e_SoknadKopiDeltakerJournalfoert --> h_DistribuerSoknadKopiDeltaker
     e_VedtakFattet --> h_FattVedtak
     e_SakFrigjort --> h_FrigjoerSak
     e_SoknadInnsendt --> h_JournalfoerInnsendtSoknad
     e_TiltaksgjennomforingOpprettet --> h_JournalfoerNotatArenaSakOpprettet
+    e_SoknadInnsendt --> h_JournalfoerSoknadKopiDeltaker
     e_TilskuddsbrevMottatt --> h_JournalfoerTilskuddsbrev
     e_TilskuddsbrevMottattKildeAltinn --> h_JournalfoerTilskuddsbrevKildeAltinn
+    e_VedtakFattet --> h_JournalfoerVedtaksbrevArbeidsgiver
     e_ForelopigVedtakSendtTilBeslutter --> h_LagreForelopigVedtak
     e_TilskuddsbrevJournalfoert --> h_LagreTilsagnsData
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_LagreTilsagnsDataKildeAltinn
+    e_VedtaksbrevArbeidsgiverJournalfoert --> h_LagreVedtaksbrev
     e_SaksbehandlingStartetIArena --> h_MarkerSakUnderBehandlingIArena
     e_VilkarsvurderingOppdatert --> h_OppdaterVilkarsvurdering
     e_InnsendtSoknadJournalfoert --> h_OpprettSak
     e_InnsendtSoknadJournalfoert --> h_OpprettTiltaksgjennomfoeringForInnsendtSoknad
-    e_RefusjonskravMottatt --> h_RefusjonskravMottattNoop
     e_ForelopigVedtakReturnert --> h_ReturnerForelopigVedtak
     e_SoknadAvlystIArena --> h_SettAvlystSoknadStatus
     e_TilskuddsbrevJournalfoert --> h_SettGodkjentSoknadStatus
     e_VedtakFattet --> h_SettSoknadStatusVedtakFattet
     e_SakOppdatert --> h_SkrivSakslogg
-    e_SluttrapportMottatt --> h_SluttrapportMottattNoop
+    e_SoknadKopiDeltakerDistribuert --> h_SoknadKopiDeltakerDistribuertNoop
     e_SakTildeltBeslutter --> h_TildelBeslutter
     e_SakTildeltSaksbehandler --> h_TildelSaksbehandler
     e_TilskuddsbrevVist --> h_TilskuddsbrevVistNoop
@@ -144,7 +159,9 @@ flowchart TD
     e_SoknadAvlystIArena --> h_VarsleArbeidsgiverSoknadAvlyst
     e_TilsagnsdataLagret --> h_VarsleArbeidsgiverSoknadGodkjent
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_VarsleArbeidsgiverSoknadGodkjentKildeAltinn
-    e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottattBehandlesIAltinn
+    e_TiltaksgjennomforingOpprettet --> h_VarsleArbeidsgiverSoknadMottattBehandlesIArena
+    e_VedtaksbrevArbeidsgiverJournalfoert --> h_VarsleArbeidsgiverVedtakFattet
+    e_VedtaksbrevVist --> h_VedtaksbrevVistNoop
     e_InnsendtSoknadJournalfoert -.-> p_SakProjection
     e_SakFrigjort -.-> p_SakProjection
     e_SakTildeltSaksbehandler -.-> p_SakProjection

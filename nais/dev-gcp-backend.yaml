@@ -59,13 +59,11 @@ spec:
       rules:
         - application: ekspertbistand-frontend
         - application: ekspertbistand-saksbehandling
-        - application: azure-token-generator
-          namespace: nais
-          cluster: dev-gcp
     outbound:
       external:
         - host: pdl-api.dev-fss-pub.nais.io
         - host: dokarkiv-q2.dev-fss-pub.nais.io
+        - host: dokdistfordeling.dev-fss-pub.nais.io
         - host: ereg-services.dev-fss-pub.nais.io
         - host: aareg-services.dev-fss-pub.nais.io
         - host: entraproxy.intern.dev.nav.no

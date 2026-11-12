@@ -34,6 +34,7 @@ import no.nav.ekspertbistand.audit.ArcSightAuditClient
 import no.nav.ekspertbistand.clamav.ClamAvClient
 import no.nav.ekspertbistand.dokarkiv.DokArkivClient
 import no.nav.ekspertbistand.dokarkiv.FagsakIdService
+import no.nav.ekspertbistand.dokdist.DokDistClient
 import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.dokument.gotenberg.GotenbergClient
 import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
@@ -81,6 +82,7 @@ import no.nav.ekspertbistand.statistikk.configureAdressebeskyttelseskontroll
 import no.nav.ekspertbistand.tilsagndata.configureTilsagnDataApiV1
 import no.nav.ekspertbistand.vedlegg.configureVedleggApiV1
 import no.nav.ekspertbistand.vedlegg.erForStorMultipartDel
+import no.nav.ekspertbistand.vedtaksbrev.configureVedtaksbrevApiV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.slf4j.event.Level
 import java.io.IOException
@@ -117,6 +119,7 @@ fun main() {
             provide<PdfKonverterer>(GotenbergClient::class)
             provide<DokumentService> { DokumentService(resolve()) }
             provide(DokArkivClient::class)
+            provide(DokDistClient::class)
             provide(EregClient::class)
             provide(EregService::class)
             provide(NorgKlient::class)
@@ -153,11 +156,12 @@ fun main() {
 
         // configure application modules and endpoints
         configureSoknadApiV1()
-        // Sluttrapport og refusjonskrav er ikke åpnet i prod ennå.
+        // Sluttrapport, refusjonskrav og vedtak til arbeidsgiver er ikke åpnet i prod ennå.
         basedOnEnvSuspending(
             prod = {},
             other = {
                 configureVedleggApiV1()
+                configureVedtaksbrevApiV1()
                 configureRefusjonApiV1()
             },
         )

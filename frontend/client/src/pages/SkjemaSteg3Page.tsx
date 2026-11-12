@@ -191,8 +191,8 @@ export default function SkjemaSteg3Page() {
               Unngå sensitive personopplysninger
             </Heading>
             For eksempel arbeidstakerens diagnose eller sensitive opplysninger om arbeidstakerens
-            familie eller andre ansatte. Husk at den ansatte har innsynsrett i det du skriver i
-            søknaden.
+            familie eller andre ansatte. Husk at den ansatte får en kopi av søknaden når du sender
+            den inn.
           </Alert>
 
           <Heading level="2" size="large">

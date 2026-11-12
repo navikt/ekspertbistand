@@ -396,6 +396,10 @@ export default function OppsummeringPage() {
         />
 
         <VStack gap="space-16">
+          <BodyLong>
+            Når du sender inn søknaden, får den ansatte også en kopi av søknaden. Du kommer til en
+            kvitteringsside med informasjon om veien videre.
+          </BodyLong>
           <SistLagretInfo timestamp={lastPersistedAt} saveError={saveError} />
           <HGrid
             gap={{ xs: "space-32", sm: "space-16" }}

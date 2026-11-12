@@ -36,4 +36,4 @@ Malene bruker DejaVu Sans via `* { font-family: "DejaVu Sans", … }` i `style.c
 
 ## Krav
 
-- Standard NAV-helpers (`dateFormat`, `norwegian-date`, `add`, `eq`) er registrert.
+- Standard NAV-helpers (`dateFormat`, `norwegian-date`, `brevdato`, `add`, `eq`) er registrert. Bruk `brevdato` ("1. desember 2024") for dato i brødtekst og `norwegian-date` ("01.12.2024") i tabeller og overskrifter.

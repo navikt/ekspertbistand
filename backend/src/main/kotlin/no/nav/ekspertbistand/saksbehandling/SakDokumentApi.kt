@@ -10,6 +10,8 @@ import io.ktor.server.routing.*
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import no.nav.ekspertbistand.dokument.DokumentService
+import no.nav.ekspertbistand.dokument.svarMedPdf
+import no.nav.ekspertbistand.dokument.utenMellomlagring
 import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.Metrics
@@ -166,7 +168,12 @@ suspend fun Application.configureSakDokumentApiV1() {
                     }
 
                     val data = vedtaksbrevData(
-                        soknad = soknad,
+                        deltakerNavn = soknad.ansatt.navn,
+                        arbeidsgiver = VedtaksbrevData.Arbeidsgiver(
+                            navn = soknad.virksomhet.virksomhetsnavn,
+                            orgnr = soknad.virksomhet.virksomhetsnummer,
+                        ),
+                        soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad),
                         utfall = vedtak.utfall,
                         belop = vedtak.innvilgetBelop,
                         begrunnelseDeltaker = vedtak.begrunnelseDeltaker,
@@ -202,7 +209,12 @@ suspend fun Application.configureSakDokumentApiV1() {
                     val (vedtak, soknad, saksbehandlerNavn) = lagret
 
                     val data = vedtaksbrevData(
-                        soknad = soknad,
+                        deltakerNavn = soknad.ansatt.navn,
+                        arbeidsgiver = VedtaksbrevData.Arbeidsgiver(
+                            navn = soknad.virksomhet.virksomhetsnavn,
+                            orgnr = soknad.virksomhet.virksomhetsnummer,
+                        ),
+                        soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad),
                         utfall = vedtak.utfall,
                         belop = vedtak.innvilgetBelop,
                         begrunnelseDeltaker = vedtak.begrunnelseDeltaker,
@@ -233,17 +245,12 @@ private suspend fun ApplicationCall.mottakerParameter(verdi: String?): Mottaker?
     return mottaker
 }
 
-/** Enhetsnavnet finnes bare hos innlogget, som har bestått [sjekkTilgangTilEnhet] for enheten. */
-private fun AzureAdPrincipal.enhetsnavn(enhetsnummer: String?): String? =
-    enheter.find { it.enhetnummer == enhetsnummer }?.navn
-
 /** Navnet til saksbehandler på saken, bare når det er [ident] som har saken. */
 private fun hentSaksbehandlerNavn(sakId: UUID, ident: String): String? =
     SakTable.select(SakTable.saksbehandlerIdent, SakTable.saksbehandlerNavn)
         .where { SakTable.sakId eq sakId }
         .singleOrNull()
-        ?.takeIf { it[SakTable.saksbehandlerIdent] == ident }
-        ?.get(SakTable.saksbehandlerNavn)
+        ?.let { saksbehandlerForBrev(it[SakTable.saksbehandlerIdent], it[SakTable.saksbehandlerNavn], ident) }
 
 /** Svarer 503 og returnerer null når PDF-en ikke kan lages. Innholdet i brevet logges ikke. */
 private suspend fun ApplicationCall.genererVedtaksbrev(
@@ -284,28 +291,6 @@ private suspend fun ApplicationCall.inlineVisning(): Boolean? = when (request.qu
         respond(HttpStatusCode.BadRequest, mapOf("message" to "ugyldig visning"))
         null
     }
-}
-
-private fun ApplicationCall.utenMellomlagring() {
-    response.header(HttpHeaders.CacheControl, "no-store")
-    response.header(HttpHeaders.Pragma, "no-cache")
-    response.header("X-Content-Type-Options", "nosniff")
-}
-
-private suspend fun ApplicationCall.svarMedPdf(filnavn: String, innhold: ByteArray, inline: Boolean) {
-    utenMellomlagring()
-    val disposisjon = if (inline) ContentDisposition.Inline else ContentDisposition.Attachment
-    val trygtFilnavn = filnavn.substringAfterLast('/').substringAfterLast('\\')
-        .substringBeforeLast('.')
-        .map { tegn -> if (tegn.code < 128 && (tegn.isLetterOrDigit() || tegn in "-_.")) tegn else '_' }
-        .joinToString("")
-        .take(90)
-        .ifBlank { "dokument" } + ".pdf"
-    response.header(
-        HttpHeaders.ContentDisposition,
-        disposisjon.withParameter(ContentDisposition.Parameters.FileName, trygtFilnavn).toString(),
-    )
-    respondBytes(innhold, ContentType.Application.Pdf)
 }
 
 private fun dokumentHentet(type: String, handling: String) {
