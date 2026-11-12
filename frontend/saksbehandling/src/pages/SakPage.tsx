@@ -464,7 +464,7 @@ export default function SakPage() {
   const fane: Fane =
     valgtFane?.sakId === sak.sakId
       ? valgtFane.fane
-      : sak.oppgavetype === "SOKNAD_RETUR"
+      : sak.vedtak || sak.oppgavetype === "SOKNAD_RETUR"
         ? "forelopig-vedtak"
         : "vilkarsvurdering";
   const setFane = (nyFane: Fane) => setValgtFane({ sakId: sak.sakId, fane: nyFane });

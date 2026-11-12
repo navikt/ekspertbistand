@@ -240,7 +240,7 @@ function Skjema({
           {utfall === "INNVILGE_REDUSERT" && (
             <TextField
               id={FELT_ID.nyttBelop}
-              label="Nytt beløp"
+              label="Beløp"
               inputMode="numeric"
               htmlSize={14}
               value={tilstand.nyttBelop}

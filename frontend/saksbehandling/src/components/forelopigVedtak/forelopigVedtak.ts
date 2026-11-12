@@ -124,7 +124,7 @@ export function formatPeriode(fra: string | null, til: string | null) {
   return fra && til ? `${formatDato(fra)} – ${formatDato(til)}` : null;
 }
 
-/** Tolker «Nytt beløp». Mellomrom (også tusenskille) godtas. */
+/** Tolker «Beløp». Mellomrom (også tusenskille) godtas. */
 export function tolkNyttBelop(tekst: string): number | null {
   const utenMellomrom = tekst.replace(/\s/g, "");
   if (!/^\d+$/.test(utenMellomrom)) return null;
@@ -278,20 +278,20 @@ export function validerSkjema({
     const tekst = tilstand.nyttBelop.trim();
     innvilgetBelop = tolkNyttBelop(tekst);
     if (!tekst) {
-      leggTil("nyttBelop", "Du må fylle inn nytt beløp.");
+      leggTil("nyttBelop", "Du må fylle inn beløp.");
     } else if (innvilgetBelop === null) {
-      leggTil("nyttBelop", "Nytt beløp må være et helt antall kroner.");
+      leggTil("nyttBelop", "Beløp må være et helt antall kroner.");
     } else if (innvilgetBelop <= 0) {
-      leggTil("nyttBelop", "Nytt beløp må være mer enn 0 kr.");
+      leggTil("nyttBelop", "Beløp må være mer enn 0 kr.");
     } else if (soknadssum !== null && innvilgetBelop >= soknadssum) {
       leggTil(
         "nyttBelop",
-        `Nytt beløp må være lavere enn søknadssummen (${formatKroner(soknadssum)}).`
+        `Beløp må være lavere enn søknadssummen (${formatKroner(soknadssum)}).`
       );
     } else if (sats && innvilgetBelop > sats.belop) {
       leggTil(
         "nyttBelop",
-        `Nytt beløp kan ikke være høyere enn maks sats (${formatKroner(sats.belop)}).`
+        `Beløp kan ikke være høyere enn maks sats (${formatKroner(sats.belop)}).`
       );
     }
   }
