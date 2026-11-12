@@ -25,7 +25,7 @@ payload-strukturen til hver enkelt event-type.
 
 ### Dagens tilstand
 
-Køen og loggen er beskrevet i [ADR.md](../ADR.md) og
+Køen og loggen er beskrevet i [instruks_asynkron_prosessering.md](instruks_asynkron_prosessering.md) og
 [backend/src/main/kotlin/no/nav/ekspertbistand/event/README.md](../backend/src/main/kotlin/no/nav/ekspertbistand/event/README.md).
 
 * `event_queue` — arbeidskø. Rad slettes ved `finalize`.

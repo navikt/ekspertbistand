@@ -5,8 +5,8 @@ av Team Fager. Løsningen erstatter den tidligere behandlingen i Altinn 2 og Are
 
 Dokumentet forklarer hva ekspertbistand er og hva løsningen skal løse, slik at både
 mennesker og AI-agenter raskt får domenekontekst før de leser koden. Teknisk
-detalj ligger i `frontend/README.md`, `backend/README.md`, `ADR.md` og
-`specifications/`.
+detalj ligger i `frontend/README.md`, `frontend/saksbehandling/README.md`,
+`backend/README.md` og `specifications/`.
 
 For spørsmål, kontakt Team Fager på Slack:
 [#team-fager](https://nav-it.slack.com/archives/C01V9FFEHEK).
@@ -217,25 +217,39 @@ Datamarkedsplassen) er markert som planlagt.
 
 ## Applikasjonene
 
-Den nye løsningen tar imot søknader direkte, uten å gå via Altinn 2.
+Den nye løsningen tar imot søknader direkte, uten å gå via Altinn 2, og har egen
+saksbehandling.
 
-### Frontend
+### Frontend for arbeidsgiver
 
-En React-app (Vite, TypeScript) for arbeidsgiver med innsendingsskjema og oversikt
-over innsendte søknader. Se [frontend/README.md](/frontend/README.md).
+En React-app (Vite, TypeScript) med Express-BFF i `frontend/client` og
+`frontend/server`. Arbeidsgiver logger inn med ID-porten, sender søknad og ser
+innsendte søknader, vedtak, sluttrapport og refusjon. Se
+[frontend/README.md](/frontend/README.md).
+
+### Frontend for saksbehandling
+
+En React-app (Vite, TypeScript, Aksel) med Express-BFF i `frontend/saksbehandling`
+og `frontend/saksbehandling-server`. Saksbehandler og beslutter logger inn med
+Entra ID, får saker tildelt, vurderer vilkår og fatter vedtak med to-trinns
+kontroll. Appen kjører foreløpig bare i dev. Se
+[frontend/saksbehandling/README.md](/frontend/saksbehandling/README.md).
 
 ### Backend
 
 En Ktor-applikasjon i Kotlin med all logikk for behandling av søknader, saker og
-integrasjoner (Joark, VALP/OEBS, Min side arbeidsgiver). Se
-[backend/README.md](/backend/README.md).
+integrasjoner (Joark, VALP/OEBS, Min side arbeidsgiver). Begge frontendene bruker
+samme backend. Se [backend/README.md](/backend/README.md).
 
 ## Videre lesing
 
-- [frontend/README.md](/frontend/README.md) — frontend-applikasjonen.
-- [backend/README.md](/backend/README.md) — backend-applikasjonen.
-- [ADR.md](/ADR.md) — arkitekturbeslutning om asynkron prosessering.
-- [specifications/](/specifications) — detaljerte spesifikasjoner for
+- [frontend/README.md](/frontend/README.md): frontend for arbeidsgiver.
+- [frontend/saksbehandling/README.md](/frontend/saksbehandling/README.md):
+  frontend for saksbehandling.
+- [backend/README.md](/backend/README.md): backend-applikasjonen.
+- [specifications/instruks_asynkron_prosessering.md](/specifications/instruks_asynkron_prosessering.md):
+  hvordan søknader prosesseres asynkront gjennom en kø.
+- [specifications/](/specifications): detaljerte spesifikasjoner for
   datamodell, ruter og integrasjoner.
 
 ## Bakgrunn: hva som erstattes
@@ -248,3 +262,99 @@ journalposten videre til riktig saksbehandler. Dette mottaket er
 [beskrevet på Confluence](https://confluence.adeo.no/spaces/TAD/pages/90553562/Verdikjeder),
 og rutingen er dokumentert i
 [Dokumentfordeling – funksjonell beskrivelse](https://confluence.adeo.no/spaces/AR/pages/294497858/Dokumentfordeling+-+tiltak+-+Funksjonell+bekrivelse#DokumentfordelingtiltakFunksjonellbekrivelse-Ruting).
+
+Saksbehandler behandlet deretter saken i Arena: opprettet tiltaksgjennomføring,
+fattet vedtak og sendte tilskuddsbrev. Søknaden sendes nå i denne løsningen, men
+saksbehandlingen i prod skjer fortsatt i Arena.
+
+### Ny saksbehandling
+
+Saksbehandlingsfrontenden erstatter Arena for ekspertbistand. Saksbehandler får
+saken tildelt, vurderer vilkårene og foreslår vedtak, og en beslutter godkjenner.
+Vedtaksbrevet lages i løsningen, journalføres i Joark og vises for arbeidsgiver
+på arbeidsgiver.nav.no. Refusjon og utbetaling går via VALP/OEBS i stedet for
+Arena.
+
+Hver sak har en kilde som sier hvor den behandles:
+
+- `ARENA`: søknaden ble sendt før ny saksbehandling ble tatt i bruk. Saken
+  behandles ferdig i Arena og vises i saksbehandlingsfrontenden uten at den kan
+  tildeles.
+- `EKSPERTBISTAND`: saken opprettes og behandles i den nye løsningen.
+
+### Utfasing av Arena
+
+Arena fases ut for ekspertbistand i to steg. Når ny saksbehandling er i drift i
+prod, får nye søknader kilde `EKSPERTBISTAND`, mens saker som allerede ligger i
+Arena, behandles ferdig der. Når den siste Arena-saken er avsluttet, trengs ikke
+Arena lenger for ekspertbistand. Datavarehuset får i dag tiltaksstatistikk fra
+Arena. For saker med kilde `EKSPERTBISTAND` lager denne løsningen statistikken
+selv, se [saksbehandlingsstatistikk.md](/specifications/saksbehandlingsstatistikk.md).
+
+## Test i dev, i mock og lokalt
+
+### Dev
+
+Dev bruker ekte integrasjoner mot dev-miljøene til ID-porten, Entra ID, Altinn og
+registrene.
+
+| App | Adresse |
+|-----|---------|
+| Arbeidsgiver | https://arbeidsgiver.intern.dev.nav.no/ekspertbistand |
+| Saksbehandling | https://ekspertbistand-saksbehandling.intern.dev.nav.no |
+
+Logg inn som arbeidsgiver i ID-porten (TestID) med testbrukeren `08879198748`.
+I saksbehandling logger du inn med en personlig testbruker i trygdeetaten.no,
+som du setter opp i IDA. Oppskriften ligger i et
+[canvas i #team-fager-intern på Slack](https://nav-it.slack.com/docs/T5LNAMWNA/F0C49V6NRE1).
+
+### Mock
+
+Mock-appene kjører i dev-gcp uten ekte innlogging og integrasjoner. Se
+[frontend/README.md](/frontend/README.md#mock-miljøet-i-dev-gcp) for detaljer.
+
+| App | Adresse | Data |
+|-----|---------|------|
+| Arbeidsgiver | https://arbeidsgiver-dev.ansatt.dev.nav.no/ekspertbistand | MSW i nettleseren, uten backend |
+| Arbeidsgiver mot backend-mock | https://ekspertbistand-arbeidsgiver-e2e-mock.ansatt.dev.nav.no/ekspertbistand | `ekspertbistand-backend-mock` |
+| Saksbehandling mot backend-mock | https://ekspertbistand-saksbehandling-mock.ansatt.dev.nav.no | `ekspertbistand-backend-mock` |
+
+Appene mot backend-mocken deler data, og dataene nullstilles når backend-mocken
+starter på nytt. I saksbehandling velger du testbruker i headeren.
+
+Arbeidsgiverappen med MSW (og `pnpm dev` lokalt) svarer spesielt på disse
+fødselsnumrene når du fyller inn deltaker i søknaden:
+
+| Fødselsnummer | Svar | Hva du ser |
+|---------------|------|------------|
+| `08879198748` | 200 | Fungerer OK |
+| `01819010001` | – | «Er du selv deltakeren?» (den innloggede mockbrukeren) |
+| `01819030037` | 422 | «Velg virksomheten som deltaker er ansatt i …» med lenke til Altinn |
+| `01819030118` | 429 | For mange oppslag |
+| `01819030207` | 503 | Oppslaget feilet |
+
+Andre gyldige fødselsnumre gir også 200.
+
+### Lokalt med LocalApplication
+
+`LocalApplication.kt` i `backend/src/test/kotlin/no/nav/ekspertbistand/` kjører
+backend på port 8080 med mockede integrasjoner og testdata fra `LokaleSaker.kt`.
+Frontendene bygges og serveres av BFF-ene uten MSW, så alle kall går til
+`LocalApplication`.
+
+1. Start databasen: `docker-compose -f backend/docker-compose.yml up`
+2. Kjør `LocalApplication.kt`.
+3. Start frontend fra repo-roten:
+
+| Kommando | Hva starter | Adresse |
+|----------|-------------|---------|
+| `pnpm serve:e2e` | Frontend for arbeidsgiver | http://localhost:4000 |
+| `pnpm serve:saksbehandling:e2e` | Frontend for saksbehandling | http://localhost:4001 |
+| `pnpm serve:all:e2e` | Begge | http://localhost:4000 og http://localhost:4001 |
+
+Med `pnpm serve:all:e2e` kan du teste hele flyten: send søknad som arbeidsgiver,
+behandle og fatt vedtak i saksbehandling, og send refusjon og sluttrapport som
+arbeidsgiver. I saksbehandling bytter du bruker under «Bytt bruker (lokalt)» i
+brukermenyen. Se [frontend/README.md](/frontend/README.md#kjøre-frontend-og-backend)
+og [frontend/saksbehandling/README.md](/frontend/saksbehandling/README.md) for
+testbrukere og hot reload.
