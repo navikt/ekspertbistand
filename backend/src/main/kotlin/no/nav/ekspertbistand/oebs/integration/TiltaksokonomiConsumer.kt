@@ -46,8 +46,7 @@ data class StatusOppdatering(
  * Tolkningen ([tolkStatus]) — avgjørelsen av hva som er en feilet/avvist operasjon og når det krever
  * manuell oppfølging — er 🔴 rød sone (økonomikritisk) og implementert her.
  *
- * ⚠️ Consumeren er ikke wiret inn i oppstart ennå: den forutsetter read-ACL fra VALP på
- * status-topicene. Koble den på i `main()` når den eksterne koordineringen er på plass.
+ * Startes av [no.nav.ekspertbistand.oebs.startOebsProsessering], som `main()` bare kaller i dev.
  */
 class TiltaksokonomiConsumer(
     private val database: Database,

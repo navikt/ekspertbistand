@@ -79,8 +79,7 @@ class OebsKlient {
  * prosess.
  *
  * Rød-sone-logikken ([OebsOutboxPoller.startProcessing] og [TiltaksokonomiConsumer.tolkStatus]) er
- * nå implementert. Wiring inn i `main()` avventer likevel ekstern koordinering med Team VALP
- * (read-ACL på status-topicene + at ekspertbistand-kilden og enum-verdiene er lagt inn hos VALP).
+ * implementert. `main()` starter prosessene bare i dev, se [startOebsProsessering].
  */
 class OebsProcessor(
     private val database: Database,
@@ -103,9 +102,8 @@ class OebsProcessor(
 /**
  * Starter bakgrunnsprosessene for OeBS-integrasjonen.
  *
- * ⚠️ IKKE wiret inn i [no.nav.ekspertbistand.Application] sin `main()` ennå — se [OebsProcessor].
- * Rød-sone-logikken er skrevet; koble denne på i `main()` (ved siden av `startKafkaConsumers`) når
- * den eksterne koordineringen med Team VALP er på plass.
+ * [no.nav.ekspertbistand.main] kaller denne bare i dev, der integrasjonen testes manuelt mot VALP og
+ * OeBS (se `specifications/test_oebs_integrasjon_dev.md`). Prod venter til testen er godkjent.
  */
 fun Application.startOebsProsessering(parentContext: CoroutineContext) {
     // dependencies.resolve er suspend, så den må kalles i en coroutine (jf. arena.startKafkaConsumers).
