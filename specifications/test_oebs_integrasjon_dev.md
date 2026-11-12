@@ -57,7 +57,8 @@ Kafka-credentials, og topic-manifestet gir oss skrivetilgang og VALP lesetilgang
 | Polleren startes bare i dev, i kode | Samme mønster som `basedOnEnvSuspending` ellers i `main()`. Når testen er godkjent, er polleren allerede på i dev for neste steg (koble til saksgangen). Prod åpnes i et eget kort. |
 | Testmeldingene legges rett i `oebs_outbox` | Vi tester integrasjonen uten å være avhengige av saksbehandlingsflyten. Polleren, revisjonssporet og status-consumeren kjører som vanlig. |
 | Saksnummer `2026/900001` til `2026/900009` | Under starten på `saksnummer_seq` (1 000 000), så ingen ekte sak kan få nummeret. Arena-tilsagn i OeBS har ikke `E-`-prefiks. Testnumrene kolliderer derfor ikke med ekte bestillinger i VALP og OeBS T1, der testdataene blir liggende. `LIKE 'E-2026/90000_-%'` treffer bare disse ni numrene. |
-| Arrangør `925236594`, kostnadssted `0315`, kontonummer `10002427740`, identer `Z993433` og `Z990079` | Verdiene står i VALP sine eksempelmeldinger fra dev (`OebsBestillingMeldingContractTest`). Vi vet derfor at de går gjennom Brreg/Ereg-oppslaget og konteringen hos VALP. Ingen personopplysninger. |
+| Arrangør `925236594`, kontonummer `10002427740`, identer `Z993433` og `Z990079` | Verdiene står i VALP sine eksempelmeldinger fra dev (`OebsBestillingMeldingContractTest`). Vi vet derfor at de går gjennom Brreg/Ereg-oppslaget hos VALP. Ingen personopplysninger. |
+| Kostnadssted `0391` (T1) og `1291` (T5) | Kostnadsstedet er `sak.behandlende_enhet`. Bare disse enhetene behandler ekspertbistand: 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 1891, 1991, 2103 og 5772. Med to ulike enheter ser vi at OeBS tar imot mer enn én. |
 | Periode `[2026-11-16, 2026-12-16)` | Konteringen hos VALP gjelder fra 2026-11-01. Perioden spenner over to måneder, så fakturaen treffer en bestillingslinje. |
 
 ## Forutsetninger
@@ -151,7 +152,7 @@ FROM (VALUES ('{
     "regnskapskonto": "TILTAK_DRIFTSTILSKUDD",
     "artskonto": "EKSPERTBISTAND",
     "arrangor": { "type": "NORSK", "organisasjonsnummer": "925236594" },
-    "kostnadssted": "0315",
+    "kostnadssted": "0391",
     "avtalenummer": null,
     "belop": 1000,
     "periode": { "start": "2026-11-16", "slutt": "2026-12-16" },
@@ -242,7 +243,7 @@ FROM (VALUES ('{
     "regnskapskonto": "TILTAK_DRIFTSTILSKUDD",
     "artskonto": "EKSPERTBISTAND",
     "arrangor": { "type": "NORSK", "organisasjonsnummer": "925236594" },
-    "kostnadssted": "0315",
+    "kostnadssted": "1291",
     "avtalenummer": null,
     "belop": 500,
     "periode": { "start": "2026-11-16", "slutt": "2026-12-16" },
