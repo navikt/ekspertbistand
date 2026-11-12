@@ -141,7 +141,7 @@ export default function KvitteringPage() {
   }
 
   return (
-    <DecoratedPage blockProps={{ width: "text" }}>
+    <DecoratedPage>
       <VStack gap="space-12">
         <Bleed asChild marginInline={{ lg: "space-128" }}>
           <Box
