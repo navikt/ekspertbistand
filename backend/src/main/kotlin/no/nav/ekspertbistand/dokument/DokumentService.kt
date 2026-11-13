@@ -17,8 +17,10 @@ import no.nav.ekspertbistand.dokument.pdf.DokumentRenderer
 import no.nav.ekspertbistand.dokument.pdf.Format
 import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
 import no.nav.ekspertbistand.infrastruktur.defaultJson
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.Mottaker
+import no.nav.ekspertbistand.saksbehandling.SLADDET_NAVN
 import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
 import no.nav.ekspertbistand.saksbehandling.somBrevdato
 import no.nav.ekspertbistand.saksbehandling.vedtaksbrevMal
@@ -42,8 +44,13 @@ class DokumentService(
 ) {
     private val semaphore = Semaphore(samtidigeKonverteringer)
 
-    suspend fun genererSoknadPdf(soknad: DTO.Soknad): ByteArray {
-        val data = defaultJson.encodeToJsonElement(SoknadRequest.from(soknad)).jsonObject
+    /**
+     * Søknaden som journalføres på arbeidsgivermappa. Har deltakeren [adressebeskyttelse], sladdes navn og
+     * fødselsnummer, fordi tilgangskontrollen på person ikke gjelder i arbeidsgivermappa.
+     */
+    suspend fun genererSoknadPdf(soknad: DTO.Soknad, adressebeskyttelse: Adressebeskyttelse? = null): ByteArray {
+        val request = SoknadRequest.from(soknad).sladdVedAdressebeskyttelse(adressebeskyttelse)
+        val data = defaultJson.encodeToJsonElement(request).jsonObject
         return renderPdf("soknad", data)
     }
 
@@ -202,3 +209,10 @@ private data class SoknadRequest(
         )
     }
 }
+
+private fun SoknadRequest.sladdVedAdressebeskyttelse(adressebeskyttelse: Adressebeskyttelse?): SoknadRequest =
+    when (adressebeskyttelse) {
+        Adressebeskyttelse.FORTROLIG,
+        Adressebeskyttelse.STRENGT_FORTROLIG -> copy(ansatt = SoknadRequest.Ansatt(fnr = SLADDET_NAVN, navn = SLADDET_NAVN))
+        null -> this
+    }

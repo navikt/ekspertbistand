@@ -4,9 +4,11 @@ import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.pdl.NotFound
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.pdl.hoyesteGradering
+import no.nav.ekspertbistand.pdl.tilAdressebeskyttelse
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
 import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.soknad.DTO
 
 /**
@@ -15,6 +17,9 @@ import no.nav.ekspertbistand.soknad.DTO
  * - Strengt fortrolig adresse: geografisk tilknytning fra PDL, ellers [BehandlendeEnhetService.NAV_VIKAFOSSEN].
  *   Kommunenummeret er null, fordi vi ikke lagrer deltakerens bosted.
  * - Ellers (og når personen ikke finnes i PDL): kommunenummer fra virksomhetens forretningsadresse i Ereg.
+ *
+ * Graderingen returneres også i [Ruting.adressebeskyttelse], slik at journalføringen kan sladde deltakeren uten et
+ * nytt oppslag i PDL.
  *
  * Kaster ved feil mot PDL, Ereg eller Norg, og [ManglerDataForBehandlendeEnhetException] når
  * virksomheten mangler kommunenummer.
@@ -37,6 +42,7 @@ class BehandlendeEnhetUtleder(
                         Ruting(
                             enhetNr = behandlendeEnhetService.hentBehandlendeEnhet(gradering, geografiskTilknytning),
                             virksomhetKommunenummer = null,
+                            adressebeskyttelse = gradering.tilAdressebeskyttelse(),
                         )
                     }
 
@@ -58,6 +64,7 @@ class BehandlendeEnhetUtleder(
         return Ruting(
             enhetNr = behandlendeEnhetService.hentBehandlendeEnhet(gradering, kommunenummer),
             virksomhetKommunenummer = kommunenummer,
+            adressebeskyttelse = gradering.tilAdressebeskyttelse(),
         )
     }
 
@@ -83,6 +90,8 @@ data class Ruting(
     val enhetNr: String,
     /** Kommunen til virksomheten som ble brukt mot Norg. Null for strengt fortrolig adresse. */
     val virksomhetKommunenummer: String?,
+    /** Deltakerens adressebeskyttelse fra samme oppslag som rutingen. Null når deltakeren er ugradert eller ikke finnes i PDL. */
+    val adressebeskyttelse: Adressebeskyttelse?,
 )
 
 class ManglerDataForBehandlendeEnhetException(message: String) : Exception(message)
