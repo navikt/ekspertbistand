@@ -1,5 +1,8 @@
 package no.nav.ekspertbistand.vedlegg
 
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.domain.VedleggDomain
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.saksbehandling.hentGodkjentSakIdForUpdate
 import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -11,6 +14,7 @@ import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -41,22 +45,13 @@ class VedleggDb(private val database: Database) {
 
     fun lagreSluttrapport(
         soknadId: UUID,
+        virksomhetsnummer: String,
+        innsendtAv: String,
         filnavn: String,
         innhold: ByteArray,
     ): UUID = transaction(database) {
         val sakId = hentGodkjentSakIdForUpdate(soknadId)
-        val sluttrapportId = SluttrapportTable.insertReturning {
-            it[SluttrapportTable.sakId] = sakId
-            it[status] = "MOTTATT"
-        }.single()[SluttrapportTable.id]
-
-        VedleggTable.insertReturning {
-            it[VedleggTable.type] = VedleggType.SLUTTRAPPORT.name
-            it[VedleggTable.filnavn] = filnavn
-            it[VedleggTable.innhold] = innhold
-            it[VedleggTable.storrelse] = innhold.size
-            it[VedleggTable.sluttrapportId] = sluttrapportId
-        }.single()[VedleggTable.id].value
+        registrerSluttrapport(sakId, soknadId, virksomhetsnummer, innsendtAv, filnavn, innhold)
     }
 
     /**
@@ -138,6 +133,52 @@ class VedleggDb(private val database: Database) {
                 )
             }
     }
+}
+
+@OptIn(kotlin.time.ExperimentalTime::class)
+internal fun JdbcTransaction.registrerSluttrapport(
+    sakId: UUID,
+    soknadId: UUID,
+    virksomhetsnummer: String,
+    innsendtAv: String,
+    filnavn: String,
+    innhold: ByteArray,
+): UUID {
+    val sluttrapport = SluttrapportTable.insertReturning(
+        listOf(SluttrapportTable.id, SluttrapportTable.opprettet)
+    ) {
+        it[SluttrapportTable.sakId] = sakId
+        it[status] = "MOTTATT"
+    }.single()
+    val sluttrapportId = sluttrapport[SluttrapportTable.id]
+    val opprettet = sluttrapport[SluttrapportTable.opprettet]
+
+    val vedleggRad = VedleggTable.insertReturning(listOf(VedleggTable.id)) {
+        it[VedleggTable.type] = VedleggType.SLUTTRAPPORT.name
+        it[VedleggTable.filnavn] = filnavn
+        it[VedleggTable.innhold] = innhold
+        it[VedleggTable.storrelse] = innhold.size
+        it[VedleggTable.sluttrapportId] = sluttrapportId
+    }.single()
+    val vedleggId = vedleggRad[VedleggTable.id].value
+    val vedlegg = VedleggDomain(
+        vedleggId = vedleggId.toString(),
+        filnavn = filnavn,
+        storrelse = innhold.size,
+    )
+
+    publishEventQueue(
+        EventData.SluttrapportMottatt(
+            sluttrapportId = sluttrapportId.toString(),
+            sakId = sakId.toString(),
+            soknadId = soknadId.toString(),
+            virksomhetsnummer = virksomhetsnummer,
+            innsendtAv = innsendtAv,
+            vedlegg = vedlegg,
+            tidspunkt = opprettet,
+        )
+    )
+    return vedleggId
 }
 
 data class SluttrapportMetadata(

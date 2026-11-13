@@ -94,6 +94,8 @@ class SluttrapportStatusApiTest {
             }
             VedleggDb(testDb.config.jdbcDatabase).lagreSluttrapport(
                 soknadId = soknadId,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
                 filnavn = "sluttrapport.pdf",
                 innhold = "HEMMELIG-PDF-INNHOLD".toByteArray(),
             )
@@ -152,6 +154,8 @@ class SluttrapportStatusApiTest {
             }
             VedleggDb(testDb.config.jdbcDatabase).lagreSluttrapport(
                 soknadId = soknadId,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
                 filnavn = "sluttrapport.pdf",
                 innhold = "PDF".toByteArray(),
             )
@@ -210,7 +214,13 @@ class SluttrapportStatusApiTest {
             }
 
             assertFailsWith<SakKildeArenaException> {
-                VedleggDb(testDb.config.jdbcDatabase).lagreSluttrapport(soknadId, "a.pdf", "A".toByteArray())
+                VedleggDb(testDb.config.jdbcDatabase).lagreSluttrapport(
+                    soknadId = soknadId,
+                    virksomhetsnummer = orgnrMedTilgang,
+                    innsendtAv = "01017012345",
+                    filnavn = "a.pdf",
+                    innhold = "A".toByteArray(),
+                )
             }
             with(client.post("/api/soknad/v1/$soknadId/sluttrapport") { bearerAuth("faketoken") }) {
                 assertEquals(HttpStatusCode.Conflict, status)

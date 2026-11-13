@@ -12,6 +12,7 @@ import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
+import no.nav.ekspertbistand.event.domain.VedleggDomain
 import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
 import no.nav.ekspertbistand.event.domain.tilSaksstatus
@@ -398,6 +399,57 @@ sealed interface EventData {
     }
 
     /**
+     * Arbeidsgiver har sendt inn et refusjonskrav.
+     *
+     * Publiseres av [no.nav.ekspertbistand.refusjon.RefusjonDb.registrerRefusjonskrav] i samme
+     * transaksjon som lagringen. [SkrivSaksloggForRefusjonskrav] publiserer [SakOppdatert].
+     * [innsendtAv] er fødselsnummer og skal aldri logges. Filinnholdet ligger i vedlegg-tabellen.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("refusjonskravMottatt")
+    data class RefusjonskravMottatt(
+        val refusjonskravId: String,
+        val sakId: String,
+        val soknadId: String,
+        val virksomhetsnummer: String,
+        val innsendtAv: String,
+        val belopOre: Long,
+        val innvilgetBelopKroner: Int,
+        val vedlegg: List<VedleggDomain>,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver har sendt inn en sluttrapport. En sak kan få flere sluttrapporter, og hver
+     * innsending gir én event.
+     *
+     * Publiseres av [no.nav.ekspertbistand.vedlegg.VedleggDb.registrerSluttrapport] i samme
+     * transaksjon som lagringen. [SkrivSaksloggForSluttrapport] publiserer [SakOppdatert].
+     * [innsendtAv] er fødselsnummer og skal aldri logges. Filinnholdet ligger i vedlegg-tabellen.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("sluttrapportMottatt")
+    data class SluttrapportMottatt(
+        val sluttrapportId: String,
+        val sakId: String,
+        val soknadId: String,
+        val virksomhetsnummer: String,
+        val innsendtAv: String,
+        val vedlegg: VedleggDomain,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
      * Saksbehandler har tildelt seg en sak, enten en ledig sak eller ved å overta den fra en kollega.
      *
      * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/tildeling`. [saksbehandlerNavn]
@@ -767,6 +819,8 @@ suspend fun Application.configureEventHandlers() {
             // SoknadKopiDeltakerDistribuert lagrer bestillingsId fra dokdist i eventloggen. Ingen konsumenter per nå.
             EventHandledResult.Success()
         }
+        register(dependencies.create(SkrivSaksloggForRefusjonskrav::class))
+        register(dependencies.create(SkrivSaksloggForSluttrapport::class))
     }
 
     // Start event processing loop

@@ -164,11 +164,19 @@ class SakDokumentApiTest {
             val vedleggDb = VedleggDb(db.config.jdbcDatabase)
             val refusjonDb = RefusjonDb(db.config.jdbcDatabase)
             val vedleggPerSak = listOf(annenEnhetSak, utenEnhetSak).associate { sak ->
-                vedleggDb.lagreSluttrapport(sak.soknadId, "sluttrapport.pdf", sluttrapportPdf)
+                vedleggDb.lagreSluttrapport(
+                    soknadId = sak.soknadId,
+                    virksomhetsnummer = "987654321",
+                    innsendtAv = fnr,
+                    filnavn = "sluttrapport.pdf",
+                    innhold = sluttrapportPdf,
+                )
                 refusjonDb.lagreRefusjonskrav(
-                    sak.soknadId,
-                    100_00,
-                    listOf(RefusjonsfilInput("kvittering.pdf", refusjonPdf)),
+                    soknadId = sak.soknadId,
+                    virksomhetsnummer = "987654321",
+                    innsendtAv = fnr,
+                    belopOre = 100_00,
+                    filer = listOf(RefusjonsfilInput("kvittering.pdf", refusjonPdf)),
                 )
                 sak.sakId to refusjonDb.finnRefusjonskravStatusForSak(sak.sakId)!!.vedlegg.single().id
             }
@@ -195,9 +203,21 @@ class SakDokumentApiTest {
             val sak = godkjentSak(db)
             val vedleggDb = VedleggDb(db.config.jdbcDatabase)
 
-            vedleggDb.lagreSluttrapport(sak.soknadId, "eldre-sluttrapport.pdf", sluttrapportPdf)
+            vedleggDb.lagreSluttrapport(
+                soknadId = sak.soknadId,
+                virksomhetsnummer = "987654321",
+                innsendtAv = fnr,
+                filnavn = "eldre-sluttrapport.pdf",
+                innhold = sluttrapportPdf,
+            )
             Thread.sleep(20)
-            vedleggDb.lagreSluttrapport(sak.soknadId, "nyeste-sluttrapport.pdf", refusjonPdf)
+            vedleggDb.lagreSluttrapport(
+                soknadId = sak.soknadId,
+                virksomhetsnummer = "987654321",
+                innsendtAv = fnr,
+                filnavn = "nyeste-sluttrapport.pdf",
+                innhold = refusjonPdf,
+            )
 
             val oppsett = oppsett(db)
             val sluttrapportMetadata =
@@ -226,6 +246,8 @@ class SakDokumentApiTest {
             val refusjonDb = RefusjonDb(db.config.jdbcDatabase)
             refusjonDb.lagreRefusjonskrav(
                 soknadId = annenSak.soknadId,
+                virksomhetsnummer = "987654321",
+                innsendtAv = fnr,
                 belopOre = 123_00,
                 filer = listOf(RefusjonsfilInput("annen-sak.pdf", refusjonPdf)),
             )
@@ -485,12 +507,16 @@ class SakDokumentApiTest {
     ) {
         val sak = godkjentSak(db)
         VedleggDb(db.config.jdbcDatabase).lagreSluttrapport(
-            sak.soknadId,
-            "sluttrapport.pdf",
-            sluttrapportPdf,
+            soknadId = sak.soknadId,
+            virksomhetsnummer = "987654321",
+            innsendtAv = fnr,
+            filnavn = "sluttrapport.pdf",
+            innhold = sluttrapportPdf,
         )
         val refusjonskravId = RefusjonDb(db.config.jdbcDatabase).lagreRefusjonskrav(
             soknadId = sak.soknadId,
+            virksomhetsnummer = "987654321",
+            innsendtAv = fnr,
             belopOre = 543_00,
             filer = listOf(RefusjonsfilInput("kvittering.pdf", refusjonPdf)),
         )

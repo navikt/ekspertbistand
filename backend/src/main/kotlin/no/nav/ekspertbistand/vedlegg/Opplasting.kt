@@ -16,6 +16,26 @@ internal sealed interface Opplasting {
     data object ForMangeFiler : Opplasting
 }
 
+internal const val MAKS_FILNAVN_LENGDE = 255
+private const val STANDARD_FILNAVN = "vedlegg.pdf"
+
+/**
+ * Filnavnet kommer fra klienten og havner i `Content-Disposition` og i hendelser som aldri kan endres.
+ * Beholder bare siste del av en sti, fjerner kontrolltegn (også CR/LF) og kutter til [MAKS_FILNAVN_LENGDE]
+ * tegn uten å dele et surrogatpar. Tomt resultat gir [STANDARD_FILNAVN].
+ */
+internal fun rensFilnavn(navn: String?): String {
+    val utenSti = navn.orEmpty().substringAfterLast('/').substringAfterLast('\\')
+    val renset = utenSti.filterNot { it.isISOControl() }.trim()
+    val kuttet = if (renset.length <= MAKS_FILNAVN_LENGDE) {
+        renset
+    } else {
+        val slutt = if (renset[MAKS_FILNAVN_LENGDE - 1].isHighSurrogate()) MAKS_FILNAVN_LENGDE - 1 else MAKS_FILNAVN_LENGDE
+        renset.substring(0, slutt).trimEnd()
+    }
+    return kuttet.takeUnless { it.isEmpty() || it == "." || it == ".." } ?: STANDARD_FILNAVN
+}
+
 /**
  * Leser en multipart-opplasting uten å holde mer enn [maksAntallFiler] filer på [maksFilStorrelse] byte i minnet.
  * Avbryter så snart en fil er for stor eller det kommer for mange filer, i stedet for å lese hele forespørselen først.
@@ -39,7 +59,7 @@ internal suspend fun ApplicationCall.lesOpplasting(
             when (part) {
                 is PartData.FileItem -> {
                     if (filer.size >= maksAntallFiler) return Opplasting.ForMangeFiler
-                    val filnavn = part.originalFileName?.ifBlank { null } ?: "vedlegg.pdf"
+                    val filnavn = rensFilnavn(part.originalFileName)
                     val innhold = part.provider().readBuffer(maksFilStorrelse + 1L).readByteArray()
                     if (innhold.size > maksFilStorrelse) return Opplasting.ForStorFil(filnavn)
                     filer += OpplastetFil(filnavn, innhold)
