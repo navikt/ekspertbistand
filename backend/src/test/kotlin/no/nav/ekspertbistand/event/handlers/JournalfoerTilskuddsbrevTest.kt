@@ -22,6 +22,9 @@ import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.mocks.mockDokArkiv
+import no.nav.ekspertbistand.pdl.GraderingOppslag
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
+import no.nav.ekspertbistand.saksbehandling.SLADDET_NAVN
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -29,7 +32,9 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 
 class JournalfoerTilskuddsbrevTest {
@@ -43,7 +48,8 @@ class JournalfoerTilskuddsbrevTest {
                 journalpostferdigstilt = true,
             )
         }
-        setupApplication(database)
+        var pdfHtml: String? = null
+        setupApplication(database, onPdfHtml = { pdfHtml = it })
         startApplication()
 
         val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
@@ -68,6 +74,107 @@ class JournalfoerTilskuddsbrevTest {
             assertEquals(1234, queuedEvent.journaldpostId)
             assertEquals(sampleSoknad.id, queuedEvent.soknad.id)
         }
+        assertContains(requireNotNull(pdfHtml), "Dina Deltakersen")
+        assertContains(requireNotNull(pdfHtml), "01010154321")
+    }
+
+    @Test
+    fun `deltaker med adressebeskyttelse sladdes i tilskuddsbrevet`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        mockDokArkiv {
+            OpprettJournalpostResponse(
+                dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                journalpostId = "1234",
+                journalpostferdigstilt = true,
+            )
+        }
+        var oppslagFnr: String? = null
+        var pdfHtml: String? = null
+        setupApplication(
+            database,
+            graderingOppslag = GraderingOppslag { fnr -> oppslagFnr = fnr; Adressebeskyttelse.FORTROLIG },
+            onPdfHtml = { pdfHtml = it },
+        )
+        startApplication()
+
+        val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
+        val result = handler.handle(
+            Event(
+                id = 3L,
+                data = EventData.TilskuddsbrevMottatt(soknad = sampleSoknad, tilsagnbrevId = 1, tilsagnData = sampleTilsagnData)
+            )
+        )
+        assertIs<EventHandledResult.Success>(result)
+
+        assertEquals("01010154321", oppslagFnr)
+        val html = requireNotNull(pdfHtml)
+        assertFalse(html.contains("Dina"), "fornavn skal sladdes")
+        assertFalse(html.contains("Deltakersen"), "etternavn skal sladdes")
+        assertFalse(html.contains("01010154321"), "fnr skal sladdes")
+        assertContains(html, "($SLADDET_NAVN)")
+        transaction(database) {
+            val queuedEvent = QueuedEvents.selectAll().single()[QueuedEvents.eventData]
+            assertIs<EventData.TilskuddsbrevJournalfoert>(queuedEvent)
+            assertEquals(sampleTilsagnData, queuedEvent.tilsagnData, "eventen skal ha usladdet tilsagnsdata")
+        }
+    }
+
+    @Test
+    fun `feil ved oppslag av adressebeskyttelse gir transient feil uten journalforing`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        var dokArkivKalt = false
+        mockDokArkiv {
+            dokArkivKalt = true
+            OpprettJournalpostResponse(
+                dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                journalpostId = "1234",
+                journalpostferdigstilt = true,
+            )
+        }
+        setupApplication(database, graderingOppslag = GraderingOppslag { error("PDL er nede") })
+        startApplication()
+
+        val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
+        val result = handler.handle(
+            Event(
+                id = 4L,
+                data = EventData.TilskuddsbrevMottatt(soknad = sampleSoknad, tilsagnbrevId = 1, tilsagnData = sampleTilsagnData)
+            )
+        )
+
+        assertIs<EventHandledResult.TransientError>(result)
+        assertFalse(dokArkivKalt, "skal ikke journalføre uten kjent adressebeskyttelse")
+        transaction(database) {
+            assertEquals(0, QueuedEvents.selectAll().count())
+        }
+    }
+
+    @Test
+    fun `tilskuddsbrev uten deltaker slaar ikke opp adressebeskyttelse`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        mockDokArkiv {
+            OpprettJournalpostResponse(
+                dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                journalpostId = "1234",
+                journalpostferdigstilt = true,
+            )
+        }
+        setupApplication(database, graderingOppslag = GraderingOppslag { error("skal ikke kalles") })
+        startApplication()
+
+        val handler = application.dependencies.resolve<JournalfoerTilskuddsbrev>()
+        val result = handler.handle(
+            Event(
+                id = 5L,
+                data = EventData.TilskuddsbrevMottatt(
+                    soknad = sampleSoknad,
+                    tilsagnbrevId = 1,
+                    tilsagnData = sampleTilsagnData.copy(deltaker = null),
+                )
+            )
+        )
+
+        assertIs<EventHandledResult.Success>(result)
     }
 
 
@@ -143,9 +250,9 @@ private val sampleTilsagnData = TilsagnData(
         )
     ),
     deltaker = TilsagnData.Deltaker(
-        fodselsnr = "42",
-        fornavn = "navn",
-        etternavn = "navnesen",
+        fodselsnr = "01010154321",
+        fornavn = "Dina",
+        etternavn = "Deltakersen",
         landKode = "NO",
         postAdresse = "et sted",
         postNummer = "1234",
@@ -207,7 +314,11 @@ private val sampleSoknad = DTO.Soknad(
     status = SoknadStatus.godkjent,
 )
 
-private fun ApplicationTestBuilder.setupApplication(database: Database) {
+private fun ApplicationTestBuilder.setupApplication(
+    database: Database,
+    graderingOppslag: GraderingOppslag = GraderingOppslag { null },
+    onPdfHtml: (String) -> Unit = {},
+) {
     application {
         dependencies {
             provide { database }
@@ -215,7 +326,8 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide<AzureAdTokenProvider> {
                 successAzureAdTokenProvider
             }
-            provide { DokumentService(StubPdfKonverterer()) }
+            provide { DokumentService(StubPdfKonverterer(onConvert = onPdfHtml)) }
+            provide<GraderingOppslag> { graderingOppslag }
             provide(DokArkivClient::class)
             provide(JournalfoerTilskuddsbrev::class)
             provide(FagsakIdService::class)

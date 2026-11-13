@@ -12,6 +12,7 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.pdl.GraderingOppslag
 import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -27,12 +28,15 @@ private const val tittel = "Tilskuddsbrev ekspertbistand"
  *
  * Denne handleren tar imot eventen, genererer et tilskuddsbrev i PDF-format og
  * journalfører dette i DokArkiv.
+ * Har deltakeren adressebeskyttelse, sladdes navn og fødselsnummer i PDF-en, fordi den journalføres på
+ * arbeidsgivermappa. Se `specifications/sladd_deltaker_arbeidsgivermappa.md`.
  * Etter journalføring publiseres en ny event [no.nav.ekspertbistand.event.EventData.TilskuddsbrevJournalfoert]
  * som inneholder informasjon om journalpostId og dokumentId.
  */
 class JournalfoerTilskuddsbrev(
     private val dokumentService: DokumentService,
     private val dokArkivClient: DokArkivClient,
+    private val graderingOppslag: GraderingOppslag,
     private val fagsakIdService: FagsakIdService,
     private val database: Database,
 ) : EventHandler<EventData.TilskuddsbrevMottatt> {
@@ -52,8 +56,14 @@ class JournalfoerTilskuddsbrev(
             return unrecoverableError("Søknad mangler id")
         }
 
+        val adressebeskyttelse = try {
+            event.data.tilsagnData.deltaker?.let { graderingOppslag.hentAdressebeskyttelse(it.fodselsnr) }
+        } catch (e: Exception) {
+            return transientError("Klarte ikke hente adressebeskyttelse for deltaker", e)
+        }
+
         val tilsagnPdf = try {
-            dokumentService.genererTilskuddsbrevPdf(event.data.tilsagnData)
+            dokumentService.genererTilskuddsbrevPdf(event.data.tilsagnData, adressebeskyttelse)
         } catch (e: Exception) {
             return transientError("Klarte ikke generere søknad-PDF", e)
         }

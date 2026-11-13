@@ -97,6 +97,53 @@ class DokumentServiceTest {
     }
 
     @Test
+    fun `tilskuddsbrev-pdf viser deltakers navn og fnr uten adressebeskyttelse`() = runBlocking {
+        var html: String? = null
+        val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }))
+
+        service.genererTilskuddsbrevPdf(sampleTilskuddsbrevMedDeltaker(), adressebeskyttelse = null)
+
+        val rendered = requireNotNull(html)
+        assertTrue(rendered.contains("Dina Deltakersen"))
+        assertTrue(rendered.contains("01010154321"))
+        assertFalse(rendered.contains(SLADDET_NAVN))
+    }
+
+    @Test
+    fun `tilskuddsbrev-pdf sladder deltakers navn og fnr ved adressebeskyttelse`() = runBlocking {
+        Adressebeskyttelse.entries.forEach { adressebeskyttelse ->
+            var html: String? = null
+            val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }))
+
+            service.genererTilskuddsbrevPdf(sampleTilskuddsbrevMedDeltaker(), adressebeskyttelse)
+
+            val rendered = requireNotNull(html)
+            assertFalse(rendered.contains("Dina"), "fornavn skal sladdes ved $adressebeskyttelse")
+            assertFalse(rendered.contains("Deltakersen"), "etternavn skal sladdes ved $adressebeskyttelse")
+            assertFalse(rendered.contains("01010154321"), "fnr skal sladdes ved $adressebeskyttelse")
+            assertTrue(rendered.contains(SLADDET_NAVN), "sladdet verdi skal vises ved $adressebeskyttelse")
+            assertTrue(
+                rendered.contains("Dere har fått innvilget tilskudd til ekspertbistand"),
+                "resten av brevet skal vises ved $adressebeskyttelse"
+            )
+        }
+    }
+
+    @Test
+    fun `tilskuddsbrev-pdf uten deltaker fungerer med adressebeskyttelse`() = runBlocking {
+        var html: String? = null
+        val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }))
+
+        service.genererTilskuddsbrevPdf(sampleTilskuddsbrev().copy(deltaker = null), Adressebeskyttelse.FORTROLIG)
+
+        assertFalse(requireNotNull(html).contains(SLADDET_NAVN))
+    }
+
+    private fun sampleTilskuddsbrevMedDeltaker() = sampleTilskuddsbrev().let {
+        it.copy(deltaker = it.deltaker!!.copy(fodselsnr = "01010154321", fornavn = "Dina", etternavn = "Deltakersen"))
+    }
+
+    @Test
     fun `lager arenaNotat-pdf med korrekt mal og payload`() = runBlocking {
         var html: String? = null
         val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }))

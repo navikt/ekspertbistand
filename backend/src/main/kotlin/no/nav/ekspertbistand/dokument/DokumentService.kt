@@ -73,8 +73,12 @@ class DokumentService(
         return renderPdf("soknadKopiDeltaker", data)
     }
 
-    suspend fun genererTilskuddsbrevPdf(tilsagnData: TilsagnData): ByteArray {
-        val data = defaultJson.encodeToJsonElement(tilsagnData).jsonObject
+    /**
+     * Tilskuddsbrevet som journalføres på arbeidsgivermappa. Har deltakeren [adressebeskyttelse], sladdes navn og
+     * fødselsnummer, fordi tilgangskontrollen på person ikke gjelder i arbeidsgivermappa.
+     */
+    suspend fun genererTilskuddsbrevPdf(tilsagnData: TilsagnData, adressebeskyttelse: Adressebeskyttelse? = null): ByteArray {
+        val data = defaultJson.encodeToJsonElement(tilsagnData.sladdVedAdressebeskyttelse(adressebeskyttelse)).jsonObject
         return renderPdf("tilskuddsbrev", data)
     }
 
@@ -214,5 +218,14 @@ private fun SoknadRequest.sladdVedAdressebeskyttelse(adressebeskyttelse: Adresse
     when (adressebeskyttelse) {
         Adressebeskyttelse.FORTROLIG,
         Adressebeskyttelse.STRENGT_FORTROLIG -> copy(ansatt = SoknadRequest.Ansatt(fnr = SLADDET_NAVN, navn = SLADDET_NAVN))
+        null -> this
+    }
+
+private fun TilsagnData.sladdVedAdressebeskyttelse(adressebeskyttelse: Adressebeskyttelse?): TilsagnData =
+    when (adressebeskyttelse) {
+        Adressebeskyttelse.FORTROLIG,
+        Adressebeskyttelse.STRENGT_FORTROLIG -> copy(
+            deltaker = deltaker?.copy(fodselsnr = SLADDET_NAVN, fornavn = SLADDET_NAVN, etternavn = ""),
+        )
         null -> this
     }
