@@ -28,6 +28,9 @@ private const val tittel = "Søknad om ekspertbistand"
  * Før journalføring utledes behandlende enhet med [BehandlendeEnhetUtleder], basert på søkers
  * adressebeskyttelse og geografiske tilknytning.
  *
+ * Har deltakeren adressebeskyttelse, sladdes navn og fødselsnummer i PDF-en, fordi den journalføres på
+ * arbeidsgivermappa. Graderingen kommer fra rutingen. Se `specifications/sladd_deltaker_arbeidsgivermappa.md`.
+ *
  * Etter journalføring publiseres [EventData.InnsendtSoknadJournalfoert] med journalpostId, dokumentId og
  * behandlende enhet og kommunen saken ble rutet på.
  */
@@ -59,7 +62,7 @@ class JournalfoerInnsendtSoknad(
             return transientError("Feil ved henting av behandlende enhet", e)
         }
 
-        val soknadPdf = runCatching { dokumentService.genererSoknadPdf(soknad) }
+        val soknadPdf = runCatching { dokumentService.genererSoknadPdf(soknad, ruting.adressebeskyttelse) }
             .getOrElse { e ->
                 return transientError("Klarte ikke generere søknad-PDF", e)
             }
