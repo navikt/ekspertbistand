@@ -338,7 +338,8 @@ I loggene til `ekspertbistand-backend` (dev):
   igjen hvert 30. sekund (se *Feilsituasjoner*).
 - `Ukjent/ugyldig status-melding` i teamLogs betyr at statuskontrakten ikke stemmer.
 
-Kvitteringen fra OeBS kan ta tid. Avtal med OeBS hvor lenge vi venter før vi spør.
+OeBS kvitterer i faste intervaller på 10 minutter (12:15:00, 12:25:00 og 12:35:00
+i runde 1). Regn med opptil 10 minutter fra `SENDT` til `AKTIV` eller `ANNULLERT`.
 
 ### 6. Rydd opp
 
@@ -357,6 +358,30 @@ COMMIT;
 Testdataene blir liggende hos VALP og i OeBS T1. Gi VALP og OeBS beskjed om at
 runden er ferdig og hvilke numre vi brukte. Til slutt trekker du tilbake
 skrivetilgangen (se *Tilgang til databasen*).
+
+## Resultat
+
+### Runde 1 (2026-11-13): godkjent
+
+Alle fire meldingene ble publisert på første forsøk (`attempts = 1`), på
+partisjon 0 med offset 0–3. VALP svarte på alle, og `fagsystem`-filteret og
+statuskontrakten virket.
+
+| Test | Sendt (UTC) | Statuser tilbake | Siste status |
+|------|-------------|------------------|--------------|
+| 1A: bestilling `E-2026/900001-1` (0391) | 12:04:18 | `SENDT` 12:04:20, `AKTIV` 12:15:00 | `AKTIV` |
+| 1B: samme bestilling på nytt | 12:17:16 | `AKTIV` med samme `statusSistOppdatert` (12:15:00) | `AKTIV` |
+| 1C: bestilling `E-2026/900002-1` (1291) | 12:19:08 | `SENDT` 12:19:10, `AKTIV` 12:25:00 | `AKTIV` |
+| 1C: annullering `E-2026/900002-1` | 12:25:54 | `ANNULLERING_SENDT` 12:25:54, `ANNULLERT` 12:35:00 | `ANNULLERT` |
+
+Funn:
+
+- VALP svarer med `SENDT` innen 2–3 sekunder. OeBS kvitterer i neste
+  10-minuttersintervall.
+- 1B bekrefter idempotensen. VALP publiserer gjeldende status på nytt uten å
+  endre den, og vi lagrer svaret som en ny rad i `oebs_mottatt_status`.
+- `trenger_manuell_oppfolging` er `false` for begge bestillingene. 1D (feilet
+  bestilling) ble ikke kjørt.
 
 ## Feilsituasjoner
 
@@ -415,14 +440,14 @@ trekkes tilbake etter testen.
 
 ## Ferdig når
 
-- [ ] Polleren og status-consumeren kjører i dev og ikke i prod
+- [x] Polleren og status-consumeren kjører i dev og ikke i prod
 
 Runde 1:
 
-- [ ] 1A: bestillingen er `PUBLISHED` og har status `AKTIV`
-- [ ] 1B: ny sending av samme bestilling gir ny `AKTIV`-status og ingen endring hos VALP
-- [ ] 1C: den andre bestillingen har status `ANNULLERT`
-- [ ] Hver sendt melding har en rad i `oebs_sendt_melding`, og hvert svar har en rad i `oebs_mottatt_status`
+- [x] 1A: bestillingen er `PUBLISHED` og har status `AKTIV`
+- [x] 1B: ny sending av samme bestilling gir ny `AKTIV`-status og ingen endring hos VALP
+- [x] 1C: den andre bestillingen har status `ANNULLERT`
+- [x] Hver sendt melding har en rad i `oebs_sendt_melding`, og hvert svar har en rad i `oebs_mottatt_status`
 - [ ] Testdataene er slettet i dev, og skrivetilgangen er trukket tilbake
 - [ ] VALP og OeBS har fått beskjed om at runden er ferdig
 
