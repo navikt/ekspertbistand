@@ -230,7 +230,8 @@ implementert.
 ## Gjenstående eksterne avhengigheter
 
 - **OeBS** må gjøre funksjonelt og teknisk oppsett før vi kan teste bestilling i dev, og sier fra
-  når de er klare. Fagsystembokstaven `E` og nummerserien er godtatt (OEBS-2283, 2026-10-28).
+  når de er klare. Faktura og oppgjør testes i en egen runde, når OeBS sier fra om at de er klare
+  for det. Fagsystembokstaven `E` og nummerserien er godtatt (OEBS-2283, 2026-10-28).
 - **VALP** må skru på consumeren for `fager.ekspertbistand.bestillinger-v1` i dev før meldinger
   behandles. Read-ACL for oss på status-topicene i dev er på plass (navikt/mulighetsrommet#8572).
   Enum-verdiene vi sender finnes allerede hos VALP (artskonto `EKSPERTBISTAND`,
