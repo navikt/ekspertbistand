@@ -1,6 +1,4 @@
-import { MenuElipsisHorizontalCircleIcon } from "@navikt/aksel-icons";
 import {
-  ActionMenu,
   Alert,
   BodyShort,
   Box,
@@ -307,7 +305,6 @@ export default function OversiktPage() {
                         <Table.ColumnHeader>Kommune</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Tiltaksperiode</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Mottatt</Table.ColumnHeader>
-                        <Table.ColumnHeader>Handlinger</Table.ColumnHeader>
                       </Table.Row>
                     </Table.Header>
                     <Table.Body>
@@ -355,22 +352,6 @@ export default function OversiktPage() {
                             {tiltaksperiode(sak)}
                           </Table.DataCell>
                           <Table.DataCell>{formatDate(sak.mottatt)}</Table.DataCell>
-                          <Table.DataCell>
-                            <ActionMenu>
-                              <ActionMenu.Trigger>
-                                <Button
-                                  variant="tertiary-neutral"
-                                  size="xsmall"
-                                  icon={<MenuElipsisHorizontalCircleIcon aria-hidden />}
-                                  aria-label="Handlinger"
-                                />
-                              </ActionMenu.Trigger>
-                              <ActionMenu.Content>
-                                <ActionMenu.Item>Åpne sak</ActionMenu.Item>
-                                <ActionMenu.Item>Tildel saksbehandler</ActionMenu.Item>
-                              </ActionMenu.Content>
-                            </ActionMenu>
-                          </Table.DataCell>
                         </Table.Row>
                       ))}
                     </Table.Body>

@@ -26,12 +26,7 @@ export function SoknadSendtInnKort({ soknad, saksnummer, innsendtTekst }: Soknad
         </HStack>
       </ExpansionCard.Header>
       <ExpansionCard.Content>
-        <KvitteringSummary
-          data={soknad}
-          saksnummer={saksnummer}
-          innsendtTekst={innsendtTekst}
-          headingLevel="3"
-        />
+        <KvitteringSummary data={soknad} saksnummer={saksnummer} innsendtTekst={innsendtTekst} />
       </ExpansionCard.Content>
     </ExpansionCard>
   );

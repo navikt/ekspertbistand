@@ -78,7 +78,7 @@ export default function VedtakPage() {
   const error = vedtakError ?? soknadError;
 
   return (
-    <DecoratedPage blockProps={{ width: "text" }}>
+    <DecoratedPage>
       <VStack gap="space-12">
         <Bleed asChild marginInline={{ lg: "space-128" }}>
           <Box

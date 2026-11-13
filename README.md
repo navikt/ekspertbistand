@@ -335,6 +335,22 @@ fødselsnumrene når du fyller inn deltaker i søknaden:
 
 Andre gyldige fødselsnumre gir også 200.
 
+#### Deltaker mot backend-mocken og LocalApplication
+
+Appene mot `ekspertbistand-backend-mock` og lokal kjøring med `LocalApplication`
+bruker samme mockede Aa-reg og PDL. Fødselsnummeret må ha gyldige kontrollsifre.
+Bruk syntetiske numre, som `08879198748`, så du ikke taster inn en ekte person.
+
+| Fødselsnummer | Svar | Hva du ser |
+|---------------|------|------------|
+| `08879198748` | 200 | Fungerer OK. Deltaker heter Mona Moonlight og er ansatt i virksomheten du valgte |
+| `10899000000` | 422 | «Velg virksomheten som deltaker er ansatt i …» med lenke til Altinn |
+
+Mocken gir arbeidsforhold for alle gyldige fødselsnumre, unntatt de som slutter på
+`00000`. Slår du opp mer enn fem ulike fødselsnumre på fem minutter, får du 429
+(for mange oppslag). Svarene «Er du selv deltakeren?» og 503 kan bare testes i
+MSW-mocken.
+
 ### Lokalt med LocalApplication
 
 `LocalApplication.kt` i `backend/src/test/kotlin/no/nav/ekspertbistand/` kjører
@@ -355,6 +371,8 @@ Frontendene bygges og serveres av BFF-ene uten MSW, så alle kall går til
 Med `pnpm serve:all:e2e` kan du teste hele flyten: send søknad som arbeidsgiver,
 behandle og fatt vedtak i saksbehandling, og send refusjon og sluttrapport som
 arbeidsgiver. I saksbehandling bytter du bruker under «Bytt bruker (lokalt)» i
-brukermenyen. Se [frontend/README.md](/frontend/README.md#kjøre-frontend-og-backend)
+brukermenyen. Fødselsnumre for deltaker står i
+[Deltaker mot backend-mocken og LocalApplication](#deltaker-mot-backend-mocken-og-localapplication).
+Se [frontend/README.md](/frontend/README.md#kjøre-frontend-og-backend)
 og [frontend/saksbehandling/README.md](/frontend/saksbehandling/README.md) for
 testbrukere og hot reload.
