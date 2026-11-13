@@ -146,7 +146,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 
 | Fil | Ansvar | Sone |
 |-----|--------|------|
-| [`Oebs.kt`](Oebs.kt) | `OebsKlient` (skrive-API), `OebsProcessor` + `Application.startOebsProsessering()` (oppstart) | 🟢 (ikke wiret inn ennå) |
+| [`Oebs.kt`](Oebs.kt) | `OebsKlient` (skrive-API), `OebsProcessor` + `Application.startOebsProsessering()` (oppstart) | 🟢 (startes bare i dev) |
 
 **Kafka-integrasjon + wire-kontrakter — `oebs/integration/`:**
 
@@ -222,14 +222,17 @@ skrevet og aktive; øvrige testskjeletter i
 [`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs) er `@Ignore` til de er
 implementert.
 
-> `Application.startOebsProsessering` (i `Oebs.kt`) er **ikke** koblet inn i `Application.main()` ennå.
-> Rød-sone-logikken er nå skrevet, men wiring avventer ekstern koordinering med Team VALP (read-ACL på
-> status-topicene + at ekspertbistand-kilden og enum-verdiene er lagt inn hos VALP).
+> `Application.main()` starter `startOebsProsessering` (i `Oebs.kt`) bare i dev. Der testes
+> integrasjonen manuelt med rader lagt rett i `oebs_outbox`, se
+> [`specifications/test_oebs_integrasjon_dev.md`](../../../../../../../../specifications/test_oebs_integrasjon_dev.md).
+> I prod blir bestillingene liggende som `PENDING` til testen er godkjent.
 
 ## Gjenstående eksterne avhengigheter
 
 - **OeBS** må gjøre funksjonelt og teknisk oppsett før vi kan teste bestilling i dev, og sier fra
-  når de er klare. Fagsystembokstaven `E` og nummerserien er godtatt (OEBS-2283, 2026-10-28).
-- **VALP** må abonnere på `fager.ekspertbistand.bestillinger-v1` før meldinger godtas.
+  når de er klare. Faktura og oppgjør testes i en egen runde, når OeBS sier fra om at de er klare
+  for det. Fagsystembokstaven `E` og nummerserien er godtatt (OEBS-2283, 2026-10-28).
+- **VALP** må skru på consumeren for `fager.ekspertbistand.bestillinger-v1` i dev før meldinger
+  behandles. Read-ACL for oss på status-topicene i dev er på plass (navikt/mulighetsrommet#8572).
   Enum-verdiene vi sender finnes allerede hos VALP (artskonto `EKSPERTBISTAND`,
   `OkonomiFagsystem.EKSPERTBISTAND`, regnskapskonto `TILTAK_DRIFTSTILSKUDD`).
