@@ -40,7 +40,9 @@ Planen gir oversikt. Detaljer i hver oppgave tar vi i teamet, kort for kort.
 
 ## Statusoversikt
 
-🟢 ferdig · 🟡 pågår eller delvis ferdig · 🔴 ikke startet.
+🟢 ferdig · 🟡 pågår eller delvis ferdig · 🔴 ikke startet. Fargen viser om
+oppgaven er ferdig bygget, ikke om den er i prod. Det som er i prod, står i
+teksten. Resten går i prod samlet ved go-live (🚦).
 «Mangler kort» betyr at oppgaven ikke finnes på Trello, se
 [Mangler på Trello](#mangler-på-trello). Ferdige kort som er arkivert, lenkes
 via specen som viser til dem. «Milepæl» viser når oppgaven skal være ferdig,
@@ -77,12 +79,12 @@ sprekker med rundt 80 %, men ikke for mye ny scope.
 | 🟢 | – | – | Varsle arbeidsgiver ved mottatt søknad | [475](https://trello.com/c/GC5c2wJi) |
 | 🟢 | – | – | Kall mot aareg-services i stedet for arbeidsgiver-innsyn-aareg | [478](https://trello.com/c/nhonb0wT) |
 | 🟢 | – | – | 🧹 Makssats per startdato | [651](https://trello.com/c/3zvmjKiu) |
-| 🟢 | – | – | 🧹 Fjerne utgiftsbeskrivelse (#234) | [620](https://trello.com/c/NoJhv4wi) |
-| 🟢 | – | – | 🛤️ Ny rute bak feature toggle (`EKSPERTBISTAND_V2`) for søknaden og funksjonene i ny løsning (#238). Dagens sider beholdes uendret. | [682](https://trello.com/c/cEJ38zjf) |
-| 🟢 | – | – | 🛤️ Kvitteringen i ekspansjonskort på ny rute, før og etter vedtak (#250, #253, #257) | [680](https://trello.com/c/RZqSZ8p3), [707](https://trello.com/c/Fo4qNluC) |
-| 🟢 | – | – | 🛤️ Tilskuddsbrevet (vedtaksbrevet i nye saker) i ekspansjonskort på ny rute, med tittel per utfall (#250) | [681](https://trello.com/c/H7jYzwos) |
-| 🟢 | – | – | 🪪 Aa-reg-sjekk av deltaker i søknaden, i v1 og v2 (#230, i prod) | [601](https://trello.com/c/3Oq7KiFc) |
-| 🟢 | – | – | 📨 Kopi av søknaden til deltaker: journalført som utgående på personmappa og distribuert med dokdist (#251, i prod) | [676](https://trello.com/c/khxsoU0N), [675](https://trello.com/c/2QCwaAJX), [692](https://trello.com/c/LU0D56cu) |
+| 🟢 | – | – | 🧹 Fjerne utgiftsbeskrivelse ([#234](https://github.com/navikt/ekspertbistand/pull/234)) | [620](https://trello.com/c/NoJhv4wi) |
+| 🟢 | – | – | 🛤️ Ny rute bak feature toggle (`EKSPERTBISTAND_V2`) for søknaden og funksjonene i ny løsning ([#238](https://github.com/navikt/ekspertbistand/pull/238)). Dagens sider beholdes uendret. | [682](https://trello.com/c/cEJ38zjf) |
+| 🟢 | – | – | 🛤️ Kvitteringen i ekspansjonskort på ny rute, før og etter vedtak ([#250](https://github.com/navikt/ekspertbistand/pull/250), [#253](https://github.com/navikt/ekspertbistand/pull/253), [#257](https://github.com/navikt/ekspertbistand/pull/257)) | [680](https://trello.com/c/RZqSZ8p3), [707](https://trello.com/c/Fo4qNluC) |
+| 🟢 | – | – | 🛤️ Tilskuddsbrevet (vedtaksbrevet i nye saker) i ekspansjonskort på ny rute, med tittel per utfall ([#250](https://github.com/navikt/ekspertbistand/pull/250)) | [681](https://trello.com/c/H7jYzwos) |
+| 🟢 | – | – | 🪪 Aa-reg-sjekk av deltaker i søknaden, i v1 og v2 ([#230](https://github.com/navikt/ekspertbistand/pull/230), i prod) | [601](https://trello.com/c/3Oq7KiFc) |
+| 🟢 | – | – | 📨 Kopi av søknaden til deltaker: journalført som utgående på personmappa og distribuert med dokdist ([#251](https://github.com/navikt/ekspertbistand/pull/251), i prod) | [676](https://trello.com/c/khxsoU0N), [675](https://trello.com/c/2QCwaAJX), [692](https://trello.com/c/LU0D56cu) |
 | 🟢 | – | – | 📨 Arbeidsgiver får beskjed i søknadsskjemaet om at deltaker får kopi, og infoskriv til deltaker (i prod) | [675](https://trello.com/c/2QCwaAJX), [695](https://trello.com/c/lPVEHuKB) |
 | 🟢 | – | – | Behandlingskatalog for tilgang til Aa-reg | [534](https://trello.com/c/MWtJNaH0) |
 | 🟢 | – | – | Lagre adressebeskyttelse og skjerming ved opprettelse | [661](https://trello.com/c/6L5KVmvN) |
@@ -107,12 +109,12 @@ Gjenstår: cirka 1 dag.
 | 🟢 | – | – | Foreløpig vedtak med forhåndsvisning av brev | [473](https://trello.com/c/M6Ei4UAR), [468](https://trello.com/c/gh8l45zx) |
 | 🟢 | – | – | Beslutter fatter vedtak eller sender i retur | [476](https://trello.com/c/4kkrg41a) |
 | 🟡 | M1 | `S  ■` | 📝 Brevmaler for vedtak. QA på tekstene med fag pågår. Deltaker skal ikke få vite tilskuddsbeløpet, så brevene til deltaker endres (Hanna, 4.11.). | [563](https://trello.com/c/3moZGD2U), [678](https://trello.com/c/EXPjdaDS) |
-| 🔴 | M1 | `S  ■` | 📜 Kvitteringshendelser for varsler til arbeidsgiver som mangler i dag: søknad mottatt, godkjent og avlyst. Noop-handlere, ingen backfill. Starter på nytt fra `main`, PR #201 videreføres ikke. | [598](https://trello.com/c/2HQeHav3) |
+| 🔴 | M1 | `S  ■` | 📜 Kvitteringshendelser for varsler til arbeidsgiver som mangler i dag: søknad mottatt, godkjent og avlyst. Noop-handlere, ingen backfill. Starter på nytt fra `main`, PR [#201](https://github.com/navikt/ekspertbistand/pull/201) videreføres ikke. | [598](https://trello.com/c/2HQeHav3) |
 | 🟢 | – | – | Entra-grupper og tilgangsrutine i prod (STS-56018) | [506](https://trello.com/c/9wiRRC1M), [532](https://trello.com/c/WB9G2Pxx) |
 | 🔴 | M1 | `M  ■■` | ⚖️ «Automatisk»-tag og oppfylt som standard på «Deltaker er enig» og «Arbeidsforhold» (fra Aa-reg). Saksbehandler kan overstyre. | [655](https://trello.com/c/WCMkpira) |
 | 🔴 | M1 | `M  ■■` | ⚖️ Tre nye vilkår | [656](https://trello.com/c/hLd2jDAj) |
 | 🔴 | M1 | `S  ■` | Beslutter kan ikke endre vilkår (GUI) | [636](https://trello.com/c/eUsR2C7t) |
-| 🟢 | – | – | 🧹 Småfiks: «Beløp», ingen handlingskolonne i sakslista, vedtaksfanen er aktiv når saken har vedtak (#258) | [652](https://trello.com/c/fQeOJnTi), [709](https://trello.com/c/BPcP6uqr), [713](https://trello.com/c/SqJMcrA6) |
+| 🟢 | – | – | 🧹 Småfiks: «Beløp», ingen handlingskolonne i sakslista, vedtaksfanen er aktiv når saken har vedtak ([#258](https://github.com/navikt/ekspertbistand/pull/258)) | [652](https://trello.com/c/fQeOJnTi), [709](https://trello.com/c/BPcP6uqr), [713](https://trello.com/c/SqJMcrA6) |
 | 🔴 | M1 | `S  ■` | Breadcrumb med arbeidsgiver og deltaker | [653](https://trello.com/c/ulp1r0W4) |
 | 🔴 | M3 | `S  ■` | Lenker fra deltaker til andre systemer: Aa-reg, Modia og Gosys | [710](https://trello.com/c/O7T6n36x) |
 | 🔴 | M3 | `M  ■■` | Idempotens og samtidighet i saksbehandlings-API-ene: to raske kall får begge 202, men bare det ene får effekt | [694](https://trello.com/c/kVXWdoeJ) |
@@ -124,12 +126,12 @@ Gjenstår: cirka 13 dager, uten frigjøring av beslutter.
 
 | Status | Milepæl | Størrelse | Leveranse | Trello |
 |:------:|---------|-----------|-----------|--------|
-| 🟢 | – | – | 🗄️📝 Lage og journalføre vedtaksbrevet til arbeidsgiver (tilsagnsbrevet i nye saker) for innvilget, redusert beløp og avslått, med sladding ved kode 6/7 på arbeidsgivermappa (#237, bare dev) | [691](https://trello.com/c/is5SjNKk) |
-| 🟢 | – | – | 🛤️ Arbeidsgiver ser vedtaket og brevet på ny rute, rendret usladdet med Gotenberg (#250, bare dev) | [693](https://trello.com/c/mmcwqp5V) |
-| 🟢 | – | – | 🔔 Varsle arbeidsgiver om vedtak, med lenke til vedtaket på ny rute (#252, bare dev) | [645](https://trello.com/c/XZvrwKjG) |
+| 🟢 | – | – | 🗄️📝 Lage og journalføre vedtaksbrevet til arbeidsgiver (tilsagnsbrevet i nye saker) for innvilget, redusert beløp og avslått, med sladding ved kode 6/7 på arbeidsgivermappa ([#237](https://github.com/navikt/ekspertbistand/pull/237), bare dev) | [691](https://trello.com/c/is5SjNKk) |
+| 🟢 | – | – | 🛤️ Arbeidsgiver ser vedtaket og brevet på ny rute, rendret usladdet med Gotenberg ([#250](https://github.com/navikt/ekspertbistand/pull/250), bare dev) | [693](https://trello.com/c/mmcwqp5V) |
+| 🟢 | – | – | 🔔 Varsle arbeidsgiver om vedtak, med lenke til vedtaket på ny rute ([#252](https://github.com/navikt/ekspertbistand/pull/252), bare dev) | [645](https://trello.com/c/XZvrwKjG) |
 | 🔴 | M1 | `M  ■■` | 🗄️ Journalføre vedtaksbrevet til deltaker på personmappa | [646](https://trello.com/c/4qcIiWBB) |
 | 🔴 | M1 | `S  ■` | 📬 Distribuere vedtaksbrevet til deltaker med dokdist (klienten finnes). Avklar nytt varsel når brevet ikke er åpnet. | [599](https://trello.com/c/QA5bXVrf) |
-| 🟢 | – | – | 🗄️ Sladde deltaker ved kode 6/7 i søknaden som journalføres på arbeidsgivermappa (#261) | [703](https://trello.com/c/NBU7M75w) |
+| 🟢 | – | – | 🗄️ Sladde deltaker ved kode 6/7 i søknaden som journalføres på arbeidsgivermappa ([#261](https://github.com/navikt/ekspertbistand/pull/261)) | [703](https://trello.com/c/NBU7M75w) |
 
 Gjenstår: cirka 4 dager. Kortet «Send ut vedtaksbrev og tilsagnsbrev»
 ([647](https://trello.com/c/6l4XA2H5)) dekkes av egne kort (Hanna, 30.10.).
@@ -142,13 +144,13 @@ Gjenstår: cirka 4 dager. Kortet «Send ut vedtaksbrev og tilsagnsbrev»
 | 🟢 | – | – | 🏦 Sette av penger når vedtaket er innvilget | [650](https://trello.com/c/abzeX7gO) |
 | 🟢 | – | – | 🔢 Sak-ID som løpenummer | [627](https://trello.com/c/NxvZl7bH) |
 | 🟢 | – | – | 🏦 Avklare startdato og sluttdato med OeBS | [625](https://trello.com/c/znIGenFd) |
-| 🟢 | – | – | 🏦 Skru på OeBS-integrasjonen hos oss og Valp i dev. Valp har gitt oss lesetilgang i dev (Valp #8572). | [704](https://trello.com/c/zUU0nQvu) |
+| 🟢 | – | – | 🏦 Skru på OeBS-integrasjonen hos oss og Valp i dev. Valp har gitt oss lesetilgang i dev (Valp [#8572](https://github.com/navikt/mulighetsrommet/pull/8572)). | [704](https://trello.com/c/zUU0nQvu) |
 | 🟢 | – | – | 🏦 Teste bestilling og kvittering mot OeBS i T1 (runde 1, godkjent 13.11.) | [705](https://trello.com/c/HShDcuFH) |
 | 🟢 | – | – | 🏦 Teste annullering mot OeBS i T1 (runde 1). Testet teknisk med rader lagt rett i `oebs_outbox`, fordi ingen flyt annullerer ennå. | [706](https://trello.com/c/qnJXAfzO) |
-| 🟡 | M1 | `XS ▪` | 🏦 Merge #259, som starter OeBS-prosesseringen i dev. Rydd etter runde 1: slett testdata, fjern skrivetilgangen og si fra til Valp og OeBS. | – (sjekkliste i specen i #259) |
-| 🔴 | M2 | `XL ■■■■` | 💸 Fakturere i OeBS når refusjonskravet er godkjent, og gjøre opp bestillingen i samme melding. Avslag gir ingen faktura. Kontrakten har byttet `kid` med `referanse` (Valp #8527), så speilingen vår må oppdateres. Testes mot T1 i runde 2 når OeBS er klare. | [679](https://trello.com/c/Cue4nB5k) |
+| 🟡 | M1 | `XS ▪` | 🏦 Merge [#259](https://github.com/navikt/ekspertbistand/pull/259), som starter OeBS-prosesseringen i dev. Rydd etter runde 1: slett testdata, fjern skrivetilgangen og si fra til Valp og OeBS. | – (sjekkliste i specen i [#259](https://github.com/navikt/ekspertbistand/pull/259)) |
+| 🔴 | M2 | `XL ■■■■` | 💸 Fakturere i OeBS når refusjonskravet er godkjent, og gjøre opp bestillingen i samme melding. Avslag gir ingen faktura. Kontrakten har byttet `kid` med `referanse` (Valp [#8527](https://github.com/navikt/mulighetsrommet/pull/8527)), så speilingen vår må oppdateres. Testes mot T1 i runde 2 når OeBS er klare. | [679](https://trello.com/c/Cue4nB5k) |
 | 🔴 | M3 | `S  ■` | 🏦 Registrere ekspertbistand som økonomisystem (blant annet i Ardoq) | [690](https://trello.com/c/c6qNIdJK) |
-| 🔴 | M3 | `S  ■` | 🏦 Skru på OeBS i prod: start prosesseringen i prod og få lesetilgang i prod (Valp #8573) | Mangler kort |
+| 🔴 | M3 | `S  ■` | 🏦 Skru på OeBS i prod: start prosesseringen i prod og få lesetilgang i prod (Valp [#8573](https://github.com/navikt/mulighetsrommet/pull/8573)) | Mangler kort |
 
 Gjenstår: cirka 12 dager.
 
@@ -157,14 +159,14 @@ Gjenstår: cirka 12 dager.
 | Status | Milepæl | Størrelse | Leveranse | Trello |
 |:------:|---------|-----------|-----------|--------|
 | 🟢 | – | – | Sluttrapport vises i saksbehandling | [477](https://trello.com/c/YJI9Yf9G) |
-| 🟢 | – | – | 📤 Refusjonskrav og sluttrapport knyttet bare til saken, ett krav per sak (#247) | [620](https://trello.com/c/NoJhv4wi) |
-| 🟢 | – | – | 🧾 Refusjon og sluttrapport som oppgaver i oversikten for saksbehandler (#248, bare dev) | – |
+| 🟢 | – | – | 📤 Refusjonskrav og sluttrapport knyttet bare til saken, ett krav per sak ([#247](https://github.com/navikt/ekspertbistand/pull/247)) | [620](https://trello.com/c/NoJhv4wi) |
+| 🟢 | – | – | 🧾 Refusjon og sluttrapport som oppgaver i oversikten for saksbehandler ([#248](https://github.com/navikt/ekspertbistand/pull/248), bare dev) | – |
 | 🟢 | – | – | 📤 Refusjonskravet kan ikke overstige innvilget beløp, og Arena-saker avvises | [620](https://trello.com/c/NoJhv4wi) |
 | 🟢 | – | – | 📤 Sikkerhetsfunn M4: minne ved opplasting | [664](https://trello.com/c/3qjMQJdw) |
 | 🔴 | M2 | `M  ■■` | 📤 Justere refusjonskravet etter Figma: vis avsatt beløp og fristen | [685](https://trello.com/c/ZY79MovZ) |
 | 🔴 | M2 | `S  ■` | 📤 Justere innsending av sluttrapport (beskrivelse mangler) | [686](https://trello.com/c/W4cdyLLf) |
 | 🔴 | M2 | `M  ■■` | 🛤️ Arbeidsgiver ser innsendt sluttrapport (bare filnavn) og refusjonskrav i ekspansjonskort på ny rute | [683](https://trello.com/c/omYxyPPP), [684](https://trello.com/c/hxzNc8Z4) |
-| 🟢 | – | – | 🧾 Hendelser når refusjonskravet og sluttrapporten er mottatt (#249) | [702](https://trello.com/c/TK7W0dt3) |
+| 🟢 | – | – | 🧾 Hendelser når refusjonskravet og sluttrapporten er mottatt ([#249](https://github.com/navikt/ekspertbistand/pull/249)) | [702](https://trello.com/c/TK7W0dt3) |
 | 🔴 | M2 | `S  ■` | 🧾 Hendelse når sluttrapporten er bekreftet, med post i saksloggen | [715](https://trello.com/c/KBHePFbQ) |
 | 🔴 | M2 | `S  ■` | 🧾 Hendelser når refusjonskravet er sendt til utbetaling eller avslått, med post i saksloggen | [716](https://trello.com/c/BvM7Dir9) |
 | 🔴 | M2 | `L  ■■■` | 🧾 Behandle refusjonskrav: godkjenn, eller avslå via beslutter. Statuser og GUI etter Figma. Sluttrapporten må være mottatt. | Mangler kort |
@@ -198,7 +200,7 @@ hvordan de vil ta imot data.
 | 🟡 | M3 | `M  ■■` | Trusselmodell, verdivurdering og livsløp ferdig. ROS gjenstår, også at arbeidsgiver ser navnet på deltaker med fortrolig adresse. | [582](https://trello.com/c/80W3GhIB) |
 | 🟡 | M3 | `M  ■■` | Juridisk logg (ikke-benekt), avklaring pågår | [555](https://trello.com/c/94yFdkSX) |
 | 🟡 | M3 | `S  ■` | Begrense hver frontend til sin del av backend-API-et | [603](https://trello.com/c/XED3wgnm) |
-| 🟢 | – | – | Validere klient i token i backend: TokenX `client_id` og Entra `azp_name` (#254) | [633](https://trello.com/c/jdsNoa2n) |
+| 🟢 | – | – | Validere klient i token i backend: TokenX `client_id` og Entra `azp_name` ([#254](https://github.com/navikt/ekspertbistand/pull/254)) | [633](https://trello.com/c/jdsNoa2n) |
 | 🔴 | M3 | `L  ■■■` | 📜 Oppslagslogg og ArcSight (sikkerhetsfunn M2, M3) | [553](https://trello.com/c/s5v5Occl), [664](https://trello.com/c/3qjMQJdw) |
 | 🔴 | M3 | `M  ■■` | Auditlogging av databaseendringer (uavklart om det gjelder oss) | [554](https://trello.com/c/y5GXvQ7x) |
 | 🔴 | M3 | `L  ■■■` | 🛡️ Stanse behandling og slette | [584](https://trello.com/c/ft1q5B6v) |
@@ -222,11 +224,11 @@ Tilbakekreving er også utenfor scope. Økonomi gjør det manuelt.
 |-----|--------|
 | Søknadsskjema, innsending, journalføring | 🟢 Ferdig, i prod |
 | 🧹 Makssats per startdato (24 900 kr) | 🟢 Ferdig |
-| 🧹 Fjerne «Hvilke utgifter skal tilskuddet dekke?» | 🟢 Ferdig (#234) |
-| 🪪 **Aa-reg: deltaker må ha arbeidsforhold hos valgt virksomhet.** Arbeidsgiver taster fnr, vi slår opp i Aa-reg og viser navn fra PDL. Uten arbeidsforhold kan søknaden ikke sendes inn. Backend validerer på nytt ved innsending. Arbeidsgiver ser navnet også når deltaker har fortrolig adresse, og det må stå i ROS og etterlevelse. | 🟢 I prod fra 9.11. (#230), i både v1 og v2 av skjemaet. Arbeidsgiver kan legge inn seg selv, men må bekrefte det. |
-| 🛤️ **Ny rute bak feature toggle.** Søknaden og alt arbeidsgiver ser i ny løsning, lages som nye sider på en egen rute. Dagens sider beholdes uendret for Arena-saker. Det er enklere å lage nye visninger på en rute med feature toggle enn å toggle funksjoner i sider som er i prod. | 🟢 Ruta finnes (#238), bak `EKSPERTBISTAND_V2`, bare utenfor prod. Kvitteringen og tilskuddsbrevet i ekspansjonskort er ferdige (680, 681, 707). |
+| 🧹 Fjerne «Hvilke utgifter skal tilskuddet dekke?» | 🟢 Ferdig ([#234](https://github.com/navikt/ekspertbistand/pull/234)) |
+| 🪪 **Aa-reg: deltaker må ha arbeidsforhold hos valgt virksomhet.** Arbeidsgiver taster fnr, vi slår opp i Aa-reg og viser navn fra PDL. Uten arbeidsforhold kan søknaden ikke sendes inn. Backend validerer på nytt ved innsending. Arbeidsgiver ser navnet også når deltaker har fortrolig adresse, og det må stå i ROS og etterlevelse. | 🟢 I prod fra 9.11. ([#230](https://github.com/navikt/ekspertbistand/pull/230)), i både v1 og v2 av skjemaet. Arbeidsgiver kan legge inn seg selv, men må bekrefte det. |
+| 🛤️ **Ny rute bak feature toggle.** Søknaden og alt arbeidsgiver ser i ny løsning, lages som nye sider på en egen rute. Dagens sider beholdes uendret for Arena-saker. Det er enklere å lage nye visninger på en rute med feature toggle enn å toggle funksjoner i sider som er i prod. | 🟢 Ruta finnes ([#238](https://github.com/navikt/ekspertbistand/pull/238)), bak `EKSPERTBISTAND_V2`, bare utenfor prod. Kvitteringen og tilskuddsbrevet i ekspansjonskort er ferdige (680, 681, 707). |
 | Lagre adressebeskyttelse og skjerming ved opprettelse | 🟢 Ferdig |
-| 📨 **Varsle deltaker når søknaden er sendt inn, med kopi av søknaden.** Kopien journalføres som utgående på personmappa og distribueres med dokdist. | 🟢 I prod fra 11.11. (#251), i dagens Arena-flyt. |
+| 📨 **Varsle deltaker når søknaden er sendt inn, med kopi av søknaden.** Kopien journalføres som utgående på personmappa og distribueres med dokdist. | 🟢 I prod fra 11.11. ([#251](https://github.com/navikt/ekspertbistand/pull/251)), i dagens Arena-flyt. |
 | 📨 **Arbeidsgiver får beskjed i søknadsskjemaet** om at deltaker får kopi av søknaden, før søknaden sendes inn. | 🟢 I prod, i v1 og v2 |
 | 🧹 Sikkerhetsfunn H1 (andres utkast kan leses/endres) og H2 (sletting stopper ved vedtak) | 🟢 Ferdig |
 | 📤 Sikkerhetsfunn M4: minnebruk ved opplasting av sluttrapport og refusjon | 🟢 Ferdig |
@@ -243,7 +245,7 @@ Tilbakekreving er også utenfor scope. Økonomi gjør det manuelt.
 | 📝 Brevmaler for vedtak (seks maler) | 🟡 QA på tekstene med fag pågår (678). Brevene til deltaker skal ikke vise tilskuddsbeløpet. |
 | ⚖️ Vilkårene «Deltaker er enig» og «Arbeidsforhold» settes **automatisk oppfylt**, med taggen «Automatisk». Saksbehandler kan overstyre, og da forsvinner taggen. | 🔴 Ett kort for begge (655), i Weekly commits |
 | ⚖️ Tre nye vilkår | 🔴 Kort i Weekly commits |
-| Småfiks i GUI: «Beløp», handlingskolonnen i sakslista og aktiv vedtaksfane | 🟢 Ferdig (#258) |
+| Småfiks i GUI: «Beløp», handlingskolonnen i sakslista og aktiv vedtaksfane | 🟢 Ferdig ([#258](https://github.com/navikt/ekspertbistand/pull/258)) |
 | Småfiks i GUI: beslutter kan ikke endre vilkår, breadcrumb med arbeidsgiver og deltaker | 🔴 Kort i Weekly commits (636, 653) |
 | Lenker fra deltaker til Aa-reg, Modia og Gosys | 🔴 Kort finnes (710) |
 | Idempotens og samtidighet: to raske kall mot samme sak får begge 202, men bare det ene får effekt | 🔴 Kort finnes (694). Oppdaget i arbeidet med 691. |
@@ -258,12 +260,12 @@ vedtaket på ny rute. Alt til deltaker mangler.
 
 | Hva | Status |
 |-----|--------|
-| 🗄️📝 Lage og journalføre vedtaksbrevet til arbeidsgiver på arbeidsgivermappa. I nye saker er dette tilsagnsbrevet, med beløp og refusjonsfrist. | 🟢 Ferdig i dev (#237) |
-| 🗄️ Sladde deltaker ved kode 6/7 i vedtaksbrevet som journalføres på arbeidsgivermappa | 🟢 Ferdig i dev (#237), som Team Tiltak. Arbeidsgiver ser brevet usladdet. |
-| 🗄️ Sladde deltaker ved kode 6/7 i søknaden som journalføres på arbeidsgivermappa | 🟢 Ferdig (#261) |
+| 🗄️📝 Lage og journalføre vedtaksbrevet til arbeidsgiver på arbeidsgivermappa. I nye saker er dette tilsagnsbrevet, med beløp og refusjonsfrist. | 🟢 Ferdig i dev ([#237](https://github.com/navikt/ekspertbistand/pull/237)) |
+| 🗄️ Sladde deltaker ved kode 6/7 i vedtaksbrevet som journalføres på arbeidsgivermappa | 🟢 Ferdig i dev ([#237](https://github.com/navikt/ekspertbistand/pull/237)), som Team Tiltak. Arbeidsgiver ser brevet usladdet. |
+| 🗄️ Sladde deltaker ved kode 6/7 i søknaden som journalføres på arbeidsgivermappa | 🟢 Ferdig ([#261](https://github.com/navikt/ekspertbistand/pull/261)) |
 | 🗄️ Journalføre vedtaksbrevet til deltaker på personmappa | 🔴 Kort finnes (646). `DokArkivClient` støtter person som bruker. |
-| 🔔 **Varsle arbeidsgiver om vedtak** (innvilget og avslag) via notifikasjonsplattformen | 🟢 Ferdig i dev (#252). Varselet lenker til vedtaket på ny rute. |
-| 🛤️ **Arbeidsgiver ser vedtaket på ny rute:** innvilget, innvilget med redusert beløp eller avslått, med brevet. Dagens visning av tilsagnsbrevet beholdes for Arena-saker. | 🟢 Ferdig i dev (#250) |
+| 🔔 **Varsle arbeidsgiver om vedtak** (innvilget og avslag) via notifikasjonsplattformen | 🟢 Ferdig i dev ([#252](https://github.com/navikt/ekspertbistand/pull/252)). Varselet lenker til vedtaket på ny rute. |
+| 🛤️ **Arbeidsgiver ser vedtaket på ny rute:** innvilget, innvilget med redusert beløp eller avslått, med brevet. Dagens visning av tilsagnsbrevet beholdes for Arena-saker. | 🟢 Ferdig i dev ([#250](https://github.com/navikt/ekspertbistand/pull/250)) |
 | 📬 **Varsle deltaker om vedtak.** Vedtaksbrevet distribueres med dokdist og vises under «Dine saker» på nav.no. | 🔴 Kort finnes (599). Klienten finnes. Avklar nytt varsel når brevet ikke er åpnet (etterlevelseskrav 204). |
 
 Arbeidsgiver får vedtaksbrevet i vår løsning, rendret usladdet med Gotenberg.
@@ -291,10 +293,10 @@ gjenbruker det samme:
 
 | Hva | Status |
 |-----|--------|
-| 🏦 Klient, outbox, producer, status-consumer, topic-manifester | 🟢 Ferdig. Startet i dev for testen (#259, ikke merget). Ikke startet i prod. |
+| 🏦 Klient, outbox, producer, status-consumer, topic-manifester | 🟢 Ferdig. Startet i dev for testen ([#259](https://github.com/navikt/ekspertbistand/pull/259), ikke merget). Ikke startet i prod. |
 | 🔢 Egen nummerserie og kildesystem hos OeBS (OEBS-2283) | 🟢 Godkjent |
 | 🏦 Valp leser bestillingene våre (ACL på topicet vårt, consumer hos Valp) | 🟢 Ferdig |
-| 🏦 Lesetilgang for oss til status-topicene hos Valp | 🟢 Dev (Valp #8572). 🟡 Prod venter på Valp #8573. |
+| 🏦 Lesetilgang for oss til status-topicene hos Valp | 🟢 Dev (Valp [#8572](https://github.com/navikt/mulighetsrommet/pull/8572)). 🟡 Prod venter på Valp [#8573](https://github.com/navikt/mulighetsrommet/pull/8573). |
 | 🏦 Teste bestilling og kvittering mot OeBS i T1 | 🟢 Runde 1 godkjent 13.11. (705). Bestillingen går fra `SENDT` til `AKTIV`, og samme melding to ganger gir ingen dobbel bestilling. |
 | 🏦 Teste annullering mot OeBS i T1 | 🟢 Testet teknisk 13.11. (706). Ingen flyt annullerer ennå, se spørsmål 3 og 4. |
 | 🏦 Skru på OeBS i prod | 🔴 Ikke på Trello |
@@ -308,13 +310,13 @@ gjenbruker det samme:
 
 | Hva | Status |
 |-----|--------|
-| 📤 Arbeidsgiver sender inn refusjonskrav og sluttrapport | 🟡 Bygget, bare utenfor prod. Ett krav per sak, knyttet bare til saken (#247). |
+| 📤 Arbeidsgiver sender inn refusjonskrav og sluttrapport | 🟢 Bygget, bare utenfor prod. Justering etter Figma og åpning i prod har egne rader. Ett krav per sak, knyttet bare til saken ([#247](https://github.com/navikt/ekspertbistand/pull/247)). |
 | 📤 Beløp i refusjonskravet kan ikke overstige innvilget beløp | 🟢 Ferdig |
 | 📤 Justere refusjonskravet og sluttrapporten etter Figma: vis avsatt beløp og fristen | 🔴 Kort finnes (685, 686) |
 | 🛤️ Arbeidsgiver ser innsendt sluttrapport og refusjonskrav i ekspansjonskort på ny rute. Sluttrapporten vises bare med filnavn, fordi den kan inneholde sensitive personopplysninger. | 🔴 Kort finnes (683, 684). Åpent på kortet: skal kontonummeret vises? |
 | Saksbehandler ser refusjonskrav, sluttrapport og vedlegg | 🟢 Ferdig i dev |
-| 🧾 Refusjon og sluttrapport som egne oppgaver i oversikten | 🟢 Ferdig i dev (#248) |
-| 🧾 Hendelser for refusjonskrav og sluttrapport | 🟡 Mottatt er ferdig (#249, 702). Bekreftet sluttrapport (715) og krav sendt til utbetaling eller avslått (716) har egne kort. |
+| 🧾 Refusjon og sluttrapport som egne oppgaver i oversikten | 🟢 Ferdig i dev ([#248](https://github.com/navikt/ekspertbistand/pull/248)) |
+| 🧾 Hendelser for refusjonskrav og sluttrapport | 🟡 Mottatt er ferdig ([#249](https://github.com/navikt/ekspertbistand/pull/249), 702). Bekreftet sluttrapport (715) og krav sendt til utbetaling eller avslått (716) har egne kort. |
 | 🧾 **Behandle refusjonskrav:** godkjenn → send til utbetaling (ingen beslutter). Avslå → via beslutter. Én sak har ett refusjonskrav, som kan ha flere vedlegg. Sluttrapporten må være mottatt før kravet kan godkjennes (dobbeltsjekkes). | 🔴 Figma finnes. Ikke på Trello som eget kort. |
 | 🗄️ Journalføre sluttrapporten på personmappa | 🔴 Kort finnes (701) |
 | 📣 Varsle arbeidsgiver når refusjonen er godkjent (ikke deltaker) | 🔴 Ikke på Trello. Om deltaker skal varsles, er et åpent spørsmål (688). |
@@ -351,7 +353,7 @@ refusjonsbehandling noen uker etter. Det er en nødplan, ikke målet.
 | Disaster recovery-plan, testet | 🔴 Ikke startet |
 | Alerts som `PrometheusRule` i stedet for Grafana | 🔴 Ikke startet |
 | UU-tester i bygg for saksbehandling | 🔴 Ikke startet |
-| Validere klient i token i backend (hindre kryssing mellom apper) | 🟢 Ferdig (#254) |
+| Validere klient i token i backend (hindre kryssing mellom apper) | 🟢 Ferdig ([#254](https://github.com/navikt/ekspertbistand/pull/254)) |
 | Vise tydelig i saksbehandling at deltaker har adressebeskyttelse (krav 255) | 🔴 Kort finnes (592) |
 
 ### Kan vente til etter lansering
@@ -418,7 +420,7 @@ ligger i M3. Juleferien (uke 52–53) er ikke regnet med.
 | 📬 Om dokdist kan varsle deltaker på nytt når brevet ikke er åpnet (etterlevelseskrav 204, Team Dokumentløsninger) | Uke 49 | Vi må lage revarslingen selv, eller avklare kravet med etterlevelse. |
 | 📡 Hvordan Salesforce og Modia vil ta imot data om nye saker | Uke 49 | Vi rekker ikke å bygge det til M3. Uten data kan vi ikke gå live, fordi Salesforce og Modia skal ha nye saker fra go-live. |
 | 💸 OeBS er klare for runde 2: faktura og oppgjør av bestillingen i T1 | Uke 2 | Vi bygger faktura mot kontrakten og tester mot T1 etter M2. Da flyttes risikoen til M3. Eskaler i #samarbeid-valp-oebs. |
-| 🏦 Lesetilgang i prod for `ekspertbistand-backend` til status-topicene (Valp #8573) | Uke 6 | Vi får ikke kvitteringer fra OeBS i prod og kan ikke skru på OeBS der. |
+| 🏦 Lesetilgang i prod for `ekspertbistand-backend` til status-topicene (Valp [#8573](https://github.com/navikt/mulighetsrommet/pull/8573)) | Uke 6 | Vi får ikke kvitteringer fra OeBS i prod og kan ikke skru på OeBS der. |
 
 Hanna og Ida driver avklaringene, men en utvikler bør ha teknisk eierskap til
 hver av dem.
@@ -472,7 +474,7 @@ Ferdig: 🏦 bestilling, kvittering og annullering testet mot OeBS i T1
 (runde 1, 13.11.), refusjon knyttet bare til saken, 🧾 refusjon som oppgave i
 oversikten og hendelser når refusjonskravet og sluttrapporten er mottatt.
 
-1. 🏦 Merge #259 og rydd etter runde 1: slett testdata i dev, fjern
+1. 🏦 Merge [#259](https://github.com/navikt/ekspertbistand/pull/259) og rydd etter runde 1: slett testdata i dev, fjern
    skrivetilgangen og si fra til Valp og OeBS.
 2. 🧾 Behandle refusjonskrav: statuser, godkjenn, avslå via beslutter, GUI
    etter Figma. Hendelsene for bekreftet sluttrapport (715) og krav sendt til
@@ -481,7 +483,7 @@ oversikten og hendelser når refusjonskravet og sluttrapporten er mottatt.
    `referanse` før vi bygger. Test i runde 2 mot T1 når OeBS er klare.
    Avslutt saken.
 4. 🏦 Registrer ekspertbistand som økonomisystem (690). Skru på OeBS i prod
-   når Valp har gitt lesetilgang (#8573).
+   når Valp har gitt lesetilgang ([#8573](https://github.com/navikt/mulighetsrommet/pull/8573)).
 5. Idempotens og samtidighet i saksbehandlings-API-ene (694).
 6. 🚦 Prod-manifest for saksbehandling, overgang fra Arena-flyten, Entra-gruppene
    synlige i prod (687).
@@ -512,9 +514,9 @@ M2/M3 + akseptansetest ───────────────────
 Dette kan skje samtidig:
 
 - Brev og varsel til deltaker (B) og visningene på ny rute (A). Kontrakten er
-  vedtaket og brevet som finnes i dag (#237, #250).
+  vedtaket og brevet som finnes i dag ([#237](https://github.com/navikt/ekspertbistand/pull/237), [#250](https://github.com/navikt/ekspertbistand/pull/250)).
 - Refusjonsbehandling (C) og innsending av refusjon etter Figma (A).
-  Kontrakten er tabellene og API-et som finnes, og hendelsene fra #249.
+  Kontrakten er tabellene og API-et som finnes, og hendelsene fra [#249](https://github.com/navikt/ekspertbistand/pull/249).
 
 ### Unngå kollisjoner i koden
 
@@ -541,7 +543,7 @@ Disse bør bli kort:
 4. 🚦 Prod-manifest for saksbehandling og overgang fra Arena-flyten i prod
 5. 🧪 Akseptansetest og opplæring med saksbehandlere
 6. 🏦 Teste utbetaling mot OeBS i T1, runde 2 (kan bli del av 679)
-7. 🏦 Skru på OeBS i prod: start prosesseringen og lesetilgang i prod (Valp #8573)
+7. 🏦 Skru på OeBS i prod: start prosesseringen og lesetilgang i prod (Valp [#8573](https://github.com/navikt/mulighetsrommet/pull/8573))
 
 ## Avklart
 
@@ -583,7 +585,7 @@ Disse bør bli kort:
   Annulleringen gikk fra `ANNULLERING_SENDT` til `ANNULLERT`, med rader lagt
   rett i `oebs_outbox`. Feilet bestilling ble ikke testet. Tiltaksøkonomi i
   dev går mot T1. Runde 2, faktura og oppgjør, venter på at OeBS er klare.
-  Valp har byttet `kid` med `referanse` i fakturakontrakten (Valp #8527).
+  Valp har byttet `kid` med `referanse` i fakturakontrakten (Valp [#8527](https://github.com/navikt/mulighetsrommet/pull/8527)).
 - **Entra-grupper (31.10.):** På plass i prod (STS-56018). Gruppene må gjøres
   synlige og bestilles i Mine tilganger før go-live (687).
 
@@ -624,5 +626,5 @@ og avstanden øker uke for uke.
 |----:|------|---------:|------------------------:|---------:|----------------:|--------|-------------|
 | 43 | 25.10. | 138 | – | – | 215 | 🟢 64 % | Første plan. |
 | 44 | 31.10. | 120 | −27 | +9 | 204 | 🟢 59 % | Ferdig: makssats, adressebeskyttelse, sletterutiner, H1 og H2, Entra-grupper i prod, OeBS-klient og bestilling, sak-ID, M4 og beløpsgrense på refusjonskrav. Brevmalene venter bare på fag. Ny: 🛤️ nye ruter og visninger for arbeidsgiver, 🏦 test mot OeBS i T1. |
-| 46 | 11.11. | 97 | −36 | +13 | 180 | 🟢 54 % | Gjelder uke 45 og 46. **P1 er i prod**, fem uker før planen: Aa-reg-sjekk og kopi av søknaden til deltaker med dokdist. Ferdig i dev: utgiftsbeskrivelsen fjernet, 🛤️ ny rute, vedtaksbrevet til arbeidsgiver journalført med sladding og vist på ny rute, refusjon knyttet bare til saken og som oppgave i oversikten. Vedtakssida (#250) løste også tilskuddsbrevet i ekspansjonskort (681), og #253 gjorde ferdig kvitteringssida (680). 598 er avgrenset til hendelser for varsler til arbeidsgiver og starter på nytt. Validering av klient i token er i PR #254. M1 flyttes fra uke 5 til uke 3. Ny: 685, 686, 694, 701, 703, 690, 687, 592 og QA av brevene til deltaker (678). Omgjøring av vedtak (689) er ikke regnet med. OeBS T1 er klart 11.11., og ballen ligger hos oss: vi mangler lesetilgang til status-topicene hos Valp og har ikke skrudd på OeBS-integrasjonen. Nye kort: skru på (704), test bestilling (705) og test annullering (706). 🏦 flyttes fra uke 3 til uke 47. |
+| 46 | 11.11. | 97 | −36 | +13 | 180 | 🟢 54 % | Gjelder uke 45 og 46. **P1 er i prod**, fem uker før planen: Aa-reg-sjekk og kopi av søknaden til deltaker med dokdist. Ferdig i dev: utgiftsbeskrivelsen fjernet, 🛤️ ny rute, vedtaksbrevet til arbeidsgiver journalført med sladding og vist på ny rute, refusjon knyttet bare til saken og som oppgave i oversikten. Vedtakssida ([#250](https://github.com/navikt/ekspertbistand/pull/250)) løste også tilskuddsbrevet i ekspansjonskort (681), og [#253](https://github.com/navikt/ekspertbistand/pull/253) gjorde ferdig kvitteringssida (680). 598 er avgrenset til hendelser for varsler til arbeidsgiver og starter på nytt. Validering av klient i token er i PR [#254](https://github.com/navikt/ekspertbistand/pull/254). M1 flyttes fra uke 5 til uke 3. Ny: 685, 686, 694, 701, 703, 690, 687, 592 og QA av brevene til deltaker (678). Omgjøring av vedtak (689) er ikke regnet med. OeBS T1 er klart 11.11., og ballen ligger hos oss: vi mangler lesetilgang til status-topicene hos Valp og har ikke skrudd på OeBS-integrasjonen. Nye kort: skru på (704), test bestilling (705) og test annullering (706). 🏦 flyttes fra uke 3 til uke 47. |
 | 46 | 15.11. | 99 | −3,6 | +5,4 | 180 | 🟢 55 % | Resten av uke 46. **OeBS runde 1 er godkjent**: bestilling, kvittering og annullering virker mot T1 fra dev (704, 705, 706). Runde 2 (faktura) venter på OeBS. Ferdig i dev: 🔔 varsel til arbeidsgiver om vedtak (645), 🧾 hendelser for mottatt refusjonskrav og sluttrapport (702), 🗄️ sladding av søknaden på arbeidsgivermappa (703), validering av klient i token (633), visning av innsendt søknad (707) og småfiks (652, 709, 713). Ny: 🐛 714, 708, 710, 711, 715, 716, rydding etter runde 1 og å skru på OeBS i prod. DOING er tom ved starten av uke 47. |
