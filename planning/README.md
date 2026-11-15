@@ -27,7 +27,7 @@ Hvert steg er merket med status:
 - 🔴 mangler
 
 Emojien etter statusen er steget i [lanseringsplanen](lanseringsplan_2027-04-01.md),
-for eksempel 🧾 for refusjonsbehandling. Statusene er fra 11.11.2026.
+for eksempel 🧾 for refusjonsbehandling. Statusene er fra 15.11.2026.
 
 ```mermaid
 sequenceDiagram
@@ -76,19 +76,19 @@ sequenceDiagram
     end
 
     rect rgba(255, 145, 0, 0.10)
-    Note over AG,EB: 3. Etter vedtak 🟢🟢🟢🟢🟢🟡🟡🟡🟡🔴🔴
+    Note over AG,EB: 3. Etter vedtak 🟢🟢🟢🟢🟢🟢🟢🟡🟡🔴🔴
     EB->>EB: 🟢 🗄️📝 Journalfører vedtaksbrevet på arbeidsgivermappa, sladdet ved kode 6/7
     EB->>EB: 🔴 🗄️ Journalfører vedtaksbrevet på personmappa
     EB-->>DT: 🔴 📬 Vedtaksbrevet (dokdist)
     alt Innvilget
-        EB->>EB: 🟡 🏦 Bestiller hos OeBS, setter av penger
+        EB->>EB: 🟡 🏦 Bestiller hos OeBS, setter av penger (testet mot T1, ikke skrudd på)
         EB->>EB: 🟡 🏦 OeBS kvitterer, bestilling AKTIV
-        EB-->>AG: 🟡 🔔 Varsel om innvilget, lenke til vedtaket
+        EB-->>AG: 🟢 🔔 Varsel om innvilget, lenke til vedtaket
         AG->>EB: 🟢 🛤️ Åpner vedtaket på ny rute
         EB-->>AG: 🟢 🛤️ Viser innvilget beløp og vedtaksbrevet
         Note over AG,EB: Søknad godkjent
     else Avslått
-        EB-->>AG: 🟡 🔔 Varsel om avslag
+        EB-->>AG: 🟢 🔔 Varsel om avslag
         AG->>EB: 🟢 🛤️ Åpner vedtaket på ny rute
         EB-->>AG: 🟢 🛤️ Viser avslaget og avslagsbrevet
         Note over AG,EB: Søknad avslatt. Saken er ferdig.
@@ -96,12 +96,12 @@ sequenceDiagram
     end
 
     rect rgba(102, 52, 176, 0.08)
-    Note over AG,EB: 4. Gjennomføring og refusjonskrav 🟢🟡🟡🟡🔴
+    Note over AG,EB: 4. Gjennomføring og refusjonskrav 🟢🟢🟡🟡🔴
     Note over AG: Eksperten gjennomfører bistanden (utenfor løsningen)
     AG->>EB: 🟡 📤 Sender sluttrapport (bare dev)
     AG->>EB: 🟡 📤 Sender refusjonskrav med vedlegg (bare dev)
     EB->>EB: 🟢 📤 Avviser krav over innvilget beløp
-    EB->>EB: 🟡 🧾 Publiserer event og lager oppgave til saksbehandler
+    EB->>EB: 🟢 🧾 Publiserer event og lager oppgave til saksbehandler
     Note over EB: Refusjonskrav MOTTATT · Sak REFUSJON_MOTTATT
     opt Refusjonsfristen går ut uten krav
         EB->>EB: 🔴 Avslutter saken og annullerer bestillingen (avklares)
@@ -129,9 +129,9 @@ sequenceDiagram
     end
 ```
 
-🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
+🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 
-🟢 19 finnes · 🟡 9 delvis · 🔴 13 mangler, av 41 steg i diagrammet. OeBS er ikke egen deltaker i
+🟢 22 finnes · 🟡 6 delvis · 🔴 13 mangler, av 41 steg i diagrammet. OeBS er ikke egen deltaker i
 diagrammet. Kall til og svar fra OeBS vises som steg i Ekspertbistand.
 
 Deltaker får ikke varsel om refusjonen. Bare arbeidsgiver varsles når
@@ -193,10 +193,12 @@ Hver aktør ser sin egen status. Tabellen viser hvordan de henger sammen.
 Kartleggingen viser disse hullene i tillegg til det som står i
 lanseringsplanen:
 
-1. **Refusjonskravet og sluttrapporten går ikke via event-køen ennå.**
-   `RefusjonApi` lagrer direkte i tabellene. Oppgavelista utleder oppgavene
-   fra tabellene (#248), men saksloggen og statistikken ser dem ikke. PR #249
-   publiserer hendelser når kravet og rapporten er mottatt. Det hører til 🧾.
+1. **Hendelsene for refusjonskrav og sluttrapport er ikke komplette.** Vi
+   publiserer hendelser når kravet og rapporten er mottatt (#249), og
+   oppgavelista utleder oppgavene fra tabellene (#248). Hendelser for
+   bekreftet sluttrapport ([715](https://trello.com/c/KBHePFbQ)) og for krav
+   sendt til utbetaling eller avslått ([716](https://trello.com/c/BvM7Dir9))
+   mangler. Det hører til 🧾.
 2. **Saken har ingen tilstander etter `INNVILGET`.** `Oppgavetype` har fått
    `REFUSJON` og `SLUTTRAPPORT` (#248), men oppgavene avsluttes ikke ennå.
    `AVSLUTTET` finnes, men ingenting setter den. Vi må velge om
@@ -210,11 +212,11 @@ lanseringsplanen:
    brev og varsel. Vi må også avklare om bestillingen skal annulleres.
 6. **`AVSLUTTET` dekker tre utfall:** utbetalt, avslått krav og utløpt frist.
    Trenger fag eller statistikken å skille dem?
-7. **OeBS-integrasjonen kjører ikke ennå.** Bestillingen legges i
-   `oebs_outbox`, men `startOebsProsessering` er ikke koblet inn i `main()`.
-   Derfor sendes ingenting til Valp, og vi leser ikke kvitteringer. Vi
-   mangler også lesetilgang til status-topicene hos Valp. Valp leser
-   allerede topicet vårt. `annullerBestilling` finnes, men ingen flyt kaller
-   den. Kort: [704](https://trello.com/c/zUU0nQvu),
-   [705](https://trello.com/c/HShDcuFH) og
-   [706](https://trello.com/c/qnJXAfzO).
+7. **OeBS-integrasjonen er testet, men ikke skrudd på.** Runde 1 mot T1 ble
+   godkjent 13.11.: bestilling, kvittering og annullering virker fra dev
+   ([704](https://trello.com/c/zUU0nQvu), [705](https://trello.com/c/HShDcuFH),
+   [706](https://trello.com/c/qnJXAfzO)). #259 starter prosesseringen i dev,
+   men er ikke merget. Prod er ikke skrudd på, og lesetilgangen i prod venter
+   på Valp (#8573). Ingen flyt annullerer ennå, så testen la rader rett i
+   `oebs_outbox`. Faktura og oppgjør (runde 2) venter på OeBS, og
+   kontrakten har byttet `kid` med `referanse`.
