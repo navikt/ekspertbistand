@@ -73,6 +73,10 @@ class TiltaksokonomiConsumer(
         val melding = deserialiserStatus(record.topic(), value)
         if (melding == null) {
             teamLog.warn("Ukjent/ugyldig status-melding på {} – hopper over. record={}", record.topic(), record)
+            log.error(
+                "Hopper over status-melding som ikke kunne leses: topic={} partition={} offset={} – sjekk teamLogs for detaljer.",
+                record.topic(), record.partition(), record.offset(),
+            )
             return
         }
 

@@ -383,6 +383,21 @@ Funn:
 - `trenger_manuell_oppfolging` er `false` for begge bestillingene. 1D (feilet
   bestilling) ble ikke kjørt.
 
+### Runde 2 (2026-11-16): pågår
+
+2A ble publisert, og VALP publiserte fakturastatus for `E-2026/900001-1-1`
+(`faktura-status-v1`, partisjon 1, offset 290). Status-consumeren leste
+meldingen, men lagret den ikke. VALP endret feltet `fakturaStatusSistOppdatert`
+til `statusSistOppdatert` 2026-09-21 (mulighetsrommet 944a943), etter at vi speilet
+kontrakten. Deserialiseringen feilet, og consumeren hoppet over meldingen og
+committet offset. Feilen havnet bare i team-logs, ikke i appen sin logg. Speilingen
+i `OebsStatusMelding.kt` er rettet, og consumeren logger nå `log.error` med topic,
+partisjon og offset (uten innholdet i meldingen) når den hopper over en melding.
+
+For å hente statusen på nytt deployer du fiksen og kjører `INSERT`-en fra 2A en
+gang til. VALP kjenner igjen fakturanummeret og publiserer gjeldende status uten
+å sende noe nytt til OeBS.
+
 ## Feilsituasjoner
 
 - **Polleren står fast på en rad.** Polleren tar eldste `PENDING`-rad først.
@@ -395,7 +410,10 @@ Funn:
   VALP sjekke loggene og fjerne meldingen hos seg.
 - **Ingen status kommer tilbake.** Sjekk at VALP har publisert (logger hos VALP),
   at headeren `fagsystem=EKSPERTBISTAND` er satt, og at consumeren vår har startet
-  (ingen `Kafka`-feil ved oppstart).
+  (ingen `Kafka`-feil ved oppstart). Se etter `Hopper over status-melding som ikke
+  kunne leses` i apploggen. Detaljene står i team-logs (`Klarte ikke deserialisere
+  status-melding`). Da stemmer ikke speilingen med VALP, og meldingen er hoppet
+  over. Send samme melding på nytt etter fiksen, så publiserer VALP statusen igjen.
 - **Noen deployer `main` til dev under testen.** Før denne PR-en er merget, stopper
   det polleren og status-consumeren. Rader blir liggende som `PENDING`, og status
   blir liggende på topicet til branchen er deployet igjen. Ingenting går tapt.
@@ -434,8 +452,10 @@ trekkes tilbake etter testen.
 |-----|---------|
 | `backend/src/main/kotlin/no/nav/ekspertbistand/Application.kt` | Starter `startOebsProsessering` i dev |
 | `backend/src/main/kotlin/no/nav/ekspertbistand/oebs/Oebs.kt` | KDoc |
-| `backend/src/main/kotlin/no/nav/ekspertbistand/oebs/integration/TiltaksokonomiConsumer.kt` | KDoc |
+| `backend/src/main/kotlin/no/nav/ekspertbistand/oebs/integration/TiltaksokonomiConsumer.kt` | KDoc, `log.error` når en status-melding hoppes over |
 | `backend/src/main/kotlin/no/nav/ekspertbistand/oebs/README.md` | Status for wiring og eksterne avhengigheter |
+| `backend/src/main/kotlin/no/nav/ekspertbistand/oebs/integration/OebsStatusMelding.kt` | `FakturaStatus.statusSistOppdatert` (funn i runde 2) |
+| `backend/src/test/kotlin/no/nav/ekspertbistand/oebs/OebsStatusMeldingTest.kt` | Kontraktstest med VALP sitt feltnavn |
 | `specifications/test_oebs_integrasjon_dev.md` | Ny |
 
 ## Ferdig når

@@ -55,7 +55,7 @@ enum class BestillingStatusType {
 data class FakturaStatus(
     val fakturanummer: String,
     val status: FakturaStatusType,
-    val fakturaStatusSistOppdatert: Instant,
+    val statusSistOppdatert: Instant,
 )
 
 enum class FakturaStatusType {

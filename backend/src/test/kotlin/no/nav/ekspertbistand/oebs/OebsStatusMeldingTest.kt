@@ -13,8 +13,9 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
- * Kontraktstest mot faktiske statusmeldinger fra Team VALP (mottatt 2026-09-17), verifiserer at vår
- * lokale speiling av status-DTO-ene deserialiseres nøyaktig fra VALP sitt wire-format.
+ * Kontraktstest mot statusmeldinger fra Team VALP (`FakturaStatus` sjekket mot VALP sin main
+ * 2026-11-16), verifiserer at vår lokale speiling av status-DTO-ene deserialiseres nøyaktig fra
+ * VALP sitt wire-format.
  *
  * Statusmeldingene konsumeres av [no.nav.ekspertbistand.oebs.integration.TiltaksokonomiConsumer], så
  * decode er den produksjonsrelevante retningen.
@@ -35,18 +36,19 @@ class OebsStatusMeldingTest {
 
     @Test
     fun `faktura-status deserialiseres fra VALP-kontrakten`() {
+        // VALP ga feltet nytt navn fra fakturaStatusSistOppdatert 2026-09-21 (mulighetsrommet 944a943).
         val raw = """
             {
-              "fakturanummer": "A-2026/10468-1-3",
+              "fakturanummer": "E-2026/900001-1-1",
               "status": "IKKE_BETALT",
-              "fakturaStatusSistOppdatert": "2026-06-03T13:00:00.591621Z"
+              "statusSistOppdatert": "2026-11-16T12:00:00.591621Z"
             }
         """.trimIndent()
 
         val status = json.decodeFromString<FakturaStatus>(raw)
 
-        assertEquals("A-2026/10468-1-3", status.fakturanummer)
+        assertEquals("E-2026/900001-1-1", status.fakturanummer)
         assertEquals(FakturaStatusType.IKKE_BETALT, status.status)
-        assertEquals(Instant.parse("2026-06-03T13:00:00.591621Z"), status.fakturaStatusSistOppdatert)
+        assertEquals(Instant.parse("2026-11-16T12:00:00.591621Z"), status.statusSistOppdatert)
     }
 }
