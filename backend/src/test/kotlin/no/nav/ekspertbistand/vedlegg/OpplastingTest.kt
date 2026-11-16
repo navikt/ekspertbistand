@@ -91,4 +91,47 @@ class OpplastingTest {
 
         assertEquals(HttpStatusCode.PayloadTooLarge, lastOpp { append("felt", "x".repeat(maksStorrelse + 1)) }.status)
     }
+
+    @Test
+    fun `renser filnavn fra opplastingen`() = testApplication {
+        rute()
+
+        val respons = lastOpp { fil("../mappe/a.pdf", 1) }
+
+        assertEquals(HttpStatusCode.OK, respons.status)
+        assertEquals("a.pdf:1 ", respons.bodyAsText())
+    }
+
+    @Test
+    fun `rensFilnavn beholder bare siste del av stien`() {
+        assertEquals("a.pdf", rensFilnavn("../a.pdf"))
+        assertEquals("a.pdf", rensFilnavn("C:\\Users\\x\\a.pdf"))
+        assertEquals("a.pdf", rensFilnavn("/tmp/a.pdf"))
+    }
+
+    @Test
+    fun `rensFilnavn fjerner kontrolltegn og linjeskift`() {
+        assertEquals("ab.pdf", rensFilnavn("a\r\nb.pdf"))
+        assertEquals("ab.pdf", rensFilnavn("a\u0000\u001Fb\u007F.pdf"))
+        assertEquals("rapport 2026.pdf", rensFilnavn("  rapport 2026.pdf\t"))
+    }
+
+    @Test
+    fun `rensFilnavn kutter til maks lengde uten å dele surrogatpar`() {
+        assertEquals(MAKS_FILNAVN_LENGDE, rensFilnavn("x".repeat(300)).length)
+
+        val emoji = "\uD83D\uDE00"
+        val renset = rensFilnavn("x".repeat(MAKS_FILNAVN_LENGDE - 1) + emoji)
+        assertEquals("x".repeat(MAKS_FILNAVN_LENGDE - 1), renset)
+    }
+
+    @Test
+    fun `rensFilnavn gir standardnavn når ingenting er igjen`() {
+        assertEquals("vedlegg.pdf", rensFilnavn(null))
+        assertEquals("vedlegg.pdf", rensFilnavn(""))
+        assertEquals("vedlegg.pdf", rensFilnavn(" \r\n\t "))
+        assertEquals("vedlegg.pdf", rensFilnavn("mappe/"))
+        assertEquals("vedlegg.pdf", rensFilnavn(".."))
+        assertEquals("æøå.pdf", rensFilnavn("æøå.pdf"))
+    }
 }

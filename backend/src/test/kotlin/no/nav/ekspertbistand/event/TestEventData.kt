@@ -6,6 +6,7 @@ import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
+import no.nav.ekspertbistand.event.domain.VedleggDomain
 import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
 import no.nav.ekspertbistand.event.domain.tilSaksstatus
@@ -33,6 +34,34 @@ object TestEventData {
             utfortAvRolle = AktorRolle.SAKSBEHANDLER,
             utfortAvIdent = "Z123456",
             notat = "Sak tildelt",
+            tidspunkt = Instant.parse("2026-04-02T08:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val refusjonskravMottatt by lazy {
+        EventData.RefusjonskravMottatt(
+            refusjonskravId = UUID.randomUUID().toString(),
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            virksomhetsnummer = "987654321",
+            innsendtAv = "01010112345",
+            belopOre = 1200000,
+            innvilgetBelopKroner = 12000,
+            vedlegg = listOf(VedleggDomain(UUID.randomUUID().toString(), "refusjonskrav.pdf", 1024)),
+            tidspunkt = Instant.parse("2026-04-02T08:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val sluttrapportMottatt by lazy {
+        EventData.SluttrapportMottatt(
+            sluttrapportId = UUID.randomUUID().toString(),
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            virksomhetsnummer = "987654321",
+            innsendtAv = "01010112345",
+            vedlegg = VedleggDomain(UUID.randomUUID().toString(), "sluttrapport.pdf", 2048),
             tidspunkt = Instant.parse("2026-04-02T08:00:00Z"),
         )
     }
@@ -468,6 +497,8 @@ object TestEventData {
             soknad = null,
         ),
         sakOppdatert,
+        refusjonskravMottatt,
+        sluttrapportMottatt,
         sakTildeltSaksbehandler,
         sakFrigjort,
         sakTildeltBeslutter,

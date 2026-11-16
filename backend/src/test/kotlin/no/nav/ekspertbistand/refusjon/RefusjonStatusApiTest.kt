@@ -96,6 +96,8 @@ class RefusjonStatusApiTest {
             }
             RefusjonDb(testDb.config.jdbcDatabase).lagreRefusjonskrav(
                 soknadId = soknadId,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
                 belopOre = 2_240_000,
                 filer = listOf(RefusjonsfilInput("kvittering.pdf", "PDF-innhold".toByteArray())),
             )
@@ -149,6 +151,8 @@ class RefusjonStatusApiTest {
             }
             RefusjonDb(testDb.config.jdbcDatabase).lagreRefusjonskrav(
                 soknadId = soknadId,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
                 belopOre = 100_000,
                 filer = listOf(RefusjonsfilInput("kvittering.pdf", "PDF".toByteArray())),
             )
@@ -189,6 +193,8 @@ class RefusjonStatusApiTest {
             val db = RefusjonDb(testDb.config.jdbcDatabase)
             db.lagreRefusjonskrav(
                 soknadId = soknadId,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
                 belopOre = 100_000,
                 filer = listOf(RefusjonsfilInput("kvittering.pdf", "PDF-innhold".toByteArray())),
             )
@@ -217,6 +223,8 @@ class RefusjonStatusApiTest {
             val db = RefusjonDb(testDb.config.jdbcDatabase)
             db.lagreRefusjonskrav(
                 soknadId = soknadId,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
                 belopOre = 100_000,
                 filer = listOf(RefusjonsfilInput("kvittering.pdf", "PDF".toByteArray())),
             )
@@ -239,8 +247,20 @@ class RefusjonStatusApiTest {
                 insertDummySoknad(soknadB, orgnrMedTilgang)
             }
             val db = RefusjonDb(testDb.config.jdbcDatabase)
-            db.lagreRefusjonskrav(soknadA, 100_000, listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())))
-            db.lagreRefusjonskrav(soknadB, 100_000, listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())))
+            db.lagreRefusjonskrav(
+                soknadId = soknadA,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
+                belopOre = 100_000,
+                filer = listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())),
+            )
+            db.lagreRefusjonskrav(
+                soknadId = soknadB,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
+                belopOre = 100_000,
+                filer = listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())),
+            )
             val vedleggIdB = db.finnRefusjonskravStatus(soknadB)!!.vedlegg.first().id
 
             with(client.get("/api/soknad/v1/$soknadA/refusjon/vedlegg/$vedleggIdB") { bearerAuth("faketoken") }) {
@@ -258,13 +278,25 @@ class RefusjonStatusApiTest {
                 insertDummySoknad(soknadId, orgnrMedTilgang)
             }
             val db = RefusjonDb(testDb.config.jdbcDatabase)
-            db.lagreRefusjonskrav(soknadId, 100_000, listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())))
+            db.lagreRefusjonskrav(
+                soknadId = soknadId,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
+                belopOre = 100_000,
+                filer = listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())),
+            )
 
             with(client.post("/api/soknad/v1/$soknadId/refusjon") { bearerAuth("faketoken") }) {
                 assertEquals(HttpStatusCode.Conflict, status)
             }
             assertFailsWith<RefusjonskravFinnesAlleredeException> {
-                db.lagreRefusjonskrav(soknadId, 200_000, listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())))
+                db.lagreRefusjonskrav(
+                    soknadId = soknadId,
+                    virksomhetsnummer = orgnrMedTilgang,
+                    innsendtAv = "01017012345",
+                    belopOre = 200_000,
+                    filer = listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())),
+                )
             }
             transaction(testDb.config.jdbcDatabase) {
                 assertEquals(1, RefusjonskravTable.selectAll().count())
@@ -302,10 +334,22 @@ class RefusjonStatusApiTest {
             val db = RefusjonDb(testDb.config.jdbcDatabase)
 
             val feil = assertFailsWith<BelopOverInnvilgetException> {
-                db.lagreRefusjonskrav(soknadOver, 15_000_01, listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())))
+                db.lagreRefusjonskrav(
+                    soknadId = soknadOver,
+                    virksomhetsnummer = orgnrMedTilgang,
+                    innsendtAv = "01017012345",
+                    belopOre = 15_000_01,
+                    filer = listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())),
+                )
             }
             assertEquals(15_000, feil.maksBelopKroner)
-            db.lagreRefusjonskrav(soknadLik, 15_000_00, listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())))
+            db.lagreRefusjonskrav(
+                soknadId = soknadLik,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
+                belopOre = 15_000_00,
+                filer = listOf(RefusjonsfilInput("b.pdf", "B".toByteArray())),
+            )
 
             transaction(testDb.config.jdbcDatabase) {
                 assertEquals(15_000_00L, RefusjonskravTable.selectAll().single()[RefusjonskravTable.belopOre])
@@ -325,7 +369,13 @@ class RefusjonStatusApiTest {
 
             assertEquals(8_000, db.hentMaksBelopKroner(soknadId))
             assertFailsWith<BelopOverInnvilgetException> {
-                db.lagreRefusjonskrav(soknadId, 8_001_00, listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())))
+                db.lagreRefusjonskrav(
+                    soknadId = soknadId,
+                    virksomhetsnummer = orgnrMedTilgang,
+                    innsendtAv = "01017012345",
+                    belopOre = 8_001_00,
+                    filer = listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())),
+                )
             }
         }
 
@@ -344,7 +394,13 @@ class RefusjonStatusApiTest {
             listOf(utenVedtak, avslatt).forEach { soknadId ->
                 assertFailsWith<InnvilgetBelopManglerException> { db.hentMaksBelopKroner(soknadId) }
                 assertFailsWith<InnvilgetBelopManglerException> {
-                    db.lagreRefusjonskrav(soknadId, 100_00, listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())))
+                    db.lagreRefusjonskrav(
+                        soknadId = soknadId,
+                        virksomhetsnummer = orgnrMedTilgang,
+                        innsendtAv = "01017012345",
+                        belopOre = 100_00,
+                        filer = listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())),
+                    )
                 }
             }
             transaction(testDb.config.jdbcDatabase) {
@@ -364,7 +420,13 @@ class RefusjonStatusApiTest {
             val db = RefusjonDb(testDb.config.jdbcDatabase)
 
             assertFailsWith<SakKildeArenaException> {
-                db.lagreRefusjonskrav(soknadId, 100_00, listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())))
+                db.lagreRefusjonskrav(
+                    soknadId = soknadId,
+                    virksomhetsnummer = orgnrMedTilgang,
+                    innsendtAv = "01017012345",
+                    belopOre = 100_00,
+                    filer = listOf(RefusjonsfilInput("a.pdf", "A".toByteArray())),
+                )
             }
             with(client.post("/api/soknad/v1/$soknadId/refusjon") { bearerAuth("faketoken") }) {
                 assertEquals(HttpStatusCode.Conflict, status)
