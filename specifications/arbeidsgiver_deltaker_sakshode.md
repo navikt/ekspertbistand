@@ -171,7 +171,9 @@ Bruk eksisterende Playwright-oppsett i saksbehandlerappen:
 | `frontend/saksbehandling/src/pages/SakPage.tsx` | Arbeidsgivergruppe, ikoner, nummerformat og tilgjengelige kopierknapper i eksisterende sakshode |
 | `frontend/saksbehandling/src/pages/SakPage.module.css` | Gruppering, skillelinje og tilpasning til smale skjermer |
 | `frontend/saksbehandling/src/components/AdressebeskyttelseTag.tsx` | Valgfri variant, med uendret standard for eksisterende brukere |
+| `frontend/saksbehandling/src/utils/formatNummer.ts` | Testbar visningsformatering som beholder ledende nuller |
 | `frontend/saksbehandling/e2e/sakshode.spec.ts` | Tester av visning, kopiering, merking og smal skjerm |
+| `frontend/saksbehandling/e2e/mock.ts` | Felles oppstartshjelper fra de eksisterende tilgjengelighetstestene |
 | `frontend/saksbehandling/e2e/a11y.spec.ts` | Behold dekningen av saksbildet med det utvidede sakshodet |
 
 ## Åpne spørsmål
