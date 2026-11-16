@@ -29,39 +29,12 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  * nytt forsøk sender det samme. Se `specifications/kvittering_varsel_arbeidsgiver_soknad.md`.
  */
 
-private const val epostTittel = "Nav – angående søknad om ekspertbistand"
-
-internal fun eksterntVarsel(virksomhetsnavn: String): ArbeidsgiverVarselDomain.EksterntVarsel {
-    val tekst = "$virksomhetsnavn har fått svar på en søknad om ekspertbistand. " +
-        "Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det."
-    return ArbeidsgiverVarselDomain.EksterntVarsel(
-        epostTittel = epostTittel,
-        epostHtmlBody = tekst,
-        smsTekst = tekst,
-        sendevindu = sendevindu.tilDomain(),
-    )
-}
-
-internal fun nyttArbeidsgiverVarsel(
-    virksomhetsnummer: String,
-    grupperingsid: String,
-    sak: ArbeidsgiverVarselDomain.Sak?,
-    beskjed: ArbeidsgiverVarselDomain.Beskjed,
-    saksstatus: ArbeidsgiverVarselDomain.Saksstatus?,
-) = ArbeidsgiverVarselDomain(
-    merkelapp = merkelapp,
-    mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = altinn3Ressursid),
-    virksomhetsnummer = virksomhetsnummer,
-    grupperingsid = grupperingsid,
-    sak = sak,
-    beskjed = beskjed,
-    saksstatus = saksstatus,
-)
-
 /** Sak og beskjed om mottatt søknad. Likt for søknader som behandles i Arena og i ny løsning. */
 internal fun arbeidsgiverVarselSoknadMottatt(soknad: DTO.Soknad): ArbeidsgiverVarselDomain {
     val soknadId = requireNotNull(soknad.id) { "Søknaden mangler id" }
-    return nyttArbeidsgiverVarsel(
+    return ArbeidsgiverVarselDomain(
+        merkelapp = merkelapp,
+        mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = altinn3Ressursid),
         virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
         grupperingsid = soknadId,
         sak = ArbeidsgiverVarselDomain.Sak(
@@ -85,7 +58,11 @@ internal fun arbeidsgiverVarselSoknadGodkjent(
     godkjentFlereGanger: Boolean,
 ): ArbeidsgiverVarselDomain {
     val soknadId = requireNotNull(soknad.id) { "Søknaden mangler id" }
-    return nyttArbeidsgiverVarsel(
+    val eksterntVarselTekst = "${soknad.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. " +
+        "Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det."
+    return ArbeidsgiverVarselDomain(
+        merkelapp = merkelapp,
+        mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = altinn3Ressursid),
         virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
         grupperingsid = soknadId,
         sak = null,
@@ -97,7 +74,12 @@ internal fun arbeidsgiverVarselSoknadGodkjent(
                 "Søknaden er godkjent og ekspertbistand kan nå tas i bruk."
             },
             lenke = soknad.kvitteringsLenke,
-            eksterntVarsel = eksterntVarsel(soknad.virksomhet.virksomhetsnavn),
+            eksterntVarsel = ArbeidsgiverVarselDomain.EksterntVarsel(
+                epostTittel = "Nav – angående søknad om ekspertbistand",
+                epostHtmlBody = eksterntVarselTekst,
+                smsTekst = eksterntVarselTekst,
+                sendevindu = sendevindu.tilDomain(),
+            ),
         ),
         saksstatus = ArbeidsgiverVarselDomain.Saksstatus(
             status = ArbeidsgiverVarselDomain.Status.FERDIG,
@@ -110,7 +92,11 @@ internal fun arbeidsgiverVarselSoknadGodkjent(
 /** Beskjed og ferdig sak når søknaden er avlyst i Arena. */
 internal fun arbeidsgiverVarselSoknadAvlyst(soknad: DTO.Soknad): ArbeidsgiverVarselDomain {
     val soknadId = requireNotNull(soknad.id) { "Søknaden mangler id" }
-    return nyttArbeidsgiverVarsel(
+    val eksterntVarselTekst = "${soknad.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. " +
+        "Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det."
+    return ArbeidsgiverVarselDomain(
+        merkelapp = merkelapp,
+        mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = altinn3Ressursid),
         virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
         grupperingsid = soknadId,
         sak = null,
@@ -118,7 +104,12 @@ internal fun arbeidsgiverVarselSoknadAvlyst(soknad: DTO.Soknad): ArbeidsgiverVar
             eksternId = "$soknadId-soknad-avlyst",
             tekst = "Søknaden om ekspertbistand trukket eller avslått.",
             lenke = soknad.kvitteringsLenke,
-            eksterntVarsel = eksterntVarsel(soknad.virksomhet.virksomhetsnavn),
+            eksterntVarsel = ArbeidsgiverVarselDomain.EksterntVarsel(
+                epostTittel = "Nav – angående søknad om ekspertbistand",
+                epostHtmlBody = eksterntVarselTekst,
+                smsTekst = eksterntVarselTekst,
+                sendevindu = sendevindu.tilDomain(),
+            ),
         ),
         saksstatus = ArbeidsgiverVarselDomain.Saksstatus(
             status = ArbeidsgiverVarselDomain.Status.FERDIG,

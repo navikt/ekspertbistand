@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.event.handlers
 
+import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -9,7 +10,10 @@ import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
 import no.nav.ekspertbistand.event.domain.VedtakDomain
+import no.nav.ekspertbistand.event.domain.tilDomain
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.notifikasjon.merkelapp
+import no.nav.ekspertbistand.notifikasjon.sendevindu
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.soknad.kvitteringsLenkeV2
 import no.nav.ekspertbistand.soknad.vedtakLenke
@@ -89,6 +93,11 @@ class VarsleArbeidsgiverVedtakFattet @OptIn(ExperimentalTime::class) constructor
     }
 }
 
+private const val epostTittel = "Nav – angående søknad om ekspertbistand"
+
+private fun eksterntVarselTekst(virksomhetsnavn: String) =
+    "$virksomhetsnavn har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det."
+
 private fun beskjedTekst(utfall: VedtakDomain.Utfall) = when (utfall) {
     VedtakDomain.Utfall.INNVILGE,
     VedtakDomain.Utfall.INNVILGE_REDUSERT -> "Søknaden er godkjent og ekspertbistand kan nå tas i bruk."
@@ -102,7 +111,9 @@ private fun statusTekst(utfall: VedtakDomain.Utfall) = when (utfall) {
     VedtakDomain.Utfall.AVSLAA -> "Søknad avslått"
 }
 
-internal fun arbeidsgiverVarsel(data: EventData.VedtaksbrevArbeidsgiverJournalfoert) = nyttArbeidsgiverVarsel(
+internal fun arbeidsgiverVarsel(data: EventData.VedtaksbrevArbeidsgiverJournalfoert) = ArbeidsgiverVarselDomain(
+    merkelapp = merkelapp,
+    mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = altinn3Ressursid),
     virksomhetsnummer = data.virksomhetsnummer,
     grupperingsid = data.soknadId,
     sak = null,
@@ -110,7 +121,12 @@ internal fun arbeidsgiverVarsel(data: EventData.VedtaksbrevArbeidsgiverJournalfo
         eksternId = "${data.soknadId}-vedtak",
         tekst = beskjedTekst(data.utfall),
         lenke = vedtakLenke(data.soknadId),
-        eksterntVarsel = eksterntVarsel(data.virksomhetsnavn),
+        eksterntVarsel = ArbeidsgiverVarselDomain.EksterntVarsel(
+            epostTittel = epostTittel,
+            epostHtmlBody = eksterntVarselTekst(data.virksomhetsnavn),
+            smsTekst = eksterntVarselTekst(data.virksomhetsnavn),
+            sendevindu = sendevindu.tilDomain(),
+        ),
     ),
     saksstatus = ArbeidsgiverVarselDomain.Saksstatus(
         status = ArbeidsgiverVarselDomain.Status.FERDIG,
