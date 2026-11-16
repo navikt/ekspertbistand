@@ -336,7 +336,8 @@ I loggene til `ekspertbistand-backend` (dev):
 - `Publiserte melding til fager.ekspertbistand.bestillinger-v1` når en rad er sendt.
 - `Publisering av outbox-melding feilet` betyr at raden blir liggende og prøves
   igjen hvert 30. sekund (se *Feilsituasjoner*).
-- `Ukjent/ugyldig status-melding` i teamLogs betyr at statuskontrakten ikke stemmer.
+- `Hopper over status-melding som ikke kunne leses` (error) betyr at statuskontrakten
+  ikke stemmer. Hele meldingen står i teamLogs.
 
 OeBS kvitterer i faste intervaller på 10 minutter (12:15:00, 12:25:00 og 12:35:00
 i runde 1). Regn med opptil 10 minutter fra `SENDT` til `AKTIV` eller `ANNULLERT`.
@@ -391,8 +392,11 @@ meldingen, men lagret den ikke. VALP endret feltet `fakturaStatusSistOppdatert`
 til `statusSistOppdatert` 2026-09-21 (mulighetsrommet 944a943), etter at vi speilet
 kontrakten. Deserialiseringen feilet, og consumeren hoppet over meldingen og
 committet offset. Feilen havnet bare i team-logs, ikke i appen sin logg. Speilingen
-i `OebsStatusMelding.kt` er rettet, og consumeren logger nå `log.error` med topic,
-partisjon og offset (uten innholdet i meldingen) når den hopper over en melding.
+i `OebsStatusMelding.kt` er rettet. Når consumeren hopper over en melding, logger
+den nå `teamLog.error` med hele meldingen og `log.error` med topic, partisjon,
+offset og unntakstype, uten innholdet i meldingen. Teamregelen er at hver
+teamLog-linje skal ha en tilsvarende linje i apploggen, og at `teamLog.error`
+alltid følges av `log.error`, fordi bare apploggen gir alarm.
 
 For å hente statusen på nytt deployer du fiksen og kjører `INSERT`-en fra 2A en
 gang til. VALP kjenner igjen fakturanummeret og publiserer gjeldende status uten
@@ -411,8 +415,8 @@ gang til. VALP kjenner igjen fakturanummeret og publiserer gjeldende status uten
 - **Ingen status kommer tilbake.** Sjekk at VALP har publisert (logger hos VALP),
   at headeren `fagsystem=EKSPERTBISTAND` er satt, og at consumeren vår har startet
   (ingen `Kafka`-feil ved oppstart). Se etter `Hopper over status-melding som ikke
-  kunne leses` i apploggen. Detaljene står i team-logs (`Klarte ikke deserialisere
-  status-melding`). Da stemmer ikke speilingen med VALP, og meldingen er hoppet
+  kunne leses` i apploggen. Hele meldingen og stacktrace står i team-logs under
+  samme tekst. Da stemmer ikke speilingen med VALP, og meldingen er hoppet
   over. Send samme melding på nytt etter fiksen, så publiserer VALP statusen igjen.
 - **Noen deployer `main` til dev under testen.** Før denne PR-en er merget, stopper
   det polleren og status-consumeren. Rader blir liggende som `PENDING`, og status

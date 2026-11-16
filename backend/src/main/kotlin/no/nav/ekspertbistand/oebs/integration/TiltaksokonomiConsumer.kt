@@ -70,12 +70,14 @@ class TiltaksokonomiConsumer(
 
         val raw = json.decodeFromString<JsonObject>(value)
 
-        val melding = deserialiserStatus(record.topic(), value)
-        if (melding == null) {
-            teamLog.warn("Ukjent/ugyldig status-melding på {} – hopper over. record={}", record.topic(), record)
+        val melding = try {
+            deserialiserStatus(record.topic(), value)
+        } catch (e: Exception) {
+            teamLog.error("Hopper over status-melding som ikke kunne leses. record={}", record, e)
+            // Unntaksmeldingen kan gjengi meldingsinnholdet, så bare typen logges her.
             log.error(
-                "Hopper over status-melding som ikke kunne leses: topic={} partition={} offset={} – sjekk teamLogs for detaljer.",
-                record.topic(), record.partition(), record.offset(),
+                "Hopper over status-melding som ikke kunne leses: topic={} partition={} offset={} feil={}. Detaljer i teamLogs.",
+                record.topic(), record.partition(), record.offset(), e.javaClass.simpleName,
             )
             return
         }
@@ -119,23 +121,18 @@ class TiltaksokonomiConsumer(
 
     /**
      * Deserialiserer meldingsverdien til rett sterkt typet kontrakt basert på hvilket status-topic
-     * den kom på. Returnerer `null` for ukjente topics eller meldinger som ikke lar seg parse mot
-     * kontrakten (logges og hoppes over av kalleren).
+     * den kom på. Kaster for ukjente topics og for meldinger som ikke lar seg parse mot kontrakten
+     * (logges og hoppes over av kalleren).
      */
-    private fun deserialiserStatus(topic: String, value: String): OebsStatusMelding? =
-        try {
-            when (topic) {
-                BESTILLING_STATUS_TOPIC ->
-                    OebsStatusMelding.Bestilling(json.decodeFromString<BestillingStatus>(value))
+    private fun deserialiserStatus(topic: String, value: String): OebsStatusMelding =
+        when (topic) {
+            BESTILLING_STATUS_TOPIC ->
+                OebsStatusMelding.Bestilling(json.decodeFromString<BestillingStatus>(value))
 
-                FAKTURA_STATUS_TOPIC ->
-                    OebsStatusMelding.Faktura(json.decodeFromString<FakturaStatus>(value))
+            FAKTURA_STATUS_TOPIC ->
+                OebsStatusMelding.Faktura(json.decodeFromString<FakturaStatus>(value))
 
-                else -> null
-            }
-        } catch (e: Exception) {
-            teamLog.warn("Klarte ikke deserialisere status-melding på {}", topic, e)
-            null
+            else -> throw IllegalArgumentException("Ukjent status-topic $topic")
         }
 
     /**
