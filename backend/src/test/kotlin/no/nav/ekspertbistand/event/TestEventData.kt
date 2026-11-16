@@ -11,6 +11,9 @@ import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
 import no.nav.ekspertbistand.event.domain.tilSaksstatus
 import no.nav.ekspertbistand.event.handlers.arbeidsgiverVarsel
+import no.nav.ekspertbistand.event.handlers.arbeidsgiverVarselSoknadAvlyst
+import no.nav.ekspertbistand.event.handlers.arbeidsgiverVarselSoknadGodkjent
+import no.nav.ekspertbistand.event.handlers.arbeidsgiverVarselSoknadMottatt
 import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
@@ -20,6 +23,7 @@ import no.nav.ekspertbistand.saksbehandling.Vilkar
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.tilsagndata.concat
 import java.util.UUID
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -196,6 +200,34 @@ object TestEventData {
             journalpostId = vedtaksbrevArbeidsgiverJournalfoert.journalpostId,
             varsel = arbeidsgiverVarsel(vedtaksbrevArbeidsgiverJournalfoert),
             tidspunkt = Instant.parse("2026-04-04T09:06:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletSoknadMottatt by lazy {
+        EventData.ArbeidsgiverVarsletSoknadMottatt(
+            soknadId = sampleSoknad.id!!,
+            varsel = arbeidsgiverVarselSoknadMottatt(sampleSoknad),
+            tidspunkt = Instant.parse("2026-04-01T09:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletSoknadGodkjent by lazy {
+        EventData.ArbeidsgiverVarsletSoknadGodkjent(
+            soknadId = sampleSoknad.id!!,
+            tilsagnNummer = sampleTilsagnData.tilsagnNummer.concat(),
+            varsel = arbeidsgiverVarselSoknadGodkjent(sampleSoknad, sampleTilsagnData.tilsagnNummer, false),
+            tidspunkt = Instant.parse("2026-04-02T09:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletSoknadAvlyst by lazy {
+        EventData.ArbeidsgiverVarsletSoknadAvlyst(
+            soknadId = sampleSoknad.id!!,
+            varsel = arbeidsgiverVarselSoknadAvlyst(sampleSoknad),
+            tidspunkt = Instant.parse("2026-04-03T09:00:00Z"),
         )
     }
 
@@ -508,6 +540,9 @@ object TestEventData {
         forelopigVedtakReturnert,
         vedtaksbrevArbeidsgiverJournalfoert,
         arbeidsgiverVarsletVedtakFattet,
+        arbeidsgiverVarsletSoknadMottatt,
+        arbeidsgiverVarsletSoknadGodkjent,
+        arbeidsgiverVarsletSoknadAvlyst,
         vedtaksbrevVist,
     )
 }

@@ -30,6 +30,9 @@ flowchart TD
     s_VedleggDb[/"VedleggDb"/]:::source
     s_VedtaksbrevApi[/"VedtaksbrevApi"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
+    e_ArbeidsgiverVarsletSoknadAvlyst(["ArbeidsgiverVarsletSoknadAvlyst"]):::event
+    e_ArbeidsgiverVarsletSoknadGodkjent(["ArbeidsgiverVarsletSoknadGodkjent"]):::event
+    e_ArbeidsgiverVarsletSoknadMottatt(["ArbeidsgiverVarsletSoknadMottatt"]):::event
     e_ArbeidsgiverVarsletVedtakFattet(["ArbeidsgiverVarsletVedtakFattet"]):::event
     e_ForelopigVedtakReturnert(["ForelopigVedtakReturnert"]):::event
     e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
@@ -57,6 +60,9 @@ flowchart TD
     e_VedtaksbrevArbeidsgiverJournalfoert(["VedtaksbrevArbeidsgiverJournalfoert"]):::event
     e_VedtaksbrevVist(["VedtaksbrevVist"]):::event
     e_VilkarsvurderingOppdatert(["VilkarsvurderingOppdatert"]):::event
+    h_ArbeidsgiverVarsletSoknadAvlystNoop["ArbeidsgiverVarsletSoknadAvlystNoop"]:::handler
+    h_ArbeidsgiverVarsletSoknadGodkjentNoop["ArbeidsgiverVarsletSoknadGodkjentNoop"]:::handler
+    h_ArbeidsgiverVarsletSoknadMottattNoop["ArbeidsgiverVarsletSoknadMottattNoop"]:::handler
     h_ArbeidsgiverVarsletVedtakFattetNoop["ArbeidsgiverVarsletVedtakFattetNoop"]:::handler
     h_BestillTilsagnIOebs["BestillTilsagnIOebs"]:::handler
     h_DistribuerSoknadKopiDeltaker["DistribuerSoknadKopiDeltaker"]:::handler
@@ -132,11 +138,18 @@ flowchart TD
     h_TildelBeslutter --> e_SakOppdatert
     h_TildelSaksbehandler --> e_SakOppdatert
     s_TilsagnDataApi --> e_TilskuddsbrevVist
+    h_VarsleArbeidsgiverSakOpprettet --> e_ArbeidsgiverVarsletSoknadMottatt
+    h_VarsleArbeidsgiverSoknadAvlyst --> e_ArbeidsgiverVarsletSoknadAvlyst
+    h_VarsleArbeidsgiverSoknadGodkjent --> e_ArbeidsgiverVarsletSoknadGodkjent
+    h_VarsleArbeidsgiverSoknadMottattBehandlesIArena --> e_ArbeidsgiverVarsletSoknadMottatt
     h_VarsleArbeidsgiverVedtakFattet --> e_ArbeidsgiverVarsletVedtakFattet
     h_VarsleArbeidsgiverVedtakFattet --> e_SakOppdatert
     s_VedleggDb --> e_SluttrapportMottatt
     s_VedtaksbrevApi --> e_VedtaksbrevVist
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
+    e_ArbeidsgiverVarsletSoknadAvlyst --> h_ArbeidsgiverVarsletSoknadAvlystNoop
+    e_ArbeidsgiverVarsletSoknadGodkjent --> h_ArbeidsgiverVarsletSoknadGodkjentNoop
+    e_ArbeidsgiverVarsletSoknadMottatt --> h_ArbeidsgiverVarsletSoknadMottattNoop
     e_ArbeidsgiverVarsletVedtakFattet --> h_ArbeidsgiverVarsletVedtakFattetNoop
     e_VedtakFattet --> h_BestillTilsagnIOebs
     e_SoknadKopiDeltakerJournalfoert --> h_DistribuerSoknadKopiDeltaker
