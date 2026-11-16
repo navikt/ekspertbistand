@@ -167,7 +167,7 @@ for (const { nummer, feilmelding } of [
     await openMockedPage(page, "/oversikt");
     await page.goto(sakUrl(nummer));
 
-    await expect(page.getByRole("alert")).toContainText(feilmelding);
+    await expect(page.getByText(feilmelding, { exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: "Sakens parter" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Kopier/ })).toHaveCount(0);
   });
