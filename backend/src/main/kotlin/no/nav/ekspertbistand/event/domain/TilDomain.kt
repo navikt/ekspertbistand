@@ -39,17 +39,8 @@ fun DTO.Soknad.tilDomain(): SoknadDomainV2 {
 
     return SoknadDomainV2(
         id = id,
-        virksomhet = SoknadDomainV2.Virksomhet(
-            virksomhetsnummer = virksomhet.virksomhetsnummer,
-            virksomhetsnavn = virksomhet.virksomhetsnavn,
-            kontaktperson = SoknadDomainV2.Kontaktperson(
-                navn = virksomhet.kontaktperson.navn,
-                epost = virksomhet.kontaktperson.epost,
-                telefonnummer = virksomhet.kontaktperson.telefonnummer,
-            ),
-            beliggenhetsadresse = virksomhet.beliggenhetsadresse,
-        ),
-        ansatt = SoknadDomainV2.Ansatt(fnr = ansatt.fnr, navn = ansatt.navn),
+        virksomhet = virksomhet.tilDomain(),
+        ansatt = ansatt.tilDomain(),
         ekspert = SoknadDomainV2.Ekspert(
             navn = ekspert.navn,
             virksomhet = ekspert.virksomhet,
@@ -72,6 +63,19 @@ fun DTO.Soknad.tilDomain(): SoknadDomainV2 {
         status = status.tilDomain(),
     )
 }
+
+fun DTO.Virksomhet.tilDomain() = SoknadDomainV2.Virksomhet(
+    virksomhetsnummer = virksomhetsnummer,
+    virksomhetsnavn = virksomhetsnavn,
+    kontaktperson = SoknadDomainV2.Kontaktperson(
+        navn = kontaktperson.navn,
+        epost = kontaktperson.epost,
+        telefonnummer = kontaktperson.telefonnummer,
+    ),
+    beliggenhetsadresse = beliggenhetsadresse,
+)
+
+fun DTO.Ansatt.tilDomain() = SoknadDomainV2.Ansatt(fnr = fnr, navn = navn)
 
 fun SoknadStatus.tilDomain(): SoknadDomainV2.Status = when (this) {
     SoknadStatus.innsendt -> SoknadDomainV2.Status.innsendt
