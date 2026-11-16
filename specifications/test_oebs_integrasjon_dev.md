@@ -336,9 +336,9 @@ I loggene til `ekspertbistand-backend` (dev):
 - `Publiserte melding til fager.ekspertbistand.bestillinger-v1` når en rad er sendt.
 - `Publisering av outbox-melding feilet` betyr at raden blir liggende og prøves
   igjen hvert 30. sekund (se *Feilsituasjoner*).
-- `Feil ved prosessering av kafka-melding` med `SerializationException` betyr at
-  statuskontrakten ikke stemmer. Consumeren står da fast på meldingen og prøver
-  på nytt hvert 5. sekund til speilingen er rettet.
+- `Status-melding bryter kontrakten` (error) betyr at statuskontrakten ikke
+  stemmer. Hele meldingen og feilen står i teamLogs under samme tekst. Consumeren
+  står fast på meldingen og prøver på nytt hvert 5. sekund til speilingen er rettet.
 
 OeBS kvitterer i faste intervaller på 10 minutter (12:15:00, 12:25:00 og 12:35:00
 i runde 1). Regn med opptil 10 minutter fra `SENDT` til `AKTIV` eller `ANNULLERT`.
@@ -396,10 +396,12 @@ committet offset. Feilen havnet bare i team-logs, ikke i appen sin logg. Speilin
 i `OebsStatusMelding.kt` er rettet.
 
 Consumeren skal ikke hoppe over meldinger den ikke kan lese. Det var ingen
-beslutning bak det. Det kom inn i en refaktorering (8b27ea9). Nå kaster
-consumeren, og `CoroutineKafkaConsumer` logger `log.error`, committer ikke og
-prøver samme offset på nytt hvert 5. sekund. Et kontraktbrudd stopper da
-consumeren til speilingen er rettet, i stedet for at statusen går tapt.
+beslutning bak det. Det kom inn i en refaktorering (8b27ea9). Nå logger
+consumeren `log.error` med topic, partisjon, offset og unntakstype, og
+`teamLog.error` med hele meldingen og feilen. Så kaster den, og
+`CoroutineKafkaConsumer` committer ikke, men prøver samme offset på nytt hvert
+5. sekund. Et kontraktbrudd stopper da consumeren til speilingen er rettet, i
+stedet for at statusen går tapt.
 
 For å hente statusen på nytt deployer du fiksen og kjører `INSERT`-en fra 2A en
 gang til. VALP kjenner igjen fakturanummeret og publiserer gjeldende status uten
@@ -418,10 +420,10 @@ gang til. VALP kjenner igjen fakturanummeret og publiserer gjeldende status uten
 - **Ingen status kommer tilbake.** Sjekk at VALP har publisert (logger hos VALP),
   at headeren `fagsystem=EKSPERTBISTAND` er satt, og at consumeren vår har startet
   (ingen `Kafka`-feil ved oppstart).
-- **Consumeren står fast på en status-melding.** Apploggen viser `Feil ved
-  prosessering av kafka-melding` hvert 5. sekund for samme partisjon og offset.
-  Speilingen stemmer ikke med VALP. Rett kontrakten og deploy, så leser consumeren
-  meldingen på nytt.
+- **Consumeren står fast på en status-melding.** Apploggen viser `Status-melding
+  bryter kontrakten` hvert 5. sekund for samme partisjon og offset. Finn meldingen
+  og feilen i teamLogs under samme tekst, og rett speilingen etter VALP sin
+  kontrakt. Etter deploy leser consumeren meldingen på nytt.
 - **Noen deployer `main` til dev under testen.** Før denne PR-en er merget, stopper
   det polleren og status-consumeren. Rader blir liggende som `PENDING`, og status
   blir liggende på topicet til branchen er deployet igjen. Ingenting går tapt.
@@ -460,7 +462,7 @@ trekkes tilbake etter testen.
 |-----|---------|
 | `backend/src/main/kotlin/no/nav/ekspertbistand/Application.kt` | Starter `startOebsProsessering` i dev |
 | `backend/src/main/kotlin/no/nav/ekspertbistand/oebs/Oebs.kt` | KDoc |
-| `backend/src/main/kotlin/no/nav/ekspertbistand/oebs/integration/TiltaksokonomiConsumer.kt` | KDoc, kaster ved kontraktbrudd i stedet for å hoppe over meldingen |
+| `backend/src/main/kotlin/no/nav/ekspertbistand/oebs/integration/TiltaksokonomiConsumer.kt` | KDoc. Ved kontraktbrudd logger den `log.error` og `teamLog.error` og kaster, så meldingen prøves på nytt |
 | `backend/src/main/kotlin/no/nav/ekspertbistand/oebs/README.md` | Status for wiring og eksterne avhengigheter |
 | `backend/src/main/kotlin/no/nav/ekspertbistand/oebs/integration/OebsStatusMelding.kt` | `FakturaStatus.statusSistOppdatert` (funn i runde 2) |
 | `backend/src/test/kotlin/no/nav/ekspertbistand/oebs/OebsStatusMeldingTest.kt` | Kontraktstest med VALP sitt feltnavn |

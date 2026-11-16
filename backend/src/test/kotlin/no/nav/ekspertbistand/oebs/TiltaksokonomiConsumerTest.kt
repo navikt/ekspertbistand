@@ -3,7 +3,6 @@
 package no.nav.ekspertbistand.oebs
 
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
@@ -175,7 +174,7 @@ class TiltaksokonomiConsumerTest {
             val gammeltFeltnavn =
                 """{"fakturanummer":"$fakturanummer","status":"IKKE_BETALT","fakturaStatusSistOppdatert":"2026-11-16T12:00:00Z"}"""
 
-            assertFailsWith<SerializationException> {
+            assertFailsWith<IllegalStateException> {
                 runBlocking {
                     consumer.processRecord(record(TiltaksokonomiConsumer.FAKTURA_STATUS_TOPIC, fakturanummer, gammeltFeltnavn))
                 }

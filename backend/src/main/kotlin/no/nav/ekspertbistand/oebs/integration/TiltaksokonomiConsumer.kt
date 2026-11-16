@@ -70,8 +70,19 @@ class TiltaksokonomiConsumer(
 
         val raw = json.decodeFromString<JsonObject>(value)
 
-        // Kaster ved kontraktbrudd. CoroutineKafkaConsumer logger error og prøver samme offset på nytt.
-        val melding = deserialiserStatus(record.topic(), value)
+        val melding = try {
+            deserialiserStatus(record.topic(), value)
+        } catch (e: Exception) {
+            teamLog.error("Status-melding bryter kontrakten. record={}", record, e)
+            log.error(
+                "Status-melding bryter kontrakten: topic={} partition={} offset={} feil={}. Prøver på nytt. Detaljer i teamLogs.",
+                record.topic(), record.partition(), record.offset(), e.javaClass.simpleName,
+            )
+            // Uten cause: unntaksteksten gjengir meldingsinnholdet, som bare skal i teamLogs.
+            throw IllegalStateException(
+                "Status-melding bryter kontrakten: topic=${record.topic()} partition=${record.partition()} offset=${record.offset()}"
+            )
+        }
 
         // Etterlevelse: logg svaret varig FØR tolkning, slik at revisjonssporet fanger alt vi mottok
         // selv om tolkningen (rød sone) ikke er ferdig. Idempotent på Kafka-koordinatene.
