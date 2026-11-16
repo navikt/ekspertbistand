@@ -15,6 +15,7 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableErr
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.event.publishEventQueue
+import no.nav.ekspertbistand.pdl.GraderingOppslag
 import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -28,6 +29,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
  *
  * Denne handleren tar imot eventen, genererer et tilskuddsbrev i PDF-format og
  * journalfører dette i DokArkiv.
+ * Har deltakeren adressebeskyttelse, sladdes navn og fødselsnummer i PDF-en, fordi den journalføres på
+ * arbeidsgivermappa. Se `specifications/sladd_deltaker_arbeidsgivermappa.md`.
  * Etter journalføring publiseres en ny event [no.nav.ekspertbistand.event.EventData.TilskuddsbrevJournalfoertKildeAltinn]
  * som inneholder informasjon om journalpostId og dokumentId.
  */
@@ -35,6 +38,7 @@ class JournalfoerTilskuddsbrevKildeAltinn(
     private val fagsakIdService: FagsakIdService,
     private val dokumentService: DokumentService,
     private val dokArkivClient: DokArkivClient,
+    private val graderingOppslag: GraderingOppslag,
     private val database: Database,
 ) : EventHandler<EventData.TilskuddsbrevMottattKildeAltinn> {
     private val publiserJournalpostEventSubtask = "journalpost_opprettet_event"
@@ -48,8 +52,14 @@ class JournalfoerTilskuddsbrevKildeAltinn(
             return EventHandledResult.Success()
         }
 
+        val adressebeskyttelse = try {
+            event.data.tilsagnData.deltaker?.let { graderingOppslag.hentAdressebeskyttelse(it.fodselsnr) }
+        } catch (e: Exception) {
+            return transientError("Klarte ikke hente adressebeskyttelse for deltaker", e)
+        }
+
         val tilsagnPdf = try {
-            dokumentService.genererTilskuddsbrevPdf(event.data.tilsagnData)
+            dokumentService.genererTilskuddsbrevPdf(event.data.tilsagnData, adressebeskyttelse)
         } catch (e: Exception) {
             return transientError("Klarte ikke generere søknad-PDF: ${e.message}", e)
         }

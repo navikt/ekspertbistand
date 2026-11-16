@@ -35,12 +35,15 @@ import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
+import no.nav.ekspertbistand.saksbehandling.SLADDET_NAVN
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.*
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
@@ -72,7 +75,8 @@ class JournalfoerInnsendtSoknadTest {
         mockNorg(behandlendeEnhet = "4242") {
             capturedNorgRequest = it
         }
-        setupApplication(database)
+        var pdfHtml: String? = null
+        setupApplication(database) { pdfHtml = it }
         startApplication()
 
         val handler = application.dependencies.resolve<JournalfoerInnsendtSoknad>()
@@ -96,6 +100,8 @@ class JournalfoerInnsendtSoknadTest {
             assertEquals("0301", capturedNorgRequest?.geografiskOmraade)
             assertEquals(NorgKlient.DISKRESJONSKODE_ANY, capturedNorgRequest?.diskresjonskode)
         }
+        assertContains(requireNotNull(pdfHtml), sampleSoknad.ansatt.navn)
+        assertContains(requireNotNull(pdfHtml), sampleSoknad.ansatt.fnr)
 
     }
 
@@ -118,7 +124,8 @@ class JournalfoerInnsendtSoknadTest {
         mockNorg(behandlendeEnhet = "9999") {
             capturedNorgRequest = it
         }
-        setupApplication(database)
+        var pdfHtml: String? = null
+        setupApplication(database) { pdfHtml = it }
         startApplication()
 
         val handler = application.dependencies.resolve<JournalfoerInnsendtSoknad>()
@@ -140,7 +147,54 @@ class JournalfoerInnsendtSoknadTest {
             assertEquals("1101", capturedNorgRequest?.geografiskOmraade)
             assertEquals(NorgKlient.DISKRESJONSKODE_ADRESSEBESKYTTET, capturedNorgRequest?.diskresjonskode)
         }
+        assertSladdet(requireNotNull(pdfHtml))
 
+    }
+
+    @Test
+    fun `fortrolig arbeidstaker rutes paa virksomhet og sladdes i soknaden`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        mockDokArkiv {
+            OpprettJournalpostResponse(
+                dokumenter = listOf(OpprettJournalpostDokument("9876")),
+                journalpostId = "1234",
+                journalpostferdigstilt = true,
+            )
+        }
+        mockPdl(adressebeskyttelse = AdressebeskyttelseGradering.FORTROLIG)
+        mockEreg { _ ->
+            """
+            {
+              "organisasjonsnummer": "987654321",
+              "organisasjonDetaljer": {
+                "forretningsadresser": [
+                  { "kommunenummer": "0301" }
+                ]
+              }
+            }
+            """.trimIndent()
+        }
+        mockNorg(behandlendeEnhet = "4242")
+        var pdfHtml: String? = null
+        setupApplication(database) { pdfHtml = it }
+        startApplication()
+
+        val handler = application.dependencies.resolve<JournalfoerInnsendtSoknad>()
+        val event = Event(
+            id = 5L,
+            data = EventData.SoknadInnsendt(sampleSoknad.copy(id = UUID.randomUUID().toString()))
+        )
+
+        val result = handler.handle(event)
+        assertIs<EventHandledResult.Success>(result)
+
+        transaction(database) {
+            val queuedEvent = QueuedEvents.selectAll().single()[QueuedEvents.eventData]
+            assertIs<EventData.InnsendtSoknadJournalfoert>(queuedEvent)
+            assertEquals("0301", queuedEvent.virksomhetKommunenummer)
+            assertEquals(sampleSoknad.ansatt, queuedEvent.soknad.ansatt, "eventen skal ha usladdet søknad")
+        }
+        assertSladdet(requireNotNull(pdfHtml))
     }
 
     @Test
@@ -233,7 +287,16 @@ class JournalfoerInnsendtSoknadTest {
     }
 }
 
-private fun ApplicationTestBuilder.setupApplication(database: Database) {
+private fun assertSladdet(html: String) {
+    assertFalse(html.contains(sampleSoknad.ansatt.navn), "deltakers navn skal sladdes")
+    assertFalse(html.contains(sampleSoknad.ansatt.fnr), "deltakers fnr skal sladdes")
+    assertContains(html, SLADDET_NAVN)
+}
+
+private fun ApplicationTestBuilder.setupApplication(
+    database: Database,
+    onPdfHtml: (String) -> Unit = {},
+) {
     application {
         dependencies {
             provide { database }
@@ -246,7 +309,7 @@ private fun ApplicationTestBuilder.setupApplication(database: Database) {
             provide(BehandlendeEnhetService::class)
             provide(PdlApiKlient::class)
             provide(BehandlendeEnhetUtleder::class)
-            provide { DokumentService(StubPdfKonverterer()) }
+            provide { DokumentService(StubPdfKonverterer(onConvert = onPdfHtml)) }
             provide(DokArkivClient::class)
             provide(JournalfoerInnsendtSoknad::class)
             provide(FagsakIdService::class)

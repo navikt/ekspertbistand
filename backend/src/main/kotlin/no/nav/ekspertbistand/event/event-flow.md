@@ -23,21 +23,25 @@ flowchart TD
     s_ArenaTiltakssakEndretProcessor[/"ArenaTiltakssakEndretProcessor"/]:::source
     s_BeslutterApi[/"BeslutterApi"/]:::source
     s_ForelopigVedtakApi[/"ForelopigVedtakApi"/]:::source
+    s_RefusjonDb[/"RefusjonDb"/]:::source
     s_SakApi[/"SakApi"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
+    s_VedleggDb[/"VedleggDb"/]:::source
     s_VedtaksbrevApi[/"VedtaksbrevApi"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
     e_ArbeidsgiverVarsletVedtakFattet(["ArbeidsgiverVarsletVedtakFattet"]):::event
     e_ForelopigVedtakReturnert(["ForelopigVedtakReturnert"]):::event
     e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
+    e_RefusjonskravMottatt(["RefusjonskravMottatt"]):::event
     e_SakFrigjort(["SakFrigjort"]):::event
     e_SakOppdatert(["SakOppdatert"]):::event
     e_SakOpprettet(["SakOpprettet"]):::event
     e_SakTildeltBeslutter(["SakTildeltBeslutter"]):::event
     e_SakTildeltSaksbehandler(["SakTildeltSaksbehandler"]):::event
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
+    e_SluttrapportMottatt(["SluttrapportMottatt"]):::event
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
     e_SoknadKopiDeltakerDistribuert(["SoknadKopiDeltakerDistribuert"]):::event
@@ -77,6 +81,8 @@ flowchart TD
     h_SettGodkjentSoknadStatus["SettGodkjentSoknadStatus"]:::handler
     h_SettSoknadStatusVedtakFattet["SettSoknadStatusVedtakFattet"]:::handler
     h_SkrivSakslogg["SkrivSakslogg"]:::handler
+    h_SkrivSaksloggForRefusjonskrav["SkrivSaksloggForRefusjonskrav"]:::handler
+    h_SkrivSaksloggForSluttrapport["SkrivSaksloggForSluttrapport"]:::handler
     h_SoknadKopiDeltakerDistribuertNoop["SoknadKopiDeltakerDistribuertNoop"]:::handler
     h_TildelBeslutter["TildelBeslutter"]:::handler
     h_TildelSaksbehandler["TildelSaksbehandler"]:::handler
@@ -115,16 +121,20 @@ flowchart TD
     h_OpprettSak --> e_SakOppdatert
     h_OpprettSak --> e_SakOpprettet
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
+    s_RefusjonDb --> e_RefusjonskravMottatt
     h_ReturnerForelopigVedtak --> e_SakOppdatert
     s_SakApi --> e_SakFrigjort
     s_SakApi --> e_SakTildeltBeslutter
     s_SakApi --> e_SakTildeltSaksbehandler
+    h_SkrivSaksloggForRefusjonskrav --> e_SakOppdatert
+    h_SkrivSaksloggForSluttrapport --> e_SakOppdatert
     s_SoknadApi --> e_SoknadInnsendt
     h_TildelBeslutter --> e_SakOppdatert
     h_TildelSaksbehandler --> e_SakOppdatert
     s_TilsagnDataApi --> e_TilskuddsbrevVist
     h_VarsleArbeidsgiverVedtakFattet --> e_ArbeidsgiverVarsletVedtakFattet
     h_VarsleArbeidsgiverVedtakFattet --> e_SakOppdatert
+    s_VedleggDb --> e_SluttrapportMottatt
     s_VedtaksbrevApi --> e_VedtaksbrevVist
     s_VilkarsvurderingApi --> e_VilkarsvurderingOppdatert
     e_ArbeidsgiverVarsletVedtakFattet --> h_ArbeidsgiverVarsletVedtakFattetNoop
@@ -151,6 +161,8 @@ flowchart TD
     e_TilskuddsbrevJournalfoert --> h_SettGodkjentSoknadStatus
     e_VedtakFattet --> h_SettSoknadStatusVedtakFattet
     e_SakOppdatert --> h_SkrivSakslogg
+    e_RefusjonskravMottatt --> h_SkrivSaksloggForRefusjonskrav
+    e_SluttrapportMottatt --> h_SkrivSaksloggForSluttrapport
     e_SoknadKopiDeltakerDistribuert --> h_SoknadKopiDeltakerDistribuertNoop
     e_SakTildeltBeslutter --> h_TildelBeslutter
     e_SakTildeltSaksbehandler --> h_TildelSaksbehandler
