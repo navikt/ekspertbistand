@@ -10,8 +10,6 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableErr
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
-import no.nav.ekspertbistand.event.domain.SoknadDomainV2
-import no.nav.ekspertbistand.event.domain.tilDomain
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.merkelapp
@@ -48,11 +46,7 @@ class VarsleArbeidsgiverSakOpprettet @OptIn(ExperimentalTime::class) constructor
     @OptIn(ExperimentalTime::class)
     override suspend fun handle(event: Event<EventData.SakOpprettet>): EventHandledResult {
         val soknadId = event.data.soknad.id ?: return unrecoverableError("soknad.id kan ikke være null")
-        val varsel = arbeidsgiverVarsel(
-            soknadId = soknadId,
-            virksomhet = event.data.soknad.virksomhet.tilDomain(),
-            ansatt = event.data.soknad.ansatt.tilDomain(),
-        )
+        val varsel = arbeidsgiverVarsel(soknadId, event.data)
         val sak = varsel.sak ?: return unrecoverableError("Varselet om mottatt søknad mangler sak")
 
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
@@ -104,17 +98,13 @@ class VarsleArbeidsgiverSakOpprettet @OptIn(ExperimentalTime::class) constructor
         }
     }
 
-    private fun arbeidsgiverVarsel(
-        soknadId: String,
-        virksomhet: SoknadDomainV2.Virksomhet,
-        ansatt: SoknadDomainV2.Ansatt,
-    ) = ArbeidsgiverVarselDomain(
+    private fun arbeidsgiverVarsel(soknadId: String, data: EventData.SakOpprettet) = ArbeidsgiverVarselDomain(
         merkelapp = merkelapp,
         mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = altinn3Ressursid),
-        virksomhetsnummer = virksomhet.virksomhetsnummer,
+        virksomhetsnummer = data.soknad.virksomhet.virksomhetsnummer,
         grupperingsid = soknadId,
         sak = ArbeidsgiverVarselDomain.Sak(
-            tittel = "Ekspertbistand ${ansatt.navn} f. ${ansatt.fnr.tilFødselsdato()}",
+            tittel = "Ekspertbistand ${data.soknad.ansatt.navn} f. ${data.soknad.ansatt.fnr.tilFødselsdato()}",
             lenke = kvitteringsLenke(soknadId),
         ),
         beskjed = ArbeidsgiverVarselDomain.Beskjed(

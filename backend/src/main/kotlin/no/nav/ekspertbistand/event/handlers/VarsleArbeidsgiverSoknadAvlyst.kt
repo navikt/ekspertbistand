@@ -10,7 +10,6 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableErr
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
-import no.nav.ekspertbistand.event.domain.SoknadDomainV2
 import no.nav.ekspertbistand.event.domain.tilDomain
 import no.nav.ekspertbistand.event.domain.tilSaksStatus
 import no.nav.ekspertbistand.event.publishEventQueue
@@ -48,10 +47,7 @@ class VarsleArbeidsgiverSoknadAvlyst @OptIn(ExperimentalTime::class) constructor
     @OptIn(ExperimentalTime::class)
     override suspend fun handle(event: Event<EventData.SoknadAvlystIArena>): EventHandledResult {
         val soknadId = event.data.soknad.id ?: return unrecoverableError("soknad.id kan ikke være null")
-        val varsel = arbeidsgiverVarsel(
-            soknadId = soknadId,
-            virksomhet = event.data.soknad.virksomhet.tilDomain(),
-        )
+        val varsel = arbeidsgiverVarsel(soknadId, event.data)
         val saksstatus = varsel.saksstatus ?: return unrecoverableError("Varselet om avlyst søknad mangler saksstatus")
 
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
@@ -111,13 +107,13 @@ class VarsleArbeidsgiverSoknadAvlyst @OptIn(ExperimentalTime::class) constructor
         }
     }
 
-    private fun arbeidsgiverVarsel(soknadId: String, virksomhet: SoknadDomainV2.Virksomhet): ArbeidsgiverVarselDomain {
-        val eksterntVarselTekst = "${virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. " +
+    private fun arbeidsgiverVarsel(soknadId: String, data: EventData.SoknadAvlystIArena): ArbeidsgiverVarselDomain {
+        val eksterntVarselTekst = "${data.soknad.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. " +
             "Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det."
         return ArbeidsgiverVarselDomain(
             merkelapp = merkelapp,
             mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = altinn3Ressursid),
-            virksomhetsnummer = virksomhet.virksomhetsnummer,
+            virksomhetsnummer = data.soknad.virksomhet.virksomhetsnummer,
             grupperingsid = soknadId,
             sak = null,
             beskjed = ArbeidsgiverVarselDomain.Beskjed(
