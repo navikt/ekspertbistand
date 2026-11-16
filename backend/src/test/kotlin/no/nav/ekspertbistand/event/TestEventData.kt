@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
 import no.nav.ekspertbistand.event.domain.VedleggDomain
@@ -11,9 +12,6 @@ import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
 import no.nav.ekspertbistand.event.domain.tilSaksstatus
 import no.nav.ekspertbistand.event.handlers.arbeidsgiverVarsel
-import no.nav.ekspertbistand.event.handlers.arbeidsgiverVarselSoknadAvlyst
-import no.nav.ekspertbistand.event.handlers.arbeidsgiverVarselSoknadGodkjent
-import no.nav.ekspertbistand.event.handlers.arbeidsgiverVarselSoknadMottatt
 import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
@@ -207,7 +205,7 @@ object TestEventData {
     val arbeidsgiverVarsletSoknadMottatt by lazy {
         EventData.ArbeidsgiverVarsletSoknadMottatt(
             soknadId = sampleSoknad.id!!,
-            varsel = arbeidsgiverVarselSoknadMottatt(sampleSoknad),
+            varsel = ArbeidsgiverVarselDomain.soknadMottatt(sampleSoknad),
             tidspunkt = Instant.parse("2026-04-01T09:00:00Z"),
         )
     }
@@ -217,7 +215,7 @@ object TestEventData {
         EventData.ArbeidsgiverVarsletSoknadGodkjent(
             soknadId = sampleSoknad.id!!,
             tilsagnNummer = sampleTilsagnData.tilsagnNummer.concat(),
-            varsel = arbeidsgiverVarselSoknadGodkjent(sampleSoknad, sampleTilsagnData.tilsagnNummer, false),
+            varsel = ArbeidsgiverVarselDomain.soknadGodkjent(sampleSoknad, sampleTilsagnData.tilsagnNummer, false),
             tidspunkt = Instant.parse("2026-04-02T09:00:00Z"),
         )
     }
@@ -226,7 +224,7 @@ object TestEventData {
     val arbeidsgiverVarsletSoknadAvlyst by lazy {
         EventData.ArbeidsgiverVarsletSoknadAvlyst(
             soknadId = sampleSoknad.id!!,
-            varsel = arbeidsgiverVarselSoknadAvlyst(sampleSoknad),
+            varsel = ArbeidsgiverVarselDomain.soknadAvlyst(sampleSoknad),
             tidspunkt = Instant.parse("2026-04-03T09:00:00Z"),
         )
     }

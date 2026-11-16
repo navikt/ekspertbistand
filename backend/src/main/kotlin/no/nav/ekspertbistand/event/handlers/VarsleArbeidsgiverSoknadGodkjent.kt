@@ -3,11 +3,15 @@ package no.nav.ekspertbistand.event.handlers
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
+import no.nav.ekspertbistand.event.domain.tilSaksStatus
 import no.nav.ekspertbistand.event.publishEventQueue
+import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.tilsagndata.concat
 import no.nav.ekspertbistand.tilsagndata.findTilsagnDataBySoknadId
@@ -49,11 +53,25 @@ class VarsleArbeidsgiverSoknadGodkjent @OptIn(ExperimentalTime::class) construct
         val godkjentFlereGanger = transaction(database) {
             findTilsagnDataBySoknadId(UUID.fromString(soknadId)).size > 1
         }
-        val varsel = arbeidsgiverVarselSoknadGodkjent(soknad, tilsagnNummer, godkjentFlereGanger)
+        val varsel = ArbeidsgiverVarselDomain.soknadGodkjent(soknad, tilsagnNummer, godkjentFlereGanger)
+        val saksstatus = varsel.saksstatus ?: return unrecoverableError("Varselet om godkjent søknad mangler saksstatus")
 
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
             try {
-                produsentApiKlient.bestillBeskjed(varsel)
+                produsentApiKlient.opprettNyBeskjed(
+                    grupperingsid = varsel.grupperingsid,
+                    eksternId = varsel.beskjed.eksternId,
+                    virksomhetsnummer = varsel.virksomhetsnummer,
+                    tekst = varsel.beskjed.tekst,
+                    lenke = varsel.beskjed.lenke,
+                    eksternVarsel = varsel.beskjed.eksterntVarsel?.let {
+                        EksterntVarsel(
+                            epostTittel = it.epostTittel,
+                            epostHtmlBody = it.epostHtmlBody,
+                            smsTekst = it.smsTekst,
+                        )
+                    },
+                )
             } catch (e: Exception) {
                 return transientError("Klarte ikke opprette ny beskjed i notifikasjonsplatform", e)
             }
@@ -62,22 +80,37 @@ class VarsleArbeidsgiverSoknadGodkjent @OptIn(ExperimentalTime::class) construct
 
         if (!idempotencyGuard.isGuarded(event.id, nystatusSakSubTast)) {
             try {
-                produsentApiKlient.bestillSaksstatus(varsel)
+                produsentApiKlient.nyStatusSak(
+                    grupperingsid = varsel.grupperingsid,
+                    status = saksstatus.status.tilSaksStatus(),
+                    statusTekst = saksstatus.statusTekst,
+                    nyLenkeTilSak = saksstatus.nyLenkeTilSak,
+                )
             } catch (e: Exception) {
                 return transientError("Klarte ikke oppdatere saksstatus i notifikasjonsplatform", e)
             }
             idempotencyGuard.guard(event, nystatusSakSubTast)
         }
 
-        return publiserKvittering(idempotencyGuard, database, event, kvittertSubTask) {
-            publishEventQueue(
-                EventData.ArbeidsgiverVarsletSoknadGodkjent(
-                    soknadId = soknadId,
-                    tilsagnNummer = tilsagnNummer.concat(),
-                    varsel = varsel,
-                    tidspunkt = clock.now(),
-                ),
-            )
+        if (idempotencyGuard.isGuarded(event.id, kvittertSubTask)) {
+            return success()
+        }
+        return transaction(database) {
+            try {
+                publishEventQueue(
+                    EventData.ArbeidsgiverVarsletSoknadGodkjent(
+                        soknadId = soknadId,
+                        tilsagnNummer = tilsagnNummer.concat(),
+                        varsel = varsel,
+                        tidspunkt = clock.now(),
+                    ),
+                )
+                idempotencyGuard.guard(event, kvittertSubTask)
+                success()
+            } catch (e: Exception) {
+                rollback()
+                transientError("Feil ved publisering etter varsling av arbeidsgiver om godkjent søknad", e)
+            }
         }
     }
 }

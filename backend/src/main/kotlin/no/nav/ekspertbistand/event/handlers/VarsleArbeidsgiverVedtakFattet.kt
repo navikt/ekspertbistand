@@ -4,13 +4,17 @@ import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
 import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.domain.tilDomain
+import no.nav.ekspertbistand.event.domain.tilSaksStatus
+import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.merkelapp
 import no.nav.ekspertbistand.notifikasjon.sendevindu
@@ -18,6 +22,7 @@ import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.soknad.kvitteringsLenkeV2
 import no.nav.ekspertbistand.soknad.vedtakLenke
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.reflect.KClass
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -49,10 +54,24 @@ class VarsleArbeidsgiverVedtakFattet @OptIn(ExperimentalTime::class) constructor
     override suspend fun handle(event: Event<EventData.VedtaksbrevArbeidsgiverJournalfoert>): EventHandledResult {
         val data = event.data
         val varsel = arbeidsgiverVarsel(data)
+        val saksstatus = varsel.saksstatus ?: return unrecoverableError("Varselet om vedtak mangler saksstatus")
 
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubtask)) {
             try {
-                produsentApiKlient.bestillBeskjed(varsel)
+                produsentApiKlient.opprettNyBeskjed(
+                    grupperingsid = varsel.grupperingsid,
+                    eksternId = varsel.beskjed.eksternId,
+                    virksomhetsnummer = varsel.virksomhetsnummer,
+                    tekst = varsel.beskjed.tekst,
+                    lenke = varsel.beskjed.lenke,
+                    eksternVarsel = varsel.beskjed.eksterntVarsel?.let {
+                        EksterntVarsel(
+                            epostTittel = it.epostTittel,
+                            epostHtmlBody = it.epostHtmlBody,
+                            smsTekst = it.smsTekst,
+                        )
+                    },
+                )
             } catch (e: Exception) {
                 return transientError("Klarte ikke opprette beskjed om vedtak for sak ${data.sakId}", e)
             }
@@ -61,34 +80,50 @@ class VarsleArbeidsgiverVedtakFattet @OptIn(ExperimentalTime::class) constructor
 
         if (!idempotencyGuard.isGuarded(event.id, nyStatusSakSubtask)) {
             try {
-                produsentApiKlient.bestillSaksstatus(varsel)
+                produsentApiKlient.nyStatusSak(
+                    grupperingsid = varsel.grupperingsid,
+                    status = saksstatus.status.tilSaksStatus(),
+                    statusTekst = saksstatus.statusTekst,
+                    nyLenkeTilSak = saksstatus.nyLenkeTilSak,
+                )
             } catch (e: Exception) {
                 return transientError("Klarte ikke oppdatere saksstatus om vedtak for sak ${data.sakId}", e)
             }
             idempotencyGuard.guard(event, nyStatusSakSubtask)
         }
 
-        return publiserKvittering(idempotencyGuard, database, event, kvittertSubtask) {
-            publishEventQueue(
-                EventData.ArbeidsgiverVarsletVedtakFattet(
-                    sakId = data.sakId,
-                    soknadId = data.soknadId,
-                    utfall = data.utfall,
-                    journalpostId = data.journalpostId,
-                    varsel = varsel,
-                    tidspunkt = clock.now(),
-                ),
-            )
-            publishEventQueue(
-                EventData.SakOppdatert(
-                    sakId = data.sakId,
-                    soknadId = data.soknadId,
-                    utfortAvRolle = AktorRolle.SYSTEM,
-                    utfortAvIdent = null,
-                    notat = "Arbeidsgiver varslet om vedtak",
-                    tidspunkt = clock.now(),
-                ),
-            )
+        if (idempotencyGuard.isGuarded(event.id, kvittertSubtask)) {
+            return success()
+        }
+
+        return transaction(database) {
+            try {
+                publishEventQueue(
+                    EventData.ArbeidsgiverVarsletVedtakFattet(
+                        sakId = data.sakId,
+                        soknadId = data.soknadId,
+                        utfall = data.utfall,
+                        journalpostId = data.journalpostId,
+                        varsel = varsel,
+                        tidspunkt = clock.now(),
+                    ),
+                )
+                publishEventQueue(
+                    EventData.SakOppdatert(
+                        sakId = data.sakId,
+                        soknadId = data.soknadId,
+                        utfortAvRolle = AktorRolle.SYSTEM,
+                        utfortAvIdent = null,
+                        notat = "Arbeidsgiver varslet om vedtak",
+                        tidspunkt = clock.now(),
+                    ),
+                )
+                idempotencyGuard.guard(event, kvittertSubtask)
+                success()
+            } catch (e: Exception) {
+                rollback()
+                transientError("Feil ved publisering etter varsling av arbeidsgiver om vedtak", e)
+            }
         }
     }
 }

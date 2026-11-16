@@ -3,13 +3,16 @@ package no.nav.ekspertbistand.event.handlers
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -40,11 +43,17 @@ class VarsleArbeidsgiverSakOpprettet @OptIn(ExperimentalTime::class) constructor
     @OptIn(ExperimentalTime::class)
     override suspend fun handle(event: Event<EventData.SakOpprettet>): EventHandledResult {
         val soknadId = event.data.soknad.id ?: return unrecoverableError("soknad.id kan ikke være null")
-        val varsel = arbeidsgiverVarselSoknadMottatt(event.data.soknad)
+        val varsel = ArbeidsgiverVarselDomain.soknadMottatt(event.data.soknad)
+        val sak = varsel.sak ?: return unrecoverableError("Varselet om mottatt søknad mangler sak")
 
         if (!idempotencyGuard.isGuarded(event.id, nySakSubTask)) {
             try {
-                produsentApiKlient.bestillSak(varsel)
+                produsentApiKlient.opprettNySak(
+                    grupperingsid = varsel.grupperingsid,
+                    virksomhetsnummer = varsel.virksomhetsnummer,
+                    tittel = sak.tittel,
+                    lenke = sak.lenke,
+                )
             } catch (e: Exception) {
                 return transientError("Feil ved opprettelse av sak i notifikasjonsplatform", e)
             }
@@ -52,21 +61,37 @@ class VarsleArbeidsgiverSakOpprettet @OptIn(ExperimentalTime::class) constructor
         }
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
             try {
-                produsentApiKlient.bestillBeskjed(varsel)
+                produsentApiKlient.opprettNyBeskjed(
+                    grupperingsid = varsel.grupperingsid,
+                    eksternId = varsel.beskjed.eksternId,
+                    virksomhetsnummer = varsel.virksomhetsnummer,
+                    tekst = varsel.beskjed.tekst,
+                    lenke = varsel.beskjed.lenke,
+                )
             } catch (e: Exception) {
                 return transientError("Feil ved opprettelse av beskjed i notifikasjonsplatform", e)
             }
             idempotencyGuard.guard(event, nyBeskjedSubTask)
         }
 
-        return publiserKvittering(idempotencyGuard, database, event, kvittertSubTask) {
-            publishEventQueue(
-                EventData.ArbeidsgiverVarsletSoknadMottatt(
-                    soknadId = soknadId,
-                    varsel = varsel,
-                    tidspunkt = clock.now(),
-                ),
-            )
+        if (idempotencyGuard.isGuarded(event.id, kvittertSubTask)) {
+            return success()
+        }
+        return transaction(database) {
+            try {
+                publishEventQueue(
+                    EventData.ArbeidsgiverVarsletSoknadMottatt(
+                        soknadId = soknadId,
+                        varsel = varsel,
+                        tidspunkt = clock.now(),
+                    ),
+                )
+                idempotencyGuard.guard(event, kvittertSubTask)
+                success()
+            } catch (e: Exception) {
+                rollback()
+                transientError("Feil ved publisering etter varsling av arbeidsgiver om mottatt søknad", e)
+            }
         }
     }
 }
