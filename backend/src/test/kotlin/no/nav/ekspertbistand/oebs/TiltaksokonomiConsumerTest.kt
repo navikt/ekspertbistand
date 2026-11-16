@@ -3,6 +3,7 @@
 package no.nav.ekspertbistand.oebs
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
@@ -23,6 +24,7 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -162,6 +164,23 @@ class TiltaksokonomiConsumerTest {
                     .count()
             }
             assertEquals(0, revisjon, "andre fagsystemers meldinger skal ikke logges i revisjonssporet")
+        }
+
+    @Test
+    fun `melding som bryter kontrakten kaster slik at den proves pa nytt`() =
+        testApplicationWithDatabase { db ->
+            val database = db.config.jdbcDatabase
+            val consumer = TiltaksokonomiConsumer(database)
+            val fakturanummer = "E-2026/97000-1-1"
+            val gammeltFeltnavn =
+                """{"fakturanummer":"$fakturanummer","status":"IKKE_BETALT","fakturaStatusSistOppdatert":"2026-11-16T12:00:00Z"}"""
+
+            assertFailsWith<SerializationException> {
+                runBlocking {
+                    consumer.processRecord(record(TiltaksokonomiConsumer.FAKTURA_STATUS_TOPIC, fakturanummer, gammeltFeltnavn))
+                }
+            }
+            assertNull(statusRad(database, fakturanummer))
         }
 
     @Test

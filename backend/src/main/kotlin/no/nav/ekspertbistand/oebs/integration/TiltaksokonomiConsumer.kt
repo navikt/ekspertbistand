@@ -70,17 +70,8 @@ class TiltaksokonomiConsumer(
 
         val raw = json.decodeFromString<JsonObject>(value)
 
-        val melding = try {
-            deserialiserStatus(record.topic(), value)
-        } catch (e: Exception) {
-            teamLog.error("Hopper over status-melding som ikke kunne leses. record={}", record, e)
-            // Unntaksmeldingen kan gjengi meldingsinnholdet, så bare typen logges her.
-            log.error(
-                "Hopper over status-melding som ikke kunne leses: topic={} partition={} offset={} feil={}. Detaljer i teamLogs.",
-                record.topic(), record.partition(), record.offset(), e.javaClass.simpleName,
-            )
-            return
-        }
+        // Kaster ved kontraktbrudd. CoroutineKafkaConsumer logger error og prøver samme offset på nytt.
+        val melding = deserialiserStatus(record.topic(), value)
 
         // Etterlevelse: logg svaret varig FØR tolkning, slik at revisjonssporet fanger alt vi mottok
         // selv om tolkningen (rød sone) ikke er ferdig. Idempotent på Kafka-koordinatene.
@@ -121,8 +112,8 @@ class TiltaksokonomiConsumer(
 
     /**
      * Deserialiserer meldingsverdien til rett sterkt typet kontrakt basert på hvilket status-topic
-     * den kom på. Kaster for ukjente topics og for meldinger som ikke lar seg parse mot kontrakten
-     * (logges og hoppes over av kalleren).
+     * den kom på. Kaster for ukjente topics og for meldinger som ikke lar seg parse mot kontrakten,
+     * slik at meldingen ikke committes, men prøves på nytt.
      */
     private fun deserialiserStatus(topic: String, value: String): OebsStatusMelding =
         when (topic) {
