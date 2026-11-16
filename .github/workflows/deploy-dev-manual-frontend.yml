@@ -55,7 +55,7 @@ jobs:
           VITE_BASE_PATH: ${{ env.CDN_PUBLIC_BASE }}
 
       - name: Upload static assets to NAIS CDN
-        uses: nais/deploy/actions/cdn-upload/v2@7b60caaded00332e9aa117a8342daa0876851dfe # master
+        uses: nais/deploy/actions/cdn-upload/v2@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # master
         with:
           team: fager
           source: ./frontend/client/dist
@@ -72,7 +72,7 @@ jobs:
 
       - name: Build and push image
         id: docker-build-push
-        uses: nais/docker-build-push@d3a1f7e259ecc381a50435e1d4add9059429ebd7 # v0
+        uses: nais/docker-build-push@588f76a6f45aeb1e75d5e8417ec6ef6d79b2b39f # v0
         with:
           team: fager
           image_suffix: frontend
