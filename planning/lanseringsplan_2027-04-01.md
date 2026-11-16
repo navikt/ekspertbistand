@@ -34,8 +34,11 @@ Planen gir oversikt. Detaljer i hver oppgave tar vi i teamet, kort for kort.
   og dokdist er på plass.
 - DOING er tom ved starten av uke 47. Neste kort i hvert spor står under
   [Hvordan tre utviklere jobber parallelt](#hvordan-tre-utviklere-jobber-parallelt).
-- Ny scope uten avklaring: omgjøring av vedtak
-  ([689](https://trello.com/c/KwIMHZP9)). Den er ikke regnet med, se
+- Ny scope fra Hanna (16.11.): saksbehandler skal kunne trekke og avvise en
+  søknad før vedtak og avbryte et tiltak som er i gang. Det er regnet med,
+  cirka 10 dager, se
+  [8. Trekke, avvise, avbryte og omgjøre](#8-trekke-avvise-avbryte-og-omgjøre).
+  Omgjøring av vedtak ([689](https://trello.com/c/KwIMHZP9)) er fortsatt ikke regnet med, se
   [Åpne spørsmål](#åpne-spørsmål).
 
 ## Statusoversikt
@@ -66,10 +69,10 @@ andre. Antall blokker viser størrelsen:
 For 🟡 gjelder anslaget det som gjenstår. Summene regner M som 2,5 dager
 og XL som 10 dager.
 
-**Totalt cirka 99 utviklerdager** (20 utvikleruker). Frigjøring av beslutter
+**Totalt cirka 109 utviklerdager** (22 utvikleruker). Frigjøring av beslutter
 og omgjøring av vedtak er ikke med. Kapasiteten er cirka 180 dager: 16 uker ×
 3 utviklere, minus vinterferie, ganger 80 %. Det gir rom for at anslagene
-sprekker med rundt 80 %, men ikke for mye ny scope.
+sprekker med rundt 65 %, men ikke for mye ny scope.
 
 ### Søknad (arbeidsgiver)
 
@@ -130,7 +133,7 @@ Gjenstår: cirka 13 dager, uten frigjøring av beslutter.
 | 🟢 | – | – | 🛤️ Arbeidsgiver ser vedtaket og brevet på ny rute, rendret usladdet med Gotenberg ([#250](https://github.com/navikt/ekspertbistand/pull/250), bare dev) | [693](https://trello.com/c/mmcwqp5V) |
 | 🟢 | – | – | 🔔 Varsle arbeidsgiver om vedtak, med lenke til vedtaket på ny rute ([#252](https://github.com/navikt/ekspertbistand/pull/252), bare dev) | [645](https://trello.com/c/XZvrwKjG) |
 | 🔴 | M1 | `M  ■■` | 🗄️ Journalføre vedtaksbrevet til deltaker på personmappa | [646](https://trello.com/c/4qcIiWBB) |
-| 🔴 | M1 | `S  ■` | 📬 Distribuere vedtaksbrevet til deltaker med dokdist (klienten finnes). Avklar nytt varsel når brevet ikke er åpnet. | [599](https://trello.com/c/QA5bXVrf) |
+| 🔴 | M1 | `S  ■` | 📬 Distribuere vedtaksbrevet til deltaker med dokdist (klienten finnes). Dokdist varsler på nytt når brevet ikke er åpnet. | [599](https://trello.com/c/QA5bXVrf) |
 | 🟢 | – | – | 🗄️ Sladde deltaker ved kode 6/7 i søknaden som journalføres på arbeidsgivermappa ([#261](https://github.com/navikt/ekspertbistand/pull/261)) | [703](https://trello.com/c/NBU7M75w) |
 
 Gjenstår: cirka 4 dager. Kortet «Send ut vedtaksbrev og tilsagnsbrev»
@@ -176,6 +179,18 @@ Gjenstår: cirka 12 dager.
 | 🔴 | M3 | `S  ■` | 📤 Åpne innsending av refusjon og sluttrapport for arbeidsgiver i prod (i dag bare utenfor prod) | – |
 
 Gjenstår: cirka 20 dager.
+
+### Trekke, avvise og avbryte
+
+| Status | Milepæl | Størrelse | Leveranse | Trello |
+|:------:|---------|-----------|-----------|--------|
+| 🔴 | M2 | `M  ■■` | 🚫 Saksbehandler trekker eller avviser søknaden før vedtak, med årsak. Saken og søknaden får egen sluttstatus. En godkjent søknad kan ikke trekkes. | Mangler kort |
+| 🔴 | M2 | `M  ■■` | 🚫 Informasjon til arbeidsgiver og deltaker når søknaden er trukket eller avvist: varsel og visning på ny rute for arbeidsgiver, brev med dokdist til deltaker. Ved trekk står det at arbeidsgiver mister klageretten. | Mangler kort |
+| 🔴 | M3 | `L  ■■■` | 🚫 Avbryte tiltaket: saksbehandler legger inn ny sluttdato i et notatfelt, og arbeidsgiver og deltaker får vedtak. Tilsagnet annulleres ikke, og arbeidsgiver kan fortsatt sende sluttrapport og refusjonskrav. | Mangler kort |
+| 🔴 | Uavklart | – | Omgjøring av vedtak: nytt vedtak til arbeidsgiver og deltaker, og det gamle tilsagnet annulleres. Ikke regnet med. Grovt anslag: 2 uker eller mer. | [689](https://trello.com/c/KwIMHZP9) |
+
+Gjenstår: cirka 10 dager, uten omgjøring. Brevtekstene til trekk, avvisning
+og avbrudd må komme fra fag.
 
 ### Prodsetting og overgang fra Arena
 
@@ -266,7 +281,7 @@ vedtaket på ny rute. Alt til deltaker mangler.
 | 🗄️ Journalføre vedtaksbrevet til deltaker på personmappa | 🔴 Kort finnes (646). `DokArkivClient` støtter person som bruker. |
 | 🔔 **Varsle arbeidsgiver om vedtak** (innvilget og avslag) via notifikasjonsplattformen | 🟢 Ferdig i dev ([#252](https://github.com/navikt/ekspertbistand/pull/252)). Varselet lenker til vedtaket på ny rute. |
 | 🛤️ **Arbeidsgiver ser vedtaket på ny rute:** innvilget, innvilget med redusert beløp eller avslått, med brevet. Dagens visning av tilsagnsbrevet beholdes for Arena-saker. | 🟢 Ferdig i dev ([#250](https://github.com/navikt/ekspertbistand/pull/250)) |
-| 📬 **Varsle deltaker om vedtak.** Vedtaksbrevet distribueres med dokdist og vises under «Dine saker» på nav.no. | 🔴 Kort finnes (599). Klienten finnes. Avklar nytt varsel når brevet ikke er åpnet (etterlevelseskrav 204). |
+| 📬 **Varsle deltaker om vedtak.** Vedtaksbrevet distribueres med dokdist og vises under «Dine saker» på nav.no. | 🔴 Kort finnes (599). Klienten finnes. Dokdist varsler deltaker på nytt når brevet ikke er åpnet (etterlevelseskrav 204). |
 
 Arbeidsgiver får vedtaksbrevet i vår løsning, rendret usladdet med Gotenberg.
 Vi henter aldri PDF fra Joark til arbeidsgiver. Beskjeden på
@@ -356,6 +371,26 @@ refusjonsbehandling noen uker etter. Det er en nødplan, ikke målet.
 | Validere klient i token i backend (hindre kryssing mellom apper) | 🟢 Ferdig ([#254](https://github.com/navikt/ekspertbistand/pull/254)) |
 | Vise tydelig i saksbehandling at deltaker har adressebeskyttelse (krav 255) | 🔴 Kort finnes (592) |
 
+### 8. Trekke, avvise, avbryte og omgjøre
+
+Fra Hanna (e-post 16.11.). Klage er fortsatt utenfor scope.
+
+| Situasjon | Når | Vedtak | Hvem får beskjed | Status |
+|-----------|-----|:------:|------------------|--------|
+| 🚫 **Trekke søknaden.** Arbeidsgiver vil trekke en søknad som ikke er behandlet, og mister da klageretten. I første omgang registrerer saksbehandler trekket. Arbeidsgiver kan ikke trekke søknaden selv. | Før vedtak. En godkjent søknad kan ikke trekkes. | Nei | Arbeidsgiver og deltaker får informasjon | 🔴 Mangler kort |
+| 🚫 **Avvise søknaden.** Søknaden er kommet inn på feil grunnlag, for eksempel fordi deltaker ikke var informert. Vilkårene før søknad er ikke oppfylt, så saksbehandler behandler den ikke ordinært. | Før vedtak | Nei | Arbeidsgiver og deltaker får informasjon | 🔴 Mangler kort |
+| 🚫 **Avbryte tiltaket.** Tiltaket er godkjent, og arbeidsgiver eller deltaker vil avslutte før planlagt slutt. Saksbehandler legger inn ny sluttdato i et notatfelt. Tilsagnet annulleres ikke, så arbeidsgiver kan fortsatt sende sluttrapport og refusjonskrav for påløpte utgifter. Deltaker skal ikke lenger stå på tiltak i Modia. | Etter innvilget vedtak. Startdatoen spiller ingen rolle. | Ja | Arbeidsgiver og deltaker får vedtak | 🔴 Mangler kort |
+| **Omgjøre vedtaket.** Et vedtak må endres eller oppheves, etter klage eller fordi Nav finner en feil selv, for eksempel for lavt tilskudd eller feil ekspert. Gjelder retting og omgjøring etter forvaltningsloven kapittel 9 (§ 70 og § 71). Det gamle tilsagnet annulleres når nytt vedtak fattes. | Etter innvilget eller avslått vedtak | Ja | Arbeidsgiver og deltaker får vedtak | 🔴 Kort finnes (689). Ikke regnet med. |
+
+Trekk og avvisning skjer før vedtak, så det finnes ingen bestilling i OeBS å
+annullere. Ved avbrudd står bestillingen, fordi arbeidsgiver skal få dekket
+påløpte utgifter. Omgjøring er den eneste av de fire som annullerer et
+tilsagn.
+
+Trekk og avvisning er ikke det samme som at deltaker trekker seg
+([607](https://trello.com/c/aegaxk5R)). Da skal behandlingen stanses og søknaden slettes av
+personvernhensyn (🛡️). Se spørsmål 9–13 under [Åpne spørsmål](#åpne-spørsmål).
+
 ### Kan vente til etter lansering
 
 Utkast til prioritering. Rekkefølgen styres av tre spørsmål:
@@ -404,8 +439,8 @@ ferdig i tidslinjen. Sikkerhetsfunn M2–M4 er noe annet enn milepælene M2–M4
 | Uke 45 (6.11.) | **M0: rydd bordet** 🟡 | 🧹 | 🟢 Utgiftsbeskrivelsen er fjernet, og de eksterne avklaringene har eier. 📝 Brevmalene og 📜 hendelsene (598) ble ikke ferdige og er flyttet til M1. |
 | Uke 46 (11.11.) | **P1: tidlig i prod** 🟢 | 🪪 📨 | 🟢 Nådd fem uker før planen. I prod, i dagens Arena-flyt: Aa-reg-sjekk i søknaden, kopi av søknaden til deltaker med dokdist, og tekst om kopien til arbeidsgiver i søknadsskjemaet. |
 | Uke 3 (22.1.) | **M1: vedtaket går ut** | ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: 🟢 arbeidsgiver får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. 🟢 Søknaden sladdes på arbeidsgivermappa. Hendelsene for varsler til arbeidsgiver finnes (598). 🟢 Bestilling, kvittering og annullering er testet mot OeBS i T1 (13.11.), og prosesseringen er startet i dev. |
-| Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler godkjenner, eller avslår via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, testet mot T1 i runde 2, og saken avsluttes. |
-| Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 📤 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonen er godkjent. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem, og OeBS er skrudd på i prod. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
+| Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ 🚫 | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler godkjenner, eller avslår via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, testet mot T1 i runde 2, og saken avsluttes. Saksbehandler kan trekke og avvise en søknad før vedtak, og arbeidsgiver og deltaker får beskjed. |
+| Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 📤 🚫 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonen er godkjent. Saksbehandler kan avbryte et tiltak, og arbeidsgiver og deltaker får vedtak. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem, og OeBS er skrudd på i prod. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
 | Uke 11 (19.3.) | **M4: go-live** | 🚦 | Entra-gruppene er synlige i Mine tilganger. Arena stenger for nye ekspertbistand-saker. Søknader sendt inn etter go-live behandles hos oss. Arena behandler ferdig sakene som ligger der. Salesforce og Modia får data om nye saker fra samme dag. |
 | Uke 12–13 | Buffer | – | Påske. Ingen planlagte prodsettinger. |
 
@@ -417,7 +452,6 @@ ligger i M3. Juleferien (uke 52–53) er ikke regnet med.
 
 | Avhengighet | Trengs innen | Hvis ikke |
 |-------------|--------------|-----------|
-| 📬 Om dokdist kan varsle deltaker på nytt når brevet ikke er åpnet (etterlevelseskrav 204, Team Dokumentløsninger) | Uke 49 | Vi må lage revarslingen selv, eller avklare kravet med etterlevelse. |
 | 📡 Hvordan Salesforce og Modia vil ta imot data om nye saker | Uke 49 | Vi rekker ikke å bygge det til M3. Uten data kan vi ikke gå live, fordi Salesforce og Modia skal ha nye saker fra go-live. |
 | 💸 OeBS er klare for runde 2: faktura og oppgjør av bestillingen i T1 | Uke 2 | Vi bygger faktura mot kontrakten og tester mot T1 etter M2. Da flyttes risikoen til M3. Eskaler i #samarbeid-valp-oebs. |
 | 🏦 Lesetilgang i prod for `ekspertbistand-backend` til status-topicene (Valp [#8573](https://github.com/navikt/mulighetsrommet/pull/8573)) | Uke 6 | Vi får ikke kvitteringer fra OeBS i prod og kan ikke skru på OeBS der. |
@@ -464,6 +498,9 @@ vedtak og 🗄️ sladding av søknaden på arbeidsgivermappa.
 4. 📜 Hendelser for varsler til arbeidsgiver (598). Oppslagslogg og ArcSight
    (sikkerhetsfunn M2 og M3).
 5. 📣 Varsle arbeidsgiver når refusjonen er godkjent.
+6. 🚫 Trekke og avvise søknaden før vedtak, og avbryte tiltaket: handlingen i
+   saksbehandling, brev og varsel til arbeidsgiver og deltaker. Brevtekstene
+   kommer fra fag.
 
 ### Spor C: økonomi og refusjonsbehandling
 
@@ -507,6 +544,9 @@ OeBS T1 klart (11.11.) ──> bestilling, kvittering og annullering testet (13.
 OeBS klare for runde 2 ──> faktura (💸, 679) ──> faktura testet i T1 ──┐
 Valp prod-ACL (#8573) ─────────────────────────────────────────────────┴──> OeBS i prod
 
+Brevtekster fra fag ──> 🚫 brev ved trukket, avvist og avbrutt
+📡 Modia-mottak ──> 🚫 deltaker står ikke på tiltak etter avbrudd
+
 Salesforce/Modia-mottak avklart ──> data om nye saker ──┐
 M2/M3 + akseptansetest ─────────────────────────────────┴──> saksbehandling i prod ──> go-live
 ```
@@ -525,8 +565,9 @@ Dette kan skje samtidig:
   ofte. Husk eksempel i `TestEventData.allEventSamples`.
 - Flyway-versjoner kolliderer når to PR-er lager `V<n>` samtidig. Ta neste
   ledige nummer rett før merge, ikke når branchen lages.
-- `saksbehandling/Db.kt` (`Vilkar`, `Saksstatus`) og `SakPage.tsx` deles av A
-  og C. Avtal hvem som endrer hva i samme uke.
+- `saksbehandling/Db.kt` (`Vilkar`, `Saksstatus`) og `SakPage.tsx` deles av A,
+  B og C. B legger til statusene for trukket og avvist, C statusene for
+  refusjonen. Avtal hvem som endrer hva i samme uke.
 - Kjør `EventFlowDiagram` etter nye events, ikke rediger `event-flow.md`.
 - Én spec per kort i `specifications/`, som i dag. Specen er kontrakten
   mellom sporene.
@@ -544,6 +585,8 @@ Disse bør bli kort:
 5. 🧪 Akseptansetest og opplæring med saksbehandlere
 6. 🏦 Teste utbetaling mot OeBS i T1, runde 2 (kan bli del av 679)
 7. 🏦 Skru på OeBS i prod: start prosesseringen og lesetilgang i prod (Valp [#8573](https://github.com/navikt/mulighetsrommet/pull/8573))
+8. 🚫 Trekke eller avvise søknaden før vedtak, med informasjon til arbeidsgiver og deltaker
+9. 🚫 Avbryte tiltaket med vedtak til arbeidsgiver og deltaker
 
 ## Avklart
 
@@ -557,6 +600,15 @@ Disse bør bli kort:
 - **Dokdist (Anders, 10.11.):** Vi har tilgang i dev og prod.
   `bestillendeFagsystem` er `EKSPERTBISTAND`, og kopien av søknaden har
   `distribusjonstype` `ANNET`. Handleren kjører i alle miljøer uten toggle.
+- **Revarsling (16.11.):** Dokdist varsler deltaker på nytt automatisk når
+  brevet ikke er åpnet. Det dekker etterlevelseskrav 204, så vi lager ikke
+  revarsling selv.
+- **Trekke, avvise og avbryte (Hanna, 16.11.):** I første omgang kan bare
+  saksbehandler trekke en søknad, og bare før vedtak. Trekk og avvisning er
+  ikke vedtak. Arbeidsgiver og deltaker får informasjon. Avbrudd av tiltaket
+  er vedtak til begge, og tilsagnet annulleres ikke.
+- **Omgjøring (Hanna, 16.11.):** Gjelder både etter klage og når Nav finner
+  feil selv. Det gamle tilsagnet annulleres når nytt vedtak fattes.
 - **Vedtaksbrev til deltaker (Hanna, 4.11.):** Deltaker skal ikke se
   tilskuddsbeløpet. Brevene til deltaker endres i QA-runden med fag.
 - **Vedtaksbrev til arbeidsgiver:** I nye saker er vedtaksbrevet
@@ -600,17 +652,30 @@ Disse bør bli kort:
 4. Får arbeidsgiver brev og varsel når refusjonskravet avslås, og skal
    bestillingen da annulleres? Se [funn 5](README.md#funn).
 5. Skal omgjøring av vedtak ([689](https://trello.com/c/KwIMHZP9)) være med
-   i første release? Kortet har ingen beskrivelse, og det er ikke regnet med.
-6. Skal deltaker varsles ved refusjon, sluttrapport og trukket søknad
-   ([688](https://trello.com/c/TobxmCHI))? Planen regner bare med varsel til
+   i første release? Den er ikke regnet med. Grovt anslag er 2 uker eller
+   mer, fordi den krever nytt vedtak, annullering og ny bestilling i OeBS.
+   Hanna spør også om vi må forhåndsvarsle ved omgjøring.
+6. Skal deltaker varsles ved refusjon og sluttrapport
+   ([688](https://trello.com/c/TobxmCHI))? Ved trukket og avvist søknad får deltaker
+   informasjon (Hanna, 16.11.). Planen regner bare med varsel til
    arbeidsgiver ved godkjent refusjon.
-7. Kan dokdist varsle deltaker på nytt når vedtaksbrevet ikke er åpnet
-   (etterlevelseskrav 204, [599](https://trello.com/c/QA5bXVrf))?
-8. Hvor skal saksbehandlingsløsningen åpnes fra, Modia eller noe annet
+7. Hvor skal saksbehandlingsløsningen åpnes fra, Modia eller noe annet
    ([711](https://trello.com/c/MfEIrQO6))? Kortet har ingen beskrivelse.
-9. Hvilken flyt skal annullere bestillingen i prod? Annullering er testet
-   teknisk, men ingen flyt kaller den. Svaret henger på spørsmål 3 og 4 og på
-   sletting når deltaker trekker seg (607).
+8. Hvilken flyt skal annullere bestillingen i prod? Annullering er testet
+   teknisk, men ingen flyt kaller den. Omgjøring annullerer det gamle
+   tilsagnet, og avbrudd gjør det ikke (Hanna, 16.11.). Ellers henger svaret
+   på spørsmål 3 og 4 og på sletting når deltaker trekker seg (607).
+9. Skal refusjonsfristen flyttes når tiltaket avbrytes og får ny sluttdato?
+   Må bestillingen i OeBS også få ny sluttdato?
+10. Skal avbrudd av tiltaket gå via beslutter, slik andre vedtak gjør?
+11. Er avvisning et vedtak? Etter forvaltningsloven av 1967 § 2 tredje ledd
+    regnes avvisning av en sak som enkeltvedtak, med klagerett. Sjekk med
+    jurist, også hva ny forvaltningslov sier, før vi lager avvisning uten
+    vedtak.
+12. Skal saksbehandler trekke eller avvise søknaden når deltaker trekker seg
+    før vedtak, før søknaden slettes ([607](https://trello.com/c/aegaxk5R))?
+13. Hvordan får arbeidsgiver informasjonen ved trekk og avvisning: varsel og
+    visning på ny rute, eller også brev?
 
 ## Endringslogg
 

@@ -30,7 +30,7 @@ Fargen sier ikke om steget er i prod. Det som er i prod i dag, står i
 teksten. Resten av ny saksbehandling går i prod samlet ved go-live (🚦, M4).
 
 Emojien etter statusen er steget i [lanseringsplanen](lanseringsplan_2027-04-01.md),
-for eksempel 🧾 for refusjonsbehandling. Statusene er fra 15.11.2026.
+for eksempel 🧾 for refusjonsbehandling. Statusene er fra 16.11.2026.
 
 ```mermaid
 sequenceDiagram
@@ -53,7 +53,7 @@ sequenceDiagram
     end
 
     rect rgba(6, 137, 58, 0.08)
-    Note over AG,EB: 2. Saksbehandling 🟢🟢🟢🟢🟢🟢🟡🔴🔴
+    Note over AG,EB: 2. Saksbehandling 🟢🟢🟢🟢🟢🟢🟡🔴🔴🔴🔴🔴
     SB->>EB: 🟢 Tildeler seg saken
     Note over EB: Sak UNDER_BEHANDLING
     EB->>EB: 🔴 ⚖️ Vilkåret om arbeidsforhold oppfylt fra Aa-reg
@@ -65,6 +65,13 @@ sequenceDiagram
     opt Deltaker trekker seg
         DT->>SB: Ber om at søknaden slettes (utenfor løsningen)
         SB->>EB: 🔴 🛡️ Stanser behandlingen og sletter
+    end
+    opt Arbeidsgiver trekker søknaden, eller søknaden avvises
+        AG->>SB: Ber om å trekke søknaden (utenfor løsningen)
+        SB->>EB: 🔴 🚫 Registrerer trukket eller avvist søknad med årsak
+        Note over EB: Sak TRUKKET eller AVVIST. Saken er ferdig.
+        EB-->>AG: 🔴 🚫 Informasjon om trukket eller avvist søknad
+        EB-->>DT: 🔴 🚫 Informasjon om trukket eller avvist søknad (dokdist)
     end
     SB->>EB: 🟢 Sender foreløpig vedtak med brev
     Note over EB: Sak TIL_BESLUTNING
@@ -99,8 +106,15 @@ sequenceDiagram
     end
 
     rect rgba(102, 52, 176, 0.08)
-    Note over AG,EB: 4. Gjennomføring og refusjonskrav 🟢🟢🟡🟡🔴
+    Note over AG,EB: 4. Gjennomføring og refusjonskrav 🟢🟢🟡🟡🔴🔴🔴🔴
     Note over AG: Eksperten gjennomfører bistanden (utenfor løsningen)
+    opt Tiltaket avbrytes før planlagt slutt
+        AG->>SB: Melder at tiltaket avsluttes tidlig, eller deltaker gjør det (utenfor løsningen)
+        SB->>EB: 🔴 🚫 Legger inn ny sluttdato med notat
+        EB-->>AG: 🔴 🚫 Vedtak om avbrutt tiltak
+        EB-->>DT: 🔴 🚫 Vedtak om avbrutt tiltak (dokdist)
+        Note over EB: Sak INNVILGET med ny sluttdato. Bestillingen annulleres ikke.
+    end
     AG->>EB: 🟡 📤 Sender sluttrapport (justeres etter Figma)
     AG->>EB: 🟡 📤 Sender refusjonskrav med vedlegg (justeres etter Figma)
     EB->>EB: 🟢 📤 Avviser krav over innvilget beløp
@@ -132,9 +146,9 @@ sequenceDiagram
     end
 ```
 
-🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
+🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 
-🟢 23 ferdig · 🟡 5 delvis · 🔴 13 mangler, av 41 steg i diagrammet. OeBS er ikke egen deltaker i
+🟢 23 ferdig · 🟡 5 delvis · 🔴 19 mangler, av 47 steg i diagrammet. OeBS er ikke egen deltaker i
 diagrammet. Kall til og svar fra OeBS vises som steg i Ekspertbistand.
 
 Deltaker får ikke varsel om refusjonen. Bare arbeidsgiver varsles når
@@ -160,36 +174,44 @@ inne i Mermaid-diagrammer, så lenkene til Trello og PR-ene står her.
 | 11 | 🟢 Overstyrer vilkåret | Trello [655](https://trello.com/c/WCMkpira) |
 | 12 | Ber om at søknaden slettes (utenfor løsningen) | utenfor løsningen |
 | 13 | 🔴 🛡️ Stanser behandlingen og sletter | Trello [584](https://trello.com/c/ft1q5B6v), [607](https://trello.com/c/aegaxk5R) |
-| 14 | 🟢 Sender foreløpig vedtak med brev | Trello [473](https://trello.com/c/M6Ei4UAR), [468](https://trello.com/c/gh8l45zx) |
-| 15 | 🟢 Tildeler seg saken | Trello [476](https://trello.com/c/4kkrg41a) \| PR [#200](https://github.com/navikt/ekspertbistand/pull/200) |
-| 16 | 🟢 Returnerer med årsak | Trello [476](https://trello.com/c/4kkrg41a) \| PR [#200](https://github.com/navikt/ekspertbistand/pull/200) |
-| 17 | 🟢 Fatter vedtak | Trello [476](https://trello.com/c/4kkrg41a) \| PR [#200](https://github.com/navikt/ekspertbistand/pull/200) |
-| 18 | 🟢 🗄️📝 Journalfører vedtaksbrevet på arbeidsgivermappa, sladdet ved kode 6/7 | Trello [691](https://trello.com/c/is5SjNKk) \| PR [#237](https://github.com/navikt/ekspertbistand/pull/237) |
-| 19 | 🔴 🗄️ Journalfører vedtaksbrevet på personmappa | Trello [646](https://trello.com/c/4qcIiWBB) |
-| 20 | 🔴 📬 Vedtaksbrevet (dokdist) | Trello [599](https://trello.com/c/QA5bXVrf) |
-| 21 | 🟡 🏦 Bestiller hos OeBS, setter av penger (testet mot T1, ikke koblet inn i main) | Trello [650](https://trello.com/c/abzeX7gO), [704](https://trello.com/c/zUU0nQvu) \| PR [#224](https://github.com/navikt/ekspertbistand/pull/224), [#259](https://github.com/navikt/ekspertbistand/pull/259) |
-| 22 | 🟡 🏦 OeBS kvitterer, bestilling AKTIV | Trello [705](https://trello.com/c/HShDcuFH) \| PR [#259](https://github.com/navikt/ekspertbistand/pull/259) |
-| 23 | 🟢 🔔 Varsel om innvilget, lenke til vedtaket | Trello [645](https://trello.com/c/XZvrwKjG) \| PR [#252](https://github.com/navikt/ekspertbistand/pull/252) |
-| 24 | 🟢 🛤️ Åpner vedtaket på ny rute | Trello [693](https://trello.com/c/mmcwqp5V) \| PR [#250](https://github.com/navikt/ekspertbistand/pull/250) |
-| 25 | 🟢 🛤️ Viser innvilget beløp og vedtaksbrevet | Trello [693](https://trello.com/c/mmcwqp5V), [681](https://trello.com/c/H7jYzwos) \| PR [#250](https://github.com/navikt/ekspertbistand/pull/250) |
-| 26 | 🟢 🔔 Varsel om avslag | Trello [645](https://trello.com/c/XZvrwKjG) \| PR [#252](https://github.com/navikt/ekspertbistand/pull/252) |
-| 27 | 🟢 🛤️ Åpner vedtaket på ny rute | Trello [693](https://trello.com/c/mmcwqp5V) \| PR [#250](https://github.com/navikt/ekspertbistand/pull/250) |
-| 28 | 🟢 🛤️ Viser avslaget og avslagsbrevet | Trello [693](https://trello.com/c/mmcwqp5V) \| PR [#250](https://github.com/navikt/ekspertbistand/pull/250) |
-| 29 | 🟡 📤 Sender sluttrapport (justeres etter Figma) | Trello [686](https://trello.com/c/W4cdyLLf), [683](https://trello.com/c/omYxyPPP) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
-| 30 | 🟡 📤 Sender refusjonskrav med vedlegg (justeres etter Figma) | Trello [685](https://trello.com/c/ZY79MovZ), [684](https://trello.com/c/hxzNc8Z4) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
-| 31 | 🟢 📤 Avviser krav over innvilget beløp | Trello [620](https://trello.com/c/NoJhv4wi) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
-| 32 | 🟢 🧾 Publiserer event og lager oppgave til saksbehandler | Trello [702](https://trello.com/c/TK7W0dt3) \| PR [#248](https://github.com/navikt/ekspertbistand/pull/248), [#249](https://github.com/navikt/ekspertbistand/pull/249) |
-| 33 | 🔴 Avslutter saken og annullerer bestillingen (avklares) | avklares, se åpne spørsmål 3 i planen |
-| 34 | 🟢 🧾 Tildeler seg refusjonsoppgaven | PR [#248](https://github.com/navikt/ekspertbistand/pull/248) |
-| 35 | 🟢 📤 Ser refusjonskravet og sluttrapporten | Trello [477](https://trello.com/c/YJI9Yf9G) |
-| 36 | 🔴 🧾 Godkjenner (krever sluttrapport) | Trello [715](https://trello.com/c/KBHePFbQ), [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
-| 37 | 🔴 📣 Varsel om godkjent refusjon | mangler kort |
-| 38 | 🔴 💸 Sender faktura til OeBS | Trello [679](https://trello.com/c/Cue4nB5k) |
-| 39 | 🔴 💸 OeBS melder FULLT_BETALT | Trello [679](https://trello.com/c/Cue4nB5k) |
-| 40 | 🔴 💸 Avslutter saken | mangler kort |
-| 41 | 🔴 🧾 Innstiller avslag | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
-| 42 | 🔴 🧾 Avslår eller returnerer | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
-| 43 | 🔴 Varsel om avslag (avklares) | avklares, se funn 5 |
+| 14 | Ber om å trekke søknaden (utenfor løsningen) | utenfor løsningen |
+| 15 | 🔴 🚫 Registrerer trukket eller avvist søknad med årsak | mangler kort, se [avsnitt 8](lanseringsplan_2027-04-01.md#8-trekke-avvise-avbryte-og-omgjøre) i planen |
+| 16 | 🔴 🚫 Informasjon om trukket eller avvist søknad | mangler kort, se [avsnitt 8](lanseringsplan_2027-04-01.md#8-trekke-avvise-avbryte-og-omgjøre) i planen |
+| 17 | 🔴 🚫 Informasjon om trukket eller avvist søknad (dokdist) | mangler kort, se [avsnitt 8](lanseringsplan_2027-04-01.md#8-trekke-avvise-avbryte-og-omgjøre) i planen |
+| 18 | 🟢 Sender foreløpig vedtak med brev | Trello [473](https://trello.com/c/M6Ei4UAR), [468](https://trello.com/c/gh8l45zx) |
+| 19 | 🟢 Tildeler seg saken | Trello [476](https://trello.com/c/4kkrg41a) \| PR [#200](https://github.com/navikt/ekspertbistand/pull/200) |
+| 20 | 🟢 Returnerer med årsak | Trello [476](https://trello.com/c/4kkrg41a) \| PR [#200](https://github.com/navikt/ekspertbistand/pull/200) |
+| 21 | 🟢 Fatter vedtak | Trello [476](https://trello.com/c/4kkrg41a) \| PR [#200](https://github.com/navikt/ekspertbistand/pull/200) |
+| 22 | 🟢 🗄️📝 Journalfører vedtaksbrevet på arbeidsgivermappa, sladdet ved kode 6/7 | Trello [691](https://trello.com/c/is5SjNKk) \| PR [#237](https://github.com/navikt/ekspertbistand/pull/237) |
+| 23 | 🔴 🗄️ Journalfører vedtaksbrevet på personmappa | Trello [646](https://trello.com/c/4qcIiWBB) |
+| 24 | 🔴 📬 Vedtaksbrevet (dokdist) | Trello [599](https://trello.com/c/QA5bXVrf) |
+| 25 | 🟡 🏦 Bestiller hos OeBS, setter av penger (testet mot T1, ikke koblet inn i main) | Trello [650](https://trello.com/c/abzeX7gO), [704](https://trello.com/c/zUU0nQvu) \| PR [#224](https://github.com/navikt/ekspertbistand/pull/224), [#259](https://github.com/navikt/ekspertbistand/pull/259) |
+| 26 | 🟡 🏦 OeBS kvitterer, bestilling AKTIV | Trello [705](https://trello.com/c/HShDcuFH) \| PR [#259](https://github.com/navikt/ekspertbistand/pull/259) |
+| 27 | 🟢 🔔 Varsel om innvilget, lenke til vedtaket | Trello [645](https://trello.com/c/XZvrwKjG) \| PR [#252](https://github.com/navikt/ekspertbistand/pull/252) |
+| 28 | 🟢 🛤️ Åpner vedtaket på ny rute | Trello [693](https://trello.com/c/mmcwqp5V) \| PR [#250](https://github.com/navikt/ekspertbistand/pull/250) |
+| 29 | 🟢 🛤️ Viser innvilget beløp og vedtaksbrevet | Trello [693](https://trello.com/c/mmcwqp5V), [681](https://trello.com/c/H7jYzwos) \| PR [#250](https://github.com/navikt/ekspertbistand/pull/250) |
+| 30 | 🟢 🔔 Varsel om avslag | Trello [645](https://trello.com/c/XZvrwKjG) \| PR [#252](https://github.com/navikt/ekspertbistand/pull/252) |
+| 31 | 🟢 🛤️ Åpner vedtaket på ny rute | Trello [693](https://trello.com/c/mmcwqp5V) \| PR [#250](https://github.com/navikt/ekspertbistand/pull/250) |
+| 32 | 🟢 🛤️ Viser avslaget og avslagsbrevet | Trello [693](https://trello.com/c/mmcwqp5V) \| PR [#250](https://github.com/navikt/ekspertbistand/pull/250) |
+| 33 | Melder at tiltaket avsluttes tidlig, eller deltaker gjør det (utenfor løsningen) | utenfor løsningen |
+| 34 | 🔴 🚫 Legger inn ny sluttdato med notat | mangler kort, se [avsnitt 8](lanseringsplan_2027-04-01.md#8-trekke-avvise-avbryte-og-omgjøre) i planen |
+| 35 | 🔴 🚫 Vedtak om avbrutt tiltak | mangler kort, se [avsnitt 8](lanseringsplan_2027-04-01.md#8-trekke-avvise-avbryte-og-omgjøre) i planen |
+| 36 | 🔴 🚫 Vedtak om avbrutt tiltak (dokdist) | mangler kort, se [avsnitt 8](lanseringsplan_2027-04-01.md#8-trekke-avvise-avbryte-og-omgjøre) i planen |
+| 37 | 🟡 📤 Sender sluttrapport (justeres etter Figma) | Trello [686](https://trello.com/c/W4cdyLLf), [683](https://trello.com/c/omYxyPPP) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
+| 38 | 🟡 📤 Sender refusjonskrav med vedlegg (justeres etter Figma) | Trello [685](https://trello.com/c/ZY79MovZ), [684](https://trello.com/c/hxzNc8Z4) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
+| 39 | 🟢 📤 Avviser krav over innvilget beløp | Trello [620](https://trello.com/c/NoJhv4wi) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
+| 40 | 🟢 🧾 Publiserer event og lager oppgave til saksbehandler | Trello [702](https://trello.com/c/TK7W0dt3) \| PR [#248](https://github.com/navikt/ekspertbistand/pull/248), [#249](https://github.com/navikt/ekspertbistand/pull/249) |
+| 41 | 🔴 Avslutter saken og annullerer bestillingen (avklares) | avklares, se åpne spørsmål 3 i planen |
+| 42 | 🟢 🧾 Tildeler seg refusjonsoppgaven | PR [#248](https://github.com/navikt/ekspertbistand/pull/248) |
+| 43 | 🟢 📤 Ser refusjonskravet og sluttrapporten | Trello [477](https://trello.com/c/YJI9Yf9G) |
+| 44 | 🔴 🧾 Godkjenner (krever sluttrapport) | Trello [715](https://trello.com/c/KBHePFbQ), [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
+| 45 | 🔴 📣 Varsel om godkjent refusjon | mangler kort |
+| 46 | 🔴 💸 Sender faktura til OeBS | Trello [679](https://trello.com/c/Cue4nB5k) |
+| 47 | 🔴 💸 OeBS melder FULLT_BETALT | Trello [679](https://trello.com/c/Cue4nB5k) |
+| 48 | 🔴 💸 Avslutter saken | mangler kort |
+| 49 | 🔴 🧾 Innstiller avslag | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
+| 50 | 🔴 🧾 Avslår eller returnerer | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
+| 51 | 🔴 Varsel om avslag (avklares) | avklares, se funn 5 |
 
 ## Tilstander for saken
 
@@ -209,6 +231,10 @@ stateDiagram-v2
     TIL_BESLUTNING --> AVSLATT: Beslutter avslår
     TIL_BESLUTNING --> INNVILGET: Beslutter innvilger
     AVSLATT --> [*]
+    UNDER_BEHANDLING --> TRUKKET: Saksbehandler registrerer trekk
+    UNDER_BEHANDLING --> AVVIST: Saksbehandler avviser
+    TRUKKET --> [*]
+    AVVIST --> [*]
     INNVILGET --> REFUSJON_MOTTATT: Arbeidsgiver sender refusjonskrav
     INNVILGET --> AVSLUTTET: Fristen går ut uten krav (avklares)
     REFUSJON_MOTTATT --> REFUSJON_UNDER_BEHANDLING: Saksbehandler tildeler seg
@@ -221,8 +247,13 @@ stateDiagram-v2
 
     class OPPRETTET,UNDER_BEHANDLING,TIL_BESLUTNING,INNVILGET,AVSLATT finnes
     class AVSLUTTET delvis
-    class REFUSJON_MOTTATT,REFUSJON_UNDER_BEHANDLING,REFUSJON_TIL_BESLUTNING,REFUSJON_GODKJENT mangler
+    class REFUSJON_MOTTATT,REFUSJON_UNDER_BEHANDLING,REFUSJON_TIL_BESLUTNING,REFUSJON_GODKJENT,TRUKKET,AVVIST mangler
 ```
+
+Avbrudd av tiltaket endrer sluttdatoen, ikke statusen. Saken står som
+`INNVILGET`, fordi arbeidsgiver fortsatt skal kunne sende refusjonskrav.
+Omgjøring av vedtak er ikke med i diagrammene, fordi det ikke er avklart om
+den skal med i første release. Se [avsnitt 8](lanseringsplan_2027-04-01.md#8-trekke-avvise-avbryte-og-omgjøre) i planen.
 
 ## Tilstander på tvers
 
@@ -235,7 +266,10 @@ Hver aktør ser sin egen status. Tabellen viser hvordan de henger sammen.
 | Under behandling | 🟢 `innsendt` | 🟢 `UNDER_BEHANDLING` | – | – |
 | Til beslutning | 🟢 `innsendt` | 🟢 `TIL_BESLUTNING` | – | – |
 | Avslått | 🟢 `avslatt` | 🟢 `AVSLATT` | – | – |
+| Trukket | 🔴 `trukket` | 🔴 `TRUKKET` | – | – |
+| Avvist | 🔴 `avvist` | 🔴 `AVVIST` | – | – |
 | Innvilget | 🟢 `godkjent` | 🟢 `INNVILGET` | – | 🟡 bestilling `SENDT`, så `AKTIV` |
+| Tiltak avbrutt | 🟢 `godkjent` | 🟢 `INNVILGET`, 🔴 ny sluttdato | – | 🟡 `AKTIV`, annulleres ikke |
 | Krav sendt | 🟢 `godkjent` | 🔴 `REFUSJON_MOTTATT` | 🟡 `MOTTATT` | 🟡 `AKTIV` |
 | Krav under behandling | 🟢 `godkjent` | 🔴 `REFUSJON_UNDER_BEHANDLING` | 🔴 under behandling | 🟡 `AKTIV` |
 | Krav godkjent | 🟢 `godkjent` | 🔴 `REFUSJON_GODKJENT` | 🔴 godkjent | 🔴 faktura `SENDT` |
