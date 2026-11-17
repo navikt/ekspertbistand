@@ -63,8 +63,8 @@ Kafka-credentials, og topic-manifestet gir oss skrivetilgang og VALP lesetilgang
 | Testmeldingene legges rett i `oebs_outbox` | Vi tester integrasjonen uten å være avhengige av saksbehandlingsflyten. Polleren, revisjonssporet og status-consumeren kjører som vanlig. |
 | Saksnummer `2026/900001` til `2026/900009` | Under starten på `saksnummer_seq` (1 000 000), så ingen ekte sak kan få nummeret. Arena-tilsagn i OeBS har ikke `E-`-prefiks. Testnumrene kolliderer derfor ikke med ekte bestillinger i VALP og OeBS T1, der testdataene blir liggende. `LIKE 'E-2026/90000_-%'` treffer bare disse ni numrene. |
 | Arrangør `925236594`, kontonummer `10002427740`, identer `Z993433` og `Z990079` | Verdiene står i VALP sine eksempelmeldinger fra dev (`OebsBestillingMeldingContractTest`). Vi vet derfor at de går gjennom Brreg/Ereg-oppslaget hos VALP. Ingen personopplysninger. |
-| Kostnadssted `0391` (1A), `1291` (1C), `0291` og `1891` (2026-11-17), `5772` og `2103` (2026-11-18) | Kostnadsstedet er `sak.behandlende_enhet`. Bare disse enhetene behandler ekspertbistand: 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 1891, 1991, 2103 og 5772. Med ulike enheter ser vi at OeBS tar imot flere. |
-| Repetisjonen bruker nye saksnumre (900005 til 900008) | Sender vi et brukt bestillingsnummer på nytt, oppretter ikke VALP noe nytt (1B). Annullering, faktura og oppgjør krever status `AKTIV`. 900003 og 900004 er holdt av til 1D og reservebestillingen i runde 2. |
+| Kostnadssted `0391` (1A), `1291` (1C), `0291` og `1891` (2026-11-17), `0391` og `1291` (2026-11-18 og erstatning) | Kostnadsstedet er `sak.behandlende_enhet`. Bare disse enhetene behandler ekspertbistand: 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 1891, 1991, 2103 og 5772. 2026-11-17 avviste OeBS T1 en bestilling fordi kostnadsstedet manglet der. Resten av repetisjonen bruker derfor bare `0391` og `1291`, som er bekreftet i T1. Repetisjonen tester flyten. Hvilke kostnadssteder OeBS har, følger vi opp med OeBS (se *Kostnadssteder i OeBS*). |
+| Repetisjonen bruker nye saksnumre (900005 til 900009) | Sender vi et brukt bestillingsnummer på nytt, oppretter ikke VALP noe nytt (1B). Annullering, faktura og oppgjør krever status `AKTIV`. 900003 og 900004 er holdt av til 1D og reservebestillingen i runde 2. 900009 erstatter bestillingen som ble avvist 2026-11-17. |
 | Periode `[2026-11-16, 2026-12-16)` | Konteringen hos VALP gjelder fra 2026-11-01. Perioden spenner over to måneder, så fakturaen treffer en bestillingslinje. |
 
 ## Forutsetninger
@@ -313,7 +313,19 @@ OeBS vil ha flere meldinger gjennom. Vi kjører hele løpet en gang
 | Dag | A | B |
 |-----|---|---|
 | 2026-11-17 | `E-2026/900005-1`, kostnadssted `0291` | `E-2026/900006-1`, kostnadssted `1891` |
-| 2026-11-18 | `E-2026/900007-1`, kostnadssted `5772` | `E-2026/900008-1`, kostnadssted `2103` |
+| 2026-11-17, erstatning | `E-2026/900009-1`, kostnadssted `0391` | |
+| 2026-11-18 | `E-2026/900007-1`, kostnadssted `0391` | `E-2026/900008-1`, kostnadssted `1291` |
+
+OeBS T1 avviste en av bestillingene 2026-11-17 fordi kostnadsstedet ikke finnes
+der. Bestillingen `E-2026/900009-1` med kostnadssted `0391` tar rollen til den
+avviste, enten den var A eller B. Kjør blokk 1 med bare én rad i `VALUES`:
+
+- erstatter den A: `('E-2026/900009-1', '0391', 1000)`, og bruk `E-2026/900009-1`
+  i blokk 3 og 4
+- erstatter den B: `('E-2026/900009-1', '0391', 500)`, og bruk `E-2026/900009-1`
+  i blokk 2
+
+Den avviste bestillingen får ingen flere meldinger.
 
 SQL-en under bygger samme JSON som 1A, 1C, 2A og 2B. Du endrer bare
 `VALUES`-linja nederst i hver blokk. Rekkefølgen er den samme som før: vent på
@@ -517,6 +529,16 @@ Funn:
 - Etter deploy av fiksen kom fakturastatusen fram, og oppgjøret ga `OPPGJORT` på
   bestillingen. `trenger_manuell_oppfolging` er `false` for begge.
 
+### Repetisjon 2026-11-17: pågår
+
+Funn:
+
+- OeBS T1 avviste en av bestillingene `E-2026/900005-1` (`0291`) og
+  `E-2026/900006-1` (`1891`), fordi kostnadsstedet ikke finnes i T1. OeBS sendte
+  en komplett liste over kostnadssteder (se *Kostnadssteder i OeBS*).
+  `E-2026/900009-1` med `0391` erstatter den avviste. 2026-11-18 bruker bare
+  `0391` og `1291`.
+
 ## Feilsituasjoner
 
 - **Polleren står fast på en rad.** Polleren tar eldste `PENDING`-rad først.
@@ -551,6 +573,39 @@ fortsatt `kid`. Runde 2 bruker det gamle formatet, fordi polleren leser outboxen
 med vår modell. Har VALP fjernet oversettelsen før runde 2, må vi oppdatere
 speilingen og JSON-en i 2A først. Uansett oppdaterer vi speilingen før vi kobler
 faktura til saksgangen.
+
+## Kostnadssteder i OeBS
+
+Vi sender det firesifrede enhetsnummeret fra Norg som `kostnadssted`. VALP sender
+det uendret til OeBS som `kontor`, og OeBS oversetter det til et sekssifret
+kostnadssted. VALP sin KDoc sier at fagsystemet og OeBS må være enige om hvilke
+kostnadssteder som brukes.
+
+Hilde Mari i OeBS sendte 2026-11-17 en komplett liste over kostnadssteder.
+Ingen av enhetene våre står i lista med enhetsnummer pluss `00`. Oversettelsen er
+heller ikke det, siden `129100` ikke finnes, men `1291` ble `AKTIV` i 1C. Ut fra
+navnene i lista blir enhetene trolig til disse kostnadsstedene:
+
+| Enhet | Kostnadssted i lista | Bekreftet i T1 |
+|-------|----------------------|----------------|
+| 0291 | `029900` NAV Arbeidslivssenter Øst-Viken | |
+| 0391 | `039900` NAV arbeidslivssenteret i Oslo | ja (1A) |
+| 0491 | `049900` NAV Arbeidslivssenter Innlandet | |
+| 0691 | `069900` NAV Arbeidslivssenter Vest-Viken | |
+| 0891 | uklart: `089900` heter NAV Arbeid og helse Vestfold og Telemark | |
+| 1091 | `109900` NAV arbeidslivssenteret i Agder | |
+| 1191 | `119900` NAV arbeidslivssenteret i Rogaland | |
+| 1291 | `129900` NAV Arbeidslivssenter Vestland | ja (1C) |
+| 1591 | `159900` NAV Arbeidslivssenteret i Møre og Romsdal | |
+| 1891 | `189900` NAV Arbeidslivssenteret I Nordland | |
+| 1991 | `199900` NAV Arbeidslivssenter Troms og Finnmark | |
+| 2103 | `210300` NAV Vikafossen | |
+| 5772 | `169900` NAV Arbeidslivssenter Trøndelag | |
+
+Tabellen bygger på navn, ikke på OeBS sin oversettelse. Før vi kobler bestilling
+til saksgangen, må OeBS bekrefte at alle 13 enhetene oversettes til et gyldig
+kostnadssted i T1 og i prod. En enhet uten kostnadssted i prod gir avvist
+bestilling på ekte saker.
 
 ## Avgrensning
 
@@ -596,10 +651,14 @@ Runde 2:
 
 Repetisjon:
 
-- [ ] 2026-11-17: `E-2026/900005-1` er `OPPGJORT`, og `E-2026/900006-1` er `ANNULLERT`
+- [ ] 2026-11-17: A er `OPPGJORT` og B er `ANNULLERT`, med `E-2026/900009-1` i stedet for den avviste bestillingen
 - [ ] 2026-11-18: `E-2026/900007-1` er `OPPGJORT`, og `E-2026/900008-1` er `ANNULLERT`
 
 Etter siste repetisjon:
 
 - [ ] Testdataene er slettet i dev, og skrivetilgangen er trukket tilbake
 - [ ] VALP og OeBS har fått beskjed om at testen er ferdig, og hvilke numre vi brukte
+
+Før bestilling kobles til saksgangen:
+
+- [ ] OeBS har bekreftet kostnadssted for alle 13 enhetene i T1 og prod
