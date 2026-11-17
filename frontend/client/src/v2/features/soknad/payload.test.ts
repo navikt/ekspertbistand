@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSkjemaPayload } from "./payload";
+import { buildDraftPayload } from "./payload";
 import { createEmptyInputs } from "./schema";
 
 describe("soknad payload", () => {
@@ -24,7 +24,7 @@ describe("soknad payload", () => {
     inputs.behovForBistand.startdato = "2026-03-03";
     inputs.nav.kontaktperson = "Nav Kontakt";
 
-    const payload = buildSkjemaPayload("123", inputs);
+    const payload = buildDraftPayload(inputs);
 
     expect(payload.ansatt.fnr).toBe("12345678910");
   });
@@ -52,7 +52,7 @@ describe("soknad payload", () => {
     inputs.behovForBistand.startdato = "2026-03-03";
     inputs.nav.kontaktperson = "Nav Kontakt";
 
-    const payload = buildSkjemaPayload("123", inputs);
+    const payload = buildDraftPayload(inputs);
 
     expect(payload.ekspert.virksomhet).toBe("Ekspert & Co AS");
     expect(payload.ekspert.virksomhetNavn).toBe("Ekspert & Co AS");

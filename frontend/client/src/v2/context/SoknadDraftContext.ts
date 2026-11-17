@@ -14,13 +14,17 @@ export type SoknadDraftContextValue = {
   hydrated: boolean;
   status: DraftDto["status"] | null;
   saveDraft: (snapshot: SoknadInputs) => void;
+  /**
+   * Venter til den siste lagringen er ferdig. Feilet den, prøver den én gang til.
+   * Gir false hvis utkastet ikke er lagret.
+   */
+  ventPaLagring: () => Promise<boolean>;
   clearDraft: () => Promise<void>;
   lastPersistedAt: Date | null;
   saveError: string | null;
   bekreftetDeltaker: BekreftetDeltaker | null;
   opprettetAv: string | null;
   oppdaterUtkast: (utkast: DraftDto) => Promise<void>;
-  lastUtkastPaNytt: () => Promise<void>;
 };
 
 export const SoknadDraftContext = createContext<SoknadDraftContextValue | undefined>(undefined);

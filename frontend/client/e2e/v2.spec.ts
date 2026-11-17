@@ -241,7 +241,9 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   const submitRequest = await submitRequestPromise;
   const submitResponse = await submitResponsePromise;
   expect(submitResponse.ok()).toBe(true);
-  expect(submitRequest.postDataJSON()).toMatchObject({
+  // Backend sender inn utkastet slik det er lagret, så PUT har ingen body.
+  expect(submitRequest.postData()).toBeNull();
+  expect(await submitResponse.json()).toMatchObject({
     id: draftId,
     virksomhet: { kontaktperson: { navn: "Oppdatert kontakt" } },
     behovForBistand: { estimertKostnad: "20000" },

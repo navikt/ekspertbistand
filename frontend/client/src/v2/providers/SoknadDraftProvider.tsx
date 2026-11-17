@@ -68,13 +68,17 @@ export function SoknadDraftProvider({
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const sisteLagring = useRef(0);
+  const pagaendeLagring = useRef<{ snapshot: SoknadInputs | null; resultat: Promise<boolean> }>({
+    snapshot: null,
+    resultat: Promise.resolve(true),
+  });
 
   const saveDraft = useCallback(
     (snapshot: SoknadInputs) => {
       if (!draftId || draftDto?.status === "innsendt") return;
       const lagring = ++sisteLagring.current;
       const optimisticPersistedIso = new Date().toISOString();
-      persistDraft(snapshot, {
+      const resultat = persistDraft(snapshot, {
         optimisticData: (current) =>
           mergeSnapshotIntoDraftDto(snapshot, draftId, current, optimisticPersistedIso),
         rollbackOnError: true,
@@ -83,15 +87,36 @@ export function SoknadDraftProvider({
       }).then(
         () => {
           if (lagring === sisteLagring.current) setSaveError(null);
+          return true;
         },
         (e: unknown) => {
-          if (lagring !== sisteLagring.current) return;
-          setSaveError(e instanceof HttpError ? e.message : "Prøv igjen senere.");
+          if (lagring === sisteLagring.current) {
+            setSaveError(e instanceof HttpError ? e.message : "Prøv igjen senere.");
+          }
+          return false;
         }
       );
+      pagaendeLagring.current = { snapshot, resultat };
     },
     [draftDto?.status, draftId, persistDraft]
   );
+
+  const ventPaLagring = useCallback(async (): Promise<boolean> => {
+    // Venter på nye lagringer som starter mens vi venter, så resultatet gjelder den siste.
+    const vent = async () => {
+      let lagring;
+      let ok;
+      do {
+        lagring = pagaendeLagring.current;
+        ok = await lagring.resultat;
+      } while (lagring !== pagaendeLagring.current);
+      return { ok, snapshot: lagring.snapshot };
+    };
+    const { ok, snapshot } = await vent();
+    if (ok || !snapshot) return ok;
+    saveDraft(snapshot);
+    return (await vent()).ok;
+  }, [saveDraft]);
 
   const clearDraft = useCallback(async () => {
     if (!draftId) return;
@@ -134,10 +159,6 @@ export function SoknadDraftProvider({
     [mutate]
   );
 
-  const lastUtkastPaNytt = useCallback(async () => {
-    await mutate();
-  }, [mutate]);
-
   const value = useMemo<SoknadDraftContextValue>(
     () => ({
       draftId,
@@ -145,13 +166,13 @@ export function SoknadDraftProvider({
       hydrated,
       status,
       saveDraft,
+      ventPaLagring,
       clearDraft,
       lastPersistedAt,
       saveError,
       bekreftetDeltaker,
       opprettetAv,
       oppdaterUtkast,
-      lastUtkastPaNytt,
     }),
     [
       bekreftetDeltaker,
@@ -160,12 +181,12 @@ export function SoknadDraftProvider({
       draftId,
       hydrated,
       lastPersistedAt,
-      lastUtkastPaNytt,
       opprettetAv,
       oppdaterUtkast,
       saveDraft,
       saveError,
       status,
+      ventPaLagring,
     ]
   );
 

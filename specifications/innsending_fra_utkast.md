@@ -216,7 +216,11 @@ Svaret er `DTO.Soknad` som i dag.
 - Steg 1 med id bruker `valider-deltaker` som i dag.
 - `DeltakerBekreftetGate` fjernes. Et utkast har alltid en bekreftet deltaker.
 - Oppsummeringen venter på at autolagringen er ferdig, og sender så `PUT` uten
-  body.
+  body. Feilet den siste lagringen, prøver den én gang til. Feiler den igjen,
+  sendes ikke søknaden, og arbeidsgiver får beskjed om å prøve igjen.
+- Gir `PUT` 400 med `felt`, viser oppsummeringen feilen på feltet i steget det
+  hører til. Felt som ikke vises i skjemaet, som `ekspert.virksomhetOrgnr`, vises
+  på feltet arbeidsgiver fyller ut.
 - Steg 2 viser 400 og 503 fra PATCH på feltet for ekspertens virksomhet.
 - MSW-handlerne, e2e-`mockApi.ts` og testene oppdateres.
 

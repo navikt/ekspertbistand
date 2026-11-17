@@ -1046,7 +1046,7 @@ export const handlers = [
     await persistSkjemaStore();
     return new HttpResponse(null, { status: 204 });
   }),
-  http.put(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params, request }) => {
+  http.put(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params }) => {
     await ensureSkjemaStoreLoaded();
     const id = getParamValue(params.id);
     if (!id) {
@@ -1056,12 +1056,8 @@ export const handlers = [
     if (!entry || entry.status !== "utkast") {
       return HttpResponse.json({ message: "skjema ikke i utkast-status" }, { status: 409 });
     }
-    let payload: SoknadInputs;
-    try {
-      payload = (await request.json()) as SoknadInputs;
-    } catch {
-      return HttpResponse.json({ message: "ugyldig payload" }, { status: 400 });
-    }
+    // Som i backend: innsendingen bruker det lagrede utkastet. Body fra v1 brukes ikke.
+    const payload = entry.data ?? createEmptyInputs();
     const ugyldig = ugyldigInput(payload);
     if (ugyldig) return ugyldig;
     const startdato = payload?.behovForBistand?.startdato;
@@ -1082,7 +1078,6 @@ export const handlers = [
         `Søknadssummen må være et positivt heltall og kan ikke overstige ${MOCK_MAKS_SATS_BELOP} kr.`
       );
     }
-    entry.data = payload;
     entry.status = "innsendt";
     entry.innsendtTidspunkt = nowIso();
     skjemaStore.set(id, entry);
