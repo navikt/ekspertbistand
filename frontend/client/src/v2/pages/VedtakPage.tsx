@@ -21,6 +21,7 @@ import { ApplicationPictogram } from "../components/ApplicationPictogram";
 import { BackLink } from "../components/BackLink";
 import { Nokkeldata, type NokkeldataRad } from "../components/Nokkeldata";
 import { SoknadSendtInnKort } from "../components/SoknadSendtInnKort";
+import { SluttrapportSendtInnKort } from "../components/SluttrapportSendtInnKort";
 import { PdfForhandsvisning } from "../components/pdf";
 import { A4_FORHOLD } from "../components/pdf/types";
 import { formatSubmittedDateOrNull } from "../components/summaryFormatters";
@@ -28,6 +29,7 @@ import { draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
 import type { Vedtaksbrev, VedtaksbrevUtfall } from "../features/vedtak/vedtak";
 import { useVedtak } from "../hooks/useVedtak";
 import { useVedtaksbrev } from "../hooks/useVedtaksbrev";
+import { useSluttrapportStatus } from "../hooks/useSluttrapportStatus";
 import { EKSPERTBISTAND_API_PATH, SOKNADER_PATH } from "../utils/constants";
 
 const MINIATYR_BREDDE = 240;
@@ -63,6 +65,11 @@ export default function VedtakPage() {
     isLoading: soknadLoading,
   } = useSWR<DraftDto | null>(id ? `${EKSPERTBISTAND_API_PATH}/${id}` : null);
   const { vedtak, error: vedtakError, isLoading: vedtakLoading } = useVedtak(id);
+  const {
+    sluttrapport,
+    isLoading: sluttrapportLoading,
+    error: sluttrapportError,
+  } = useSluttrapportStatus(vedtak && vedtak.utfall !== "AVSLATT" ? id : undefined);
   const [vedtakApent, setVedtakApent] = useState(false);
   const brev = useVedtaksbrev(id, vedtakApent);
 
@@ -137,9 +144,19 @@ export default function VedtakPage() {
                 </BodyLong>
               </div>
               <VStack gap="space-24" align="start">
-                <Button as={RouterLink} to={`/v2/skjema/${id}/sluttrapport`} variant="secondary">
-                  Send inn sluttrapport fra eksperten
-                </Button>
+                {sluttrapportError ? (
+                  <Alert variant="error" role="alert">
+                    Kunne ikke hente status for sluttrapporten. Prøv å laste siden på nytt.
+                  </Alert>
+                ) : sluttrapportLoading ? (
+                  <Box aria-live="polite">
+                    <Loader title="Laster status for sluttrapporten" />
+                  </Box>
+                ) : !sluttrapport ? (
+                  <Button as={RouterLink} to={`/v2/skjema/${id}/sluttrapport`} variant="secondary">
+                    Send inn sluttrapport fra eksperten
+                  </Button>
+                ) : null}
                 <HStack gap="space-24" align="center">
                   <Button as={RouterLink} to={`/v2/skjema/${id}/refusjon`} variant="secondary">
                     Søk refusjon
@@ -155,6 +172,9 @@ export default function VedtakPage() {
           )}
 
           <VStack gap="space-16">
+            {vedtak.utfall !== "AVSLATT" && sluttrapport && !sluttrapportError && (
+              <SluttrapportSendtInnKort sluttrapport={sluttrapport} />
+            )}
             <ExpansionCard
               size="small"
               aria-label={UTFALL[vedtak.utfall].vedtakTittel}
