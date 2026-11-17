@@ -22,6 +22,7 @@ import { BackLink } from "../components/BackLink";
 import { Nokkeldata, type NokkeldataRad } from "../components/Nokkeldata";
 import { SoknadSendtInnKort } from "../components/SoknadSendtInnKort";
 import { SluttrapportSendtInnKort } from "../components/SluttrapportSendtInnKort";
+import { RefusjonskravSendtInnKort } from "../components/RefusjonskravSendtInnKort";
 import { PdfForhandsvisning } from "../components/pdf";
 import { A4_FORHOLD } from "../components/pdf/types";
 import { formatSubmittedDateOrNull } from "../components/summaryFormatters";
@@ -30,6 +31,7 @@ import type { Vedtaksbrev, VedtaksbrevUtfall } from "../features/vedtak/vedtak";
 import { useVedtak } from "../hooks/useVedtak";
 import { useVedtaksbrev } from "../hooks/useVedtaksbrev";
 import { useSluttrapportStatus } from "../hooks/useSluttrapportStatus";
+import { useRefusjonStatus } from "../hooks/useRefusjonStatus";
 import { EKSPERTBISTAND_API_PATH, SOKNADER_PATH } from "../utils/constants";
 
 const MINIATYR_BREDDE = 240;
@@ -63,20 +65,25 @@ export default function VedtakPage() {
   const navigate = useNavigate();
   const navigeringsstate = location.state as {
     sluttrapportSendtInn?: boolean;
+    refusjonSendtInn?: boolean;
     statusOppdateringFeilet?: boolean;
   } | null;
   const fraSluttrapport = navigeringsstate?.sluttrapportSendtInn === true;
+  const fraRefusjon = navigeringsstate?.refusjonSendtInn === true;
   const [innsending] = useState(() => ({
-    soknadId: fraSluttrapport ? id : null,
+    soknadId: fraSluttrapport || fraRefusjon ? id : null,
+    type: fraRefusjon ? "REFUSJON" : fraSluttrapport ? "SLUTTRAPPORT" : null,
     statusOppdateringFeilet: navigeringsstate?.statusOppdateringFeilet === true,
   }));
-  const sluttrapportSendtInn = id !== undefined && innsending.soknadId === id;
+  const innsendingBekreftet = id !== undefined && innsending.soknadId === id;
+  const sluttrapportSendtInn = innsendingBekreftet && innsending.type === "SLUTTRAPPORT";
+  const refusjonSendtInn = innsendingBekreftet && innsending.type === "REFUSJON";
 
   useEffect(() => {
-    if (fraSluttrapport) {
+    if (fraSluttrapport || fraRefusjon) {
       navigate(".", { replace: true, state: null });
     }
-  }, [fraSluttrapport, navigate]);
+  }, [fraSluttrapport, fraRefusjon, navigate]);
 
   const {
     data: draft,
@@ -84,11 +91,17 @@ export default function VedtakPage() {
     isLoading: soknadLoading,
   } = useSWR<DraftDto | null>(id ? `${EKSPERTBISTAND_API_PATH}/${id}` : null);
   const { vedtak, error: vedtakError, isLoading: vedtakLoading } = useVedtak(id);
+  const innvilgetSoknadId = vedtak && vedtak.utfall !== "AVSLATT" ? id : undefined;
   const {
     sluttrapport,
     isLoading: sluttrapportLoading,
     error: sluttrapportError,
-  } = useSluttrapportStatus(vedtak && vedtak.utfall !== "AVSLATT" ? id : undefined);
+  } = useSluttrapportStatus(innvilgetSoknadId);
+  const {
+    refusjon,
+    isLoading: refusjonLoading,
+    error: refusjonError,
+  } = useRefusjonStatus(innvilgetSoknadId);
   const [vedtakApent, setVedtakApent] = useState(false);
   const brev = useVedtaksbrev(id, vedtakApent);
 
@@ -107,6 +120,13 @@ export default function VedtakPage() {
     (sluttrapportSendtInn &&
       !sluttrapport &&
       (innsending.statusOppdateringFeilet || !sluttrapportLoading));
+  const refusjonStatusFeilet =
+    refusjonError ||
+    (refusjonSendtInn && !refusjon && (innsending.statusOppdateringFeilet || !refusjonLoading));
+  const refusjonMottatt = Boolean(innvilgetSoknadId && (refusjon || refusjonSendtInn));
+  const visHandlinger = Boolean(
+    !sluttrapport || sluttrapportError || !refusjonMottatt || refusjonError || refusjonLoading
+  );
 
   return (
     <DecoratedPage>
@@ -133,6 +153,11 @@ export default function VedtakPage() {
           Sluttrapporten er sendt inn.
         </Alert>
       )}
+      {refusjonSendtInn && (
+        <Alert variant="success" role="status">
+          Refusjonskravet er sendt inn.
+        </Alert>
+      )}
 
       {(vedtakLoading || soknadLoading) && (
         <Box aria-live="polite">
@@ -148,9 +173,14 @@ export default function VedtakPage() {
 
       {id && vedtak && !error && !soknadLoading && (
         <VStack gap="space-24">
-          <Box background={UTFALL[vedtak.utfall].bakgrunn} padding="space-24">
+          <Box
+            background={refusjonMottatt ? "info-moderate" : UTFALL[vedtak.utfall].bakgrunn}
+            borderColor={refusjonMottatt ? "info" : undefined}
+            borderWidth={refusjonMottatt ? "1" : undefined}
+            padding="space-24"
+          >
             <Heading level="2" size="large" align="center">
-              {UTFALL[vedtak.utfall].status}
+              {refusjonMottatt ? "Nav behandler refusjonskravet" : UTFALL[vedtak.utfall].status}
             </Heading>
           </Box>
 
@@ -164,46 +194,73 @@ export default function VedtakPage() {
 
           {vedtak.utfall !== "AVSLATT" && (
             <>
-              <div>
-                <Heading level="3" size="small">
-                  Vilkår og informasjon om utbetaling
-                </Heading>
-                <BodyLong>
-                  Du må sende inn sluttrapport og dokumentere faktiske utgifter knyttet til
-                  ekspertbistand innen fristen.
-                </BodyLong>
-              </div>
-              <VStack gap="space-24" align="start">
-                {sluttrapportStatusFeilet ? (
-                  <Alert variant="error" role="alert">
-                    {sluttrapportSendtInn
-                      ? "Sluttrapporten er sendt inn, men opplysningene kunne ikke hentes. Prøv å laste siden på nytt."
-                      : "Kunne ikke hente status for sluttrapporten. Prøv å laste siden på nytt."}
-                  </Alert>
-                ) : sluttrapportLoading ? (
-                  <Box aria-live="polite">
-                    <Loader title="Laster status for sluttrapporten" />
-                  </Box>
-                ) : !sluttrapport && !sluttrapportSendtInn ? (
-                  <Button as={RouterLink} to={`/v2/skjema/${id}/sluttrapport`} variant="secondary">
-                    Send inn sluttrapport fra eksperten
-                  </Button>
-                ) : null}
-                <HStack gap="space-24" align="center">
-                  <Button as={RouterLink} to={`/v2/skjema/${id}/refusjon`} variant="secondary">
-                    Søk refusjon
-                  </Button>
-                  {vedtak.refusjonsfrist && (
-                    <Tag variant="outline" data-color="warning" icon={<ClockIcon aria-hidden />}>
-                      Frist {vedtak.refusjonsfrist}
-                    </Tag>
-                  )}
-                </HStack>
-              </VStack>
+              {!refusjonMottatt && (
+                <div>
+                  <Heading level="3" size="small">
+                    Vilkår og informasjon om utbetaling
+                  </Heading>
+                  <BodyLong>
+                    Du må sende inn sluttrapport og dokumentere faktiske utgifter knyttet til
+                    ekspertbistand innen fristen.
+                  </BodyLong>
+                </div>
+              )}
+              {visHandlinger && (
+                <VStack gap="space-24" align="start">
+                  {sluttrapportStatusFeilet ? (
+                    <Alert variant="error" role="alert">
+                      {sluttrapportSendtInn
+                        ? "Sluttrapporten er sendt inn, men opplysningene kunne ikke hentes. Prøv å laste siden på nytt."
+                        : "Kunne ikke hente status for sluttrapporten. Prøv å laste siden på nytt."}
+                    </Alert>
+                  ) : sluttrapportLoading ? (
+                    <Box aria-live="polite">
+                      <Loader title="Laster status for sluttrapporten" />
+                    </Box>
+                  ) : !sluttrapport && !sluttrapportSendtInn ? (
+                    <Button
+                      as={RouterLink}
+                      to={`/v2/skjema/${id}/sluttrapport`}
+                      variant="secondary"
+                    >
+                      Send inn sluttrapport fra eksperten
+                    </Button>
+                  ) : null}
+                  {refusjonStatusFeilet ? (
+                    <Alert variant="error" role="alert">
+                      {refusjonSendtInn
+                        ? "Refusjonskravet er sendt inn, men opplysningene kunne ikke hentes. Prøv å laste siden på nytt."
+                        : "Kunne ikke hente status for refusjonskravet. Prøv å laste siden på nytt."}
+                    </Alert>
+                  ) : refusjonLoading ? (
+                    <Box aria-live="polite">
+                      <Loader title="Laster status for refusjonskravet" />
+                    </Box>
+                  ) : !refusjonMottatt ? (
+                    <HStack gap="space-24" align="center">
+                      <Button as={RouterLink} to={`/v2/skjema/${id}/refusjon`} variant="secondary">
+                        Søk refusjon
+                      </Button>
+                      {vedtak.refusjonsfrist && (
+                        <Tag
+                          variant="outline"
+                          data-color="warning"
+                          icon={<ClockIcon aria-hidden />}
+                        >
+                          Frist {vedtak.refusjonsfrist}
+                        </Tag>
+                      )}
+                    </HStack>
+                  ) : null}
+                </VStack>
+              )}
             </>
           )}
 
           <VStack gap="space-16">
+            {innvilgetSoknadId && refusjon && !refusjonError && (
+              <RefusjonskravSendtInnKort soknadId={innvilgetSoknadId} refusjon={refusjon} />
+            )}
             {vedtak.utfall !== "AVSLATT" && sluttrapport && !sluttrapportError && (
               <SluttrapportSendtInnKort sluttrapport={sluttrapport} />
             )}

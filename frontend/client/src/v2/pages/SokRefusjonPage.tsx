@@ -9,13 +9,10 @@ import {
   Button,
   Checkbox,
   ErrorMessage,
-  ExpansionCard,
   FileUpload,
   FormSummary,
   Heading,
   InfoCard,
-  Label,
-  Link,
   LinkCard,
   Loader,
   TextField,
@@ -24,7 +21,7 @@ import {
   type FileObject,
   type FileRejected,
 } from "@navikt/ds-react";
-import { FileTextIcon, PaperplaneIcon, XMarkOctagonIcon } from "@navikt/aksel-icons";
+import { PaperplaneIcon, XMarkOctagonIcon } from "@navikt/aksel-icons";
 import DecoratedPage from "../components/DecoratedPage";
 import { BackLink } from "../components/BackLink";
 import { FormErrorSummary } from "../components/FormErrorSummary";
@@ -33,11 +30,8 @@ import { useRefusjonStatus } from "../hooks/useRefusjonStatus";
 import { useMaksBelop } from "../hooks/useMaksBelop";
 import { useKontonummerFinnes } from "../hooks/useKontonummerFinnes";
 import { formatCurrency, formatDate } from "../components/summaryFormatters";
-import { formatDateTime } from "../utils/date";
-import { formatBytes } from "../utils/format";
 import {
   EKSPERTBISTAND_REFUSJON_PATH,
-  EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH,
   KONTONUMMER_REGISTRERING_URL,
   SOKNADER_PATH,
 } from "../utils/constants";
@@ -76,7 +70,12 @@ export default function SokRefusjonPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { soknad, isLoading, error: fetchError } = useSoknad(id);
-  const { refusjon, isLoading: isLoadingStatus, mutate: mutateStatus } = useRefusjonStatus(id);
+  const {
+    refusjon,
+    isLoading: isLoadingStatus,
+    error: statusError,
+    mutate: mutateStatus,
+  } = useRefusjonStatus(id);
   const {
     maksBelopKroner,
     isLoading: isLoadingMaksBelop,
@@ -153,13 +152,22 @@ export default function SokRefusjonPage() {
         }
         throw new Error(message || `Feil ved innsending (${response.status})`);
       }
-      await mutateStatus();
-      navigate(`/v2/skjema/${id}/kvittering`);
     } catch (err) {
       setSubmitError(resolveApiError(err, "Kunne ikke sende inn refusjonskravet akkurat nå."));
-    } finally {
       setIsSubmitting(false);
+      return;
     }
+
+    let statusOppdateringFeilet = false;
+    try {
+      await mutateStatus();
+    } catch {
+      statusOppdateringFeilet = true;
+    }
+
+    navigate(`/v2/skjema/${id}/vedtak`, {
+      state: { refusjonSendtInn: true, statusOppdateringFeilet },
+    });
   };
 
   const onInvalid = () => {
@@ -169,6 +177,10 @@ export default function SokRefusjonPage() {
 
   if (isProd()) {
     return <Navigate to={id ? `/v2/skjema/${id}/kvittering` : SOKNADER_PATH} replace />;
+  }
+
+  if (id && refusjon && !statusError && !isSubmitting) {
+    return <Navigate to={`/v2/skjema/${id}/vedtak`} replace />;
   }
 
   if (isLoading || isLoadingStatus || isLoadingMaksBelop || kontonummerLoading) {
@@ -190,73 +202,17 @@ export default function SokRefusjonPage() {
     );
   }
 
-  const atFileLimit = acceptedFiles.length >= MAX_FILES;
-
-  if (refusjon) {
+  if (statusError) {
     return (
       <DecoratedPage>
-        <VStack gap="space-32" data-aksel-template="form-summarypage-v5">
-          <BackLink to={`/v2/skjema/${id}/kvittering`}>Tilbake til avtalen</BackLink>
-
-          <Heading level="1" size="xlarge">
-            Refusjonskrav sendt inn
-          </Heading>
-
-          <ExpansionCard aria-label="Opplysninger om refusjonskravet" defaultOpen>
-            <ExpansionCard.Header>
-              <VStack gap="space-8">
-                <FileTextIcon aria-hidden fontSize="1.5rem" />
-                <ExpansionCard.Title size="small">
-                  Opplysninger om refusjonskravet
-                </ExpansionCard.Title>
-                <ExpansionCard.Description>
-                  {formatDateTime(refusjon.opprettet) ?? "–"}
-                </ExpansionCard.Description>
-              </VStack>
-            </ExpansionCard.Header>
-            <ExpansionCard.Content>
-              <VStack gap="space-16">
-                <VStack gap="space-2">
-                  <Label>Kontonummer</Label>
-                  <BodyShort>{refusjon.kontonummer ?? "–"}</BodyShort>
-                </VStack>
-                <VStack gap="space-2">
-                  <Label>Beløp for refusjonskravet</Label>
-                  <BodyShort>{refusjon.belopKroner.toLocaleString("nb-NO")} kr</BodyShort>
-                </VStack>
-                <VStack gap="space-2">
-                  <Label>Vedlegg</Label>
-                  {refusjon.vedlegg.length === 0 ? (
-                    <BodyShort>–</BodyShort>
-                  ) : (
-                    <VStack gap="space-2" as="ul">
-                      {refusjon.vedlegg.map((v) => (
-                        <li key={v.id}>
-                          <Link
-                            href={EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH(id!, v.id)}
-                            download={v.filnavn}
-                          >
-                            {v.filnavn}
-                          </Link>{" "}
-                          <BodyShort as="span" textColor="subtle">
-                            ({formatBytes(v.storrelse)})
-                          </BodyShort>
-                        </li>
-                      ))}
-                    </VStack>
-                  )}
-                </VStack>
-                <VStack gap="space-2">
-                  <Label>Sendt inn til Nav</Label>
-                  <BodyShort>{formatDateTime(refusjon.opprettet) ?? "–"}</BodyShort>
-                </VStack>
-              </VStack>
-            </ExpansionCard.Content>
-          </ExpansionCard>
-        </VStack>
+        <Alert variant="error" role="alert">
+          Kunne ikke hente status for refusjonskravet. Prøv å laste siden på nytt.
+        </Alert>
       </DecoratedPage>
     );
   }
+
+  const atFileLimit = acceptedFiles.length >= MAX_FILES;
 
   if (maksBelopError) {
     const isConflict = maksBelopError instanceof HttpError && maksBelopError.status === 409;
