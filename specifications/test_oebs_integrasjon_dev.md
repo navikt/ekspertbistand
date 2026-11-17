@@ -10,8 +10,9 @@ Testen går i to runder:
 
 1. **Runde 1** tester `BESTILLING` og `ANNULLERING`. Godkjent 2026-11-13.
 2. **Runde 2** tester `FAKTURA` og `GJOR_OPP_BESTILLING`. Godkjent 2026-11-16.
+3. **Repetisjon** av hele løpet 2026-11-17 og 2026-11-18, etter ønske fra OeBS.
 
-Når en runde er godkjent, sletter vi testdataene i dev. Deretter kobler vi de
+Når siste repetisjon er godkjent, sletter vi testdataene i dev. Deretter kobler vi de
 testede meldingstypene til hendelser i saksgangen. Prod er uendret.
 
 ## Bakgrunn
@@ -62,7 +63,8 @@ Kafka-credentials, og topic-manifestet gir oss skrivetilgang og VALP lesetilgang
 | Testmeldingene legges rett i `oebs_outbox` | Vi tester integrasjonen uten å være avhengige av saksbehandlingsflyten. Polleren, revisjonssporet og status-consumeren kjører som vanlig. |
 | Saksnummer `2026/900001` til `2026/900009` | Under starten på `saksnummer_seq` (1 000 000), så ingen ekte sak kan få nummeret. Arena-tilsagn i OeBS har ikke `E-`-prefiks. Testnumrene kolliderer derfor ikke med ekte bestillinger i VALP og OeBS T1, der testdataene blir liggende. `LIKE 'E-2026/90000_-%'` treffer bare disse ni numrene. |
 | Arrangør `925236594`, kontonummer `10002427740`, identer `Z993433` og `Z990079` | Verdiene står i VALP sine eksempelmeldinger fra dev (`OebsBestillingMeldingContractTest`). Vi vet derfor at de går gjennom Brreg/Ereg-oppslaget hos VALP. Ingen personopplysninger. |
-| Kostnadssted `0391` (1A) og `1291` (1C) | Kostnadsstedet er `sak.behandlende_enhet`. Bare disse enhetene behandler ekspertbistand: 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 1891, 1991, 2103 og 5772. Med to ulike enheter ser vi at OeBS tar imot mer enn én. |
+| Kostnadssted `0391` (1A), `1291` (1C), `0291` og `1891` (2026-11-17), `5772` og `2103` (2026-11-18) | Kostnadsstedet er `sak.behandlende_enhet`. Bare disse enhetene behandler ekspertbistand: 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 1891, 1991, 2103 og 5772. Med ulike enheter ser vi at OeBS tar imot flere. |
+| Repetisjonen bruker nye saksnumre (900005 til 900008) | Sender vi et brukt bestillingsnummer på nytt, oppretter ikke VALP noe nytt (1B). Annullering, faktura og oppgjør krever status `AKTIV`. 900003 og 900004 er holdt av til 1D og reservebestillingen i runde 2. |
 | Periode `[2026-11-16, 2026-12-16)` | Konteringen hos VALP gjelder fra 2026-11-01. Perioden spenner over to måneder, så fakturaen treffer en bestillingslinje. |
 
 ## Forutsetninger
@@ -300,6 +302,112 @@ FROM (VALUES ('{
 Forventet: bestillingsstatus `OPPGJORT`. VALP sender oppgjøret som en faktura
 `E-2026/900001-1-X` til OeBS, men publiserer ikke fakturastatus for den.
 
+### 4b. Repetisjon (OeBS, 2026-11-17)
+
+OeBS vil ha flere meldinger gjennom. Vi kjører hele løpet en gang
+2026-11-17 og en gang 2026-11-18. Hver repetisjon bruker to nye bestillinger:
+
+- **A** går gjennom bestilling, faktura og oppgjør.
+- **B** går gjennom bestilling og annullering.
+
+| Dag | A | B |
+|-----|---|---|
+| 2026-11-17 | `E-2026/900005-1`, kostnadssted `0291` | `E-2026/900006-1`, kostnadssted `1891` |
+| 2026-11-18 | `E-2026/900007-1`, kostnadssted `5772` | `E-2026/900008-1`, kostnadssted `2103` |
+
+SQL-en under bygger samme JSON som 1A, 1C, 2A og 2B. Du endrer bare
+`VALUES`-linja nederst i hver blokk. Rekkefølgen er den samme som før: vent på
+`AKTIV` før annullering og faktura, og på kvittering for fakturaen før oppgjør.
+
+**1. Bestill A og B.** Én `INSERT` gir to rader. Dagens verdier står i `VALUES`.
+
+```sql
+INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json)
+SELECT nr, 'BESTILLING', jsonb_build_object(
+  'type', 'BESTILLING',
+  'payload', jsonb_build_object(
+    'bestillingsnummer', nr,
+    'regnskapskonto', 'TILTAK_DRIFTSTILSKUDD',
+    'artskonto', 'EKSPERTBISTAND',
+    'arrangor', jsonb_build_object('type', 'NORSK', 'organisasjonsnummer', '925236594'),
+    'kostnadssted', kostnadssted,
+    'avtalenummer', NULL,
+    'belop', belop,
+    'periode', jsonb_build_object('start', '2026-11-16', 'slutt', '2026-12-16'),
+    'behandletAv', jsonb_build_object('type', 'NAV_ANSATT', 'navIdent', 'Z993433'),
+    'behandletTidspunkt', '2026-11-12T12:00:00Z',
+    'besluttetAv', jsonb_build_object('type', 'NAV_ANSATT', 'navIdent', 'Z990079'),
+    'besluttetTidspunkt', '2026-11-12T12:05:00Z',
+    'valuta', 'NOK'
+  )
+)
+FROM (VALUES ('E-2026/900005-1', '0291', 1000),
+             ('E-2026/900006-1', '1891', 500)) AS p(nr, kostnadssted, belop);
+```
+
+**2. Annuller B** når B er `AKTIV`:
+
+```sql
+INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json)
+SELECT nr, 'ANNULLERING', jsonb_build_object(
+  'type', 'ANNULLERING',
+  'payload', jsonb_build_object(
+    'bestillingsnummer', nr,
+    'behandletAv', jsonb_build_object('type', 'NAV_ANSATT', 'navIdent', 'Z993433'),
+    'behandletTidspunkt', '2026-11-12T15:00:00Z',
+    'besluttetAv', jsonb_build_object('type', 'NAV_ANSATT', 'navIdent', 'Z990079'),
+    'besluttetTidspunkt', '2026-11-12T15:05:00Z'
+  )
+)
+FROM (VALUES ('E-2026/900006-1')) AS p(nr);
+```
+
+**3. Fakturer A** når A er `AKTIV`. Fakturanummeret blir `<A>-1`.
+
+```sql
+INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json)
+SELECT nr, 'FAKTURA', jsonb_build_object(
+  'type', 'FAKTURA',
+  'payload', jsonb_build_object(
+    'fakturanummer', nr || '-1',
+    'bestillingsnummer', nr,
+    'betalingsinformasjon', jsonb_build_object('type', 'BBAN', 'kontonummer', '10002427740', 'kid', NULL),
+    'belop', 400,
+    'periode', jsonb_build_object('start', '2026-11-16', 'slutt', '2026-12-01'),
+    'behandletAv', jsonb_build_object('type', 'NAV_ANSATT', 'navIdent', 'Z993433'),
+    'behandletTidspunkt', '2026-11-12T13:00:00Z',
+    'besluttetAv', jsonb_build_object('type', 'NAV_ANSATT', 'navIdent', 'Z990079'),
+    'besluttetTidspunkt', '2026-11-12T13:05:00Z',
+    'gjorOppBestilling', false,
+    'beskrivelse', 'Ekspertbistand test ' || nr || '-1',
+    'valuta', 'NOK'
+  )
+)
+FROM (VALUES ('E-2026/900005-1')) AS p(nr);
+```
+
+**4. Gjør opp A** når fakturaen har fått kvittering (ikke lenger `SENDT`):
+
+```sql
+INSERT INTO oebs_outbox (bestillingsnummer, meldingstype, melding_json)
+SELECT nr, 'GJOR_OPP_BESTILLING', jsonb_build_object(
+  'type', 'GJOR_OPP_BESTILLING',
+  'payload', jsonb_build_object(
+    'bestillingsnummer', nr,
+    'behandletAv', jsonb_build_object('type', 'NAV_ANSATT', 'navIdent', 'Z993433'),
+    'behandletTidspunkt', '2026-11-12T14:00:00Z',
+    'besluttetAv', jsonb_build_object('type', 'NAV_ANSATT', 'navIdent', 'Z990079'),
+    'besluttetTidspunkt', '2026-11-12T14:05:00Z'
+  )
+)
+FROM (VALUES ('E-2026/900005-1')) AS p(nr);
+```
+
+Forventet for hver repetisjon: A ender med `OPPGJORT` og fakturaen med
+`IKKE_BETALT` eller `FULLT_BETALT`. B ender med `ANNULLERT`. Spørringene i
+*Følg med* dekker de nye numrene. Vent med oppryddingen til siste repetisjon er
+godkjent.
+
 ### 5. Følg med
 
 Etter hver `INSERT`:
@@ -344,7 +452,7 @@ i runde 1). Regn med opptil 10 minutter fra `SENDT` til `AKTIV` eller `ANNULLERT
 
 ### 6. Rydd opp
 
-Når en runde er godkjent, sletter vi testdataene i dev. Revisjonssporet er
+Når siste repetisjon er godkjent, sletter vi testdataene i dev. Revisjonssporet er
 append-only i prod, men i dev er dette testdata vi selv har lagt inn.
 
 ```sql
@@ -480,12 +588,18 @@ Runde 1:
 - [x] 1B: ny sending av samme bestilling gir ny `AKTIV`-status og ingen endring hos VALP
 - [x] 1C: den andre bestillingen har status `ANNULLERT`
 - [x] Hver sendt melding har en rad i `oebs_sendt_melding`, og hvert svar har en rad i `oebs_mottatt_status`
-- [ ] Testdataene er slettet i dev, og skrivetilgangen er trukket tilbake
-- [ ] VALP og OeBS har fått beskjed om at runden er ferdig
 
 Runde 2:
 
 - [x] 2A: fakturaen har fått kvittering fra OeBS
 - [x] 2B: bestillingen har status `OPPGJORT`
+
+Repetisjon:
+
+- [ ] 2026-11-17: `E-2026/900005-1` er `OPPGJORT`, og `E-2026/900006-1` er `ANNULLERT`
+- [ ] 2026-11-18: `E-2026/900007-1` er `OPPGJORT`, og `E-2026/900008-1` er `ANNULLERT`
+
+Etter siste repetisjon:
+
 - [ ] Testdataene er slettet i dev, og skrivetilgangen er trukket tilbake
-- [ ] VALP og OeBS har fått beskjed om at runden er ferdig
+- [ ] VALP og OeBS har fått beskjed om at testen er ferdig, og hvilke numre vi brukte
