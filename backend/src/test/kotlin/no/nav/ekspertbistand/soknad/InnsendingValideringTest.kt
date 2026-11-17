@@ -67,7 +67,6 @@ class InnsendingValideringTest {
 
     @Test
     fun `virksomhetsnummer og virksomhetsnavn`() {
-        assertFeil("virksomhet.virksomhetsnummer", UtkastTable.virksomhetsnummer to null)
         assertFeil("virksomhet.virksomhetsnummer", UtkastTable.virksomhetsnummer to "12345678")
         assertFeil("virksomhet.virksomhetsnavn", UtkastTable.virksomhetsnavn to " ")
     }
@@ -82,14 +81,6 @@ class InnsendingValideringTest {
         assertFeil("virksomhet.kontaktperson.telefonnummer", UtkastTable.kontaktpersonTelefon to null)
         assertFeil("virksomhet.kontaktperson.telefonnummer", UtkastTable.kontaktpersonTelefon to "1234567")
         assertFeil("virksomhet.kontaktperson.telefonnummer", UtkastTable.kontaktpersonTelefon to "1234567a")
-    }
-
-    @Test
-    fun `deltaker må være bekreftet`() {
-        assertFeil("ansatt.fnr", UtkastTable.ansattBekreftetTidspunkt to null)
-        assertFeil("ansatt.fnr", UtkastTable.ansattFnr to null)
-        assertFeil("ansatt.fnr", UtkastTable.ansattNavn to null)
-        assertFeil("ansatt.fnr", UtkastTable.ansattNavn to "")
     }
 
     @Test

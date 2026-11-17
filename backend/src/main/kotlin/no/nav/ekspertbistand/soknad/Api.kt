@@ -1,7 +1,6 @@
 package no.nav.ekspertbistand.soknad
 
 import io.ktor.http.*
-import io.ktor.http.content.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -47,16 +46,28 @@ class SoknadApi(
 
     // TODO: metrikk på antall utkast by alder
 
+    /**
+     * Oppretter utkastet først når deltakeren er bekreftet, med de samme sjekkene som [validerDeltaker].
+     * Ingen utkast lagres ved feil. Se specifications/innsending_fra_utkast.md (4).
+     */
     suspend fun RoutingContext.opprettUtkast() {
-        val opprettetUtkast = transaction(database) {
-            UtkastTable.insertReturning {
-                it[opprettetAv] = innloggetBruker
-            }.single().tilUtkastDTO()
+        val mottatt = mottaDeltaker() ?: return
+        when (val deltaker = validerArbeidsforhold(mottatt) ?: return) {
+            is ArbeidsforholdSjekk.IngenArbeidsforhold -> call.respondIngenArbeidsforhold()
+            is ArbeidsforholdSjekk.Bekreftet -> {
+                val opprettetUtkast = transaction(database) {
+                    UtkastTable.insertReturning {
+                        it[opprettetAv] = innloggetBruker
+                        it[virksomhetsnummer] = mottatt.virksomhetsnummer
+                        it[virksomhetsnavn] = mottatt.virksomhetsnavn
+                        it[ansattFnr] = mottatt.fnr
+                        it[ansattNavn] = deltaker.navn
+                        it[ansattBekreftetTidspunkt] = Clock.System.now()
+                    }.single().tilUtkastDTO()
+                }
+                call.respond(HttpStatusCode.Created, opprettetUtkast)
+            }
         }
-        call.respond(
-            HttpStatusCode.Created,
-            opprettetUtkast
-        )
     }
 
     suspend fun RoutingContext.hentAlleSoknader(statusParam: SoknadStatusQueryParam) {
@@ -321,6 +332,27 @@ class SoknadApi(
             return
         }
 
+        val mottatt = mottaDeltaker() ?: return
+
+        if (utkast.ansatt?.fnr == mottatt.fnr &&
+            utkast.virksomhet?.virksomhetsnummer == mottatt.virksomhetsnummer
+        ) {
+            call.respond(utkast)
+            return
+        }
+
+        when (val deltaker = validerArbeidsforhold(mottatt) ?: return) {
+            is ArbeidsforholdSjekk.IngenArbeidsforhold -> call.respondIngenArbeidsforhold()
+            is ArbeidsforholdSjekk.Bekreftet -> call.respond(lagreDeltaker(idParam, mottatt, deltaker.navn))
+        }
+    }
+
+    /**
+     * Leser fnr og virksomhetsnummer, sjekker formatet og at innlogget bruker har Altinn-tilgang til virksomheten.
+     * Virksomhetsnavnet hentes fra Altinn-tilgangene, så brukeren kan bare velge virksomheter hen har tilgang til.
+     * Svarer 403 og gir null uten tilgang. Ugyldig input gir [UgyldigInputException].
+     */
+    private suspend fun RoutingContext.mottaDeltaker(): MottattDeltaker? {
         val request = call.receive<ValiderDeltakerRequest>().also { valider(it) }
         if (!erGyldigFodselsnummer(request.fnr)) {
             throw UgyldigInputException("fnr", "ugyldig fødselsnummer")
@@ -330,83 +362,71 @@ class SoknadApi(
         }
 
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
-        if (!tilganger.harTilgang(request.virksomhetsnummer)) {
+        val virksomhetsnavn = tilganger.navn(request.virksomhetsnummer)
+        if (!tilganger.harTilgang(request.virksomhetsnummer) || virksomhetsnavn == null) {
             call.respond(
                 status = HttpStatusCode.Forbidden,
                 message = "bruker har ikke tilgang til organisasjon"
             )
-            return
+            return null
         }
-        val virksomhetsnavn = tilganger.navn(request.virksomhetsnummer)
+        return MottattDeltaker(request.fnr, request.virksomhetsnummer, virksomhetsnavn)
+    }
 
-        if (utkast.deltakerBekreftet &&
-            utkast.ansatt?.fnr == request.fnr &&
-            utkast.virksomhet?.virksomhetsnummer == request.virksomhetsnummer
-        ) {
-            call.respond(utkast)
-            return
-        }
-
-        if (!deltakerOppslagRateLimit.registrer(innloggetBruker, request.fnr)) {
+    /**
+     * Slår opp arbeidsforholdet i Aa-registeret og navnet i PDL. Svarer og gir null ved
+     * for mange oppslag (429) og når et oppslag feiler (503).
+     */
+    private suspend fun RoutingContext.validerArbeidsforhold(deltaker: MottattDeltaker): ArbeidsforholdSjekk? {
+        if (!deltakerOppslagRateLimit.registrer(innloggetBruker, deltaker.fnr)) {
             call.respondFeil(
                 HttpStatusCode.TooManyRequests,
                 FOR_MANGE_OPPSLAG,
                 "for mange oppslag på ulike fødselsnummer, prøv igjen om noen minutter"
             )
-            return
+            return null
         }
 
         val harArbeidsforhold = try {
-            deltakerOppslag.harAktivtArbeidsforhold(request.fnr, request.virksomhetsnummer)
+            deltakerOppslag.harAktivtArbeidsforhold(deltaker.fnr, deltaker.virksomhetsnummer)
         } catch (e: Exception) {
             e.rethrowIfCancellation()
             log.error("Oppslag av deltakers arbeidsforhold mot Aa-registeret feilet", e)
             call.respondOppslagFeilet()
-            return
+            return null
         }
 
         if (!harArbeidsforhold) {
-            lagreDeltaker(idParam, request, virksomhetsnavn, navn = null, ansattBekreftet = false)
-            call.respondFeil(
-                HttpStatusCode.UnprocessableEntity,
-                INGEN_ARBEIDSFORHOLD,
-                "fant ikke aktivt arbeidsforhold i virksomheten"
-            )
-            return
+            return ArbeidsforholdSjekk.IngenArbeidsforhold
         }
 
         val navn = try {
-            deltakerOppslag.hentNavn(request.fnr)
+            deltakerOppslag.hentNavn(deltaker.fnr)
         } catch (e: Exception) {
             e.rethrowIfCancellation()
             log.error("Oppslag av deltakers navn mot PDL feilet", e)
             call.respondOppslagFeilet()
-            return
+            return null
         }
 
-        call.respond(lagreDeltaker(idParam, request, virksomhetsnavn, navn, ansattBekreftet = true))
+        return ArbeidsforholdSjekk.Bekreftet(navn)
     }
 
-    /**
-     * Lagrer deltaker og virksomhet. Med [ansattBekreftet] settes bekreftelsestidspunktet,
-     * ellers nullstilles det.
-     */
+    /** Lagrer den bekreftede deltakeren og virksomheten. */
     private fun lagreDeltaker(
         idParam: UUID,
-        request: ValiderDeltakerRequest,
-        virksomhetsnavn: String?,
-        navn: String?,
-        ansattBekreftet: Boolean,
+        deltaker: MottattDeltaker,
+        navn: String,
     ): DTO.Utkast =
         transaction(database) {
             UtkastTable.updateReturning(
                 where = { UtkastTable.id eq idParam }
             ) { utkast ->
-                utkast[ansattFnr] = request.fnr
+                utkast[ansattFnr] = deltaker.fnr
                 utkast[ansattNavn] = navn
-                utkast[virksomhetsnummer] = request.virksomhetsnummer
-                utkast[UtkastTable.virksomhetsnavn] = virksomhetsnavn
-                utkast[ansattBekreftetTidspunkt] = if (ansattBekreftet) Clock.System.now() else null
+                utkast[virksomhetsnummer] = deltaker.virksomhetsnummer
+                utkast[virksomhetsnavn] = deltaker.virksomhetsnavn
+                utkast[ansattBekreftetTidspunkt] = Clock.System.now()
             }.single().tilUtkastDTO()
         }
 
@@ -415,6 +435,9 @@ class SoknadApi(
 
     private suspend fun ApplicationCall.respondOppslagFeilet() =
         respondFeil(HttpStatusCode.ServiceUnavailable, OPPSLAG_FEILET, "oppslag av deltaker feilet, prøv igjen senere")
+
+    private suspend fun ApplicationCall.respondIngenArbeidsforhold() =
+        respondFeil(HttpStatusCode.UnprocessableEntity, INGEN_ARBEIDSFORHOLD, "fant ikke aktivt arbeidsforhold i virksomheten")
 
     /** Utkast er private: bare den som opprettet utkastet kan se, endre, slette eller sende det inn. */
     private fun RoutingContext.erOpprettetAvInnlogget(utkast: DTO.Utkast): Boolean =
@@ -462,7 +485,7 @@ sealed interface DTO {
         val nav: Nav? = null,
         val opprettetAv: String? = null,
         val opprettetTidspunkt: String? = null,
-        /** Satt av backend når arbeidsforhold og navn er bekreftet. Ignoreres i innkommende utkast. */
+        /** Alltid true, fordi et utkast bare finnes med bekreftet deltaker. Ignoreres i innkommende utkast. */
         val deltakerBekreftet: Boolean = false,
     ) : DTO {
         val status = SoknadStatus.utkast
@@ -529,6 +552,19 @@ data class ValiderDeltakerRequest(
     val fnr: String,
     val virksomhetsnummer: String,
 )
+
+/** Deltakeren fra requesten, med virksomhetsnavnet fra Altinn-tilgangene til innlogget bruker. */
+private data class MottattDeltaker(
+    val fnr: String,
+    val virksomhetsnummer: String,
+    val virksomhetsnavn: String,
+)
+
+/** Resultatet av oppslagene i [SoknadApi.validerArbeidsforhold] når ingen av dem feilet. */
+private sealed interface ArbeidsforholdSjekk {
+    data class Bekreftet(val navn: String) : ArbeidsforholdSjekk
+    data object IngenArbeidsforhold : ArbeidsforholdSjekk
+}
 
 const val FOR_MANGE_OPPSLAG = "FOR_MANGE_OPPSLAG"
 const val INGEN_ARBEIDSFORHOLD = "INGEN_ARBEIDSFORHOLD"

@@ -53,7 +53,6 @@ private fun dagensDato(): LocalDate = Clock.System.now().toLocalDateTime(oslo).d
  *
  * Kaster [UgyldigInputException] med feltstien til første feil.
  */
-@OptIn(ExperimentalTime::class)
 fun validerKomplett(utkast: ResultRow, idag: LocalDate = dagensDato()): InnsendingsklarSoknad {
     val virksomhetsnummer = utkast[UtkastTable.virksomhetsnummer]
         .kreverMonster("virksomhet.virksomhetsnummer", niSiffer, "må være 9 siffer")
@@ -63,12 +62,6 @@ fun validerKomplett(utkast: ResultRow, idag: LocalDate = dagensDato()): Innsendi
         .kreverMonster("virksomhet.kontaktperson.epost", epost, "ugyldig e-postadresse")
     val kontaktpersonTelefon = utkast[UtkastTable.kontaktpersonTelefon]
         .kreverMonster("virksomhet.kontaktperson.telefonnummer", telefonnummer, "må være 8 siffer")
-
-    val ansattFnr = utkast[UtkastTable.ansattFnr]
-    val ansattNavn = utkast[UtkastTable.ansattNavn]
-    if (utkast[UtkastTable.ansattBekreftetTidspunkt] == null || ansattFnr == null || ansattNavn.isNullOrBlank()) {
-        throw UgyldigInputException("ansatt.fnr", "deltaker er ikke bekreftet")
-    }
 
     val ekspertNavn = utkast[UtkastTable.ekspertNavn].kreverTekst("ekspert.navn")
     val ekspertVirksomhet = utkast[UtkastTable.ekspertVirksomhet].kreverTekst("ekspert.virksomhet")
@@ -111,8 +104,8 @@ fun validerKomplett(utkast: ResultRow, idag: LocalDate = dagensDato()): Innsendi
         kontaktpersonNavn = kontaktpersonNavn,
         kontaktpersonEpost = kontaktpersonEpost,
         kontaktpersonTelefon = kontaktpersonTelefon,
-        ansattFnr = ansattFnr,
-        ansattNavn = ansattNavn,
+        ansattFnr = utkast[UtkastTable.ansattFnr],
+        ansattNavn = utkast[UtkastTable.ansattNavn],
         ekspertNavn = ekspertNavn,
         ekspertVirksomhet = ekspertVirksomhet,
         ekspertVirksomhetNavn = ekspertVirksomhetNavn,

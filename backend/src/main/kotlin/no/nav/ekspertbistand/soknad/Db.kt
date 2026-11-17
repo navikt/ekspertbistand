@@ -85,19 +85,19 @@ object SoknadTable : Table("soknad") {
 
 object UtkastTable : UUIDTable("utkast") {
     // Virksomhet
-    val virksomhetsnummer = text("virksomhetsnummer").nullable().index()
-    val virksomhetsnavn = text("virksomhetsnavn").nullable()
+    val virksomhetsnummer = text("virksomhetsnummer").index()
+    val virksomhetsnavn = text("virksomhetsnavn")
     val kontaktpersonNavn = text("kontaktperson_navn").nullable()
     val kontaktpersonEpost = text("kontaktperson_epost").nullable()
     val kontaktpersonTelefon = text("kontaktperson_telefon").nullable()
 
     // Ansatt
-    val ansattFnr = text("ansatt_fnr").nullable()
-    val ansattNavn = text("ansatt_navn").nullable()
+    val ansattFnr = text("ansatt_fnr")
+    val ansattNavn = text("ansatt_navn")
 
-    /** Satt når arbeidsforholdet er bekreftet i Aa-registeret og navnet er hentet fra PDL. */
+    /** Da arbeidsforholdet sist ble bekreftet i Aa-registeret og navnet hentet fra PDL. */
     @OptIn(ExperimentalTime::class)
-    val ansattBekreftetTidspunkt = timestamp("ansatt_bekreftet_tidspunkt").nullable()
+    val ansattBekreftetTidspunkt = timestamp("ansatt_bekreftet_tidspunkt")
 
     // Ekspert
     val ekspertNavn = text("ekspert_navn").nullable()
@@ -326,23 +326,19 @@ fun ResultRow.tilSoknadDTO() = DTO.Soknad(
 @OptIn(ExperimentalTime::class)
 fun ResultRow.tilUtkastDTO() = DTO.Utkast(
     id = this[UtkastTable.id].value.toString(),
-    virksomhet = this[UtkastTable.virksomhetsnummer]?.let { virksomhetsnummer ->
-        DTO.Virksomhet(
-            virksomhetsnummer = virksomhetsnummer,
-            virksomhetsnavn = this[UtkastTable.virksomhetsnavn] ?: "",
-            kontaktperson = DTO.Kontaktperson(
-                navn = this[UtkastTable.kontaktpersonNavn] ?: "",
-                epost = this[UtkastTable.kontaktpersonEpost] ?: "",
-                telefonnummer = this[UtkastTable.kontaktpersonTelefon] ?: ""
-            )
+    virksomhet = DTO.Virksomhet(
+        virksomhetsnummer = this[UtkastTable.virksomhetsnummer],
+        virksomhetsnavn = this[UtkastTable.virksomhetsnavn],
+        kontaktperson = DTO.Kontaktperson(
+            navn = this[UtkastTable.kontaktpersonNavn] ?: "",
+            epost = this[UtkastTable.kontaktpersonEpost] ?: "",
+            telefonnummer = this[UtkastTable.kontaktpersonTelefon] ?: ""
         )
-    },
-    ansatt = this[UtkastTable.ansattFnr]?.let { fnr ->
-        DTO.Ansatt(
-            fnr = fnr,
-            navn = this[UtkastTable.ansattNavn] ?: ""
-        )
-    },
+    ),
+    ansatt = DTO.Ansatt(
+        fnr = this[UtkastTable.ansattFnr],
+        navn = this[UtkastTable.ansattNavn]
+    ),
     ekspert = this[UtkastTable.ekspertNavn]?.let { navn ->
         DTO.Ekspert(
             navn = navn,
@@ -368,7 +364,7 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
     },
     opprettetAv = this[UtkastTable.opprettetAv],
     opprettetTidspunkt = this[UtkastTable.opprettetTidspunkt].toString(),
-    deltakerBekreftet = this[UtkastTable.ansattBekreftetTidspunkt] != null,
+    deltakerBekreftet = true,
 )
 
 @OptIn(ExperimentalTime::class)

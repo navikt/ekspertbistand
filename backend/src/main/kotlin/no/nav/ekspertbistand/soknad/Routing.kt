@@ -66,7 +66,7 @@ suspend fun Application.configureSoknadApiV1() {
         authenticate(TOKENX_PROVIDER) {
 
             /**
-             * POST /api/soknad/v1 => oppretter utkast
+             * POST /api/soknad/v1 => oppretter utkast når deltakeren er bekreftet (samme sjekker som valider-deltaker)
              * GET /api/soknad/v1/{id} => henter soknad på id (man må selv sjekke status på returnert data)
              * PATCH /api/soknad/v1/{id} => oppdaterer utkast (http 409 hvis utkast er sendt inn)
              *

@@ -13,8 +13,8 @@ request-body. Endringene er:
   virksomhet og deltaker.
 - `PUT /api/soknad/v1/{id}` har ingen body. Backend validerer hele utkastet,
   kopierer det til `soknad` og sletter utkastet.
-- Virksomhetsnavn for arbeidsgiver og ekspert hentes fra Ereg. Backend bruker
-  bare virksomhetsnummeret klienten sender.
+- Backend bruker bare virksomhetsnummeret klienten sender. Arbeidsgivers
+  virksomhetsnavn hentes fra Altinn-tilgangene, og ekspertens fra Ereg.
 - Eventene bruker `SoknadDomainV1`, ikke API-DTO-en `DTO.Soknad`. Da kan API-et
   endres uten at eventene i `event_log` knekker.
 
@@ -26,10 +26,11 @@ request-body. Endringene er:
 | Anders, 2026-11-17 | `POST /{id}/valider-deltaker` blir værende. Den brukes når arbeidsgiver endrer deltaker eller virksomhet på et utkast som finnes. |
 | Anders, 2026-11-17 | Innsending kopierer utkastet til `soknad`. Request-body brukes ikke. |
 | Anders, 2026-11-17 | PATCH og dagens `valider()` endres ikke, med ett unntak: ekspertens virksomhet (se under). Ny validering skjer ellers bare ved innsending. |
-| Anders, 2026-11-17 | Arbeidsgivers virksomhetsnavn slås opp i Ereg når deltakeren valideres, og lagres på utkastet. Innsendingen kopierer navnet fra utkastet uten nytt oppslag. Visningen leser fra tabellene. |
+| Anders, 2026-11-17 | Arbeidsgivers virksomhetsnavn hentes fra Altinn-tilgangene til innlogget bruker når deltakeren valideres, og lagres på utkastet. Arbeidsgiver skal ikke kunne slå opp vilkårlige virksomheter. Innsendingen kopierer navnet fra utkastet uten nytt oppslag. Visningen leser fra tabellene. |
 | Anders, 2026-11-17 | Når arbeidsgiver setter ekspertens virksomhet, leser backend bare `ekspert.virksomhetOrgnr` fra PATCH og slår opp navnet i Ereg. `virksomhet` og `virksomhetNavn` fra klienten ignoreres. |
 | Anders, 2026-11-17 | Ekspertens orgnr og virksomhetsnavn er påkrevd ved innsending. Innsendingen kopierer `ekspert_virksomhet`, `ekspert_virksomhet_navn` og `ekspert_virksomhet_orgnr` fra utkastet uten nytt oppslag i Ereg. |
-| Anders, 2026-11-17 | `utkast.virksomhetsnummer`, `utkast.virksomhetsnavn` og `utkast.ansatt_fnr` blir NOT NULL. Migreringen sletter utkast som mangler dem først. |
+| Anders, 2026-11-17 | `virksomhetsnummer`, `virksomhetsnavn`, `ansatt_fnr`, `ansatt_navn` og `ansatt_bekreftet_tidspunkt` i `utkast` blir NOT NULL. Migreringen sletter utkast som mangler dem først. |
+| Anders, 2026-11-17 | Et utkast har alltid en bekreftet deltaker. Gir `valider-deltaker` 422, endres ikke utkastet, og den forrige deltakeren beholdes. `deltakerBekreftet` i `DTO.Utkast` er derfor alltid true. |
 | Anders, 2026-11-17 | `DTO.Soknad` deles i `SoknadDomainV1` (eventene) og `DTO.Soknad` (API). |
 | Anders, 2026-11-17 | Både v1- og v2-flyten i frontend tilpasses. |
 | `journalfor_vedtaksbrev_arbeidsgiver.md` | `SoknadDomainV1` er en nøyaktig kopi av `DTO.Soknad`, så JSON-en i `event_log` kan leses uten endring. Det blir ingen `V1.tilV2()`. |
@@ -87,7 +88,7 @@ Reglene speiler `soknadSchema` i `frontend/client/src/v2/features/soknad/schema.
 | `virksomhet.kontaktperson.navn` | Ikke blank |
 | `virksomhet.kontaktperson.epost` | Gyldig e-post |
 | `virksomhet.kontaktperson.telefonnummer` | Gyldig telefonnummer, som i `phoneField` |
-| `ansatt.fnr`, `ansatt.navn` | Deltakeren er bekreftet (`ansatt_bekreftet_tidspunkt` er satt) |
+| `ansatt.fnr`, `ansatt.navn` | Ingen sjekk. Kolonnene er NOT NULL, og utkastet har alltid en bekreftet deltaker |
 | `ekspert.navn` | Ikke blank |
 | `ekspert.virksomhet`, `ekspert.virksomhetNavn` | Ikke blank |
 | `ekspert.virksomhetOrgnr` | 9 siffer |
@@ -116,18 +117,14 @@ til en felles funksjon som begge endepunktene bruker.
 |--------|------|
 | Deltakeren er bekreftet | 201 med `DTO.Utkast`. Utkastet lagres med fødselsnummer, navn, virksomhet og `ansatt_bekreftet_tidspunkt` |
 | Ugyldig input | 400 `UGYLDIG_INPUT`. Ingen utkast lagres |
-| Mangler Altinn-tilgang | 403. Ingen utkast lagres |
+| Mangler Altinn-tilgang, eller virksomheten har ikke navn i Altinn-tilgangene | 403. Ingen utkast lagres |
 | For mange oppslag | 429 `FOR_MANGE_OPPSLAG`. Ingen utkast lagres |
 | Ingen arbeidsforhold | 422 `INGEN_ARBEIDSFORHOLD`. Ingen utkast lagres |
-| Aa-registeret, PDL eller Ereg feiler | 503 `OPPSLAG_FEILET`. Ingen utkast lagres |
+| Aa-registeret eller PDL feiler | 503 `OPPSLAG_FEILET`. Ingen utkast lagres |
 
-`valider-deltaker` oppfører seg som før, men henter virksomhetsnavnet fra Ereg i
-stedet for Altinn-tilgangene. Ved 422 lagres fortsatt fødselsnummer og
-virksomhet uten bekreftelse.
-
-`EregService` får `hentVirksomhetsnavn(orgnr): String?`. Den returnerer null når
-Ereg svarer 404, og kaster ved andre feil. Det skiller den fra
-`finnOrganisasjonForOrgnr`, som gir tom liste ved alle feil.
+`valider-deltaker` henter virksomhetsnavnet fra Altinn-tilgangene. Den lagrer
+bare en bekreftet deltaker. Ved 422 endres ikke utkastet, så det beholder den
+forrige deltakeren.
 
 Migrering `V37__utkast_virksomhet_og_deltaker_paakrevd.sql`:
 
@@ -135,11 +132,17 @@ Migrering `V37__utkast_virksomhet_og_deltaker_paakrevd.sql`:
 SET lock_timeout = '3s';
 
 DELETE FROM utkast
-WHERE virksomhetsnummer IS NULL OR virksomhetsnavn IS NULL OR ansatt_fnr IS NULL;
+WHERE virksomhetsnummer IS NULL
+   OR virksomhetsnavn IS NULL
+   OR ansatt_fnr IS NULL
+   OR ansatt_navn IS NULL
+   OR ansatt_bekreftet_tidspunkt IS NULL;
 
 ALTER TABLE utkast ALTER COLUMN virksomhetsnummer SET NOT NULL;
 ALTER TABLE utkast ALTER COLUMN virksomhetsnavn SET NOT NULL;
 ALTER TABLE utkast ALTER COLUMN ansatt_fnr SET NOT NULL;
+ALTER TABLE utkast ALTER COLUMN ansatt_navn SET NOT NULL;
+ALTER TABLE utkast ALTER COLUMN ansatt_bekreftet_tidspunkt SET NOT NULL;
 ```
 
 Utkastene som slettes, har ikke kommet forbi steg 1, og ville uansett blitt
@@ -168,6 +171,10 @@ Oppslaget gjøres bare når orgnr er endret, så autolagringen gir ikke et kall
 til Ereg for hver PATCH. Svaret er utkastet med navnet fra Ereg, og frontend
 viser det som før.
 
+`EregService` får `hentVirksomhetsnavn(orgnr): String?`. Den returnerer null når
+Ereg svarer 404, og kaster ved andre feil. Det skiller den fra
+`finnOrganisasjonForOrgnr`, som gir tom liste ved alle feil.
+
 ### 6. Innsending
 
 `PUT /api/soknad/v1/{id}` leser ikke request-body. Stegene:
@@ -182,8 +189,8 @@ viser det som før.
 
 I `soknad` lagres
 
-- `virksomhetsnavn` fra utkastet, slik det ble hentet fra Ereg da deltakeren
-  ble validert,
+- `virksomhetsnavn` fra utkastet, slik det ble hentet fra Altinn-tilgangene da
+  deltakeren ble validert,
 - ekspertfeltene fra utkastet, der navnet ble hentet fra Ereg ved PATCH,
 - `beliggenhetsadresse` fra Ereg som i dag. Mangler adressen, lagres null som i
   dag.
@@ -226,7 +233,6 @@ Samme endringer som i v2, med stiene `/skjema/...`.
   feltene. Ukjent orgnr gir 400, og feil i Ereg gir 503.
 - `PUT`: innsending kopierer utkastet, ignorerer body, sletter utkastet og
   publiserer `SoknadInnsendt`. 400 ved ufullstendig utkast.
-- Migreringen: utkast uten virksomhet eller deltaker slettes.
 - Frontend: steg 1 uten id oppretter utkast og navigerer til steg 2, og
   feilene fra `POST` vises som i dag.
 
@@ -250,7 +256,7 @@ Samme endringer som i v2, med stiene `/skjema/...`.
 
 - **Autolagring som ikke er ferdig ved innsending.** Backend sender inn det som
   er lagret. Frontend må derfor vente på pågående PATCH før `PUT`.
-- **Arbeidsgivers navn i Ereg er endret siden steg 1.** Innsendingen bruker
+- **Arbeidsgivers navn i Altinn er endret siden steg 1.** Innsendingen bruker
   navnet som ble lagret på utkastet. Utkast slettes etter 48 timer, så navnet er
   aldri eldre enn det.
 - **Ekspertens virksomhet er lagret før endringen.** Utkast der frontend har
@@ -270,7 +276,7 @@ Ingen.
 - [ ] `SoknadDomainV1` finnes, og ingen eventer eller `ArenaSakTable` bruker `DTO.Soknad`
 - [ ] `POST /api/soknad/v1` oppretter utkast bare når deltakeren er bekreftet
 - [ ] `PUT /api/soknad/v1/{id}` sender inn det lagrede utkastet etter `validerKomplett`
-- [ ] Virksomhetsnavn for arbeidsgiver og ekspert kommer fra Ereg, og innsendingen kopierer alle virksomhetsfelt fra utkastet
+- [ ] Arbeidsgivers virksomhetsnavn kommer fra Altinn og ekspertens fra Ereg, og innsendingen kopierer alle virksomhetsfelt fra utkastet
 - [ ] Kolonnene i `utkast` er NOT NULL
 - [ ] v1 og v2 i frontend oppretter utkast fra steg 1 og sender inn uten body
 - [ ] Testene over er grønne
