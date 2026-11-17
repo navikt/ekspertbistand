@@ -7,6 +7,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import no.nav.ekspertbistand.event.domain.SoknadDomainV1
+import no.nav.ekspertbistand.event.domain.SoknadDomainV2
+import no.nav.ekspertbistand.event.domain.tilDomain
 import no.nav.ekspertbistand.event.domain.tilDomainV1
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
@@ -166,6 +168,14 @@ fun findSoknadDomainV1ById(
     now: Instant = Clock.System.now(),
 ): SoknadDomainV1? = findSoknadRad(id, filterForArbeidsgiver, now)?.tilSoknadDomainV1()
 
+/** Som [findSoknadById], men som [SoknadDomainV2]. Se [tilSoknadDomainV2] for når den feiler. */
+@OptIn(ExperimentalTime::class)
+fun findSoknadDomainV2ById(
+    id: UUID,
+    filterForArbeidsgiver: Boolean = true,
+    now: Instant = Clock.System.now(),
+): SoknadDomainV2? = findSoknadRad(id, filterForArbeidsgiver, now)?.tilSoknadDomainV2()
+
 @OptIn(ExperimentalTime::class)
 private fun findSoknadRad(id: UUID, filterForArbeidsgiver: Boolean, now: Instant): ResultRow? =
     SoknadTable.selectAll()
@@ -220,6 +230,55 @@ fun ResultRow.tilSoknadDomainV1() = SoknadDomainV1(
     opprettetTidspunkt = this[SoknadTable.opprettetTidspunkt].toString(),
     status = SoknadStatus.valueOf(this[SoknadTable.status]).tilDomainV1(),
 )
+
+/** Søknadsraden som [SoknadDomainV2]. Feiler for en søknad med fritekst i `kompetanse` i stedet for listene. */
+@OptIn(ExperimentalTime::class)
+fun ResultRow.tilSoknadDomainV2(): SoknadDomainV2 {
+    val id = this[SoknadTable.id].toString()
+    val godkjentUtdanningEllerAutorisasjon =
+        parseJsonStringList(this[SoknadTable.ekspertGodkjentUtdanningEllerAutorisasjon])
+    val relevantKompetanse = parseJsonStringList(this[SoknadTable.ekspertRelevantKompetanse])
+    check(godkjentUtdanningEllerAutorisasjon.isNotEmpty()) { "Søknad $id mangler godkjentUtdanningEllerAutorisasjon" }
+    check(relevantKompetanse.isNotEmpty()) { "Søknad $id mangler relevantKompetanse" }
+
+    return SoknadDomainV2(
+        id = id,
+        virksomhet = SoknadDomainV2.Virksomhet(
+            virksomhetsnummer = this[SoknadTable.virksomhetsnummer],
+            virksomhetsnavn = this[SoknadTable.virksomhetsnavn],
+            kontaktperson = SoknadDomainV2.Kontaktperson(
+                navn = this[SoknadTable.kontaktpersonNavn],
+                epost = this[SoknadTable.kontaktpersonEpost],
+                telefonnummer = this[SoknadTable.kontaktpersonTelefon],
+            ),
+            beliggenhetsadresse = this[SoknadTable.beliggenhetsadresse],
+        ),
+        ansatt = SoknadDomainV2.Ansatt(
+            fnr = this[SoknadTable.ansattFnr],
+            navn = this[SoknadTable.ansattNavn],
+        ),
+        ekspert = SoknadDomainV2.Ekspert(
+            navn = this[SoknadTable.ekspertNavn],
+            virksomhet = this[SoknadTable.ekspertVirksomhet],
+            virksomhetNavn = this[SoknadTable.ekspertVirksomhetNavn],
+            virksomhetOrgnr = this[SoknadTable.ekspertVirksomhetOrgnr],
+            godkjentUtdanningEllerAutorisasjon = godkjentUtdanningEllerAutorisasjon,
+            relevantKompetanse = relevantKompetanse,
+        ),
+        behovForBistand = SoknadDomainV2.BehovForBistand(
+            begrunnelse = this[SoknadTable.behovForBistandBegrunnelse],
+            behov = this[SoknadTable.behovForBistand],
+            estimertKostnad = this[SoknadTable.behovForBistandEstimertKostnad],
+            timer = this[SoknadTable.behovForBistandTimer],
+            tilrettelegging = this[SoknadTable.behovForBistandTilrettelegging],
+            startdato = this[SoknadTable.behovForBistandStartdato],
+        ),
+        nav = SoknadDomainV2.Nav(kontaktperson = this[SoknadTable.navKontaktPerson]),
+        opprettetAv = this[SoknadTable.opprettetAv],
+        opprettetTidspunkt = this[SoknadTable.opprettetTidspunkt],
+        status = SoknadStatus.valueOf(this[SoknadTable.status]).tilDomain(),
+    )
+}
 
 @OptIn(ExperimentalTime::class)
 fun ResultRow.tilSoknadDTO() = DTO.Soknad(

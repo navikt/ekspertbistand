@@ -10,7 +10,6 @@ import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
 import no.nav.ekspertbistand.saksbehandling.Vilkar
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingDTO
 import no.nav.ekspertbistand.saksbehandling.hentVilkarsvurdering
-import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus as GraphQLSaksStatus
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.Sendevindu as GraphQLSendevindu
@@ -18,60 +17,12 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 /*
  * Oversettelser fra API-DTO-er, API-enums og tabellrader til domain-typene. Dette er det eneste stedet som kjenner
  * begge modellene. Enum-oversettelsene er uttømmende `when` uten `else`, så en ny API-verdi ikke kompilerer før
- * noen har bestemt hva den blir i domain.
+ * noen har bestemt hva den blir i domain. Søknaden bygges fra tabellraden i `soknad/Db.kt`.
  */
-
-/** Feiler for et utkast, og for en søknad med fritekst i `kompetanse` i stedet for listene. */
-@OptIn(ExperimentalTime::class)
-fun DTO.Soknad.tilDomain(): SoknadDomainV2 {
-    val id = checkNotNull(id) { "Søknaden mangler id" }
-    val opprettetAv = checkNotNull(opprettetAv) { "Søknad $id mangler opprettetAv" }
-    val opprettetTidspunkt = checkNotNull(opprettetTidspunkt) { "Søknad $id mangler opprettetTidspunkt" }
-    check(ekspert.godkjentUtdanningEllerAutorisasjon.isNotEmpty()) {
-        "Søknad $id mangler godkjentUtdanningEllerAutorisasjon"
-    }
-    check(ekspert.relevantKompetanse.isNotEmpty()) { "Søknad $id mangler relevantKompetanse" }
-
-    return SoknadDomainV2(
-        id = id,
-        virksomhet = SoknadDomainV2.Virksomhet(
-            virksomhetsnummer = virksomhet.virksomhetsnummer,
-            virksomhetsnavn = virksomhet.virksomhetsnavn,
-            kontaktperson = SoknadDomainV2.Kontaktperson(
-                navn = virksomhet.kontaktperson.navn,
-                epost = virksomhet.kontaktperson.epost,
-                telefonnummer = virksomhet.kontaktperson.telefonnummer,
-            ),
-            beliggenhetsadresse = virksomhet.beliggenhetsadresse,
-        ),
-        ansatt = SoknadDomainV2.Ansatt(fnr = ansatt.fnr, navn = ansatt.navn),
-        ekspert = SoknadDomainV2.Ekspert(
-            navn = ekspert.navn,
-            virksomhet = ekspert.virksomhet,
-            virksomhetNavn = ekspert.virksomhetNavn,
-            virksomhetOrgnr = ekspert.virksomhetOrgnr,
-            godkjentUtdanningEllerAutorisasjon = ekspert.godkjentUtdanningEllerAutorisasjon,
-            relevantKompetanse = ekspert.relevantKompetanse,
-        ),
-        behovForBistand = SoknadDomainV2.BehovForBistand(
-            begrunnelse = behovForBistand.begrunnelse,
-            behov = behovForBistand.behov,
-            estimertKostnad = behovForBistand.estimertKostnad,
-            timer = behovForBistand.timer,
-            tilrettelegging = behovForBistand.tilrettelegging,
-            startdato = behovForBistand.startdato,
-        ),
-        nav = SoknadDomainV2.Nav(kontaktperson = nav.kontaktperson),
-        opprettetAv = opprettetAv,
-        opprettetTidspunkt = Instant.parse(opprettetTidspunkt),
-        status = status.tilDomain(),
-    )
-}
 
 fun SoknadStatus.tilDomain(): SoknadDomainV2.Status = when (this) {
     SoknadStatus.innsendt -> SoknadDomainV2.Status.innsendt
