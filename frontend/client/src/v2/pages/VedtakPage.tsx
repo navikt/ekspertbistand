@@ -173,14 +173,9 @@ export default function VedtakPage() {
 
       {id && vedtak && !error && !soknadLoading && (
         <VStack gap="space-24">
-          <Box
-            background={refusjonMottatt ? "info-moderate" : UTFALL[vedtak.utfall].bakgrunn}
-            borderColor={refusjonMottatt ? "info" : undefined}
-            borderWidth={refusjonMottatt ? "1" : undefined}
-            padding="space-24"
-          >
+          <Box background={UTFALL[vedtak.utfall].bakgrunn} padding="space-24">
             <Heading level="2" size="large" align="center">
-              {refusjonMottatt ? "Nav behandler refusjonskravet" : UTFALL[vedtak.utfall].status}
+              {UTFALL[vedtak.utfall].status}
             </Heading>
           </Box>
 

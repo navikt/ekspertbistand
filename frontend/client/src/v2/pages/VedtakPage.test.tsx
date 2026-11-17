@@ -183,8 +183,11 @@ describe("VedtakPage", () => {
       try {
         renderSkjema(vedtakssiden(id));
 
-        await ventPaVedtak("Nav behandler refusjonskravet");
+        const forventetStatus =
+          utfall === "INNVILGET" ? "Søknad godkjent" : "Søknad godkjent med redusert beløp";
+        await ventPaVedtak(forventetStatus);
         const kort = await screen.findByRole("region", { name: "Refusjonskrav sendt inn" });
+        expect(screen.queryByText("Nav behandler refusjonskravet")).not.toBeInTheDocument();
         if (medSluttrapport) {
           await screen.findByRole("region", { name: "Sluttrapport sendt inn" });
         } else {
@@ -245,9 +248,8 @@ describe("VedtakPage", () => {
         await userEvent.keyboard(" ");
         expect(knapp).toHaveAttribute("aria-expanded", "false");
         expect(screen.getByRole("heading", { name: forventetBelop })).toBeInTheDocument();
-        expect(
-          screen.getByRole("heading", { name: "Nav behandler refusjonskravet" })
-        ).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: forventetStatus })).toBeInTheDocument();
+        expect(screen.queryByText("Nav behandler refusjonskravet")).not.toBeInTheDocument();
       } finally {
         server.events.removeListener("request:start", lytter);
       }
@@ -359,8 +361,9 @@ describe("VedtakPage", () => {
       );
       await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
 
-      await ventPaVedtak("Nav behandler refusjonskravet");
+      await ventPaVedtak("Søknad godkjent");
       expect(screen.getByRole("status")).toHaveTextContent("Refusjonskravet er sendt inn.");
+      expect(screen.queryByText("Nav behandler refusjonskravet")).not.toBeInTheDocument();
       expect(screen.queryByText("Sluttrapporten er sendt inn.")).not.toBeInTheDocument();
       if (metadatafeil) {
         expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -384,10 +387,11 @@ describe("VedtakPage", () => {
     server.use(http.get(EKSPERTBISTAND_REFUSJON_PATH(id), () => HttpResponse.json(refusjon)));
     renderSkjema(`/v2/skjema/${id}/refusjon`);
 
-    await ventPaVedtak("Nav behandler refusjonskravet");
+    await ventPaVedtak("Søknad godkjent");
     expect(
       await screen.findByRole("region", { name: "Refusjonskrav sendt inn" })
     ).toBeInTheDocument();
+    expect(screen.queryByText("Nav behandler refusjonskravet")).not.toBeInTheDocument();
     expect(screen.queryByText("Refusjonskravet er sendt inn.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Send inn$/ })).not.toBeInTheDocument();
   });
