@@ -605,14 +605,17 @@ Vi kan derfor ikke lese av lista med seks sifre hvilke av enhetene våre som
 virker. `1891` står som `189100` i lista, men ble avvist. `1291` står ikke som
 `129100`, men ble `AKTIV`.
 
-Hilde-Mari sjekket enhetene våre i T1 2026-11-17:
+Hilde-Mari sjekket enhetene våre i OeBS 2026-11-17:
 
-| Status i T1 | Enheter |
-|-------------|---------|
-| Finnes | 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 2103, 5772 |
-| Mangler | 1891, 1991 |
+| Enhet | T1 | Prod |
+|-------|----|------|
+| 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 2103, 5772 | Finnes | Ikke sjekket |
+| 1891 | Mangler | Aktiv |
+| 1991 | Mangler | Ikke aktiv, trolig avsluttet februar 2020 |
 
-Prod er ikke sjekket.
+`1991` står på lista vår over enheter som behandler ekspertbistand, men er
+avsluttet i OeBS prod. Vi må finne ut om enheten fortsatt er i bruk i Norg, og
+om saker for den skal belastes en annen enhet.
 
 ### Kostnadssted eller behandlende enhet
 
@@ -642,9 +645,11 @@ saksgangen.
 ### Før bestilling kobles til saksgangen
 
 1. Avklar at behandlende enhet er enheten som skal belastes.
-2. Bestill kostnadssted for 1891 og 1991 i T1. Få bekreftet hvilke av de 13
-   enhetene som finnes i prod, og bestill dem som mangler.
-3. Vurder en hvitliste som i tiltaksadministrasjon, slik at en sak med ukjent
+2. Avklar `1991`: er enheten i bruk, og hvilket kostnadssted skal saker for den
+   belastes?
+3. Bestill kostnadssted for 1891 i T1, og for 1991 i T1 og prod hvis den skal
+   brukes. Få bekreftet de 11 andre enhetene i prod.
+4. Vurder en hvitliste som i tiltaksadministrasjon, slik at en sak med ukjent
    enhet stopper før bestillingen sendes.
 
 ## Avvisning uten kvittering
@@ -716,6 +721,8 @@ Før bestilling kobles til saksgangen:
 
 - [ ] Avklart at behandlende enhet er enheten som skal belastes
 - [x] OeBS har sjekket de 13 enhetene i T1: 1891 og 1991 mangler
-- [ ] Kostnadssted for 1891 og 1991 er bestilt i T1
-- [ ] OeBS har bekreftet kostnadssted for alle 13 enhetene i prod
+- [x] OeBS har sjekket 1891 og 1991 i prod: 1891 er aktiv, 1991 er avsluttet
+- [ ] Avklart om 1991 skal brukes, og hvilket kostnadssted saker for den belastes
+- [ ] Kostnadssted for 1891 er bestilt i T1 (og 1991 i T1 og prod hvis den skal brukes)
+- [ ] OeBS har bekreftet de 11 andre enhetene i prod
 - [ ] Avklart hvordan vi oppdager en bestilling som OeBS avviser uten kvittering
