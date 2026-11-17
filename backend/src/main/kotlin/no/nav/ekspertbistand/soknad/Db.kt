@@ -130,7 +130,7 @@ object UtkastTable : UUIDTable("utkast") {
 private val jsonParser = Json { ignoreUnknownKeys = true }
 private val stringListSerializer = ListSerializer(String.serializer())
 
-private fun parseJsonStringList(value: String?): List<String> =
+internal fun parseJsonStringList(value: String?): List<String> =
     if (value.isNullOrBlank()) emptyList()
     else runCatching { jsonParser.decodeFromString(stringListSerializer, value) }.getOrElse { emptyList() }
 
