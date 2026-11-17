@@ -157,6 +157,10 @@ class SoknadApi(
             return
         }
 
+        val nyEkspertVirksomhet = oppdatertUtkast.ekspert?.let { ekspert ->
+            ekspertVirksomhet(ekspert.virksomhetOrgnr, lagretOrgnr = eksisterende.ekspert?.virksomhetOrgnr) ?: return
+        }
+
         val oppdatert = transaction(database) {
             UtkastTable.updateReturning(
                 where = { UtkastTable.id eq idParam }
@@ -169,9 +173,21 @@ class SoknadApi(
                 }
                 oppdatertUtkast.ekspert?.also { e ->
                     utkast[ekspertNavn] = e.navn
-                    utkast[ekspertVirksomhet] = e.virksomhet
-                    utkast[ekspertVirksomhetNavn] = e.virksomhetNavn
-                    utkast[ekspertVirksomhetOrgnr] = e.virksomhetOrgnr
+                    when (nyEkspertVirksomhet) {
+                        is EkspertVirksomhet.Ny -> {
+                            utkast[ekspertVirksomhetOrgnr] = nyEkspertVirksomhet.orgnr
+                            utkast[ekspertVirksomhetNavn] = nyEkspertVirksomhet.navn
+                            utkast[ekspertVirksomhet] = "${nyEkspertVirksomhet.navn} (${nyEkspertVirksomhet.orgnr})"
+                        }
+
+                        EkspertVirksomhet.Fjernet -> {
+                            utkast[ekspertVirksomhetOrgnr] = null
+                            utkast[ekspertVirksomhetNavn] = null
+                            utkast[ekspertVirksomhet] = null
+                        }
+
+                        EkspertVirksomhet.Uendret, null -> Unit
+                    }
                     utkast[ekspertKompetanse] = e.kompetanse
                     utkast[ekspertGodkjentUtdanningEllerAutorisasjon] = encodeStringList(e.godkjentUtdanningEllerAutorisasjon)
                     utkast[ekspertRelevantKompetanse] = encodeStringList(e.relevantKompetanse)
@@ -430,6 +446,34 @@ class SoknadApi(
             }.single().tilUtkastDTO()
         }
 
+    /**
+     * Ekspertens virksomhet ved PATCH. Bare orgnr leses fra klienten, og navnet slås opp i Ereg når orgnr er endret.
+     * Ugyldig eller ukjent orgnr gir [UgyldigInputException]. Svarer 503 og gir null når Ereg feiler.
+     * Se specifications/innsending_fra_utkast.md (5).
+     */
+    private suspend fun RoutingContext.ekspertVirksomhet(orgnr: String?, lagretOrgnr: String?): EkspertVirksomhet? {
+        val nyttOrgnr = orgnr?.takeIf { it.isNotBlank() } ?: return EkspertVirksomhet.Fjernet
+        if (nyttOrgnr == lagretOrgnr) return EkspertVirksomhet.Uendret
+        if (!nyttOrgnr.matches(Regex("\\d{9}"))) {
+            throw UgyldigInputException("ekspert.virksomhetOrgnr", "må være 9 siffer")
+        }
+
+        val navn = try {
+            eregService.hentVirksomhetsnavn(nyttOrgnr)
+        } catch (e: Exception) {
+            e.rethrowIfCancellation()
+            log.error("Oppslag av ekspertens virksomhet mot Ereg feilet", e)
+            call.respondFeil(
+                HttpStatusCode.ServiceUnavailable,
+                OPPSLAG_FEILET,
+                "oppslag av virksomhet i Enhetsregisteret feilet, prøv igjen senere"
+            )
+            return null
+        } ?: throw UgyldigInputException("ekspert.virksomhetOrgnr", "finnes ikke i Enhetsregisteret")
+
+        return EkspertVirksomhet.Ny(nyttOrgnr, navn)
+    }
+
     private suspend fun ApplicationCall.respondFeil(status: HttpStatusCode, kode: String, message: String) =
         respond(status, mapOf("kode" to kode, "message" to message))
 
@@ -564,6 +608,13 @@ private data class MottattDeltaker(
 private sealed interface ArbeidsforholdSjekk {
     data class Bekreftet(val navn: String) : ArbeidsforholdSjekk
     data object IngenArbeidsforhold : ArbeidsforholdSjekk
+}
+
+/** Hva PATCH skal gjøre med ekspertens virksomhet, se [SoknadApi.ekspertVirksomhet]. */
+private sealed interface EkspertVirksomhet {
+    data object Uendret : EkspertVirksomhet
+    data object Fjernet : EkspertVirksomhet
+    data class Ny(val orgnr: String, val navn: String) : EkspertVirksomhet
 }
 
 const val FOR_MANGE_OPPSLAG = "FOR_MANGE_OPPSLAG"

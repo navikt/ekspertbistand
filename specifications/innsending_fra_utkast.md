@@ -157,7 +157,7 @@ av PATCH er som før.
 | Orgnr i request | Det backend gjør |
 |-----------------|------------------|
 | Likt det som er lagret | Ingen oppslag. Feltene beholdes |
-| Null | Setter `ekspert_virksomhet`, `ekspert_virksomhet_navn` og `ekspert_virksomhet_orgnr` til null |
+| Null eller tom streng | Setter `ekspert_virksomhet`, `ekspert_virksomhet_navn` og `ekspert_virksomhet_orgnr` til null |
 | Nytt orgnr | Sjekker at det er 9 siffer, slår opp navnet med `EregService.hentVirksomhetsnavn` og lagrer `ekspert_virksomhet_orgnr`, `ekspert_virksomhet_navn` og `ekspert_virksomhet` som «navn (orgnr)», som frontend gjør i dag |
 
 Feil ved nytt orgnr:
@@ -172,7 +172,7 @@ til Ereg for hver PATCH. Svaret er utkastet med navnet fra Ereg, og frontend
 viser det som før.
 
 `EregService` får `hentVirksomhetsnavn(orgnr): String?`. Den returnerer null når
-Ereg svarer 404, og kaster ved andre feil. Det skiller den fra
+Ereg svarer 404, og kaster ved alle andre svar som ikke er 2xx. Det skiller den fra
 `finnOrganisasjonForOrgnr`, som gir tom liste ved alle feil.
 
 ### 6. Innsending
