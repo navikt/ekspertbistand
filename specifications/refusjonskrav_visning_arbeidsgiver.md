@@ -11,10 +11,10 @@ Branchen `trello-684-refusjonskrav-visning` bygger på
 
 ## Mål
 
-Når arbeidsgiver har sendt inn refusjonskravet, viser vedtakssiden
-«Nav behandler refusjonskravet» og et lukket kort med
-«Refusjonskrav sendt inn». Kortet ligger over sluttrapporten, vedtaket og
-søknaden.
+Når arbeidsgiver har sendt inn refusjonskravet, viser vedtakssiden et lukket
+kort med «Refusjonskrav sendt inn». Kortet ligger over sluttrapporten, vedtaket
+og søknaden. Vedtakets statusbanner beholdes. Vi utleder ikke behandlingsstatus
+for refusjonskravet fra at det finnes.
 
 Åpnet kort viser beløpet arbeidsgiver krever refundert, vedleggene som
 nedlastingslenker med filstørrelse og datoen kravet ble sendt inn til Nav.
@@ -38,7 +38,7 @@ kravet på nytt.
   og `mutate`. Kravet har `belopKroner`, `opprettet`, `kontonummer` og
   `vedlegg`, der hvert vedlegg har `id`, `filnavn` og `storrelse`.
 - `GET /api/soknad/v1/{id}/refusjon` returnerer metadata ved treff og 204 når
-  kravet mangler. Filinnhold følger ikke med.
+  kravet mangler. Filinnhold og behandlingsstatus følger ikke med.
 - `GET /api/soknad/v1/{id}/refusjon/vedlegg/{vedleggId}` returnerer hele PDF-en
   som vedlegg. Backend kontrollerer tilgang til virksomheten og at vedlegget
   tilhører søknadens refusjonskrav. Ruten finnes allerede.
@@ -70,6 +70,8 @@ og «Sendt inn til Nav» med dato. Opplysningene har skillelinjer.
 
 Skissene har disse avvikene fra det brukeren har avklart:
 
+- «Nav behandler refusjonskravet» tas ikke med, fordi backend ikke returnerer
+  en eksplisitt behandlingsstatus. Vedtakets statusbanner beholdes.
 - Kontonummer tas ut.
 - Begge rammer lover vanligvis én ukes behandlingstid og beskjed på e-post.
   Den teksten tas ikke med.
@@ -90,8 +92,9 @@ Spørsmålet om kontonummer står i kortbeskrivelsen og ble avklart i samtalen.
 | Figma `299:45359` og `299:45679` | Refusjonskortet ligger før sluttrapporten, vedtaket og søknaden. Statusen er «Nav behandler refusjonskravet». |
 | Brukeren, 2026-11-17 | Ny branch legges oppå sluttrapportbranchen fra kort 683. |
 | Brukeren, 2026-11-17 | Ikke vis kontonummer i refusjonskortet. |
-| Brukeren, 2026-11-17 | Vis «Nav behandler refusjonskravet», behold avsatt beløp og utelat løfte om behandlingstid og e-post. |
+| Brukeren, 2026-11-17, første avklaring | Vis «Nav behandler refusjonskravet», behold avsatt beløp og utelat løfte om behandlingstid og e-post. Statusvalget erstattes av presiseringen under. |
 | Brukeren, 2026-11-17 | Gjør samme type endringer som for sluttrapport: direkte retur til vedtaket, bekreftelse og separat håndtering av metadatafeil etter innsending. |
+| Brukeren, 2026-11-17 kl. 14:16 | Behandlingsstatus i frontend er prematurt uten eksplisitt behandlingsstatus fra backend. Behold vedtakets statusbanner og vis bare bekreftet mottak av refusjonskravet. |
 
 ### Valg i spec-en
 
@@ -139,8 +142,7 @@ Lange filnavn skal bryte på smal skjerm.
 Aksel-versjonskravet er `^8.16.1`. `ExpansionCard` med underkomponenter,
 `Link`, `BodyShort`, ikonene og tokenene er slått opp via Aksel MCP.
 Avstander og skillelinjer følger kort 683 med `space-16` og
-`border-neutral-subtle`. Refusjonsstatusen bruker `bg-info-moderate` og
-`border-info`, med en synlig overskrift som også formidler statusen uten farge.
+`border-neutral-subtle`. Vedtakets statusbanner og farger beholdes.
 
 ### 2. Vedtakssiden
 
@@ -151,7 +153,7 @@ Sluttrapport og refusjon hentes uavhengig av hverandre.
 | Status | Visning |
 |--------|---------|
 | Laster | Tilgjengelig ventemarkering. Ingen «Søk refusjon» før status er avklart. |
-| 200 med metadata | «Nav behandler refusjonskravet», avsatt beløp og refusjonskort øverst. Ingen «Søk refusjon» eller refusjonsfrist. |
+| 200 med metadata | Vedtaksstatus og avsatt beløp beholdes, og refusjonskortet vises øverst. Ingen «Søk refusjon» eller refusjonsfrist. |
 | 204 | Dagens vedtaksstatus, vilkår, refusjonsknapp og frist beholdes. |
 | Feil | Synlig feilmelding med beskjed om å laste siden på nytt. Ingen ny refusjonsinnsending mens status er ukjent. Resten av vedtaket er tilgjengelig. |
 
@@ -176,8 +178,8 @@ Følg mønsteret fra kort 683 i `SokRefusjonPage`:
 Vedtakssiden viser «Refusjonskravet er sendt inn». Ved metadatafeil vises i
 tillegg at kravet er sendt inn, men opplysningene ikke kunne hentes.
 Brukeren skal ikke få beskjed om at POST feilet eller tilbys ny innsending.
-Bekreftet innsending er også nok til å vise «Nav behandler refusjonskravet»
-mens metadata mangler.
+Bekreftet innsending bekrefter mottak, ikke at Nav behandler kravet.
+Vedtakets statusbanner beholdes også mens metadata mangler.
 
 Bekreftelsen vises bare etter innsending, ikke ved vanlig åpning av siden.
 Navigeringstilstanden konsumeres som i kort 683. Vi legger ikke konstruerte
@@ -194,7 +196,9 @@ beløp, både med og uten sluttrapport.
 
 Kontroller kortrekkefølge, lukket starttilstand, tastaturbetjening og at
 beløpet ikke endres når kortet åpnes. Ingen kontonummer skal vises, heller
-ikke når mock-responsen har et kontonummer.
+ikke når mock-responsen har et kontonummer. Vedtaksstatus beholdes både når
+kravet finnes og etter vellykket innsending. Ingen utledet behandlingsstatus
+skal vises, heller ikke ved metadatafeil.
 
 Test lenkene for flere vedlegg, filstørrelser og lange filnavn.
 Dokumenter hentes ikke ved lasting eller åpning av kortet.
@@ -211,7 +215,7 @@ Sluttrapportflyten og v2-isolasjonstesten skal fortsatt passere.
 |--------------------------------|---------|
 | `v2/components/RefusjonskravSendtInnKort.tsx` | Ny presentasjonskomponent for refusjonsmetadata og dokumentlenker. |
 | `v2/components/RefusjonskravSendtInnKort.module.css` | Filnavnbryting og skillelinjer i kortet. |
-| `v2/pages/VedtakPage.tsx` | Refusjonsstatus, statusbanner, kort og innsendingsbekreftelse. |
+| `v2/pages/VedtakPage.tsx` | Refusjonsmetadata, kort og innsendingsbekreftelse. Vedtakets statusbanner beholdes. |
 | `v2/pages/VedtakPage.test.tsx` | Status, kortrekkefølge, vedlegg og samspill med sluttrapport. |
 | `v2/pages/SokRefusjonPage.tsx` | Direkte retur til vedtaket, separat metadatafeil og videresending når krav finnes. |
 | `v2/pages/SokRefusjonPage.test.tsx` | Oppdater tester for den nye flyten og bevar valideringstestene. |
@@ -240,8 +244,9 @@ skissene er avklart med brukeren og beskrevet over.
 - Mottatt refusjonskrav vises i et lukket kort før de andre dokumentkortene.
 - Kortet viser beløp, nedlastbare vedlegg med filstørrelse og innsendingsdato.
 - Kontonummer vises ikke.
-- Statusen er «Nav behandler refusjonskravet», og avsatt beløp beholdes.
-  Ingen løfter om behandlingstid eller e-post vises.
+- Vedtakets statusbanner og avsatt beløp beholdes. Ingen behandlingsstatus
+  utledes fra at refusjonskravet finnes. Ingen løfter om behandlingstid
+  eller e-post vises.
 - Refusjonsknappen og fristen er borte når kravet er mottatt.
 - Vellykket POST fører direkte til vedtaket med bekreftelse, også ved metadatafeil.
 - Direkte åpning av `/refusjon` med eksisterende krav fører til vedtaket.
