@@ -63,7 +63,7 @@ Kafka-credentials, og topic-manifestet gir oss skrivetilgang og VALP lesetilgang
 | Testmeldingene legges rett i `oebs_outbox` | Vi tester integrasjonen uten å være avhengige av saksbehandlingsflyten. Polleren, revisjonssporet og status-consumeren kjører som vanlig. |
 | Saksnummer `2026/900001` til `2026/900009` | Under starten på `saksnummer_seq` (1 000 000), så ingen ekte sak kan få nummeret. Arena-tilsagn i OeBS har ikke `E-`-prefiks. Testnumrene kolliderer derfor ikke med ekte bestillinger i VALP og OeBS T1, der testdataene blir liggende. `LIKE 'E-2026/90000_-%'` treffer bare disse ni numrene. |
 | Arrangør `925236594`, kontonummer `10002427740`, identer `Z993433` og `Z990079` | Verdiene står i VALP sine eksempelmeldinger fra dev (`OebsBestillingMeldingContractTest`). Vi vet derfor at de går gjennom Brreg/Ereg-oppslaget hos VALP. Ingen personopplysninger. |
-| Kostnadssted `0391` (1A), `1291` (1C), `0291` og `1891` (2026-11-17), `0391` og `1291` (2026-11-18 og erstatning) | Kostnadsstedet er `sak.behandlende_enhet`. Bare disse enhetene behandler ekspertbistand: 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 1891, 1991, 2103 og 5772. 2026-11-17 avviste OeBS T1 `E-2026/900006-1` fordi kostnadsstedet `1891` manglet der. Resten av repetisjonen bruker derfor bare `0391` og `1291`, som er bekreftet i T1. Repetisjonen tester flyten. Hvilke kostnadssteder OeBS har, følger vi opp med OeBS (se *Kostnadssteder i OeBS*). |
+| Kostnadssted `0391` (1A), `1291` (1C), `0291` og `1891` (2026-11-17), `0391` og `1291` (2026-11-18 og erstatning) | Kostnadsstedet er `sak.behandlende_enhet`. Bare disse enhetene behandler ekspertbistand: 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 1891, 1991, 2103 og 5772. 2026-11-17 avviste OeBS T1 `E-2026/900006-1` fordi kostnadsstedet `1891` manglet der. Resten av repetisjonen bruker derfor bare `0391` og `1291`, som er bekreftet i T1. OeBS har senere bekreftet at bare `1891` og `1991` mangler i T1. Repetisjonen tester flyten. Hvilke kostnadssteder OeBS har, følger vi opp med OeBS (se *Kostnadssteder i OeBS*). |
 | Repetisjonen bruker nye saksnumre (900005 til 900009) | Sender vi et brukt bestillingsnummer på nytt, oppretter ikke VALP noe nytt (1B). Annullering, faktura og oppgjør krever status `AKTIV`. 900003 og 900004 er holdt av til 1D og reservebestillingen i runde 2. 900009 erstatter bestillingen som ble avvist 2026-11-17. |
 | Periode `[2026-11-16, 2026-12-16)` | Konteringen hos VALP gjelder fra 2026-11-01. Perioden spenner over to måneder, så fakturaen treffer en bestillingslinje. |
 
@@ -605,6 +605,15 @@ Vi kan derfor ikke lese av lista med seks sifre hvilke av enhetene våre som
 virker. `1891` står som `189100` i lista, men ble avvist. `1291` står ikke som
 `129100`, men ble `AKTIV`.
 
+Hilde-Mari sjekket enhetene våre i T1 2026-11-17:
+
+| Status i T1 | Enheter |
+|-------------|---------|
+| Finnes | 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 2103, 5772 |
+| Mangler | 1891, 1991 |
+
+Prod er ikke sjekket.
+
 ### Kostnadssted eller behandlende enhet
 
 Hos oss er kostnadsstedet alltid `sak.behandlende_enhet`
@@ -633,8 +642,8 @@ saksgangen.
 ### Før bestilling kobles til saksgangen
 
 1. Avklar at behandlende enhet er enheten som skal belastes.
-2. Få lista med fire sifre fra OeBS, og bestill kostnadssted i T1 og prod for
-   enhetene som mangler.
+2. Bestill kostnadssted for 1891 og 1991 i T1. Få bekreftet hvilke av de 13
+   enhetene som finnes i prod, og bestill dem som mangler.
 3. Vurder en hvitliste som i tiltaksadministrasjon, slik at en sak med ukjent
    enhet stopper før bestillingen sendes.
 
@@ -706,5 +715,7 @@ Etter siste repetisjon:
 Før bestilling kobles til saksgangen:
 
 - [ ] Avklart at behandlende enhet er enheten som skal belastes
-- [ ] OeBS har bekreftet kostnadssted for alle 13 enhetene i T1 og prod
+- [x] OeBS har sjekket de 13 enhetene i T1: 1891 og 1991 mangler
+- [ ] Kostnadssted for 1891 og 1991 er bestilt i T1
+- [ ] OeBS har bekreftet kostnadssted for alle 13 enhetene i prod
 - [ ] Avklart hvordan vi oppdager en bestilling som OeBS avviser uten kvittering
