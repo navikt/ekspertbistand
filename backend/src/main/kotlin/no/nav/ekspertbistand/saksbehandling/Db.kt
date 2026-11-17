@@ -709,6 +709,16 @@ enum class Vilkar {
     EKSPERT_HAR_KOMPETANSE,
 }
 
+/**
+ * Vilkår som opprettes som oppfylt, uten ident og tidspunkt. Saksbehandler kan overstyre. Se
+ * `specifications/automatisk_vilkarsvurdering.md`. Speiles i `frontend/saksbehandling/src/hooks/useVilkår.ts`
+ * og i `V37__automatisk_vilkarsvurdering.sql`.
+ */
+val automatiskOppfylteVilkar: Set<Vilkar> = setOf(
+    Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD,
+    Vilkar.FYLLES_UT_I_SAMRAD_GODKJENT,
+)
+
 class SoknadIkkeFunnetException : RuntimeException()
 class SoknadIkkeGodkjentException : RuntimeException()
 class SakIkkeFunnetException : RuntimeException()

@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
 
@@ -169,7 +170,11 @@ class VilkarsvurderingApiTest {
         assertEquals(true, vurdert.godkjent)
         assertEquals("Bekreftet i Aa-registeret", vurdert.notat)
         assertEquals(navIdent, vurdert.vurdertAvIdent)
-        assertTrue(vurderinger.filter { it.vilkar != Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD }.all { it.godkjent == null })
+        val samrad = vurderinger.single { it.vilkar == Vilkar.FYLLES_UT_I_SAMRAD_GODKJENT }
+        assertEquals(true, samrad.godkjent)
+        assertNull(samrad.vurdertAvIdent)
+        assertNull(samrad.vurdertTidspunkt)
+        assertTrue(vurderinger.filter { it.vilkar !in automatiskOppfylteVilkar }.all { it.godkjent == null })
 
         val cef = oppsett.audit.meldinger.single().toString()
         assertTrue(cef.contains("suid=$navIdent"), cef)
