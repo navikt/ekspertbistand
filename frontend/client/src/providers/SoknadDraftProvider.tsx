@@ -5,7 +5,11 @@ import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema"
 import { buildDraftPayload, draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { fetchJson } from "../utils/api";
-import { SoknadDraftContext, type SoknadDraftContextValue } from "../context/SoknadDraftContext";
+import {
+  type Lagringsfeil,
+  SoknadDraftContext,
+  type SoknadDraftContextValue,
+} from "../context/SoknadDraftContext";
 import UgyldigSkjemaPage from "../pages/UgyldigSkjemaPage";
 import { HttpError } from "../utils/http";
 
@@ -33,15 +37,25 @@ const mergeSnapshotIntoDraftDto = (
   };
 };
 
+const tilLagringsfeil = (e: unknown): Lagringsfeil =>
+  e instanceof HttpError
+    ? { message: e.message, status: e.status, kode: e.code ?? null, felt: e.field ?? null }
+    : { message: "Prøv igjen senere.", status: null, kode: null, felt: null };
+
 export function SoknadDraftProvider({
   draftId,
   children,
 }: {
-  draftId: string;
+  draftId: string | null;
   children: ReactNode;
 }) {
   const draftUrl = `${EKSPERTBISTAND_API_PATH}/${draftId}`;
-  const { data: draftDto, error, isLoading, mutate } = useSWR<DraftDto | null, Error>(draftUrl);
+  const {
+    data: draftDto,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<DraftDto | null, Error>(draftId ? draftUrl : null);
 
   const { trigger: persistDraft } = useSWRMutation<DraftDto | null, Error, string, SoknadInputs>(
     draftUrl,
@@ -61,15 +75,19 @@ export function SoknadDraftProvider({
       })
   );
 
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lagringsfeil, setLagringsfeil] = useState<Lagringsfeil | null>(null);
   const sisteLagring = useRef(0);
+  const pagaendeLagring = useRef<{ snapshot: SoknadInputs | null; resultat: Promise<boolean> }>({
+    snapshot: null,
+    resultat: Promise.resolve(true),
+  });
 
   const saveDraft = useCallback(
     (snapshot: SoknadInputs) => {
-      if (draftDto?.status === "innsendt") return;
+      if (!draftId || draftDto?.status === "innsendt") return;
       const lagring = ++sisteLagring.current;
       const optimisticPersistedIso = new Date().toISOString();
-      persistDraft(snapshot, {
+      const resultat = persistDraft(snapshot, {
         optimisticData: (current) =>
           mergeSnapshotIntoDraftDto(snapshot, draftId, current, optimisticPersistedIso),
         rollbackOnError: true,
@@ -77,18 +95,40 @@ export function SoknadDraftProvider({
         populateCache: false,
       }).then(
         () => {
-          if (lagring === sisteLagring.current) setSaveError(null);
+          if (lagring === sisteLagring.current) setLagringsfeil(null);
+          return true;
         },
         (e: unknown) => {
-          if (lagring !== sisteLagring.current) return;
-          setSaveError(e instanceof HttpError ? e.message : "Prøv igjen senere.");
+          if (lagring === sisteLagring.current) {
+            setLagringsfeil(tilLagringsfeil(e));
+          }
+          return false;
         }
       );
+      pagaendeLagring.current = { snapshot, resultat };
     },
     [draftDto?.status, draftId, persistDraft]
   );
 
+  const ventPaLagring = useCallback(async (): Promise<boolean> => {
+    // Venter på nye lagringer som starter mens vi venter, så resultatet gjelder den siste.
+    const vent = async () => {
+      let lagring;
+      let ok;
+      do {
+        lagring = pagaendeLagring.current;
+        ok = await lagring.resultat;
+      } while (lagring !== pagaendeLagring.current);
+      return { ok, snapshot: lagring.snapshot };
+    };
+    const { ok, snapshot } = await vent();
+    if (ok || !snapshot) return ok;
+    saveDraft(snapshot);
+    return (await vent()).ok;
+  }, [saveDraft]);
+
   const clearDraft = useCallback(async () => {
+    if (!draftId) return;
     try {
       await deleteDraft(undefined, {
         optimisticData: () => null,
@@ -99,26 +139,25 @@ export function SoknadDraftProvider({
     } catch {
       // ignore – delete best-effort only
     }
-  }, [deleteDraft]);
+  }, [deleteDraft, draftId]);
 
   const emptyInputs = useMemo(() => createEmptyInputs(), []);
   const draft = draftDto ? draftDtoToInputs(draftDto) : emptyInputs;
   const status = draftDto?.status ?? null;
-  const hydrated = !isLoading && draftDto !== undefined;
+  const hydrated = draftId === null || (!isLoading && draftDto !== undefined);
   const lastPersistedAt = useMemo(() => {
     const persistedIso = draftDto?.innsendtTidspunkt ?? draftDto?.opprettetTidspunkt ?? null;
     return persistedIso ? new Date(persistedIso) : null;
   }, [draftDto]);
 
-  const deltakerBekreftet = draftDto?.deltakerBekreftet ?? false;
   const bekreftetFnr = draftDto?.ansatt?.fnr;
   const bekreftetVirksomhetsnummer = draftDto?.virksomhet?.virksomhetsnummer;
   const bekreftetDeltaker = useMemo(
     () =>
-      deltakerBekreftet && bekreftetFnr && bekreftetVirksomhetsnummer
+      bekreftetFnr && bekreftetVirksomhetsnummer
         ? { fnr: bekreftetFnr, virksomhetsnummer: bekreftetVirksomhetsnummer }
         : null,
-    [bekreftetFnr, bekreftetVirksomhetsnummer, deltakerBekreftet]
+    [bekreftetFnr, bekreftetVirksomhetsnummer]
   );
   const opprettetAv = draftDto?.opprettetAv ?? null;
 
@@ -129,9 +168,7 @@ export function SoknadDraftProvider({
     [mutate]
   );
 
-  const lastUtkastPaNytt = useCallback(async () => {
-    await mutate();
-  }, [mutate]);
+  const saveError = lagringsfeil?.message ?? null;
 
   const value = useMemo<SoknadDraftContextValue>(
     () => ({
@@ -140,29 +177,29 @@ export function SoknadDraftProvider({
       hydrated,
       status,
       saveDraft,
+      ventPaLagring,
       clearDraft,
       lastPersistedAt,
       saveError,
-      deltakerBekreftet,
+      lagringsfeil,
       bekreftetDeltaker,
       opprettetAv,
       oppdaterUtkast,
-      lastUtkastPaNytt,
     }),
     [
       bekreftetDeltaker,
       clearDraft,
-      deltakerBekreftet,
       draft,
       draftId,
       hydrated,
+      lagringsfeil,
       lastPersistedAt,
-      lastUtkastPaNytt,
       opprettetAv,
       oppdaterUtkast,
       saveDraft,
       saveError,
       status,
+      ventPaLagring,
     ]
   );
 

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import type React from "react";
-import { useFormContext } from "react-hook-form";
+import { type Path, useFormContext } from "react-hook-form";
 import { ArrowLeftIcon, PaperplaneIcon } from "@navikt/aksel-icons";
 import {
   Alert,
@@ -13,10 +13,15 @@ import {
   VStack,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
-import { sjekkSoknadssumMotMaks, soknadSchema } from "../features/soknad/schema";
-import { useSoknadDraft } from "../context/SoknadDraftContext";
+import {
+  sjekkSoknadssumMotMaks,
+  soknadSchema,
+  STEP1_FIELDS,
+  STEP2_FIELDS,
+  STEP3_FIELDS,
+} from "../features/soknad/schema";
+import { useLagretUtkastId, useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
-import { buildSkjemaPayload } from "../features/soknad/payload";
 import { EKSPERTBISTAND_API_PATH, LOGIN_URL } from "../utils/constants";
 import { BackLink } from "../components/BackLink";
 import useSWRMutation from "swr/mutation";
@@ -34,6 +39,7 @@ import {
   formatValue,
 } from "../components/summaryFormatters";
 import type { SoknadInputs } from "../features/soknad/schema";
+import { useDraftAutosave } from "../context/DraftAutosaveContext";
 import { FormSummaryAnswer } from "@navikt/ds-react/FormSummary";
 import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
 import { useMaksSats } from "../hooks/useMaksSats";
@@ -220,9 +226,33 @@ function SoknadSummary({
   );
 }
 
+type Felt = Path<SoknadInputs>;
+
+// Backend validerer felt som ikke vises i skjemaet. Feilen vises på feltet arbeidsgiver fyller ut.
+const SYNLIG_FELT: Partial<Record<string, Felt>> = {
+  "virksomhet.virksomhetsnavn": "virksomhet.virksomhetsnummer",
+  "ekspert.virksomhetNavn": "ekspert.virksomhet",
+  "ekspert.virksomhetOrgnr": "ekspert.virksomhet",
+};
+
+const FEILMELDING: Partial<Record<Felt, string>> = {
+  "behovForBistand.estimertKostnad":
+    "Søknadssummen er ugyldig eller over maksgrensen for startdatoen.",
+  "behovForBistand.startdato": "Startdatoen er ugyldig, eller ingen maksgrense gjelder for den.",
+};
+
+const finnSteg = (felt: Felt): 1 | 2 | 3 | null => {
+  if ((STEP1_FIELDS as readonly Felt[]).includes(felt)) return 1;
+  if ((STEP2_FIELDS as readonly Felt[]).includes(felt)) return 2;
+  if ((STEP3_FIELDS as readonly Felt[]).includes(felt)) return 3;
+  return null;
+};
+
 export default function OppsummeringPage() {
   const navigate = useNavigate();
-  const { draftId, clearDraft, lastPersistedAt, saveError, lastUtkastPaNytt } = useSoknadDraft();
+  const draftId = useLagretUtkastId();
+  const { clearDraft, lastPersistedAt, saveError, ventPaLagring } = useSoknadDraft();
+  const { flushDraft } = useDraftAutosave();
   const { watch, getValues, setError } = useFormContext<SoknadInputs>();
   const formData = watch();
   const {
@@ -240,6 +270,7 @@ export default function OppsummeringPage() {
     createLinkHandler,
   } = useSkjemaNavigation();
   const [submitError, setSubmitError] = useState<ApiErrorInfo | null>(null);
+  const [lagrer, setLagrer] = useState(false);
   const { trigger: submitDraft, isMutating: submitting } = useSWRMutation<
     null,
     Error,
@@ -281,41 +312,35 @@ export default function OppsummeringPage() {
       return;
     }
     setSubmitError(null);
-    try {
-      const payload = buildSkjemaPayload(draftId, result.data);
-      await submitDraft({
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+    flushDraft();
+    setLagrer(true);
+    const lagret = await ventPaLagring();
+    setLagrer(false);
+    if (!lagret) {
+      setSubmitError({
+        message: "Vi fikk ikke lagret de siste endringene, så søknaden er ikke sendt. Prøv igjen.",
+        requiresLogin: false,
       });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    try {
+      // Backend sender inn utkastet slik det er lagret.
+      await submitDraft({ method: "PUT" });
       navigate(`/skjema/${draftId}/kvittering`, {
         replace: true,
         state: { submissionSuccess: true },
       });
     } catch (error) {
-      if (error instanceof HttpError && error.field === "ansatt.fnr") {
-        await lastUtkastPaNytt();
-        setError("ansatt.fnr", {
+      const serverFelt = error instanceof HttpError ? error.field : undefined;
+      const felt = serverFelt ? (SYNLIG_FELT[serverFelt] ?? (serverFelt as Felt)) : null;
+      const steg = felt ? finnSteg(felt) : null;
+      if (felt && steg) {
+        setError(felt, {
           type: "server",
-          message: "Du må sjekke deltakeren på nytt før du sender inn. Trykk «Neste steg».",
+          message: FEILMELDING[felt] ?? "Fyll ut feltet riktig før du sender inn.",
         });
-        goToStep1();
-        return;
-      }
-      if (error instanceof HttpError && error.field === "behovForBistand.estimertKostnad") {
-        setError("behovForBistand.estimertKostnad", {
-          type: "server",
-          message: "Søknadssummen er ugyldig eller over maksgrensen for startdatoen.",
-        });
-        goToStep3();
-        return;
-      }
-      if (error instanceof HttpError && error.field === "behovForBistand.startdato") {
-        setError("behovForBistand.startdato", {
-          type: "server",
-          message: "Ingen maksgrense gjelder for denne startdatoen.",
-        });
-        goToStep3();
+        [goToStep1, goToStep2, goToStep3][steg - 1]();
         return;
       }
       setSubmitError(resolveApiError(error, "Kunne ikke sende søknaden akkurat nå."));
@@ -330,9 +355,11 @@ export default function OppsummeringPage() {
     satsLoading,
     satsError,
     setError,
+    flushDraft,
+    ventPaLagring,
     goToStep1,
+    goToStep2,
     goToStep3,
-    lastUtkastPaNytt,
   ]);
 
   return (
@@ -419,7 +446,7 @@ export default function OppsummeringPage() {
               icon={<PaperplaneIcon aria-hidden />}
               iconPosition="right"
               type="button"
-              loading={submitting || satsLoading}
+              loading={lagrer || submitting || satsLoading}
               onClick={handleSubmit}
             >
               Send søknad

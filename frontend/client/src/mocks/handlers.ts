@@ -774,17 +774,19 @@ export const handlers = [
   }),
   http.post(EKSPERTBISTAND_API_PATH, async ({ request }) => {
     await ensureSkjemaStoreLoaded();
-    // v1 sender fortsatt POST uten body og bekrefter deltakeren etterpå med valider-deltaker.
     const deltaker = (await request.json().catch(() => null)) as ValiderDeltakerBody | null;
-    const mockFeil = deltaker ? mockValiderDeltakerFeil(deltaker.fnr) : null;
+    if (!deltaker) {
+      return HttpResponse.json({ message: "mangler deltaker" }, { status: 400 });
+    }
+    const mockFeil = mockValiderDeltakerFeil(deltaker.fnr);
     if (mockFeil) return mockFeil;
     const id = randomId();
     const now = nowIso();
     const entry: MockSkjema = {
       id,
       status: "utkast",
-      data: deltaker ? medDeltaker(createEmptyInputs(), deltaker) : createEmptyInputs(),
-      deltakerBekreftet: Boolean(deltaker),
+      data: medDeltaker(createEmptyInputs(), deltaker),
+      deltakerBekreftet: true,
       opprettetAv: MOCK_BRUKER,
       opprettetTidspunkt: now,
     };
@@ -1100,7 +1102,7 @@ export const handlers = [
     if (!entry || entry.status !== "utkast") {
       return HttpResponse.json({ message: "skjema ikke i utkast-status" }, { status: 409 });
     }
-    // Som i backend: innsendingen bruker det lagrede utkastet. Body fra v1 brukes ikke.
+    // Som i backend: innsendingen bruker det lagrede utkastet.
     const payload = entry.data ?? createEmptyInputs();
     const ugyldig = ugyldigInput(payload);
     if (ugyldig) return ugyldig;

@@ -38,8 +38,16 @@ const TilskuddsbrevV2Page = lazy(() => import("./v2/pages/TilskuddsbrevPage"));
 const SluttrapportV2Page = lazy(() => import("./v2/pages/SluttrapportPage"));
 const SokRefusjonV2Page = lazy(() => import("./v2/pages/SokRefusjonPage"));
 
-function SkjemaDraftRoute() {
+/** Med [nyttUtkast] finnes det ikke noe utkast ennå. Steg 1 oppretter det når deltakeren er bekreftet. */
+function SkjemaDraftRoute({ nyttUtkast = false }: { nyttUtkast?: boolean }) {
   const { id } = useParams<{ id: string }>();
+  if (nyttUtkast) {
+    return (
+      <SoknadDraftProvider draftId={null}>
+        <SkjemaDraftOutlet />
+      </SoknadDraftProvider>
+    );
+  }
   if (!id) {
     return <Navigate to={SOKNADER_PATH} replace />;
   }
@@ -62,14 +70,6 @@ function SkjemaDraftOutlet() {
       <Outlet />
     </SkjemaFormProvider>
   );
-}
-
-function DeltakerBekreftetGate() {
-  const { draftId, hydrated, deltakerBekreftet } = useSoknadDraft();
-  if (hydrated && !deltakerBekreftet) {
-    return <Navigate to={`/skjema/${draftId}/steg-1`} replace />;
-  }
-  return <Outlet />;
 }
 
 function OrganisasjonerGate() {
@@ -176,14 +176,15 @@ export default function App() {
             {isFeatureEnabled("EKSPERTBISTAND_SAKSBEHANDLING_BETA") && (
               <Route path="/skjema/:id/refusjon" element={<SokRefusjonPage />} />
             )}
+            <Route path="/skjema/ny" element={<SkjemaDraftRoute nyttUtkast />}>
+              <Route path="steg-1" element={<SkjemaSteg1Page />} />
+              <Route path="" element={<Navigate to="steg-1" replace />} />
+            </Route>
             <Route path="/skjema/:id" element={<SkjemaDraftRoute />}>
               <Route path="steg-1" element={<SkjemaSteg1Page />} />
-              <Route element={<DeltakerBekreftetGate />}>
-                <Route path="steg-2" element={<SkjemaSteg2Page />} />
-                <Route path="steg-3" element={<SkjemaSteg3Page />} />
-                <Route path="oppsummering" element={<OppsummeringPage />} />
-              </Route>
-              <Route path="" element={<Navigate to="steg-1" replace />} />
+              <Route path="steg-2" element={<SkjemaSteg2Page />} />
+              <Route path="steg-3" element={<SkjemaSteg3Page />} />
+              <Route path="oppsummering" element={<OppsummeringPage />} />
             </Route>
             <Route path="/health" element={<HealthPage />} />
           </Route>

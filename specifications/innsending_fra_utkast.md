@@ -235,7 +235,10 @@ Svaret er `DTO.Soknad` som i dag.
 
 ### 8. Frontend v1 (`frontend/client/src`)
 
-Samme endringer som i v2, med stiene `/skjema/...`.
+Samme endringer som i v2, med stiene `/skjema/...`. Startsiden sender
+arbeidsgiver til `/skjema/ny/steg-1`, og `DeltakerBekreftetGate` i `App.tsx`
+fjernes. Når v1 også sender `POST` med deltaker, svarer MSW-handleren 400 på
+`POST` uten body, som backend.
 
 ### 9. Dokumentasjon
 
