@@ -30,6 +30,7 @@ const SoknadV2Page = lazy(() => import("./v2/pages/SoknadPage"));
 const SkjemaV2Steg1Page = lazy(() => import("./v2/pages/SkjemaSteg1Page"));
 const SkjemaV2Steg2Page = lazy(() => import("./v2/pages/SkjemaSteg2Page"));
 const SkjemaV2Steg3Page = lazy(() => import("./v2/pages/SkjemaSteg3Page"));
+const UtkastV2StartSteg = lazy(() => import("./v2/UtkastStartSteg"));
 const OppsummeringV2Page = lazy(() => import("./v2/pages/OppsummeringPage"));
 const KvitteringV2Page = lazy(() => import("./v2/pages/KvitteringPage"));
 const VedtakV2Page = lazy(() => import("./v2/pages/VedtakPage"));
@@ -70,6 +71,19 @@ function SkjemaDraftOutlet() {
       <Outlet />
     </SkjemaFormProvider>
   );
+}
+
+/** Åpner utkastet på steg 2 når steg 1 er fylt ut, ellers på steg 1. */
+function UtkastStartSteg() {
+  const { hydrated, bekreftetDeltaker } = useSoknadDraft();
+  if (!hydrated) {
+    return (
+      <VStack align="center" padding="space-32">
+        <Loader size="large" title="Henter utkastet" />
+      </VStack>
+    );
+  }
+  return <Navigate to={bekreftetDeltaker ? "steg-2" : "steg-1"} replace />;
 }
 
 function OrganisasjonerGate() {
@@ -165,7 +179,7 @@ export default function App() {
                   <Route path="steg-2" element={<SkjemaV2Steg2Page />} />
                   <Route path="steg-3" element={<SkjemaV2Steg3Page />} />
                   <Route path="oppsummering" element={<OppsummeringV2Page />} />
-                  <Route path="" element={<Navigate to="steg-1" replace />} />
+                  <Route path="" element={<UtkastV2StartSteg />} />
                 </Route>
               </Route>
             )}
@@ -185,7 +199,7 @@ export default function App() {
               <Route path="steg-2" element={<SkjemaSteg2Page />} />
               <Route path="steg-3" element={<SkjemaSteg3Page />} />
               <Route path="oppsummering" element={<OppsummeringPage />} />
-              <Route path="" element={<Navigate to="steg-1" replace />} />
+              <Route path="" element={<UtkastStartSteg />} />
             </Route>
             <Route path="/health" element={<HealthPage />} />
           </Route>

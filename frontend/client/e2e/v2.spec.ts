@@ -179,16 +179,16 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   expect(patchStatus).toBe(200);
 
   await page.goto(`/v2/skjema/${draftId}`);
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
-  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-2$`));
+  await expect(page.getByRole("group", { name: "Kontaktperson i virksomheten" })).toBeVisible();
 
   await page.goto("/v2/soknader");
   await ensureMockServiceWorkerReady(page);
   const v2DraftLink = page.getByRole("link", { name: new RegExp(MOCK_DELTAKER_NAVN) });
   await expect(v2DraftLink).toHaveAttribute("href", `/v2/skjema/${draftId}`);
   await v2DraftLink.click();
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
-  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-2$`));
+  await expect(page.getByRole("group", { name: "Kontaktperson i virksomheten" })).toBeVisible();
 
   await page.goto("/soknader");
   const v1DraftLink = page.getByRole("link", {
@@ -196,8 +196,8 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   });
   await expect(v1DraftLink).toHaveAttribute("href", `/skjema/${draftId}`);
   await v1DraftLink.click();
-  await expect(page).toHaveURL(new RegExp(`/skjema/${draftId}/steg-1$`));
-  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/skjema/${draftId}/steg-2$`));
+  await expect(page.getByRole("group", { name: "Kontaktperson i virksomheten" })).toBeVisible();
 
   await page.goto(`/v2/skjema/${draftId}/oppsummering`);
   await expect(

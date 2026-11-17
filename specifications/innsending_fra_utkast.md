@@ -214,6 +214,8 @@ Svaret er `DTO.Soknad` som i dag.
   gir fokus til fødselsnummeret, slik at arbeidsgiver kan bytte deltaker med
   `valider-deltaker`.
 - Steg 1 med id bruker `valider-deltaker` som i dag.
+- Lenken til et utkast i oversikten går til `/v2/skjema/{id}`. Er steg 1 fylt
+  ut, åpnes utkastet på steg 2. Ellers åpnes steg 1.
 - `DeltakerBekreftetGate` fjernes. Et utkast har alltid en bekreftet deltaker.
 - Oppsummeringen venter på at autolagringen er ferdig, og sender så `PUT` uten
   body. Feilet den siste lagringen, prøver den én gang til. Feiler den igjen,
