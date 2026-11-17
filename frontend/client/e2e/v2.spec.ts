@@ -318,13 +318,18 @@ test("v2 receipt preserves external actions and its direct pages return to v2 ro
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));
 });
 
-test("v2 refunds and final reports submit to the shared API and return to v2", async ({ page }) => {
+test("v2 refunds and final reports submit to the shared API and return to vedtak", async ({
+  page,
+}) => {
   await page.goto("/v2/soknader");
   await ensureMockServiceWorkerReady(page);
-  const approvedDraftId = await findApprovedDraftId(page);
-  if (!approvedDraftId) throw new Error("The mock API did not include an approved application.");
+  await page.getByRole("link", { name: /Kari Innvilget/ }).click();
+  await expect(page).toHaveURL(/\/v2\/skjema\/[^/]+\/vedtak$/);
+  const approvedDraftId = new URL(page.url()).pathname.match(/\/v2\/skjema\/([^/]+)\/vedtak$/)?.[1];
+  if (!approvedDraftId) throw new Error("The approved application did not open its vedtak page.");
 
-  await page.goto(`/v2/skjema/${approvedDraftId}/refusjon`);
+  await page.getByRole("button", { name: "Søk refusjon", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/refusjon$`));
   await expect(
     page.getByLabel("Hvilke utgifter skal tilskuddet til ekspertbistand dekke?")
   ).toHaveCount(0);
@@ -366,21 +371,39 @@ test("v2 refunds and final reports submit to the shared API and return to v2", a
     vedlegg: [expect.objectContaining({ filnavn: "kvittering.pdf" })],
   });
   expect(refundStatus).not.toHaveProperty("utgifter");
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));
-  await expect(page.getByRole("heading", { name: "Søknaden godkjent", exact: true })).toBeVisible();
-
-  // The local mock keeps refund and report status in memory, so return through SPA history.
-  await page.goBack();
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/refusjon$`));
-  await expect(page.getByRole("heading", { name: "Refusjonskrav sendt inn" })).toBeVisible();
-  await expect(page.getByText("Hvilke utgifter skal tilskuddet dekke")).toHaveCount(0);
-  await expect(page.getByText("1 000 kr", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "kvittering.pdf" })).toHaveAttribute(
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/vedtak$`));
+  await expect(page.getByRole("heading", { name: "Søknad godkjent", exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Refusjonskravet er sendt inn.");
+  await expect(page.getByText("Nav behandler refusjonskravet")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Søk refusjon", exact: true })).toHaveCount(0);
+  const refundCard = page.getByRole("region", { name: "Refusjonskrav sendt inn", exact: true });
+  const refundToggle = refundCard.getByRole("button");
+  await expect(refundToggle).toHaveAttribute("aria-expanded", "false");
+  await refundToggle.focus();
+  await refundToggle.press("Enter");
+  await expect(refundToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(refundCard.getByText("1 000 kr", { exact: true })).toBeVisible();
+  await expect(refundCard.getByText("Kontonummer", { exact: true })).toHaveCount(0);
+  const refundAttachment = refundCard.getByRole("link", { name: "kvittering.pdf" });
+  await expect(refundAttachment).toHaveAttribute(
     "href",
     new RegExp(`${API_PATH}/${approvedDraftId}/refusjon/vedlegg/`)
   );
+  await expect(refundAttachment).toHaveAttribute("download", "kvittering.pdf");
+  const downloadPromise = page.waitForEvent("download");
+  await refundAttachment.click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("kvittering.pdf");
+  expect(await download.failure()).toBeNull();
 
-  await page.goto(`/v2/skjema/${approvedDraftId}/sluttrapport`);
+  // Keep the mock's in-memory status and verify that a submitted form redirects to vedtak.
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/vedtak$`));
+  await expect(refundToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByText("Refusjonskravet er sendt inn.", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Send inn sluttrapport fra eksperten" }).click();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/sluttrapport$`));
   await page.locator('input[type="file"]').setInputFiles({
     name: "sluttrapport.pdf",
     mimeType: "application/pdf",
@@ -393,13 +416,22 @@ test("v2 refunds and final reports submit to the shared API and return to v2", a
   );
   await page.getByRole("button", { name: "Send inn", exact: true }).click();
   expect((await reportResponse).status()).toBe(201);
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));
-  await expect(page.getByRole("heading", { name: "Søknaden godkjent", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/vedtak$`));
+  await expect(page.getByRole("heading", { name: "Søknad godkjent", exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Sluttrapporten er sendt inn.");
+  await expect(refundToggle).toHaveAttribute("aria-expanded", "false");
 
-  await page.goBack();
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/sluttrapport$`));
-  await expect(page.getByText("Sluttrapport sendt inn", { exact: true })).toBeVisible();
-  await expect(page.getByText("sluttrapport.pdf", { exact: true })).toBeVisible();
+  const reportCard = page.getByRole("region", { name: "Sluttrapport sendt inn", exact: true });
+  const reportToggle = reportCard.getByRole("button");
+  await expect(reportToggle).toHaveAttribute("aria-expanded", "false");
+  await reportToggle.focus();
+  await reportToggle.press("Space");
+  await expect(reportToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(reportCard.getByText("sluttrapport.pdf", { exact: true })).toBeVisible();
+  await expect(reportCard.getByRole("link")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Send inn sluttrapport fra eksperten" })
+  ).toHaveCount(0);
 });
 
 test("production keeps v1 available and rejects every v2 route", async ({ browser }) => {
