@@ -576,36 +576,53 @@ faktura til saksgangen.
 
 ## Kostnadssteder i OeBS
 
-Vi sender det firesifrede enhetsnummeret fra Norg som `kostnadssted`. VALP sender
-det uendret til OeBS som `kontor`, og OeBS oversetter det til et sekssifret
-kostnadssted. VALP sin KDoc sier at fagsystemet og OeBS må være enige om hvilke
-kostnadssteder som brukes.
+Vi sender det firesifrede enhetsnummeret fra Norg som `kostnadssted`. VALP
+sender det uendret videre:
 
-Hilde Mari i OeBS sendte 2026-11-17 en komplett liste over kostnadssteder.
-Ingen av enhetene våre står i lista med enhetsnummer pluss `00`. Oversettelsen er
-heller ikke det, siden `129100` ikke finnes, men `1291` ble `AKTIV` i 1C. Ut fra
-navnene i lista blir enhetene trolig til disse kostnadsstedene:
+- `NavEnhetNummer` krever nøyaktig fire sifre (`^\d{4}$`).
+- `OebsMeldingMapper` setter `kontor = bestilling.kostnadssted.value`.
+- KDoc på `OebsBestillingMelding.kontor`: enheten «mappes til et kostnadssted
+  innad i OeBS», og fagsystemet og OeBS må være enige om hvilke kostnadssteder
+  som brukes.
 
-| Enhet | Kostnadssted i lista | Bekreftet i T1 |
-|-------|----------------------|----------------|
-| 0291 | `029900` NAV Arbeidslivssenter Øst-Viken | |
-| 0391 | `039900` NAV arbeidslivssenteret i Oslo | ja (1A) |
-| 0491 | `049900` NAV Arbeidslivssenter Innlandet | |
-| 0691 | `069900` NAV Arbeidslivssenter Vest-Viken | |
-| 0891 | uklart: `089900` heter NAV Arbeid og helse Vestfold og Telemark | |
-| 1091 | `109900` NAV arbeidslivssenteret i Agder | |
-| 1191 | `119900` NAV arbeidslivssenteret i Rogaland | |
-| 1291 | `129900` NAV Arbeidslivssenter Vestland | ja (1C) |
-| 1591 | `159900` NAV Arbeidslivssenteret i Møre og Romsdal | |
-| 1891 | `189900` NAV Arbeidslivssenteret I Nordland | |
-| 1991 | `199900` NAV Arbeidslivssenter Troms og Finnmark | |
+Tiltaksadministrasjon holder seg til en hvitliste over 269 enheter i tabellen
+`kostnadssted` (`R__kostnadssted_innhold.sql` i mulighetsrommet-api).
+Saksbehandlerne kan bare velge blant dem. Ekspertbistand har ingen slik liste, så
+`behandlende_enhet` går rett gjennom.
+
+Hilde Mari i OeBS sendte 2026-11-17 en liste over sekssifrede kostnadssteder.
+245 av de 269 enhetene i VALP sin hvitliste finnes der som enhet + `00`, for
+eksempel `0287` → `028700 NAV Tiltak Øst-Viken`. Med den regelen ser våre
+enheter slik ut:
+
+| Enhet | Enhet + `00` i lista | Resultat i T1 |
+|-------|----------------------|---------------|
+| 0291 | mangler | avvist 2026-11-17 (`E-2026/900005-1`, trolig) |
+| 0391 | `039100` NAV Oslo prosjekt | `AKTIV` (1A) |
+| 0491 | mangler | |
+| 0691 | mangler | |
+| 0891 | mangler | |
+| 1091 | mangler | |
+| 1191 | `119100` Fylkesledelse NAV Rogaland | |
+| 1291 | mangler | `AKTIV` (1C) |
+| 1591 | `159100` Fylkesledelse NAV Møre og Romsdal | |
+| 1891 | `189100` Fylkesledelse NAV Nordland | |
+| 1991 | mangler | |
 | 2103 | `210300` NAV Vikafossen | |
-| 5772 | `169900` NAV Arbeidslivssenter Trøndelag | |
+| 5772 | mangler | |
 
-Tabellen bygger på navn, ikke på OeBS sin oversettelse. Før vi kobler bestilling
-til saksgangen, må OeBS bekrefte at alle 13 enhetene oversettes til et gyldig
-kostnadssted i T1 og i prod. En enhet uten kostnadssted i prod gir avvist
-bestilling på ekte saker.
+`1291` ble `AKTIV` selv om `129100` mangler i lista. Enten er lista ikke fra T1,
+eller så gjør OeBS om enkelte enheter på en annen måte. Vi kan derfor ikke lese
+av lista hvilke enheter som virker.
+
+Før vi kobler bestilling til saksgangen, må OeBS svare på to ting:
+
+1. Hvordan gjør OeBS enhetsnummer om til kostnadssted?
+2. Hvilket kostnadssted får hver av de 13 enhetene i T1 og i prod?
+
+En enhet uten kostnadssted i prod gir avvist bestilling på ekte saker. Når svaret
+er kommet, vurderer vi en hvitliste som i tiltaksadministrasjon, slik at en sak
+med ukjent enhet stopper før bestillingen sendes.
 
 ## Avgrensning
 
