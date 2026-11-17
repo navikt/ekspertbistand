@@ -242,7 +242,9 @@ fjernes. Når v1 også sender `POST` med deltaker, svarer MSW-handleren 400 på
 
 ### 9. Dokumentasjon
 
-- `event/README.md` og `event/event-flow.md` nevner `SoknadDomainV1`.
+- `event/README.md` forklarer at eventene bruker `SoknadDomainV1`.
+  `event/event-flow.md` er generert og viser ikke domeneklasser, så den endres
+  ikke.
 - Kommentaren over endepunktene i `soknad/Routing.kt` beskriver ny POST og PUT,
   og at PATCH slår opp ekspertens virksomhet.
 

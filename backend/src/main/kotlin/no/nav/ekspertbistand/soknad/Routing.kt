@@ -68,11 +68,13 @@ suspend fun Application.configureSoknadApiV1() {
             /**
              * POST /api/soknad/v1 => oppretter utkast når deltakeren er bekreftet (samme sjekker som valider-deltaker)
              * GET /api/soknad/v1/{id} => henter soknad på id (man må selv sjekke status på returnert data)
-             * PATCH /api/soknad/v1/{id} => oppdaterer utkast (http 409 hvis utkast er sendt inn)
+             * PATCH /api/soknad/v1/{id} => oppdaterer utkast (http 409 hvis utkast er sendt inn). Nytt ekspert.virksomhetOrgnr
+             *   slås opp i Ereg, og navnet derfra lagres (400 hvis orgnr ikke finnes, 503 hvis oppslaget feiler)
              *
              * GET /api/soknad/v1?status={status} => henter alle soknad med gitt status
              * DELETE /api/soknad/v1/{id} => sletter utkast (http 409 hvis utkast er sendt inn)
-             * PUT /api/soknad/v1/{id} => sender inn soknad (payload valideres iht json schema)
+             * PUT /api/soknad/v1/{id} => sender inn det lagrede utkastet uten body (400 hvis utkastet ikke er komplett,
+             *   bare den som opprettet utkastet)
              * POST /api/soknad/v1/{id}/valider-deltaker => validerer deltaker, sjekker arbeidsforhold og henter navn
              */
             route("/api/soknad/v1") {
