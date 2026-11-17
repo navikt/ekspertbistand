@@ -8,9 +8,8 @@ outboxen med SQL i stedet for å gå gjennom saksbehandlingen.
 
 Testen går i to runder:
 
-1. **Runde 1** tester `BESTILLING` og `ANNULLERING`. Den kjøres nå.
-2. **Runde 2** tester `FAKTURA` og `GJOR_OPP_BESTILLING`. Den venter til OeBS
-   sier at de er klare.
+1. **Runde 1** tester `BESTILLING` og `ANNULLERING`. Godkjent 2026-11-13.
+2. **Runde 2** tester `FAKTURA` og `GJOR_OPP_BESTILLING`. Godkjent 2026-11-16.
 
 Når en runde er godkjent, sletter vi testdataene i dev. Deretter kobler vi de
 testede meldingstypene til hendelser i saksgangen. Prod er uendret.
@@ -385,27 +384,30 @@ Funn:
 - `trenger_manuell_oppfolging` er `false` for begge bestillingene. 1D (feilet
   bestilling) ble ikke kjørt.
 
-### Runde 2 (2026-11-16): pågår
+### Runde 2 (2026-11-16): godkjent
 
-2A ble publisert, og VALP publiserte fakturastatus for `E-2026/900001-1-1`
-(`faktura-status-v1`, partisjon 1, offset 290). Status-consumeren leste
-meldingen, men lagret den ikke. VALP endret feltet `fakturaStatusSistOppdatert`
-til `statusSistOppdatert` 2026-09-21 (mulighetsrommet 944a943), etter at vi speilet
-kontrakten. Deserialiseringen feilet, og consumeren hoppet over meldingen og
-committet offset. Feilen havnet bare i team-logs, ikke i appen sin logg. Speilingen
-i `OebsStatusMelding.kt` er rettet.
+Siste status i `oebs_bestilling_status` etter runden:
 
-Consumeren skal ikke hoppe over meldinger den ikke kan lese. Det var ingen
-beslutning bak det. Det kom inn i en refaktorering (8b27ea9). Nå logger
-consumeren `log.error` med topic, partisjon, offset og unntakstype, og
-`teamLog.error` med hele meldingen og feilen. Så kaster den, og
-`CoroutineKafkaConsumer` committer ikke, men prøver samme offset på nytt hvert
-5. sekund. Et kontraktbrudd stopper da consumeren til speilingen er rettet, i
-stedet for at statusen går tapt.
+| Test | Referanse | Siste status | Mottatt (UTC) | Manuell oppfølging |
+|------|-----------|--------------|---------------|--------------------|
+| 2A: faktura | `E-2026/900001-1-1` | `IKKE_BETALT` | 11:45:21 | `false` |
+| 2B: gjør opp | `E-2026/900001-1` | `OPPGJORT` | 11:47:33 | `false` |
 
-For å hente statusen på nytt deployer du fiksen og kjører `INSERT`-en fra 2A en
-gang til. VALP kjenner igjen fakturanummeret og publiserer gjeldende status uten
-å sende noe nytt til OeBS.
+Funn:
+
+- Den første fakturastatusen fra VALP (`faktura-status-v1`, partisjon 1, offset
+  290) ble ikke lagret. VALP endret feltet `fakturaStatusSistOppdatert` til
+  `statusSistOppdatert` 2026-09-21 (mulighetsrommet 944a943), etter at vi speilet
+  kontrakten. Speilingen i `OebsStatusMelding.kt` er rettet.
+- Consumeren hoppet over meldingen og committet offset, og feilen havnet bare i
+  team-logs. Det var ingen beslutning bak det. Det kom inn i en refaktorering
+  (8b27ea9). Nå logger consumeren `log.error` med topic, partisjon, offset og
+  unntakstype, og `teamLog.error` med hele meldingen og feilen. Så kaster den, og
+  `CoroutineKafkaConsumer` committer ikke, men prøver samme offset på nytt hvert
+  5. sekund. Et kontraktbrudd stopper da consumeren til speilingen er rettet, i
+  stedet for at statusen går tapt.
+- Etter deploy av fiksen kom fakturastatusen fram, og oppgjøret ga `OPPGJORT` på
+  bestillingen. `trenger_manuell_oppfolging` er `false` for begge.
 
 ## Feilsituasjoner
 
@@ -481,9 +483,9 @@ Runde 1:
 - [ ] Testdataene er slettet i dev, og skrivetilgangen er trukket tilbake
 - [ ] VALP og OeBS har fått beskjed om at runden er ferdig
 
-Runde 2 (når OeBS er klare):
+Runde 2:
 
-- [ ] 2A: fakturaen har fått kvittering fra OeBS
-- [ ] 2B: bestillingen har status `OPPGJORT`
+- [x] 2A: fakturaen har fått kvittering fra OeBS
+- [x] 2B: bestillingen har status `OPPGJORT`
 - [ ] Testdataene er slettet i dev, og skrivetilgangen er trukket tilbake
 - [ ] VALP og OeBS har fått beskjed om at runden er ferdig
