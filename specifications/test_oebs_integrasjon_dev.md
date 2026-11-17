@@ -608,12 +608,22 @@ virker. `1891` står som `189100` i lista, men ble avvist. `1291` står ikke som
 ### Kostnadssted eller behandlende enhet
 
 Hos oss er kostnadsstedet alltid `sak.behandlende_enhet`
-(`BestillTilsagnIOebs`). Tiltaksadministrasjon skiller de to:
+(`BestillTilsagnIOebs`). I tiltaksadministrasjon velger saksbehandleren det,
+med en foreslått verdi:
 
-- Saksbehandleren velger kostnadssted på tilsagnet (`VelgKostnadssted`) blant
-  enhetene i hvitlista `kostnadssted` (`R__kostnadssted_innhold.sql`, 269
-  enheter fordelt på region).
-- For enkeltplasser er standardverdien `arena_ansvarlig_enhet` (migrering V458).
+- Gjennomføringen har en ansvarlig enhet, valgt fra hvitlista. Hjelpeteksten
+  sier at den «brukes som standard kostnadssted»
+  (`GjennomforingFormDetaljer.tsx`).
+- Nytt tilsagn fylles ut med `tilsagn?.kostnadssted ?: gjennomforing.ansvarligEnhet`
+  (`TilsagnRoutesBeregning.kt`).
+- Saksbehandleren kan bytte til en annen enhet i hvitlista `kostnadssted` (269
+  enheter fordelt på region, `R__kostnadssted_innhold.sql`) via
+  `VelgKostnadssted`. Tilskuddsbehandling bruker samme komponent.
+- `TilsagnValidator` krever kostnadssted. Beslutteren kan returnere tilsagnet med
+  årsaken `FEIL_KOSTNADSSTED`.
+- Kostnadsstedet styrer også tilgang: bare beslutter ved tilsagnets kostnadssted
+  kan godkjenne (`AdminUtbetalingService`).
+- Tiltaksøkonomi (VALP) velger ingenting, men sender videre det den får.
 
 KDoc hos VALP kaller feltet «Nav-enhet som skal belastes for bestillingen». Om
 det er enheten som behandler ekspertbistand-saken, er et spørsmål om økonomi og
