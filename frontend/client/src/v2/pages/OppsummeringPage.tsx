@@ -14,7 +14,7 @@ import {
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { sjekkSoknadssumMotMaks, soknadSchema } from "../features/soknad/schema";
-import { useSoknadDraft } from "../context/SoknadDraftContext";
+import { useLagretUtkastId, useSoknadDraft } from "../context/SoknadDraftContext";
 import { DraftActions } from "../components/DraftActions.tsx";
 import { buildSkjemaPayload } from "../features/soknad/payload";
 import { EKSPERTBISTAND_API_PATH, LOGIN_URL } from "../utils/constants";
@@ -222,7 +222,8 @@ function SoknadSummary({
 
 export default function OppsummeringPage() {
   const navigate = useNavigate();
-  const { draftId, clearDraft, lastPersistedAt, saveError, lastUtkastPaNytt } = useSoknadDraft();
+  const draftId = useLagretUtkastId();
+  const { clearDraft, lastPersistedAt, saveError, lastUtkastPaNytt } = useSoknadDraft();
   const { watch, getValues, setError } = useFormContext<SoknadInputs>();
   const formData = watch();
   const {

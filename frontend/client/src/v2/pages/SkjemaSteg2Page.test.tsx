@@ -1,11 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import {
-  DELTAKER_FNR,
-  opprettBekreftetUtkast,
-  opprettUtkast,
-  renderSkjema,
-} from "../../test/skjemaV2";
+import { DELTAKER_FNR, opprettBekreftetUtkast, renderSkjema } from "../../test/skjemaV2";
 
 beforeAll(() => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
@@ -34,16 +29,5 @@ describe("SkjemaSteg2Page", () => {
       expect(felt).toHaveAttribute("readonly");
     }
     expect(deltaker.getByText("Org.nr. 123456780")).toBeInTheDocument();
-  });
-
-  it("sender arbeidsgiver til steg 1 når deltakeren ikke er bekreftet", async () => {
-    const id = await opprettUtkast();
-
-    renderSkjema(`/v2/skjema/${id}/steg-2`);
-
-    await waitFor(() =>
-      expect(screen.getByRole("textbox", { name: "Fødselsnummer" })).not.toHaveAttribute("readonly")
-    );
-    expect(screen.queryByText("Steg 2 av 4")).not.toBeInTheDocument();
   });
 });

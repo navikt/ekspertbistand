@@ -8,7 +8,8 @@ export type BekreftetDeltaker = {
 };
 
 export type SoknadDraftContextValue = {
-  draftId: string;
+  /** Null i steg 1 før utkastet er opprettet. Utkastet opprettes først når deltakeren er bekreftet. */
+  draftId: string | null;
   draft: SoknadInputs;
   hydrated: boolean;
   status: DraftDto["status"] | null;
@@ -16,7 +17,6 @@ export type SoknadDraftContextValue = {
   clearDraft: () => Promise<void>;
   lastPersistedAt: Date | null;
   saveError: string | null;
-  deltakerBekreftet: boolean;
   bekreftetDeltaker: BekreftetDeltaker | null;
   opprettetAv: string | null;
   oppdaterUtkast: (utkast: DraftDto) => Promise<void>;
@@ -29,4 +29,11 @@ export function useSoknadDraft() {
   const ctx = useContext(SoknadDraftContext);
   if (!ctx) throw new Error("useSoknadDraft must be used inside SoknadDraftProvider");
   return ctx;
+}
+
+/** For sidene etter steg 1. Der finnes utkastet alltid. */
+export function useLagretUtkastId(): string {
+  const { draftId } = useSoknadDraft();
+  if (!draftId) throw new Error("Siden krever et lagret utkast");
+  return draftId;
 }

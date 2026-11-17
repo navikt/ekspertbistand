@@ -143,40 +143,40 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   await page.getByRole("checkbox").nth(0).check();
   await page.getByRole("checkbox").nth(1).check();
 
+  // Utkastet opprettes først når deltakeren er bekreftet i steg 1.
+  await page.getByRole("button", { name: "Start søknad" }).click();
+  await expect(page).toHaveURL(/\/v2\/skjema\/ny\/steg-1$/);
+  expect(apiRequests.filter((request) => request.method() === "POST")).toHaveLength(0);
+
+  const inputs = createFormInputs();
+  await page.getByRole("textbox", { name: "Fødselsnummer" }).fill(inputs.ansatt.fnr);
   const createRequestPromise = page.waitForRequest(
     (request) => request.method() === "POST" && new URL(request.url()).pathname === API_PATH
   );
-  await page.getByRole("button", { name: "Start søknad" }).click();
+  await page.getByRole("button", { name: "Neste steg" }).click();
   const createRequest = await createRequestPromise;
-  expect(new URL(createRequest.url()).pathname).toBe(API_PATH);
-  await expect(page).toHaveURL(/\/v2\/skjema\/[^/]+\/steg-1$/);
+  expect(createRequest.postDataJSON()).toEqual({
+    fnr: inputs.ansatt.fnr,
+    virksomhetsnummer: MOCK_UNDERENHET,
+  });
+  await expect(page).toHaveURL(/\/v2\/skjema\/[^/]+\/steg-2$/);
 
-  const stepOnePath = new URL(page.url()).pathname;
-  const draftId = stepOnePath.match(/\/v2\/skjema\/([^/]+)\/steg-1$/)?.[1];
-  expect(draftId).toBeTruthy();
+  const draftId = new URL(page.url()).pathname.match(/\/v2\/skjema\/([^/]+)\/steg-2$/)?.[1];
   if (!draftId) throw new Error("The v2 create-draft route did not contain a draft id.");
 
-  const seedStatuses = await page.evaluate(
-    async ({ id, inputs, virksomhetsnummer }) => {
+  // PATCH setter ikke deltaker eller virksomhet. Det gjorde POST.
+  const patchStatus = await page.evaluate(
+    async ({ id, inputs }) => {
       const patch = await fetch(`/ekspertbistand-backend/api/soknad/v1/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inputs),
       });
-      // PATCH setter ikke deltaker eller virksomhet. Det gjør bare valider-deltaker.
-      const validering = await fetch(
-        `/ekspertbistand-backend/api/soknad/v1/${id}/valider-deltaker`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fnr: inputs.ansatt.fnr, virksomhetsnummer }),
-        }
-      );
-      return [patch.status, validering.status];
+      return patch.status;
     },
-    { id: draftId, inputs: createFormInputs(), virksomhetsnummer: MOCK_UNDERENHET }
+    { id: draftId, inputs }
   );
-  expect(seedStatuses).toEqual([200, 200]);
+  expect(patchStatus).toBe(200);
 
   await page.goto(`/v2/skjema/${draftId}`);
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));

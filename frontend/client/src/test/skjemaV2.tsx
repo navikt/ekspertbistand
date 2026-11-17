@@ -2,10 +2,8 @@ import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { SWRConfig } from "swr";
 import App from "../App";
-import { draftDtoServerSchema } from "../v2/features/soknad/server-schemas";
-import { validerDeltaker } from "../v2/features/soknad/validerDeltaker";
+import { opprettUtkast as opprettUtkastMedDeltaker } from "../v2/features/soknad/validerDeltaker";
 import { fetchJson } from "../utils/api";
-import { EKSPERTBISTAND_API_PATH } from "../v2/utils/constants";
 import { server } from "./server";
 
 export const MOCK_BRUKER_FNR = "01819010001";
@@ -13,18 +11,10 @@ export const DELTAKER_FNR = "01819010192";
 export const ANNEN_DELTAKER_FNR = "01819010273";
 export const ORGNR = "123456780";
 
-export const opprettUtkast = async (): Promise<string> => {
-  const utkast = draftDtoServerSchema.parse(
-    await fetchJson(EKSPERTBISTAND_API_PATH, { method: "POST" })
-  );
-  return utkast.id!;
-};
-
 export const opprettBekreftetUtkast = async (fnr = DELTAKER_FNR): Promise<string> => {
-  const id = await opprettUtkast();
-  const resultat = await validerDeltaker(id, { fnr, virksomhetsnummer: ORGNR });
-  if (!resultat.ok) throw new Error("Klarte ikke å bekrefte deltaker i testoppsettet");
-  return id;
+  const resultat = await opprettUtkastMedDeltaker({ fnr, virksomhetsnummer: ORGNR });
+  if (!resultat.ok) throw new Error("Klarte ikke å opprette utkast i testoppsettet");
+  return resultat.utkast.id!;
 };
 
 /** Teller kall til valider-deltaker. Lytteren fjernes når testen er ferdig. */

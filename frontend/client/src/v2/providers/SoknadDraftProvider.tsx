@@ -37,11 +37,16 @@ export function SoknadDraftProvider({
   draftId,
   children,
 }: {
-  draftId: string;
+  draftId: string | null;
   children: ReactNode;
 }) {
   const draftUrl = `${EKSPERTBISTAND_API_PATH}/${draftId}`;
-  const { data: draftDto, error, isLoading, mutate } = useSWR<DraftDto | null, Error>(draftUrl);
+  const {
+    data: draftDto,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<DraftDto | null, Error>(draftId ? draftUrl : null);
 
   const { trigger: persistDraft } = useSWRMutation<DraftDto | null, Error, string, SoknadInputs>(
     draftUrl,
@@ -66,7 +71,7 @@ export function SoknadDraftProvider({
 
   const saveDraft = useCallback(
     (snapshot: SoknadInputs) => {
-      if (draftDto?.status === "innsendt") return;
+      if (!draftId || draftDto?.status === "innsendt") return;
       const lagring = ++sisteLagring.current;
       const optimisticPersistedIso = new Date().toISOString();
       persistDraft(snapshot, {
@@ -89,6 +94,7 @@ export function SoknadDraftProvider({
   );
 
   const clearDraft = useCallback(async () => {
+    if (!draftId) return;
     try {
       await deleteDraft(undefined, {
         optimisticData: () => null,
@@ -99,26 +105,25 @@ export function SoknadDraftProvider({
     } catch {
       // ignore – delete best-effort only
     }
-  }, [deleteDraft]);
+  }, [deleteDraft, draftId]);
 
   const emptyInputs = useMemo(() => createEmptyInputs(), []);
   const draft = draftDto ? draftDtoToInputs(draftDto) : emptyInputs;
   const status = draftDto?.status ?? null;
-  const hydrated = !isLoading && draftDto !== undefined;
+  const hydrated = draftId === null || (!isLoading && draftDto !== undefined);
   const lastPersistedAt = useMemo(() => {
     const persistedIso = draftDto?.innsendtTidspunkt ?? draftDto?.opprettetTidspunkt ?? null;
     return persistedIso ? new Date(persistedIso) : null;
   }, [draftDto]);
 
-  const deltakerBekreftet = draftDto?.deltakerBekreftet ?? false;
   const bekreftetFnr = draftDto?.ansatt?.fnr;
   const bekreftetVirksomhetsnummer = draftDto?.virksomhet?.virksomhetsnummer;
   const bekreftetDeltaker = useMemo(
     () =>
-      deltakerBekreftet && bekreftetFnr && bekreftetVirksomhetsnummer
+      bekreftetFnr && bekreftetVirksomhetsnummer
         ? { fnr: bekreftetFnr, virksomhetsnummer: bekreftetVirksomhetsnummer }
         : null,
-    [bekreftetFnr, bekreftetVirksomhetsnummer, deltakerBekreftet]
+    [bekreftetFnr, bekreftetVirksomhetsnummer]
   );
   const opprettetAv = draftDto?.opprettetAv ?? null;
 
@@ -143,7 +148,6 @@ export function SoknadDraftProvider({
       clearDraft,
       lastPersistedAt,
       saveError,
-      deltakerBekreftet,
       bekreftetDeltaker,
       opprettetAv,
       oppdaterUtkast,
@@ -152,7 +156,6 @@ export function SoknadDraftProvider({
     [
       bekreftetDeltaker,
       clearDraft,
-      deltakerBekreftet,
       draft,
       draftId,
       hydrated,

@@ -1,3 +1,4 @@
+| Anders, 2026-11-17 | Når utkastet opprettes fra steg 1 og fødselsnummeret er brukerens eget, vises dialogen om egen deltakelse etter `POST`. |
 # Innsending fra utkast
 
 Bygger på `oppslag_deltaker_arbeidsforhold.md` (valider-deltaker) og
@@ -201,11 +202,19 @@ Svaret er `DTO.Soknad` som i dag.
 ### 7. Frontend v2 (`frontend/client/src/v2`)
 
 - Startsiden (`SoknadPage`) oppretter ikke lenger utkast. Den sender arbeidsgiver
-  til steg 1 uten id, for eksempel `/v2/skjema/ny/steg-1`.
+  til `/v2/skjema/ny/steg-1`.
 - Steg 1 uten id lagrer ingenting automatisk. «Neste steg» kaller `POST` og
-  sender arbeidsgiver til `/v2/skjema/{id}/steg-2`. «Slett søknaden» og
-  «Fortsett senere» sender bare arbeidsgiver til oversikten.
+  sender arbeidsgiver til `/v2/skjema/{id}/steg-2`. Siden viser ikke «Fortsett
+  senere», «Slett søknaden» eller tidspunktet for siste lagring, fordi det ikke
+  finnes noe utkast ennå. «Tilbake til oversikt» går til oversikten uten melding
+  om lagret utkast.
+- Frontend vet ikke hvem som er logget inn før utkastet finnes. Dialogen «Er du
+  selv deltakeren?» vises derfor etter `POST` når `opprettetAv` er lik
+  fødselsnummeret. «Ja» går til steg 2. «Nei» åpner `/v2/skjema/{id}/steg-1` og
+  gir fokus til fødselsnummeret, slik at arbeidsgiver kan bytte deltaker med
+  `valider-deltaker`.
 - Steg 1 med id bruker `valider-deltaker` som i dag.
+- `DeltakerBekreftetGate` fjernes. Et utkast har alltid en bekreftet deltaker.
 - Oppsummeringen venter på at autolagringen er ferdig, og sender så `PUT` uten
   body.
 - Steg 2 viser 400 og 503 fra PATCH på feltet for ekspertens virksomhet.
