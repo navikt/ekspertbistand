@@ -13,7 +13,7 @@ import no.nav.ekspertbistand.saksbehandling.Mottaker
 import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
 import no.nav.ekspertbistand.saksbehandling.tolkSoknadssum
 import no.nav.ekspertbistand.saksbehandling.vedtaksbrevData
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
@@ -278,21 +278,21 @@ class DokumentmalTest {
         assertTrue(!harNull, "ingen tekstnode skal være bokstavelig 'null'")
     }
 
-    private fun sampleSoknad() = DTO.Soknad(
+    private fun sampleSoknad() = SoknadDomainV1(
         id = "42",
-        virksomhet = DTO.Virksomhet(
+        virksomhet = SoknadDomainV1.Virksomhet(
             virksomhetsnummer = "987654321",
             virksomhetsnavn = "Testbedrift AS",
-            kontaktperson = DTO.Kontaktperson("Kontakt Person", "kontakt@testbedrift.no", "12345678"),
+            kontaktperson = SoknadDomainV1.Kontaktperson("Kontakt Person", "kontakt@testbedrift.no", "12345678"),
         ),
-        ansatt = DTO.Ansatt(fnr = "01010112345", navn = "Ansatt Navn"),
-        ekspert = DTO.Ekspert(
+        ansatt = SoknadDomainV1.Ansatt(fnr = "01010112345", navn = "Ansatt Navn"),
+        ekspert = SoknadDomainV1.Ekspert(
             navn = "Ekspert Navn",
             virksomhet = "Ekspertselskap",
             godkjentUtdanningEllerAutorisasjon = listOf("Psykolog"),
             relevantKompetanse = listOf("Tilrettelegging"),
         ),
-        behovForBistand = DTO.BehovForBistand(
+        behovForBistand = SoknadDomainV1.BehovForBistand(
             begrunnelse = "Behov begrunnelse",
             behov = "Behov",
             estimertKostnad = "9000",
@@ -300,7 +300,7 @@ class DokumentmalTest {
             tilrettelegging = "Tilrettelegging tekst",
             startdato = LocalDate(2024, 12, 1),
         ),
-        nav = DTO.Nav(kontaktperson = "Veileder Navn"),
+        nav = SoknadDomainV1.Nav(kontaktperson = "Veileder Navn"),
         opprettetTidspunkt = "2025-11-01",
     )
 

@@ -81,6 +81,14 @@ fun SoknadStatus.tilDomain(): SoknadDomainV2.Status = when (this) {
     SoknadStatus.utkast -> error("Søknad med status utkast kan ikke bli SoknadDomainV2")
 }
 
+fun SoknadStatus.tilDomainV1(): SoknadDomainV1.Status = when (this) {
+    SoknadStatus.utkast -> SoknadDomainV1.Status.utkast
+    SoknadStatus.innsendt -> SoknadDomainV1.Status.innsendt
+    SoknadStatus.godkjent -> SoknadDomainV1.Status.godkjent
+    SoknadStatus.avlyst -> SoknadDomainV1.Status.avlyst
+    SoknadStatus.avslatt -> SoknadDomainV1.Status.avslatt
+}
+
 fun Saksstatus.tilDomain(): SakDomain.Status = when (this) {
     Saksstatus.OPPRETTET -> SakDomain.Status.OPPRETTET
     Saksstatus.UNDER_BEHANDLING -> SakDomain.Status.UNDER_BEHANDLING

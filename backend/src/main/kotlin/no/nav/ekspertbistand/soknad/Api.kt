@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.erGyldigFodselsnummer
@@ -284,13 +285,12 @@ class SoknadApi(
                 it[opprettetAv] = innloggetBruker
                 it[status] = SoknadStatus.innsendt.toString()
                 it[arbeidsgiverTilgangTil] = Clock.System.now().plus(arbeidsgiverTilgangVarighet)
-            }.single().tilSoknadDTO().also {
-                UtkastTable.deleteWhere { UtkastTable.id eq idParam }
-            }
+            }.single()
+            UtkastTable.deleteWhere { UtkastTable.id eq idParam }
 
-            publishEventQueue(EventData.SoknadInnsendt(opprettet))
+            publishEventQueue(EventData.SoknadInnsendt(opprettet.tilSoknadDomainV1()))
 
-            opprettet
+            opprettet.tilSoknadDTO()
         }
 
         call.respond(innsendt)
@@ -521,7 +521,7 @@ sealed interface DTO {
  *
  * id settes først etter persistering, så et event kan ikke publiseres før søknaden er lagret.
  */
-val DTO.Soknad.aggregateRootId: String
+val SoknadDomainV1.aggregateRootId: String
     get() = id ?: error("Soknad mangler id — event kan ikke publiseres før søknaden er persistert")
 
 @Serializable
@@ -550,7 +550,7 @@ enum class SoknadStatusQueryParam {
     innsendt
 }
 
-val DTO.Soknad.kvitteringsLenke: String
+val SoknadDomainV1.kvitteringsLenke: String
     get() = "$arbeidsgiverDomene/ekspertbistand/skjema/$id/kvittering"
 
 fun kvitteringsLenkeV2(soknadId: String): String =

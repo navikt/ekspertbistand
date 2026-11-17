@@ -6,6 +6,8 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
+import no.nav.ekspertbistand.event.domain.tilDomainV1
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.dao.id.java.UUIDTable
@@ -154,15 +156,70 @@ fun findSoknadById(
     id: UUID,
     filterForArbeidsgiver: Boolean = true,
     now: Instant = Clock.System.now(),
-): DTO.Soknad? = SoknadTable.selectAll()
-    .where {
-        if (filterForArbeidsgiver) {
-            (SoknadTable.id eq id) and (SoknadTable.arbeidsgiverTilgangTil greater now)
-        } else {
-            SoknadTable.id eq id
+): DTO.Soknad? = findSoknadRad(id, filterForArbeidsgiver, now)?.tilSoknadDTO()
+
+/** Som [findSoknadById], men som [SoknadDomainV1] for eventene. */
+@OptIn(ExperimentalTime::class)
+fun findSoknadDomainV1ById(
+    id: UUID,
+    filterForArbeidsgiver: Boolean = true,
+    now: Instant = Clock.System.now(),
+): SoknadDomainV1? = findSoknadRad(id, filterForArbeidsgiver, now)?.tilSoknadDomainV1()
+
+@OptIn(ExperimentalTime::class)
+private fun findSoknadRad(id: UUID, filterForArbeidsgiver: Boolean, now: Instant): ResultRow? =
+    SoknadTable.selectAll()
+        .where {
+            if (filterForArbeidsgiver) {
+                (SoknadTable.id eq id) and (SoknadTable.arbeidsgiverTilgangTil greater now)
+            } else {
+                SoknadTable.id eq id
+            }
         }
-    }
-    .singleOrNull()?.tilSoknadDTO()
+        .singleOrNull()
+
+/** Søknadsraden som [SoknadDomainV1]. Gir samme JSON som [tilSoknadDTO] ga da eventene brukte API-DTO-en. */
+@OptIn(ExperimentalTime::class)
+fun ResultRow.tilSoknadDomainV1() = SoknadDomainV1(
+    id = this[SoknadTable.id].toString(),
+    virksomhet = SoknadDomainV1.Virksomhet(
+        virksomhetsnummer = this[SoknadTable.virksomhetsnummer],
+        virksomhetsnavn = this[SoknadTable.virksomhetsnavn],
+        kontaktperson = SoknadDomainV1.Kontaktperson(
+            navn = this[SoknadTable.kontaktpersonNavn],
+            epost = this[SoknadTable.kontaktpersonEpost],
+            telefonnummer = this[SoknadTable.kontaktpersonTelefon],
+        ),
+        beliggenhetsadresse = this[SoknadTable.beliggenhetsadresse],
+    ),
+    ansatt = SoknadDomainV1.Ansatt(
+        fnr = this[SoknadTable.ansattFnr],
+        navn = this[SoknadTable.ansattNavn],
+    ),
+    ekspert = SoknadDomainV1.Ekspert(
+        navn = this[SoknadTable.ekspertNavn],
+        virksomhet = this[SoknadTable.ekspertVirksomhet],
+        virksomhetNavn = this[SoknadTable.ekspertVirksomhetNavn],
+        virksomhetOrgnr = this[SoknadTable.ekspertVirksomhetOrgnr],
+        kompetanse = this[SoknadTable.ekspertKompetanse],
+        godkjentUtdanningEllerAutorisasjon = parseJsonStringList(this[SoknadTable.ekspertGodkjentUtdanningEllerAutorisasjon]),
+        relevantKompetanse = parseJsonStringList(this[SoknadTable.ekspertRelevantKompetanse]),
+    ),
+    behovForBistand = SoknadDomainV1.BehovForBistand(
+        begrunnelse = this[SoknadTable.behovForBistandBegrunnelse],
+        behov = this[SoknadTable.behovForBistand],
+        estimertKostnad = this[SoknadTable.behovForBistandEstimertKostnad],
+        timer = this[SoknadTable.behovForBistandTimer],
+        tilrettelegging = this[SoknadTable.behovForBistandTilrettelegging],
+        startdato = this[SoknadTable.behovForBistandStartdato],
+    ),
+    nav = SoknadDomainV1.Nav(
+        kontaktperson = this[SoknadTable.navKontaktPerson],
+    ),
+    opprettetAv = this[SoknadTable.opprettetAv],
+    opprettetTidspunkt = this[SoknadTable.opprettetTidspunkt].toString(),
+    status = SoknadStatus.valueOf(this[SoknadTable.status]).tilDomainV1(),
+)
 
 @OptIn(ExperimentalTime::class)
 fun ResultRow.tilSoknadDTO() = DTO.Soknad(

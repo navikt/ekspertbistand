@@ -7,7 +7,7 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
 import no.nav.ekspertbistand.event.QueuedEvents
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.record.TimestampType
@@ -164,27 +164,27 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
                 Optional.empty()
             )
 
-        val soknad = DTO.Soknad(
+        val soknad = SoknadDomainV1(
             id = UUID.randomUUID().toString(),
-            virksomhet = DTO.Virksomhet(
+            virksomhet = SoknadDomainV1.Virksomhet(
                 virksomhetsnummer = "1337",
                 virksomhetsnavn = "foo bar AS",
-                kontaktperson = DTO.Kontaktperson(
+                kontaktperson = SoknadDomainV1.Kontaktperson(
                     navn = "Donald Duck",
                     epost = "Donald@duck.co",
                     telefonnummer = "12345678"
                 )
             ),
-            ansatt = DTO.Ansatt(
+            ansatt = SoknadDomainV1.Ansatt(
                 fnr = "12345678910",
                 navn = "Ole Olsen"
             ),
-            ekspert = DTO.Ekspert(
+            ekspert = SoknadDomainV1.Ekspert(
                 navn = "Egon Olsen",
                 virksomhet = "Olsenbanden AS",
                 kompetanse = "Bankran",
             ),
-            behovForBistand = DTO.BehovForBistand(
+            behovForBistand = SoknadDomainV1.BehovForBistand(
                 behov = "Tilrettelegging",
                 begrunnelse = "Tilrettelegging på arbeidsplassen",
                 estimertKostnad = "4200",
@@ -192,7 +192,7 @@ class ArenaTiltaksgjennomforingEndretProcessorTest {
                 tilrettelegging = "Spesialtilpasset kontor",
                 startdato = LocalDate.parse("2024-11-15")
             ),
-            nav = DTO.Nav(
+            nav = SoknadDomainV1.Nav(
                 kontaktperson = "Navn Navnesen"
             ),
             opprettetAv = "Noen Noensen"
