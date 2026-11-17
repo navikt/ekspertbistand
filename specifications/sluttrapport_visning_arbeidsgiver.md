@@ -19,6 +19,10 @@ personopplysninger.
 Knappen «Send inn sluttrapport fra eksperten» vises ikke når sluttrapporten
 er mottatt. «Søk refusjon» og refusjonsfristen står som før.
 
+Etter vellykket innsending går arbeidsgiver direkte til vedtakssiden og får
+bekreftelsen «Sluttrapporten er sendt inn». Feil ved etterfølgende
+metadataoppslag skal ikke fremstilles som feil ved selve innsendingen.
+
 ## Bakgrunn
 
 - `v2/pages/VedtakPage.tsx` viser vedtaket, vilkårene, knappene og kortene
@@ -70,6 +74,7 @@ Kort 683 har ingen kommentarer, sjekklister eller vedlegg (sjekket 2026-11-17).
 | Kortbeskrivelsen | Innsendt sluttrapport vises i et ekspansjonskort. Bare filnavnet vises, ikke selve dokumentet. |
 | Figma `299:44721` og `299:45040` | Kortet starter lukket, står over vedtaket og erstatter innsendingsknappen. Dato vises i hodet og under «Sendt inn til Nav». |
 | Ken, kommentar på kort 680, 2026-10-30 | Kvitteringsendringene forutsetter kort 682: ny løsning på egen rute bak feature toggle. |
+| Brukeren, gjennomgang 2026-11-17 | Gå direkte til vedtaket etter innsending, vis en bekreftelse og skill feil ved innsending fra feil ved etterfølgende metadataoppslag. |
 
 ### Valg i spec-en
 
@@ -85,7 +90,7 @@ Kort 683 har ingen kommentarer, sjekklister eller vedlegg (sjekket 2026-11-17).
 
 ## Avgrensning
 
-Ingen endring i filopplasting, filgrenser, innsending, API-kontrakt eller
+Ingen endring i filopplasting, filgrenser, backendens innsending, API-kontrakt eller
 tilgangskontroll. Ingen ny dokumentrute eller PDF-komponent.
 Kort 686 om oppsummeringen på innsendingssiden inngår ikke.
 Visningen av refusjonskrav endres heller ikke.
@@ -124,10 +129,21 @@ ved avslag, slik at den ikke starter unødige kall.
 | 204 | Ingen sluttrapportkort. Vis eksisterende innsendingsknapp. |
 | Feil | Synlig feilmelding med beskjed om å laste siden på nytt. Ingen innsendingsknapp mens status er ukjent. Resten av vedtaket er tilgjengelig. |
 
-Bruk eksisterende SWR-nøkkel. Etter innsending oppdaterer
-`SluttrapportPage` allerede status med `mutateStatus` før navigering.
-Når kvitteringen sender videre til vedtakssiden, bruker siden samme cache.
-Vi beholder SWRs revalidering ved senere besøk.
+Bruk eksisterende SWR-nøkkel. Etter vellykket POST oppdaterer
+`SluttrapportPage` metadata med `mutateStatus` og navigerer direkte til
+`/v2/skjema/:id/vedtak`, uten mellomsteget via kvitteringen.
+Vedtakssiden bruker samme cache. Vi beholder SWRs revalidering ved senere besøk.
+
+POST-feil beholder brukeren på innsendingssiden med feilmelding og valgt fil.
+Når POST har lykkes, er innsendingen bekreftet selv om metadataoppslaget feiler.
+Vi navigerer fortsatt til vedtaket, viser «Sluttrapporten er sendt inn» og
+opplyser separat om at metadata ikke kunne hentes. Vi tilbyr ikke ny innsending
+fordi opplysningene mangler.
+
+Bekreftelsen følger navigeringen, ikke dokumentmetadataene, og vises ikke
+ved vanlig åpning av vedtakssiden. Navigeringstilstanden fjernes fra
+nettleserhistorikken etter at siden har tatt imot den, slik at en sideoppdatering
+ikke gjentar bekreftelsen. Ingen optimistiske dokumentmetadata legges i cachen.
 
 ### 3. Tester
 
@@ -137,8 +153,9 @@ vedtakskortet. Test både ordinær innvilgelse og redusert beløp.
 
 Kontroller at filnavnet er tekst uten dokumentlenke eller forhåndsvisning,
 og at åpning av kortet ikke utløser noe dokumentkall.
-Test at innsending av sluttrapport fortsatt fører tilbake til oversikten
-over vedtaket, nå med sluttrapportkort og uten innsendingsknapp.
+Test at innsending av sluttrapport fører direkte til vedtakssiden med
+bekreftelse, sluttrapportkort og uten innsendingsknapp. Dekk også vellykket
+POST etterfulgt av mislykket metadataoppslag, og feil ved selve POST-kallet.
 Ingen ny testinfrastruktur.
 
 ## Berørte filer
@@ -148,13 +165,16 @@ Ingen ny testinfrastruktur.
 | `v2/components/SluttrapportSendtInnKort.tsx` | Ny presentasjonskomponent for metadata. |
 | `v2/pages/VedtakPage.tsx` | Hent status, vis kortet og styr innsendingsknappen. |
 | `v2/pages/VedtakPage.test.tsx` | Dekk rapportstatus, kortinnhold og uendret vedtaksvisning. |
-| Eksisterende testoppsett for innsending i v2 | Dekk overgangen fra vellykket innsending til sluttrapportkortet. |
+| `v2/pages/SluttrapportPage.tsx` | Gå direkte til vedtaket etter bekreftet innsending og skill innsending fra metadataoppslag. |
+| `v2/pages/SluttrapportPage.test.tsx` | Dekk direkte navigering og de to feiltilstandene. |
 
 ## Kanttilfeller og feilmodus
 
 - 403, 404 og serverfeil er feiltilstander, ikke en tom rapportstatus.
 - Avslag viser fortsatt ingen innsendingsknapper eller sluttrapportkort.
 - Statusfeil skal ikke skjule vedtaksbrevet, refusjonsknappen eller søknaden.
+- Vellykket POST etterfulgt av metadatafeil skal fortsatt gi bekreftelse.
+  Ikke be arbeidsgiver sende rapporten på nytt.
 - Langt filnavn må fungere på smal skjerm. Filnavnet rendres som tekst,
   ikke HTML.
 - Datoen i hodet og innholdet skal alltid stemme overens.
@@ -173,6 +193,9 @@ inngår i gjennomgangen før implementering.
 - Sluttrapporten kan ikke åpnes, forhåndsvises eller lastes ned.
 - Innsendingsknappen vises bare når status er avklart og rapporten mangler.
 - Laste- og feiltilstander vises uten å fremstille dem som manglende rapport.
+- Etter innsending går arbeidsgiver direkte til vedtaket og får bekreftelse.
+- Metadatafeil etter vellykket innsending gir ingen ny innsendingsknapp eller
+  feilaktig beskjed om at innsendingen feilet.
 - Både innvilget og redusert beløp virker. Avslag og v1 er uendret.
 - Målrettede tester, typekontroll og v2-isolasjonstesten passerer.
 - Visningen er kontrollert på smal skjerm og med tastatur.
