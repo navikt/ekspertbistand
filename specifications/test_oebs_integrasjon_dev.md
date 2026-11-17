@@ -63,7 +63,7 @@ Kafka-credentials, og topic-manifestet gir oss skrivetilgang og VALP lesetilgang
 | Testmeldingene legges rett i `oebs_outbox` | Vi tester integrasjonen uten å være avhengige av saksbehandlingsflyten. Polleren, revisjonssporet og status-consumeren kjører som vanlig. |
 | Saksnummer `2026/900001` til `2026/900009` | Under starten på `saksnummer_seq` (1 000 000), så ingen ekte sak kan få nummeret. Arena-tilsagn i OeBS har ikke `E-`-prefiks. Testnumrene kolliderer derfor ikke med ekte bestillinger i VALP og OeBS T1, der testdataene blir liggende. `LIKE 'E-2026/90000_-%'` treffer bare disse ni numrene. |
 | Arrangør `925236594`, kontonummer `10002427740`, identer `Z993433` og `Z990079` | Verdiene står i VALP sine eksempelmeldinger fra dev (`OebsBestillingMeldingContractTest`). Vi vet derfor at de går gjennom Brreg/Ereg-oppslaget hos VALP. Ingen personopplysninger. |
-| Kostnadssted `0391` (1A), `1291` (1C), `0291` og `1891` (2026-11-17), `0391` og `1291` (2026-11-18 og erstatning) | Kostnadsstedet er `sak.behandlende_enhet`. Bare disse enhetene behandler ekspertbistand: 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 1891, 1991, 2103 og 5772. 2026-11-17 avviste OeBS T1 en bestilling fordi kostnadsstedet manglet der. Resten av repetisjonen bruker derfor bare `0391` og `1291`, som er bekreftet i T1. Repetisjonen tester flyten. Hvilke kostnadssteder OeBS har, følger vi opp med OeBS (se *Kostnadssteder i OeBS*). |
+| Kostnadssted `0391` (1A), `1291` (1C), `0291` og `1891` (2026-11-17), `0391` og `1291` (2026-11-18 og erstatning) | Kostnadsstedet er `sak.behandlende_enhet`. Bare disse enhetene behandler ekspertbistand: 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 1891, 1991, 2103 og 5772. 2026-11-17 avviste OeBS T1 `E-2026/900006-1` fordi kostnadsstedet `1891` manglet der. Resten av repetisjonen bruker derfor bare `0391` og `1291`, som er bekreftet i T1. Repetisjonen tester flyten. Hvilke kostnadssteder OeBS har, følger vi opp med OeBS (se *Kostnadssteder i OeBS*). |
 | Repetisjonen bruker nye saksnumre (900005 til 900009) | Sender vi et brukt bestillingsnummer på nytt, oppretter ikke VALP noe nytt (1B). Annullering, faktura og oppgjør krever status `AKTIV`. 900003 og 900004 er holdt av til 1D og reservebestillingen i runde 2. 900009 erstatter bestillingen som ble avvist 2026-11-17. |
 | Periode `[2026-11-16, 2026-12-16)` | Konteringen hos VALP gjelder fra 2026-11-01. Perioden spenner over to måneder, så fakturaen treffer en bestillingslinje. |
 
@@ -533,11 +533,14 @@ Funn:
 
 Funn:
 
-- OeBS T1 avviste en av bestillingene `E-2026/900005-1` (`0291`) og
-  `E-2026/900006-1` (`1891`), fordi kostnadsstedet ikke finnes i T1. OeBS sendte
-  en komplett liste over kostnadssteder (se *Kostnadssteder i OeBS*).
-  `E-2026/900009-1` med `0391` erstatter den avviste. 2026-11-18 bruker bare
+- OeBS T1 avviste `E-2026/900006-1` (`1891`) fordi kostnadsstedet ikke finnes i
+  T1. VALP har bare kvitteringer for `E-2026/900005-1` i dag (Sondre, Slack
+  2026-11-17). `E-2026/900009-1` med `0391` erstatter B. 2026-11-18 bruker bare
   `0391` og `1291`.
+- Avvisningen kom ikke som `FEILET` på `bestilling-status-v1`. OeBS sendte ingen
+  kvittering til VALP, så bestillingen står som `SENDT` hos oss uten at noe
+  varsler. I prod ville saken stått stille uten at noen fikk vite det. Se
+  *Avvisning uten kvittering*.
 
 ## Feilsituasjoner
 
@@ -549,6 +552,10 @@ Funn:
   ukjent arrangør, feil status på bestillingen) gir ingen `FEILET` tilbake til oss.
   VALP logger feilen og prøver på nytt. Vi ser det bare som manglende status. Be
   VALP sjekke loggene og fjerne meldingen hos seg.
+- **OeBS avviser bestillingen.** Ukjent kostnadssted gir i dag ingen kvittering
+  til VALP og ingen `FEILET` til oss. Bestillingen blir stående som `SENDT`. Er
+  den ikke `AKTIV` etter 20 minutter (OeBS kvitterer hvert 10. minutt), spør
+  VALP og OeBS.
 - **Ingen status kommer tilbake.** Sjekk at VALP har publisert (logger hos VALP),
   at headeren `fagsystem=EKSPERTBISTAND` er satt, og at consumeren vår har startet
   (ingen `Kafka`-feil ved oppstart).
@@ -585,44 +592,54 @@ sender det uendret videre:
   innad i OeBS», og fagsystemet og OeBS må være enige om hvilke kostnadssteder
   som brukes.
 
-Tiltaksadministrasjon holder seg til en hvitliste over 269 enheter i tabellen
-`kostnadssted` (`R__kostnadssted_innhold.sql` i mulighetsrommet-api).
-Saksbehandlerne kan bare velge blant dem. Ekspertbistand har ingen slik liste, så
-`behandlende_enhet` går rett gjennom.
+Avklart på Slack 2026-11-17:
 
-Hilde Mari i OeBS sendte 2026-11-17 en liste over sekssifrede kostnadssteder.
-245 av de 269 enhetene i VALP sin hvitliste finnes der som enhet + `00`, for
-eksempel `0287` → `028700 NAV Tiltak Øst-Viken`. Med den regelen ser våre
-enheter slik ut:
+- Hilde-Mari (OeBS): fire sifre er riktig. OeBS gjør dem om til et sekssifret
+  kostnadssted. Ofte er de fire første sifrene enhetsnummeret, men ikke alltid.
+  Lista hun sendte, er de 863 aktive kostnadsstedene i T1 med seks sifre. Hun
+  sender en liste med fire sifre senere.
+- Sondre (VALP): tiltaksadministrasjon sender også fire sifre, og avklarer hver
+  nye enhet med OeBS før den tas i bruk.
 
-| Enhet | Enhet + `00` i lista | Resultat i T1 |
-|-------|----------------------|---------------|
-| 0291 | mangler | avvist 2026-11-17 (`E-2026/900005-1`, trolig) |
-| 0391 | `039100` NAV Oslo prosjekt | `AKTIV` (1A) |
-| 0491 | mangler | |
-| 0691 | mangler | |
-| 0891 | mangler | |
-| 1091 | mangler | |
-| 1191 | `119100` Fylkesledelse NAV Rogaland | |
-| 1291 | mangler | `AKTIV` (1C) |
-| 1591 | `159100` Fylkesledelse NAV Møre og Romsdal | |
-| 1891 | `189100` Fylkesledelse NAV Nordland | |
-| 1991 | mangler | |
-| 2103 | `210300` NAV Vikafossen | |
-| 5772 | mangler | |
+Vi kan derfor ikke lese av lista med seks sifre hvilke av enhetene våre som
+virker. `1891` står som `189100` i lista, men ble avvist. `1291` står ikke som
+`129100`, men ble `AKTIV`.
 
-`1291` ble `AKTIV` selv om `129100` mangler i lista. Enten er lista ikke fra T1,
-eller så gjør OeBS om enkelte enheter på en annen måte. Vi kan derfor ikke lese
-av lista hvilke enheter som virker.
+### Kostnadssted eller behandlende enhet
 
-Før vi kobler bestilling til saksgangen, må OeBS svare på to ting:
+Hos oss er kostnadsstedet alltid `sak.behandlende_enhet`
+(`BestillTilsagnIOebs`). Tiltaksadministrasjon skiller de to:
 
-1. Hvordan gjør OeBS enhetsnummer om til kostnadssted?
-2. Hvilket kostnadssted får hver av de 13 enhetene i T1 og i prod?
+- Saksbehandleren velger kostnadssted på tilsagnet (`VelgKostnadssted`) blant
+  enhetene i hvitlista `kostnadssted` (`R__kostnadssted_innhold.sql`, 269
+  enheter fordelt på region).
+- For enkeltplasser er standardverdien `arena_ansvarlig_enhet` (migrering V458).
 
-En enhet uten kostnadssted i prod gir avvist bestilling på ekte saker. Når svaret
-er kommet, vurderer vi en hvitliste som i tiltaksadministrasjon, slik at en sak
-med ukjent enhet stopper før bestillingen sendes.
+KDoc hos VALP kaller feltet «Nav-enhet som skal belastes for bestillingen». Om
+det er enheten som behandler ekspertbistand-saken, er et spørsmål om økonomi og
+budsjett, ikke om integrasjonen. Det må avklares før bestilling kobles til
+saksgangen.
+
+### Før bestilling kobles til saksgangen
+
+1. Avklar at behandlende enhet er enheten som skal belastes.
+2. Få lista med fire sifre fra OeBS, og bestill kostnadssted i T1 og prod for
+   enhetene som mangler.
+3. Vurder en hvitliste som i tiltaksadministrasjon, slik at en sak med ukjent
+   enhet stopper før bestillingen sendes.
+
+## Avvisning uten kvittering
+
+OeBS avviste `E-2026/900006-1` uten å sende kvittering til VALP. VALP publiserte
+derfor ingen `FEILET`, og bestillingen står som `SENDT` hos oss. Ingenting
+varsler. I prod ville saken stått stille, og ingen ville fått vite det.
+
+Sondre spurte selv om dette ikke burde kommet som `FEILET`. Vi tar det opp med
+VALP og OeBS:
+
+- Skal OeBS sende kvittering ved avvisning, slik at VALP kan publisere `FEILET`?
+- Hvis ikke: trenger vi en egen sjekk som varsler med `log.error` når en
+  bestilling har stått som `SENDT` lenger enn en grense, for eksempel én time.
 
 ## Avgrensning
 
@@ -678,4 +695,6 @@ Etter siste repetisjon:
 
 Før bestilling kobles til saksgangen:
 
+- [ ] Avklart at behandlende enhet er enheten som skal belastes
 - [ ] OeBS har bekreftet kostnadssted for alle 13 enhetene i T1 og prod
+- [ ] Avklart hvordan vi oppdager en bestilling som OeBS avviser uten kvittering
