@@ -5,7 +5,11 @@ import { createEmptyInputs, type SoknadInputs } from "../features/soknad/schema"
 import { buildDraftPayload, draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { fetchJson } from "../../utils/api";
-import { SoknadDraftContext, type SoknadDraftContextValue } from "../context/SoknadDraftContext";
+import {
+  type Lagringsfeil,
+  SoknadDraftContext,
+  type SoknadDraftContextValue,
+} from "../context/SoknadDraftContext";
 import UgyldigSkjemaPage from "../pages/UgyldigSkjemaPage";
 import { HttpError } from "../../utils/http";
 
@@ -32,6 +36,11 @@ const mergeSnapshotIntoDraftDto = (
     opprettetTidspunkt: persistedIso ?? current?.opprettetTidspunkt ?? null,
   };
 };
+
+const tilLagringsfeil = (e: unknown): Lagringsfeil =>
+  e instanceof HttpError
+    ? { message: e.message, status: e.status, kode: e.code ?? null, felt: e.field ?? null }
+    : { message: "Prøv igjen senere.", status: null, kode: null, felt: null };
 
 export function SoknadDraftProvider({
   draftId,
@@ -66,7 +75,7 @@ export function SoknadDraftProvider({
       })
   );
 
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lagringsfeil, setLagringsfeil] = useState<Lagringsfeil | null>(null);
   const sisteLagring = useRef(0);
   const pagaendeLagring = useRef<{ snapshot: SoknadInputs | null; resultat: Promise<boolean> }>({
     snapshot: null,
@@ -86,12 +95,12 @@ export function SoknadDraftProvider({
         populateCache: false,
       }).then(
         () => {
-          if (lagring === sisteLagring.current) setSaveError(null);
+          if (lagring === sisteLagring.current) setLagringsfeil(null);
           return true;
         },
         (e: unknown) => {
           if (lagring === sisteLagring.current) {
-            setSaveError(e instanceof HttpError ? e.message : "Prøv igjen senere.");
+            setLagringsfeil(tilLagringsfeil(e));
           }
           return false;
         }
@@ -159,6 +168,8 @@ export function SoknadDraftProvider({
     [mutate]
   );
 
+  const saveError = lagringsfeil?.message ?? null;
+
   const value = useMemo<SoknadDraftContextValue>(
     () => ({
       draftId,
@@ -170,6 +181,7 @@ export function SoknadDraftProvider({
       clearDraft,
       lastPersistedAt,
       saveError,
+      lagringsfeil,
       bekreftetDeltaker,
       opprettetAv,
       oppdaterUtkast,
@@ -180,6 +192,7 @@ export function SoknadDraftProvider({
       draft,
       draftId,
       hydrated,
+      lagringsfeil,
       lastPersistedAt,
       opprettetAv,
       oppdaterUtkast,

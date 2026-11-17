@@ -91,7 +91,11 @@ const eregOrganisasjoner: { organisasjonsnummer: string; navn: string }[] = [
   { organisasjonsnummer: "976543210", navn: "Nordic Ergoterapi AS" },
   { organisasjonsnummer: "934567891", navn: "Oslo Arbeidspsykologi AS" },
   { organisasjonsnummer: "812345678", navn: "Tilrettelegging og Trivsel ANS" },
+  // Oppslaget av denne feiler ved PATCH, så feilvisningen kan testes i mocken.
+  { organisasjonsnummer: "999999999", navn: "Oppslaget feiler AS" },
 ];
+
+export const MOCK_EREG_FEIL_ORGNR = "999999999";
 
 const DRAFT_CACHE_NAME = "mock-soknad-draft";
 const DRAFT_CACHE_URL = "/mock/soknad/draft";
@@ -573,6 +577,44 @@ const medDeltaker = (data: SoknadInputs, deltaker: ValiderDeltakerBody): SoknadI
   };
 };
 
+// Som i backend: bare orgnr leses fra klienten, og navnet slås opp i Enhetsregisteret når orgnr er endret.
+const medEkspertVirksomhet = (
+  payload: Partial<SoknadInputs>,
+  lagretOrgnr: string | null | undefined
+): Partial<SoknadInputs> | Response => {
+  if (!payload.ekspert) return payload;
+  const ekspert: Partial<SoknadInputs["ekspert"]> = { ...payload.ekspert };
+  const orgnr = ekspert.virksomhetOrgnr?.trim() || null;
+  if (!orgnr) {
+    Object.assign(ekspert, { virksomhet: "", virksomhetNavn: null, virksomhetOrgnr: null });
+  } else if (orgnr === lagretOrgnr) {
+    delete ekspert.virksomhet;
+    delete ekspert.virksomhetNavn;
+    delete ekspert.virksomhetOrgnr;
+  } else {
+    if (!/^\d{9}$/.test(orgnr))
+      return mockUgyldigInput("ekspert.virksomhetOrgnr", "må være 9 siffer");
+    if (orgnr === MOCK_EREG_FEIL_ORGNR) {
+      return HttpResponse.json(
+        {
+          kode: "OPPSLAG_FEILET",
+          message: "oppslag av virksomhet i Enhetsregisteret feilet, prøv igjen senere",
+        },
+        { status: 503 }
+      );
+    }
+    const treff = eregOrganisasjoner.find((org) => org.organisasjonsnummer === orgnr);
+    if (!treff)
+      return mockUgyldigInput("ekspert.virksomhetOrgnr", "finnes ikke i Enhetsregisteret");
+    Object.assign(ekspert, {
+      virksomhet: `${treff.navn} (${orgnr})`,
+      virksomhetNavn: treff.navn,
+      virksomhetOrgnr: orgnr,
+    });
+  }
+  return { ...payload, ekspert: ekspert as SoknadInputs["ekspert"] };
+};
+
 // Som i backend: deltaker og virksomhet settes bare av valider-deltaker.
 const utenDeltakerOgVirksomhet = (payload: Partial<SoknadInputs>): Partial<SoknadInputs> => {
   const rest: Partial<SoknadInputs> = { ...payload };
@@ -1000,9 +1042,11 @@ export const handlers = [
     }
     const ugyldig = ugyldigInput(payload);
     if (ugyldig) return ugyldig;
+    const medEkspert = medEkspertVirksomhet(payload, entry.data?.ekspert?.virksomhetOrgnr);
+    if (medEkspert instanceof Response) return medEkspert;
     entry.data = mergeInputs(
       entry.data as Partial<SoknadInputs>,
-      utenDeltakerOgVirksomhet(payload)
+      utenDeltakerOgVirksomhet(medEkspert)
     );
     skjemaStore.set(id, entry);
     await persistSkjemaStore();

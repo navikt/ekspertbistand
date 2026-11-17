@@ -221,7 +221,16 @@ Svaret er `DTO.Soknad` som i dag.
 - Gir `PUT` 400 med `felt`, viser oppsummeringen feilen på feltet i steget det
   hører til. Felt som ikke vises i skjemaet, som `ekspert.virksomhetOrgnr`, vises
   på feltet arbeidsgiver fyller ut.
-- Steg 2 viser 400 og 503 fra PATCH på feltet for ekspertens virksomhet.
+- Steg 2 viser 400 og 503 fra PATCH på feltet for ekspertens virksomhet, ikke
+  som «Utkastet ble ikke lagret». 400 med `felt` `ekspert.virksomhetOrgnr` ber
+  arbeidsgiver velge en annen virksomhet. 503 `OPPSLAG_FEILET` ber arbeidsgiver
+  fjerne virksomheten og velge den på nytt om litt. Begge meldingene sier at
+  utkastet ikke blir lagret før feilen er rettet, og «Neste steg» stopper så
+  lenge feilen finnes.
+- `HttpError` får `code` fra `kode` i feilsvaret, slik at frontend kan skille
+  `OPPSLAG_FEILET` fra andre 503-svar.
+- MSW-handleren for PATCH slår opp ekspertens virksomhet slik backend gjør.
+  Orgnr `999999999` gir 503 `OPPSLAG_FEILET`, slik at feilen kan testes lokalt.
 - MSW-handlerne, e2e-`mockApi.ts` og testene oppdateres.
 
 ### 8. Frontend v1 (`frontend/client/src`)

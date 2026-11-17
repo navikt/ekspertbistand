@@ -7,6 +7,14 @@ export type BekreftetDeltaker = {
   virksomhetsnummer: string;
 };
 
+/** Feilen fra siste PATCH. Nullstilles når en senere lagring går bra. */
+export type Lagringsfeil = {
+  message: string;
+  status: number | null;
+  kode: string | null;
+  felt: string | null;
+};
+
 export type SoknadDraftContextValue = {
   /** Null i steg 1 før utkastet er opprettet. Utkastet opprettes først når deltakeren er bekreftet. */
   draftId: string | null;
@@ -22,6 +30,7 @@ export type SoknadDraftContextValue = {
   clearDraft: () => Promise<void>;
   lastPersistedAt: Date | null;
   saveError: string | null;
+  lagringsfeil: Lagringsfeil | null;
   bekreftetDeltaker: BekreftetDeltaker | null;
   opprettetAv: string | null;
   oppdaterUtkast: (utkast: DraftDto) => Promise<void>;
