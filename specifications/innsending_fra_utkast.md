@@ -25,6 +25,7 @@ request-body. Endringene er:
 | Anders, 2026-11-17 | Utkastet opprettes når deltakeren er validert i steg 1. `POST /api/soknad/v1` tar `{fnr, virksomhetsnummer}` og gjør de samme sjekkene som `valider-deltaker`. |
 | Anders, 2026-11-17 | `POST /{id}/valider-deltaker` blir værende. Den brukes når arbeidsgiver endrer deltaker eller virksomhet på et utkast som finnes. |
 | Anders, 2026-11-17 | Innsending kopierer utkastet til `soknad`. Request-body brukes ikke. |
+| Anders, 2026-11-17 | Bare den som opprettet utkastet, kan sende det inn. Tilgangssjekken er den samme som når utkastene listes, uten oppslag i Altinn. |
 | Anders, 2026-11-17 | PATCH og dagens `valider()` endres ikke, med ett unntak: ekspertens virksomhet (se under). Ny validering skjer ellers bare ved innsending. |
 | Anders, 2026-11-17 | Arbeidsgivers virksomhetsnavn hentes fra Altinn-tilgangene til innlogget bruker når deltakeren valideres, og lagres på utkastet. Arbeidsgiver skal ikke kunne slå opp vilkårlige virksomheter. Innsendingen kopierer navnet fra utkastet uten nytt oppslag. Visningen leser fra tabellene. |
 | Anders, 2026-11-17 | Når arbeidsgiver setter ekspertens virksomhet, leser backend bare `ekspert.virksomhetOrgnr` fra PATCH og slår opp navnet i Ereg. `virksomhet` og `virksomhetNavn` fra klienten ignoreres. |
@@ -182,7 +183,7 @@ Ereg svarer 404, og kaster ved alle andre svar som ikke er 2xx. Det skiller den 
 | # | Steg | Svar ved feil |
 |---|------|---------------|
 | 1 | Utkastet finnes og er i utkast-status | 409 |
-| 2 | Innlogget bruker har opprettet utkastet, og har Altinn-tilgang til `virksomhetsnummer` | 403 |
+| 2 | Innlogget bruker har opprettet utkastet. Altinn-tilgangen sjekkes ikke, som når utkastene listes | 403 |
 | 3 | `validerKomplett(utkast)` | 400 `UGYLDIG_INPUT` |
 | 4 | Ereg: forretningsadressen til arbeidsgiver, som i dag | Ingen. Feiler oppslaget, lagres adressen som null |
 | 5 | Kopierer utkastet til `soknad`, sletter utkastet og publiserer `SoknadInnsendt(SoknadDomainV1)` i samme transaksjon | – |
@@ -256,6 +257,8 @@ Samme endringer som i v2, med stiene `/skjema/...`.
 
 - **Autolagring som ikke er ferdig ved innsending.** Backend sender inn det som
   er lagret. Frontend må derfor vente på pågående PATCH før `PUT`.
+- **To samtidige innsendinger av samme utkast.** Transaksjonen sletter utkastet
+  før den lagrer søknaden. Den andre innsendingen sletter ingen rader og får 409.
 - **Arbeidsgivers navn i Altinn er endret siden steg 1.** Innsendingen bruker
   navnet som ble lagret på utkastet. Utkast slettes etter 48 timer, så navnet er
   aldri eldre enn det.

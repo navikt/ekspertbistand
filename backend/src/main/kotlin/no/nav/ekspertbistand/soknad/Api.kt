@@ -18,8 +18,6 @@ import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import no.nav.ekspertbistand.infrastruktur.UgyldigInputException
 import no.nav.ekspertbistand.infrastruktur.valider
-import no.nav.ekspertbistand.saksbehandling.gjeldendeMaksSats
-import no.nav.ekspertbistand.saksbehandling.tolkSoknadssum
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -237,87 +235,73 @@ class SoknadApi(
         call.respond(HttpStatusCode.NoContent)
     }
 
+    /**
+     * Sender inn utkastet slik det er lagret. Request-body leses ikke. Se specifications/innsending_fra_utkast.md (6).
+     */
     suspend fun RoutingContext.sendInnSoknad(idParam: UUID) {
-        val eksisterende = transaction(database) {
-            findSoknadOrUtkastById(idParam)
+        val utkast = transaction(database) {
+            UtkastTable.selectAll().where { UtkastTable.id eq idParam }.singleOrNull()
         }
 
-        if (eksisterende == null || eksisterende !is DTO.Utkast) {
-            call.respond(
-                status = HttpStatusCode.Conflict,
-                message = "soknad ikke i utkast-status"
-            )
+        if (utkast == null) {
+            call.respondIkkeUtkast()
             return
         }
 
-        val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
-        val soknad = call.receive<DTO.Soknad>().also { valider(it) }
-
-        if (!erOpprettetAvInnlogget(eksisterende) ||
-            !tilganger.harTilgang(soknad.virksomhet.virksomhetsnummer)
-        ) {
+        if (utkast[UtkastTable.opprettetAv] != innloggetBruker) {
             call.respond(
                 status = HttpStatusCode.Forbidden,
-                message = "bruker har ikke tilgang til organisasjon"
+                message = "bruker har ikke tilgang til utkastet"
             )
             return
         }
 
-        val bekreftetDeltakerNavn = eksisterende.ansatt?.navn
-        if (!eksisterende.deltakerBekreftet ||
-            bekreftetDeltakerNavn == null ||
-            eksisterende.ansatt.fnr != soknad.ansatt.fnr ||
-            eksisterende.virksomhet?.virksomhetsnummer != soknad.virksomhet.virksomhetsnummer ||
-            eksisterende.virksomhet?.virksomhetsnavn != soknad.virksomhet.virksomhetsnavn
-        ) {
-            throw UgyldigInputException("ansatt.fnr", "deltaker er ikke bekreftet")
-        }
-
-        val sats = gjeldendeMaksSats(soknad.behovForBistand.startdato)
-            ?: throw UgyldigInputException("behovForBistand.startdato", "ingen sats gjelder for startdato")
-        val soknadssum = tolkSoknadssum(soknad.behovForBistand.estimertKostnad)
-            ?: throw UgyldigInputException("behovForBistand.estimertKostnad", "må være et positivt heltall")
-        if (soknadssum > sats.belop) {
-            throw UgyldigInputException("behovForBistand.estimertKostnad", "over maksgrensen på ${sats.belop} kr")
-        }
-
-        val adresse = eregService.hentForretningsadresse(soknad.virksomhet.virksomhetsnummer)
+        val soknad = validerKomplett(utkast)
+        val adresse = eregService.hentForretningsadresse(soknad.virksomhetsnummer)
 
         val innsendt = transaction(database) {
+            // Sletter først, så en samtidig innsending av samme utkast får 409 og ikke brudd på primærnøkkelen.
+            if (UtkastTable.deleteWhere { UtkastTable.id eq idParam } == 0) return@transaction null
+
             val opprettet = SoknadTable.insertReturning {
                 it[id] = idParam
-                it[virksomhetsnummer] = soknad.virksomhet.virksomhetsnummer
-                it[virksomhetsnavn] = soknad.virksomhet.virksomhetsnavn
-                it[kontaktpersonNavn] = soknad.virksomhet.kontaktperson.navn
-                it[kontaktpersonEpost] = soknad.virksomhet.kontaktperson.epost
-                it[kontaktpersonTelefon] = soknad.virksomhet.kontaktperson.telefonnummer
+                it[virksomhetsnummer] = soknad.virksomhetsnummer
+                it[virksomhetsnavn] = soknad.virksomhetsnavn
+                it[kontaktpersonNavn] = soknad.kontaktpersonNavn
+                it[kontaktpersonEpost] = soknad.kontaktpersonEpost
+                it[kontaktpersonTelefon] = soknad.kontaktpersonTelefon
                 it[beliggenhetsadresse] = adresse
-                it[ansattFnr] = soknad.ansatt.fnr
-                it[ansattNavn] = bekreftetDeltakerNavn
-                it[ekspertNavn] = soknad.ekspert.navn
-                it[ekspertVirksomhet] = soknad.ekspert.virksomhet
-                it[ekspertVirksomhetNavn] = soknad.ekspert.virksomhetNavn
-                it[ekspertVirksomhetOrgnr] = soknad.ekspert.virksomhetOrgnr
-                it[ekspertKompetanse] = soknad.ekspert.kompetanse
-                it[ekspertGodkjentUtdanningEllerAutorisasjon] = encodeStringList(soknad.ekspert.godkjentUtdanningEllerAutorisasjon)
-                it[ekspertRelevantKompetanse] = encodeStringList(soknad.ekspert.relevantKompetanse)
-                it[behovForBistand] = soknad.behovForBistand.behov
-                it[behovForBistandBegrunnelse] = soknad.behovForBistand.begrunnelse
-                it[behovForBistandEstimertKostnad] = soknad.behovForBistand.estimertKostnad
-                it[behovForBistandTimer] = soknad.behovForBistand.timer
-                it[behovForBistandTilrettelegging] = soknad.behovForBistand.tilrettelegging
-                it[behovForBistandStartdato] = soknad.behovForBistand.startdato
+                it[ansattFnr] = soknad.ansattFnr
+                it[ansattNavn] = soknad.ansattNavn
+                it[ekspertNavn] = soknad.ekspertNavn
+                it[ekspertVirksomhet] = soknad.ekspertVirksomhet
+                it[ekspertVirksomhetNavn] = soknad.ekspertVirksomhetNavn
+                it[ekspertVirksomhetOrgnr] = soknad.ekspertVirksomhetOrgnr
+                it[ekspertKompetanse] = soknad.ekspertKompetanse
+                it[ekspertGodkjentUtdanningEllerAutorisasjon] =
+                    encodeStringList(soknad.ekspertGodkjentUtdanningEllerAutorisasjon)
+                it[ekspertRelevantKompetanse] = encodeStringList(soknad.ekspertRelevantKompetanse)
+                it[behovForBistand] = soknad.behovForBistand
+                it[behovForBistandBegrunnelse] = soknad.behovForBistandBegrunnelse
+                it[behovForBistandEstimertKostnad] = soknad.behovForBistandEstimertKostnad
+                it[behovForBistandTimer] = soknad.behovForBistandTimer
+                it[behovForBistandTilrettelegging] = soknad.behovForBistandTilrettelegging
+                it[behovForBistandStartdato] = soknad.behovForBistandStartdato
 
-                it[navKontaktPerson] = soknad.nav.kontaktperson
+                it[navKontaktPerson] = soknad.navKontaktperson
                 it[opprettetAv] = innloggetBruker
                 it[status] = SoknadStatus.innsendt.toString()
                 it[arbeidsgiverTilgangTil] = Clock.System.now().plus(arbeidsgiverTilgangVarighet)
             }.single()
-            UtkastTable.deleteWhere { UtkastTable.id eq idParam }
 
             publishEventQueue(EventData.SoknadInnsendt(opprettet.tilSoknadDomainV1()))
 
             opprettet.tilSoknadDTO()
+        }
+
+        if (innsendt == null) {
+            call.respondIkkeUtkast()
+            return
         }
 
         call.respond(innsendt)
@@ -476,6 +460,9 @@ class SoknadApi(
 
     private suspend fun ApplicationCall.respondFeil(status: HttpStatusCode, kode: String, message: String) =
         respond(status, mapOf("kode" to kode, "message" to message))
+
+    private suspend fun ApplicationCall.respondIkkeUtkast() =
+        respond(status = HttpStatusCode.Conflict, message = "soknad ikke i utkast-status")
 
     private suspend fun ApplicationCall.respondOppslagFeilet() =
         respondFeil(HttpStatusCode.ServiceUnavailable, OPPSLAG_FEILET, "oppslag av deltaker feilet, prøv igjen senere")
