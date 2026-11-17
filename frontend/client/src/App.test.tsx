@@ -70,6 +70,21 @@ describe("App routes", () => {
     ).toHaveAttribute("href", "/v2/skjema/start");
   });
 
+  it.each([
+    ["/skjema/ny", "/skjema/ny/steg-1"],
+    ["/skjema/utkast-id", "/skjema/utkast-id/steg-1"],
+    ["/v2/skjema/ny", "/v2/skjema/ny/steg-1"],
+    ["/v2/skjema/utkast-id", "/v2/skjema/utkast-id/steg-1"],
+  ])("redirects %s to steg 1", async (path, forventet) => {
+    mockIsFeatureEnabled.mockImplementation((flag) => flag === "EKSPERTBISTAND_V2");
+
+    renderApp(path);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("current-path")).toHaveTextContent(forventet);
+    });
+  });
+
   it("redirects /v2 to its overview when enabled", async () => {
     mockIsFeatureEnabled.mockImplementation((flag) => flag === "EKSPERTBISTAND_V2");
 

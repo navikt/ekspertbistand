@@ -185,6 +185,7 @@ export default function App() {
               <Route path="steg-2" element={<SkjemaSteg2Page />} />
               <Route path="steg-3" element={<SkjemaSteg3Page />} />
               <Route path="oppsummering" element={<OppsummeringPage />} />
+              <Route path="" element={<Navigate to="steg-1" replace />} />
             </Route>
             <Route path="/health" element={<HealthPage />} />
           </Route>
