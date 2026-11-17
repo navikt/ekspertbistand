@@ -50,6 +50,7 @@ describe("VedtakPage", () => {
     renderSkjema(vedtakssiden(id));
 
     await ventPaVedtak("Søknad godkjent");
+    expect(screen.queryByText("Sluttrapporten er sendt inn.")).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "50 000 kr satt av til ekspertbistand" })
     ).toBeInTheDocument();
@@ -186,37 +187,53 @@ describe("VedtakPage", () => {
     expect(screen.getByRole("region", { name: "Søknad sendt inn" })).toBeInTheDocument();
   });
 
-  it("viser sluttrapportkortet etter innsending og retur via kvitteringen", async () => {
-    const id = MOCK_VEDTAK_SOKNAD_ID.INNVILGET;
-    let sendtInn = false;
-    server.use(
-      http.get(EKSPERTBISTAND_SLUTTRAPPORT_PATH(id), () =>
-        sendtInn ? HttpResponse.json(sluttrapport) : new HttpResponse(null, { status: 204 })
-      ),
-      http.post(EKSPERTBISTAND_SLUTTRAPPORT_PATH(id), () => {
-        sendtInn = true;
-        return new HttpResponse(null, { status: 201 });
-      })
-    );
-    const { container } = renderSkjema(`/v2/skjema/${id}/sluttrapport`);
-    await screen.findByRole("heading", { name: "Send inn sluttrapport" });
-    const filvelger = container.querySelector<HTMLInputElement>('input[type="file"]');
-    if (!filvelger) throw new Error("Fant ikke filvelgeren for sluttrapporten");
-    const user = userEvent.setup();
-    await user.upload(
-      filvelger,
-      new File(["%PDF-1.4\n%%EOF\n"], sluttrapport.filnavn, { type: "application/pdf" })
-    );
-    await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
+  it.each([false, true])(
+    "bekrefter innsending på vedtakssiden med metadatafeil=%s",
+    async (metadatafeil) => {
+      const id = MOCK_VEDTAK_SOKNAD_ID.INNVILGET;
+      let sendtInn = false;
+      server.use(
+        http.get(EKSPERTBISTAND_SLUTTRAPPORT_PATH(id), () => {
+          if (!sendtInn) return new HttpResponse(null, { status: 204 });
+          return metadatafeil
+            ? HttpResponse.json({ message: "Metadataoppslaget feilet" }, { status: 500 })
+            : HttpResponse.json(sluttrapport);
+        }),
+        http.post(EKSPERTBISTAND_SLUTTRAPPORT_PATH(id), () => {
+          sendtInn = true;
+          return new HttpResponse(null, { status: 201 });
+        })
+      );
+      const { container } = renderSkjema(`/v2/skjema/${id}/sluttrapport`);
+      await screen.findByRole("heading", { name: "Send inn sluttrapport" });
+      const filvelger = container.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!filvelger) throw new Error("Fant ikke filvelgeren for sluttrapporten");
+      const user = userEvent.setup();
+      await user.upload(
+        filvelger,
+        new File(["%PDF-1.4\n%%EOF\n"], sluttrapport.filnavn, { type: "application/pdf" })
+      );
+      await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
 
-    expect(await screen.findByRole("heading", { name: "Søknad godkjent" })).toBeInTheDocument();
-    expect(
-      await screen.findByRole("region", { name: "Sluttrapport sendt inn" })
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Send inn sluttrapport fra eksperten" })
-    ).not.toBeInTheDocument();
-  });
+      expect(await screen.findByRole("heading", { name: "Søknad godkjent" })).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Sluttrapporten er sendt inn.");
+      if (metadatafeil) {
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+          "Sluttrapporten er sendt inn, men opplysningene kunne ikke hentes. Prøv å laste siden på nytt."
+        );
+        expect(
+          screen.queryByRole("region", { name: "Sluttrapport sendt inn" })
+        ).not.toBeInTheDocument();
+      } else {
+        expect(
+          await screen.findByRole("region", { name: "Sluttrapport sendt inn" })
+        ).toBeInTheDocument();
+      }
+      expect(
+        screen.queryByRole("button", { name: "Send inn sluttrapport fra eksperten" })
+      ).not.toBeInTheDocument();
+    }
+  );
 
   it("viser verken beløp, vilkår, knapper eller frist ved avslag", async () => {
     const statusKall = vi.fn(() => HttpResponse.json(sluttrapport));

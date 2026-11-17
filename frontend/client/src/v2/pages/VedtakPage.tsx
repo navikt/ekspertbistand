@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link as RouterLink, Navigate, useParams } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Link as RouterLink, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { ArrowRedoIcon, ClockIcon } from "@navikt/aksel-icons";
 import {
   Alert,
@@ -59,6 +59,25 @@ const kroner = (belop: string) => `${belop} kr`;
 
 export default function VedtakPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const navigeringsstate = location.state as {
+    sluttrapportSendtInn?: boolean;
+    statusOppdateringFeilet?: boolean;
+  } | null;
+  const fraSluttrapport = navigeringsstate?.sluttrapportSendtInn === true;
+  const [innsending] = useState(() => ({
+    soknadId: fraSluttrapport ? id : null,
+    statusOppdateringFeilet: navigeringsstate?.statusOppdateringFeilet === true,
+  }));
+  const sluttrapportSendtInn = id !== undefined && innsending.soknadId === id;
+
+  useEffect(() => {
+    if (fraSluttrapport) {
+      navigate(".", { replace: true, state: null });
+    }
+  }, [fraSluttrapport, navigate]);
+
   const {
     data: draft,
     error: soknadError,
@@ -83,6 +102,11 @@ export default function VedtakPage() {
   }
 
   const error = vedtakError ?? soknadError;
+  const sluttrapportStatusFeilet =
+    sluttrapportError ||
+    (sluttrapportSendtInn &&
+      !sluttrapport &&
+      (innsending.statusOppdateringFeilet || !sluttrapportLoading));
 
   return (
     <DecoratedPage>
@@ -103,6 +127,12 @@ export default function VedtakPage() {
       </VStack>
 
       <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
+
+      {sluttrapportSendtInn && (
+        <Alert variant="success" role="status">
+          Sluttrapporten er sendt inn.
+        </Alert>
+      )}
 
       {(vedtakLoading || soknadLoading) && (
         <Box aria-live="polite">
@@ -144,15 +174,17 @@ export default function VedtakPage() {
                 </BodyLong>
               </div>
               <VStack gap="space-24" align="start">
-                {sluttrapportError ? (
+                {sluttrapportStatusFeilet ? (
                   <Alert variant="error" role="alert">
-                    Kunne ikke hente status for sluttrapporten. Prøv å laste siden på nytt.
+                    {sluttrapportSendtInn
+                      ? "Sluttrapporten er sendt inn, men opplysningene kunne ikke hentes. Prøv å laste siden på nytt."
+                      : "Kunne ikke hente status for sluttrapporten. Prøv å laste siden på nytt."}
                   </Alert>
                 ) : sluttrapportLoading ? (
                   <Box aria-live="polite">
                     <Loader title="Laster status for sluttrapporten" />
                   </Box>
-                ) : !sluttrapport ? (
+                ) : !sluttrapport && !sluttrapportSendtInn ? (
                   <Button as={RouterLink} to={`/v2/skjema/${id}/sluttrapport`} variant="secondary">
                     Send inn sluttrapport fra eksperten
                   </Button>
