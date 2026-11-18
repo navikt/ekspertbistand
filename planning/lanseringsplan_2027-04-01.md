@@ -329,6 +329,25 @@ gjenbruker det samme:
 | 🏦 Registrere ekspertbistand som økonomisystem (blant annet i Ardoq) | 🔴 Kort finnes (690) |
 | Tiltakskode og konto registrert hos Team VALP | 🟡 Virker i T1 (runde 1). Bekreft at det er på plass i prod. |
 
+#### Kjente feil fra OeBS
+
+Valp sender oss bare `FEILET`, ikke feilkoden. Detaljene får vi når teamet
+følger opp manuelt med OeBS. Hilde-Mari har delt et utvalg av kjente feil.
+Kolonnen «Trolig retting» er vårt anslag og et utgangspunkt for 724.
+
+| Feilkode | Feilmelding | Område | Trolig retting |
+|----------|-------------|--------|----------------|
+| `PO_PDOI_ZERO_QTY` | Feil: Mengden må være større enn 0. | Antall | Feil i meldingen vår. Rett og send ny bestilling. |
+| `PO_PDOI_INVALID_PROJ_INFO` | Feil: Prosjektopplysninger for konteringen er ikke gyldig. Valideringsfeil for prosjekt-/aktivitet. Kontakt Oracle Norge. | Prosjektopplysning | Oppsett hos OeBS eller Valp. Send ny bestilling når det er rettet. |
+| `PO_PDOI_INVALID_CHG_ACCOUNT` | Feil: Kostnadskonto (verdi = 0) er ikke en gyldig kostnadskonto. | Kontering | Oppsett hos OeBS eller Valp, som konteringsfeilen i T1 i november. |
+| `PO_PDOI_CHARGE_FAILED` | Feil: Generering av Kostnadskonto mislyktes. | Kontering | Oppsett hos OeBS eller Valp. |
+| `PO_PDOI_INVALID_ACTION` | Feil: Handling (VERDI= ) er ugyldig. | | Feil i meldingen vår. |
+| `PO_PDOI_DOC_NUM_UNIQUE` | Feil: Dokumentnummeret må være unikt. ................. eksisterer allerede. | Tilsagnsnummer må være unikt | Nummeret er brukt før. Bekrefter at en ny bestilling må ha nytt nummer. |
+| `PO_PDOI_INVALID_VENDOR` | Feil: Den angitte leverandøren (VERDI = 26643091) er ugyldig eller inaktiv. Velg en annen leverandør. (COLUMN_NAME=VENDOR_ID) | Leverandør | Arbeidsgiveren finnes ikke som aktiv leverandør i OeBS. Se spørsmål 19. |
+| `PO_PDOI_DERV_ERROR` | Feil: Avledningsfeil: Angitt VENDOR_NAME (VERDI= .................) er ugyldig. | Leverandør | Som over. |
+| `PO_PDOI_COLUMN_NOT_NULL` | Feil: Kolonnen VENDOR_SITE_ID skal ikke være NULL. (VALUE=) | Leverandørsted | Som over, for virksomheten (underenheten). |
+| `PO_PDOI_DERV_ERROR` | Feil: Avledningsfeil: Angitt VENDOR_SITE_CODE (VERDI= 987138130) er ugyldig. | Leverandørsted | Som over, for virksomheten (underenheten). |
+
 ### 5. Refusjon og sluttrapport
 
 | Hva | Status |
@@ -726,6 +745,11 @@ Disse bør bli kort:
     nummererer vi en ny bestilling for samme sak, og hva ser saksbehandler
     og arbeidsgiver mens saken står fast? Gjelder bestilling, faktura og
     oppgjør. Trenger vi noe fra OeBS eller Valp for å annullere den feilede?
+    Se [Kjente feil fra OeBS](#kjente-feil-fra-oebs).
+19. Er alle arbeidsgivere registrert som leverandør i OeBS, eller kan en
+    bestilling feile fordi virksomheten mangler som leverandør eller
+    leverandørsted? Hvis det kan skje ofte, må vi sjekke det før vedtaket
+    eller ha en rutine for å få virksomheten registrert.
 
 ## Endringslogg
 
