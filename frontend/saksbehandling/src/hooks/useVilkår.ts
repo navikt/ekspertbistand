@@ -23,6 +23,8 @@ export type Vilkårstatus = "oppfylt" | "ikke_oppfylt" | "ikke_vurdert";
 
 export type Vilkårsvurdering = {
   status: Vilkårstatus;
+  /** Forhåndsutfylt av systemet og ikke lagret av saksbehandler. */
+  automatisk: boolean;
   notat?: string;
   vurdertAvIdent?: string;
   vurdertTidspunkt?: string;
@@ -62,6 +64,22 @@ export const VILKAR_TEKSTER: Record<VilkarId, { tittel: string; beskrivelse: str
   },
 };
 
+/**
+ * Opprettes som oppfylt uten ident og tidspunkt. Speiler `automatiskOppfylteVilkar` i backend.
+ * Se `specifications/automatisk_vilkarsvurdering.md`.
+ */
+export const AUTOMATISK_OPPFYLTE_VILKAR: ReadonlySet<VilkarId> = new Set<VilkarId>([
+  "DELTAKER_HAR_ARBEIDSFORHOLD",
+  "FYLLES_UT_I_SAMRAD_GODKJENT",
+]);
+
+// Manuell lagring setter alltid ident og tidspunkt, så urørte standardverdier mangler begge.
+const erAutomatisk = (dto: VilkarsvurderingDTO) =>
+  AUTOMATISK_OPPFYLTE_VILKAR.has(dto.vilkar) &&
+  dto.godkjent === true &&
+  !dto.vurdertAvIdent &&
+  !dto.vurdertTidspunkt;
+
 const tilStatus = (godkjent: boolean | null | undefined): Vilkårstatus =>
   godkjent === true ? "oppfylt" : godkjent === false ? "ikke_oppfylt" : "ikke_vurdert";
 
@@ -70,6 +88,7 @@ export const tilVilkår = (dto: VilkarsvurderingDTO): Vilkår => ({
   ...VILKAR_TEKSTER[dto.vilkar],
   vurdering: {
     status: tilStatus(dto.godkjent),
+    automatisk: erAutomatisk(dto),
     notat: dto.notat ?? undefined,
     vurdertAvIdent: dto.vurdertAvIdent ?? undefined,
     vurdertTidspunkt: dto.vurdertTidspunkt ?? undefined,

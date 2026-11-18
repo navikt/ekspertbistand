@@ -8,7 +8,7 @@ import { useAutosaveDraft } from "../hooks/useAutosaveDraft";
 import { DraftAutosaveContext } from "../context/DraftAutosaveContext";
 
 type HydratedSnapshot = {
-  id: string;
+  id: string | null;
   snapshot: string;
 };
 

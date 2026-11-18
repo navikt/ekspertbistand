@@ -1,5 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
+import { useLocation, useNavigate } from "react-router";
+import { useSWRConfig } from "swr";
 import { ArrowLeftIcon, ArrowRightIcon } from "@navikt/aksel-icons";
 import {
   BodyShort,
@@ -28,16 +30,28 @@ import { useAttemptedSubmitRedirect } from "../hooks/useAttemptedSubmitRedirect"
 import { FormErrorSummary } from "../components/FormErrorSummary";
 import { STEP1_FIELDS } from "../features/soknad/schema";
 import { SkjemaFormProgress } from "../components/SkjemaFormProgress";
-import { useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
-import { SOKNADER_PATH, TILGANGSSTYRING_URL } from "../utils/constants";
+import { type StepSegment, useSkjemaNavigation } from "../hooks/useSkjemaNavigation";
+import { EKSPERTBISTAND_API_PATH, SOKNADER_PATH, TILGANGSSTYRING_URL } from "../utils/constants";
 import { SistLagretInfo } from "../components/SistLagretInfo.tsx";
 import { useVirksomhetAdresse } from "../hooks/useVirksomhetAdresse";
-import { validerDeltaker, type ValiderDeltakerFeil } from "../features/soknad/validerDeltaker";
+import {
+  opprettUtkast,
+  validerDeltaker,
+  type ValiderDeltakerFeil,
+} from "../features/soknad/validerDeltaker";
 import { BekreftEgenDeltakelseModal } from "../components/BekreftEgenDeltakelseModal";
 
 const VIRKSOMHETSVELGER_ID = "virksomhet.virksomhetsnummer";
 
 type Oppslagsfeil = Exclude<ValiderDeltakerFeil, { type: "ugyldigInput" }>;
+
+/**
+ * Dialogen om egen deltakelse. Finnes utkastet, vises den før oppslaget. Ellers vises den etter at
+ * POST har opprettet utkastet, fordi frontend først da vet hvem som er logget inn ([nyttUtkastId]).
+ */
+type EgenDeltakelse = { segment: StepSegment; nyttUtkastId?: string };
+
+type NavigasjonState = { fokuserFnr?: boolean } | null;
 
 export default function SkjemaSteg1Page() {
   const form = useFormContext<SoknadInputs>();
@@ -47,6 +61,7 @@ export default function SkjemaSteg1Page() {
 
   const {
     draftId,
+    hydrated,
     clearDraft,
     lastPersistedAt,
     saveError,
@@ -54,14 +69,13 @@ export default function SkjemaSteg1Page() {
     opprettetAv,
     oppdaterUtkast,
   } = useSoknadDraft();
-  const {
-    goToSoknader,
-    goToSoknaderWithSaveNotice,
-    goToStep2,
-    goToStep3,
-    goToSummary,
-    createLinkHandler,
-  } = useSkjemaNavigation();
+  const { goToSoknader, goToSoknaderWithSaveNotice, goToSegment, createLinkHandler } =
+    useSkjemaNavigation();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { mutate } = useSWRConfig();
+  const nyttUtkast = draftId === null;
+  const tilOversikt = nyttUtkast ? goToSoknader : goToSoknaderWithSaveNotice;
   const virksomhetsnummer = useWatch({ control, name: "virksomhet.virksomhetsnummer" });
   const {
     adresse,
@@ -72,9 +86,9 @@ export default function SkjemaSteg1Page() {
 
   const [validerer, setValiderer] = useState(false);
   const [oppslagsfeil, setOppslagsfeil] = useState<Oppslagsfeil | null>(null);
-  // Hvor arbeidsgiver skal etter oppslaget, mens dialogen om egen deltakelse er åpen.
-  const [ventendeMal, setVentendeMal] = useState<(() => void) | null>(null);
+  const [egenDeltakelse, setEgenDeltakelse] = useState<EgenDeltakelse | null>(null);
   const oppslagsfeilRef = useRef<HTMLDivElement | null>(null);
+  const skalFokusereFnr = (location.state as NavigasjonState)?.fokuserFnr === true;
 
   useAttemptedSubmitRedirect(form, { fields: STEP1_FIELDS, onValidationFailed: bumpFocusKey });
 
@@ -82,19 +96,40 @@ export default function SkjemaSteg1Page() {
     if (oppslagsfeil) oppslagsfeilRef.current?.focus();
   }, [oppslagsfeil]);
 
-  const gjorOppslag = async (gaTil: () => void) => {
+  useEffect(() => {
+    if (skalFokusereFnr && hydrated) setFocus("ansatt.fnr");
+  }, [hydrated, setFocus, skalFokusereFnr]);
+
+  const gjorOppslag = async (segment: StepSegment) => {
     const fnr = getValues("ansatt.fnr").replace(/\D/g, "");
     const orgnr = getValues("virksomhet.virksomhetsnummer").trim();
+    const request = { fnr, virksomhetsnummer: orgnr };
     setOppslagsfeil(null);
     setValiderer(true);
-    const resultat = await validerDeltaker(draftId, { fnr, virksomhetsnummer: orgnr });
+    const resultat = draftId
+      ? await validerDeltaker(draftId, request)
+      : await opprettUtkast(request);
     setValiderer(false);
 
     if (resultat.ok) {
-      await oppdaterUtkast(resultat.utkast);
-      setValue("ansatt.navn", resultat.utkast.ansatt?.navn ?? "");
-      setValue("virksomhet.virksomhetsnavn", resultat.utkast.virksomhet?.virksomhetsnavn ?? "");
-      gaTil();
+      const { utkast } = resultat;
+      if (draftId) {
+        await oppdaterUtkast(utkast);
+        setValue("ansatt.navn", utkast.ansatt?.navn ?? "");
+        setValue("virksomhet.virksomhetsnavn", utkast.virksomhet?.virksomhetsnavn ?? "");
+        goToSegment(segment);
+        return;
+      }
+      if (!utkast.id) {
+        setOppslagsfeil({ type: "oppslagFeilet" });
+        return;
+      }
+      await mutate(`${EKSPERTBISTAND_API_PATH}/${utkast.id}`, utkast, { revalidate: false });
+      if (utkast.opprettetAv === fnr) {
+        setEgenDeltakelse({ segment, nyttUtkastId: utkast.id });
+        return;
+      }
+      goToSegment(segment, utkast.id);
       return;
     }
 
@@ -114,7 +149,7 @@ export default function SkjemaSteg1Page() {
     setOppslagsfeil(feil);
   };
 
-  const gaVidere = async (gaTil: () => void) => {
+  const gaVidere = async (segment: StepSegment) => {
     if (validerer) return;
     const valid = await form.trigger(STEP1_FIELDS);
     if (!valid) {
@@ -125,35 +160,49 @@ export default function SkjemaSteg1Page() {
     const fnr = getValues("ansatt.fnr").replace(/\D/g, "");
     const orgnr = getValues("virksomhet.virksomhetsnummer").trim();
     if (bekreftetDeltaker?.fnr === fnr && bekreftetDeltaker.virksomhetsnummer === orgnr) {
-      gaTil();
+      goToSegment(segment);
       return;
     }
     if (opprettetAv && fnr === opprettetAv) {
-      setVentendeMal(() => gaTil);
+      setEgenDeltakelse({ segment });
       return;
     }
-    await gjorOppslag(gaTil);
+    await gjorOppslag(segment);
   };
 
   const handleBekreftEgenDeltakelse = () => {
-    const gaTil = ventendeMal;
-    setVentendeMal(null);
-    if (gaTil) void gjorOppslag(gaTil);
+    const valg = egenDeltakelse;
+    setEgenDeltakelse(null);
+    if (!valg) return;
+    if (valg.nyttUtkastId) {
+      goToSegment(valg.segment, valg.nyttUtkastId);
+      return;
+    }
+    void gjorOppslag(valg.segment);
   };
 
   const handleAvbrytEgenDeltakelse = () => {
-    setVentendeMal(null);
+    const valg = egenDeltakelse;
+    setEgenDeltakelse(null);
+    if (valg?.nyttUtkastId) {
+      // Utkastet er opprettet. Arbeidsgiver endrer fødselsnummeret på utkastet, med valider-deltaker.
+      navigate(`/v2/skjema/${valg.nyttUtkastId}/steg-1`, {
+        replace: true,
+        state: { fokuserFnr: true },
+      });
+      return;
+    }
     setFocus("ansatt.fnr");
   };
 
-  const handleBackLink = createLinkHandler(goToSoknaderWithSaveNotice);
-  const handleStepTwoLink = createLinkHandler(() => void gaVidere(goToStep2));
-  const handleStepThreeLink = createLinkHandler(() => void gaVidere(goToStep3));
-  const handleSummaryLink = createLinkHandler(() => void gaVidere(goToSummary));
+  const handleBackLink = createLinkHandler(tilOversikt);
+  const handleStepTwoLink = createLinkHandler(() => void gaVidere("steg-2"));
+  const handleStepThreeLink = createLinkHandler(() => void gaVidere("steg-3"));
+  const handleSummaryLink = createLinkHandler(() => void gaVidere("oppsummering"));
 
   const handleSubmitStep1 = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await gaVidere(goToStep2);
+    await gaVidere("steg-2");
   };
 
   return (
@@ -280,7 +329,9 @@ export default function SkjemaSteg1Page() {
           ) : null}
 
           <VStack gap="space-16">
-            <SistLagretInfo timestamp={lastPersistedAt} saveError={saveError} />
+            {nyttUtkast ? null : (
+              <SistLagretInfo timestamp={lastPersistedAt} saveError={saveError} />
+            )}
             <HGrid
               gap={{ xs: "space-32", sm: "space-16" }}
               columns={{ xs: 1, sm: 2 }}
@@ -291,7 +342,7 @@ export default function SkjemaSteg1Page() {
                 variant="secondary"
                 icon={<ArrowLeftIcon aria-hidden />}
                 iconPosition="left"
-                onClick={() => goToSoknaderWithSaveNotice()}
+                onClick={() => tilOversikt()}
               >
                 Tilbake til oversikt
               </Button>
@@ -305,20 +356,22 @@ export default function SkjemaSteg1Page() {
                 Neste steg
               </Button>
             </HGrid>
-            <DraftActions
-              onContinueLater={() => {
-                goToSoknaderWithSaveNotice();
-              }}
-              onDeleteDraft={async () => {
-                await clearDraft();
-                goToSoknader();
-              }}
-            />
+            {nyttUtkast ? null : (
+              <DraftActions
+                onContinueLater={() => {
+                  goToSoknaderWithSaveNotice();
+                }}
+                onDeleteDraft={async () => {
+                  await clearDraft();
+                  goToSoknader();
+                }}
+              />
+            )}
           </VStack>
         </VStack>
       </form>
       <BekreftEgenDeltakelseModal
-        open={ventendeMal !== null}
+        open={egenDeltakelse !== null}
         onBekreft={handleBekreftEgenDeltakelse}
         onAvbryt={handleAvbrytEgenDeltakelse}
       />

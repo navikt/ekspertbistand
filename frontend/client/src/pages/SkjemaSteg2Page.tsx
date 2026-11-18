@@ -17,7 +17,7 @@ import {
 import DecoratedPage from "../components/DecoratedPage";
 import { FORM_COLUMN_STYLE } from "../styles/forms";
 import type { SoknadInputs } from "../features/soknad/schema";
-import { useSoknadDraft } from "../context/SoknadDraftContext";
+import { type Lagringsfeil, useSoknadDraft } from "../context/SoknadDraftContext";
 import { EkspertVirksomhetVelger } from "../components/EkspertVirksomhetVelger.tsx";
 import { formaterVirksomhet } from "../components/formaterVirksomhet.ts";
 import { DraftActions } from "../components/DraftActions.tsx";
@@ -50,13 +50,25 @@ const RELEVANT_KOMPETANSE_ALTERNATIVER = [
   "Karriereveiledning",
 ];
 
+// PATCH slår opp ekspertens virksomhet i Enhetsregisteret. Feilene vises på feltet, ikke som lagringsfeil.
+const ekspertVirksomhetFeil = (feil: Lagringsfeil | null): string | null => {
+  if (feil?.felt === "ekspert.virksomhetOrgnr") {
+    return "Vi fant ikke virksomheten i Enhetsregisteret. Velg en annen virksomhet. Utkastet blir ikke lagret før du har gjort det.";
+  }
+  if (feil?.kode === "OPPSLAG_FEILET") {
+    return "Vi fikk ikke hentet virksomheten fra Enhetsregisteret. Fjern den og velg den på nytt om litt. Utkastet blir ikke lagret før det går.";
+  }
+  return null;
+};
+
 export default function SkjemaSteg2Page() {
   const form = useFormContext<SoknadInputs>();
-  const { control, register, setValue, formState } = form;
+  const { control, register, setValue, setError, clearErrors, formState } = form;
   const { errors } = formState;
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
 
-  const { draftId, clearDraft, lastPersistedAt, saveError } = useSoknadDraft();
+  const { draftId, clearDraft, lastPersistedAt, saveError, lagringsfeil } = useSoknadDraft();
+  const virksomhetFeil = ekspertVirksomhetFeil(lagringsfeil);
   const {
     goToSoknader,
     goToSoknaderWithSaveNotice,
@@ -89,7 +101,10 @@ export default function SkjemaSteg2Page() {
   const handleSubmitStep2 = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const valid = await form.trigger(STEP2_FIELDS);
-    if (!valid) {
+    if (virksomhetFeil) {
+      setError("ekspert.virksomhet", { type: "server", message: virksomhetFeil });
+    }
+    if (!valid || virksomhetFeil) {
       bumpFocusKey();
       return;
     }
@@ -197,6 +212,7 @@ export default function SkjemaSteg2Page() {
                   <EkspertVirksomhetVelger
                     value={field.value ?? ""}
                     onChange={(organisasjon) => {
+                      clearErrors("ekspert.virksomhet");
                       field.onChange(formaterVirksomhet(organisasjon?.navn, organisasjon?.orgnr));
                       setValue("ekspert.virksomhetNavn", organisasjon?.navn ?? null, {
                         shouldDirty: true,
@@ -205,7 +221,7 @@ export default function SkjemaSteg2Page() {
                         shouldDirty: true,
                       });
                     }}
-                    error={fieldState.error?.message}
+                    error={fieldState.error?.message ?? virksomhetFeil}
                   />
                 )}
               />
@@ -275,7 +291,10 @@ export default function SkjemaSteg2Page() {
           />
 
           <VStack gap="space-16">
-            <SistLagretInfo timestamp={lastPersistedAt} saveError={saveError} />
+            <SistLagretInfo
+              timestamp={lastPersistedAt}
+              saveError={virksomhetFeil ? null : saveError}
+            />
             <HGrid
               gap={{ xs: "space-32", sm: "space-16" }}
               columns={{ xs: 1, sm: 2 }}

@@ -7,7 +7,11 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.altinn.AltinnTilgangerClientResponse
 import no.nav.ekspertbistand.altinn3Ressursid
@@ -21,6 +25,7 @@ import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
 import no.nav.ekspertbistand.mocks.mockEreg
 import no.nav.ekspertbistand.saksbehandling.MaksSats
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
@@ -54,12 +59,22 @@ class SoknadTest {
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
-                hierarki = emptyList(),
+                hierarki = listOf(
+                    AltinnTilgangerClientResponse.AltinnTilgang(
+                        erSlettet = false,
+                        orgnr = "910825226",
+                        organisasjonsform = "BEDR",
+                        navn = "Testbedrift AS",
+                        underenheter = emptyList(),
+                        altinn3Tilganger = setOf(altinn3Ressursid),
+                        altinn2Tilganger = emptySet(),
+                    )
+                ),
                 orgNrTilTilganger = mapOf(
-                    "1337" to setOf(altinn3Ressursid)
+                    "910825226" to setOf(altinn3Ressursid)
                 ),
                 tilgangTilOrgNr = mapOf(
-                    altinn3Ressursid to setOf("1337"),
+                    altinn3Ressursid to setOf("910825226"),
                 )
             )
         )
@@ -122,18 +137,24 @@ class SoknadTest {
         }
 
         var utkastId: String? = null
+        val deltakerFnr = gyldigFnr("010190123")
 
-        // opprett utkast
+        // opprett utkast, krever bekreftet deltaker
         with(
             client.post("/api/soknad/v1") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
+                setBody(ValiderDeltakerRequest(deltakerFnr, "910825226"))
             }
         ) {
             assertEquals(HttpStatusCode.Created, status)
             body<DTO.Utkast>().also { utkast ->
                 assert(utkast.id!!.isNotEmpty())
                 assertEquals("42", utkast.opprettetAv)
+                assertTrue(utkast.deltakerBekreftet)
+                assertEquals(deltakerFnr, utkast.ansatt?.fnr)
+                assertEquals("910825226", utkast.virksomhet?.virksomhetsnummer)
+                assertEquals("Testbedrift AS", utkast.virksomhet?.virksomhetsnavn)
 
                 utkastId = utkast.id
             }
@@ -176,7 +197,9 @@ class SoknadTest {
             body<DTO.Utkast>().also { utkast ->
                 assertEquals(utkastId, utkast.id)
                 assertEquals("42", utkast.opprettetAv)
-                assertNull(utkast.virksomhet, "virksomhet vises ikke før virksomhetsnummer er satt")
+                assertEquals("910825226", utkast.virksomhet?.virksomhetsnummer, "PATCH endrer ikke virksomhetsnummer")
+                assertEquals("Testbedrift AS", utkast.virksomhet?.virksomhetsnavn)
+                assertEquals("Donald Duck", utkast.virksomhet?.kontaktperson?.navn)
             }
         }
 
@@ -200,10 +223,15 @@ class SoknadTest {
     }
 
     @Test
-    fun `send inn soknad`() = testApplicationWithDatabase { testDb ->
+    fun `send inn soknad kopierer det lagrede utkastet`() = testApplicationWithDatabase { testDb ->
+        val medAdresse = "910825226"
+        val utenAdresse = "974760673"
         val eksisterendeSoknadId = UUID.randomUUID()
-        mockEreg {
-            """
+        val startdato = Clock.System.now().toLocalDateTime(TimeZone.of("Europe/Oslo")).date.plus(7, DateTimeUnit.DAY)
+
+        mockEreg { orgnr ->
+            if (orgnr != medAdresse) null
+            else """
             {
               "organisasjonDetaljer": {
                 "forretningsadresser": [
@@ -217,16 +245,13 @@ class SoknadTest {
             }
             """.trimIndent()
         }
+        // innsending sjekker bare hvem som opprettet utkastet, ikke Altinn-tilgangen
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
                 isError = false,
                 hierarki = emptyList(),
-                orgNrTilTilganger = mapOf(
-                    "1337" to setOf(altinn3Ressursid)
-                ),
-                tilgangTilOrgNr = mapOf(
-                    altinn3Ressursid to setOf("1337"),
-                )
+                orgNrTilTilganger = emptyMap(),
+                tilgangTilOrgNr = emptyMap(),
             )
         )
         client = createClient {
@@ -260,254 +285,136 @@ class SoknadTest {
             configureAuthentication()
             configureServer()
             configureSoknadApiV1()
+        }
 
+        fun lagreUtkast(virksomhetsnummer: String, komplett: Boolean = true): UUID =
             transaction(testDb.config.jdbcDatabase) {
-                SoknadTable.insert {
-                    it[id] = eksisterendeSoknadId
-                    it[virksomhetsnavn] = "foo bar AS"
-                    it[virksomhetsnummer] = "1337"
+                UtkastTable.insertReturning {
+                    it[UtkastTable.virksomhetsnummer] = virksomhetsnummer
+                    it[virksomhetsnavn] = "Navn fra Altinn AS"
+                    it[ansattFnr] = "12345678910"
+                    it[ansattNavn] = "Mona Moonlight"
+                    it[ansattBekreftetTidspunkt] = Clock.System.now()
                     it[opprettetAv] = "42"
-
-                    it[kontaktpersonNavn] = ""
-                    it[kontaktpersonEpost] = ""
-                    it[kontaktpersonTelefon] = ""
-                    it[ansattFnr] = ""
-                    it[ansattNavn] = ""
-                    it[ekspertNavn] = ""
-                    it[ekspertVirksomhet] = ""
-                    it[ekspertKompetanse] = ""
-                    it[behovForBistand] = ""
-                    it[behovForBistandBegrunnelse] = ""
-                    it[behovForBistandTilrettelegging] = ""
-                    it[behovForBistandEstimertKostnad] = ""
-                    it[behovForBistandTimer] = ""
-                    it[behovForBistandStartdato] = CurrentDate
-                    it[navKontaktPerson] = ""
-                    it[beliggenhetsadresse] = ""
-                    it[status] = SoknadStatus.innsendt.toString()
-                }
+                    if (komplett) {
+                        it[kontaktpersonNavn] = "Donald Duck"
+                        it[kontaktpersonEpost] = "donald@duck.co"
+                        it[kontaktpersonTelefon] = "12345678"
+                        it[ekspertNavn] = "Egon Olsen"
+                        it[ekspertVirksomhet] = "Olsenbanden AS (987654321)"
+                        it[ekspertVirksomhetNavn] = "Olsenbanden AS"
+                        it[ekspertVirksomhetOrgnr] = "987654321"
+                        it[ekspertGodkjentUtdanningEllerAutorisasjon] = encodeStringList(listOf("psykolog"))
+                        it[ekspertRelevantKompetanse] = encodeStringList(listOf("ergonomi"))
+                        it[behovForBistand] = "Tilrettelegging"
+                        it[behovForBistandBegrunnelse] = "Tilrettelegging på arbeidsplassen"
+                        it[behovForBistandEstimertKostnad] = "24900"
+                        it[behovForBistandTimer] = "16"
+                        it[behovForBistandTilrettelegging] = "Spesialtilpasset kontor"
+                        it[behovForBistandStartdato] = startdato
+                        it[navKontaktPerson] = "Navn Navnesen"
+                    }
+                }.single()[UtkastTable.id].value
             }
+
+        suspend fun sendInn(id: Any) = client.put("/api/soknad/v1/$id") { bearerAuth("faketoken") }
+
+        fun utkastFinnes(id: UUID) = transaction(testDb.config.jdbcDatabase) {
+            !UtkastTable.selectAll().where { UtkastTable.id eq id }.empty()
         }
 
-
-        // put soknad på id som ikke er uuid gir 400
-        with(
-            client.put("/api/soknad/v1/ikke-uuid") {
-                bearerAuth("faketoken")
-                contentType(ContentType.Application.Json)
-            }
-        ) {
-            assertEquals(HttpStatusCode.BadRequest, status)
+        fun innsendteEventer() = transaction(testDb.config.jdbcDatabase) {
+            QueuedEvents.selectAll().map { it.tilQueuedEvent().eventData }.filterIsInstance<EventData.SoknadInnsendt>()
         }
 
-        // put soknad på id som ikke finnes gir 409
-        with(
-            client.put("/api/soknad/v1/${UUID.randomUUID()}") {
-                bearerAuth("faketoken")
-                contentType(ContentType.Application.Json)
-            }
-        ) {
-            assertEquals(HttpStatusCode.Conflict, status)
-        }
-
-        // put soknad på id er allerede er sendt inn gir 409
-        with(
-            client.put("/api/soknad/v1/$eksisterendeSoknadId") {
-                bearerAuth("faketoken")
-                contentType(ContentType.Application.Json)
-            }
-        ) {
-            assertEquals(HttpStatusCode.Conflict, status)
-        }
-
-        val eksisterendeUtkast = transaction(testDb.config.jdbcDatabase) {
-            UtkastTable.insertReturning {
-                it[virksomhetsnummer] = "1337"
+        transaction(testDb.config.jdbcDatabase) {
+            SoknadTable.insert {
+                it[id] = eksisterendeSoknadId
                 it[virksomhetsnavn] = "foo bar AS"
-                it[ansattFnr] = "12345678910"
-                it[ansattNavn] = "Mona Moonlight"
-                it[ansattBekreftetTidspunkt] = Clock.System.now()
+                it[virksomhetsnummer] = medAdresse
                 it[opprettetAv] = "42"
-            }.single().tilUtkastDTO()
-        }
-        val ubekreftetUtkast = transaction(testDb.config.jdbcDatabase) {
-            UtkastTable.insertReturning {
-                it[virksomhetsnummer] = "1337"
-                it[virksomhetsnavn] = "foo bar AS"
-                it[ansattFnr] = "12345678910"
-                it[opprettetAv] = "42"
-            }.single().tilUtkastDTO()
+
+                it[kontaktpersonNavn] = ""
+                it[kontaktpersonEpost] = ""
+                it[kontaktpersonTelefon] = ""
+                it[ansattFnr] = ""
+                it[ansattNavn] = ""
+                it[ekspertNavn] = ""
+                it[ekspertVirksomhet] = ""
+                it[ekspertKompetanse] = ""
+                it[behovForBistand] = ""
+                it[behovForBistandBegrunnelse] = ""
+                it[behovForBistandTilrettelegging] = ""
+                it[behovForBistandEstimertKostnad] = ""
+                it[behovForBistandTimer] = ""
+                it[behovForBistandStartdato] = CurrentDate
+                it[navKontaktPerson] = ""
+                it[beliggenhetsadresse] = ""
+                it[status] = SoknadStatus.innsendt.toString()
+            }
         }
 
-        // put med ugyldig payload gir 400
-        with(
-            client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
-                bearerAuth("faketoken")
-                contentType(ContentType.Application.Json)
-                setBody(
-                    """
-                            {
-                              "foo": "bar"
-                            }
-                        """.trimIndent()
-                )
-            }
-        ) {
-            assertEquals(HttpStatusCode.BadRequest, status)
-        }
+        assertEquals(HttpStatusCode.BadRequest, sendInn("ikke-uuid").status)
+        assertEquals(HttpStatusCode.Conflict, sendInn(UUID.randomUUID()).status, "utkastet finnes ikke")
+        assertEquals(HttpStatusCode.Conflict, sendInn(eksisterendeSoknadId).status, "allerede sendt inn")
 
-        // put med gift i tekstfelt gir 400 (backend-validering av input)
-        with(
-            client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
-                bearerAuth("faketoken")
-                contentType(ContentType.Application.Json)
-                setBody(
-                    DTO.Soknad(
-                        virksomhet = DTO.Virksomhet(
-                            virksomhetsnummer = "1337",
-                            virksomhetsnavn = "foo bar AS",
-                            kontaktperson = DTO.Kontaktperson(
-                                navn = "<script>alert(1)</script>",
-                                epost = "donald@duck.co",
-                                telefonnummer = "12345678"
-                            )
-                        ),
-                        ansatt = DTO.Ansatt(
-                            fnr = "12345678910",
-                            navn = "Ole Olsen"
-                        ),
-                        ekspert = DTO.Ekspert(
-                            navn = "Egon Olsen",
-                            virksomhet = "Olsenbanden AS",
-                            kompetanse = "Bankran",
-                        ),
-                        behovForBistand = DTO.BehovForBistand(
-                            behov = "Tilrettelegging",
-                            begrunnelse = "Tilrettelegging på arbeidsplassen",
-                            estimertKostnad = "4200",
-                            timer = "16",
-                            tilrettelegging = "Spesialtilpasset kontor",
-                            startdato = LocalDate.parse("2024-11-15")
-                        ),
-                        nav = DTO.Nav(
-                            kontaktperson = "Navn Navnesen"
-                        ),
-                        status = SoknadStatus.innsendt,
-                    )
-                )
-            }
-        ) {
+        // ufullstendig utkast gir 400 med feltsti, og utkastet beholdes
+        val ufullstendig = lagreUtkast(medAdresse, komplett = false)
+        with(sendInn(ufullstendig)) {
             assertEquals(HttpStatusCode.BadRequest, status)
             val feil = body<Map<String, String>>()
             assertEquals(UGYLDIG_INPUT, feil["kode"])
             assertEquals("virksomhet.kontaktperson.navn", feil["felt"])
-            assertEquals(
-                "Ugyldig verdi i felt 'virksomhet.kontaktperson.navn': inneholder < eller >",
-                feil["message"],
-            )
         }
+        assertTrue(utkastFinnes(ufullstendig))
+        assertTrue(innsendteEventer().isEmpty())
 
-        val gyldigSoknad = DTO.Soknad(
-            virksomhet = DTO.Virksomhet(
-                virksomhetsnummer = "1337",
-                virksomhetsnavn = "foo bar AS",
-                kontaktperson = DTO.Kontaktperson(
-                    navn = "Donald Duck",
-                    epost = "Donald@duck.co",
-                    telefonnummer = "12345678"
-                )
-            ),
-            ansatt = DTO.Ansatt(fnr = "12345678910", navn = "Ole Olsen"),
-            ekspert = DTO.Ekspert(
-                navn = "Egon Olsen",
-                virksomhet = "Olsenbanden AS",
-                kompetanse = "Bankran",
-            ),
-            behovForBistand = DTO.BehovForBistand(
-                behov = "Tilrettelegging",
-                begrunnelse = "Tilrettelegging på arbeidsplassen",
-                estimertKostnad = "24900",
-                timer = "16",
-                tilrettelegging = "Spesialtilpasset kontor",
-                startdato = LocalDate.parse("2026-11-15")
-            ),
-            nav = DTO.Nav(kontaktperson = "Navn Navnesen"),
-            status = SoknadStatus.innsendt,
-        )
-
-        for (ugyldigBelop in listOf("24901", "1e4", "12.5", "0", "")) {
-            val response = client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
-                bearerAuth("faketoken")
-                contentType(ContentType.Application.Json)
-                setBody(
-                    gyldigSoknad.copy(
-                        behovForBistand = gyldigSoknad.behovForBistand.copy(estimertKostnad = ugyldigBelop)
-                    )
-                )
-            }
-            assertEquals(HttpStatusCode.BadRequest, response.status)
-            assertEquals("behovForBistand.estimertKostnad", response.body<Map<String, String>>()["felt"])
-        }
-
+        // komplett utkast sendes inn, og body ignoreres
+        val komplett = lagreUtkast(medAdresse)
         with(
-            client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
+            client.put("/api/soknad/v1/$komplett") {
                 bearerAuth("faketoken")
                 contentType(ContentType.Application.Json)
-                setBody(
-                    gyldigSoknad.copy(
-                        behovForBistand = gyldigSoknad.behovForBistand.copy(
-                            startdato = LocalDate(2025, 12, 31)
-                        )
-                    )
-                )
-            }
-        ) {
-            assertEquals(HttpStatusCode.BadRequest, status)
-            assertEquals("behovForBistand.startdato", body<Map<String, String>>()["felt"])
-        }
-
-        // put uten bekreftet deltaker, eller med annen deltaker eller virksomhet enn bekreftet, gir 400
-        for ((utkastId, soknad) in listOf(
-            ubekreftetUtkast.id to gyldigSoknad,
-            eksisterendeUtkast.id to gyldigSoknad.copy(ansatt = gyldigSoknad.ansatt.copy(fnr = "10987654321")),
-        )) {
-            val response = client.put("/api/soknad/v1/$utkastId") {
-                bearerAuth("faketoken")
-                contentType(ContentType.Application.Json)
-                setBody(soknad)
-            }
-            assertEquals(HttpStatusCode.BadRequest, response.status)
-            assertEquals("ansatt.fnr", response.body<Map<String, String>>()["felt"])
-        }
-
-        // put med gyldig payload gir 200 og soknad i retur
-        with(
-            client.put("/api/soknad/v1/${eksisterendeUtkast.id}") {
-                bearerAuth("faketoken")
-                contentType(ContentType.Application.Json)
-                setBody(gyldigSoknad)
+                setBody("""{ "virksomhet": { "virksomhetsnavn": "Fra body AS" }, "ansatt": { "navn": "Fra body" } }""")
             }
         ) {
             assertEquals(HttpStatusCode.OK, status)
             body<DTO.Soknad>().also { soknad ->
-                assertEquals(eksisterendeUtkast.id, soknad.id)
+                assertEquals(komplett.toString(), soknad.id)
                 assertEquals("42", soknad.opprettetAv)
-                assertEquals("1337", soknad.virksomhet.virksomhetsnummer)
+                assertEquals(SoknadStatus.innsendt, soknad.status)
+                assertEquals(medAdresse, soknad.virksomhet.virksomhetsnummer)
+                assertEquals("Navn fra Altinn AS", soknad.virksomhet.virksomhetsnavn)
+                assertEquals("Donald Duck", soknad.virksomhet.kontaktperson.navn)
                 assertEquals("Testveien 1, 0557 Oslo", soknad.virksomhet.beliggenhetsadresse)
-                // navnet kommer fra bekreftelsen på utkastet, ikke fra request-body
+                assertEquals("12345678910", soknad.ansatt.fnr)
                 assertEquals("Mona Moonlight", soknad.ansatt.navn)
-
-                // opprettetTidspunkt skal være nytt
-                assertNotEquals(eksisterendeUtkast.opprettetTidspunkt, soknad.opprettetTidspunkt)
+                assertEquals("Egon Olsen", soknad.ekspert.navn)
+                assertEquals("Olsenbanden AS (987654321)", soknad.ekspert.virksomhet)
+                assertEquals("Olsenbanden AS", soknad.ekspert.virksomhetNavn)
+                assertEquals("987654321", soknad.ekspert.virksomhetOrgnr)
+                assertEquals(listOf("psykolog"), soknad.ekspert.godkjentUtdanningEllerAutorisasjon)
+                assertEquals(listOf("ergonomi"), soknad.ekspert.relevantKompetanse)
+                assertEquals("24900", soknad.behovForBistand.estimertKostnad)
+                assertEquals(startdato, soknad.behovForBistand.startdato)
+                assertEquals("Navn Navnesen", soknad.nav.kontaktperson)
             }
+        }
+        assertFalse(utkastFinnes(komplett))
+        innsendteEventer().single().also { event ->
+            assertEquals(komplett.toString(), event.soknad.id)
+            assertEquals("Navn fra Altinn AS", event.soknad.virksomhet.virksomhetsnavn)
+        }
 
-            // SoknadInnsendt event skal være lagt til i QueuedEvents
-            val events = transaction(testDb.config.jdbcDatabase) {
-                QueuedEvents.selectAll().map { it.tilQueuedEvent() }
-            }
+        // samme utkast kan ikke sendes inn to ganger
+        assertEquals(HttpStatusCode.Conflict, sendInn(komplett).status)
+        assertEquals(1, innsendteEventer().size)
 
-            assertEquals(1, events.count())
-            assertIs<EventData.SoknadInnsendt>(events.first().eventData)
+        // mangler adressen i Ereg, lagres den som null
+        val komplettUtenAdresse = lagreUtkast(utenAdresse)
+        with(sendInn(komplettUtenAdresse)) {
+            assertEquals(HttpStatusCode.OK, status)
+            assertNull(body<DTO.Soknad>().virksomhet.beliggenhetsadresse)
         }
     }
 
@@ -822,10 +729,10 @@ class SoknadTest {
             {
                 UtkastTable.insert {
                     it[id] = UUID.randomUUID()
-                    it[virksomhetsnummer] = null
-                    it[virksomhetsnavn] = null
+                    it[virksomhetsnummer] = "1337"
+                    it[virksomhetsnavn] = "eget AS"
                     it[opprettetAv] = "42"
-                    it[behovForBistand] = "utkast som ikke har virksomhet"
+                    it[behovForBistand] = "eget utkast"
                     it[behovForBistandTilrettelegging] = ""
                     it[behovForBistandBegrunnelse] = ""
                     it[behovForBistandEstimertKostnad] = "42"
@@ -837,6 +744,7 @@ class SoknadTest {
                     it[kontaktpersonTelefon] = null
                     it[ansattFnr] = ""
                     it[ansattNavn] = ""
+                    it[ansattBekreftetTidspunkt] = Clock.System.now()
                     it[ekspertNavn] = ""
                     it[ekspertVirksomhet] = ""
                     it[ekspertKompetanse] = ""
@@ -860,6 +768,7 @@ class SoknadTest {
                     it[kontaktpersonTelefon] = ""
                     it[ansattFnr] = ""
                     it[ansattNavn] = ""
+                    it[ansattBekreftetTidspunkt] = Clock.System.now()
                     it[ekspertNavn] = ""
                     it[ekspertVirksomhet] = ""
                     it[ekspertKompetanse] = ""
@@ -879,7 +788,7 @@ class SoknadTest {
                     // utkastet til pid 44 for 1337 vises ikke, selv om innlogget har tilgang til 1337
                     assertEquals(1, soknader.size)
                     assertEquals("42", soknader.single().opprettetAv)
-                    assertNull(soknader.single().virksomhet)
+                    assertEquals("eget AS", soknader.single().virksomhet?.virksomhetsnavn)
                 }
             }
 
@@ -935,21 +844,15 @@ class SoknadTest {
                 configureSoknadApiV1()
             }
 
-            val utkastISammeVirksomhet = UUID.randomUUID()
-            val utkastUtenOrgnr = UUID.randomUUID()
+            val utkastId = UUID.randomUUID()
             transaction(testDb.config.jdbcDatabase) {
                 UtkastTable.insert {
-                    it[id] = utkastISammeVirksomhet
+                    it[id] = utkastId
                     it[virksomhetsnummer] = "1337"
                     it[virksomhetsnavn] = "Offer AS"
                     it[ansattFnr] = "12345678910"
                     it[ansattNavn] = "Ole Olsen"
-                    it[opprettetAv] = "42"
-                }
-                UtkastTable.insert {
-                    it[id] = utkastUtenOrgnr
-                    it[ansattFnr] = "12345678910"
-                    it[ansattNavn] = "Ole Olsen"
+                    it[ansattBekreftetTidspunkt] = Clock.System.now()
                     it[opprettetAv] = "42"
                 }
             }
@@ -963,52 +866,30 @@ class SoknadTest {
                     telefonnummer = "12345678",
                 ),
             )
-            val soknadMedEgenVirksomhet = DTO.Soknad(
-                virksomhet = egenVirksomhet,
-                ansatt = DTO.Ansatt(fnr = "12345678910", navn = "Ole Olsen"),
-                ekspert = DTO.Ekspert(navn = "Egon Olsen", virksomhet = "Olsenbanden AS", kompetanse = "Bankran"),
-                behovForBistand = DTO.BehovForBistand(
-                    behov = "Tilrettelegging",
-                    begrunnelse = "Tilrettelegging på arbeidsplassen",
-                    estimertKostnad = "24900",
-                    timer = "16",
-                    tilrettelegging = "Spesialtilpasset kontor",
-                    startdato = LocalDate.parse("2026-11-15"),
-                ),
-                nav = DTO.Nav(kontaktperson = "Navn Navnesen"),
+            assertEquals(
+                HttpStatusCode.Forbidden,
+                client.get("/api/soknad/v1/$utkastId") { bearerAuth("angriper") }.status,
             )
-
-            for (utkastId in listOf(utkastISammeVirksomhet, utkastUtenOrgnr)) {
-                assertEquals(
-                    HttpStatusCode.Forbidden,
-                    client.get("/api/soknad/v1/$utkastId") { bearerAuth("angriper") }.status,
-                )
-                assertEquals(
-                    HttpStatusCode.Forbidden,
-                    client.patch("/api/soknad/v1/$utkastId") {
-                        bearerAuth("angriper")
-                        contentType(ContentType.Application.Json)
-                        setBody(DTO.Utkast(virksomhet = egenVirksomhet))
-                    }.status,
-                )
-                assertEquals(
-                    HttpStatusCode.Forbidden,
-                    client.put("/api/soknad/v1/$utkastId") {
-                        bearerAuth("angriper")
-                        contentType(ContentType.Application.Json)
-                        setBody(soknadMedEgenVirksomhet)
-                    }.status,
-                )
-                assertEquals(
-                    HttpStatusCode.Forbidden,
-                    client.delete("/api/soknad/v1/$utkastId") { bearerAuth("angriper") }.status,
-                )
-            }
+            assertEquals(
+                HttpStatusCode.Forbidden,
+                client.patch("/api/soknad/v1/$utkastId") {
+                    bearerAuth("angriper")
+                    contentType(ContentType.Application.Json)
+                    setBody(DTO.Utkast(virksomhet = egenVirksomhet))
+                }.status,
+            )
+            assertEquals(
+                HttpStatusCode.Forbidden,
+                client.put("/api/soknad/v1/$utkastId") { bearerAuth("angriper") }.status,
+            )
+            assertEquals(
+                HttpStatusCode.Forbidden,
+                client.delete("/api/soknad/v1/$utkastId") { bearerAuth("angriper") }.status,
+            )
 
             transaction(testDb.config.jdbcDatabase) {
                 val rader = UtkastTable.selectAll().associateBy { it[UtkastTable.id].value }
-                assertEquals("Offer AS", rader[utkastISammeVirksomhet]!![UtkastTable.virksomhetsnavn])
-                assertNull(rader[utkastUtenOrgnr]!![UtkastTable.virksomhetsnummer])
+                assertEquals("Offer AS", rader[utkastId]!![UtkastTable.virksomhetsnavn])
                 assertTrue(SoknadTable.selectAll().empty())
             }
         }

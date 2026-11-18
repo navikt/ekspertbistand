@@ -33,7 +33,7 @@ val IngenVinkelparenteser = TekstSjekk { verdi ->
 /** Avviser kontrolltegn, med unntak av vanlig whitespace (tab, linjeskift). */
 val IngenKontrolltegn = TekstSjekk { verdi ->
     if (verdi.any {
-//        it.isISOControl() && Dropper denne midlertidig så det ikke brekker for virksomheter i prod
+        it.isISOControl() &&
             it != '\t' && it != '\n' && it != '\r'
         })
         "inneholder kontrolltegn"
