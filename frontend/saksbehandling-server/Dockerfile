@@ -6,7 +6,7 @@ USER root
 ENV NODE_ENV=production
 WORKDIR /workspace
 
-RUN npm install --global corepack && corepack enable
+RUN corepack enable
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./.npmrc ./
 COPY frontend/saksbehandling/package.json frontend/saksbehandling/
