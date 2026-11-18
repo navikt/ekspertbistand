@@ -1,6 +1,6 @@
 # Lanseringsplan ekspertbistand: frist 1. april 2027
 
-Status per 15.11.2026. Grunnlaget er Trello-tavla «Team FAGER» (listene
+Status per 18.11.2026. Grunnlaget er Trello-tavla «Team FAGER» (listene
 `Ekspertbistand`, `DOING`, `Weekly commits`, `Huskeliste ekspertbistand` og
 `Backlog`), åpne PR-er og koden på `main`.
 
@@ -40,6 +40,10 @@ Planen gir oversikt. Detaljer i hver oppgave tar vi i teamet, kort for kort.
   [8. Trekke, avvise, avbryte og omgjøre](#8-trekke-avvise-avbryte-og-omgjøre).
   Omgjøring av vedtak ([689](https://trello.com/c/KwIMHZP9)) er fortsatt ikke regnet med, se
   [Åpne spørsmål](#åpne-spørsmål).
+- Refusjonsbehandlingen ble planlagt 18.11. Godkjenning skjer i ett steg,
+  avslag i to. Arbeidsgiver får to påminnelser før refusjonsfristen, og
+  beløpet frigjøres hvis kravet ikke kommer. Det gir to nye oppgaver, cirka
+  5 dager. Se [Avklart](#avklart).
 
 ## Statusoversikt
 
@@ -69,10 +73,10 @@ andre. Antall blokker viser størrelsen:
 For 🟡 gjelder anslaget det som gjenstår. Summene regner M som 2,5 dager
 og XL som 10 dager.
 
-**Totalt cirka 109 utviklerdager** (22 utvikleruker). Frigjøring av beslutter
+**Totalt cirka 114 utviklerdager** (23 utvikleruker). Frigjøring av beslutter
 og omgjøring av vedtak er ikke med. Kapasiteten er cirka 180 dager: 16 uker ×
 3 utviklere, minus vinterferie, ganger 80 %. Det gir rom for at anslagene
-sprekker med rundt 65 %, men ikke for mye ny scope.
+sprekker med rundt 60 %, men ikke for mye ny scope.
 
 ### Søknad (arbeidsgiver)
 
@@ -172,13 +176,15 @@ Gjenstår: cirka 12 dager.
 | 🟢 | – | – | 🧾 Hendelser når refusjonskravet og sluttrapporten er mottatt ([#249](https://github.com/navikt/ekspertbistand/pull/249)) | [702](https://trello.com/c/TK7W0dt3) |
 | 🔴 | M2 | `S  ■` | 🧾 Hendelse når sluttrapporten er bekreftet, med post i saksloggen | [715](https://trello.com/c/KBHePFbQ) |
 | 🔴 | M2 | `S  ■` | 🧾 Hendelser når refusjonskravet er sendt til utbetaling eller avslått, med post i saksloggen | [716](https://trello.com/c/BvM7Dir9) |
-| 🔴 | M2 | `L  ■■■` | 🧾 Behandle refusjonskrav: godkjenn, eller avslå via beslutter. Statuser og GUI etter Figma. Sluttrapporten må være mottatt. | Mangler kort |
+| 🔴 | M2 | `L  ■■■` | 🧾 Behandle refusjonskrav. Saksbehandler eller beslutter attesterer i ett steg: godkjenn, eller godkjenn med redusert beløp. Avslag går i to trinn: saksbehandler innstiller, beslutter avslår. Statuser og GUI etter Figma. Sluttrapporten må være mottatt. | Mangler kort |
 | 🔴 | M2 | `M  ■■` | 🗄️ Journalføre sluttrapporten på personmappa når den er mottatt | [701](https://trello.com/c/fHjZ4Yue) |
-| 🔴 | M3 | `S  ■` | 📣 Varsle arbeidsgiver når refusjonen er godkjent | Mangler kort |
+| 🔴 | M3 | `S  ■` | 📣 Varsle arbeidsgiver når refusjonskravet er godkjent eller avslått. Deltaker varsles ikke. | Mangler kort |
+| 🔴 | M3 | `M  ■■` | 📣 To påminnelser til arbeidsgiver før refusjonsfristen, når kravet ikke er sendt inn | Mangler kort |
+| 🔴 | M3 | `M  ■■` | 💸 Fristen går ut uten refusjonskrav: avslutt saken og frigjør beløpet ved å annullere bestillingen i OeBS | Mangler kort |
 | 🔴 | M2 | `M  ■■` | 💸 Avslutte saken etter utbetaling og sluttrapport | Mangler kort |
 | 🔴 | M3 | `S  ■` | 📤 Åpne innsending av refusjon og sluttrapport for arbeidsgiver i prod (i dag bare utenfor prod) | – |
 
-Gjenstår: cirka 20 dager.
+Gjenstår: cirka 25 dager.
 
 ### Trekke, avvise og avbryte
 
@@ -332,9 +338,11 @@ gjenbruker det samme:
 | Saksbehandler ser refusjonskrav, sluttrapport og vedlegg | 🟢 Ferdig i dev |
 | 🧾 Refusjon og sluttrapport som egne oppgaver i oversikten | 🟢 Ferdig i dev ([#248](https://github.com/navikt/ekspertbistand/pull/248)) |
 | 🧾 Hendelser for refusjonskrav og sluttrapport | 🟡 Mottatt er ferdig ([#249](https://github.com/navikt/ekspertbistand/pull/249), 702). Bekreftet sluttrapport (715) og krav sendt til utbetaling eller avslått (716) har egne kort. |
-| 🧾 **Behandle refusjonskrav:** godkjenn → send til utbetaling (ingen beslutter). Avslå → via beslutter. Én sak har ett refusjonskrav, som kan ha flere vedlegg. Sluttrapporten må være mottatt før kravet kan godkjennes (dobbeltsjekkes). | 🔴 Figma finnes. Ikke på Trello som eget kort. |
+| 🧾 **Behandle refusjonskrav:** saksbehandler eller beslutter attesterer i ett steg: godkjenn, eller godkjenn med redusert beløp, og send til utbetaling. Avslag går i to trinn: saksbehandler innstiller, beslutter avslår. Én sak har ett refusjonskrav, som kan ha flere vedlegg. Sluttrapporten må være mottatt før kravet kan godkjennes (dobbeltsjekkes). | 🔴 Figma finnes. Avklart 18.11. Ikke på Trello som eget kort. |
 | 🗄️ Journalføre sluttrapporten på personmappa | 🔴 Kort finnes (701) |
-| 📣 Varsle arbeidsgiver når refusjonen er godkjent (ikke deltaker) | 🔴 Ikke på Trello. Om deltaker skal varsles, er et åpent spørsmål (688). |
+| 📣 Varsle arbeidsgiver når refusjonskravet er godkjent eller avslått. Deltaker varsles ikke. | 🔴 Ikke på Trello. Om arbeidsgiver også skal få brev ved avslag, er et åpent spørsmål (4). |
+| 📣 To påminnelser til arbeidsgiver før refusjonsfristen, når kravet ikke er sendt inn | 🔴 Ikke på Trello |
+| 💸 Fristen går ut uten krav: avslutte saken og frigjøre beløpet (annullere bestillingen i OeBS) | 🔴 Ikke på Trello. Om det skjer automatisk, er et åpent spørsmål (3). |
 | 💸 Avslutte saken når utbetalingen er gjort (`AVSLUTTET`) | 🔴 Ikke på Trello |
 | 📤 Åpne innsending av refusjon og sluttrapport i prod | 🔴 Rutene er stengt i prod i dag |
 
@@ -439,8 +447,8 @@ ferdig i tidslinjen. Sikkerhetsfunn M2–M4 er noe annet enn milepælene M2–M4
 | Uke 45 (6.11.) | **M0: rydd bordet** 🟡 | 🧹 | 🟢 Utgiftsbeskrivelsen er fjernet, og de eksterne avklaringene har eier. 📝 Brevmalene og 📜 hendelsene (598) ble ikke ferdige og er flyttet til M1. |
 | Uke 46 (11.11.) | **P1: tidlig i prod** 🟢 | 🪪 📨 | 🟢 Nådd fem uker før planen. I prod, i dagens Arena-flyt: Aa-reg-sjekk i søknaden, kopi av søknaden til deltaker med dokdist, og tekst om kopien til arbeidsgiver i søknadsskjemaet. |
 | Uke 3 (22.1.) | **M1: vedtaket går ut** | ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: 🟢 arbeidsgiver får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. 🟢 Søknaden sladdes på arbeidsgivermappa. Hendelsene for varsler til arbeidsgiver finnes (598). 🟢 Bestilling, kvittering og annullering er testet mot OeBS i T1 (13.11.), og prosesseringen er startet i dev. |
-| Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ 🚫 | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler godkjenner, eller avslår via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, testet mot T1 i runde 2, og saken avsluttes. Saksbehandler kan trekke og avvise en søknad før vedtak, og arbeidsgiver og deltaker får beskjed. |
-| Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 📤 🚫 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonen er godkjent. Saksbehandler kan avbryte et tiltak, og arbeidsgiver og deltaker får vedtak. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem, og OeBS er skrudd på i prod. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
+| Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ 🚫 | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler eller beslutter godkjenner, helt eller med redusert beløp. Avslag går via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, testet mot T1 i runde 2, og saken avsluttes. Saksbehandler kan trekke og avvise en søknad før vedtak, og arbeidsgiver og deltaker får beskjed. |
+| Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 💸 📤 🚫 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonskravet er godkjent eller avslått, og to påminnelser før fristen. Beløpet frigjøres når fristen går ut uten krav. Saksbehandler kan avbryte et tiltak, og arbeidsgiver og deltaker får vedtak. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem, og OeBS er skrudd på i prod. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
 | Uke 11 (19.3.) | **M4: go-live** | 🚦 | Entra-gruppene er synlige i Mine tilganger. Arena stenger for nye ekspertbistand-saker. Søknader sendt inn etter go-live behandles hos oss. Arena behandler ferdig sakene som ligger der. Salesforce og Modia får data om nye saker fra samme dag. |
 | Uke 12–13 | Buffer | – | Påske. Ingen planlagte prodsettinger. |
 
@@ -497,7 +505,8 @@ vedtak og 🗄️ sladding av søknaden på arbeidsgivermappa.
 3. 🗄️ Journalfør sluttrapporten (701).
 4. 📜 Hendelser for varsler til arbeidsgiver (598). Oppslagslogg og ArcSight
    (sikkerhetsfunn M2 og M3).
-5. 📣 Varsle arbeidsgiver når refusjonen er godkjent.
+5. 📣 Varsle arbeidsgiver når refusjonskravet er godkjent eller avslått, og
+   send to påminnelser før refusjonsfristen.
 6. 🚫 Trekke og avvise søknaden før vedtak, og avbryte tiltaket: handlingen i
    saksbehandling, brev og varsel til arbeidsgiver og deltaker. Brevtekstene
    kommer fra fag.
@@ -513,12 +522,13 @@ oversikten og hendelser når refusjonskravet og sluttrapporten er mottatt.
 
 1. 🏦 Merge [#259](https://github.com/navikt/ekspertbistand/pull/259) og rydd etter runde 1: slett testdata i dev, fjern
    skrivetilgangen og si fra til Valp og OeBS.
-2. 🧾 Behandle refusjonskrav: statuser, godkjenn, avslå via beslutter, GUI
+2. 🧾 Behandle refusjonskrav: statuser, godkjenn (også med redusert beløp)
+   av saksbehandler eller beslutter, avslå i to trinn, GUI
    etter Figma. Hendelsene for bekreftet sluttrapport (715) og krav sendt til
    utbetaling eller avslått (716) hører til her.
 3. 💸 Faktura og status tilbake fra OeBS (679). Oppdater kontrakten med
    `referanse` før vi bygger. Test i runde 2 mot T1 når OeBS er klare.
-   Avslutt saken.
+   Avslutt saken. Frigjør beløpet når fristen går ut uten krav.
 4. 🏦 Registrer ekspertbistand som økonomisystem (690). Skru på OeBS i prod
    når Valp har gitt lesetilgang ([#8573](https://github.com/navikt/mulighetsrommet/pull/8573)).
 5. Idempotens og samtidighet i saksbehandlings-API-ene (694).
@@ -578,8 +588,8 @@ Dette kan skje samtidig:
 
 Disse bør bli kort:
 
-1. 🧾 Behandle refusjonskrav: godkjenn, avslå via beslutter, statuser
-2. 📣 Varsle arbeidsgiver når refusjonen er godkjent
+1. 🧾 Behandle refusjonskrav: godkjenn helt eller redusert i ett steg, avslå i to trinn, statuser
+2. 📣 Varsle arbeidsgiver når refusjonskravet er godkjent eller avslått
 3. 💸 Avslutte saken etter utbetaling og sluttrapport
 4. 🚦 Prod-manifest for saksbehandling og overgang fra Arena-flyten i prod
 5. 🧪 Akseptansetest og opplæring med saksbehandlere
@@ -587,6 +597,8 @@ Disse bør bli kort:
 7. 🏦 Skru på OeBS i prod: start prosesseringen og lesetilgang i prod (Valp [#8573](https://github.com/navikt/mulighetsrommet/pull/8573))
 8. 🚫 Trekke eller avvise søknaden før vedtak, med informasjon til arbeidsgiver og deltaker
 9. 🚫 Avbryte tiltaket med vedtak til arbeidsgiver og deltaker
+10. 📣 To påminnelser til arbeidsgiver før refusjonsfristen
+11. 💸 Frigjøre beløpet og avslutte saken når fristen går ut uten krav
 
 ## Avklart
 
@@ -620,6 +632,16 @@ Disse bør bli kort:
 - **Refusjon:** Én sak har ett refusjonskrav, som kan ha flere vedlegg.
   Sluttrapporten må være mottatt før kravet godkjennes. Det siste skal
   dobbeltsjekkes.
+- **Refusjonsbehandling (møte 18.11., Ida, Espen, Ole Peter, Ken og Hanna):**
+  Saksbehandler eller beslutter attesterer refusjonskravet i ett steg:
+  godkjenn, eller godkjenn med redusert beløp. Avslag krever to trinn.
+  Beslutter må ha budsjettdisponeringsmyndighet, og rollebeskrivelsen i Mine
+  tilganger er oppdatert. Første kontroll, der arbeidsgiver kan bes sende
+  inn vedlegg på nytt, regnes ikke som forhåndsvarsel.
+- **Varsel og frist for refusjon (Jonas, 18.11.):** Bare arbeidsgiver
+  varsles når refusjonskravet er godkjent eller avslått. Arbeidsgiver får to
+  påminnelser før refusjonsfristen. Kommer ikke kravet, kan beløpet
+  fristilles, altså frigjøres ved at bestillingen i OeBS annulleres.
 - **Kapasitet:** Teamet har fullt fokus på ekspertbistand. 80 % er et godt
   anslag.
 - **Fortrolig adresse:** Arbeidsgiver får se navnet på deltaker etter
@@ -647,24 +669,27 @@ Disse bør bli kort:
    publisere samme kontrakt som Arena-topicet for arbeidsgiveraktivitet, og
    hvem eier visningen i Modia? Trengs innen uke 49.
 2. Bekreft at sluttrapporten må være mottatt før refusjonskravet godkjennes.
-3. Hva skjer med saken og OeBS-bestillingen når refusjonsfristen går ut uten
-   krav? Se [funn 4](README.md#funn).
-4. Får arbeidsgiver brev og varsel når refusjonskravet avslås, og skal
-   bestillingen da annulleres? Se [funn 5](README.md#funn).
+3. Når fristen går ut uten krav, skal beløpet frigjøres automatisk, eller
+   av saksbehandler? Hvor lenge før fristen sendes de to påminnelsene? Se
+   [funn 4](README.md#funn).
+4. Får arbeidsgiver brev i tillegg til varsel når refusjonskravet avslås,
+   og skal bestillingen da annulleres? Varsel er avklart (18.11.). Se
+   [funn 5](README.md#funn).
 5. Skal omgjøring av vedtak ([689](https://trello.com/c/KwIMHZP9)) være med
    i første release? Den er ikke regnet med. Grovt anslag er 2 uker eller
    mer, fordi den krever nytt vedtak, annullering og ny bestilling i OeBS.
    Hanna spør også om vi må forhåndsvarsle ved omgjøring.
-6. Skal deltaker varsles ved refusjon og sluttrapport
-   ([688](https://trello.com/c/TobxmCHI))? Ved trukket og avvist søknad får deltaker
-   informasjon (Hanna, 16.11.). Planen regner bare med varsel til
-   arbeidsgiver ved godkjent refusjon.
+6. Skal deltaker få beskjed når sluttrapporten er mottatt
+   ([688](https://trello.com/c/TobxmCHI))? Ved godkjent og avslått refusjon
+   varsles bare arbeidsgiver (18.11.). Ved trukket og avvist søknad får
+   deltaker informasjon (16.11.).
 7. Hvor skal saksbehandlingsløsningen åpnes fra, Modia eller noe annet
    ([711](https://trello.com/c/MfEIrQO6))? Kortet har ingen beskrivelse.
 8. Hvilken flyt skal annullere bestillingen i prod? Annullering er testet
    teknisk, men ingen flyt kaller den. Omgjøring annullerer det gamle
-   tilsagnet, og avbrudd gjør det ikke (Hanna, 16.11.). Ellers henger svaret
-   på spørsmål 3 og 4 og på sletting når deltaker trekker seg (607).
+   tilsagnet, og avbrudd gjør det ikke (Hanna, 16.11.). Utløpt frist uten
+   krav frigjør beløpet (18.11.). Ellers henger svaret på spørsmål 4 og på
+   sletting når deltaker trekker seg (607).
 9. Skal refusjonsfristen flyttes når tiltaket avbrytes og får ny sluttdato?
    Må bestillingen i OeBS også få ny sluttdato?
 10. Skal avbrudd av tiltaket gå via beslutter, slik andre vedtak gjør?
@@ -676,6 +701,14 @@ Disse bør bli kort:
     før vedtak, før søknaden slettes ([607](https://trello.com/c/aegaxk5R))?
 13. Hvordan får arbeidsgiver informasjonen ved trekk og avvisning: varsel og
     visning på ny rute, eller også brev?
+14. Hvordan forhåndsvarsler vi arbeidsgiver før avslag eller redusert beløp
+    på refusjonskravet? Første kontroll, der arbeidsgiver kan bes sende
+    vedlegg på nytt, regnes ikke som forhåndsvarsel (18.11.).
+15. Skal saksbehandler kunne be arbeidsgiver sende vedlegg på nytt i
+    løsningen? Det er ikke regnet med.
+16. Hva får arbeidsgiver vite når kravet godkjennes med redusert beløp: bare
+    varsel, eller også begrunnelse og brev? Frigjør oppgjøret av bestillingen
+    resten av beløpet i OeBS?
 
 ## Endringslogg
 

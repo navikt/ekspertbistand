@@ -30,7 +30,7 @@ Fargen sier ikke om steget er i prod. Det som er i prod i dag, står i
 teksten. Resten av ny saksbehandling går i prod samlet ved go-live (🚦, M4).
 
 Emojien etter statusen er steget i [lanseringsplanen](lanseringsplan_2027-04-01.md),
-for eksempel 🧾 for refusjonsbehandling. Statusene er fra 16.11.2026.
+for eksempel 🧾 for refusjonsbehandling. Statusene er fra 18.11.2026.
 
 ```mermaid
 sequenceDiagram
@@ -106,7 +106,7 @@ sequenceDiagram
     end
 
     rect rgba(102, 52, 176, 0.08)
-    Note over AG,EB: 4. Gjennomføring og refusjonskrav 🟢🟢🟡🟡🔴🔴🔴🔴
+    Note over AG,EB: 4. Gjennomføring og refusjonskrav 🟢🟢🟡🟡🔴🔴🔴🔴🔴
     Note over AG: Eksperten gjennomfører bistanden (utenfor løsningen)
     opt Tiltaket avbrytes før planlagt slutt
         AG->>SB: Melder at tiltaket avsluttes tidlig, eller deltaker gjør det (utenfor løsningen)
@@ -120,8 +120,11 @@ sequenceDiagram
     EB->>EB: 🟢 📤 Avviser krav over innvilget beløp
     EB->>EB: 🟢 🧾 Publiserer event og lager oppgave til saksbehandler
     Note over EB: Refusjonskrav MOTTATT · Sak REFUSJON_MOTTATT
-    opt Refusjonsfristen går ut uten krav
-        EB->>EB: 🔴 Avslutter saken og annullerer bestillingen (avklares)
+    opt Refusjonskravet er ikke sendt inn
+        EB-->>AG: 🔴 📣 To påminnelser før refusjonsfristen
+        opt Fristen går ut uten krav
+            EB->>EB: 🔴 💸 Avslutter saken og frigjør beløpet (annullerer bestillingen)
+        end
     end
     end
 
@@ -129,8 +132,9 @@ sequenceDiagram
     Note over AG,EB: 5. Refusjonsbehandling og utbetaling 🟢🟢🔴🔴🔴🔴🔴🔴🔴🔴
     SB->>EB: 🟢 🧾 Tildeler seg refusjonsoppgaven
     SB->>EB: 🟢 📤 Ser refusjonskravet og sluttrapporten
+    Note over SB,BE: Saksbehandler eller beslutter attesterer i ett steg. Avslag krever to trinn.
     alt Godkjent
-        SB->>EB: 🔴 🧾 Godkjenner (krever sluttrapport)
+        SB->>EB: 🔴 🧾 Godkjenner, helt eller med redusert beløp (krever sluttrapport)
         Note over EB: Sak REFUSJON_GODKJENT
         EB-->>AG: 🔴 📣 Varsel om godkjent refusjon
         EB->>EB: 🔴 💸 Sender faktura til OeBS
@@ -140,19 +144,19 @@ sequenceDiagram
     else Avslag
         SB->>EB: 🔴 🧾 Innstiller avslag
         BE->>EB: 🔴 🧾 Avslår eller returnerer
-        EB-->>AG: 🔴 Varsel om avslag (avklares)
+        EB-->>AG: 🔴 📣 Varsel om avslag (brev avklares)
         Note over EB: Sak AVSLUTTET
     end
     end
 ```
 
-🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
+🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 
-🟢 23 ferdig · 🟡 5 delvis · 🔴 19 mangler, av 47 steg i diagrammet. OeBS er ikke egen deltaker i
+🟢 23 ferdig · 🟡 5 delvis · 🔴 20 mangler, av 48 steg i diagrammet. OeBS er ikke egen deltaker i
 diagrammet. Kall til og svar fra OeBS vises som steg i Ekspertbistand.
 
 Deltaker får ikke varsel om refusjonen. Bare arbeidsgiver varsles når
-refusjonen er godkjent.
+refusjonskravet er godkjent eller avslått (18.11.).
 
 ### Lenker per steg
 
@@ -201,17 +205,18 @@ inne i Mermaid-diagrammer, så lenkene til Trello og PR-ene står her.
 | 38 | 🟡 📤 Sender refusjonskrav med vedlegg (justeres etter Figma) | Trello [685](https://trello.com/c/ZY79MovZ), [684](https://trello.com/c/hxzNc8Z4) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
 | 39 | 🟢 📤 Avviser krav over innvilget beløp | Trello [620](https://trello.com/c/NoJhv4wi) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
 | 40 | 🟢 🧾 Publiserer event og lager oppgave til saksbehandler | Trello [702](https://trello.com/c/TK7W0dt3) \| PR [#248](https://github.com/navikt/ekspertbistand/pull/248), [#249](https://github.com/navikt/ekspertbistand/pull/249) |
-| 41 | 🔴 Avslutter saken og annullerer bestillingen (avklares) | avklares, se åpne spørsmål 3 i planen |
-| 42 | 🟢 🧾 Tildeler seg refusjonsoppgaven | PR [#248](https://github.com/navikt/ekspertbistand/pull/248) |
-| 43 | 🟢 📤 Ser refusjonskravet og sluttrapporten | Trello [477](https://trello.com/c/YJI9Yf9G) |
-| 44 | 🔴 🧾 Godkjenner (krever sluttrapport) | Trello [715](https://trello.com/c/KBHePFbQ), [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
-| 45 | 🔴 📣 Varsel om godkjent refusjon | mangler kort |
-| 46 | 🔴 💸 Sender faktura til OeBS | Trello [679](https://trello.com/c/Cue4nB5k) |
-| 47 | 🔴 💸 OeBS melder FULLT_BETALT | Trello [679](https://trello.com/c/Cue4nB5k) |
-| 48 | 🔴 💸 Avslutter saken | mangler kort |
-| 49 | 🔴 🧾 Innstiller avslag | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
-| 50 | 🔴 🧾 Avslår eller returnerer | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
-| 51 | 🔴 Varsel om avslag (avklares) | avklares, se funn 5 |
+| 41 | 🔴 📣 To påminnelser før refusjonsfristen | mangler kort, se [Avklart](lanseringsplan_2027-04-01.md#avklart) i planen |
+| 42 | 🔴 💸 Avslutter saken og frigjør beløpet (annullerer bestillingen) | mangler kort, se [Avklart](lanseringsplan_2027-04-01.md#avklart) i planen |
+| 43 | 🟢 🧾 Tildeler seg refusjonsoppgaven | PR [#248](https://github.com/navikt/ekspertbistand/pull/248) |
+| 44 | 🟢 📤 Ser refusjonskravet og sluttrapporten | Trello [477](https://trello.com/c/YJI9Yf9G) |
+| 45 | 🔴 🧾 Godkjenner, helt eller med redusert beløp (krever sluttrapport) | Trello [715](https://trello.com/c/KBHePFbQ), [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
+| 46 | 🔴 📣 Varsel om godkjent refusjon | mangler kort |
+| 47 | 🔴 💸 Sender faktura til OeBS | Trello [679](https://trello.com/c/Cue4nB5k) |
+| 48 | 🔴 💸 OeBS melder FULLT_BETALT | Trello [679](https://trello.com/c/Cue4nB5k) |
+| 49 | 🔴 💸 Avslutter saken | mangler kort |
+| 50 | 🔴 🧾 Innstiller avslag | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
+| 51 | 🔴 🧾 Avslår eller returnerer | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
+| 52 | 🔴 📣 Varsel om avslag (brev avklares) | mangler kort, se funn 5 |
 
 ## Tilstander for saken
 
@@ -236,9 +241,9 @@ stateDiagram-v2
     TRUKKET --> [*]
     AVVIST --> [*]
     INNVILGET --> REFUSJON_MOTTATT: Arbeidsgiver sender refusjonskrav
-    INNVILGET --> AVSLUTTET: Fristen går ut uten krav (avklares)
+    INNVILGET --> AVSLUTTET: Fristen går ut uten krav, beløpet frigjøres
     REFUSJON_MOTTATT --> REFUSJON_UNDER_BEHANDLING: Saksbehandler tildeler seg
-    REFUSJON_UNDER_BEHANDLING --> REFUSJON_GODKJENT: Saksbehandler godkjenner
+    REFUSJON_UNDER_BEHANDLING --> REFUSJON_GODKJENT: Saksbehandler eller beslutter godkjenner
     REFUSJON_UNDER_BEHANDLING --> REFUSJON_TIL_BESLUTNING: Saksbehandler innstiller avslag
     REFUSJON_TIL_BESLUTNING --> REFUSJON_UNDER_BEHANDLING: Beslutter returnerer
     REFUSJON_TIL_BESLUTNING --> AVSLUTTET: Beslutter avslår
@@ -275,6 +280,7 @@ Hver aktør ser sin egen status. Tabellen viser hvordan de henger sammen.
 | Krav godkjent | 🟢 `godkjent` | 🔴 `REFUSJON_GODKJENT` | 🔴 godkjent | 🔴 faktura `SENDT` |
 | Utbetalt | 🟢 `godkjent` | 🟡 `AVSLUTTET` | 🔴 utbetalt | 🔴 faktura `FULLT_BETALT`, bestilling `OPPGJORT` |
 | Krav avslått | 🟢 `godkjent` | 🟡 `AVSLUTTET` | 🔴 avslått | 🔴 bestilling `ANNULLERT`? |
+| Frist utløpt uten krav | 🟢 `godkjent` | 🟡 `AVSLUTTET` | – | 🔴 bestilling `ANNULLERT`, beløpet frigjort |
 
 ## Funn
 
@@ -293,11 +299,15 @@ lanseringsplanen:
    refusjonsstatusene skal ligge i `Saksstatus` eller på refusjonskravet.
 3. **Arbeidsgiver ser bare `MOTTATT` på refusjonskravet.** Visningen av
    refusjonskravet på ny rute må vise godkjent, avslått og utbetalt.
-4. **Fristen går ut uten refusjonskrav.** Hva skjer med saken og
-   OeBS-bestillingen? Planen sier ingenting om det.
-5. **Avslag på refusjonskravet.** Planen nevner bare varsel når refusjonen
-   er godkjent. Et avslag er også et vedtak, så arbeidsgiver må trolig få
-   brev og varsel. Vi må også avklare om bestillingen skal annulleres.
+4. **Fristen går ut uten refusjonskrav.** Avklart 18.11.: arbeidsgiver får
+   to påminnelser før fristen. Kommer ikke kravet, frigjøres beløpet ved at
+   bestillingen annulleres, og saken avsluttes. Vi må avklare om det skjer
+   automatisk, og når påminnelsene sendes.
+5. **Avslag på refusjonskravet.** Avklart 18.11.: avslag krever to trinn,
+   og bare arbeidsgiver varsles. Et avslag er også et vedtak, så vi må
+   avklare om arbeidsgiver får brev, om bestillingen skal annulleres og
+   hvordan vi forhåndsvarsler. Første kontroll, der arbeidsgiver bes sende
+   vedlegg på nytt, regnes ikke som forhåndsvarsel.
 6. **`AVSLUTTET` dekker tre utfall:** utbetalt, avslått krav og utløpt frist.
    Trenger fag eller statistikken å skille dem?
 7. **OeBS-integrasjonen er testet, men ikke skrudd på.** Runde 1 mot T1 ble
