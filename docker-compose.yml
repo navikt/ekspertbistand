@@ -6,8 +6,8 @@ services:
       dockerfile: Dockerfile
       args:
         BASE_PATH: ${BASE_PATH:-/}
-        BUILDER_IMAGE: ${BUILDER_IMAGE:-node:24}
-        RUNNER_IMAGE: ${RUNNER_IMAGE:-cgr.dev/chainguard/node:latest}
+        BUILDER_IMAGE: ${BUILDER_IMAGE:-europe-north1-docker.pkg.dev/cgr-nav/pull-through/nav.no/node:24-dev}
+        RUNNER_IMAGE: ${RUNNER_IMAGE:-europe-north1-docker.pkg.dev/cgr-nav/pull-through/nav.no/node:24-slim}
         NODE_AUTH_TOKEN: ${NODE_AUTH_TOKEN}
     container_name: ekspertbistand
     environment:

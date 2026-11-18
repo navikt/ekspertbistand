@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:24 AS builder
+FROM europe-north1-docker.pkg.dev/cgr-nav/pull-through/nav.no/node:24-dev AS builder
+USER root
 
 ENV NODE_ENV=production
 WORKDIR /workspace
@@ -25,7 +26,7 @@ RUN pnpm --filter ./frontend/saksbehandling-server build
 RUN pnpm --filter ./frontend/saksbehandling-server deploy --prod --legacy /deploy/server
 
 
-FROM node:24-alpine AS runner
+FROM europe-north1-docker.pkg.dev/cgr-nav/pull-through/nav.no/node:24-slim AS runner
 
 ENV NODE_ENV=production
 ENV STATIC_DIR=/app/client/dist
@@ -36,8 +37,8 @@ COPY --from=builder /deploy/server/ ./
 COPY --from=builder /workspace/frontend/saksbehandling-server/dist ./dist
 COPY --from=builder /workspace/frontend/saksbehandling/dist ./client/dist
 
-USER node
+USER 65532:65532
 ENV PORT=4000
 EXPOSE 4000
 
-CMD ["node", "dist/index.js"]
+CMD ["dist/index.js"]
