@@ -73,10 +73,10 @@ andre. Antall blokker viser størrelsen:
 For 🟡 gjelder anslaget det som gjenstår. Summene regner M som 2,5 dager
 og XL som 10 dager.
 
-**Totalt cirka 114 utviklerdager** (23 utvikleruker). Frigjøring av beslutter
+**Totalt cirka 119 utviklerdager** (24 utvikleruker). Frigjøring av beslutter
 og omgjøring av vedtak er ikke med. Kapasiteten er cirka 180 dager: 16 uker ×
 3 utviklere, minus vinterferie, ganger 80 %. Det gir rom for at anslagene
-sprekker med rundt 60 %, men ikke for mye ny scope.
+sprekker med rundt 50 %, men ikke for mye ny scope.
 
 ### Søknad (arbeidsgiver)
 
@@ -156,10 +156,11 @@ Gjenstår: cirka 4 dager. Kortet «Send ut vedtaksbrev og tilsagnsbrev»
 | 🟢 | – | – | 🏦 Teste annullering mot OeBS i T1 (runde 1). Testet teknisk med rader lagt rett i `oebs_outbox`, fordi ingen flyt annullerer ennå. | [706](https://trello.com/c/qnJXAfzO) |
 | 🟡 | M1 | `XS ▪` | 🏦 Merge [#259](https://github.com/navikt/ekspertbistand/pull/259), som starter OeBS-prosesseringen i dev. Rydd etter runde 1: slett testdata, fjern skrivetilgangen og si fra til Valp og OeBS. | – (sjekkliste i specen i [#259](https://github.com/navikt/ekspertbistand/pull/259)) |
 | 🔴 | M2 | `XL ■■■■` | 💸 Fakturere i OeBS når refusjonskravet er godkjent, og gjøre opp bestillingen i samme melding. Avslag gir ingen faktura. Kontrakten har byttet `kid` med `referanse` (Valp [#8527](https://github.com/navikt/mulighetsrommet/pull/8527)), så speilingen vår må oppdateres. Testes mot T1 i runde 2 når OeBS er klare. | [679](https://trello.com/c/Cue4nB5k) |
+| 🔴 | M2 | `L  ■■■` | 🏦 Feilhåndtering mot OeBS: sperre utbetaling til bestillingen er aktiv, og få saken ut av en feilet bestilling, faktura eller oppgjør. Tiltaksøkonomi er idempotent, så etter retting må vi sende ny bestilling med nytt nummer. Må designes før vi anslår sikkert. | [724](https://trello.com/c/jgHBBvu3) |
 | 🔴 | M3 | `S  ■` | 🏦 Registrere ekspertbistand som økonomisystem (blant annet i Ardoq) | [690](https://trello.com/c/c6qNIdJK) |
 | 🔴 | M3 | `S  ■` | 🏦 Skru på OeBS i prod: start prosesseringen i prod og få lesetilgang i prod (Valp [#8573](https://github.com/navikt/mulighetsrommet/pull/8573)) | Mangler kort |
 
-Gjenstår: cirka 12 dager.
+Gjenstår: cirka 17 dager.
 
 ### Refusjon og sluttrapport
 
@@ -324,6 +325,7 @@ gjenbruker det samme:
 | 🔢 Sak-ID som løpenummer som matcher OeBS | 🟢 Ferdig |
 | 🏦 Sette av penger (bestilling) når vedtaket er innvilget | 🟢 Ferdig |
 | 💸 Utbetale (faktura) når refusjonskravet er godkjent, og gjøre opp bestillingen i samme melding | 🔴 Kort finnes (679). Runde 2 mot T1 venter på OeBS. `kid` er byttet med `referanse` i kontrakten. |
+| 🏦 **Feilhåndtering mot OeBS.** Saksbehandler kan ikke utbetale før bestillingen er aktiv. Teamet retter opp og sender ny bestilling, faktura eller oppgjør med nytt nummer, fordi samme nummer en gang til ikke endrer noe. | 🔴 Kort finnes (724), må planlegges og designes. |
 | 🏦 Registrere ekspertbistand som økonomisystem (blant annet i Ardoq) | 🔴 Kort finnes (690) |
 | Tiltakskode og konto registrert hos Team VALP | 🟡 Virker i T1 (runde 1). Bekreft at det er på plass i prod. |
 
@@ -447,7 +449,7 @@ ferdig i tidslinjen. Sikkerhetsfunn M2–M4 er noe annet enn milepælene M2–M4
 | Uke 45 (6.11.) | **M0: rydd bordet** 🟡 | 🧹 | 🟢 Utgiftsbeskrivelsen er fjernet, og de eksterne avklaringene har eier. 📝 Brevmalene og 📜 hendelsene (598) ble ikke ferdige og er flyttet til M1. |
 | Uke 46 (11.11.) | **P1: tidlig i prod** 🟢 | 🪪 📨 | 🟢 Nådd fem uker før planen. I prod, i dagens Arena-flyt: Aa-reg-sjekk i søknaden, kopi av søknaden til deltaker med dokdist, og tekst om kopien til arbeidsgiver i søknadsskjemaet. |
 | Uke 3 (22.1.) | **M1: vedtaket går ut** | ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: 🟢 arbeidsgiver får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. 🟢 Søknaden sladdes på arbeidsgivermappa. Hendelsene for varsler til arbeidsgiver finnes (598). 🟢 Bestilling, kvittering og annullering er testet mot OeBS i T1 (13.11.), og prosesseringen er startet i dev. |
-| Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ 🚫 | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler eller beslutter godkjenner, helt eller med redusert beløp. Avslag går via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, testet mot T1 i runde 2, og saken avsluttes. Saksbehandler kan trekke og avvise en søknad før vedtak, og arbeidsgiver og deltaker får beskjed. |
+| Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ 🚫 | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler eller beslutter godkjenner, helt eller med redusert beløp. Avslag går via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, testet mot T1 i runde 2, og saken avsluttes. Utbetaling er sperret til bestillingen er aktiv, og teamet kan få en sak ut av en feilet bestilling, faktura eller oppgjør. Saksbehandler kan trekke og avvise en søknad før vedtak, og arbeidsgiver og deltaker får beskjed. |
 | Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 💸 📤 🚫 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonskravet er godkjent eller avslått, og to påminnelser før fristen. Beløpet frigjøres når fristen går ut uten krav. Saksbehandler kan avbryte et tiltak, og arbeidsgiver og deltaker får vedtak. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem, og OeBS er skrudd på i prod. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
 | Uke 11 (19.3.) | **M4: go-live** | 🚦 | Entra-gruppene er synlige i Mine tilganger. Arena stenger for nye ekspertbistand-saker. Søknader sendt inn etter go-live behandles hos oss. Arena behandler ferdig sakene som ligger der. Salesforce og Modia får data om nye saker fra samme dag. |
 | Uke 12–13 | Buffer | – | Påske. Ingen planlagte prodsettinger. |
@@ -529,10 +531,13 @@ oversikten og hendelser når refusjonskravet og sluttrapporten er mottatt.
 3. 💸 Faktura og status tilbake fra OeBS (679). Oppdater kontrakten med
    `referanse` før vi bygger. Test i runde 2 mot T1 når OeBS er klare.
    Avslutt saken. Frigjør beløpet når fristen går ut uten krav.
-4. 🏦 Registrer ekspertbistand som økonomisystem (690). Skru på OeBS i prod
+4. 🏦 Feilhåndtering mot OeBS (724). Design først: hvordan teamet retter
+   opp og sender ny bestilling, faktura eller oppgjør med nytt nummer. Sperr
+   utbetaling til bestillingen er aktiv. Må være klart før faktura går i M2.
+5. 🏦 Registrer ekspertbistand som økonomisystem (690). Skru på OeBS i prod
    når Valp har gitt lesetilgang ([#8573](https://github.com/navikt/mulighetsrommet/pull/8573)).
-5. Idempotens og samtidighet i saksbehandlings-API-ene (694).
-6. 🚦 Prod-manifest for saksbehandling, overgang fra Arena-flyten, Entra-gruppene
+6. Idempotens og samtidighet i saksbehandlings-API-ene (694).
+7. 🚦 Prod-manifest for saksbehandling, overgang fra Arena-flyten, Entra-gruppene
    synlige i prod (687).
 
 ### Felles arbeid
@@ -615,6 +620,12 @@ Disse bør bli kort:
 - **Revarsling (16.11.):** Dokdist varsler deltaker på nytt automatisk når
   brevet ikke er åpnet. Det dekker etterlevelseskrav 204, så vi lager ikke
   revarsling selv.
+- **Feil fra OeBS (18.11.):** Teamet følger opp avviste bestillinger og
+  fakturaer, ikke saksbehandler. Feil må uansett rettes manuelt mot OeBS.
+  `FEILET` gir allerede `log.error` som trigger alert i Slack, testet i dev.
+  Saksbehandler ser fortsatt bare at bestillingen er sendt, men skal ikke
+  kunne utbetale før bestillingen er aktiv. Hvordan en sak kommer ut av en
+  feil, planlegges i eget kort (724).
 - **Trekke, avvise og avbryte (Hanna, 16.11.):** I første omgang kan bare
   saksbehandler trekke en søknad, og bare før vedtak. Trekk og avvisning er
   ikke vedtak. Arbeidsgiver og deltaker får informasjon. Avbrudd av tiltaket
@@ -709,6 +720,12 @@ Disse bør bli kort:
 16. Hva får arbeidsgiver vite når kravet godkjennes med redusert beløp: bare
     varsel, eller også begrunnelse og brev? Frigjør oppgjøret av bestillingen
     resten av beløpet i OeBS?
+17. Trenger vi alert når kvitteringen fra OeBS uteblir helt? I dag merker
+    vi bare `FEILET`, ikke en bestilling som aldri får svar. Tas med i 724.
+18. Feilhåndtering mot OeBS (724): hvordan retter teamet opp, hvordan
+    nummererer vi en ny bestilling for samme sak, og hva ser saksbehandler
+    og arbeidsgiver mens saken står fast? Gjelder bestilling, faktura og
+    oppgjør. Trenger vi noe fra OeBS eller Valp for å annullere den feilede?
 
 ## Endringslogg
 
