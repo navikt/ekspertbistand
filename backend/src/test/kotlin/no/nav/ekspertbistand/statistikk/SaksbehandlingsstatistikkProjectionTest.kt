@@ -13,7 +13,7 @@ import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -280,7 +280,7 @@ class SaksbehandlingsstatistikkProjectionTest {
     }
 
     private fun JdbcTransaction.registrer(
-        soknad: DTO.Soknad,
+        soknad: SoknadDomainV1,
         enhet: String,
         adressebeskyttelse: Adressebeskyttelse? = null,
     ) {
@@ -303,7 +303,7 @@ class SaksbehandlingsstatistikkProjectionTest {
         while (projection.poll()) Unit
     }
 
-    private fun meldinger(soknad: DTO.Soknad) = rader.filter { it.behandlingId == soknad.id }
+    private fun meldinger(soknad: SoknadDomainV1) = rader.filter { it.behandlingId == soknad.id }
 
     private fun tid(minutter: Int): Instant = start + minutter.minutes
 
@@ -312,14 +312,14 @@ class SaksbehandlingsstatistikkProjectionTest {
         ansatt = TestEventData.sampleSoknad.ansatt.copy(fnr = fnr),
     )
 
-    private fun journalfoert(soknad: DTO.Soknad, enhet: String) = EventData.InnsendtSoknadJournalfoert(
+    private fun journalfoert(soknad: SoknadDomainV1, enhet: String) = EventData.InnsendtSoknadJournalfoert(
         soknad = soknad,
         dokumentId = 1,
         journaldpostId = 2,
         behandlendeEnhetId = enhet,
     )
 
-    private fun tildeltSaksbehandler(soknad: DTO.Soknad, ident: String, tidspunkt: Instant) =
+    private fun tildeltSaksbehandler(soknad: SoknadDomainV1, ident: String, tidspunkt: Instant) =
         EventData.SakTildeltSaksbehandler(
             sakId = UUID.randomUUID().toString(),
             soknadId = soknad.id!!,
@@ -328,14 +328,14 @@ class SaksbehandlingsstatistikkProjectionTest {
             tidspunkt = tidspunkt,
         )
 
-    private fun frigjort(soknad: DTO.Soknad, ident: String, tidspunkt: Instant) = EventData.SakFrigjort(
+    private fun frigjort(soknad: SoknadDomainV1, ident: String, tidspunkt: Instant) = EventData.SakFrigjort(
         sakId = UUID.randomUUID().toString(),
         soknadId = soknad.id!!,
         saksbehandlerIdent = ident,
         tidspunkt = tidspunkt,
     )
 
-    private fun tildeltBeslutter(soknad: DTO.Soknad, ident: String, tidspunkt: Instant) =
+    private fun tildeltBeslutter(soknad: SoknadDomainV1, ident: String, tidspunkt: Instant) =
         EventData.SakTildeltBeslutter(
             sakId = UUID.randomUUID().toString(),
             soknadId = soknad.id!!,
@@ -345,7 +345,7 @@ class SaksbehandlingsstatistikkProjectionTest {
         )
 
     private fun forelopigVedtak(
-        soknad: DTO.Soknad,
+        soknad: SoknadDomainV1,
         utfall: ForelopigUtfall,
         tidspunkt: Instant,
         belop: Int? = null,
@@ -363,7 +363,7 @@ class SaksbehandlingsstatistikkProjectionTest {
             tidspunkt = tidspunkt,
         )
 
-    private fun retur(soknad: DTO.Soknad, versjon: Int, tidspunkt: Instant) = EventData.ForelopigVedtakReturnert(
+    private fun retur(soknad: SoknadDomainV1, versjon: Int, tidspunkt: Instant) = EventData.ForelopigVedtakReturnert(
         sakId = UUID.randomUUID().toString(),
         soknadId = soknad.id!!,
         forelopigVedtakVersjon = versjon,
@@ -374,7 +374,7 @@ class SaksbehandlingsstatistikkProjectionTest {
         tidspunkt = tidspunkt,
     )
 
-    private fun vedtak(soknad: DTO.Soknad, versjon: Int, utfall: Saksstatus, ident: String, tidspunkt: Instant) =
+    private fun vedtak(soknad: SoknadDomainV1, versjon: Int, utfall: Saksstatus, ident: String, tidspunkt: Instant) =
         TestEventData.vedtakFattet(
             sakId = UUID.randomUUID().toString(),
             soknadId = soknad.id!!,

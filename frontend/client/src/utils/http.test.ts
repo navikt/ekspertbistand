@@ -43,6 +43,7 @@ describe("http utils", () => {
     expect(await parseErrorPayload(response)).toEqual({
       message: "Over maksgrensen.",
       field: "behovForBistand.estimertKostnad",
+      code: "UGYLDIG_INPUT",
     });
   });
 });

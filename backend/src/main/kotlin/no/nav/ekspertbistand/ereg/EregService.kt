@@ -32,6 +32,16 @@ class EregService(private val eregClient: EregClient) {
         }.getOrDefault(emptyList())
     }
 
+    /**
+     * Navnet på virksomheten i Ereg, eller null når Ereg ikke kjenner orgnr (404) eller organisasjonen mangler navn.
+     * Kaster ved andre feil, i motsetning til [finnOrganisasjonForOrgnr], så kalleren kan skille «finnes ikke»
+     * fra «Ereg er nede».
+     */
+    suspend fun hentVirksomhetsnavn(orgnr: String): String? {
+        val organisasjon = eregClient.hentOrganisasjonEllerNull(orgnr) ?: return null
+        return organisasjon.navn?.sammensattnavn ?: organisasjon.navn?.navnelinje1
+    }
+
     suspend fun hentPostAdresse(orgnr: String): String? {
         return runCatching {
             eregClient.hentPostAdresse(orgnr).firstNotNullOfOrNull { it.toSingleLine() }

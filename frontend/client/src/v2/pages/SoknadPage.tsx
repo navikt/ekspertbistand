@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowRightIcon } from "@navikt/aksel-icons";
 import { type Path, type SubmitHandler, useForm } from "react-hook-form";
@@ -15,17 +14,13 @@ import {
   Heading,
   Link,
   List,
-  Alert,
   VStack,
 } from "@navikt/ds-react";
 import DecoratedPage from "../components/DecoratedPage";
 import { FormErrorSummary } from "../components/FormErrorSummary";
 import { ApplicationPictogram } from "../components/ApplicationPictogram";
-import { EKSPERTBISTAND_API_PATH, EKSPERTBISTAND_INFO_URL, LOGIN_URL } from "../utils/constants";
+import { EKSPERTBISTAND_INFO_URL } from "../utils/constants";
 import { useErrorFocus } from "../hooks/useErrorFocus";
-import useSWRMutation from "swr/mutation";
-import { fetchJson } from "../../utils/api";
-import { resolveApiError, type ApiErrorInfo } from "../../utils/http";
 
 const introSchema = z.object({
   bekreftRiktige: z
@@ -44,14 +39,7 @@ const INTRO_FIELD_PATHS = ["bekreftRiktige", "bekreftSamraad"] as const satisfie
 
 export default function SoknadPage() {
   const navigate = useNavigate();
-  const [apiError, setApiError] = useState<ApiErrorInfo | null>(null);
   const { focusKey: errorFocusKey, bumpFocusKey } = useErrorFocus();
-  const { trigger: createDraft, isMutating: creating } = useSWRMutation<
-    { id?: string } | null,
-    Error,
-    string,
-    RequestInit
-  >(EKSPERTBISTAND_API_PATH, (url, { arg }) => fetchJson<{ id?: string } | null>(url, arg));
 
   const {
     register,
@@ -64,19 +52,9 @@ export default function SoknadPage() {
     resolver: zodResolver(introSchema),
   });
 
-  const onValid: SubmitHandler<IntroInputs> = async () => {
-    setApiError(null);
-    try {
-      const payload = await createDraft({ method: "POST" });
-      const id = payload?.id;
-      if (!id) {
-        throw new Error("Svar manglet id");
-      }
-      navigate(`/v2/skjema/${id}/steg-1`);
-    } catch (error) {
-      setApiError(resolveApiError(error, "Kunne ikke starte søknaden."));
-      bumpFocusKey();
-    }
+  // Utkastet opprettes først i steg 1, når deltakeren er bekreftet.
+  const onValid: SubmitHandler<IntroInputs> = () => {
+    navigate("/v2/skjema/ny/steg-1");
   };
 
   return (
@@ -221,37 +199,12 @@ export default function SoknadPage() {
                 fields={INTRO_FIELD_PATHS}
                 heading="Du må rette disse feilene før du kan fortsette:"
                 focusKey={errorFocusKey}
-                extraItems={
-                  apiError
-                    ? [
-                        {
-                          id: "start-soknad-feil",
-                          message: apiError.message,
-                          href: "#start-soknad-feil",
-                        },
-                      ]
-                    : undefined
-                }
               />
-              {apiError ? (
-                <Alert variant="error" inline>
-                  <VStack gap="space-32">
-                    <BodyLong>{apiError.message}</BodyLong>
-                    {apiError.requiresLogin ? (
-                      <Button as="a" href={LOGIN_URL} size="small" variant="primary">
-                        Logg inn
-                      </Button>
-                    ) : null}
-                  </VStack>
-                </Alert>
-              ) : null}
               <Button
                 type="submit"
                 variant="primary"
-                id="start-soknad-feil"
                 icon={<ArrowRightIcon aria-hidden />}
                 iconPosition="right"
-                loading={creating}
               >
                 Start søknad
               </Button>

@@ -63,6 +63,18 @@ Retningslinjer:
   for eksisterende events, selv om klassen får nytt navn. Ellers kan ikke lagrede events leses lenger.
   (`TilsagnsdataLagret` har av historiske grunner stor forbokstav.)
 
+### Søknaden i eventene er `SoknadDomainV1`
+
+Events med `soknad` lagrer søknaden som `event/domain/SoknadDomainV1`. Klassen har samme form som
+`DTO.Soknad` hadde da API-et og eventene delte modell, så eldre rader i `event_log` leses som før.
+`arena_sak.soknad` bruker samme klasse.
+
+- API-et bruker `DTO.Soknad` og kan endres uten å påvirke eventene. `tilSoknadDomainV1()` i
+  `soknad/Db.kt` gjør om søknadsraden til eventformen.
+- Ikke endre feltnavn, nullbarhet eller standardverdier i `SoknadDomainV1`. Da kan ikke lagrede events
+  leses lenger.
+- `ekspert` har tre former i prod. KDoc-en på klassen beskriver dem.
+
 ### Publisering — ett inngangspunkt: `publishEventQueue`
 
 Køen har nøyaktig én vei inn, og du skal aldri skrive til `event_queue`/`QueuedEvents` direkte:

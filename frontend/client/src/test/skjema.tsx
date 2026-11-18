@@ -2,8 +2,7 @@ import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { SWRConfig } from "swr";
 import App from "../App";
-import { draftDtoServerSchema } from "../features/soknad/server-schemas";
-import { validerDeltaker } from "../features/soknad/validerDeltaker";
+import { opprettUtkast as opprettUtkastMedDeltaker } from "../features/soknad/validerDeltaker";
 import { fetchJson } from "../utils/api";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 import { server } from "./server";
@@ -13,18 +12,10 @@ export const DELTAKER_FNR = "01819010192";
 export const ANNEN_DELTAKER_FNR = "01819010273";
 export const ORGNR = "123456780";
 
-export const opprettUtkast = async (): Promise<string> => {
-  const utkast = draftDtoServerSchema.parse(
-    await fetchJson(EKSPERTBISTAND_API_PATH, { method: "POST" })
-  );
-  return utkast.id!;
-};
-
 export const opprettBekreftetUtkast = async (fnr = DELTAKER_FNR): Promise<string> => {
-  const id = await opprettUtkast();
-  const resultat = await validerDeltaker(id, { fnr, virksomhetsnummer: ORGNR });
-  if (!resultat.ok) throw new Error("Klarte ikke å bekrefte deltaker i testoppsettet");
-  return id;
+  const resultat = await opprettUtkastMedDeltaker({ fnr, virksomhetsnummer: ORGNR });
+  if (!resultat.ok) throw new Error("Klarte ikke å opprette utkast i testoppsettet");
+  return resultat.utkast.id!;
 };
 
 /** Teller kall til valider-deltaker. Lytteren fjernes når testen er ferdig. */
@@ -48,3 +39,45 @@ export const renderSkjema = (path: string) =>
       </SWRConfig>
     </MemoryRouter>
   );
+
+const omEnUke = () => {
+  const dato = new Date();
+  dato.setDate(dato.getDate() + 7);
+  return dato.toISOString().slice(0, 10);
+};
+
+/** Oppretter et utkast der alle feltene er fylt ut, så det kan sendes inn. */
+export const opprettKomplettUtkast = async (): Promise<string> => {
+  const id = await opprettBekreftetUtkast();
+  await fetchJson(`${EKSPERTBISTAND_API_PATH}/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      virksomhet: {
+        kontaktperson: {
+          navn: "Lise Kontakt",
+          epost: "lise@example.no",
+          telefonnummer: "99112233",
+        },
+      },
+      ekspert: {
+        navn: "Dr. Ekspert",
+        virksomhet: "Ekspert & Co AS",
+        virksomhetNavn: "Ekspert & Co AS",
+        virksomhetOrgnr: "910825226",
+        godkjentUtdanningEllerAutorisasjon: ["Psykolog"],
+        relevantKompetanse: ["Tilrettelegging på arbeidsplassen"],
+      },
+      behovForBistand: {
+        begrunnelse: "Behov for tilrettelegging.",
+        behov: "Kartlegging av arbeidssituasjonen.",
+        timer: "20",
+        estimertKostnad: "20000",
+        tilrettelegging: "Tilrettelegging av arbeidsoppgaver.",
+        startdato: omEnUke(),
+      },
+      nav: { kontaktperson: "Nav Kontakt" },
+    }),
+  });
+  return id;
+};

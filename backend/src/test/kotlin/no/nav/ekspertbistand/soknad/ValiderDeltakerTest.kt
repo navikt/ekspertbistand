@@ -18,12 +18,16 @@ import no.nav.ekspertbistand.ereg.EregClient
 import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockAltinnTilganger
-import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.insertAndGetId
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.jetbrains.exposed.v1.jdbc.update
 import java.util.*
 import kotlin.test.*
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 class ValiderDeltakerTest {
 
     private val innloggetFnr = gyldigFnr("010170123")
@@ -32,6 +36,10 @@ class ValiderDeltakerTest {
     private val orgnr = "910456900"
     private val annetOrgnr = "910456901"
     private val orgnrUtenTilgang = "910456999"
+    /** Har tilgang, men finnes ikke i hierarkiet, så Altinn gir ikke noe navn. */
+    private val orgnrUtenNavn = "910456902"
+    private val startFnr = gyldigFnr("070770123")
+    private lateinit var db: Database
 
     @Test
     fun `treff gir 200 med navn og bekreftelse`() = validerDeltakerTest { oppslag, _ ->
@@ -55,7 +63,7 @@ class ValiderDeltakerTest {
     }
 
     @Test
-    fun `ingen arbeidsforhold gir 422 og nullstiller navn og bekreftelse`() = validerDeltakerTest { oppslag, _ ->
+    fun `ingen arbeidsforhold gir 422 og endrer ikke utkastet`() = validerDeltakerTest { oppslag, _ ->
         val utkastId = opprettUtkast()
         assertEquals(HttpStatusCode.OK, validerDeltaker(utkastId, deltakerFnr, orgnr).status)
 
@@ -68,8 +76,7 @@ class ValiderDeltakerTest {
         assertEquals(1, oppslag.antallNavneoppslag)
 
         with(hentUtkast(utkastId)) {
-            assertFalse(deltakerBekreftet)
-            assertEquals(DTO.Ansatt(annenDeltaker, ""), ansatt)
+            assertEquals(DTO.Ansatt(deltakerFnr, "Mona Moonlight"), ansatt)
             assertEquals(orgnr, virksomhet?.virksomhetsnummer)
         }
     }
@@ -165,7 +172,7 @@ class ValiderDeltakerTest {
 
     @Test
     fun `utkast opprettet av en annen bruker gir 403`() = validerDeltakerTest { oppslag, _ ->
-        val utkastId = opprettUtkast(token = "annentoken")
+        val utkastId = opprettUtkast(opprettetAv = annenBrukerFnr)
 
         assertEquals(HttpStatusCode.Forbidden, validerDeltaker(utkastId, deltakerFnr, orgnr).status)
         assertEquals(0, oppslag.antallArbeidsforholdOppslag)
@@ -174,19 +181,6 @@ class ValiderDeltakerTest {
     @Test
     fun `utkast som ikke finnes gir 409`() = validerDeltakerTest { _, _ ->
         assertEquals(HttpStatusCode.Conflict, validerDeltaker(UUID.randomUUID().toString(), deltakerFnr, orgnr).status)
-    }
-
-    @Test
-    fun `tilUtkastDTO leser bekreftelsen fra databasen`() = validerDeltakerTest { _, db ->
-        val utkastId = opprettUtkast()
-        assertEquals(HttpStatusCode.OK, validerDeltaker(utkastId, deltakerFnr, orgnr).status)
-
-        transaction(db) {
-            UtkastTable.update({ UtkastTable.id eq UUID.fromString(utkastId) }) {
-                it[ansattBekreftetTidspunkt] = null
-            }
-        }
-        assertFalse(hentUtkast(utkastId).deltakerBekreftet)
     }
 
     @Test
@@ -211,6 +205,107 @@ class ValiderDeltakerTest {
             }
         }
 
+    @Test
+    fun `virksomhetsnavnet hentes fra Altinn-tilgangene`() = validerDeltakerTest { _, _ ->
+        val utkastId = opprettUtkast()
+
+        with(validerDeltaker(utkastId, deltakerFnr, annetOrgnr)) {
+            assertEquals(HttpStatusCode.OK, status)
+            assertEquals("Annen Bedrift AS", body<DTO.Utkast>().virksomhet?.virksomhetsnavn)
+        }
+    }
+
+    @Test
+    fun `virksomhet uten navn i Altinn-tilgangene gir 403 uten oppslag`() = validerDeltakerTest { oppslag, _ ->
+        val utkastId = opprettUtkast()
+
+        assertEquals(HttpStatusCode.Forbidden, validerDeltaker(utkastId, deltakerFnr, orgnrUtenNavn).status)
+        assertEquals(HttpStatusCode.Forbidden, postUtkast(deltakerFnr, orgnrUtenNavn).status)
+        assertEquals(0, oppslag.antallArbeidsforholdOppslag)
+        assertEquals(1, antallUtkast())
+    }
+
+    @Test
+    fun `POST oppretter utkast med bekreftet deltaker`() = validerDeltakerTest { oppslag, _ ->
+        val utkast = with(postUtkast(deltakerFnr, orgnr)) {
+            assertEquals(HttpStatusCode.Created, status)
+            body<DTO.Utkast>()
+        }
+
+        assertTrue(utkast.deltakerBekreftet)
+        assertEquals(DTO.Ansatt(deltakerFnr, "Mona Moonlight"), utkast.ansatt)
+        assertEquals(orgnr, utkast.virksomhet?.virksomhetsnummer)
+        assertEquals("Testbedrift AS", utkast.virksomhet?.virksomhetsnavn)
+        assertEquals(innloggetFnr, utkast.opprettetAv)
+        assertEquals(1, oppslag.antallArbeidsforholdOppslag)
+        assertEquals(1, oppslag.antallNavneoppslag)
+
+        assertEquals(utkast, hentUtkast(utkast.id!!))
+        assertEquals(1, antallUtkast())
+    }
+
+    @Test
+    fun `POST uten arbeidsforhold gir 422 og lagrer ikke utkast`() = validerDeltakerTest { oppslag, _ ->
+        oppslag.arbeidsforhold = { _, _ -> false }
+
+        with(postUtkast(deltakerFnr, orgnr)) {
+            assertEquals(HttpStatusCode.UnprocessableEntity, status)
+            assertEquals(INGEN_ARBEIDSFORHOLD, kode())
+        }
+        assertEquals(0, antallUtkast())
+    }
+
+    @Test
+    fun `POST med ugyldig input eller uten tilgang lagrer ikke utkast`() =
+        validerDeltakerTest { oppslag, _ ->
+            with(postUtkast("12345678910", orgnr)) {
+                assertEquals(HttpStatusCode.BadRequest, status)
+                assertEquals("fnr", json()["felt"]?.jsonPrimitive?.content)
+            }
+            with(postUtkast(deltakerFnr, "12345")) {
+                assertEquals(HttpStatusCode.BadRequest, status)
+                assertEquals("virksomhetsnummer", json()["felt"]?.jsonPrimitive?.content)
+            }
+            assertEquals(HttpStatusCode.Forbidden, postUtkast(deltakerFnr, orgnrUtenTilgang).status)
+
+            assertEquals(0, oppslag.antallArbeidsforholdOppslag)
+            assertEquals(0, antallUtkast())
+        }
+
+    @Test
+    fun `POST gir 503 og lagrer ikke utkast naar Aareg eller PDL feiler`() = validerDeltakerTest { oppslag, _ ->
+        oppslag.arbeidsforhold = { _, _ -> error("Aareg nede") }
+        with(postUtkast(deltakerFnr, orgnr)) {
+            assertEquals(HttpStatusCode.ServiceUnavailable, status)
+            assertEquals(OPPSLAG_FEILET, kode())
+        }
+
+        oppslag.arbeidsforhold = { _, _ -> true }
+        oppslag.navn = { error("PDL nede") }
+        with(postUtkast(deltakerFnr, orgnr)) {
+            assertEquals(HttpStatusCode.ServiceUnavailable, status)
+            assertEquals(OPPSLAG_FEILET, kode())
+        }
+
+        assertEquals(0, antallUtkast())
+    }
+
+    @Test
+    fun `POST deler grensen for ulike fodselsnummer med valider-deltaker`() = validerDeltakerTest { _, _ ->
+        val utkastId = opprettUtkast()
+        val fnr = listOf("010190123", "020290123", "030390123", "040490123", "050590123", "060690123")
+            .map { gyldigFnr(it) }
+
+        fnr.take(3).forEach { assertEquals(HttpStatusCode.Created, postUtkast(it, orgnr).status) }
+        fnr.drop(3).take(2).forEach { assertEquals(HttpStatusCode.OK, validerDeltaker(utkastId, it, orgnr).status) }
+
+        with(postUtkast(fnr[5], orgnr)) {
+            assertEquals(HttpStatusCode.TooManyRequests, status)
+            assertEquals(FOR_MANGE_OPPSLAG, kode())
+        }
+        assertEquals(4, antallUtkast())
+    }
+
     private fun virksomhet(virksomhetsnummer: String, virksomhetsnavn: String = "Testbedrift AS") = DTO.Virksomhet(
         virksomhetsnummer = virksomhetsnummer,
         virksomhetsnavn = virksomhetsnavn,
@@ -224,8 +319,27 @@ class ValiderDeltakerTest {
             setBody(utkast)
         }
 
-    private suspend fun ApplicationTestBuilder.opprettUtkast(token: String = "faketoken"): String =
-        client.post("/api/soknad/v1") { bearerAuth(token) }.body<DTO.Utkast>().id!!
+    /** Setter inn et utkast med en bekreftet deltaker, uten å gå via POST og oppslagene. */
+    private fun opprettUtkast(opprettetAv: String = innloggetFnr): String =
+        transaction(db) {
+            UtkastTable.insertAndGetId {
+                it[UtkastTable.opprettetAv] = opprettetAv
+                it[virksomhetsnummer] = orgnr
+                it[virksomhetsnavn] = "Testbedrift AS"
+                it[ansattFnr] = startFnr
+                it[ansattNavn] = "Start Startesen"
+                it[ansattBekreftetTidspunkt] = Clock.System.now()
+            }.value.toString()
+        }
+
+    private fun antallUtkast(): Long = transaction(db) { UtkastTable.selectAll().count() }
+
+    private suspend fun ApplicationTestBuilder.postUtkast(fnr: String, virksomhetsnummer: String) =
+        client.post("/api/soknad/v1") {
+            bearerAuth("faketoken")
+            contentType(ContentType.Application.Json)
+            setBody(ValiderDeltakerRequest(fnr, virksomhetsnummer))
+        }
 
     private suspend fun ApplicationTestBuilder.hentUtkast(utkastId: String): DTO.Utkast =
         client.get("/api/soknad/v1/$utkastId") { bearerAuth("faketoken") }.body()
@@ -258,7 +372,7 @@ class ValiderDeltakerTest {
     )
 
     private fun validerDeltakerTest(
-        block: suspend ApplicationTestBuilder.(FakeDeltakerOppslag, org.jetbrains.exposed.v1.jdbc.Database) -> Unit,
+        block: suspend ApplicationTestBuilder.(FakeDeltakerOppslag, Database) -> Unit,
     ) = testApplicationWithDatabase { testDb ->
         mockAltinnTilganger(
             AltinnTilgangerClientResponse(
@@ -270,8 +384,9 @@ class ValiderDeltakerTest {
                 orgNrTilTilganger = mapOf(
                     orgnr to setOf(altinn3Ressursid),
                     annetOrgnr to setOf(altinn3Ressursid),
+                    orgnrUtenNavn to setOf(altinn3Ressursid),
                 ),
-                tilgangTilOrgNr = mapOf(altinn3Ressursid to setOf(orgnr, annetOrgnr)),
+                tilgangTilOrgNr = mapOf(altinn3Ressursid to setOf(orgnr, annetOrgnr, orgnrUtenNavn)),
             )
         )
         client = createClient {
@@ -307,6 +422,7 @@ class ValiderDeltakerTest {
             configureSoknadApiV1()
         }
 
-        block(oppslag, testDb.config.jdbcDatabase)
+        db = testDb.config.jdbcDatabase
+        block(oppslag, db)
     }
 }

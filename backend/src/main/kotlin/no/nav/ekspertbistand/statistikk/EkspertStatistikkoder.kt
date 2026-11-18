@@ -1,6 +1,6 @@
 package no.nav.ekspertbistand.statistikk
 
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 
 /**
  * Faste valg for ekspertens kompetanse i søknadsskjemaet, som koder til statistikk.
@@ -44,8 +44,8 @@ private fun koder(verdier: List<String>, kjente: Map<String, String>): String? =
         .ifEmpty { null }
 
 /** Eldre søknader har bare fritekstfeltet `kompetanse`. Det blir [ANNET_KODE], som i `DokumentService`. */
-val DTO.Ekspert.utdanningKoder: String?
+val SoknadDomainV1.Ekspert.utdanningKoder: String?
     get() = koder(godkjentUtdanningEllerAutorisasjon.ifEmpty { listOf(kompetanse) }, kjenteUtdanninger)
 
-val DTO.Ekspert.kompetanseKoder: String?
+val SoknadDomainV1.Ekspert.kompetanseKoder: String?
     get() = koder(relevantKompetanse, kjenteKompetanser)
