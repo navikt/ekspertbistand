@@ -17,7 +17,7 @@ import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.UgyldigInputException
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import no.nav.ekspertbistand.infrastruktur.valider
-import no.nav.ekspertbistand.soknad.findSoknadById
+import no.nav.ekspertbistand.soknad.findSoknadDomainV2ById
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
@@ -78,7 +78,7 @@ suspend fun Application.configureBeslutterApiV1() {
                                 ?: return@publiserBeslutning null
                             val sakDomain = hentSakDomain(sakId, behandlendeEnhetNavn)
                                 ?: return@publiserBeslutning null
-                            val soknad = findSoknadById(soknadId, filterForArbeidsgiver = false)?.tilDomain()
+                            val soknad = findSoknadDomainV2ById(soknadId, filterForArbeidsgiver = false)
                                 ?: return@publiserBeslutning null
                             EventData.VedtakFattet(
                                 sakId = sakId.toString(),

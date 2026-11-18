@@ -9,7 +9,7 @@ import no.nav.ekspertbistand.altinn.AltinnTilgangerClient
 import no.nav.ekspertbistand.dokument.DokumentService
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
-import no.nav.ekspertbistand.soknad.findSoknadById
+import no.nav.ekspertbistand.soknad.findSoknadDomainV1ById
 import no.nav.ekspertbistand.soknad.subjectToken
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -25,7 +25,7 @@ class TilsagnDataApi(
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
 
         val (soknad, tilsagnData) = transaction(database) {
-            findSoknadById(soknadId) to findTilsagnDataBySoknadId(soknadId)
+            findSoknadDomainV1ById(soknadId) to findTilsagnDataBySoknadId(soknadId)
         }
 
         if (soknad == null || soknad.virksomhet.virksomhetsnummer !in tilganger.organisasjoner) {
@@ -87,7 +87,7 @@ class TilsagnDataApi(
         val tilganger = altinnTilgangerClient.hentTilganger(subjectToken)
 
         val (soknad, tilsagnData) = transaction(database) {
-            findSoknadById(soknadId) to findTilsagnDataBySoknadId(soknadId)
+            findSoknadDomainV1ById(soknadId) to findTilsagnDataBySoknadId(soknadId)
         }
 
         if (soknad == null || soknad.virksomhet.virksomhetsnummer !in tilganger.organisasjoner) {

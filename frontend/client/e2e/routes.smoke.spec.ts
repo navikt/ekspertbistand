@@ -19,6 +19,11 @@ test("smoke: skjema start route", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("smoke: skjema ny steg-1 route", async ({ page }) => {
+  await page.goto("/skjema/ny/steg-1");
+  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+});
+
 test("smoke: skjema steg-1 route", async ({ page }) => {
   await page.goto("/");
   await ensureMockServiceWorkerReady(page);

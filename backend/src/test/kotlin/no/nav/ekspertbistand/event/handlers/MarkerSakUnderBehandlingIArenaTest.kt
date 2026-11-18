@@ -7,10 +7,10 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.tilSoknadDTO
+import no.nav.ekspertbistand.soknad.tilSoknadDomainV1
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -32,7 +32,7 @@ class MarkerSakUnderBehandlingIArenaTest {
         aetatenhetAnsvarlig = "1899",
     )
 
-    private fun insertSoknad(): DTO.Soknad = transaction {
+    private fun insertSoknad(): SoknadDomainV1 = transaction {
         SoknadTable.insertReturning {
             it[id] = UUID.randomUUID()
             it[virksomhetsnummer] = "1337"
@@ -55,7 +55,7 @@ class MarkerSakUnderBehandlingIArenaTest {
             it[navKontaktPerson] = ""
             it[beliggenhetsadresse] = ""
             it[status] = SoknadStatus.innsendt.toString()
-        }.single().tilSoknadDTO()
+        }.single().tilSoknadDomainV1()
     }
 
     @Test

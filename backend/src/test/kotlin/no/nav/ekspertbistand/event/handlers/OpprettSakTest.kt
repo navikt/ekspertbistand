@@ -8,16 +8,18 @@ import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.pdl.GraderingOppslag
 import no.nav.ekspertbistand.saksbehandling.*
 import no.nav.ekspertbistand.skjerming.SkjermingOppslag
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.tilSoknadDTO
+import no.nav.ekspertbistand.soknad.tilSoknadDomainV1
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Year
 import java.time.ZoneId
 import java.util.*
@@ -40,7 +42,11 @@ class OpprettSakTest {
         assertFalse(sak.skjermet)
         assertEquals(Saksstatus.OPPRETTET.name, sak.status)
         assertEquals(KildeTilBehandling.EKSPERTBISTAND.name, sak.kilde)
-        assertEquals(Vilkar.entries.size, antallVilkar(database, sak.sakId))
+        assertEquals(
+            Vilkar.entries.associateWith { if (it in automatiskOppfylteVilkar) true else null },
+            hentVilkar(database, sak.sakId).mapValues { (_, rad) -> rad.godkjent },
+        )
+        assertTrue(hentVilkar(database, sak.sakId).values.all { it.vurdertAvIdent == null && it.vurdertTidspunkt == null })
         assertSaksnummer(sak.saksnummer)
 
         val events = hentEvents(database)
@@ -74,6 +80,28 @@ class OpprettSakTest {
         transaction(database) { assertEquals(1, SakTable.selectAll().count()) }
         assertEquals(saksnummer, hentSak(database, soknad).saksnummer)
         assertEquals(2, hentEvents(database).size)
+    }
+
+    @Test
+    fun `opprettVilkarForSak skriver ikke over eksisterende vurderinger`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val soknad = lagreSoknad(database)
+        opprettSak(database).handle(journalfoert(soknad, behandlendeEnhetId = "4242"))
+        val sakId = hentSak(database, soknad).sakId
+        transaction(database) {
+            SaksvilkarTable.update({
+                (SaksvilkarTable.sakId eq sakId) and (SaksvilkarTable.vilkarId eq Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD.name)
+            }) {
+                it[godkjent] = false
+                it[vurdertAvIdent] = "Z123456"
+            }
+        }
+
+        transaction(database) { OpprettSak.opprettVilkarForSak(sakId) }
+
+        val arbeidsforhold = hentVilkar(database, sakId).getValue(Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD)
+        assertEquals(false, arbeidsforhold.godkjent)
+        assertEquals("Z123456", arbeidsforhold.vurdertAvIdent)
     }
 
     @Test
@@ -165,7 +193,7 @@ class OpprettSakTest {
         val saksnummer: String?,
     )
 
-    private fun journalfoert(soknad: DTO.Soknad, behandlendeEnhetId: String, kommunenummer: String? = null) = Event(
+    private fun journalfoert(soknad: SoknadDomainV1, behandlendeEnhetId: String, kommunenummer: String? = null) = Event(
         id = 1L,
         data = EventData.InnsendtSoknadJournalfoert(
             soknad = soknad,
@@ -176,7 +204,7 @@ class OpprettSakTest {
         ),
     )
 
-    private fun hentSak(database: Database, soknad: DTO.Soknad): LagretSak = transaction(database) {
+    private fun hentSak(database: Database, soknad: SoknadDomainV1): LagretSak = transaction(database) {
         SakTable.selectAll().where { SakTable.soknadId eq UUID.fromString(soknad.id) }.single().let {
             LagretSak(
                 sakId = it[SakTable.sakId],
@@ -191,17 +219,23 @@ class OpprettSakTest {
         }
     }
 
-    private fun antallVilkar(database: Database, sakId: UUID): Int = transaction(database) {
-        SaksvilkarTable.selectAll().where { SaksvilkarTable.sakId eq sakId }
-            .onEach { assertNull(it[SaksvilkarTable.godkjent]) }
-            .count().toInt()
+    private data class VilkarRad(val godkjent: Boolean?, val vurdertAvIdent: String?, val vurdertTidspunkt: Any?)
+
+    private fun hentVilkar(database: Database, sakId: UUID): Map<Vilkar, VilkarRad> = transaction(database) {
+        SaksvilkarTable.selectAll().where { SaksvilkarTable.sakId eq sakId }.associate {
+            Vilkar.valueOf(it[SaksvilkarTable.vilkarId]) to VilkarRad(
+                godkjent = it[SaksvilkarTable.godkjent],
+                vurdertAvIdent = it[SaksvilkarTable.vurdertAvIdent],
+                vurdertTidspunkt = it[SaksvilkarTable.vurdertTidspunkt],
+            )
+        }
     }
 
     private fun hentEvents(database: Database): List<EventData> = transaction(database) {
         QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
     }
 
-    private fun lagreSoknad(database: Database): DTO.Soknad = transaction(database) {
+    private fun lagreSoknad(database: Database): SoknadDomainV1 = transaction(database) {
         SoknadTable.insertReturning {
             it[id] = UUID.randomUUID()
             it[virksomhetsnummer] = "987654321"
@@ -224,6 +258,6 @@ class OpprettSakTest {
             it[navKontaktPerson] = ""
             it[beliggenhetsadresse] = ""
             it[status] = SoknadStatus.innsendt.toString()
-        }.single().tilSoknadDTO()
+        }.single().tilSoknadDomainV1()
     }
 }

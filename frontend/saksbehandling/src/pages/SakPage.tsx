@@ -1,8 +1,10 @@
 import {
   ArrowLeftIcon,
+  Buildings2Icon,
   CheckmarkCircleIcon,
   ChevronRightIcon,
   ExternalLinkIcon,
+  FigureOutwardIcon,
 } from "@navikt/aksel-icons";
 import {
   Accordion,
@@ -20,7 +22,6 @@ import {
   Link,
   Loader,
   Show,
-  Spacer,
   Tabs,
   VStack,
 } from "@navikt/ds-react";
@@ -62,6 +63,7 @@ import { type Vilkår, useVilkår } from "../hooks/useVilkår";
 import { useVilkårsvurdering } from "../hooks/useVilkårsvurdering";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import type { HttpError } from "../utils/http";
+import { formatFodselsnummer, formatOrganisasjonsnummer } from "../utils/formatNummer";
 import { IKKE_TILGANG_TEKST, feilIdTekst, tilgangAvvistTekst } from "../utils/tilgangsfeil";
 import {
   GOSYS_URL,
@@ -488,33 +490,89 @@ export default function SakPage() {
 
   return (
     <main>
-      <Box background="soft" paddingBlock="space-8" paddingInline="space-24">
+      <Box
+        as="section"
+        aria-label="Sakens parter"
+        background="soft"
+        paddingBlock="space-8"
+        paddingInline="space-24"
+      >
         <HStack gap="space-8" align="center" wrap>
-          <Heading level="1" size="xsmall" style={{ overflowWrap: "anywhere" }}>
-            {ansatt.navn}
-          </Heading>
-          <CopyButton copyText={ansatt.navn} size="xsmall" />
-          <BodyShort>/</BodyShort>
-          <BodyShort style={{ overflowWrap: "anywhere" }}>{ansatt.fnr}</BodyShort>
-          <CopyButton copyText={ansatt.fnr} size="xsmall" />
-          <AdressebeskyttelseTag adressebeskyttelse={sak.adressebeskyttelse} size="small" />
-          <EgenAnsattTag skjermet={sak.skjermet} size="small" />
-          {isLokalBrukerbytteMulig() && !erArenaSak && (
-            <>
-              <Spacer />
-              <Button
-                as="a"
-                href={arbeidsgiverSoknadUrl(soknad.soknadId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                variant="secondary"
+          <HStack className={styles.sakensParter} gap="space-8" align="center">
+            <HStack className={styles.part} gap="space-8" align="center">
+              <HStack className={styles.partNavn} gap="space-8" align="center" wrap={false}>
+                <Buildings2Icon className={styles.partIkon} aria-hidden />
+                <BodyShort className={styles.navn} weight="semibold">
+                  {soknad.virksomhet.virksomhetsnavn}
+                </BodyShort>
+                <CopyButton
+                  className={styles.kopierknapp}
+                  copyText={soknad.virksomhet.virksomhetsnavn}
+                  title="Kopier virksomhetsnavn"
+                  activeText="Virksomhetsnavnet er kopiert"
+                  size="xsmall"
+                />
+              </HStack>
+              <HStack gap="space-8" align="center" wrap={false}>
+                <BodyShort aria-hidden>/</BodyShort>
+                <BodyShort>
+                  {formatOrganisasjonsnummer(soknad.virksomhet.virksomhetsnummer)}
+                </BodyShort>
+                <CopyButton
+                  className={styles.kopierknapp}
+                  copyText={soknad.virksomhet.virksomhetsnummer}
+                  title="Kopier organisasjonsnummer"
+                  activeText="Organisasjonsnummeret er kopiert"
+                  size="xsmall"
+                />
+              </HStack>
+            </HStack>
+            <HStack className={`${styles.part} ${styles.deltaker}`} gap="space-8" align="center">
+              <HStack className={styles.partNavn} gap="space-8" align="center" wrap={false}>
+                <FigureOutwardIcon className={styles.partIkon} aria-hidden />
+                <Heading className={styles.navn} level="1" size="xsmall">
+                  {ansatt.navn}
+                </Heading>
+                <CopyButton
+                  className={styles.kopierknapp}
+                  copyText={ansatt.navn}
+                  title="Kopier deltakernavn"
+                  activeText="Deltakernavnet er kopiert"
+                  size="xsmall"
+                />
+              </HStack>
+              <HStack gap="space-8" align="center" wrap={false}>
+                <BodyShort aria-hidden>/</BodyShort>
+                <BodyShort>{formatFodselsnummer(ansatt.fnr)}</BodyShort>
+                <CopyButton
+                  className={styles.kopierknapp}
+                  copyText={ansatt.fnr}
+                  title="Kopier fødselsnummer"
+                  activeText="Fødselsnummeret er kopiert"
+                  size="xsmall"
+                />
+              </HStack>
+              <AdressebeskyttelseTag
+                adressebeskyttelse={sak.adressebeskyttelse}
                 size="small"
-                icon={<ExternalLinkIcon aria-hidden />}
-                iconPosition="right"
-              >
-                Se som arbeidsgiver
-              </Button>
-            </>
+                variant="outline"
+              />
+              <EgenAnsattTag skjermet={sak.skjermet} size="small" />
+            </HStack>
+          </HStack>
+          {isLokalBrukerbytteMulig() && !erArenaSak && (
+            <Button
+              as="a"
+              href={arbeidsgiverSoknadUrl(soknad.soknadId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="secondary"
+              size="small"
+              icon={<ExternalLinkIcon aria-hidden />}
+              iconPosition="right"
+            >
+              Se som arbeidsgiver
+            </Button>
           )}
         </HStack>
       </Box>

@@ -91,7 +91,11 @@ const eregOrganisasjoner: { organisasjonsnummer: string; navn: string }[] = [
   { organisasjonsnummer: "976543210", navn: "Nordic Ergoterapi AS" },
   { organisasjonsnummer: "934567891", navn: "Oslo Arbeidspsykologi AS" },
   { organisasjonsnummer: "812345678", navn: "Tilrettelegging og Trivsel ANS" },
+  // Oppslaget av denne feiler ved PATCH, så feilvisningen kan testes i mocken.
+  { organisasjonsnummer: "999999999", navn: "Oppslaget feiler AS" },
 ];
+
+export const MOCK_EREG_FEIL_ORGNR = "999999999";
 
 const DRAFT_CACHE_NAME = "mock-soknad-draft";
 const DRAFT_CACHE_URL = "/mock/soknad/draft";
@@ -537,7 +541,7 @@ const mockUgyldigInput = (felt: string, message: string) =>
 
 const MOCK_DELTAKER_NAVN = "Mona Moonlight";
 
-// Disse fødselsnumrene gir feilsvar fra valider-deltaker, så feilvisningene kan testes i mocken.
+// Disse fødselsnumrene gir feilsvar fra POST og valider-deltaker, så feilvisningene kan testes i mocken.
 const MOCK_VALIDER_DELTAKER_FEIL: Record<string, { status: number; message: string }> = {
   "01819030037": { status: 422, message: "Fant ikke aktivt arbeidsforhold i virksomheten." },
   "01819030118": { status: 429, message: "For mange oppslag." },
@@ -551,6 +555,64 @@ const finnOrganisasjonsnavn = (orgnr: string, liste = organisasjoner): string | 
     if (treff) return treff;
   }
   return null;
+};
+
+type ValiderDeltakerBody = { fnr?: string; virksomhetsnummer?: string };
+
+const mockValiderDeltakerFeil = (fnr: string | undefined): Response | null => {
+  const feil = MOCK_VALIDER_DELTAKER_FEIL[fnr ?? ""];
+  return feil ? HttpResponse.json({ message: feil.message }, { status: feil.status }) : null;
+};
+
+const medDeltaker = (data: SoknadInputs, deltaker: ValiderDeltakerBody): SoknadInputs => {
+  const virksomhetsnummer = deltaker.virksomhetsnummer ?? "";
+  return {
+    ...data,
+    ansatt: { fnr: deltaker.fnr ?? "", navn: MOCK_DELTAKER_NAVN },
+    virksomhet: {
+      ...data.virksomhet,
+      virksomhetsnummer,
+      virksomhetsnavn: finnOrganisasjonsnavn(virksomhetsnummer) ?? "",
+    },
+  };
+};
+
+// Som i backend: bare orgnr leses fra klienten, og navnet slås opp i Enhetsregisteret når orgnr er endret.
+const medEkspertVirksomhet = (
+  payload: Partial<SoknadInputs>,
+  lagretOrgnr: string | null | undefined
+): Partial<SoknadInputs> | Response => {
+  if (!payload.ekspert) return payload;
+  const ekspert: Partial<SoknadInputs["ekspert"]> = { ...payload.ekspert };
+  const orgnr = ekspert.virksomhetOrgnr?.trim() || null;
+  if (!orgnr) {
+    Object.assign(ekspert, { virksomhet: "", virksomhetNavn: null, virksomhetOrgnr: null });
+  } else if (orgnr === lagretOrgnr) {
+    delete ekspert.virksomhet;
+    delete ekspert.virksomhetNavn;
+    delete ekspert.virksomhetOrgnr;
+  } else {
+    if (!/^\d{9}$/.test(orgnr))
+      return mockUgyldigInput("ekspert.virksomhetOrgnr", "må være 9 siffer");
+    if (orgnr === MOCK_EREG_FEIL_ORGNR) {
+      return HttpResponse.json(
+        {
+          kode: "OPPSLAG_FEILET",
+          message: "oppslag av virksomhet i Enhetsregisteret feilet, prøv igjen senere",
+        },
+        { status: 503 }
+      );
+    }
+    const treff = eregOrganisasjoner.find((org) => org.organisasjonsnummer === orgnr);
+    if (!treff)
+      return mockUgyldigInput("ekspert.virksomhetOrgnr", "finnes ikke i Enhetsregisteret");
+    Object.assign(ekspert, {
+      virksomhet: `${treff.navn} (${orgnr})`,
+      virksomhetNavn: treff.navn,
+      virksomhetOrgnr: orgnr,
+    });
+  }
+  return { ...payload, ekspert: ekspert as SoknadInputs["ekspert"] };
 };
 
 // Som i backend: deltaker og virksomhet settes bare av valider-deltaker.
@@ -710,14 +772,21 @@ export const handlers = [
     await persistDraftLocal(null);
     return HttpResponse.json({ status: "deleted" });
   }),
-  http.post(EKSPERTBISTAND_API_PATH, async () => {
+  http.post(EKSPERTBISTAND_API_PATH, async ({ request }) => {
     await ensureSkjemaStoreLoaded();
+    const deltaker = (await request.json().catch(() => null)) as ValiderDeltakerBody | null;
+    if (!deltaker) {
+      return HttpResponse.json({ message: "mangler deltaker" }, { status: 400 });
+    }
+    const mockFeil = mockValiderDeltakerFeil(deltaker.fnr);
+    if (mockFeil) return mockFeil;
     const id = randomId();
     const now = nowIso();
     const entry: MockSkjema = {
       id,
       status: "utkast",
-      data: createEmptyInputs(),
+      data: medDeltaker(createEmptyInputs(), deltaker),
+      deltakerBekreftet: true,
       opprettetAv: MOCK_BRUKER,
       opprettetTidspunkt: now,
     };
@@ -975,9 +1044,11 @@ export const handlers = [
     }
     const ugyldig = ugyldigInput(payload);
     if (ugyldig) return ugyldig;
+    const medEkspert = medEkspertVirksomhet(payload, entry.data?.ekspert?.virksomhetOrgnr);
+    if (medEkspert instanceof Response) return medEkspert;
     entry.data = mergeInputs(
       entry.data as Partial<SoknadInputs>,
-      utenDeltakerOgVirksomhet(payload)
+      utenDeltakerOgVirksomhet(medEkspert)
     );
     skjemaStore.set(id, entry);
     await persistSkjemaStore();
@@ -993,28 +1064,15 @@ export const handlers = [
     if (!entry || entry.status !== "utkast") {
       return HttpResponse.json({ message: "skjema ikke i utkast-status" }, { status: 409 });
     }
-    let payload: { fnr?: string; virksomhetsnummer?: string };
+    let payload: ValiderDeltakerBody;
     try {
-      payload = (await request.json()) as { fnr?: string; virksomhetsnummer?: string };
+      payload = (await request.json()) as ValiderDeltakerBody;
     } catch {
       return HttpResponse.json({ message: "ugyldig payload" }, { status: 400 });
     }
-    const fnr = payload.fnr ?? "";
-    const virksomhetsnummer = payload.virksomhetsnummer ?? "";
-    const mockFeil = MOCK_VALIDER_DELTAKER_FEIL[fnr];
-    if (mockFeil) {
-      return HttpResponse.json({ message: mockFeil.message }, { status: mockFeil.status });
-    }
-    const data = entry.data ?? createEmptyInputs();
-    entry.data = {
-      ...data,
-      ansatt: { fnr, navn: MOCK_DELTAKER_NAVN },
-      virksomhet: {
-        ...data.virksomhet,
-        virksomhetsnummer,
-        virksomhetsnavn: finnOrganisasjonsnavn(virksomhetsnummer) ?? "",
-      },
-    };
+    const mockFeil = mockValiderDeltakerFeil(payload.fnr);
+    if (mockFeil) return mockFeil;
+    entry.data = medDeltaker(entry.data ?? createEmptyInputs(), payload);
     entry.deltakerBekreftet = true;
     skjemaStore.set(id, entry);
     await persistSkjemaStore();
@@ -1034,7 +1092,7 @@ export const handlers = [
     await persistSkjemaStore();
     return new HttpResponse(null, { status: 204 });
   }),
-  http.put(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params, request }) => {
+  http.put(`${EKSPERTBISTAND_API_PATH}/:id`, async ({ params }) => {
     await ensureSkjemaStoreLoaded();
     const id = getParamValue(params.id);
     if (!id) {
@@ -1044,12 +1102,8 @@ export const handlers = [
     if (!entry || entry.status !== "utkast") {
       return HttpResponse.json({ message: "skjema ikke i utkast-status" }, { status: 409 });
     }
-    let payload: SoknadInputs;
-    try {
-      payload = (await request.json()) as SoknadInputs;
-    } catch {
-      return HttpResponse.json({ message: "ugyldig payload" }, { status: 400 });
-    }
+    // Som i backend: innsendingen bruker det lagrede utkastet.
+    const payload = entry.data ?? createEmptyInputs();
     const ugyldig = ugyldigInput(payload);
     if (ugyldig) return ugyldig;
     const startdato = payload?.behovForBistand?.startdato;
@@ -1070,7 +1124,6 @@ export const handlers = [
         `Søknadssummen må være et positivt heltall og kan ikke overstige ${MOCK_MAKS_SATS_BELOP} kr.`
       );
     }
-    entry.data = payload;
     entry.status = "innsendt";
     entry.innsendtTidspunkt = nowIso();
     skjemaStore.set(id, entry);

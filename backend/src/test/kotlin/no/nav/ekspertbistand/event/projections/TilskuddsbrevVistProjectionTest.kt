@@ -8,8 +8,7 @@ import no.nav.ekspertbistand.event.publishEventQueue
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import no.nav.ekspertbistand.event.projections.TilskuddsbrevVist.Companion.tilTilskuddsbrevVist
 import no.nav.ekspertbistand.infrastruktur.TestDatabase
-import no.nav.ekspertbistand.soknad.DTO
-import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.tilsagndata.concat
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -101,27 +100,27 @@ private fun JdbcTransaction.publishAndFinalize(mottatt: EventData) =
         EventQueue.finalize(it.id)
     }
 
-private val sampleSoknad = DTO.Soknad(
+private val sampleSoknad = SoknadDomainV1(
     id = UUID.randomUUID().toString(),
-    virksomhet = DTO.Virksomhet(
+    virksomhet = SoknadDomainV1.Virksomhet(
         virksomhetsnummer = "1337",
         virksomhetsnavn = "foo bar AS",
-        kontaktperson = DTO.Kontaktperson(
+        kontaktperson = SoknadDomainV1.Kontaktperson(
             navn = "Donald Duck",
             epost = "Donald@duck.co",
             telefonnummer = "12345678"
         )
     ),
-    ansatt = DTO.Ansatt(
+    ansatt = SoknadDomainV1.Ansatt(
         fnr = "12345678910",
         navn = "Ole Olsen"
     ),
-    ekspert = DTO.Ekspert(
+    ekspert = SoknadDomainV1.Ekspert(
         navn = "Egon Olsen",
         virksomhet = "Olsenbanden AS",
         kompetanse = "Bankran",
     ),
-    behovForBistand = DTO.BehovForBistand(
+    behovForBistand = SoknadDomainV1.BehovForBistand(
         behov = "Tilrettelegging",
         begrunnelse = "Tilrettelegging på arbeidsplassen",
         estimertKostnad = "4200",
@@ -129,11 +128,11 @@ private val sampleSoknad = DTO.Soknad(
         tilrettelegging = "Spesialtilpasset kontor",
         startdato = LocalDate.parse("2024-11-15")
     ),
-    nav = DTO.Nav(
+    nav = SoknadDomainV1.Nav(
         kontaktperson = "Navn Navnesen"
     ),
     opprettetAv = "Noen Noensen",
-    status = SoknadStatus.innsendt,
+    status = SoknadDomainV1.Status.innsendt,
 )
 
 private val sampleTilsagnData = TilsagnData(

@@ -143,52 +143,52 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   await page.getByRole("checkbox").nth(0).check();
   await page.getByRole("checkbox").nth(1).check();
 
+  // Utkastet opprettes først når deltakeren er bekreftet i steg 1.
+  await page.getByRole("button", { name: "Start søknad" }).click();
+  await expect(page).toHaveURL(/\/v2\/skjema\/ny\/steg-1$/);
+  expect(apiRequests.filter((request) => request.method() === "POST")).toHaveLength(0);
+
+  const inputs = createFormInputs();
+  await page.getByRole("textbox", { name: "Fødselsnummer" }).fill(inputs.ansatt.fnr);
   const createRequestPromise = page.waitForRequest(
     (request) => request.method() === "POST" && new URL(request.url()).pathname === API_PATH
   );
-  await page.getByRole("button", { name: "Start søknad" }).click();
+  await page.getByRole("button", { name: "Neste steg" }).click();
   const createRequest = await createRequestPromise;
-  expect(new URL(createRequest.url()).pathname).toBe(API_PATH);
-  await expect(page).toHaveURL(/\/v2\/skjema\/[^/]+\/steg-1$/);
+  expect(createRequest.postDataJSON()).toEqual({
+    fnr: inputs.ansatt.fnr,
+    virksomhetsnummer: MOCK_UNDERENHET,
+  });
+  await expect(page).toHaveURL(/\/v2\/skjema\/[^/]+\/steg-2$/);
 
-  const stepOnePath = new URL(page.url()).pathname;
-  const draftId = stepOnePath.match(/\/v2\/skjema\/([^/]+)\/steg-1$/)?.[1];
-  expect(draftId).toBeTruthy();
+  const draftId = new URL(page.url()).pathname.match(/\/v2\/skjema\/([^/]+)\/steg-2$/)?.[1];
   if (!draftId) throw new Error("The v2 create-draft route did not contain a draft id.");
 
-  const seedStatuses = await page.evaluate(
-    async ({ id, inputs, virksomhetsnummer }) => {
+  // PATCH setter ikke deltaker eller virksomhet. Det gjorde POST.
+  const patchStatus = await page.evaluate(
+    async ({ id, inputs }) => {
       const patch = await fetch(`/ekspertbistand-backend/api/soknad/v1/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inputs),
       });
-      // PATCH setter ikke deltaker eller virksomhet. Det gjør bare valider-deltaker.
-      const validering = await fetch(
-        `/ekspertbistand-backend/api/soknad/v1/${id}/valider-deltaker`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fnr: inputs.ansatt.fnr, virksomhetsnummer }),
-        }
-      );
-      return [patch.status, validering.status];
+      return patch.status;
     },
-    { id: draftId, inputs: createFormInputs(), virksomhetsnummer: MOCK_UNDERENHET }
+    { id: draftId, inputs }
   );
-  expect(seedStatuses).toEqual([200, 200]);
+  expect(patchStatus).toBe(200);
 
   await page.goto(`/v2/skjema/${draftId}`);
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
-  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-2$`));
+  await expect(page.getByRole("group", { name: "Kontaktperson i virksomheten" })).toBeVisible();
 
   await page.goto("/v2/soknader");
   await ensureMockServiceWorkerReady(page);
   const v2DraftLink = page.getByRole("link", { name: new RegExp(MOCK_DELTAKER_NAVN) });
   await expect(v2DraftLink).toHaveAttribute("href", `/v2/skjema/${draftId}`);
   await v2DraftLink.click();
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
-  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-2$`));
+  await expect(page.getByRole("group", { name: "Kontaktperson i virksomheten" })).toBeVisible();
 
   await page.goto("/soknader");
   const v1DraftLink = page.getByRole("link", {
@@ -196,8 +196,8 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   });
   await expect(v1DraftLink).toHaveAttribute("href", `/skjema/${draftId}`);
   await v1DraftLink.click();
-  await expect(page).toHaveURL(new RegExp(`/skjema/${draftId}/steg-1$`));
-  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/skjema/${draftId}/steg-2$`));
+  await expect(page.getByRole("group", { name: "Kontaktperson i virksomheten" })).toBeVisible();
 
   await page.goto(`/v2/skjema/${draftId}/oppsummering`);
   await expect(
@@ -241,7 +241,9 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   const submitRequest = await submitRequestPromise;
   const submitResponse = await submitResponsePromise;
   expect(submitResponse.ok()).toBe(true);
-  expect(submitRequest.postDataJSON()).toMatchObject({
+  // Backend sender inn utkastet slik det er lagret, så PUT har ingen body.
+  expect(submitRequest.postData()).toBeNull();
+  expect(await submitResponse.json()).toMatchObject({
     id: draftId,
     virksomhet: { kontaktperson: { navn: "Oppdatert kontakt" } },
     behovForBistand: { estimertKostnad: "20000" },
@@ -303,7 +305,7 @@ test("v2 receipt preserves external actions and its direct pages return to v2 ro
   await expect(page.getByRole("heading", { name: "Send inn sluttrapport" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Tilbake til avtalen" })).toHaveAttribute(
     "href",
-    `/v2/skjema/${approvedDraftId}/kvittering`
+    `/v2/skjema/${approvedDraftId}/vedtak`
   );
   await page.getByRole("link", { name: "Tilbake til avtalen" }).click();
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));
@@ -312,19 +314,24 @@ test("v2 receipt preserves external actions and its direct pages return to v2 ro
   await expect(page.getByRole("heading", { name: "Søk refusjon" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Tilbake til avtalen" })).toHaveAttribute(
     "href",
-    `/v2/skjema/${approvedDraftId}/kvittering`
+    `/v2/skjema/${approvedDraftId}/vedtak`
   );
   await page.getByRole("link", { name: "Tilbake til avtalen" }).click();
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));
 });
 
-test("v2 refunds and final reports submit to the shared API and return to v2", async ({ page }) => {
+test("v2 refunds and final reports submit to the shared API and return to vedtak", async ({
+  page,
+}) => {
   await page.goto("/v2/soknader");
   await ensureMockServiceWorkerReady(page);
-  const approvedDraftId = await findApprovedDraftId(page);
-  if (!approvedDraftId) throw new Error("The mock API did not include an approved application.");
+  await page.getByRole("link", { name: /Kari Innvilget/ }).click();
+  await expect(page).toHaveURL(/\/v2\/skjema\/[^/]+\/vedtak$/);
+  const approvedDraftId = new URL(page.url()).pathname.match(/\/v2\/skjema\/([^/]+)\/vedtak$/)?.[1];
+  if (!approvedDraftId) throw new Error("The approved application did not open its vedtak page.");
 
-  await page.goto(`/v2/skjema/${approvedDraftId}/refusjon`);
+  await page.getByRole("button", { name: "Søk refusjon", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/refusjon$`));
   await expect(
     page.getByLabel("Hvilke utgifter skal tilskuddet til ekspertbistand dekke?")
   ).toHaveCount(0);
@@ -366,21 +373,35 @@ test("v2 refunds and final reports submit to the shared API and return to v2", a
     vedlegg: [expect.objectContaining({ filnavn: "kvittering.pdf" })],
   });
   expect(refundStatus).not.toHaveProperty("utgifter");
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));
-  await expect(page.getByRole("heading", { name: "Søknaden godkjent", exact: true })).toBeVisible();
-
-  // The local mock keeps refund and report status in memory, so return through SPA history.
-  await page.goBack();
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/refusjon$`));
-  await expect(page.getByRole("heading", { name: "Refusjonskrav sendt inn" })).toBeVisible();
-  await expect(page.getByText("Hvilke utgifter skal tilskuddet dekke")).toHaveCount(0);
-  await expect(page.getByText("1 000 kr", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "kvittering.pdf" })).toHaveAttribute(
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/vedtak$`));
+  await expect(page.getByRole("heading", { name: "Søknad godkjent", exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Refusjonskravet er sendt inn.");
+  await expect(page.getByText("Nav behandler refusjonskravet")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Søk refusjon", exact: true })).toHaveCount(0);
+  const refundCard = page.getByRole("region", { name: "Refusjonskrav sendt inn", exact: true });
+  const refundToggle = refundCard.getByRole("button");
+  await expect(refundToggle).toHaveAttribute("aria-expanded", "false");
+  await refundToggle.focus();
+  await refundToggle.press("Enter");
+  await expect(refundToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(refundCard.getByText("1 000 kr", { exact: true })).toBeVisible();
+  await expect(refundCard.getByText("Kontonummer", { exact: true })).toHaveCount(0);
+  const refundAttachment = refundCard.getByRole("link", { name: "kvittering.pdf" });
+  await expect(refundAttachment).toHaveAttribute(
     "href",
     new RegExp(`${API_PATH}/${approvedDraftId}/refusjon/vedlegg/`)
   );
+  // Link downloads are navigations that bypass MSW, so verify the link instead of downloading.
+  await expect(refundAttachment).toHaveAttribute("download", "kvittering.pdf");
 
-  await page.goto(`/v2/skjema/${approvedDraftId}/sluttrapport`);
+  // Keep the mock's in-memory status and verify that a submitted form redirects to vedtak.
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/vedtak$`));
+  await expect(refundToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByText("Refusjonskravet er sendt inn.", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Send inn sluttrapport fra eksperten" }).click();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/sluttrapport$`));
   await page.locator('input[type="file"]').setInputFiles({
     name: "sluttrapport.pdf",
     mimeType: "application/pdf",
@@ -393,13 +414,22 @@ test("v2 refunds and final reports submit to the shared API and return to v2", a
   );
   await page.getByRole("button", { name: "Send inn", exact: true }).click();
   expect((await reportResponse).status()).toBe(201);
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));
-  await expect(page.getByRole("heading", { name: "Søknaden godkjent", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/vedtak$`));
+  await expect(page.getByRole("heading", { name: "Søknad godkjent", exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Sluttrapporten er sendt inn.");
+  await expect(refundToggle).toHaveAttribute("aria-expanded", "false");
 
-  await page.goBack();
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/sluttrapport$`));
-  await expect(page.getByText("Sluttrapport sendt inn", { exact: true })).toBeVisible();
-  await expect(page.getByText("sluttrapport.pdf", { exact: true })).toBeVisible();
+  const reportCard = page.getByRole("region", { name: "Sluttrapport sendt inn", exact: true });
+  const reportToggle = reportCard.getByRole("button");
+  await expect(reportToggle).toHaveAttribute("aria-expanded", "false");
+  await reportToggle.focus();
+  await reportToggle.press("Space");
+  await expect(reportToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(reportCard.getByText("sluttrapport.pdf", { exact: true })).toBeVisible();
+  await expect(reportCard.getByRole("link")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Send inn sluttrapport fra eksperten" })
+  ).toHaveCount(0);
 });
 
 test("production keeps v1 available and rejects every v2 route", async ({ browser }) => {

@@ -1,0 +1,25 @@
+.opplysninger {
+  margin: 0;
+  min-width: 0;
+}
+
+.opplysning + .opplysning {
+  border-top: 1px solid var(--ax-border-neutral-subtle);
+  margin-top: var(--ax-space-16);
+  padding-top: var(--ax-space-16);
+}
+
+.verdi {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.vedlegg {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.vedlegg li + li {
+  margin-top: var(--ax-space-16);
+}

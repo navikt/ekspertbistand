@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { server } from "../../test/server";
 import {
   ANNEN_DELTAKER_FNR,
@@ -153,6 +153,110 @@ describe("SkjemaSteg1Page", () => {
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
       await waitFor(() => expect(fnr).toHaveFocus());
       expect(antallKall()).toBe(0);
+    });
+  });
+
+  describe("nytt utkast", () => {
+    let opprettKall: { request: Request }[] = [];
+    const lytter = ({ request }: { request: Request }) => {
+      if (request.method === "POST" && new URL(request.url).pathname === EKSPERTBISTAND_API_PATH)
+        opprettKall.push({ request: request.clone() });
+    };
+
+    beforeEach(() => {
+      opprettKall = [];
+      server.events.on("request:start", lytter);
+    });
+    afterEach(() => server.events.removeListener("request:start", lytter));
+
+    const apneNyttUtkast = async (fnr: string) => {
+      renderSkjema("/v2/skjema/ny/steg-1");
+      const fnrFelt = await screen.findByRole("textbox", { name: "Fødselsnummer" });
+      await screen.findByRole("button", { name: /åpne virksomhetsmeny/ });
+      const user = await skrivFnr(fnrFelt, fnr);
+      return { user, fnrFelt };
+    };
+
+    it("oppretter utkastet med deltaker og virksomhet og går til steg 2", async () => {
+      const { user } = await apneNyttUtkast(DELTAKER_FNR);
+
+      await user.click(nesteSteg());
+
+      await erPaSteg2();
+      expect(opprettKall).toHaveLength(1);
+      expect(await opprettKall[0].request.json()).toEqual({
+        fnr: DELTAKER_FNR,
+        virksomhetsnummer: expect.stringMatching(/^\d{9}$/),
+      });
+    });
+
+    it("viser ikke «Fortsett senere» og «Slett søknaden» før utkastet finnes", async () => {
+      renderSkjema("/v2/skjema/ny/steg-1");
+      await screen.findByRole("textbox", { name: "Fødselsnummer" });
+
+      expect(screen.queryByRole("button", { name: /Fortsett senere/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Slett søknaden/ })).toBeNull();
+    });
+
+    it("oppretter ikke utkast når fødselsnummeret er ugyldig", async () => {
+      const { user } = await apneNyttUtkast("12345678901");
+
+      await user.click(nesteSteg());
+
+      expect(await screen.findAllByText("Fødselsnummer er ikke gyldig.")).not.toHaveLength(0);
+      expect(opprettKall).toHaveLength(0);
+    });
+
+    it("viser varsel og blir på steg 1 når oppslaget feiler", async () => {
+      server.use(
+        http.post(EKSPERTBISTAND_API_PATH, () =>
+          HttpResponse.json({ message: "feil" }, { status: 503 })
+        )
+      );
+      const { user } = await apneNyttUtkast(DELTAKER_FNR);
+
+      await user.click(nesteSteg());
+
+      expect(
+        await screen.findByText(/Vi kunne ikke sjekke arbeidsforholdet akkurat nå/)
+      ).toBeInTheDocument();
+      erIkkePaSteg2();
+    });
+
+    describe("når fødselsnummeret er brukerens eget", () => {
+      const apneDialog = async () => {
+        const { user } = await apneNyttUtkast(MOCK_BRUKER_FNR);
+        await user.click(nesteSteg());
+        await screen.findByRole("dialog", { name: "Er du selv deltakeren?" });
+        return user;
+      };
+
+      it("oppretter utkastet før dialogen åpnes", async () => {
+        await apneDialog();
+
+        expect(opprettKall).toHaveLength(1);
+      });
+
+      it("«Ja, jeg er deltakeren» går til steg 2", async () => {
+        const user = await apneDialog();
+
+        await user.click(screen.getByRole("button", { name: "Ja, jeg er deltakeren" }));
+
+        await erPaSteg2();
+      });
+
+      it("«Nei, endre fødselsnummer» åpner det nye utkastet og gir fokus til feltet", async () => {
+        const user = await apneDialog();
+
+        await user.click(screen.getByRole("button", { name: "Nei, endre fødselsnummer" }));
+
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        const fnrFelt = screen.getByRole("textbox", { name: "Fødselsnummer" });
+        await waitFor(() => expect(fnrFelt).toHaveValue(MOCK_BRUKER_FNR));
+        await waitFor(() => expect(fnrFelt).toHaveFocus());
+        expect(screen.getByRole("button", { name: /Fortsett senere/ })).toBeInTheDocument();
+        expect(opprettKall).toHaveLength(1);
+      });
     });
   });
 });
