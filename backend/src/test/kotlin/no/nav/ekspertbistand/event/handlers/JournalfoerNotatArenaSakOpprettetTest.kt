@@ -17,8 +17,7 @@ import no.nav.ekspertbistand.infrastruktur.AzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.mocks.mockDokArkiv
-import no.nav.ekspertbistand.soknad.DTO
-import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import org.jetbrains.exposed.v1.jdbc.Database
 import java.util.*
 import kotlin.test.Test
@@ -66,27 +65,27 @@ class JournalfoerNotatArenaSakOpprettetTest {
     }
 }
 
-private val sampleSoknad = DTO.Soknad(
+private val sampleSoknad = SoknadDomainV1(
     id = UUID.randomUUID().toString(),
-    virksomhet = DTO.Virksomhet(
+    virksomhet = SoknadDomainV1.Virksomhet(
         virksomhetsnummer = "1234",
         virksomhetsnavn = "Testbedrift AS",
-        kontaktperson = DTO.Kontaktperson(
+        kontaktperson = SoknadDomainV1.Kontaktperson(
             navn = "Kontakt Person",
             epost = "kontakt@testbedrift.no",
             telefonnummer = "12345678",
         )
     ),
-    ansatt = DTO.Ansatt(
+    ansatt = SoknadDomainV1.Ansatt(
         fnr = "01010112345",
         navn = "Ansatt Navn",
     ),
-    ekspert = DTO.Ekspert(
+    ekspert = SoknadDomainV1.Ekspert(
         navn = "Ekspert Navn",
         virksomhet = "Ekspertselskap",
         kompetanse = "Ekspertise",
     ),
-    behovForBistand = DTO.BehovForBistand(
+    behovForBistand = SoknadDomainV1.BehovForBistand(
         begrunnelse = "Behov begrunnelse",
         behov = "Behov",
         estimertKostnad = "9000",
@@ -94,10 +93,10 @@ private val sampleSoknad = DTO.Soknad(
         tilrettelegging = "Tilrettelegging tekst",
         startdato = LocalDate(2024, 12, 1),
     ),
-    nav = DTO.Nav(
+    nav = SoknadDomainV1.Nav(
         kontaktperson = "Veileder Navn"
     ),
-    status = SoknadStatus.godkjent,
+    status = SoknadDomainV1.Status.godkjent,
 )
 
 private fun ApplicationTestBuilder.setupApplication(database: Database) {

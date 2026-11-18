@@ -50,6 +50,26 @@ class EregClient(
         }.body()
     }
 
+    /** Som [hentOrganisasjon], men gir null når Ereg svarer 404. */
+    suspend fun hentOrganisasjonEllerNull(orgnr: String): OrganisasjonResponse? {
+        val response = try {
+            httpClient.get {
+                url {
+                    takeFrom(ingress)
+                    path(API_PATH + orgnr)
+                }
+                contentType(ContentType.Application.Json)
+                accept(ContentType.Application.Json)
+            }
+        } catch (e: ClientRequestException) {
+            if (e.response.status == HttpStatusCode.NotFound) return null
+            throw e
+        }
+        if (response.status == HttpStatusCode.NotFound) return null
+        if (!response.status.isSuccess()) error("Ereg svarte ${response.status} for organisasjon")
+        return response.body()
+    }
+
     /**
      * Søk etter organisasjoner på (deler av) navn mot Ereg `GET /v2/organisasjon/finn`.
      * Returnerer et sammendrag (subsett) av organisasjonene som matcher [organisasjonsnavn].

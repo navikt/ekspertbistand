@@ -143,52 +143,52 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   await page.getByRole("checkbox").nth(0).check();
   await page.getByRole("checkbox").nth(1).check();
 
+  // Utkastet opprettes først når deltakeren er bekreftet i steg 1.
+  await page.getByRole("button", { name: "Start søknad" }).click();
+  await expect(page).toHaveURL(/\/v2\/skjema\/ny\/steg-1$/);
+  expect(apiRequests.filter((request) => request.method() === "POST")).toHaveLength(0);
+
+  const inputs = createFormInputs();
+  await page.getByRole("textbox", { name: "Fødselsnummer" }).fill(inputs.ansatt.fnr);
   const createRequestPromise = page.waitForRequest(
     (request) => request.method() === "POST" && new URL(request.url()).pathname === API_PATH
   );
-  await page.getByRole("button", { name: "Start søknad" }).click();
+  await page.getByRole("button", { name: "Neste steg" }).click();
   const createRequest = await createRequestPromise;
-  expect(new URL(createRequest.url()).pathname).toBe(API_PATH);
-  await expect(page).toHaveURL(/\/v2\/skjema\/[^/]+\/steg-1$/);
+  expect(createRequest.postDataJSON()).toEqual({
+    fnr: inputs.ansatt.fnr,
+    virksomhetsnummer: MOCK_UNDERENHET,
+  });
+  await expect(page).toHaveURL(/\/v2\/skjema\/[^/]+\/steg-2$/);
 
-  const stepOnePath = new URL(page.url()).pathname;
-  const draftId = stepOnePath.match(/\/v2\/skjema\/([^/]+)\/steg-1$/)?.[1];
-  expect(draftId).toBeTruthy();
+  const draftId = new URL(page.url()).pathname.match(/\/v2\/skjema\/([^/]+)\/steg-2$/)?.[1];
   if (!draftId) throw new Error("The v2 create-draft route did not contain a draft id.");
 
-  const seedStatuses = await page.evaluate(
-    async ({ id, inputs, virksomhetsnummer }) => {
+  // PATCH setter ikke deltaker eller virksomhet. Det gjorde POST.
+  const patchStatus = await page.evaluate(
+    async ({ id, inputs }) => {
       const patch = await fetch(`/ekspertbistand-backend/api/soknad/v1/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(inputs),
       });
-      // PATCH setter ikke deltaker eller virksomhet. Det gjør bare valider-deltaker.
-      const validering = await fetch(
-        `/ekspertbistand-backend/api/soknad/v1/${id}/valider-deltaker`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fnr: inputs.ansatt.fnr, virksomhetsnummer }),
-        }
-      );
-      return [patch.status, validering.status];
+      return patch.status;
     },
-    { id: draftId, inputs: createFormInputs(), virksomhetsnummer: MOCK_UNDERENHET }
+    { id: draftId, inputs }
   );
-  expect(seedStatuses).toEqual([200, 200]);
+  expect(patchStatus).toBe(200);
 
   await page.goto(`/v2/skjema/${draftId}`);
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
-  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-2$`));
+  await expect(page.getByRole("group", { name: "Kontaktperson i virksomheten" })).toBeVisible();
 
   await page.goto("/v2/soknader");
   await ensureMockServiceWorkerReady(page);
   const v2DraftLink = page.getByRole("link", { name: new RegExp(MOCK_DELTAKER_NAVN) });
   await expect(v2DraftLink).toHaveAttribute("href", `/v2/skjema/${draftId}`);
   await v2DraftLink.click();
-  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-1$`));
-  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/v2/skjema/${draftId}/steg-2$`));
+  await expect(page.getByRole("group", { name: "Kontaktperson i virksomheten" })).toBeVisible();
 
   await page.goto("/soknader");
   const v1DraftLink = page.getByRole("link", {
@@ -196,8 +196,8 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   });
   await expect(v1DraftLink).toHaveAttribute("href", `/skjema/${draftId}`);
   await v1DraftLink.click();
-  await expect(page).toHaveURL(new RegExp(`/skjema/${draftId}/steg-1$`));
-  await expect(page.getByRole("heading", { name: "Søknadsskjema – ekspertbistand" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/skjema/${draftId}/steg-2$`));
+  await expect(page.getByRole("group", { name: "Kontaktperson i virksomheten" })).toBeVisible();
 
   await page.goto(`/v2/skjema/${draftId}/oppsummering`);
   await expect(
@@ -241,7 +241,9 @@ test("v2 overview and form use v2 routes while sharing the v1 API", async ({ pag
   const submitRequest = await submitRequestPromise;
   const submitResponse = await submitResponsePromise;
   expect(submitResponse.ok()).toBe(true);
-  expect(submitRequest.postDataJSON()).toMatchObject({
+  // Backend sender inn utkastet slik det er lagret, så PUT har ingen body.
+  expect(submitRequest.postData()).toBeNull();
+  expect(await submitResponse.json()).toMatchObject({
     id: draftId,
     virksomhet: { kontaktperson: { navn: "Oppdatert kontakt" } },
     behovForBistand: { estimertKostnad: "20000" },

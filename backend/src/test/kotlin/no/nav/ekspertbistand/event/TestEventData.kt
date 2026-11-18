@@ -18,8 +18,7 @@ import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.Vilkar
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
-import no.nav.ekspertbistand.soknad.DTO
-import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import java.util.UUID
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -297,27 +296,27 @@ object TestEventData {
         )
     }
 
-    val sampleSoknad = DTO.Soknad(
+    val sampleSoknad = SoknadDomainV1(
         id = UUID.randomUUID().toString(),
-        virksomhet = DTO.Virksomhet(
+        virksomhet = SoknadDomainV1.Virksomhet(
             virksomhetsnummer = "987654321",
             virksomhetsnavn = "Testbedrift AS",
-            kontaktperson = DTO.Kontaktperson(
+            kontaktperson = SoknadDomainV1.Kontaktperson(
                 navn = "Kontakt Person",
                 epost = "kontakt@testbedrift.no",
                 telefonnummer = "12345678",
             )
         ),
-        ansatt = DTO.Ansatt(
+        ansatt = SoknadDomainV1.Ansatt(
             fnr = "01010112345",
             navn = "Ansatt Navn",
         ),
-        ekspert = DTO.Ekspert(
+        ekspert = SoknadDomainV1.Ekspert(
             navn = "Ekspert Navn",
             virksomhet = "Ekspertselskap",
             kompetanse = "Ekspertise",
         ),
-        behovForBistand = DTO.BehovForBistand(
+        behovForBistand = SoknadDomainV1.BehovForBistand(
             begrunnelse = "Behov begrunnelse",
             behov = "Behov",
             estimertKostnad = "9000",
@@ -325,10 +324,10 @@ object TestEventData {
             tilrettelegging = "Tilrettelegging tekst",
             startdato = LocalDate(2024, 12, 1),
         ),
-        nav = DTO.Nav(
+        nav = SoknadDomainV1.Nav(
             kontaktperson = "Veileder Navn"
         ),
-        status = SoknadStatus.innsendt,
+        status = SoknadDomainV1.Status.innsendt,
     )
 
     val sampleTilsagnData = TilsagnData(

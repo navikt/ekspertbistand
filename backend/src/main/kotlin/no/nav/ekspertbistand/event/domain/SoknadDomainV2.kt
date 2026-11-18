@@ -8,7 +8,7 @@ import kotlin.time.Instant
 /**
  * En innsendt søknad, slik eventene lagrer den. Skilt fra [no.nav.ekspertbistand.soknad.DTO.Soknad], så API-et
  * kan endres uten at eventene i `event_log` knekker. Nullbarheten følger en innsendt søknad, ikke et utkast.
- * Lages med [no.nav.ekspertbistand.soknad.DTO.Soknad.tilDomain]. Se
+ * Lages med [no.nav.ekspertbistand.soknad.tilSoknadDomainV2]. Se
  * `specifications/journalfor_vedtaksbrev_arbeidsgiver.md`.
  *
  * Har fødselsnummer og navn på deltaker, og skal ikke logges.
