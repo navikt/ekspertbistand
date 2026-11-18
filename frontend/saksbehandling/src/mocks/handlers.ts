@@ -19,7 +19,12 @@ import {
   type SoknadStatus,
   rolleForOppgave,
 } from "../hooks/useSaker";
-import { VILKAR_TEKSTER, type VilkarId, type VilkarsvurderingDTO } from "../hooks/useVilkår";
+import {
+  AUTOMATISK_OPPFYLTE_VILKAR,
+  VILKAR_TEKSTER,
+  type VilkarId,
+  type VilkarsvurderingDTO,
+} from "../hooks/useVilkår";
 import type { SaksloggInnslag, SaksloggResponse } from "../hooks/useSakslogg";
 import { mockInnloggetAnsatt } from "../mock/ansatt";
 import { tolkSoknadssum } from "../utils/belop";
@@ -880,8 +885,12 @@ const tilKommune = (nummer: string): Kommune => ({ nummer, navn: mockKommunenavn
 const harTilgangTilEnhet = (sak: SakListeElement) =>
   !!sak.behandlendeEnhet && mineEnheter.has(sak.behandlendeEnhet);
 
+// Speiler OpprettSak: noen vilkår opprettes som oppfylt, uten ident og tidspunkt.
 const lagVilkårsvurdering = (): VilkarsvurderingDTO[] =>
-  (Object.keys(VILKAR_TEKSTER) as VilkarId[]).map((vilkar) => ({ vilkar, godkjent: null }));
+  (Object.keys(VILKAR_TEKSTER) as VilkarId[]).map((vilkar) => ({
+    vilkar,
+    godkjent: AUTOMATISK_OPPFYLTE_VILKAR.has(vilkar) ? true : null,
+  }));
 
 const estimertKostnad = (sakId: string) =>
   mockSaker.find((s) => s.sakId === sakId)?.soknad.estimertKostnad ?? "22000";
