@@ -1,28 +1,26 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Navigate, useNavigate, useParams } from "react-router";
 import {
   Alert,
   BodyShort,
   Button,
-  ExpansionCard,
   FileUpload,
   FormSummary,
   Heading,
-  Label,
   Loader,
   VStack,
   type FileAccepted,
   type FileObject,
   type FileRejected,
 } from "@navikt/ds-react";
-import { FileTextIcon, PaperplaneIcon } from "@navikt/aksel-icons";
+import { PaperplaneIcon } from "@navikt/aksel-icons";
 import DecoratedPage from "../components/DecoratedPage";
 import { BackLink } from "../components/BackLink";
 import { useSoknad } from "../hooks/useSoknad";
 import { useSluttrapportStatus } from "../hooks/useSluttrapportStatus";
 import { formatDate } from "../components/summaryFormatters";
 import { EKSPERTBISTAND_SLUTTRAPPORT_PATH } from "../utils/constants";
-import { formatDateTime } from "../utils/date";
+import { lesInnsendingsfeil } from "../utils/innsendingsfeil";
 import { resolveApiError, type ApiErrorInfo } from "../../utils/http";
 
 const MAX_FILES = 1;
@@ -35,6 +33,7 @@ export default function SluttrapportPage() {
   const {
     sluttrapport,
     isLoading: isLoadingStatus,
+    error: statusError,
     mutate: mutateStatus,
   } = useSluttrapportStatus(id);
 
@@ -66,7 +65,7 @@ export default function SluttrapportPage() {
         body: formData,
       });
       if (!response.ok) {
-        throw new Error(`Feil ved innsending (${response.status})`);
+        throw new Error(await lesInnsendingsfeil(response));
       }
     } catch (err) {
       setSubmitError(resolveApiError(err, "Kunne ikke sende inn sluttrapporten akkurat nå."));
@@ -74,18 +73,13 @@ export default function SluttrapportPage() {
       return;
     }
 
-    let statusOppdateringFeilet = false;
-    try {
-      await mutateStatus();
-    } catch {
-      statusOppdateringFeilet = true;
-    }
-
-    navigate(`/v2/skjema/${id}/vedtak`, {
-      state: { sluttrapportSendtInn: true, statusOppdateringFeilet },
-    });
-    setIsSubmitting(false);
+    await mutateStatus();
+    navigate(`/v2/skjema/${id}/vedtak`, { state: { sluttrapportSendtInn: true } });
   };
+
+  if (id && sluttrapport && !statusError && !isSubmitting) {
+    return <Navigate to={`/v2/skjema/${id}/vedtak`} replace />;
+  }
 
   if (isLoading || isLoadingStatus) {
     return (
@@ -106,13 +100,23 @@ export default function SluttrapportPage() {
     );
   }
 
+  if (statusError) {
+    return (
+      <DecoratedPage>
+        <Alert variant="error" role="alert">
+          Kunne ikke hente status for sluttrapporten. Prøv å laste siden på nytt.
+        </Alert>
+      </DecoratedPage>
+    );
+  }
+
   const hasFiles = acceptedFiles.length > 0;
   const atFileLimit = acceptedFiles.length >= MAX_FILES;
 
   return (
     <DecoratedPage>
       <VStack gap="space-32" data-aksel-template="form-summarypage-v5">
-        <BackLink to={`/v2/skjema/${id}/kvittering`}>Tilbake til avtalen</BackLink>
+        <BackLink to={`/v2/skjema/${id}/vedtak`}>Tilbake til avtalen</BackLink>
 
         <Heading level="1" size="xlarge">
           Send inn sluttrapport
@@ -146,93 +150,63 @@ export default function SluttrapportPage() {
           </FormSummary.Answers>
         </FormSummary>
 
-        {sluttrapport ? (
-          <ExpansionCard aria-label="Sluttrapport sendt inn" defaultOpen>
-            <ExpansionCard.Header>
-              <VStack gap="space-8">
-                <FileTextIcon aria-hidden fontSize="1.5rem" />
-                <ExpansionCard.Title size="small">Sluttrapport sendt inn</ExpansionCard.Title>
-                <ExpansionCard.Description>
-                  {formatDateTime(sluttrapport.opprettet) ?? "–"}
-                </ExpansionCard.Description>
-              </VStack>
-            </ExpansionCard.Header>
-            <ExpansionCard.Content>
-              <VStack gap="space-16">
-                <VStack gap="space-2">
-                  <Label>Vedlegg</Label>
-                  <BodyShort>{sluttrapport.filnavn}</BodyShort>
-                </VStack>
-                <VStack gap="space-2">
-                  <Label>Sendt inn til Nav</Label>
-                  <BodyShort>{formatDateTime(sluttrapport.opprettet) ?? "–"}</BodyShort>
-                </VStack>
-              </VStack>
-            </ExpansionCard.Content>
-          </ExpansionCard>
-        ) : (
-          <>
-            <VStack gap="space-16">
-              <FileUpload>
-                <FileUpload.Dropzone
-                  label="Last opp sluttrapport fra eksperten"
-                  description="Kun PDF-filer. Maks 10 MB per fil."
-                  accept=".pdf,application/pdf"
-                  maxSizeInBytes={MAX_FILE_SIZE_BYTES}
-                  fileLimit={{ max: MAX_FILES, current: acceptedFiles.length }}
-                  onSelect={onSelect}
-                  error={
-                    rejectedFiles.length > 0
-                      ? rejectedFiles
-                          .map((f) => `${f.file.name}: ${f.reasons.join(", ")}`)
-                          .join("\n")
-                      : undefined
-                  }
+        <VStack gap="space-16">
+          <FileUpload>
+            <FileUpload.Dropzone
+              label="Last opp sluttrapport fra eksperten"
+              description="Kun PDF-filer. Maks 10 MB per fil."
+              accept=".pdf,application/pdf"
+              maxSizeInBytes={MAX_FILE_SIZE_BYTES}
+              fileLimit={{ max: MAX_FILES, current: acceptedFiles.length }}
+              onSelect={onSelect}
+              error={
+                rejectedFiles.length > 0
+                  ? rejectedFiles.map((f) => `${f.file.name}: ${f.reasons.join(", ")}`).join("\n")
+                  : undefined
+              }
+            />
+          </FileUpload>
+
+          {hasFiles && (
+            <VStack gap="space-8" as="ul">
+              {acceptedFiles.map((file) => (
+                <FileUpload.Item
+                  key={`${file.name}-${file.size}`}
+                  as="li"
+                  file={file}
+                  button={{
+                    action: "delete",
+                    onClick: () => removeFile(file),
+                  }}
                 />
-              </FileUpload>
-
-              {hasFiles && (
-                <VStack gap="space-8" as="ul">
-                  {acceptedFiles.map((file) => (
-                    <FileUpload.Item
-                      key={`${file.name}-${file.size}`}
-                      as="li"
-                      file={file}
-                      button={{
-                        action: "delete",
-                        onClick: () => removeFile(file),
-                      }}
-                    />
-                  ))}
-                </VStack>
-              )}
-
-              {atFileLimit && (
-                <Alert variant="info" inline>
-                  Du kan kun laste opp ett vedlegg.
-                </Alert>
-              )}
+              ))}
             </VStack>
+          )}
 
-            {submitError && (
-              <Alert variant="error" role="alert">
-                {submitError.message}
-              </Alert>
-            )}
+          {atFileLimit && (
+            <Alert variant="info" inline>
+              Du kan kun laste opp ett vedlegg.
+            </Alert>
+          )}
+        </VStack>
 
-            <Button
-              type="button"
-              variant="primary"
-              icon={<PaperplaneIcon aria-hidden />}
-              iconPosition="right"
-              loading={isSubmitting}
-              disabled={!hasFiles}
-              onClick={handleSubmit}
-            >
-              Send inn
-            </Button>
-          </>
+        {submitError && (
+          <Alert variant="error" role="alert">
+            {submitError.message}
+          </Alert>
         )}
+
+        <Button
+          type="button"
+          variant="primary"
+          icon={<PaperplaneIcon aria-hidden />}
+          iconPosition="right"
+          loading={isSubmitting}
+          disabled={!hasFiles}
+          onClick={handleSubmit}
+        >
+          Send inn
+        </Button>
       </VStack>
     </DecoratedPage>
   );
