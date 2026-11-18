@@ -68,13 +68,23 @@ export default function SluttrapportPage() {
       if (!response.ok) {
         throw new Error(`Feil ved innsending (${response.status})`);
       }
-      await mutateStatus();
-      navigate(`/v2/skjema/${id}/kvittering`);
     } catch (err) {
       setSubmitError(resolveApiError(err, "Kunne ikke sende inn sluttrapporten akkurat nå."));
-    } finally {
       setIsSubmitting(false);
+      return;
     }
+
+    let statusOppdateringFeilet = false;
+    try {
+      await mutateStatus();
+    } catch {
+      statusOppdateringFeilet = true;
+    }
+
+    navigate(`/v2/skjema/${id}/vedtak`, {
+      state: { sluttrapportSendtInn: true, statusOppdateringFeilet },
+    });
+    setIsSubmitting(false);
   };
 
   if (isLoading || isLoadingStatus) {

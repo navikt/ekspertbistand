@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link as RouterLink, Navigate, useParams } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Link as RouterLink, Navigate, useLocation, useNavigate, useParams } from "react-router";
 import { ArrowRedoIcon, ClockIcon } from "@navikt/aksel-icons";
 import {
   Alert,
@@ -21,6 +21,7 @@ import { ApplicationPictogram } from "../components/ApplicationPictogram";
 import { BackLink } from "../components/BackLink";
 import { Nokkeldata, type NokkeldataRad } from "../components/Nokkeldata";
 import { SoknadSendtInnKort } from "../components/SoknadSendtInnKort";
+import { SluttrapportSendtInnKort } from "../components/SluttrapportSendtInnKort";
 import { PdfForhandsvisning } from "../components/pdf";
 import { A4_FORHOLD } from "../components/pdf/types";
 import { formatSubmittedDateOrNull } from "../components/summaryFormatters";
@@ -28,6 +29,7 @@ import { draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
 import type { Vedtaksbrev, VedtaksbrevUtfall } from "../features/vedtak/vedtak";
 import { useVedtak } from "../hooks/useVedtak";
 import { useVedtaksbrev } from "../hooks/useVedtaksbrev";
+import { useSluttrapportStatus } from "../hooks/useSluttrapportStatus";
 import { EKSPERTBISTAND_API_PATH, SOKNADER_PATH } from "../utils/constants";
 
 const MINIATYR_BREDDE = 240;
@@ -57,12 +59,36 @@ const kroner = (belop: string) => `${belop} kr`;
 
 export default function VedtakPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const navigeringsstate = location.state as {
+    sluttrapportSendtInn?: boolean;
+    statusOppdateringFeilet?: boolean;
+  } | null;
+  const fraSluttrapport = navigeringsstate?.sluttrapportSendtInn === true;
+  const [innsending] = useState(() => ({
+    soknadId: fraSluttrapport ? id : null,
+    statusOppdateringFeilet: navigeringsstate?.statusOppdateringFeilet === true,
+  }));
+  const sluttrapportSendtInn = id !== undefined && innsending.soknadId === id;
+
+  useEffect(() => {
+    if (fraSluttrapport) {
+      navigate(".", { replace: true, state: null });
+    }
+  }, [fraSluttrapport, navigate]);
+
   const {
     data: draft,
     error: soknadError,
     isLoading: soknadLoading,
   } = useSWR<DraftDto | null>(id ? `${EKSPERTBISTAND_API_PATH}/${id}` : null);
   const { vedtak, error: vedtakError, isLoading: vedtakLoading } = useVedtak(id);
+  const {
+    sluttrapport,
+    isLoading: sluttrapportLoading,
+    error: sluttrapportError,
+  } = useSluttrapportStatus(vedtak && vedtak.utfall !== "AVSLATT" ? id : undefined);
   const [vedtakApent, setVedtakApent] = useState(false);
   const brev = useVedtaksbrev(id, vedtakApent);
 
@@ -76,6 +102,11 @@ export default function VedtakPage() {
   }
 
   const error = vedtakError ?? soknadError;
+  const sluttrapportStatusFeilet =
+    sluttrapportError ||
+    (sluttrapportSendtInn &&
+      !sluttrapport &&
+      (innsending.statusOppdateringFeilet || !sluttrapportLoading));
 
   return (
     <DecoratedPage>
@@ -96,6 +127,12 @@ export default function VedtakPage() {
       </VStack>
 
       <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
+
+      {sluttrapportSendtInn && (
+        <Alert variant="success" role="status">
+          Sluttrapporten er sendt inn.
+        </Alert>
+      )}
 
       {(vedtakLoading || soknadLoading) && (
         <Box aria-live="polite">
@@ -137,9 +174,21 @@ export default function VedtakPage() {
                 </BodyLong>
               </div>
               <VStack gap="space-24" align="start">
-                <Button as={RouterLink} to={`/v2/skjema/${id}/sluttrapport`} variant="secondary">
-                  Send inn sluttrapport fra eksperten
-                </Button>
+                {sluttrapportStatusFeilet ? (
+                  <Alert variant="error" role="alert">
+                    {sluttrapportSendtInn
+                      ? "Sluttrapporten er sendt inn, men opplysningene kunne ikke hentes. Prøv å laste siden på nytt."
+                      : "Kunne ikke hente status for sluttrapporten. Prøv å laste siden på nytt."}
+                  </Alert>
+                ) : sluttrapportLoading ? (
+                  <Box aria-live="polite">
+                    <Loader title="Laster status for sluttrapporten" />
+                  </Box>
+                ) : !sluttrapport && !sluttrapportSendtInn ? (
+                  <Button as={RouterLink} to={`/v2/skjema/${id}/sluttrapport`} variant="secondary">
+                    Send inn sluttrapport fra eksperten
+                  </Button>
+                ) : null}
                 <HStack gap="space-24" align="center">
                   <Button as={RouterLink} to={`/v2/skjema/${id}/refusjon`} variant="secondary">
                     Søk refusjon
@@ -155,6 +204,9 @@ export default function VedtakPage() {
           )}
 
           <VStack gap="space-16">
+            {vedtak.utfall !== "AVSLATT" && sluttrapport && !sluttrapportError && (
+              <SluttrapportSendtInnKort sluttrapport={sluttrapport} />
+            )}
             <ExpansionCard
               size="small"
               aria-label={UTFALL[vedtak.utfall].vedtakTittel}
