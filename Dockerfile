@@ -1,13 +1,14 @@
 # syntax=docker/dockerfile:1.7
 
-ARG BUILDER_IMAGE=node:24
-ARG RUNNER_IMAGE=cgr.dev/chainguard/node:latest
+ARG BUILDER_IMAGE=europe-north1-docker.pkg.dev/cgr-nav/pull-through/nav.no/node:24-dev
+ARG RUNNER_IMAGE=europe-north1-docker.pkg.dev/cgr-nav/pull-through/nav.no/node:24-slim
 FROM ${BUILDER_IMAGE} AS builder
+USER root
 
 ENV NODE_ENV=production
 WORKDIR /workspace
 
-RUN corepack enable
+RUN npm install --global corepack && corepack enable
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./.npmrc ./
 COPY frontend/client/package.json frontend/client/
