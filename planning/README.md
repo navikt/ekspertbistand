@@ -53,10 +53,10 @@ sequenceDiagram
     end
 
     rect rgba(6, 137, 58, 0.08)
-    Note over AG,EB: 2. Saksbehandling 🟢🟢🟢🟢🟢🟢🟡🔴🔴🔴🔴🔴
+    Note over AG,EB: 2. Saksbehandling 🟢🟢🟢🟢🟢🟢🟢🟡🔴🔴🔴🔴
     SB->>EB: 🟢 Tildeler seg saken
     Note over EB: Sak UNDER_BEHANDLING
-    EB->>EB: 🔴 ⚖️ Vilkåret om arbeidsforhold oppfylt fra Aa-reg
+    EB->>EB: 🟢 ⚖️ Vilkåret om arbeidsforhold oppfylt fra Aa-reg
     SB->>EB: 🟡 ⚖️ Vurderer vilkårene (tre nye vilkår mangler)
     opt Deltaker er uenig i arbeidsforholdet
         DT->>SB: Tar kontakt med Nav (utenfor løsningen)
@@ -153,9 +153,9 @@ sequenceDiagram
     end
 ```
 
-🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
+🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 
-🟢 23 ferdig · 🟡 5 delvis · 🔴 21 mangler, av 49 steg i diagrammet. OeBS er ikke egen deltaker i
+🟢 24 ferdig · 🟡 5 delvis · 🔴 20 mangler, av 49 steg i diagrammet. OeBS er ikke egen deltaker i
 diagrammet. Kall til og svar fra OeBS vises som steg i Ekspertbistand.
 
 Deltaker får ikke varsel om refusjonen. Bare arbeidsgiver varsles når
@@ -175,7 +175,7 @@ inne i Mermaid-diagrammer, så lenkene til Trello og PR-ene står her.
 | 5 | 🟢 Varsel om mottatt søknad | Trello [475](https://trello.com/c/GC5c2wJi) |
 | 6 | 🟢 📨 Kopi av søknaden (dokdist) | Trello [676](https://trello.com/c/khxsoU0N), [692](https://trello.com/c/LU0D56cu) \| PR [#251](https://github.com/navikt/ekspertbistand/pull/251) |
 | 7 | 🟢 Tildeler seg saken | Trello [457](https://trello.com/c/wu5GnoXw) |
-| 8 | 🔴 ⚖️ Vilkåret om arbeidsforhold oppfylt fra Aa-reg | Trello [655](https://trello.com/c/WCMkpira) |
+| 8 | 🟢 ⚖️ Vilkåret om arbeidsforhold oppfylt fra Aa-reg | Trello [655](https://trello.com/c/WCMkpira) \| PR [#267](https://github.com/navikt/ekspertbistand/pull/267) |
 | 9 | 🟡 ⚖️ Vurderer vilkårene (tre nye vilkår mangler) | Trello [474](https://trello.com/c/AR3hzcce), [656](https://trello.com/c/hLd2jDAj) |
 | 10 | Tar kontakt med Nav (utenfor løsningen) | utenfor løsningen |
 | 11 | 🟢 Overstyrer vilkåret | Trello [655](https://trello.com/c/WCMkpira) |
@@ -205,8 +205,8 @@ inne i Mermaid-diagrammer, så lenkene til Trello og PR-ene står her.
 | 35 | 🔴 🚫 Legger inn ny sluttdato med notat | mangler kort, se [avsnitt 8](lanseringsplan_2027-04-01.md#8-trekke-avvise-avbryte-og-omgjøre) i planen |
 | 36 | 🔴 🚫 Vedtak om avbrutt tiltak | mangler kort, se [avsnitt 8](lanseringsplan_2027-04-01.md#8-trekke-avvise-avbryte-og-omgjøre) i planen |
 | 37 | 🔴 🚫 Vedtak om avbrutt tiltak (dokdist) | mangler kort, se [avsnitt 8](lanseringsplan_2027-04-01.md#8-trekke-avvise-avbryte-og-omgjøre) i planen |
-| 38 | 🟡 📤 Sender sluttrapport (justeres etter Figma) | Trello [686](https://trello.com/c/W4cdyLLf), [683](https://trello.com/c/omYxyPPP) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
-| 39 | 🟡 📤 Sender refusjonskrav med vedlegg (justeres etter Figma) | Trello [685](https://trello.com/c/ZY79MovZ), [684](https://trello.com/c/hxzNc8Z4) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
+| 38 | 🟡 📤 Sender sluttrapport (justeres etter Figma) | Trello [686](https://trello.com/c/W4cdyLLf), [683](https://trello.com/c/omYxyPPP) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247), [#268](https://github.com/navikt/ekspertbistand/pull/268) |
+| 39 | 🟡 📤 Sender refusjonskrav med vedlegg (justeres etter Figma) | Trello [685](https://trello.com/c/ZY79MovZ), [684](https://trello.com/c/hxzNc8Z4) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247), [#270](https://github.com/navikt/ekspertbistand/pull/270) |
 | 40 | 🟢 📤 Avviser krav over innvilget beløp | Trello [620](https://trello.com/c/NoJhv4wi) \| PR [#247](https://github.com/navikt/ekspertbistand/pull/247) |
 | 41 | 🟢 🧾 Publiserer event og lager oppgave til saksbehandler | Trello [702](https://trello.com/c/TK7W0dt3) \| PR [#248](https://github.com/navikt/ekspertbistand/pull/248), [#249](https://github.com/navikt/ekspertbistand/pull/249) |
 | 42 | 🔴 📣 To påminnelser før refusjonsfristen | mangler kort, se [Avklart](lanseringsplan_2027-04-01.md#avklart) i planen |

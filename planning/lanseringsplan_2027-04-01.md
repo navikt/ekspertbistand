@@ -73,10 +73,10 @@ andre. Antall blokker viser størrelsen:
 For 🟡 gjelder anslaget det som gjenstår. Summene regner M som 2,5 dager
 og XL som 10 dager.
 
-**Totalt cirka 119 utviklerdager** (24 utvikleruker). Frigjøring av beslutter
+**Totalt cirka 114 utviklerdager** (23 utvikleruker). Frigjøring av beslutter
 og omgjøring av vedtak er ikke med. Kapasiteten er cirka 180 dager: 16 uker ×
 3 utviklere, minus vinterferie, ganger 80 %. Det gir rom for at anslagene
-sprekker med rundt 50 %, men ikke for mye ny scope.
+sprekker med rundt 60 %, men ikke for mye ny scope.
 
 ### Søknad (arbeidsgiver)
 
@@ -118,7 +118,7 @@ Gjenstår: cirka 1 dag.
 | 🟡 | M1 | `S  ■` | 📝 Brevmaler for vedtak. QA på tekstene med fag pågår. Deltaker skal ikke få vite tilskuddsbeløpet, så brevene til deltaker endres (Hanna, 4.11.). | [563](https://trello.com/c/3moZGD2U), [678](https://trello.com/c/EXPjdaDS) |
 | 🔴 | M1 | `S  ■` | 📜 Kvitteringshendelser for varsler til arbeidsgiver som mangler i dag: søknad mottatt, godkjent og avlyst. Noop-handlere, ingen backfill. Starter på nytt fra `main`, PR [#201](https://github.com/navikt/ekspertbistand/pull/201) videreføres ikke. | [598](https://trello.com/c/2HQeHav3) |
 | 🟢 | – | – | Entra-grupper og tilgangsrutine i prod (STS-56018) | [506](https://trello.com/c/9wiRRC1M), [532](https://trello.com/c/WB9G2Pxx) |
-| 🔴 | M1 | `M  ■■` | ⚖️ «Automatisk»-tag og oppfylt som standard på «Deltaker er enig» og «Arbeidsforhold» (fra Aa-reg). Saksbehandler kan overstyre. | [655](https://trello.com/c/WCMkpira) |
+| 🟢 | – | – | ⚖️ «Automatisk»-tag og oppfylt som standard på «Deltaker er enig» og «Arbeidsforhold» (fra Aa-reg). Saksbehandler kan overstyre. ([#267](https://github.com/navikt/ekspertbistand/pull/267)) | [655](https://trello.com/c/WCMkpira) |
 | 🔴 | M1 | `M  ■■` | ⚖️ Tre nye vilkår | [656](https://trello.com/c/hLd2jDAj) |
 | 🔴 | M1 | `S  ■` | Beslutter kan ikke endre vilkår (GUI) | [636](https://trello.com/c/eUsR2C7t) |
 | 🟢 | – | – | 🧹 Småfiks: «Beløp», ingen handlingskolonne i sakslista, vedtaksfanen er aktiv når saken har vedtak ([#258](https://github.com/navikt/ekspertbistand/pull/258)) | [652](https://trello.com/c/fQeOJnTi), [709](https://trello.com/c/BPcP6uqr), [713](https://trello.com/c/SqJMcrA6) |
@@ -127,7 +127,7 @@ Gjenstår: cirka 1 dag.
 | 🔴 | M3 | `M  ■■` | Idempotens og samtidighet i saksbehandlings-API-ene: to raske kall får begge 202, men bare det ene får effekt | [694](https://trello.com/c/kVXWdoeJ) |
 | 🔴 | Etter | `M  ■■` | Frigjør beslutter og tildel annen beslutter (kan vente) | [648](https://trello.com/c/Nouutlp7) |
 
-Gjenstår: cirka 13 dager, uten frigjøring av beslutter.
+Gjenstår: cirka 10 dager, uten frigjøring av beslutter.
 
 ### Etter vedtak: brev, journalføring og varsel
 
@@ -173,7 +173,7 @@ Gjenstår: cirka 17 dager.
 | 🟢 | – | – | 📤 Sikkerhetsfunn M4: minne ved opplasting | [664](https://trello.com/c/3qjMQJdw) |
 | 🔴 | M2 | `M  ■■` | 📤 Justere refusjonskravet etter Figma: vis avsatt beløp og fristen | [685](https://trello.com/c/ZY79MovZ) |
 | 🔴 | M2 | `S  ■` | 📤 Justere innsending av sluttrapport (beskrivelse mangler) | [686](https://trello.com/c/W4cdyLLf) |
-| 🔴 | M2 | `M  ■■` | 🛤️ Arbeidsgiver ser innsendt sluttrapport (bare filnavn) og refusjonskrav i ekspansjonskort på ny rute | [683](https://trello.com/c/omYxyPPP), [684](https://trello.com/c/hxzNc8Z4) |
+| 🟢 | – | – | 🛤️ Arbeidsgiver ser innsendt sluttrapport (bare filnavn) og refusjonskrav i ekspansjonskort på ny rute ([#268](https://github.com/navikt/ekspertbistand/pull/268), [#270](https://github.com/navikt/ekspertbistand/pull/270)) | [683](https://trello.com/c/omYxyPPP), [684](https://trello.com/c/hxzNc8Z4) |
 | 🟢 | – | – | 🧾 Hendelser når refusjonskravet og sluttrapporten er mottatt ([#249](https://github.com/navikt/ekspertbistand/pull/249)) | [702](https://trello.com/c/TK7W0dt3) |
 | 🔴 | M2 | `S  ■` | 🧾 Hendelse når sluttrapporten er bekreftet, med post i saksloggen | [715](https://trello.com/c/KBHePFbQ) |
 | 🔴 | M2 | `S  ■` | 🧾 Hendelser når refusjonskravet er sendt til utbetaling eller avslått, med post i saksloggen | [716](https://trello.com/c/BvM7Dir9) |
@@ -185,7 +185,7 @@ Gjenstår: cirka 17 dager.
 | 🔴 | M2 | `M  ■■` | 💸 Avslutte saken etter utbetaling og sluttrapport | Mangler kort |
 | 🔴 | M3 | `S  ■` | 📤 Åpne innsending av refusjon og sluttrapport for arbeidsgiver i prod (i dag bare utenfor prod) | – |
 
-Gjenstår: cirka 25 dager.
+Gjenstår: cirka 23 dager.
 
 ### Trekke, avvise og avbryte
 
@@ -265,7 +265,7 @@ Tilbakekreving er også utenfor scope. Økonomi gjør det manuelt.
 | Ruting via Norg, egne ansatte og kode 6/7 | 🟢 Ferdig |
 | Listevisning, tildeling, sakslogg, foreløpig vedtak, beslutter, retur | 🟢 Ferdig i dev |
 | 📝 Brevmaler for vedtak (seks maler) | 🟡 QA på tekstene med fag pågår (678). Brevene til deltaker skal ikke vise tilskuddsbeløpet. |
-| ⚖️ Vilkårene «Deltaker er enig» og «Arbeidsforhold» settes **automatisk oppfylt**, med taggen «Automatisk». Saksbehandler kan overstyre, og da forsvinner taggen. | 🔴 Ett kort for begge (655), i Weekly commits |
+| ⚖️ Vilkårene «Deltaker er enig» og «Arbeidsforhold» settes **automatisk oppfylt**, med taggen «Automatisk». Saksbehandler kan overstyre, og da forsvinner taggen. | 🟢 Ferdig i dev ([#267](https://github.com/navikt/ekspertbistand/pull/267), 655) |
 | ⚖️ Tre nye vilkår | 🔴 Kort i Weekly commits |
 | Småfiks i GUI: «Beløp», handlingskolonnen i sakslista og aktiv vedtaksfane | 🟢 Ferdig ([#258](https://github.com/navikt/ekspertbistand/pull/258)) |
 | Småfiks i GUI: beslutter kan ikke endre vilkår, breadcrumb med arbeidsgiver og deltaker | 🔴 Kort i Weekly commits (636, 653) |
@@ -355,7 +355,7 @@ Kolonnen «Trolig retting» er vårt anslag og et utgangspunkt for 724.
 | 📤 Arbeidsgiver sender inn refusjonskrav og sluttrapport | 🟢 Bygget, bare utenfor prod. Justering etter Figma og åpning i prod har egne rader. Ett krav per sak, knyttet bare til saken ([#247](https://github.com/navikt/ekspertbistand/pull/247)). |
 | 📤 Beløp i refusjonskravet kan ikke overstige innvilget beløp | 🟢 Ferdig |
 | 📤 Justere refusjonskravet og sluttrapporten etter Figma: vis avsatt beløp og fristen | 🔴 Kort finnes (685, 686) |
-| 🛤️ Arbeidsgiver ser innsendt sluttrapport og refusjonskrav i ekspansjonskort på ny rute. Sluttrapporten vises bare med filnavn, fordi den kan inneholde sensitive personopplysninger. | 🔴 Kort finnes (683, 684). Åpent på kortet: skal kontonummeret vises? |
+| 🛤️ Arbeidsgiver ser innsendt sluttrapport og refusjonskrav i ekspansjonskort på ny rute. Sluttrapporten vises bare med filnavn, fordi den kan inneholde sensitive personopplysninger. | 🟢 Ferdig i dev ([#268](https://github.com/navikt/ekspertbistand/pull/268), [#270](https://github.com/navikt/ekspertbistand/pull/270)) |
 | Saksbehandler ser refusjonskrav, sluttrapport og vedlegg | 🟢 Ferdig i dev |
 | 🧾 Refusjon og sluttrapport som egne oppgaver i oversikten | 🟢 Ferdig i dev ([#248](https://github.com/navikt/ekspertbistand/pull/248)) |
 | 🧾 Hendelser for refusjonskrav og sluttrapport | 🟡 Mottatt er ferdig ([#249](https://github.com/navikt/ekspertbistand/pull/249), 702). Bekreftet sluttrapport (715) og krav sendt til utbetaling eller avslått (716) har egne kort. |
@@ -467,7 +467,7 @@ ferdig i tidslinjen. Sikkerhetsfunn M2–M4 er noe annet enn milepælene M2–M4
 |--------------|---------|------|------------|
 | Uke 45 (6.11.) | **M0: rydd bordet** 🟡 | 🧹 | 🟢 Utgiftsbeskrivelsen er fjernet, og de eksterne avklaringene har eier. 📝 Brevmalene og 📜 hendelsene (598) ble ikke ferdige og er flyttet til M1. |
 | Uke 46 (11.11.) | **P1: tidlig i prod** 🟢 | 🪪 📨 | 🟢 Nådd fem uker før planen. I prod, i dagens Arena-flyt: Aa-reg-sjekk i søknaden, kopi av søknaden til deltaker med dokdist, og tekst om kopien til arbeidsgiver i søknadsskjemaet. |
-| Uke 3 (22.1.) | **M1: vedtaket går ut** | ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: 🟢 arbeidsgiver får varsel om vedtaket. Vilkårene om arbeidsforhold og samtykke settes automatisk, og de tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. 🟢 Søknaden sladdes på arbeidsgivermappa. Hendelsene for varsler til arbeidsgiver finnes (598). 🟢 Bestilling, kvittering og annullering er testet mot OeBS i T1 (13.11.), og prosesseringen er startet i dev. |
+| Uke 3 (22.1.) | **M1: vedtaket går ut** | ⚖️ 🗄️ 🔔 📝 📬 📜 🏦 | I dev: 🟢 arbeidsgiver får varsel om vedtaket. 🟢 Vilkårene om arbeidsforhold og samtykke settes automatisk. De tre nye vilkårene finnes. Fag har godkjent brevmalene. Deltaker får vedtaksbrevet journalført og distribuert med dokdist. 🟢 Søknaden sladdes på arbeidsgivermappa. Hendelsene for varsler til arbeidsgiver finnes (598). 🟢 Bestilling, kvittering og annullering er testet mot OeBS i T1 (13.11.), og prosesseringen er startet i dev. |
 | Uke 6 (12.2.) | **M2: refusjonen går ut** | 🧾 💸 📤 🛤️ 🗄️ 🚫 | I dev: arbeidsgiver sender inn og ser refusjonskrav og sluttrapport på ny rute, etter Figma. Saksbehandler eller beslutter godkjenner, helt eller med redusert beløp. Avslag går via beslutter. Sluttrapporten journalføres. Utbetaling via OeBS, testet mot T1 i runde 2, og saken avsluttes. Utbetaling er sperret til bestillingen er aktiv, og teamet kan få en sak ut av en feilet bestilling, faktura eller oppgjør. Saksbehandler kan trekke og avvise en søknad før vedtak, og arbeidsgiver og deltaker får beskjed. |
 | Uke 9 (5.3.) | **M3: prodklar** | 📡 📣 📜 🛡️ 🧪 🚦 🏦 💸 📤 🚫 og etterlevelse | Salesforce og Modia har testet mottaket. Arbeidsgiver får varsel når refusjonskravet er godkjent eller avslått, og to påminnelser før fristen. Beløpet frigjøres når fristen går ut uten krav. Saksbehandler kan avbryte et tiltak, og arbeidsgiver og deltaker får vedtak. Refusjon og sluttrapport er åpnet for arbeidsgiver i prod. Ekspertbistand er registrert som økonomisystem, og OeBS er skrudd på i prod. Idempotens i saksbehandlings-API-ene. Oppslagslogg og ArcSight, personvern, adressebeskyttelse vises i saksbehandling, alerts, DR testet, ROS og behandlingskatalog. Akseptansetest med saksbehandlere. Saksbehandlingsappen er deployet til prod bak tilgangsgruppene. Generalprøve på overgangen i dev. |
 | Uke 11 (19.3.) | **M4: go-live** | 🚦 | Entra-gruppene er synlige i Mine tilganger. Arena stenger for nye ekspertbistand-saker. Søknader sendt inn etter go-live behandles hos oss. Arena behandler ferdig sakene som ligger der. Salesforce og Modia får data om nye saker fra samme dag. |
@@ -499,13 +499,14 @@ Eier `frontend/client`, `soknad/`, `aareg/`, `vedlegg/` og arbeidsgiversiden
 av `refusjon/`.
 
 Ferdig: 🧹 utgiftsbeskrivelsen er fjernet, 🛤️ ny rute med kvitteringen og
-vedtaket i ekspansjonskort, 🪪 Aa-reg i prod.
+vedtaket i ekspansjonskort, 🪪 Aa-reg i prod, ⚖️ automatisk vilkår for
+arbeidsforhold og «Deltaker er enig» (655), 🛤️ innsendt sluttrapport og
+refusjonskrav på ny rute (683, 684).
 
-1. 🐛 Rett feilen med kontrolltegn i utkastet (714). ⚖️ Automatisk vilkår
-   for arbeidsforhold og «Deltaker er enig» (655), og de tre nye vilkårene
-   (656).
-2. 📤 Refusjonskrav og sluttrapport etter Figma (685, 686), visning på ny rute
-   (683, 684). Åpne refusjon og sluttrapport for arbeidsgiver i prod.
+1. 🐛 Rett feilen med kontrolltegn i utkastet (714). ⚖️ De tre nye
+   vilkårene (656).
+2. 📤 Refusjonskrav og sluttrapport etter Figma (685, 686). Åpne refusjon og
+   sluttrapport for arbeidsgiver i prod.
 3. 📡 Data om nye saker til Salesforce og Modia fra go-live. Avklar hvor
    saksbehandlingsløsningen åpnes fra (711).
 4. 🛡️ Personvern: stanse behandling, sletting når deltaker trekker seg. Ikke
