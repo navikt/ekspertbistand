@@ -15,7 +15,13 @@ function VedtakMottaker() {
   return <pre aria-label="Navigeringstilstand">{JSON.stringify(state)}</pre>;
 }
 
-const renderPage = () => {
+const renderPage = ({
+  sluttrapport = null,
+  statusError = null,
+}: {
+  sluttrapport?: ReturnType<typeof useSluttrapportStatus>["sluttrapport"];
+  statusError?: Error | null;
+} = {}) => {
   const refreshStatus = vi.fn(async () => undefined);
   vi.mocked(useSoknad).mockReturnValue({
     soknad: { virksomhet: { virksomhetsnavn: "Eksempel AS" } },
@@ -23,9 +29,9 @@ const renderPage = () => {
     error: null,
   });
   vi.mocked(useSluttrapportStatus).mockReturnValue({
-    sluttrapport: null,
+    sluttrapport,
     isLoading: false,
-    error: null,
+    error: statusError,
     mutate: refreshStatus,
   });
 
@@ -66,7 +72,7 @@ describe("SluttrapportPage", () => {
     await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
 
     expect(await screen.findByLabelText("Navigeringstilstand")).toHaveTextContent(
-      JSON.stringify({ sluttrapportSendtInn: true, statusOppdateringFeilet: false })
+      JSON.stringify({ sluttrapportSendtInn: true })
     );
     expect(refreshStatus).toHaveBeenCalledTimes(1);
     expect(submit).toHaveBeenCalledWith(EKSPERTBISTAND_SLUTTRAPPORT_PATH("sak-1"), {
@@ -76,18 +82,26 @@ describe("SluttrapportPage", () => {
     expect(screen.queryByText("V2-kvittering")).not.toBeInTheDocument();
   });
 
-  it("bekrefter innsendingen selv om metadataoppslaget feiler", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 201 }));
-    const { refreshStatus, lastOppFil } = renderPage();
-    refreshStatus.mockRejectedValue(new Error("Metadataoppslaget feilet"));
-    const user = await lastOppFil();
-    await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
+  it("sender en eksisterende sluttrapport til vedtakssiden uten bekreftelse", () => {
+    renderPage({
+      sluttrapport: {
+        filnavn: "sluttrapport.pdf",
+        opprettet: "2026-05-20T12:00:00",
+        storrelse: 10,
+      },
+    });
 
-    expect(await screen.findByLabelText("Navigeringstilstand")).toHaveTextContent(
-      JSON.stringify({ sluttrapportSendtInn: true, statusOppdateringFeilet: true })
+    expect(screen.getByLabelText("Navigeringstilstand")).toHaveTextContent("null");
+    expect(screen.queryByRole("button", { name: /^Send inn$/ })).not.toBeInTheDocument();
+  });
+
+  it("viser statusfeil i stedet for et tomt skjema", () => {
+    renderPage({ statusError: new Error("Statusoppslaget feilet") });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Kunne ikke hente status for sluttrapporten. Prøv å laste siden på nytt."
     );
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.queryByText("V2-kvittering")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Send inn$/ })).not.toBeInTheDocument();
   });
 
   it("beholder filen og viser innsendingsfeil når POST feiler", async () => {
@@ -108,6 +122,20 @@ describe("SluttrapportPage", () => {
     await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
     expect(await screen.findByLabelText("Navigeringstilstand")).toBeInTheDocument();
     expect(submit).toHaveBeenCalledTimes(2);
+  });
+
+  it("viser feilmeldingen fra backend når filen avvises", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("Virus funnet i filen 'sluttrapport.pdf'", { status: 422 })
+    );
+    const { lastOppFil } = renderPage();
+    const user = await lastOppFil();
+    await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Virus funnet i filen 'sluttrapport.pdf'"
+    );
+    expect(screen.queryByLabelText("Navigeringstilstand")).not.toBeInTheDocument();
   });
 
   it("venter på bekreftet mottak fra backend før navigering og metadataoppslag", async () => {

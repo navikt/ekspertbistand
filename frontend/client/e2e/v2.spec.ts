@@ -305,7 +305,7 @@ test("v2 receipt preserves external actions and its direct pages return to v2 ro
   await expect(page.getByRole("heading", { name: "Send inn sluttrapport" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Tilbake til avtalen" })).toHaveAttribute(
     "href",
-    `/v2/skjema/${approvedDraftId}/kvittering`
+    `/v2/skjema/${approvedDraftId}/vedtak`
   );
   await page.getByRole("link", { name: "Tilbake til avtalen" }).click();
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));
@@ -314,7 +314,7 @@ test("v2 receipt preserves external actions and its direct pages return to v2 ro
   await expect(page.getByRole("heading", { name: "Søk refusjon" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Tilbake til avtalen" })).toHaveAttribute(
     "href",
-    `/v2/skjema/${approvedDraftId}/kvittering`
+    `/v2/skjema/${approvedDraftId}/vedtak`
   );
   await page.getByRole("link", { name: "Tilbake til avtalen" }).click();
   await expect(page).toHaveURL(new RegExp(`/v2/skjema/${approvedDraftId}/kvittering$`));

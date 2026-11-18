@@ -382,6 +382,46 @@ describe("VedtakPage", () => {
     }
   );
 
+  it("viser metadatafeil for refusjon også når sluttrapporten finnes", async () => {
+    const id = MOCK_VEDTAK_SOKNAD_ID.INNVILGET;
+    server.use(
+      http.get(`${EKSPERTBISTAND_API_PATH}/:id/sluttrapport`, () =>
+        HttpResponse.json({
+          filnavn: "sluttrapport.pdf",
+          opprettet: "2026-11-01T10:00:00",
+          storrelse: 2048,
+        })
+      ),
+      http.get(EKSPERTBISTAND_REFUSJON_PATH(id), () => new HttpResponse(null, { status: 204 })),
+      http.post(EKSPERTBISTAND_REFUSJON_PATH(id), () => new HttpResponse(null, { status: 201 }))
+    );
+    const { container } = renderSkjema(`/v2/skjema/${id}/refusjon`);
+    await screen.findByRole("heading", { name: "Søk refusjon" });
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Beløp for refusjonskravet"), "22400");
+    const filvelger = container.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!filvelger) throw new Error("Fant ikke filvelgeren for refusjonskravet");
+    await user.upload(
+      filvelger,
+      new File(["%PDF-1.4\n%%EOF\n"], "Faktura.pdf", { type: "application/pdf" })
+    );
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Jeg bekrefter at utgiftene som kreves refundert er betalt.",
+      })
+    );
+    await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
+
+    await ventPaVedtak("Søknad godkjent");
+    expect(
+      await screen.findByRole("region", { name: "Sluttrapport sendt inn" })
+    ).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Refusjonskravet er sendt inn, men opplysningene kunne ikke hentes. Prøv å laste siden på nytt."
+    );
+    expect(screen.queryByRole("button", { name: "Søk refusjon" })).not.toBeInTheDocument();
+  });
+
   it("sender eksisterende refusjonskrav fra skjemaet til vedtakssiden", async () => {
     const id = MOCK_VEDTAK_SOKNAD_ID.INNVILGET;
     server.use(http.get(EKSPERTBISTAND_REFUSJON_PATH(id), () => HttpResponse.json(refusjon)));

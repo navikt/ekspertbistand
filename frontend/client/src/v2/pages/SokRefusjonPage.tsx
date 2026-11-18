@@ -30,14 +30,10 @@ import { useRefusjonStatus } from "../hooks/useRefusjonStatus";
 import { useMaksBelop } from "../hooks/useMaksBelop";
 import { useKontonummerFinnes } from "../hooks/useKontonummerFinnes";
 import { formatCurrency, formatDate } from "../components/summaryFormatters";
-import {
-  EKSPERTBISTAND_REFUSJON_PATH,
-  KONTONUMMER_REGISTRERING_URL,
-  SOKNADER_PATH,
-} from "../utils/constants";
+import { EKSPERTBISTAND_REFUSJON_PATH, KONTONUMMER_REGISTRERING_URL } from "../utils/constants";
 import { HttpError, resolveApiError, type ApiErrorInfo } from "../../utils/http";
 import { useErrorFocus } from "../hooks/useErrorFocus";
-import { isProd } from "../../utils/env";
+import { lesInnsendingsfeil } from "../utils/innsendingsfeil";
 
 const MAX_FILES = 5;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -142,15 +138,7 @@ export default function SokRefusjonPage() {
         body: formData,
       });
       if (!response.ok) {
-        const responseBody = (await response.text()).trim();
-        let message = responseBody;
-        try {
-          const parsed = JSON.parse(responseBody) as { message?: unknown };
-          if (typeof parsed.message === "string") message = parsed.message;
-        } catch {
-          // Feilmeldingen kan være ren tekst fra backend.
-        }
-        throw new Error(message || `Feil ved innsending (${response.status})`);
+        throw new Error(await lesInnsendingsfeil(response));
       }
     } catch (err) {
       setSubmitError(resolveApiError(err, "Kunne ikke sende inn refusjonskravet akkurat nå."));
@@ -158,26 +146,14 @@ export default function SokRefusjonPage() {
       return;
     }
 
-    let statusOppdateringFeilet = false;
-    try {
-      await mutateStatus();
-    } catch {
-      statusOppdateringFeilet = true;
-    }
-
-    navigate(`/v2/skjema/${id}/vedtak`, {
-      state: { refusjonSendtInn: true, statusOppdateringFeilet },
-    });
+    await mutateStatus();
+    navigate(`/v2/skjema/${id}/vedtak`, { state: { refusjonSendtInn: true } });
   };
 
   const onInvalid = () => {
     if (acceptedFiles.length === 0) setFileError("Du må laste opp minst én fil.");
     bumpFocusKey();
   };
-
-  if (isProd()) {
-    return <Navigate to={id ? `/v2/skjema/${id}/kvittering` : SOKNADER_PATH} replace />;
-  }
 
   if (id && refusjon && !statusError && !isSubmitting) {
     return <Navigate to={`/v2/skjema/${id}/vedtak`} replace />;
@@ -230,7 +206,7 @@ export default function SokRefusjonPage() {
   return (
     <DecoratedPage>
       <VStack gap="space-32" data-aksel-template="form-summarypage-v5">
-        <BackLink to={`/v2/skjema/${id}/kvittering`}>Tilbake til avtalen</BackLink>
+        <BackLink to={`/v2/skjema/${id}/vedtak`}>Tilbake til avtalen</BackLink>
 
         <Heading level="1" size="xlarge">
           Søk refusjon

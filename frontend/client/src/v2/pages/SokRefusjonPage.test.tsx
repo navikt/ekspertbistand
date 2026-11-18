@@ -109,7 +109,7 @@ describe("SokRefusjonPage", () => {
     expect(screen.queryByText("V2-kvittering")).not.toBeInTheDocument();
   });
 
-  it("returns an unsubmitted refund form to the v2 receipt", () => {
+  it("returns an unsubmitted refund form to the v2 vedtak page", () => {
     renderPage(null);
 
     expect(screen.getByRole("heading", { level: 1, name: "Søk refusjon" })).toBeInTheDocument();
@@ -118,7 +118,7 @@ describe("SokRefusjonPage", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Tilbake til avtalen/ })).toHaveAttribute(
       "href",
-      "/v2/skjema/sak-1/kvittering"
+      "/v2/skjema/sak-1/vedtak"
     );
     expect(
       screen.getByText("Du kan kreve inntil 24 900 kr. Oppgi beløp i hele kroner, f.eks. 12500.")
@@ -152,51 +152,47 @@ describe("SokRefusjonPage", () => {
     expect(screen.queryByRole("button", { name: /^Send inn$/ })).not.toBeInTheDocument();
   });
 
-  it.each([false, true])(
-    "går direkte til vedtaket etter innsending med metadatafeil=%s",
-    async (metadatafeil) => {
-      const user = userEvent.setup();
-      const submit = vi
-        .spyOn(globalThis, "fetch")
-        .mockResolvedValue(new Response(null, { status: 201 }));
-      const { container, refreshStatus } = renderPage(null);
-      if (metadatafeil) refreshStatus.mockRejectedValue(new Error("Metadataoppslaget feilet"));
+  it("går direkte til vedtaket etter innsending og metadataoppslag", async () => {
+    const user = userEvent.setup();
+    const submit = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 201 }));
+    const { container, refreshStatus } = renderPage(null);
 
-      await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
-      expect(await screen.findAllByText("Du må oppgi beløp for refusjonskravet.")).toHaveLength(2);
-      await user.type(screen.getByLabelText("Beløp for refusjonskravet"), "1000");
-      const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]');
-      if (!fileInput) throw new Error("Missing refund attachment input.");
-      const file = new File(["%PDF-1.4\n%%EOF\n"], "kvittering.pdf", { type: "application/pdf" });
-      await user.upload(fileInput, file);
-      await user.click(
-        screen.getByRole("checkbox", {
-          name: "Jeg bekrefter at utgiftene som kreves refundert er betalt.",
-        })
-      );
-      await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
+    await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
+    expect(await screen.findAllByText("Du må oppgi beløp for refusjonskravet.")).toHaveLength(2);
+    await user.type(screen.getByLabelText("Beløp for refusjonskravet"), "1000");
+    const fileInput = container.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!fileInput) throw new Error("Missing refund attachment input.");
+    const file = new File(["%PDF-1.4\n%%EOF\n"], "kvittering.pdf", { type: "application/pdf" });
+    await user.upload(fileInput, file);
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Jeg bekrefter at utgiftene som kreves refundert er betalt.",
+      })
+    );
+    await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
 
-      await waitFor(() =>
-        expect(submit).toHaveBeenCalledWith(EKSPERTBISTAND_REFUSJON_PATH("sak-1"), {
-          method: "POST",
-          body: expect.any(FormData),
-        })
-      );
-      const formData = submit.mock.calls[0][1]?.body;
-      expect(formData).toBeInstanceOf(FormData);
-      if (!(formData instanceof FormData)) throw new Error("Missing refund form data.");
-      expect(Array.from(formData.keys())).toEqual(["belop", "filer"]);
-      expect(formData.has("utgifter")).toBe(false);
-      expect(formData.get("belop")).toBe("1000");
-      expect(formData.getAll("filer")).toEqual([file]);
-      expect(await screen.findByText("V2-vedtak")).toBeInTheDocument();
-      expect(screen.getByLabelText("Navigeringstilstand")).toHaveTextContent(
-        JSON.stringify({ refusjonSendtInn: true, statusOppdateringFeilet: metadatafeil })
-      );
-      expect(screen.queryByText("V2-kvittering")).not.toBeInTheDocument();
-      expect(refreshStatus).toHaveBeenCalledTimes(1);
-    }
-  );
+    await waitFor(() =>
+      expect(submit).toHaveBeenCalledWith(EKSPERTBISTAND_REFUSJON_PATH("sak-1"), {
+        method: "POST",
+        body: expect.any(FormData),
+      })
+    );
+    const formData = submit.mock.calls[0][1]?.body;
+    expect(formData).toBeInstanceOf(FormData);
+    if (!(formData instanceof FormData)) throw new Error("Missing refund form data.");
+    expect(Array.from(formData.keys())).toEqual(["belop", "filer"]);
+    expect(formData.has("utgifter")).toBe(false);
+    expect(formData.get("belop")).toBe("1000");
+    expect(formData.getAll("filer")).toEqual([file]);
+    expect(await screen.findByText("V2-vedtak")).toBeInTheDocument();
+    expect(screen.getByLabelText("Navigeringstilstand")).toHaveTextContent(
+      JSON.stringify({ refusjonSendtInn: true })
+    );
+    expect(screen.queryByText("V2-kvittering")).not.toBeInTheDocument();
+    expect(refreshStatus).toHaveBeenCalledTimes(1);
+  });
 
   it("beholder beløp, filer og bekreftelse når innsendingen feiler", async () => {
     const submit = vi
