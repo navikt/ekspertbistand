@@ -5,7 +5,12 @@ import { MemoryRouter, useLocation } from "react-router";
 import { SWRConfig } from "swr";
 import App from "./App";
 import HealthPage from "./pages/HealthPage";
+import { http, HttpResponse } from "msw";
+import type { DraftDto } from "./features/soknad/payload";
+import { opprettBekreftetUtkast } from "./test/skjema";
+import { server } from "./test/server";
 import { fetchJson } from "./utils/api";
+import { EKSPERTBISTAND_API_PATH } from "./utils/constants";
 
 const mockIsFeatureEnabled = vi.hoisted(() => vi.fn());
 
@@ -68,6 +73,54 @@ describe("App routes", () => {
     expect(
       await screen.findByRole("link", { name: "Opprett søknad om tilskudd til ekspertbistand" })
     ).toHaveAttribute("href", "/v2/skjema/start");
+  });
+
+  it.each(["", "/v2"])("redirects %s/skjema/ny to steg 1", async (prefiks) => {
+    mockIsFeatureEnabled.mockImplementation((flag) => flag === "EKSPERTBISTAND_V2");
+
+    renderApp(`${prefiks}/skjema/ny`);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("current-path")).toHaveTextContent(
+        new RegExp(`^${prefiks}/skjema/ny/steg-1$`)
+      );
+    });
+  });
+
+  describe.each(["", "/v2"])("opening a draft at %s/skjema/{id}", (prefiks) => {
+    beforeEach(() => {
+      mockIsFeatureEnabled.mockImplementation((flag) => flag === "EKSPERTBISTAND_V2");
+    });
+
+    it("goes to steg 2 when steg 1 is filled in", async () => {
+      const id = await opprettBekreftetUtkast();
+
+      renderApp(`${prefiks}/skjema/${id}`);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("current-path")).toHaveTextContent(
+          new RegExp(`^${prefiks}/skjema/${id}/steg-2$`)
+        );
+      });
+    });
+
+    it("goes to steg 1 when the participant is missing", async () => {
+      const id = await opprettBekreftetUtkast();
+      const utkast = await fetchJson<DraftDto>(`${EKSPERTBISTAND_API_PATH}/${id}`);
+      server.use(
+        http.get(`${EKSPERTBISTAND_API_PATH}/${id}`, () =>
+          HttpResponse.json({ ...utkast, ansatt: { ...utkast!.ansatt, fnr: "" } })
+        )
+      );
+
+      renderApp(`${prefiks}/skjema/${id}`);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("current-path")).toHaveTextContent(
+          new RegExp(`^${prefiks}/skjema/${id}/steg-1$`)
+        );
+      });
+    });
   });
 
   it("redirects /v2 to its overview when enabled", async () => {

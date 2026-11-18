@@ -8,7 +8,7 @@ import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.frigjoerSak
 import no.nav.ekspertbistand.saksbehandling.tildelSak
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -129,7 +129,7 @@ class SakProjection(
     }
 
     private fun oppdaterSak(
-        soknad: DTO.Soknad,
+        soknad: SoknadDomainV1,
         eventTimestamp: Instant,
         vilkaar: () -> Op<Boolean> = { Op.TRUE },
         body: SakTable.(UpdateStatement) -> Unit,
@@ -150,6 +150,6 @@ class SakProjection(
         val finalizedStatus = listOf(Saksstatus.INNVILGET, Saksstatus.AVSLATT).map { it.name }
         val notFinalized: () -> Op<Boolean> = { SakTable.status notInList finalizedStatus }
 
-        fun DTO.Soknad.uuid(): UUID = UUID.fromString(requireNotNull(id) { "Søknad mangler id" })
+        fun SoknadDomainV1.uuid(): UUID = UUID.fromString(requireNotNull(id) { "Søknad mangler id" })
     }
 }

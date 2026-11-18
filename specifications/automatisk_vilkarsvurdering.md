@@ -106,7 +106,7 @@ sier at alle vilkår opprettes som ikke vurdert.
 ### 2. Eksisterende saker
 
 Ny datamigrering, foreløpig navn
-`V37__automatisk_vilkarsvurdering.sql`. Bruk neste ledige versjon ved
+`V38__automatisk_vilkarsvurdering.sql`. Bruk neste ledige versjon ved
 implementasjon.
 
 Migreringen setter bare `godkjent = true`, og bare på rader som oppfyller
@@ -183,7 +183,7 @@ Backend-stier er relative til `backend/src/main/`, frontend-stier til
 | Fil | Endring |
 |-----|---------|
 | `kotlin/no/nav/ekspertbistand/event/handlers/OpprettSak.kt` | Standardverdier og KDoc |
-| `resources/db/migration/V37__automatisk_vilkarsvurdering.sql` | Oppdatere eksisterende urørte vilkår, versjonsnummer bekreftes ved implementasjon |
+| `resources/db/migration/V38__automatisk_vilkarsvurdering.sql` | Oppdatere eksisterende urørte vilkår, versjonsnummer bekreftes ved implementasjon |
 | `backend/src/test/.../event/handlers/OpprettSakTest.kt` | Standardverdier og idempotens |
 | `backend/src/test/.../saksbehandling/VilkarsvurderingApiTest.kt` | Lagrede standardverdier |
 | `backend/src/test/.../saksbehandling/ForelopigVedtakApiTest.kt` | Kontrollen med to automatiske vilkår |

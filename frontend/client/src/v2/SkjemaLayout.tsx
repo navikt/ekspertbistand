@@ -4,8 +4,16 @@ import { useSoknadDraft } from "./context/SoknadDraftContext";
 import { SoknadDraftProvider } from "./providers/SoknadDraftProvider";
 import { SkjemaFormProvider } from "./providers/SkjemaFormProvider";
 
-export default function SkjemaLayout() {
+/** Med [nyttUtkast] finnes det ikke noe utkast ennå. Steg 1 oppretter det når deltakeren er bekreftet. */
+export default function SkjemaLayout({ nyttUtkast = false }: { nyttUtkast?: boolean }) {
   const { id } = useParams<{ id: string }>();
+  if (nyttUtkast) {
+    return (
+      <SoknadDraftProvider draftId={null}>
+        <SkjemaDraftOutlet />
+      </SoknadDraftProvider>
+    );
+  }
   if (!id) {
     return <Navigate to={SOKNADER_PATH} replace />;
   }

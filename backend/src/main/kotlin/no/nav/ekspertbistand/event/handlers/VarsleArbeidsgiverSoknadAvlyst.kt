@@ -11,7 +11,7 @@ import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
 
@@ -63,7 +63,7 @@ class VarsleArbeidsgiverSoknadAvlyst(
         return success()
     }
 
-    private suspend fun nyBeskjed(soknad: DTO.Soknad): Result<String> {
+    private suspend fun nyBeskjed(soknad: SoknadDomainV1): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = soknad.id!!,
@@ -83,7 +83,7 @@ class VarsleArbeidsgiverSoknadAvlyst(
         }
     }
 
-    private suspend fun nyStatusSak(soknad: DTO.Soknad): Result<String> {
+    private suspend fun nyStatusSak(soknad: SoknadDomainV1): Result<String> {
         return try {
             produsentApiKlient.nyStatusSak(
                 grupperingsid = soknad.id!!,

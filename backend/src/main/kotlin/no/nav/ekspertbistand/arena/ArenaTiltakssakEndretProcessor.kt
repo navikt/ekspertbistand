@@ -6,7 +6,7 @@ import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.*
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -77,7 +77,7 @@ class ArenaTiltakssakEndretProcessor(
         // tiltakssak i hele Arena, ikke bare våre egne.
         transaction(database) {
             hentArenaSakBySaksnummer(endring.saksnummer) {
-                Json.decodeFromString<DTO.Soknad>(this[ArenaSakTable.soknad])
+                Json.decodeFromString<SoknadDomainV1>(this[ArenaSakTable.soknad])
             }?.let { soknad ->
                 val ikkeTidligereBehandlet = markerTiltakssakEndretMeldingSomBehandlet(endring.sakId)
                 if (ikkeTidligereBehandlet) {

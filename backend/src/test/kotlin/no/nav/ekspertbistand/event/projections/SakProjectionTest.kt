@@ -13,7 +13,7 @@ import no.nav.ekspertbistand.saksbehandling.SaksvilkarTable
 import no.nav.ekspertbistand.saksbehandling.frigjoerSak
 import no.nav.ekspertbistand.saksbehandling.tildelSak
 import no.nav.ekspertbistand.saksbehandling.nesteSaksnummer
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.SoknadTable
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
@@ -332,10 +332,10 @@ class SakProjectionTest {
         while (projection.poll()) Unit
     }
 
-    private fun hentSak(soknad: DTO.Soknad): ResultRow =
+    private fun hentSak(soknad: SoknadDomainV1): ResultRow =
         SakTable.selectAll().where { SakTable.soknadId eq UUID.fromString(soknad.id) }.single()
 
-    private fun lagreSoknad(): DTO.Soknad {
+    private fun lagreSoknad(): SoknadDomainV1 {
         val soknad = TestEventData.sampleSoknad.copy(id = UUID.randomUUID().toString())
         SoknadTable.insert {
             it[id] = UUID.fromString(soknad.id)
@@ -362,32 +362,32 @@ class SakProjectionTest {
         return soknad
     }
 
-    private fun journalfoert(soknad: DTO.Soknad, enhet: String) = EventData.InnsendtSoknadJournalfoert(
+    private fun journalfoert(soknad: SoknadDomainV1, enhet: String) = EventData.InnsendtSoknadJournalfoert(
         soknad = soknad,
         dokumentId = 1,
         journaldpostId = 2,
         behandlendeEnhetId = enhet,
     )
 
-    private fun tiltaksgjennomforingOpprettet(soknad: DTO.Soknad, saksnummer: String) =
+    private fun tiltaksgjennomforingOpprettet(soknad: SoknadDomainV1, saksnummer: String) =
         EventData.TiltaksgjennomforingOpprettet(
             soknad = soknad,
             saksnummer = saksnummer,
             tiltaksgjennomfoeringId = 1,
         )
 
-    private fun saksbehandlingStartet(soknad: DTO.Soknad) = EventData.SaksbehandlingStartetIArena(
+    private fun saksbehandlingStartet(soknad: SoknadDomainV1) = EventData.SaksbehandlingStartetIArena(
         soknad = soknad,
         tiltakssakEndret = TestEventData.sampleTiltakssakEndret,
     )
 
-    private fun tilskuddsbrevMottatt(soknad: DTO.Soknad) = EventData.TilskuddsbrevMottatt(
+    private fun tilskuddsbrevMottatt(soknad: SoknadDomainV1) = EventData.TilskuddsbrevMottatt(
         soknad = soknad,
         tilsagnbrevId = 1,
         tilsagnData = TestEventData.sampleTilsagnData,
     )
 
-    private fun tildelt(soknad: DTO.Soknad, ident: String) = EventData.SakTildeltSaksbehandler(
+    private fun tildelt(soknad: SoknadDomainV1, ident: String) = EventData.SakTildeltSaksbehandler(
         sakId = UUID.randomUUID().toString(),
         soknadId = soknad.id!!,
         saksbehandlerIdent = ident,
@@ -395,7 +395,7 @@ class SakProjectionTest {
         tidspunkt = tidspunkt,
     )
 
-    private fun frigjort(soknad: DTO.Soknad, ident: String) = EventData.SakFrigjort(
+    private fun frigjort(soknad: SoknadDomainV1, ident: String) = EventData.SakFrigjort(
         sakId = UUID.randomUUID().toString(),
         soknadId = soknad.id!!,
         saksbehandlerIdent = ident,
@@ -409,7 +409,7 @@ class SakProjectionTest {
         sak[SakTable.tildelingEventId],
     )
 
-    private fun avlyst(soknad: DTO.Soknad) = EventData.SoknadAvlystIArena(
+    private fun avlyst(soknad: SoknadDomainV1) = EventData.SoknadAvlystIArena(
         soknad = soknad,
         tiltaksgjennomforingEndret = TestEventData.sampleTiltaksgjennomforingEndret,
     )

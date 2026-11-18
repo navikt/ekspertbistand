@@ -83,7 +83,7 @@ seg saken. Habiliteten sjekkes ved vedtak, se `sakslogg` under.
 
 Vilkårsvurderingen for en sak (1:N, én rad per vilkår). Alle vilkår opprettes når saken opprettes
 (`opprettVilkarForSak`). «Arbeidsforhold» og «Deltaker er enig» (`automatiskOppfylteVilkar`) opprettes
-som oppfylt uten ident og tidspunkt, de andre som ikke vurdert. V37 fylte ut de to for eksisterende
+som oppfylt uten ident og tidspunkt, de andre som ikke vurdert. V38 fylte ut de to for eksisterende
 saker der vilkåret var urørt. Frontend viser taggen «Automatisk» til saksbehandler lagrer en vurdering,
 se `automatisk_vilkarsvurdering.md`. Tabellen hadde én kolonne per vilkår i V12, og ble bygget om til én
 rad per vilkår i V19.

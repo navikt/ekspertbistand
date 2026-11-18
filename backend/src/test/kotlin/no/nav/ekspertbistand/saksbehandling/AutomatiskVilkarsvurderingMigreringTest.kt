@@ -15,7 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Testdatabasen er allerede migrert, så testen legger inn rader slik de så ut før V37 og kjører
+ * Testdatabasen er allerede migrert, så testen legger inn rader slik de så ut før V38 og kjører
  * SQL-en på nytt. UPDATE-en er idempotent.
  */
 class AutomatiskVilkarsvurderingMigreringTest {
@@ -63,7 +63,7 @@ class AutomatiskVilkarsvurderingMigreringTest {
     }
 
     private fun kjorMigrering(db: TestDatabase) {
-        val sql = checkNotNull(javaClass.getResource("/db/migration/V37__automatisk_vilkarsvurdering.sql")).readText()
+        val sql = checkNotNull(javaClass.getResource("/db/migration/V38__automatisk_vilkarsvurdering.sql")).readText()
         transaction(db.config.jdbcDatabase) { exec(sql) }
     }
 

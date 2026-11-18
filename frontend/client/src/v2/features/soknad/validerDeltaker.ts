@@ -19,22 +19,37 @@ export type ValiderDeltakerResultat =
   { ok: true; utkast: DraftDto } | { ok: false; feil: ValiderDeltakerFeil };
 
 /**
+ * Oppretter utkastet når deltakeren har et aktivt arbeidsforhold i virksomheten. Backend gjør de
+ * samme sjekkene som i [validerDeltaker], og lagrer ikke noe utkast ved feil.
+ */
+export function opprettUtkast(request: ValiderDeltakerRequest): Promise<ValiderDeltakerResultat> {
+  return sendDeltaker(EKSPERTBISTAND_API_PATH, request);
+}
+
+/**
  * Sjekker at deltakeren har et aktivt arbeidsforhold i virksomheten, og lagrer deltaker,
  * virksomhet og navn på utkastet. Feil fra backend gjøres om til en [ValiderDeltakerFeil].
  */
-export async function validerDeltaker(
+export function validerDeltaker(
   draftId: string,
   request: ValiderDeltakerRequest
 ): Promise<ValiderDeltakerResultat> {
+  return sendDeltaker(
+    `${EKSPERTBISTAND_API_PATH}/${encodeURIComponent(draftId)}/valider-deltaker`,
+    request
+  );
+}
+
+async function sendDeltaker(
+  url: string,
+  request: ValiderDeltakerRequest
+): Promise<ValiderDeltakerResultat> {
   try {
-    const response = await fetchJson<unknown>(
-      `${EKSPERTBISTAND_API_PATH}/${encodeURIComponent(draftId)}/valider-deltaker`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request),
-      }
-    );
+    const response = await fetchJson<unknown>(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
     return { ok: true, utkast: draftDtoServerSchema.parse(response) };
   } catch (error) {
     return { ok: false, feil: tolkFeil(error) };

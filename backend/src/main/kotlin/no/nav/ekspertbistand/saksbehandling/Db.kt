@@ -712,7 +712,7 @@ enum class Vilkar {
 /**
  * Vilkår som opprettes som oppfylt, uten ident og tidspunkt. Saksbehandler kan overstyre. Se
  * `specifications/automatisk_vilkarsvurdering.md`. Speiles i `frontend/saksbehandling/src/hooks/useVilkår.ts`
- * og i `V37__automatisk_vilkarsvurdering.sql`.
+ * og i `V38__automatisk_vilkarsvurdering.sql`.
  */
 val automatiskOppfylteVilkar: Set<Vilkar> = setOf(
     Vilkar.DELTAKER_HAR_ARBEIDSFORHOLD,

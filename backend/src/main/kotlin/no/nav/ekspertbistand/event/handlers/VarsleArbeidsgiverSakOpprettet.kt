@@ -8,7 +8,7 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
 
@@ -50,7 +50,7 @@ class VarsleArbeidsgiverSakOpprettet(
         return success()
     }
 
-    private suspend fun nySak(soknad: DTO.Soknad): Result<String> {
+    private suspend fun nySak(soknad: SoknadDomainV1): Result<String> {
         return try {
             produsentApiKlient.opprettNySak(
                 grupperingsid = soknad.id!!,
@@ -64,7 +64,7 @@ class VarsleArbeidsgiverSakOpprettet(
         }
     }
 
-    private suspend fun nyBeskjed(soknad: DTO.Soknad): Result<String> {
+    private suspend fun nyBeskjed(soknad: SoknadDomainV1): Result<String> {
         return try {
             produsentApiKlient.opprettNyBeskjed(
                 grupperingsid = soknad.id!!,

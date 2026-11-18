@@ -9,7 +9,7 @@ import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGrade
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.GtType
 import no.nav.ekspertbistand.pdl.graphql.generated.hentgeografisktilknytning.GeografiskTilknytning
 import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 
 /**
  * Utleder behandlende enhet for en søknad (Norg-enhetsnummer), og kommunen saken ble rutet på.
@@ -29,7 +29,7 @@ class BehandlendeEnhetUtleder(
     private val eregClient: EregClient,
     private val behandlendeEnhetService: BehandlendeEnhetService,
 ) {
-    suspend fun utled(soknad: DTO.Soknad): Ruting =
+    suspend fun utled(soknad: SoknadDomainV1): Ruting =
         pdlApiKlient.hentAdressebeskyttelse(soknad.ansatt.fnr).fold(
             onSuccess = { person ->
                 when (val gradering = person.adressebeskyttelse.map { it.gradering }.hoyesteGradering()) {
@@ -59,7 +59,7 @@ class BehandlendeEnhetUtleder(
             },
         )
 
-    private suspend fun rutingPaaVirksomhet(gradering: AdressebeskyttelseGradering, soknad: DTO.Soknad): Ruting {
+    private suspend fun rutingPaaVirksomhet(gradering: AdressebeskyttelseGradering, soknad: SoknadDomainV1): Ruting {
         val kommunenummer = virksomhetensKommunenummer(soknad)
         return Ruting(
             enhetNr = behandlendeEnhetService.hentBehandlendeEnhet(gradering, kommunenummer),
@@ -68,7 +68,7 @@ class BehandlendeEnhetUtleder(
         )
     }
 
-    private suspend fun virksomhetensKommunenummer(soknad: DTO.Soknad): String {
+    private suspend fun virksomhetensKommunenummer(soknad: SoknadDomainV1): String {
         val virksomhetsnummer = soknad.virksomhet.virksomhetsnummer
         return eregClient.hentOrganisasjon(virksomhetsnummer)
             .organisasjonDetaljer
