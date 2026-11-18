@@ -75,6 +75,7 @@ Kort 683 har ingen kommentarer, sjekklister eller vedlegg (sjekket 2026-11-17).
 | Figma `299:44721` og `299:45040` | Kortet starter lukket, står over vedtaket og erstatter innsendingsknappen. Dato vises i hodet og under «Sendt inn til Nav». |
 | Ken, kommentar på kort 680, 2026-10-30 | Kvitteringsendringene forutsetter kort 682: ny løsning på egen rute bak feature toggle. |
 | Brukeren, gjennomgang 2026-11-17 | Gå direkte til vedtaket etter innsending, vis en bekreftelse og skill feil ved innsending fra feil ved etterfølgende metadataoppslag. |
+| Brukeren, gjennomgang av kort 684, 2026-11-18 | Sluttrapportsiden følger refusjonssiden: videresending når rapporten finnes, statusfeil, tilbakelenke til vedtaket og feilmelding fra backend. Se [refusjonskrav_visning_arbeidsgiver.md](refusjonskrav_visning_arbeidsgiver.md). |
 
 ### Valg i spec-en
 
@@ -135,10 +136,15 @@ Bruk eksisterende SWR-nøkkel. Etter vellykket POST oppdaterer
 Vedtakssiden bruker samme cache. Vi beholder SWRs revalidering ved senere besøk.
 
 POST-feil beholder brukeren på innsendingssiden med feilmelding og valgt fil.
-Når POST har lykkes, er innsendingen bekreftet selv om metadataoppslaget feiler.
+Feilmeldingen kommer fra backend når svaret er JSON eller ren tekst, for
+eksempel ved virus eller ugyldig PDF. Når POST har lykkes, er innsendingen bekreftet selv om metadataoppslaget feiler.
 Vi navigerer fortsatt til vedtaket, viser «Sluttrapporten er sendt inn» og
 opplyser separat om at metadata ikke kunne hentes. Vi tilbyr ikke ny innsending
 fordi opplysningene mangler.
+
+Åpner arbeidsgiver `/sluttrapport` når rapporten finnes, sendes hen til
+vedtakssiden uten ny bekreftelse. Statusfeil på innsendingssiden vises som
+feil, ikke som et tomt skjema. «Tilbake til avtalen» går til vedtakssiden.
 
 Bekreftelsen følger navigeringen, ikke dokumentmetadataene, og vises ikke
 ved vanlig åpning av vedtakssiden. Navigeringstilstanden fjernes fra

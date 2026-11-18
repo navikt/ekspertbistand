@@ -95,6 +95,7 @@ Spørsmålet om kontonummer står i kortbeskrivelsen og ble avklart i samtalen.
 | Brukeren, 2026-11-17, første avklaring | Vis «Nav behandler refusjonskravet», behold avsatt beløp og utelat løfte om behandlingstid og e-post. Statusvalget erstattes av presiseringen under. |
 | Brukeren, 2026-11-17 | Gjør samme type endringer som for sluttrapport: direkte retur til vedtaket, bekreftelse og separat håndtering av metadatafeil etter innsending. |
 | Brukeren, 2026-11-17 kl. 14:16 | Behandlingsstatus i frontend er prematurt uten eksplisitt behandlingsstatus fra backend. Behold vedtakets statusbanner og vis bare bekreftet mottak av refusjonskravet. |
+| Brukeren, gjennomgang 2026-11-18 | Sluttrapport og refusjon skal håndteres likt: videresending når innsendingen finnes, statusfeil i stedet for tomt skjema, «Tilbake til avtalen» til vedtakssiden og feilmeldingen fra backend ved avvist POST. |
 
 ### Valg i spec-en
 
@@ -111,6 +112,9 @@ Spørsmålet om kontonummer står i kortbeskrivelsen og ble avklart i samtalen.
   Vi innfører ikke et nytt krav om rekkefølge på innsendingene.
 - Når et krav allerede finnes og arbeidsgiver åpner `/refusjon`, sendes hen
   til vedtakssiden. Vi beholder ikke to ulike visninger av innsendt krav.
+- Sluttrapport og refusjon følger samme mønster, men har hver sin side, hook
+  og kortkomponent. Skjemaene og kortene er for ulike til en felles komponent.
+  Bare `v2/utils/innsendingsfeil.ts` deles.
 
 ## Avgrensning
 
@@ -170,10 +174,15 @@ Sluttrapporten får fortsatt ingen dokumentlenke.
 Følg mønsteret fra kort 683 i `SokRefusjonPage`:
 
 1. Vent på vellykket POST. Ved feil beholdes beløp, valgt dokumentasjon og
-   bekreftelsen på betalte utgifter, sammen med feilmelding.
-2. Hent refusjonsmetadata på nytt med `mutateStatus`.
+   bekreftelsen på betalte utgifter, sammen med feilmelding. Feilmeldingen er
+   `message` fra JSON eller ren tekst fra backend. HTML-feilsider fra ingress
+   eller proxy gir standardmeldingen med statuskode.
+2. Hent refusjonsmetadata på nytt med `mutateStatus`. SWR kaster ikke når
+   oppslaget feiler, men legger feilen i hookens `error`.
 3. Naviger direkte til `/v2/skjema/:id/vedtak` med bekreftet innsending,
-   også hvis metadataoppslaget feiler.
+   også hvis metadataoppslaget feiler. Vedtakssiden ser metadatafeilen
+   gjennom `useRefusjonStatus` og trenger ikke et eget flagg i
+   navigeringstilstanden.
 
 Vedtakssiden viser «Refusjonskravet er sendt inn». Ved metadatafeil vises i
 tillegg at kravet er sendt inn, men opplysningene ikke kunne hentes.
@@ -188,6 +197,12 @@ refusjonsmetadata i SWR-cachen.
 Når `/refusjon` åpnes på nytt, avklar status før skjemaet vises. Et eksisterende
 krav sender videre til vedtaket uten en ny innsendingsbekreftelse.
 Statusfeil vises som feil, ikke som et tomt skjema for ny innsending.
+«Tilbake til avtalen» går til vedtakssiden. Søknader uten vedtak sendes
+derfra videre til kvitteringen.
+
+`SluttrapportPage` får de samme endringene: videresending når rapporten finnes,
+statusfeil i stedet for tomt skjema, tilbakelenke til vedtaket og
+feilmeldingen fra backend ved avvist POST.
 
 ### 4. Tester
 
@@ -219,6 +234,12 @@ Sluttrapportflyten og v2-isolasjonstesten skal fortsatt passere.
 | `v2/pages/VedtakPage.test.tsx` | Status, kortrekkefølge, vedlegg og samspill med sluttrapport. |
 | `v2/pages/SokRefusjonPage.tsx` | Direkte retur til vedtaket, separat metadatafeil og videresending når krav finnes. |
 | `v2/pages/SokRefusjonPage.test.tsx` | Oppdater tester for den nye flyten og bevar valideringstestene. |
+| `v2/pages/SluttrapportPage.tsx` | Samme videresending, statusfeil, tilbakelenke og feilmelding som refusjon. |
+| `v2/pages/SluttrapportPage.test.tsx` | Dekk videresending, statusfeil og feilmelding fra backend. |
+| `v2/utils/innsendingsfeil.ts` | Leser feilmeldingen fra en avvist POST. Brukes av begge innsendingssidene. |
+| `v2/utils/innsendingsfeil.test.ts` | JSON, ren tekst, HTML-feilside og tomt svar. |
+
+`frontend/client/e2e/v2.spec.ts` dekker flyten fra vedtakssiden og tilbakelenkene.
 
 ## Kanttilfeller og feilmodus
 
@@ -251,6 +272,8 @@ skissene er avklart med brukeren og beskrevet over.
 - Vellykket POST fører direkte til vedtaket med bekreftelse, også ved metadatafeil.
 - Direkte åpning av `/refusjon` med eksisterende krav fører til vedtaket.
 - Ukjent status gir ingen ny innsendingsmulighet.
-- V1, beløpsvalidering og sluttrapportflyten er uendret.
+- Sluttrapport og refusjon har samme flyt for videresending, statusfeil,
+  tilbakelenke og feilmelding ved avvist POST.
+- V1 og beløpsvalidering er uendret.
 - Målrettede tester, typekontroll, lint og v2-isolasjonstesten passerer.
 - Visningen er kontrollert på smal skjerm og med tastatur.
