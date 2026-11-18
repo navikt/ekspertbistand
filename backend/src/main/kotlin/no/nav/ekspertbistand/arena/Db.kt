@@ -2,7 +2,7 @@ package no.nav.ekspertbistand.arena
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.eq
@@ -93,7 +93,7 @@ fun markerTiltakssakEndretMeldingSomBehandlet(sakId: Int) =
 fun insertArenaSak(
     saksnummer: Saksnummer,
     tiltaksgjennomfoeringId: Int,
-    soknad: DTO.Soknad
+    soknad: SoknadDomainV1
 ) {
     ArenaSakTable.insert {
         it[ArenaSakTable.tiltaksgjennomfoeringId] = tiltaksgjennomfoeringId

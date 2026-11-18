@@ -6,7 +6,7 @@ import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.mocks.StubPdfKonverterer
 import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.SLADDET_NAVN
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertFalse
@@ -71,7 +71,7 @@ class DokumentServiceTest {
 
         service.genererSoknadPdf(
             sampleSoknad().copy(
-                ekspert = DTO.Ekspert(
+                ekspert = SoknadDomainV1.Ekspert(
                     navn = "Ekspert Navn",
                     virksomhet = "Ekspertselskap",
                     kompetanse = "Fysioterapeut",
@@ -221,28 +221,28 @@ class DokumentServiceTest {
         kommentar = "Dette var unødvendig mye testdata å skrive"
     )
 
-    private fun sampleSoknad() = DTO.Soknad(
+    private fun sampleSoknad() = SoknadDomainV1(
         id = "42",
-        virksomhet = DTO.Virksomhet(
+        virksomhet = SoknadDomainV1.Virksomhet(
             virksomhetsnummer = "987654321",
             virksomhetsnavn = "Testbedrift AS",
-            kontaktperson = DTO.Kontaktperson(
+            kontaktperson = SoknadDomainV1.Kontaktperson(
                 navn = "Kontakt Person",
                 epost = "kontakt@testbedrift.no",
                 telefonnummer = "12345678",
             )
         ),
-        ansatt = DTO.Ansatt(
+        ansatt = SoknadDomainV1.Ansatt(
             fnr = "01010112345",
             navn = "Ansatt Navn",
         ),
-        ekspert = DTO.Ekspert(
+        ekspert = SoknadDomainV1.Ekspert(
             navn = "Ekspert Navn",
             virksomhet = "Ekspertselskap",
             godkjentUtdanningEllerAutorisasjon = listOf("Psykolog", "Ergoterapeut"),
             relevantKompetanse = listOf("Tilrettelegging på arbeidsplassen"),
         ),
-        behovForBistand = DTO.BehovForBistand(
+        behovForBistand = SoknadDomainV1.BehovForBistand(
             begrunnelse = "Behov begrunnelse",
             behov = "Behov",
             estimertKostnad = "9000",
@@ -250,7 +250,7 @@ class DokumentServiceTest {
             tilrettelegging = "Tilrettelegging tekst",
             startdato = LocalDate(2024, 12, 1),
         ),
-        nav = DTO.Nav(
+        nav = SoknadDomainV1.Nav(
             kontaktperson = "Veileder Navn"
         ),
     )

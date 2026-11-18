@@ -14,6 +14,11 @@ Content-Type: application/json
 Accept: application/json
 Authorization: Bearer faketoken
 
+{
+  "fnr": "12345678910",
+  "virksomhetsnummer": "910825226"
+}
+
 > {% client.global.set("soknadId", response.body.id); %}
 
 ### hent utkast på id
@@ -47,40 +52,4 @@ Authorization: Bearer faketoken
 ### send inn soknad på id
 PUT http://localhost:8080/api/soknad/v1/{{soknadId}}
 Accept: application/json
-Content-Type: application/json
 Authorization: Bearer faketoken
-
-{
-  "id": "e14fb04f-4fdf-49e3-9f98-70a8cdc180da",
-  "virksomhet": {
-    "virksomhetsnummer": "1337",
-    "kontaktperson": {
-      "navn": "",
-      "epost": "",
-      "telefon": ""
-    }
-  },
-  "ansatt": {
-    "fodselsnummer": "",
-    "navn": ""
-  },
-  "ekspert": {
-    "navn": "",
-    "virksomhet": "",
-    "kompetanse": "",
-    "problemstilling": ""
-  },
-  "tiltak": {
-    "forTilrettelegging": ""
-  },
-  "bestilling": {
-    "kostnad": "",
-    "startDato": ""
-  },
-  "nav": {
-    "kontakt": ""
-  },
-  "opprettetAv": "42",
-  "opprettetTidspunkt": "2025-10-07T20:00:00.894024Z",
-  "status": "innsendt"
-}

@@ -6,6 +6,10 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
+import no.nav.ekspertbistand.event.domain.SoknadDomainV2
+import no.nav.ekspertbistand.event.domain.tilDomain
+import no.nav.ekspertbistand.event.domain.tilDomainV1
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.dao.id.java.UUIDTable
@@ -81,19 +85,19 @@ object SoknadTable : Table("soknad") {
 
 object UtkastTable : UUIDTable("utkast") {
     // Virksomhet
-    val virksomhetsnummer = text("virksomhetsnummer").nullable().index()
-    val virksomhetsnavn = text("virksomhetsnavn").nullable()
+    val virksomhetsnummer = text("virksomhetsnummer").index()
+    val virksomhetsnavn = text("virksomhetsnavn")
     val kontaktpersonNavn = text("kontaktperson_navn").nullable()
     val kontaktpersonEpost = text("kontaktperson_epost").nullable()
     val kontaktpersonTelefon = text("kontaktperson_telefon").nullable()
 
     // Ansatt
-    val ansattFnr = text("ansatt_fnr").nullable()
-    val ansattNavn = text("ansatt_navn").nullable()
+    val ansattFnr = text("ansatt_fnr")
+    val ansattNavn = text("ansatt_navn")
 
-    /** Satt når arbeidsforholdet er bekreftet i Aa-registeret og navnet er hentet fra PDL. */
+    /** Da arbeidsforholdet sist ble bekreftet i Aa-registeret og navnet hentet fra PDL. */
     @OptIn(ExperimentalTime::class)
-    val ansattBekreftetTidspunkt = timestamp("ansatt_bekreftet_tidspunkt").nullable()
+    val ansattBekreftetTidspunkt = timestamp("ansatt_bekreftet_tidspunkt")
 
     // Ekspert
     val ekspertNavn = text("ekspert_navn").nullable()
@@ -126,7 +130,7 @@ object UtkastTable : UUIDTable("utkast") {
 private val jsonParser = Json { ignoreUnknownKeys = true }
 private val stringListSerializer = ListSerializer(String.serializer())
 
-private fun parseJsonStringList(value: String?): List<String> =
+internal fun parseJsonStringList(value: String?): List<String> =
     if (value.isNullOrBlank()) emptyList()
     else runCatching { jsonParser.decodeFromString(stringListSerializer, value) }.getOrElse { emptyList() }
 
@@ -154,15 +158,127 @@ fun findSoknadById(
     id: UUID,
     filterForArbeidsgiver: Boolean = true,
     now: Instant = Clock.System.now(),
-): DTO.Soknad? = SoknadTable.selectAll()
-    .where {
-        if (filterForArbeidsgiver) {
-            (SoknadTable.id eq id) and (SoknadTable.arbeidsgiverTilgangTil greater now)
-        } else {
-            SoknadTable.id eq id
+): DTO.Soknad? = findSoknadRad(id, filterForArbeidsgiver, now)?.tilSoknadDTO()
+
+/** Som [findSoknadById], men som [SoknadDomainV1] for eventene. */
+@OptIn(ExperimentalTime::class)
+fun findSoknadDomainV1ById(
+    id: UUID,
+    filterForArbeidsgiver: Boolean = true,
+    now: Instant = Clock.System.now(),
+): SoknadDomainV1? = findSoknadRad(id, filterForArbeidsgiver, now)?.tilSoknadDomainV1()
+
+/** Som [findSoknadById], men som [SoknadDomainV2]. Se [tilSoknadDomainV2] for når den feiler. */
+@OptIn(ExperimentalTime::class)
+fun findSoknadDomainV2ById(
+    id: UUID,
+    filterForArbeidsgiver: Boolean = true,
+    now: Instant = Clock.System.now(),
+): SoknadDomainV2? = findSoknadRad(id, filterForArbeidsgiver, now)?.tilSoknadDomainV2()
+
+@OptIn(ExperimentalTime::class)
+private fun findSoknadRad(id: UUID, filterForArbeidsgiver: Boolean, now: Instant): ResultRow? =
+    SoknadTable.selectAll()
+        .where {
+            if (filterForArbeidsgiver) {
+                (SoknadTable.id eq id) and (SoknadTable.arbeidsgiverTilgangTil greater now)
+            } else {
+                SoknadTable.id eq id
+            }
         }
-    }
-    .singleOrNull()?.tilSoknadDTO()
+        .singleOrNull()
+
+/** Søknadsraden som [SoknadDomainV1]. Gir samme JSON som [tilSoknadDTO] ga da eventene brukte API-DTO-en. */
+@OptIn(ExperimentalTime::class)
+fun ResultRow.tilSoknadDomainV1() = SoknadDomainV1(
+    id = this[SoknadTable.id].toString(),
+    virksomhet = SoknadDomainV1.Virksomhet(
+        virksomhetsnummer = this[SoknadTable.virksomhetsnummer],
+        virksomhetsnavn = this[SoknadTable.virksomhetsnavn],
+        kontaktperson = SoknadDomainV1.Kontaktperson(
+            navn = this[SoknadTable.kontaktpersonNavn],
+            epost = this[SoknadTable.kontaktpersonEpost],
+            telefonnummer = this[SoknadTable.kontaktpersonTelefon],
+        ),
+        beliggenhetsadresse = this[SoknadTable.beliggenhetsadresse],
+    ),
+    ansatt = SoknadDomainV1.Ansatt(
+        fnr = this[SoknadTable.ansattFnr],
+        navn = this[SoknadTable.ansattNavn],
+    ),
+    ekspert = SoknadDomainV1.Ekspert(
+        navn = this[SoknadTable.ekspertNavn],
+        virksomhet = this[SoknadTable.ekspertVirksomhet],
+        virksomhetNavn = this[SoknadTable.ekspertVirksomhetNavn],
+        virksomhetOrgnr = this[SoknadTable.ekspertVirksomhetOrgnr],
+        kompetanse = this[SoknadTable.ekspertKompetanse],
+        godkjentUtdanningEllerAutorisasjon = parseJsonStringList(this[SoknadTable.ekspertGodkjentUtdanningEllerAutorisasjon]),
+        relevantKompetanse = parseJsonStringList(this[SoknadTable.ekspertRelevantKompetanse]),
+    ),
+    behovForBistand = SoknadDomainV1.BehovForBistand(
+        begrunnelse = this[SoknadTable.behovForBistandBegrunnelse],
+        behov = this[SoknadTable.behovForBistand],
+        estimertKostnad = this[SoknadTable.behovForBistandEstimertKostnad],
+        timer = this[SoknadTable.behovForBistandTimer],
+        tilrettelegging = this[SoknadTable.behovForBistandTilrettelegging],
+        startdato = this[SoknadTable.behovForBistandStartdato],
+    ),
+    nav = SoknadDomainV1.Nav(
+        kontaktperson = this[SoknadTable.navKontaktPerson],
+    ),
+    opprettetAv = this[SoknadTable.opprettetAv],
+    opprettetTidspunkt = this[SoknadTable.opprettetTidspunkt].toString(),
+    status = SoknadStatus.valueOf(this[SoknadTable.status]).tilDomainV1(),
+)
+
+/** Søknadsraden som [SoknadDomainV2]. Feiler for en søknad med fritekst i `kompetanse` i stedet for listene. */
+@OptIn(ExperimentalTime::class)
+fun ResultRow.tilSoknadDomainV2(): SoknadDomainV2 {
+    val id = this[SoknadTable.id].toString()
+    val godkjentUtdanningEllerAutorisasjon =
+        parseJsonStringList(this[SoknadTable.ekspertGodkjentUtdanningEllerAutorisasjon])
+    val relevantKompetanse = parseJsonStringList(this[SoknadTable.ekspertRelevantKompetanse])
+    check(godkjentUtdanningEllerAutorisasjon.isNotEmpty()) { "Søknad $id mangler godkjentUtdanningEllerAutorisasjon" }
+    check(relevantKompetanse.isNotEmpty()) { "Søknad $id mangler relevantKompetanse" }
+
+    return SoknadDomainV2(
+        id = id,
+        virksomhet = SoknadDomainV2.Virksomhet(
+            virksomhetsnummer = this[SoknadTable.virksomhetsnummer],
+            virksomhetsnavn = this[SoknadTable.virksomhetsnavn],
+            kontaktperson = SoknadDomainV2.Kontaktperson(
+                navn = this[SoknadTable.kontaktpersonNavn],
+                epost = this[SoknadTable.kontaktpersonEpost],
+                telefonnummer = this[SoknadTable.kontaktpersonTelefon],
+            ),
+            beliggenhetsadresse = this[SoknadTable.beliggenhetsadresse],
+        ),
+        ansatt = SoknadDomainV2.Ansatt(
+            fnr = this[SoknadTable.ansattFnr],
+            navn = this[SoknadTable.ansattNavn],
+        ),
+        ekspert = SoknadDomainV2.Ekspert(
+            navn = this[SoknadTable.ekspertNavn],
+            virksomhet = this[SoknadTable.ekspertVirksomhet],
+            virksomhetNavn = this[SoknadTable.ekspertVirksomhetNavn],
+            virksomhetOrgnr = this[SoknadTable.ekspertVirksomhetOrgnr],
+            godkjentUtdanningEllerAutorisasjon = godkjentUtdanningEllerAutorisasjon,
+            relevantKompetanse = relevantKompetanse,
+        ),
+        behovForBistand = SoknadDomainV2.BehovForBistand(
+            begrunnelse = this[SoknadTable.behovForBistandBegrunnelse],
+            behov = this[SoknadTable.behovForBistand],
+            estimertKostnad = this[SoknadTable.behovForBistandEstimertKostnad],
+            timer = this[SoknadTable.behovForBistandTimer],
+            tilrettelegging = this[SoknadTable.behovForBistandTilrettelegging],
+            startdato = this[SoknadTable.behovForBistandStartdato],
+        ),
+        nav = SoknadDomainV2.Nav(kontaktperson = this[SoknadTable.navKontaktPerson]),
+        opprettetAv = this[SoknadTable.opprettetAv],
+        opprettetTidspunkt = this[SoknadTable.opprettetTidspunkt],
+        status = SoknadStatus.valueOf(this[SoknadTable.status]).tilDomain(),
+    )
+}
 
 @OptIn(ExperimentalTime::class)
 fun ResultRow.tilSoknadDTO() = DTO.Soknad(
@@ -210,23 +326,19 @@ fun ResultRow.tilSoknadDTO() = DTO.Soknad(
 @OptIn(ExperimentalTime::class)
 fun ResultRow.tilUtkastDTO() = DTO.Utkast(
     id = this[UtkastTable.id].value.toString(),
-    virksomhet = this[UtkastTable.virksomhetsnummer]?.let { virksomhetsnummer ->
-        DTO.Virksomhet(
-            virksomhetsnummer = virksomhetsnummer,
-            virksomhetsnavn = this[UtkastTable.virksomhetsnavn] ?: "",
-            kontaktperson = DTO.Kontaktperson(
-                navn = this[UtkastTable.kontaktpersonNavn] ?: "",
-                epost = this[UtkastTable.kontaktpersonEpost] ?: "",
-                telefonnummer = this[UtkastTable.kontaktpersonTelefon] ?: ""
-            )
+    virksomhet = DTO.Virksomhet(
+        virksomhetsnummer = this[UtkastTable.virksomhetsnummer],
+        virksomhetsnavn = this[UtkastTable.virksomhetsnavn],
+        kontaktperson = DTO.Kontaktperson(
+            navn = this[UtkastTable.kontaktpersonNavn] ?: "",
+            epost = this[UtkastTable.kontaktpersonEpost] ?: "",
+            telefonnummer = this[UtkastTable.kontaktpersonTelefon] ?: ""
         )
-    },
-    ansatt = this[UtkastTable.ansattFnr]?.let { fnr ->
-        DTO.Ansatt(
-            fnr = fnr,
-            navn = this[UtkastTable.ansattNavn] ?: ""
-        )
-    },
+    ),
+    ansatt = DTO.Ansatt(
+        fnr = this[UtkastTable.ansattFnr],
+        navn = this[UtkastTable.ansattNavn]
+    ),
     ekspert = this[UtkastTable.ekspertNavn]?.let { navn ->
         DTO.Ekspert(
             navn = navn,
@@ -252,7 +364,7 @@ fun ResultRow.tilUtkastDTO() = DTO.Utkast(
     },
     opprettetAv = this[UtkastTable.opprettetAv],
     opprettetTidspunkt = this[UtkastTable.opprettetTidspunkt].toString(),
-    deltakerBekreftet = this[UtkastTable.ansattBekreftetTidspunkt] != null,
+    deltakerBekreftet = true,
 )
 
 @OptIn(ExperimentalTime::class)

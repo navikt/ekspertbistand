@@ -8,10 +8,10 @@ import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.pdl.GraderingOppslag
 import no.nav.ekspertbistand.saksbehandling.*
 import no.nav.ekspertbistand.skjerming.SkjermingOppslag
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
-import no.nav.ekspertbistand.soknad.tilSoknadDTO
+import no.nav.ekspertbistand.soknad.tilSoknadDomainV1
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -165,7 +165,7 @@ class OpprettSakTest {
         val saksnummer: String?,
     )
 
-    private fun journalfoert(soknad: DTO.Soknad, behandlendeEnhetId: String, kommunenummer: String? = null) = Event(
+    private fun journalfoert(soknad: SoknadDomainV1, behandlendeEnhetId: String, kommunenummer: String? = null) = Event(
         id = 1L,
         data = EventData.InnsendtSoknadJournalfoert(
             soknad = soknad,
@@ -176,7 +176,7 @@ class OpprettSakTest {
         ),
     )
 
-    private fun hentSak(database: Database, soknad: DTO.Soknad): LagretSak = transaction(database) {
+    private fun hentSak(database: Database, soknad: SoknadDomainV1): LagretSak = transaction(database) {
         SakTable.selectAll().where { SakTable.soknadId eq UUID.fromString(soknad.id) }.single().let {
             LagretSak(
                 sakId = it[SakTable.sakId],
@@ -201,7 +201,7 @@ class OpprettSakTest {
         QueuedEvents.selectAll().map { it[QueuedEvents.eventData] }
     }
 
-    private fun lagreSoknad(database: Database): DTO.Soknad = transaction(database) {
+    private fun lagreSoknad(database: Database): SoknadDomainV1 = transaction(database) {
         SoknadTable.insertReturning {
             it[id] = UUID.randomUUID()
             it[virksomhetsnummer] = "987654321"
@@ -224,6 +224,6 @@ class OpprettSakTest {
             it[navKontaktPerson] = ""
             it[beliggenhetsadresse] = ""
             it[status] = SoknadStatus.innsendt.toString()
-        }.single().tilSoknadDTO()
+        }.single().tilSoknadDomainV1()
     }
 }

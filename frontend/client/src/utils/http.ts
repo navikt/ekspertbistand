@@ -1,19 +1,20 @@
 export async function parseErrorPayload(
   response: Response
-): Promise<{ message: string | null; field: string | null }> {
+): Promise<{ message: string | null; field: string | null; code: string | null }> {
   try {
     const payload: unknown = await response.json();
     if (typeof payload === "object" && payload !== null) {
-      const details = payload as { message?: unknown; felt?: unknown };
+      const details = payload as { message?: unknown; felt?: unknown; kode?: unknown };
       return {
         message: typeof details.message === "string" ? details.message : null,
         field: typeof details.felt === "string" ? details.felt : null,
+        code: typeof details.kode === "string" ? details.kode : null,
       };
     }
   } catch {
     // Ignore JSON parse failures; caller can fallback to generic error.
   }
-  return { message: null, field: null };
+  return { message: null, field: null, code: null };
 }
 
 export async function parseErrorMessage(response: Response): Promise<string | null> {
@@ -24,12 +25,15 @@ type HttpErrorOptions = {
   status: number;
   statusText?: string;
   field?: string;
+  /** `kode` fra backend, for eksempel `OPPSLAG_FEILET`. */
+  code?: string;
 };
 
 export class HttpError extends Error {
   status: number;
   statusText?: string;
   field?: string;
+  code?: string;
 
   constructor(message: string, options: HttpErrorOptions) {
     super(message);
@@ -37,6 +41,7 @@ export class HttpError extends Error {
     this.status = options.status;
     this.statusText = options.statusText;
     this.field = options.field;
+    this.code = options.code;
   }
 }
 

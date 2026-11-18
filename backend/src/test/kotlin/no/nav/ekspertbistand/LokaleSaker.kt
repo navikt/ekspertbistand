@@ -28,7 +28,9 @@ import no.nav.ekspertbistand.saksbehandling.saksstatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.encodeStringList
 import no.nav.ekspertbistand.soknad.findSoknadById
-import no.nav.ekspertbistand.soknad.tilSoknadDTO
+import no.nav.ekspertbistand.soknad.findSoknadDomainV1ById
+import no.nav.ekspertbistand.soknad.findSoknadDomainV2ById
+import no.nav.ekspertbistand.soknad.tilSoknadDomainV1
 import no.nav.ekspertbistand.mocks.enkelPdf
 import no.nav.ekspertbistand.vedlegg.registrerSluttrapport
 import org.jetbrains.exposed.v1.datetime.CurrentDate
@@ -347,7 +349,7 @@ internal fun lagreLokaleSoknader(database: Database) {
 
                 it[navKontaktPerson] = "Navkontaktperson NN"
                 it[status] = "innsendt"
-            }.single().tilSoknadDTO().also {
+            }.single().tilSoknadDomainV1().also {
                 publishEventQueue(EventData.SoknadInnsendt(it))
             }
         }
@@ -432,7 +434,7 @@ private fun JdbcTransaction.lagreLokaleInnsendinger(
 
 private fun arenaeventer(sak: LokalSak): List<EventData> {
     val hendelse = sak.arena ?: return emptyList()
-    val soknad = findSoknadById(sak.soknadId, filterForArbeidsgiver = false) ?: return emptyList()
+    val soknad = findSoknadDomainV1ById(sak.soknadId, filterForArbeidsgiver = false) ?: return emptyList()
     val lopenummer = sak.soknadId.toString().takeLast(4).toInt()
     return listOf(
         when (hendelse) {
@@ -567,7 +569,7 @@ private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
             fattetAvIdent = beslutter.navIdent,
             fattetAvNavn = beslutter.navn,
             tidspunkt = neste(),
-            soknad = checkNotNull(findSoknadById(sak.soknadId, filterForArbeidsgiver = false)).tilDomain(),
+            soknad = checkNotNull(findSoknadDomainV2ById(sak.soknadId, filterForArbeidsgiver = false)),
             sak = SakDomain(
                 sakId = sakId,
                 status = SakDomain.Status.TIL_BESLUTNING,

@@ -26,7 +26,7 @@ import no.nav.ekspertbistand.saksbehandling.MAKS_FORKLARING_LENGDE
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.aggregateRootId
 import no.nav.ekspertbistand.tilsagndata.aggregateRootId
 import kotlin.time.ExperimentalTime
@@ -68,7 +68,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("soknadInnsendt")
     data class SoknadInnsendt(
-        val soknad: DTO.Soknad
+        val soknad: SoknadDomainV1
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
     }
@@ -97,7 +97,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("innsendtSoknadJournalfoert")
     data class InnsendtSoknadJournalfoert(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val dokumentId: Int,
         val journaldpostId: Int,
         val behandlendeEnhetId: String,
@@ -119,7 +119,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("soknadKopiDeltakerJournalfoert")
     data class SoknadKopiDeltakerJournalfoert(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val journalpostId: Int,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
@@ -136,7 +136,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("soknadKopiDeltakerDistribuert")
     data class SoknadKopiDeltakerDistribuert(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val journalpostId: Int,
         val bestillingsId: String,
     ) : EventData {
@@ -159,7 +159,7 @@ sealed interface EventData {
     @SerialName("sakOpprettet")
     data class SakOpprettet(
         val sakId: String,
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val adressebeskyttelse: Adressebeskyttelse? = null,
         val skjermet: Boolean = false,
     ) : EventData {
@@ -180,7 +180,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("tiltaksgjennomforingOpprettet")
     data class TiltaksgjennomforingOpprettet(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val saksnummer: Saksnummer,
         val tiltaksgjennomfoeringId: Int
     ) : EventData {
@@ -205,7 +205,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("tilskuddsbrevMottatt")
     data class TilskuddsbrevMottatt(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val tilsagnbrevId: Int,
         val tilsagnData: TilsagnData
     ) : EventData {
@@ -220,7 +220,7 @@ sealed interface EventData {
      * og rutet rett til Arena, noe som bare skjedde i starten etter at vi gikk i produksjon.
      * Det kommer ikke nye slike søknader, så dette er en legacy-løype. Den skal ikke tilpasses
      * for nye feilsituasjoner i tilsagnsmeldinger, og saker opprettet direkte i Arena finnes ikke.
-     * Vi har ingen [DTO.Soknad] å henge hendelsen på, og aggregatroten utledes fra
+     * Vi har ingen [SoknadDomainV1] å henge hendelsen på, og aggregatroten utledes fra
      * tilsagnsdataene i stedet.
      *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrevKildeAltinn] og
@@ -248,7 +248,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("tilskuddsbrevJournalfoert")
     data class TilskuddsbrevJournalfoert(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val dokumentId: Int,
         val journaldpostId: Int,
         val tilsagnData: TilsagnData
@@ -292,7 +292,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("soknadAvlystIArena")
     data class SoknadAvlystIArena(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val tiltaksgjennomforingEndret: TiltaksgjennomforingEndret
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
@@ -311,7 +311,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("saksbehandlingStartetIArena")
     data class SaksbehandlingStartetIArena(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val tiltakssakEndret: TiltakssakEndret,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
@@ -333,7 +333,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("TilsagnsdataLagret")
     data class TilsagnsdataLagret(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val tilsagnData: TilsagnData,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
@@ -354,7 +354,7 @@ sealed interface EventData {
     @SerialName("tilskuddsbrevVist")
     data class TilskuddsbrevVist(
         val tilsagnNummer: String,
-        val soknad: DTO.Soknad?
+        val soknad: SoknadDomainV1?
     ) : EventData {
         override val aggregateRootId: String get() = soknad?.aggregateRootId ?: tilsagnNummer
     }
