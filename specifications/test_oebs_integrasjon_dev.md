@@ -534,13 +534,12 @@ Funn:
 Funn:
 
 - OeBS T1 avviste `E-2026/900006-1` (`1891`) fordi kostnadsstedet ikke finnes i
-  T1. VALP har bare kvitteringer for `E-2026/900005-1` i dag (Sondre, Slack
-  2026-11-17). `E-2026/900009-1` med `0391` erstatter B. 2026-11-18 bruker bare
-  `0391` og `1291`.
-- Avvisningen kom ikke som `FEILET` på `bestilling-status-v1`. OeBS sendte ingen
-  kvittering til VALP, så bestillingen står som `SENDT` hos oss uten at noe
-  varsler. I prod ville saken stått stille uten at noen fikk vite det. Se
-  *Avvisning uten kvittering*.
+  T1. `E-2026/900009-1` med `0391` erstatter B. 2026-11-18 bruker bare `0391`
+  og `1291`.
+- Avvisningen kom som `FEILET` på `bestilling-status-v1` dagen etter
+  (2026-11-18). En trigger i OeBS T1 var ikke oppdatert for kilden `EKSPBIST`,
+  og det forsinket kvitteringen (Hilde-Mari, Slack 2026-11-18). Vi mottok
+  `FEILET` i dev. Dette dekker også 1D.
 
 ## Feilsituasjoner
 
@@ -552,10 +551,8 @@ Funn:
   ukjent arrangør, feil status på bestillingen) gir ingen `FEILET` tilbake til oss.
   VALP logger feilen og prøver på nytt. Vi ser det bare som manglende status. Be
   VALP sjekke loggene og fjerne meldingen hos seg.
-- **OeBS avviser bestillingen.** Ukjent kostnadssted gir i dag ingen kvittering
-  til VALP og ingen `FEILET` til oss. Bestillingen blir stående som `SENDT`. Er
-  den ikke `AKTIV` etter 20 minutter (OeBS kvitterer hvert 10. minutt), spør
-  VALP og OeBS.
+- **OeBS avviser bestillingen.** OeBS sender kvittering med feilkode til VALP,
+  og VALP publiserer `FEILET`. Vi logger `log.error`. Se *Avvisning i OeBS*.
 - **Ingen status kommer tilbake.** Sjekk at VALP har publisert (logger hos VALP),
   at headeren `fagsystem=EKSPERTBISTAND` er satt, og at consumeren vår har startet
   (ingen `Kafka`-feil ved oppstart).
@@ -652,18 +649,33 @@ saksgangen.
 4. Vurder en hvitliste som i tiltaksadministrasjon, slik at en sak med ukjent
    enhet stopper før bestillingen sendes.
 
-## Avvisning uten kvittering
+## Avvisning i OeBS
 
-OeBS avviste `E-2026/900006-1` uten å sende kvittering til VALP. VALP publiserte
-derfor ingen `FEILET`, og bestillingen står som `SENDT` hos oss. Ingenting
-varsler. I prod ville saken stått stille, og ingen ville fått vite det.
+OeBS T1 avviste `E-2026/900006-1` 2026-11-17. Kvitteringen kom først
+2026-11-18, fordi en trigger i T1 ikke var oppdatert for `EKSPBIST`. Da kom den
+fram til oss som `FEILET`.
 
-Sondre spurte selv om dette ikke burde kommet som `FEILET`. Vi tar det opp med
-VALP og OeBS:
+Avklart med Hilde-Mari (OeBS) på Slack 2026-11-18:
 
-- Skal OeBS sende kvittering ved avvisning, slik at VALP kan publisere `FEILET`?
-- Hvis ikke: trenger vi en egen sjekk som varsler med `log.error` når en
-  bestilling har stått som `SENDT` lenger enn en grense, for eksempel én time.
+- Feilhåndteringen er lik i alle OeBS-miljøer.
+- Alle feil havner i kvitteringen til VALP, med feilkode og feilmelding fra
+  OeBS. Eksempel fra `E-2026/900006-1`: `feilKode` `PO_PDOI_CHARGE_FAILED`,
+  «Feil: Generering av Kostnadskonto mislyktes.».
+- OeBS kan gi flere feilmeldinger for samme feil. Kvitteringen har bare én.
+- Avhengig av feilen ber OeBS oss sende meldingen på nytt etter retting, eller
+  OeBS retter selv. Kjersti Pedersen (OeBS) vet mer om hvor ofte hver av delene
+  skjer.
+- De vanligste feilene i prod gjelder kontering eller leverandørinformasjon.
+  Hilde-Mari sendte eksempler på feilmeldinger som bilde på Slack.
+
+Åpent:
+
+- Når OeBS retter en feilet bestilling selv, kommer det en ny kvittering når den
+  er opprettet? Hilde-Mari skal sjekke. Kommer den, overskriver consumeren
+  statusen, og `trenger_manuell_oppfolging` blir `false`.
+- Hvordan vi sender en bestilling på nytt etter `FEILET`, når OeBS ber om det.
+  Samme bestillingsnummer gir trolig `PO_PDOI_DOC_NUM_UNIQUE` hvis OeBS allerede
+  har dokumentet.
 
 ## Avgrensning
 
@@ -725,4 +737,6 @@ Før bestilling kobles til saksgangen:
 - [ ] Avklart om 1991 skal brukes, og hvilket kostnadssted saker for den belastes
 - [ ] Kostnadssted for 1891 er bestilt i T1 (og 1991 i T1 og prod hvis den skal brukes)
 - [ ] OeBS har bekreftet de 11 andre enhetene i prod
-- [ ] Avklart hvordan vi oppdager en bestilling som OeBS avviser uten kvittering
+- [x] Avklart at OeBS sender `FEILET` når den avviser en bestilling (mottatt i dev 2026-11-18)
+- [ ] Avklart om OeBS sender ny kvittering når den retter en feilet bestilling selv
+- [ ] Avklart hvordan vi sender en bestilling på nytt etter `FEILET`
