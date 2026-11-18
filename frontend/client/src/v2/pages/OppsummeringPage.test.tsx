@@ -3,7 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { server } from "../../test/server";
-import { opprettKomplettUtkast, renderSkjema } from "../../test/skjemaV2";
+import {
+  DELTAKER_FNR,
+  opprettBekreftetUtkast,
+  opprettKomplettUtkast,
+  renderSkjema,
+} from "../../test/skjemaV2";
 import { fetchJson } from "../../utils/api";
 import { EKSPERTBISTAND_API_PATH } from "../utils/constants";
 
@@ -121,5 +126,52 @@ describe("OppsummeringPage", () => {
     expect(
       (await screen.findAllByText("Fyll ut feltet riktig før du sender inn.")).length
     ).toBeGreaterThan(0);
+  });
+
+  describe("når utkastet mangler opplysninger", () => {
+    const apneUfullstendigOppsummering = async () => {
+      const id = await opprettBekreftetUtkast();
+      renderSkjema(`/v2/skjema/${id}/oppsummering`);
+      await screen.findByRole("heading", { name: "Oppsummering av søknad om ekspertbistand" });
+      await waitFor(() => expect(screen.getAllByText(DELTAKER_FNR).length).toBeGreaterThan(0));
+      return id;
+    };
+
+    it("viser ikke feilene før arbeidsgiver prøver å sende inn", async () => {
+      await apneUfullstendigOppsummering();
+
+      expect(screen.queryByText(/Du må rette disse feilene/)).toBeNull();
+    });
+
+    it("viser hvilke felt som mangler, med lenke til steget", async () => {
+      const id = await apneUfullstendigOppsummering();
+
+      await userEvent.setup().click(sendSoknad());
+
+      const oppsummering = await screen.findByText(
+        "Du må rette disse feilene før du kan sende inn søknaden:"
+      );
+      await waitFor(() => expect(document.activeElement).toContainElement(oppsummering));
+      expect(
+        screen.getByRole("link", { name: "Du må fylle ut navn for kontaktperson." })
+      ).toHaveAttribute("href", `/v2/skjema/${id}/steg-2`);
+      expect(screen.getByRole("link", { name: "Du må anslå kostnad." })).toHaveAttribute(
+        "href",
+        `/v2/skjema/${id}/steg-3`
+      );
+      expect(putKall()).toHaveLength(0);
+    });
+
+    it("går til steget når arbeidsgiver klikker på en feil", async () => {
+      await apneUfullstendigOppsummering();
+      const user = userEvent.setup();
+      await user.click(sendSoknad());
+
+      await user.click(
+        await screen.findByRole("link", { name: "Du må beskrive tiltak for tilrettelegging." })
+      );
+
+      expect(await screen.findByText("Steg 3 av 4")).toBeInTheDocument();
+    });
   });
 });

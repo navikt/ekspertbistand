@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
 import { type Path, useFormContext } from "react-hook-form";
 import { ArrowLeftIcon, PaperplaneIcon } from "@navikt/aksel-icons";
@@ -7,6 +7,7 @@ import {
   BodyLong,
   Box,
   Button,
+  ErrorSummary,
   FormSummary,
   Heading,
   HGrid,
@@ -248,6 +249,23 @@ const finnSteg = (felt: Felt): 1 | 2 | 3 | null => {
   return null;
 };
 
+type Mangel = { felt: Felt; melding: string; steg: 1 | 2 | 3 };
+
+/** Feltene som må rettes før innsending, én per felt og sortert etter steg. */
+const finnMangler = (data: SoknadInputs): Mangel[] => {
+  const result = soknadSchema.safeParse(data);
+  if (result.success) return [];
+  const mangler = new Map<Felt, Mangel>();
+  for (const issue of result.error.issues) {
+    const sti = issue.path.join(".");
+    const felt = SYNLIG_FELT[sti] ?? (sti as Felt);
+    // Navnet på deltakeren hentes i steg 1 og vises ikke som eget felt.
+    const steg = finnSteg(felt) ?? (felt.startsWith("ansatt.") ? 1 : null);
+    if (steg && !mangler.has(felt)) mangler.set(felt, { felt, melding: issue.message, steg });
+  }
+  return [...mangler.values()].sort((a, b) => a.steg - b.steg);
+};
+
 export default function OppsummeringPage() {
   const navigate = useNavigate();
   const draftId = useLagretUtkastId();
@@ -271,6 +289,13 @@ export default function OppsummeringPage() {
   } = useSkjemaNavigation();
   const [submitError, setSubmitError] = useState<ApiErrorInfo | null>(null);
   const [lagrer, setLagrer] = useState(false);
+  // Øker for hvert forsøk på å sende inn med mangler, slik at feiloppsummeringen får fokus hver gang.
+  const [manglerForsok, setManglerForsok] = useState(0);
+  const mangler = manglerForsok > 0 ? finnMangler(formData) : [];
+  const manglerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (manglerForsok > 0) manglerRef.current?.focus();
+  }, [manglerForsok]);
   const { trigger: submitDraft, isMutating: submitting } = useSWRMutation<
     null,
     Error,
@@ -287,12 +312,8 @@ export default function OppsummeringPage() {
   const handleSubmit = useCallback(async () => {
     const result = soknadSchema.safeParse(getValues());
     if (!result.success) {
-      setSubmitError({
-        message:
-          "Du må fylle ut alle feltene før du sender inn. Gå tilbake til stegene og fyll inn manglende opplysninger.",
-        requiresLogin: false,
-      });
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setSubmitError(null);
+      setManglerForsok((forsok) => forsok + 1);
       return;
     }
     if (!maksSats || satsLoading || satsError) {
@@ -393,6 +414,22 @@ export default function OppsummeringPage() {
           opplysningene.
         </BodyLong>
 
+        {mangler.length > 0 && (
+          <ErrorSummary
+            ref={manglerRef}
+            heading="Du må rette disse feilene før du kan sende inn søknaden:"
+          >
+            {mangler.map(({ felt, melding, steg }) => (
+              <ErrorSummary.Item
+                key={felt}
+                href={`/v2/skjema/${draftId}/steg-${steg}`}
+                onClick={[handleStep1Link, handleStep2Link, handleStep3Link][steg - 1]}
+              >
+                {melding}
+              </ErrorSummary.Item>
+            ))}
+          </ErrorSummary>
+        )}
         {submitError && (
           <Alert variant="error" role="alert">
             <VStack gap="space-16">

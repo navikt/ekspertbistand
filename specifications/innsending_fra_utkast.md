@@ -223,6 +223,9 @@ Svaret er `DTO.Soknad` som i dag.
 - Gir `PUT` 400 med `felt`, viser oppsummeringen feilen på feltet i steget det
   hører til. Felt som ikke vises i skjemaet, som `ekspert.virksomhetOrgnr`, vises
   på feltet arbeidsgiver fyller ut.
+- Mangler utkastet opplysninger når arbeidsgiver trykker «Send søknad», viser
+  oppsummeringen en feiloppsummering med én lenke per felt til steget feltet
+  hører til. Søknaden sendes ikke.
 - Steg 2 viser 400 og 503 fra PATCH på feltet for ekspertens virksomhet, ikke
   som «Utkastet ble ikke lagret». 400 med `felt` `ekspert.virksomhetOrgnr` ber
   arbeidsgiver velge en annen virksomhet. 503 `OPPSLAG_FEILET` ber arbeidsgiver
