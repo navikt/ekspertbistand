@@ -218,21 +218,27 @@ Disse delene er økonomikritiske og ble skrevet og forstått av teamet, ikke bli
 `NummerserieTest` (sekvens per sak/bestilling, samtidighet og lengdegrense), `OutboxTest`
 (publisering + `PUBLISHED` i én transaksjon, og at publiseringsfeil lar raden ligge `PENDING`) og
 `TiltaksokonomiConsumerTest` (tolkning, fagsystem-header-filtrering og at flagg ikke nullstilles) er
-skrevet og aktive; øvrige testskjeletter i
-[`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs) er `@Ignore` til de er
-implementert.
+skrevet og aktive, sammen med kontraktstestene for meldingene i
+[`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs).
 
 > `Application.main()` starter `startOebsProsessering` (i `Oebs.kt`) bare i dev. Der testes
 > integrasjonen manuelt med rader lagt rett i `oebs_outbox`, se
 > [`specifications/test_oebs_integrasjon_dev.md`](../../../../../../../../specifications/test_oebs_integrasjon_dev.md).
 > I prod blir bestillingene liggende som `PENDING` til testen er godkjent.
 
-## Gjenstående eksterne avhengigheter
+## Status på integrasjonen
 
-- **OeBS** må gjøre funksjonelt og teknisk oppsett før vi kan teste bestilling i dev, og sier fra
-  når de er klare. Faktura og oppgjør testes i en egen runde, når OeBS sier fra om at de er klare
-  for det. Fagsystembokstaven `E` og nummerserien er godtatt (OEBS-2283, 2026-10-28).
-- **VALP** må skru på consumeren for `fager.ekspertbistand.bestillinger-v1` i dev før meldinger
-  behandles. Read-ACL for oss på status-topicene i dev er på plass (navikt/mulighetsrommet#8572).
-  Enum-verdiene vi sender finnes allerede hos VALP (artskonto `EKSPERTBISTAND`,
-  `OkonomiFagsystem.EKSPERTBISTAND`, regnskapskonto `TILTAK_DRIFTSTILSKUDD`).
+OeBS og VALP er klare i dev. Bestilling, faktura og oppgjør er testet manuelt i dev i runde 1 og 2,
+og avvisning i OeBS kommer tilbake som `FEILET`. Fagsystembokstaven `E` og nummerserien er godtatt
+(OEBS-2283, 2026-10-28). Se
+[`specifications/test_oebs_integrasjon_dev.md`](../../../../../../../../specifications/test_oebs_integrasjon_dev.md).
+
+Gjenstår:
+
+- **Status til saksgangen.** Statusen vi får fra VALP, lagres i `oebs_bestilling_status`, men går
+  ikke videre til saken. Pakken skal publisere eventer på EventQueue som saksgangen kan lytte på, se
+  [`specifications/oebs_status_til_saksgang.md`](../../../../../../../../specifications/oebs_status_til_saksgang.md).
+- **Kostnadssteder.** 1891 finnes ikke i OeBS T1, og 1991 er ikke aktiv i prod. Åpne punkter i
+  `test_oebs_integrasjon_dev.md`.
+- **Ny sending etter `FEILET`.** Ikke avklart med OeBS.
+- **Prod.** Polleren og consumeren startes bare i dev.
