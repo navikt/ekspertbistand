@@ -6,13 +6,14 @@ import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
+import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
 import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.domain.tilDomain
 import no.nav.ekspertbistand.event.domain.tilSaksStatus
-import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
 import no.nav.ekspertbistand.notifikasjon.merkelapp
@@ -53,6 +54,7 @@ class VarsleArbeidsgiverVedtakFattet @OptIn(ExperimentalTime::class) constructor
     override suspend fun handle(event: Event<EventData.VedtaksbrevArbeidsgiverJournalfoert>): EventHandledResult {
         val data = event.data
         val varsel = arbeidsgiverVarsel(data)
+        val saksstatus = varsel.saksstatus ?: return unrecoverableError("Varselet om vedtak mangler saksstatus")
 
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubtask)) {
             try {
@@ -62,7 +64,7 @@ class VarsleArbeidsgiverVedtakFattet @OptIn(ExperimentalTime::class) constructor
                     virksomhetsnummer = varsel.virksomhetsnummer,
                     tekst = varsel.beskjed.tekst,
                     lenke = varsel.beskjed.lenke,
-                    eksternVarsel = varsel.beskjed.eksterntVarsel.let {
+                    eksternVarsel = varsel.beskjed.eksterntVarsel?.let {
                         EksterntVarsel(
                             epostTittel = it.epostTittel,
                             epostHtmlBody = it.epostHtmlBody,
@@ -80,9 +82,9 @@ class VarsleArbeidsgiverVedtakFattet @OptIn(ExperimentalTime::class) constructor
             try {
                 produsentApiKlient.nyStatusSak(
                     grupperingsid = varsel.grupperingsid,
-                    status = varsel.saksstatus.status.tilSaksStatus(),
-                    statusTekst = varsel.saksstatus.statusTekst,
-                    nyLenkeTilSak = varsel.saksstatus.nyLenkeTilSak,
+                    status = saksstatus.status.tilSaksStatus(),
+                    statusTekst = saksstatus.statusTekst,
+                    nyLenkeTilSak = saksstatus.nyLenkeTilSak,
                 )
             } catch (e: Exception) {
                 return transientError("Klarte ikke oppdatere saksstatus om vedtak for sak ${data.sakId}", e)
@@ -149,6 +151,7 @@ internal fun arbeidsgiverVarsel(data: EventData.VedtaksbrevArbeidsgiverJournalfo
     mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = altinn3Ressursid),
     virksomhetsnummer = data.virksomhetsnummer,
     grupperingsid = data.soknadId,
+    sak = null,
     beskjed = ArbeidsgiverVarselDomain.Beskjed(
         eksternId = "${data.soknadId}-vedtak",
         tekst = beskjedTekst(data.utfall),

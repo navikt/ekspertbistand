@@ -737,6 +737,82 @@ sealed interface EventData {
     }
 
     /**
+     * Arbeidsgiver er varslet om at søknaden er mottatt: sak og beskjed i notifikasjonsplattformen, uten eksternt
+     * varsel. Kvitterer hva vi bestilte, ikke hva arbeidsgiver har sett.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIArena] (prod) og
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSakOpprettet] (utenfor prod) når plattformen har tatt
+     * imot både saken og beskjeden. [varsel] er det som ble sendt.
+     *
+     * Ikke backfillet: varsler sendt før eventen fantes, har ingen kvittering.
+     *
+     * `varsel.sak.tittel` har deltakers navn og fødselsdato, og skal ikke logges. Søknaden er aggregatroten, så
+     * [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("arbeidsgiverVarsletSoknadMottatt")
+    data class ArbeidsgiverVarsletSoknadMottatt(
+        val soknadId: String,
+        val varsel: ArbeidsgiverVarselDomain,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver er varslet om at søknaden er godkjent i Arena: beskjed med eksternt varsel, og saken satt til
+     * ferdig. Kvitterer hva vi bestilte, ikke at e-post og SMS er levert.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjent] når plattformen har tatt
+     * imot både beskjeden og statusen, én gang per tilsagn. [tilsagnNummer] er tilsagnet arbeidsgiver ble varslet
+     * om (`aar:loepenrSak:loepenrTilsagn`). [varsel] er det som ble sendt.
+     *
+     * Ikke backfillet: varsler sendt før eventen fantes, har ingen kvittering.
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("arbeidsgiverVarsletSoknadGodkjent")
+    data class ArbeidsgiverVarsletSoknadGodkjent(
+        val soknadId: String,
+        val tilsagnNummer: String,
+        val varsel: ArbeidsgiverVarselDomain,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver er varslet om at søknaden er avlyst i Arena: beskjed med eksternt varsel, og saken satt til
+     * ferdig. Kvitterer hva vi bestilte, ikke at e-post og SMS er levert.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst] når plattformen har tatt
+     * imot både beskjeden og statusen. [varsel] er det som ble sendt.
+     *
+     * Ikke backfillet: varsler sendt før eventen fantes, har ingen kvittering.
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("arbeidsgiverVarsletSoknadAvlyst")
+    data class ArbeidsgiverVarsletSoknadAvlyst(
+        val soknadId: String,
+        val varsel: ArbeidsgiverVarselDomain,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
      * Arbeidsgiver har hentet vedtaksbrevet som PDF.
      *
      * Publiseres av [no.nav.ekspertbistand.vedtaksbrev.VedtaksbrevApi] ved hvert oppslag, og kan derfor
@@ -809,6 +885,15 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(VarsleArbeidsgiverVedtakFattet::class))
         register<EventData.ArbeidsgiverVarsletVedtakFattet>("ArbeidsgiverVarsletVedtakFattetNoop") { _ ->
             // Kvitterer hva arbeidsgiver ble varslet om, i eventloggen. Ingen konsumenter per nå.
+            EventHandledResult.Success()
+        }
+        register<EventData.ArbeidsgiverVarsletSoknadMottatt>("ArbeidsgiverVarsletSoknadMottattNoop") { _ ->
+            EventHandledResult.Success()
+        }
+        register<EventData.ArbeidsgiverVarsletSoknadGodkjent>("ArbeidsgiverVarsletSoknadGodkjentNoop") { _ ->
+            EventHandledResult.Success()
+        }
+        register<EventData.ArbeidsgiverVarsletSoknadAvlyst>("ArbeidsgiverVarsletSoknadAvlystNoop") { _ ->
             EventHandledResult.Success()
         }
         register<EventData.VedtaksbrevVist>("VedtaksbrevVistNoop") { event ->
