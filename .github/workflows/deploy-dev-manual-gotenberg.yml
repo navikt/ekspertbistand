@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Ved ny major: legg den nye appen i matrisen (og i paths for cicd) og kjør den ved siden av den gamle til backend har byttet.
+  # Ved ny major: legg den nye appen i matrisen og kjør den ved siden av den gamle til backend har byttet.
   build-and-deploy:
     name: Build and deploy ${{ matrix.app }} to dev-gcp
     runs-on: ubuntu-latest
