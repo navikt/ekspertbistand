@@ -58,7 +58,7 @@ klienter, `ktorServer { ... }`, `initTestData` og `behandleLokaleSaker`.
 `DbConfig` i `src/main` endres ikke.
 
 PDF går gjennom `LokalPdfKonverterer` som lokalt. `GotenbergClient.baseUrl` peker
-til `ekspertbistand-gotenberg` i dev-gcp. Svarer ikke Gotenberg, viser
+til `ekspertbistand-gotenberg9` i dev-gcp. Svarer ikke Gotenberg, viser
 fallback-PDF-en at den mangler.
 
 ### 2. Image fra test-classpath
@@ -90,9 +90,9 @@ Ny `nais/dev-gcp-backend-mock.yaml`, `ekspertbistand-backend-mock`:
   database `ekspertbistand`, `envVarPrefix: DB`
 - ingen `tokenx`, `azure`, `kafka` eller `bigQueryDatasets`
 - `accessPolicy.inbound`: bare `ekspertbistand-saksbehandling-mock`
-- `accessPolicy.outbound`: `ekspertbistand-gotenberg` og `logging` (nais-system)
+- `accessPolicy.outbound`: `ekspertbistand-gotenberg9` og `logging` (nais-system)
 
-`nais/dev-gcp-gotenberg.yaml` får inbound fra `ekspertbistand-backend-mock`.
+`nais/dev-gcp-gotenberg9.yaml` får inbound fra `ekspertbistand-backend-mock`.
 
 Backend-mocken godtar `faketoken`. Den har derfor ingen ingress, og bare
 mock-BFF-en kan nå den.
@@ -162,7 +162,7 @@ MSW-mockene beholdes. De brukes ved lokal kjøring uten backend og i e2e-testene
 | `backend/assembly-mock.xml` | Ny: assembly for `target/ekspertbistand-backend-mock/` |
 | `backend/Dockerfile.mock` | Ny |
 | `nais/dev-gcp-backend-mock.yaml` | Ny |
-| `nais/dev-gcp-gotenberg.yaml` | Inbound fra `ekspertbistand-backend-mock` |
+| `nais/dev-gcp-gotenberg9.yaml` | Inbound fra `ekspertbistand-backend-mock` |
 | `nais/dev-gcp-saksbehandling-mock.yaml` | Overskrives: peker mot backend-mock, `LOKAL_BRUKERBYTTE=true` |
 | `frontend/saksbehandling-server/src/index.ts` | Flagget `LOKAL_BRUKERBYTTE` |
 | `frontend/saksbehandling-server/Dockerfile` | Build-arg `VITE_LOKAL_BRUKERBYTTE` |

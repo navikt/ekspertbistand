@@ -2,10 +2,7 @@ name: CICD Gotenberg
 on:
   push:
     paths:
-      - gotenberg/**
       - gotenberg9/**
-      - nais/dev-gcp-gotenberg.yaml
-      - nais/prod-gcp-gotenberg.yaml
       - nais/dev-gcp-gotenberg9.yaml
       - nais/prod-gcp-gotenberg9.yaml
   workflow_dispatch:
@@ -14,18 +11,14 @@ on:
       timezone: Europe/Oslo
 
 jobs:
-  # Gotenberg 8 og 9 kjører som hver sin app til backend har byttet til ekspertbistand-gotenberg9.
-  # Bygg og deploy ligger i samme jobb fordi outputs fra matrisejobber overskriver hverandre.
-  build-and-deploy:
-    name: Build and deploy ${{ matrix.app }}
+  compile-test-and-build:
+    name: Compile, build and deploy image
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        app: [ gotenberg, gotenberg9 ]
+    outputs:
+      image: ${{ steps.docker-build-push.outputs.image }}
 
     steps:
       - name: Checkout
@@ -37,25 +30,39 @@ jobs:
         id: docker-build-push
         with:
           team: fager
-          image_suffix: ${{ matrix.app }}
+          image_suffix: gotenberg9
           tag: ${{ github.sha }}
-          dockerfile: ${{ matrix.app }}/Dockerfile
-          docker_context: ${{ matrix.app }}
+          dockerfile: gotenberg9/Dockerfile
+          docker_context: gotenberg9
           salsa: true
           no_cache: true
 
+  deploy-dev:
+    if: github.ref == 'refs/heads/main'
+    needs: [ compile-test-and-build ]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Deploy dev-gcp
-        if: github.ref == 'refs/heads/main'
         uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # v3
         env:
-          VAR: image=${{ steps.docker-build-push.outputs.image }}
-          RESOURCE: nais/dev-gcp-${{ matrix.app }}.yaml
+          VAR: image=${{ needs.compile-test-and-build.outputs.image }}
+          RESOURCE: nais/dev-gcp-gotenberg9.yaml
           CLUSTER: dev-gcp
 
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
+    needs: [ compile-test-and-build ]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Deploy prod-gcp
-        if: github.ref == 'refs/heads/main'
         uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # v3
         env:
-          VAR: image=${{ steps.docker-build-push.outputs.image }}
-          RESOURCE: nais/prod-gcp-${{ matrix.app }}.yaml
+          VAR: image=${{ needs.compile-test-and-build.outputs.image }}
+          RESOURCE: nais/prod-gcp-gotenberg9.yaml
           CLUSTER: prod-gcp
