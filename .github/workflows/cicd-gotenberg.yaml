@@ -2,10 +2,7 @@ name: CICD Gotenberg
 on:
   push:
     paths:
-      - gotenberg/**
       - gotenberg9/**
-      - nais/dev-gcp-gotenberg.yaml
-      - nais/prod-gcp-gotenberg.yaml
       - nais/dev-gcp-gotenberg9.yaml
       - nais/prod-gcp-gotenberg9.yaml
   workflow_dispatch:
@@ -14,7 +11,7 @@ on:
       timezone: Europe/Oslo
 
 jobs:
-  # Gotenberg 8 og 9 kjører som hver sin app til backend har byttet til ekspertbistand-gotenberg9.
+  # Ved ny major: legg den nye appen i matrisen (og i paths for cicd) og kjør den ved siden av den gamle til backend har byttet.
   # Bygg og deploy ligger i samme jobb fordi outputs fra matrisejobber overskriver hverandre.
   build-and-deploy:
     name: Build and deploy ${{ matrix.app }}
@@ -25,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [ gotenberg, gotenberg9 ]
+        app: [ gotenberg9 ]
 
     steps:
       - name: Checkout

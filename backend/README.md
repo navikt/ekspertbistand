@@ -13,7 +13,7 @@ se [egen README.md](src/main/kotlin/no/nav/ekspertbistand/event/README.md) for m
 
 ## Dokumentgenerering (PDF)
 
-Søknads-PDF, tilskuddsbrev og arena-notat rendres fra Handlebars-maler til HTML og konverteres til PDF/A-2b av `ekspertbistand-gotenberg` (Gotenberg/Chromium). `DokumentService` er domeneadapteren, `DokumentRenderer` er den domeneuavhengige templating-kjernen, og `GotenbergClient` gjør HTML → PDF.
+Søknads-PDF, tilskuddsbrev og arena-notat rendres fra Handlebars-maler til HTML og konverteres til PDF/A-2b av `ekspertbistand-gotenberg9` (Gotenberg/Chromium). `DokumentService` er domeneadapteren, `DokumentRenderer` er den domeneuavhengige templating-kjernen, og `GotenbergClient` gjør HTML → PDF.
 
 - Maler og regler for dem: [`dokumentmaler/templates/README.md`](src/main/resources/dokumentmaler/templates/README.md).
 - Templating-kjernen: [`dokument/pdf/README.md`](src/main/kotlin/no/nav/ekspertbistand/dokument/pdf/README.md).

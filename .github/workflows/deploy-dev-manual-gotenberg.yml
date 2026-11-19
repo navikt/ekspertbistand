@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Gotenberg 8 og 9 kjører som hver sin app til backend har byttet til ekspertbistand-gotenberg9.
+  # Ved ny major: legg den nye appen i matrisen og kjør den ved siden av den gamle til backend har byttet.
   build-and-deploy:
     name: Build and deploy ${{ matrix.app }} to dev-gcp
     runs-on: ubuntu-latest
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [ gotenberg, gotenberg9 ]
+        app: [ gotenberg9 ]
 
     steps:
       - name: Checkout
