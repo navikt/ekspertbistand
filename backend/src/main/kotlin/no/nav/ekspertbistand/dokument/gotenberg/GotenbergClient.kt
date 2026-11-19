@@ -18,7 +18,6 @@ import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
-import no.nav.ekspertbistand.infrastruktur.logger
 import org.slf4j.MDC
 
 /**
@@ -33,8 +32,6 @@ import org.slf4j.MDC
 class GotenbergClient(
     defaultHttpClient: HttpClient,
 ) : PdfKonverterer {
-
-    private val log = logger()
 
     companion object {
         val baseUrl: String = basedOnEnv(
@@ -106,9 +103,6 @@ class GotenbergClient(
         val bytes: ByteArray = response.body()
         if (!bytes.hasPdfHeader()) {
             throw PdfGenerationException("Gotenberg returnerte et svar som ikke starter med %PDF")
-        }
-        response.headers["Gotenberg-Remediation-Residual"]?.takeIf { it != "0" }?.let {
-            log.warn("Gotenberg-PDF har {} gjenstående PDF/A-2b-avvik etter remediate", it)
         }
         return bytes
     }
