@@ -63,5 +63,6 @@ spec:
     outbound:
       rules:
         - application: ekspertbistand-gotenberg
+        - application: ekspertbistand-gotenberg9
         - application: logging
           namespace: nais-system
