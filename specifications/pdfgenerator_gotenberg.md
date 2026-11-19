@@ -38,7 +38,7 @@ Resultatet skal:
 | Templating i backend, konvertering i Gotenberg | Gotenberg rendrer ikke maler. Malene skal ikke sendes utenfra. |
 | Gjenbruk templating-kjernen fra `rm_dokgen` | `HandlebarsConfig` og `TemplateRepository` er de samme i begge alternativer. Da blir de to sammenlignbare, og lite kode skrives to ganger. |
 | Ingen Markdown, malene er ren HTML + Handlebars | Bare `tilskuddsbrev` bruker Markdown. Uten Markdown-steget kan brukertekst ikke bli `<img>`, lenker eller overskrifter, og escaping blir vanlig HTML-escaping. Én avhengighet (`commonmark`) mindre. |
-| Full Gotenberg-image (ikke `-chromium`-varianten) | PDF/A-konvertering gjøres av LibreOffice-motoren i Gotenberg. |
+| `-chromium`-varianten av Gotenberg 9 | Fra Gotenberg 9 lager stagen `remediate` (litho, i Gotenberg-prosessen) PDF/A, så LibreOffice trengs ikke. Varianten har langt færre pakker og sårbarheter. Gotenberg 8 krevde full-imaget, fordi LibreOffice-motoren laget PDF/A. |
 | Egen NAIS-app med thin Dockerfile | Gir Dependabot-oppdateringer av image-taggen og samme CI-mønster som dokgen har i dag. |
 | Bare tilgang fra backend, ingen utgående trafikk | Gotenberg er eksponert for HTML. Nettverkspolicyen er den viktigste SSRF-sperren. |
 | `DokgenClient` omdøpes til `DokumentService` | Samme navn og pakkestruktur som i `rm_dokgen`, så alternativene kan sammenlignes direkte. |
@@ -48,11 +48,11 @@ Resultatet skal:
 ```
 ekspertbistand-backend                                   ekspertbistand-gotenberg (NAIS, namespace fager)
 ┌──────────────────────────────────────────────┐         ┌──────────────────────────────────────┐
-│ DokumentService                               │         │ gotenberg/gotenberg:8.37.0 (full)    │
+│ DokumentService                               │         │ gotenberg/gotenberg:9.8.0-chromium   │
 │   ├─ DTO → JsonObject                         │         │                                      │
 │   ├─ DokumentRenderer (templating-kjerne)     │         │ POST /forms/chromium/convert/html    │
 │   │    Handlebars (HTML) → XHTML-dokument     │ ──────▶ │   index.html                         │
-│   └─ GotenbergClient ─────────────────────────┤ multipart│   pdfa=PDF/A-2b                      │
+│   └─ GotenbergClient ─────────────────────────┤ multipart│   stages=remediate PDF/A-2b          │
 │        (HTML → PDF/A via HTTP)                │ ◀────── │ → application/pdf                    │
 └──────────────────────────────────────────────┘         └──────────────────────────────────────┘
 ```
@@ -210,7 +210,7 @@ I tillegg:
 | `marginTop` / `marginRight` / `marginBottom` / `marginLeft` | tilsvarende dagens `@page { margin: 64px 64px 74px 64px }`. Se §5 om enheter. |
 | `preferCssPageSize` | `false` (A4 styres av skjemafeltene, ikke av `@page`) |
 | `printBackground` | `true` |
-| `pdfa` | `PDF/A-2b` |
+| `stages` | `[{"op":"remediate","profile":"PDF/A-2b"}]` (Gotenberg 9, erstatter `pdfa`) |
 | `failOnResourceLoadingFailed` | `true` |
 | `failOnConsoleExceptions` | `true` |
 | `skipNetworkIdleEvent` | `true` (standard) |
@@ -248,7 +248,6 @@ Uten Markdown er HTML-escapingen i Handlebars det eneste som står mellom bruker
 | `CHROMIUM_DENY_LIST` | standard (`^file:(?!//\/tmp/).*`) | Beholdes i tillegg. |
 | `API_DISABLE_DOWNLOAD_FROM` | `true` | Ingen nedlasting av filer fra URL-er. |
 | `WEBHOOK_DISABLE` | `true` | Ingen callbacks ut av poden. |
-| `LIBREOFFICE_DISABLE_ROUTES` | `true` | Office-konverteringsrutene trengs ikke. **Verifiser** at PDF/A fra Chromium-ruten fortsatt virker (LibreOffice-motoren brukes til PDF/A). Hvis ikke: la den stå `false`, og stol på nettverkspolicyen. |
 | `CHROMIUM_MAX_CONCURRENCY` | `2` | Tilpasset memory-limit. |
 | `CHROMIUM_RESTART_AFTER` | `100` (standard) | Begrenser minnelekkasjer. |
 | `LOG_STD_FORMAT` | `json` | Loki. |
@@ -273,7 +272,7 @@ Uten Markdown er HTML-escapingen i Handlebars det eneste som står mellom bruker
   `.td02`/`.td03` (etikettkolonnene i tabellene) trenger ingen egne bredder: en nøytral basisregel `td:not(:last-child) { padding-right: 16pt }` gir kolonne-gap, og `table-layout: auto` størrelser etikettkolonnen etter innholdet. Lange etiketter brytes naturlig.
   - Akseptkriteriet er visuell sammenligning med dagens dokgen-PDF for alle `testdata/*.json` (se §7.2). `RenderDokumentmaler` og `RenderDokumentmalerDokgenLokal` skriver PDF-er med like filnavn for diff.
 - **Fonter:** Malene bruker DejaVu Sans, en font som ligger i Gotenberg-containeren for både Chromium og LibreOffice. Vi sender ingen font-filer og bruker ikke `@font-face`. Grunnen: PDF/A-konverteringen går gjennom LibreOffice, som legger om teksten og bytter til en systemfont hvis malfonten mangler. En substitusjon endrer tekstbredden og kan skyve teksten ut i høyremargen. Når begge motorene løser til samme systemfont, måler de teksten likt. `* { font-family: "DejaVu Sans", sans-serif !important }` i `style.css` står fast.
-- **PDF/A via LibreOffice:** LibreOffice rasteriserer tabellceller med bakgrunnsfarge. Sjekk at malene ikke har bakgrunnsfarge på celler, eller godta at de blir rasterisert.
+- **PDF/A via litho (Gotenberg 9):** `remediate` reparerer Chromium-PDF-en til PDF/A-2b uten LibreOffice. `GotenbergClient` logger en advarsel når `Gotenberg-Remediation-Residual` ikke er `0`. I Gotenberg 8 gikk PDF/A gjennom LibreOffice, som rasteriserte tabellceller med bakgrunnsfarge.
 - **Header og footer:** Dagens `header.html` og `footer.html` er vanlig innhold i `<body>`, ikke Chromium-header og -footer. Send dem **ikke** som `header.html`/`footer.html`-filer til Gotenberg.
   Chromium-header og -footer kan bare bruke systemfonter og inline data.
 
@@ -281,7 +280,7 @@ Uten Markdown er HTML-escapingen i Handlebars det eneste som står mellom bruker
 
 - `gotenberg/Dockerfile`:
   ```dockerfile
-  FROM gotenberg/gotenberg:8.37.0
+  FROM gotenberg/gotenberg:9.8.0-chromium
   ```
   Pin gjerne `@sha256:…`. Legg `gotenberg/` til i Dependabot (`.github/dependabot.yml`, `package-ecosystem: docker`).
 - `nais/dev-gcp-gotenberg.yaml` og `nais/prod-gcp-gotenberg.yaml`, basert på `nais/*-gcp-dokgen.yaml`:

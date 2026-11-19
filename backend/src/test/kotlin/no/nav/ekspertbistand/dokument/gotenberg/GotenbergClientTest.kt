@@ -44,7 +44,10 @@ class GotenbergClientTest {
         assertContentEquals(pdfBytes, result)
         val multipart = requireNotNull(body)
         assertTrue(multipart.contains("filename=\"index.html\""), "HTML skal sendes som index.html")
-        assertTrue(multipart.contains("PDF/A-2b"), "pdfa-feltet skal be om PDF/A-2b")
+        assertTrue(
+            multipart.contains("""[{"op":"remediate","profile":"PDF/A-2b"}]"""),
+            "stages skal be om remediate til PDF/A-2b",
+        )
         assertTrue(multipart.contains("8.27in"), "paperWidth skal settes")
         assertTrue(multipart.contains("failOnResourceLoadingFailed"), "skal feile på ressurslasting")
     }

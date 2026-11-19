@@ -37,8 +37,6 @@ spec:
       value: "true"
     - name: WEBHOOK_DISABLE
       value: "true"
-    - name: LIBREOFFICE_DISABLE_ROUTES
-      value: "true"
     - name: CHROMIUM_MAX_CONCURRENCY
       value: "2"
     - name: CHROMIUM_RESTART_AFTER

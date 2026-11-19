@@ -18,11 +18,13 @@ import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
 import no.nav.ekspertbistand.infrastruktur.HttpClientMetricsFeature
 import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
+import no.nav.ekspertbistand.infrastruktur.logger
 import org.slf4j.MDC
 
 /**
  * Tynn HTTP-klient mot `ekspertbistand-gotenberg`. Konverterer ferdig rendret XHTML + fonter til
- * PDF/A-2b via Chromium-ruten `POST /forms/chromium/convert/html`.
+ * PDF/A-2b via Chromium-ruten `POST /forms/chromium/convert/html`. PDF/A lages av stagen
+ * `remediate` (litho), så imaget trenger ikke LibreOffice.
  *
  * Klienten sender aldri maler eller data, bare ferdig HTML fra
  * [no.nav.ekspertbistand.dokument.pdf.DokumentRenderer]. Backend bruker aldri
@@ -31,6 +33,8 @@ import org.slf4j.MDC
 class GotenbergClient(
     defaultHttpClient: HttpClient,
 ) : PdfKonverterer {
+
+    private val log = logger()
 
     companion object {
         val baseUrl: String = basedOnEnv(
@@ -79,7 +83,7 @@ class GotenbergClient(
                 append("marginRight", "0.889in")
                 append("preferCssPageSize", "false")
                 append("printBackground", "true")
-                append("pdfa", "PDF/A-2b")
+                append("stages", """[{"op":"remediate","profile":"PDF/A-2b"}]""")
                 append("failOnResourceLoadingFailed", "true")
                 append("failOnConsoleExceptions", "true")
                 append("skipNetworkIdleEvent", "true")
@@ -102,6 +106,9 @@ class GotenbergClient(
         val bytes: ByteArray = response.body()
         if (!bytes.hasPdfHeader()) {
             throw PdfGenerationException("Gotenberg returnerte et svar som ikke starter med %PDF")
+        }
+        response.headers["Gotenberg-Remediation-Residual"]?.takeIf { it != "0" }?.let {
+            log.warn("Gotenberg-PDF har {} gjenstående PDF/A-2b-avvik etter remediate", it)
         }
         return bytes
     }
