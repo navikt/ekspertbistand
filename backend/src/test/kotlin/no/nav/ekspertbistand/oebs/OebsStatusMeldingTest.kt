@@ -7,6 +7,7 @@ import no.nav.ekspertbistand.oebs.integration.BestillingStatusType
 import no.nav.ekspertbistand.oebs.integration.FakturaStatus
 import no.nav.ekspertbistand.oebs.integration.FakturaStatusType
 import no.nav.ekspertbistand.oebs.integration.OebsBestillingMelding
+import no.nav.ekspertbistand.oebs.integration.OebsFeil
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -40,8 +41,7 @@ class OebsStatusMeldingTest {
         assertEquals("A-2024/12133-1", status.bestillingsnummer)
         assertEquals(BestillingStatusType.ANNULLERT, status.status)
         assertEquals(Instant.parse("2026-11-16T12:00:00.591621Z"), status.statusSistOppdatert)
-        assertNull(status.feilKode)
-        assertNull(status.feilMelding)
+        assertNull(status.feil)
     }
 
     @Test
@@ -51,16 +51,36 @@ class OebsStatusMeldingTest {
               "bestillingsnummer": "E-2026/900006-1",
               "status": "FEILET",
               "statusSistOppdatert": "2026-11-17T10:30:28Z",
-              "feilKode": "PO_PDOI_CHARGE_FAILED",
-              "feilMelding": "Feil: Generering av Kostnadskonto mislyktes."
+              "feil": {
+                "kode": "PO_PDOI_CHARGE_FAILED",
+                "melding": "Feil: Generering av Kostnadskonto mislyktes."
+              }
             }
         """.trimIndent()
 
         val status = json.decodeFromString<BestillingStatus>(raw)
 
         assertEquals(BestillingStatusType.FEILET, status.status)
-        assertEquals("PO_PDOI_CHARGE_FAILED", status.feilKode)
-        assertEquals("Feil: Generering av Kostnadskonto mislyktes.", status.feilMelding)
+        assertEquals(
+            OebsFeil(kode = "PO_PDOI_CHARGE_FAILED", melding = "Feil: Generering av Kostnadskonto mislyktes."),
+            status.feil,
+        )
+    }
+
+    @Test
+    fun `faktura-status FEILET tar med feil der kode og melding kan mangle`() {
+        val raw = """
+            {
+              "fakturanummer": "E-2026/900001-1-1",
+              "status": "FEILET",
+              "statusSistOppdatert": "2026-11-17T10:30:28Z",
+              "feil": { "kode": null, "melding": "Fakturaen ble avvist" }
+            }
+        """.trimIndent()
+
+        val status = json.decodeFromString<FakturaStatus>(raw)
+
+        assertEquals(OebsFeil(kode = null, melding = "Fakturaen ble avvist"), status.feil)
     }
 
     @Test

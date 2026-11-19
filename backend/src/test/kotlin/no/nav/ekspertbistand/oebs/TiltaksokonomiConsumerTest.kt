@@ -15,6 +15,7 @@ import no.nav.ekspertbistand.oebs.integration.BestillingStatus
 import no.nav.ekspertbistand.oebs.integration.BestillingStatusType
 import no.nav.ekspertbistand.oebs.integration.FakturaStatus
 import no.nav.ekspertbistand.oebs.integration.FakturaStatusType
+import no.nav.ekspertbistand.oebs.integration.OebsFeil
 import no.nav.ekspertbistand.oebs.integration.OkonomiFagsystem
 import no.nav.ekspertbistand.oebs.integration.TiltaksokonomiConsumer
 import no.nav.ekspertbistand.oebs.model.OebsBestillingStatus
@@ -225,7 +226,10 @@ class TiltaksokonomiConsumerTest {
             lagreReferanse(database, nr, sakId, soknadId)
             val tidspunkt = Instant.parse("2026-11-17T10:30:28Z")
             val value = json.encodeToString(
-                BestillingStatus(nr, BestillingStatusType.FEILET, tidspunkt, "PO_PDOI_CHARGE_FAILED", "Kontering feilet")
+                BestillingStatus(
+                    nr, BestillingStatusType.FEILET, tidspunkt,
+                    OebsFeil(kode = "PO_PDOI_CHARGE_FAILED", melding = "Kontering feilet"),
+                )
             )
             val rec = record(TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC, nr, value)
 

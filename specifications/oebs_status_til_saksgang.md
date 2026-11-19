@@ -74,6 +74,7 @@ Andre fakta:
 | Ken, 2026-11-18 | `OebsFakturaStatusMottatt` tas med nå. |
 | Ken, 2026-11-18 | Ken spør VALP (Sondre) om de kan sende `feilKode` og `feilMelding` videre. Gjør de ikke det, ber vi VALP slå opp årsaken, eller spør OeBS med bestillingsnummeret. |
 | Ken, 2026-11-19 | VALP (Sondre) legger til feilkode og feilmelding. Vi bygger på at de kommer som to nullable felt, og justerer når kontrakten er på plass. |
+| Ken, 2026-11-19 | VALP sender feilen som `feil: OebsFeil?` med `kode: String?` og `melding: String?` på begge statusmeldingene (navikt/mulighetsrommet#8631). Domain-klassene beholder de flate feltene `feilKode` og `feilMelding`. |
 | Memory (event sourcing) | Eventen har nok data til at handlere ikke leser projeksjoner. |
 | Memory (event sourcing) | Domain-enums har egen `tilDomain()` med uttømmende `when` uten `else`. |
 | Ken, tidligere i #259 | Meldinger vi ikke kan behandle, hoppes ikke over: logg, kast, prøv på nytt. |
@@ -150,14 +151,15 @@ OebsFakturaStatusMottatt    ─> no-op
 `FakturaStatus`. Feltet er påkrevd hos VALP. Melding uten feltet er brudd på kontrakten og
 håndteres som i dag.
 
-`BestillingStatus` og `FakturaStatus` får `feilKode: String? = null` og `feilMelding: String? = null`.
-Navnene er antatt ut fra kvitteringen fra OeBS (`feilKode`, `feilMelding`), og justeres når VALP har
-lagt dem i kontrakten. Standardverdien `null` trengs for deserialiseringen: meldinger fra før VALP
-legger til feltene, mangler dem. Det er DTO-felt, ikke parametere på en klient, så regelen om
-eksplisitte argumenter gjelder ikke.
+`BestillingStatus` og `FakturaStatus` får `feil: OebsFeil? = null`, der
+`OebsFeil(kode: String?, melding: String?)` speiler navikt/mulighetsrommet#8631. VALP fyller den
+bare ut for `FEILET`. Standardverdien `null` trengs for deserialiseringen: meldinger fra før VALP
+la til feltet, mangler det. Det er DTO-felt, ikke parametere på en klient, så regelen om
+eksplisitte argumenter gjelder ikke. Consumerens JSON har `ignoreUnknownKeys`, så VALP kan merge
+før oss uten at meldinger feiler.
 
 `OebsStatusMeldingTest` får `statusSistOppdatert` i eksempelmeldingen, og tester melding med og uten
-feilkode og feilmelding.
+`feil`.
 
 ### 2. Domain-klasser
 
@@ -347,7 +349,7 @@ bestillingen i saksloggen. Det er riktig: vi vet bare at den ligger i outboxen.
 
 | Fil | Endring |
 |-----|---------|
-| `oebs/integration/OebsStatusMelding.kt` | `statusSistOppdatert` på `BestillingStatus`, `feilKode` og `feilMelding` på begge |
+| `oebs/integration/OebsStatusMelding.kt` | `statusSistOppdatert` på `BestillingStatus`, `OebsFeil` og `feil` på begge |
 | `oebs/integration/TiltaksokonomiConsumer.kt` | Én transaksjon, oppslag og publisering, KDoc på `tolkStatus` |
 | `oebs/model/Meldingslogg.kt` | `loggMottattStatus` returnerer om raden var ny |
 | `oebs/model/BestillingReferanse.kt` (ny) | `oebs_bestilling_referanse` og oppslag |
@@ -399,10 +401,8 @@ bestillingen i saksloggen. Det er riktig: vi vet bare at den ligger i outboxen.
 
 ## Åpne spørsmål
 
-1. **Kontrakten for feilkode og feilmelding**: VALP (Sondre) legger dem til 2026-11-19. Vi antar
-   `feilKode: String?` og `feilMelding: String?` på både `BestillingStatus` og `FakturaStatus`.
-   Når kontrakten er i `common/tiltaksokonomi-client`, sjekker vi navn, typer og hvilke
-   meldinger som har dem, og justerer DTO-ene, domain-klassene og testene.
+1. **Kontrakten for feilkode og feilmelding**: Avklart 2026-11-19, se beslutningene. Speilingen
+   sjekkes mot `common/tiltaksokonomi-client` når navikt/mulighetsrommet#8631 er merget.
 
 ## 🔴 Rød sone
 
@@ -425,7 +425,8 @@ bestillingen i saksloggen. Det er riktig: vi vet bare at den ligger i outboxen.
       $bestillingsnummer» i saksloggen med `statusSistOppdatert` som tidspunkt.
 - [ ] `FEILET` tar med feilmelding og feilkode i notatet når VALP sender dem, og gir «feilet» uten
       dem når de mangler.
-- [ ] `feilKode` og `feilMelding` er sjekket mot kontrakten i `common/tiltaksokonomi-client`.
+- [ ] `feil` er sjekket mot kontrakten i `common/tiltaksokonomi-client` når
+      navikt/mulighetsrommet#8631 er merget.
 - [ ] `ANNULLERING_SENDT`, `ANNULLERT` og `OPPGJORT` gir `transientError` uten idempotensvakt, og
       eventen prøves på nytt.
 - [ ] `BestillTilsagnIOebs` skriver ikke lenger til saksloggen.

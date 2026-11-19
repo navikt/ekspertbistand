@@ -149,7 +149,8 @@ Se [`specifications/oebs_status_til_saksgang.md`](../../../../../../../../specif
 | `OebsBestillingStatusMottatt` | `SkrivSaksloggForOebsBestillingStatus` | Sakslogg for `SENDT`, `AKTIV` og `FEILET`. Andre statuser gir `transientError` til de er implementert |
 | `OebsFakturaStatusMottatt` | ingen ennå | Publiseres, men ingen handler bruker den |
 
-`feilKode` og `feilMelding` er antatte navn til VALP har lagt dem inn i kontrakten.
+VALP sender feilen som `feil: { kode, melding }` (navikt/mulighetsrommet#8631, til review). Begge
+feltene kan være null. Domeneklassene har dem som de flate feltene `feilKode` og `feilMelding`.
 
 ## Etterlevelse (varig revisjonsspor)
 
@@ -270,8 +271,8 @@ og avvisning i OeBS kommer tilbake som `FEILET`. Fagsystembokstaven `E` og numme
 
 Gjenstår:
 
-- **Feilkode og feilmelding fra VALP.** Feltnavnene `feilKode` og `feilMelding` er antatt. Verifiser
-  mot `common/tiltaksokonomi-client` når VALP har lagt dem inn.
+- **Feil fra VALP.** `feil` er speilet fra navikt/mulighetsrommet#8631. Verifiser mot
+  `common/tiltaksokonomi-client` når PR-en er merget.
 - **Sakslogg for annullering og oppgjør.** `SkrivSaksloggForOebsBestillingStatus` gir
   `transientError` for `ANNULLERING_SENDT`, `ANNULLERT` og `OPPGJORT` til de er implementert.
 - **Kostnadssteder.** 1891 finnes ikke i OeBS T1, og 1991 er ikke aktiv i prod. Åpne punkter i

@@ -131,7 +131,7 @@ class TiltaksokonomiConsumer(
             )
             log.error(
                 "Status for {} er FEILET og krever manuell oppfølging, feilKode={}. Detaljer i teamLogs.",
-                melding.referanse, melding.feilKode,
+                melding.referanse, melding.feil?.kode,
             )
         }
     }
@@ -186,8 +186,8 @@ class TiltaksokonomiConsumer(
                     bestillingsnummer = melding.status.bestillingsnummer,
                     status = melding.status.status.tilDomain(),
                     statusSistOppdatert = melding.status.statusSistOppdatert,
-                    feilKode = melding.status.feilKode,
-                    feilMelding = melding.status.feilMelding,
+                    feilKode = melding.feil?.kode,
+                    feilMelding = melding.feil?.melding,
                     kvittering = kvittering,
                 ),
             )
@@ -200,8 +200,8 @@ class TiltaksokonomiConsumer(
                     bestillingsnummer = bestillingsnummer,
                     status = melding.status.status.tilDomain(),
                     statusSistOppdatert = melding.status.statusSistOppdatert,
-                    feilKode = melding.status.feilKode,
-                    feilMelding = melding.status.feilMelding,
+                    feilKode = melding.feil?.kode,
+                    feilMelding = melding.feil?.melding,
                     kvittering = kvittering,
                 ),
             )
