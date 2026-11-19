@@ -78,6 +78,8 @@ spec:
           namespace: fager
         - application: ekspertbistand-gotenberg
           namespace: fager
+        - application: ekspertbistand-gotenberg9
+          namespace: fager
         - application: norg2
           namespace: org
         - application: arena-api
