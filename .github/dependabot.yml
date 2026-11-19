@@ -61,7 +61,7 @@ updates:
 
   # Gotenberg-imaget. Husk samme tag i backend/docker-compose.yml og backend-workflowene.
   - package-ecosystem: docker
-    directory: "/gotenberg"
+    directory: "/gotenberg9"
     schedule:
       interval: weekly
       day: monday

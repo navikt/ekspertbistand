@@ -1,4 +1,4 @@
-FROM gotenberg/gotenberg:8.40.0
+FROM gotenberg/gotenberg:9.8.0-chromium
 
 USER root
 

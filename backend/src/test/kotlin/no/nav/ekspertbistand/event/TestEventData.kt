@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
 import no.nav.ekspertbistand.event.domain.OebsBestillingStatusDomain
 import no.nav.ekspertbistand.event.domain.OebsFakturaStatusDomain
 import no.nav.ekspertbistand.event.domain.OebsKvitteringDomain
@@ -22,6 +23,7 @@ import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.Vilkar
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
 import no.nav.ekspertbistand.event.domain.SoknadDomainV1
+import no.nav.ekspertbistand.tilsagndata.concat
 import java.util.UUID
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -241,6 +243,93 @@ object TestEventData {
             journalpostId = vedtaksbrevArbeidsgiverJournalfoert.journalpostId,
             varsel = arbeidsgiverVarsel(vedtaksbrevArbeidsgiverJournalfoert),
             tidspunkt = Instant.parse("2026-04-04T09:06:00Z"),
+        )
+    }
+
+    private val sampleEksterntVarsel by lazy {
+        ArbeidsgiverVarselDomain.EksterntVarsel(
+            epostTittel = "Nav – angående søknad om ekspertbistand",
+            epostHtmlBody = "${sampleSoknadDomain.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
+            smsTekst = "${sampleSoknadDomain.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
+            sendevindu = ArbeidsgiverVarselDomain.Sendevindu.NKS_AAPNINGSTID,
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletSoknadMottatt by lazy {
+        EventData.ArbeidsgiverVarsletSoknadMottatt(
+            soknadId = sampleSoknad.id!!,
+            varsel = ArbeidsgiverVarselDomain(
+                merkelapp = "Ekspertbistand",
+                mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = "nav_tiltak_ekspertbistand"),
+                virksomhetsnummer = sampleSoknadDomain.virksomhet.virksomhetsnummer,
+                grupperingsid = sampleSoknadDomain.id,
+                sak = ArbeidsgiverVarselDomain.Sak(
+                    tittel = "Ekspertbistand ${sampleSoknadDomain.ansatt.navn} f. 01.01.01",
+                    lenke = "https://arbeidsgiver.nav.no/ekspertbistand/skjema/${sampleSoknadDomain.id}/kvittering",
+                ),
+                beskjed = ArbeidsgiverVarselDomain.Beskjed(
+                    eksternId = "${sampleSoknadDomain.id}-soknad-mottatt",
+                    tekst = "Nav har mottatt deres søknad om ekspertbistand.",
+                    lenke = "https://arbeidsgiver.nav.no/ekspertbistand/skjema/${sampleSoknadDomain.id}/kvittering",
+                    eksterntVarsel = null,
+                ),
+                saksstatus = null,
+            ),
+            tidspunkt = Instant.parse("2026-04-01T09:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletSoknadGodkjent by lazy {
+        EventData.ArbeidsgiverVarsletSoknadGodkjent(
+            soknadId = sampleSoknad.id!!,
+            tilsagnNummer = sampleTilsagnData.tilsagnNummer.concat(),
+            varsel = ArbeidsgiverVarselDomain(
+                merkelapp = "Ekspertbistand",
+                mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = "nav_tiltak_ekspertbistand"),
+                virksomhetsnummer = sampleSoknadDomain.virksomhet.virksomhetsnummer,
+                grupperingsid = sampleSoknadDomain.id,
+                sak = null,
+                beskjed = ArbeidsgiverVarselDomain.Beskjed(
+                    eksternId = "${sampleSoknadDomain.id}-godkjent-${sampleTilsagnData.tilsagnNummer.concat()}",
+                    tekst = "Søknaden er godkjent og ekspertbistand kan nå tas i bruk.",
+                    lenke = "https://arbeidsgiver.nav.no/ekspertbistand/skjema/${sampleSoknadDomain.id}/kvittering",
+                    eksterntVarsel = sampleEksterntVarsel,
+                ),
+                saksstatus = ArbeidsgiverVarselDomain.Saksstatus(
+                    status = ArbeidsgiverVarselDomain.Status.FERDIG,
+                    statusTekst = "Søknad godkjent",
+                    nyLenkeTilSak = null,
+                ),
+            ),
+            tidspunkt = Instant.parse("2026-04-02T09:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletSoknadAvlyst by lazy {
+        EventData.ArbeidsgiverVarsletSoknadAvlyst(
+            soknadId = sampleSoknad.id!!,
+            varsel = ArbeidsgiverVarselDomain(
+                merkelapp = "Ekspertbistand",
+                mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = "nav_tiltak_ekspertbistand"),
+                virksomhetsnummer = sampleSoknadDomain.virksomhet.virksomhetsnummer,
+                grupperingsid = sampleSoknadDomain.id,
+                sak = null,
+                beskjed = ArbeidsgiverVarselDomain.Beskjed(
+                    eksternId = "${sampleSoknadDomain.id}-soknad-avlyst",
+                    tekst = "Søknaden om ekspertbistand trukket eller avslått.",
+                    lenke = "https://arbeidsgiver.nav.no/ekspertbistand/skjema/${sampleSoknadDomain.id}/kvittering",
+                    eksterntVarsel = sampleEksterntVarsel,
+                ),
+                saksstatus = ArbeidsgiverVarselDomain.Saksstatus(
+                    status = ArbeidsgiverVarselDomain.Status.FERDIG,
+                    statusTekst = "Søknad trukket eller avslått",
+                    nyLenkeTilSak = null,
+                ),
+            ),
+            tidspunkt = Instant.parse("2026-04-03T09:00:00Z"),
         )
     }
 
@@ -553,6 +642,9 @@ object TestEventData {
         forelopigVedtakReturnert,
         vedtaksbrevArbeidsgiverJournalfoert,
         arbeidsgiverVarsletVedtakFattet,
+        arbeidsgiverVarsletSoknadMottatt,
+        arbeidsgiverVarsletSoknadGodkjent,
+        arbeidsgiverVarsletSoknadAvlyst,
         vedtaksbrevVist,
         oebsBestillingStatusMottatt,
         oebsFakturaStatusMottatt,

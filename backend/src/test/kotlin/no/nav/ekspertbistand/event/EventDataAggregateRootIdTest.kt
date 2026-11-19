@@ -52,6 +52,9 @@ class EventDataAggregateRootIdTest {
             TestEventData.forelopigVedtakReturnert to soknadRoot,
             TestEventData.vedtaksbrevArbeidsgiverJournalfoert to soknadRoot,
             TestEventData.arbeidsgiverVarsletVedtakFattet to soknadRoot,
+            TestEventData.arbeidsgiverVarsletSoknadMottatt to soknadRoot,
+            TestEventData.arbeidsgiverVarsletSoknadGodkjent to soknadRoot,
+            TestEventData.arbeidsgiverVarsletSoknadAvlyst to soknadRoot,
             TestEventData.vedtaksbrevVist to soknadRoot,
         )
 

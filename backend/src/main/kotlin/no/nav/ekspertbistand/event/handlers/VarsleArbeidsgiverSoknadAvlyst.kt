@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.event.handlers
 
+import no.nav.ekspertbistand.altinn3Ressursid
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -8,92 +9,129 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
+import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
+import no.nav.ekspertbistand.event.domain.tilDomain
+import no.nav.ekspertbistand.event.domain.tilSaksStatus
+import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.notifikasjon.EksterntVarsel
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
-import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus
-import no.nav.ekspertbistand.event.domain.SoknadDomainV1
+import no.nav.ekspertbistand.notifikasjon.merkelapp
+import no.nav.ekspertbistand.notifikasjon.sendevindu
 import no.nav.ekspertbistand.soknad.kvitteringsLenke
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 
 /**
- * Når en søknad er godkjent i arena så ender det med en event av typen [EventData.TilskuddsbrevJournalfoert]
- * Denne handleren oppretter da en sak og en beskjed i notifikasjonsplatformen for den godkjente søknaden.
+ * Når tiltaksgjennomføringen er satt til AVLYST i Arena, publiseres [EventData.SoknadAvlystIArena].
+ *
+ * Denne handleren sender da en beskjed med eksternt varsel og setter saken til ferdig i notifikasjonsplatformen.
+ * Når begge kallene har lyktes, publiseres [EventData.ArbeidsgiverVarsletSoknadAvlyst] med det som ble sendt.
  */
-class VarsleArbeidsgiverSoknadAvlyst(
+class VarsleArbeidsgiverSoknadAvlyst @OptIn(ExperimentalTime::class) constructor(
     private val produsentApiKlient: ProdusentApiKlient,
-    database: Database
+    private val database: Database,
+    private val clock: Clock = Clock.System,
 ) : EventHandler<EventData.SoknadAvlystIArena> {
     override val id: String = "Varsle Arbeidsgiver Soknad Avlyst"
     override val eventType = EventData.SoknadAvlystIArena::class
 
     private val nyBeskjedSubTask = "notifikasjonsplatform_ny_beskjed"
     private val nystatusSakSubTast = "notifikasjonsplatform_ny_status_sak"
+    private val kvittertSubTask = "arbeidsgiver_varslet_kvittert"
 
     private val idempotencyGuard = idempotencyGuard(database)
 
+    @OptIn(ExperimentalTime::class)
     override suspend fun handle(event: Event<EventData.SoknadAvlystIArena>): EventHandledResult {
-        val soknad = event.data.soknad
-        if (soknad.id == null) {
-            return unrecoverableError("soknad.id kan ikke være null")
-        }
+        val soknadId = event.data.soknad.id ?: return unrecoverableError("soknad.id kan ikke være null")
+        val varsel = arbeidsgiverVarsel(soknadId, event.data)
+        val saksstatus = varsel.saksstatus ?: return unrecoverableError("Varselet om avlyst søknad mangler saksstatus")
 
         if (!idempotencyGuard.isGuarded(event.id, nyBeskjedSubTask)) {
-            nyBeskjed(soknad).fold(
-                onSuccess = { idempotencyGuard.guard(event, nyBeskjedSubTask) },
-                onFailure = {
-                    return transientError(
-                        "Klarte ikke opprette ny beskjed i notifikasjonsplatform", it
-                    )
-                }
-            )
+            try {
+                produsentApiKlient.opprettNyBeskjed(
+                    grupperingsid = varsel.grupperingsid,
+                    eksternId = varsel.beskjed.eksternId,
+                    virksomhetsnummer = varsel.virksomhetsnummer,
+                    tekst = varsel.beskjed.tekst,
+                    lenke = varsel.beskjed.lenke,
+                    eksternVarsel = varsel.beskjed.eksterntVarsel?.let {
+                        EksterntVarsel(
+                            epostTittel = it.epostTittel,
+                            epostHtmlBody = it.epostHtmlBody,
+                            smsTekst = it.smsTekst,
+                        )
+                    },
+                )
+            } catch (e: Exception) {
+                return transientError("Klarte ikke opprette ny beskjed i notifikasjonsplatform", e)
+            }
+            idempotencyGuard.guard(event, nyBeskjedSubTask)
         }
 
         if (!idempotencyGuard.isGuarded(event.id, nystatusSakSubTast)) {
-            nyStatusSak(soknad).fold(
-                onSuccess = { idempotencyGuard.guard(event, nystatusSakSubTast) },
-                onFailure = {
-                    return transientError(
-                        "Klarte ikke oppdatere saksstatus i notifikasjonsplatform", it
-                    )
-                }
-            )
-        }
-
-        return success()
-    }
-
-    private suspend fun nyBeskjed(soknad: SoknadDomainV1): Result<String> {
-        return try {
-            produsentApiKlient.opprettNyBeskjed(
-                grupperingsid = soknad.id!!,
-                eksternId = "${soknad.id}-soknad-avlyst",
-                virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
-                tekst = "Søknaden om ekspertbistand trukket eller avslått.",
-                lenke = soknad.kvitteringsLenke,
-                eksternVarsel = EksterntVarsel(
-                    epostTittel = "Nav – angående søknad om ekspertbistand",
-                    epostHtmlBody = "${soknad.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
-                    smsTekst = "${soknad.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
+            try {
+                produsentApiKlient.nyStatusSak(
+                    grupperingsid = varsel.grupperingsid,
+                    status = saksstatus.status.tilSaksStatus(),
+                    statusTekst = saksstatus.statusTekst,
+                    nyLenkeTilSak = saksstatus.nyLenkeTilSak,
                 )
-            )
-            Result.success("Opprettet beskjed for soknad ${soknad.id}")
-        } catch (ex: Exception) {
-            Result.failure(ex)
+            } catch (e: Exception) {
+                return transientError("Klarte ikke oppdatere saksstatus i notifikasjonsplatform", e)
+            }
+            idempotencyGuard.guard(event, nystatusSakSubTast)
+        }
+
+        if (idempotencyGuard.isGuarded(event.id, kvittertSubTask)) {
+            return success()
+        }
+        return transaction(database) {
+            try {
+                publishEventQueue(
+                    EventData.ArbeidsgiverVarsletSoknadAvlyst(
+                        soknadId = soknadId,
+                        varsel = varsel,
+                        tidspunkt = clock.now(),
+                    ),
+                )
+                idempotencyGuard.guard(event, kvittertSubTask)
+                success()
+            } catch (e: Exception) {
+                rollback()
+                transientError("Feil ved publisering etter varsling av arbeidsgiver om avlyst søknad", e)
+            }
         }
     }
 
-    private suspend fun nyStatusSak(soknad: SoknadDomainV1): Result<String> {
-        return try {
-            produsentApiKlient.nyStatusSak(
-                grupperingsid = soknad.id!!,
-                status = SaksStatus.FERDIG,
+    private fun arbeidsgiverVarsel(soknadId: String, data: EventData.SoknadAvlystIArena): ArbeidsgiverVarselDomain {
+        val eksterntVarselTekst = "${data.soknad.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. " +
+            "Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det."
+        return ArbeidsgiverVarselDomain(
+            merkelapp = merkelapp,
+            mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = altinn3Ressursid),
+            virksomhetsnummer = data.soknad.virksomhet.virksomhetsnummer,
+            grupperingsid = soknadId,
+            sak = null,
+            beskjed = ArbeidsgiverVarselDomain.Beskjed(
+                eksternId = "$soknadId-soknad-avlyst",
+                tekst = "Søknaden om ekspertbistand trukket eller avslått.",
+                lenke = kvitteringsLenke(soknadId),
+                eksterntVarsel = ArbeidsgiverVarselDomain.EksterntVarsel(
+                    epostTittel = "Nav – angående søknad om ekspertbistand",
+                    epostHtmlBody = eksterntVarselTekst,
+                    smsTekst = eksterntVarselTekst,
+                    sendevindu = sendevindu.tilDomain(),
+                ),
+            ),
+            saksstatus = ArbeidsgiverVarselDomain.Saksstatus(
+                status = ArbeidsgiverVarselDomain.Status.FERDIG,
                 statusTekst = "Søknad trukket eller avslått",
                 nyLenkeTilSak = null,
-            )
-            Result.success("Oppdaterte sakstatus for soknad ${soknad.id}")
-        } catch (ex: Exception) {
-            Result.failure(ex)
-        }
+            ),
+        )
     }
 }

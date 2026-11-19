@@ -14,6 +14,9 @@ on:
       - .npmrc
       - nais/dev-gcp-frontend.yaml
       - nais/prod-gcp-frontend.yaml
+  schedule:
+    - cron: '0 4 * * *' # bygg og deploy hver natt kl. 04
+      timezone: Europe/Oslo
 
 jobs:
   compile-test-and-build:

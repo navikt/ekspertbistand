@@ -624,8 +624,8 @@ enum class SoknadStatusQueryParam {
     innsendt
 }
 
-val SoknadDomainV1.kvitteringsLenke: String
-    get() = "$arbeidsgiverDomene/ekspertbistand/skjema/$id/kvittering"
+fun kvitteringsLenke(soknadId: String): String =
+    "$arbeidsgiverDomene/ekspertbistand/skjema/$soknadId/kvittering"
 
 fun kvitteringsLenkeV2(soknadId: String): String =
     "$arbeidsgiverDomene/ekspertbistand/v2/skjema/$soknadId/kvittering"

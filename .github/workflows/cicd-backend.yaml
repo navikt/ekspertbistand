@@ -7,7 +7,8 @@ on:
       - nais/prod-gcp-backend.yaml
   workflow_dispatch:
   schedule:
-    - cron: '0 6 * * 1' # bygg nytt image hver mandag morgen
+    - cron: '0 4 * * *' # bygg og deploy hver natt kl. 04
+      timezone: Europe/Oslo
 
 
 jobs:
@@ -30,13 +31,12 @@ jobs:
         ports:
           - 5532:5432
       gotenberg:
-        image: gotenberg/gotenberg:8.39.0
+        image: gotenberg/gotenberg:9.8.0-chromium
         env:
           CHROMIUM_DISABLE_JAVASCRIPT: "true"
           CHROMIUM_ALLOW_LIST: "^file:///tmp/.*"
           API_DISABLE_DOWNLOAD_FROM: "true"
           WEBHOOK_DISABLE: "true"
-          LIBREOFFICE_DISABLE_ROUTES: "true"
           CHROMIUM_MAX_CONCURRENCY: "2"
         options: >-
           --health-cmd "curl -fsS http://localhost:3000/health || exit 1"
