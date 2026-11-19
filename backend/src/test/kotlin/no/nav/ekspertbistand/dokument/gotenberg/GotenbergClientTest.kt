@@ -27,6 +27,12 @@ class GotenbergClientTest {
 
     private val pdfBytes = "%PDF-1.7\nmock".toByteArray()
     private val pdfHeaders = headersOf(HttpHeaders.ContentType, ContentType.Application.Pdf.toString())
+    private fun pdfHeaders(versjon: String) = headersOf(
+        HttpHeaders.ContentType to listOf(ContentType.Application.Pdf.toString()),
+        "Gotenberg-Version" to listOf(versjon),
+    )
+    private val stages = """[{"op":"remediate","profile":"PDF/A-2b"}]"""
+    private val pdfaFelt = "name=\"pdfa\""
 
     private fun client(engine: MockEngine) = GotenbergClient(HttpClient(engine))
 
@@ -36,7 +42,7 @@ class GotenbergClientTest {
         val engine = MockEngine { request ->
             body = request.body.readAllBytes().toString(Charsets.ISO_8859_1)
             assertTrue(request.url.encodedPath.endsWith("/forms/chromium/convert/html"))
-            respond(content = pdfBytes, headers = pdfHeaders)
+            respond(content = pdfBytes, headers = pdfHeaders("8.40.0"))
         }
 
         val result = client(engine).tilPdfA(html = "<html><body>hei</body></html>")
@@ -44,12 +50,64 @@ class GotenbergClientTest {
         assertContentEquals(pdfBytes, result)
         val multipart = requireNotNull(body)
         assertTrue(multipart.contains("filename=\"index.html\""), "HTML skal sendes som index.html")
-        assertTrue(
-            multipart.contains("""[{"op":"remediate","profile":"PDF/A-2b"}]"""),
-            "stages skal be om remediate til PDF/A-2b",
-        )
+        assertTrue(multipart.contains(pdfaFelt) && multipart.contains("PDF/A-2b"), "pdfa-feltet skal be om PDF/A-2b")
         assertTrue(multipart.contains("8.27in"), "paperWidth skal settes")
         assertTrue(multipart.contains("failOnResourceLoadingFailed"), "skal feile på ressurslasting")
+    }
+
+    @Test
+    fun `bytter PDF-A-felt naar podene svarer med ulik Gotenberg-versjon`() = runTest {
+        val sendt = mutableListOf<String>()
+        val svar = ArrayDeque(
+            listOf(
+                HttpStatusCode.BadRequest to "9.8.0",
+                HttpStatusCode.OK to "8.40.0",
+                HttpStatusCode.OK to "8.40.0",
+            )
+        )
+        val engine = MockEngine { request ->
+            sendt += request.body.readAllBytes().toString(Charsets.ISO_8859_1)
+            val (status, versjon) = svar.removeFirst()
+            respond(content = pdfBytes, status = status, headers = pdfHeaders(versjon))
+        }
+
+        val result = client(engine).tilPdfA("<html/>")
+
+        assertContentEquals(pdfBytes, result)
+        assertEquals(3, sendt.size)
+        assertTrue(sendt[0].contains(pdfaFelt), "første forsøk antar Gotenberg 8")
+        assertTrue(sendt[1].contains(stages), "Gotenberg 9 svarte 400, neste forsøk bruker stages")
+        assertTrue(sendt[2].contains(pdfaFelt), "Gotenberg 8 ignorerer stages, neste forsøk bruker pdfa")
+    }
+
+    @Test
+    fun `husker Gotenberg-versjonen fra forrige svar`() = runTest {
+        val sendt = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val body = request.body.readAllBytes().toString(Charsets.ISO_8859_1)
+            sendt += body
+            val status = if (body.contains(pdfaFelt)) HttpStatusCode.BadRequest else HttpStatusCode.OK
+            respond(content = pdfBytes, status = status, headers = pdfHeaders("9.8.0"))
+        }
+        val client = client(engine)
+
+        client.tilPdfA("<html/>")
+        client.tilPdfA("<html/>")
+
+        assertEquals(3, sendt.size, "andre konvertering skal ikke prøve pdfa først")
+        assertTrue(sendt[2].contains(stages))
+    }
+
+    @Test
+    fun `feiler paa 400 fra Gotenberg 9 selv med stages`() = runTest {
+        val forsok = AtomicInteger(0)
+        val engine = MockEngine {
+            forsok.incrementAndGet()
+            respond(content = "feil", status = HttpStatusCode.BadRequest, headers = pdfHeaders("9.8.0"))
+        }
+
+        assertFailsWith<PdfGenerationException> { client(engine).tilPdfA("<html/>") }
+        assertEquals(2, forsok.get(), "ett forsøk med pdfa og ett med stages")
     }
 
     @Test

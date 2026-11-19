@@ -20,11 +20,11 @@ import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import no.nav.ekspertbistand.infrastruktur.logger
 import org.slf4j.MDC
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Tynn HTTP-klient mot `ekspertbistand-gotenberg`. Konverterer ferdig rendret XHTML + fonter til
- * PDF/A-2b via Chromium-ruten `POST /forms/chromium/convert/html`. PDF/A lages av stagen
- * `remediate` (litho), så imaget trenger ikke LibreOffice.
+ * PDF/A-2b via Chromium-ruten `POST /forms/chromium/convert/html`.
  *
  * Klienten sender aldri maler eller data, bare ferdig HTML fra
  * [no.nav.ekspertbistand.dokument.pdf.DokumentRenderer]. Backend bruker aldri
@@ -61,36 +61,14 @@ class GotenbergClient(
         }
     }
 
+    // Gotenberg 8 lager PDF/A med feltet `pdfa`, Gotenberg 9 med en `remediate`-stage. Gotenberg 9
+    // svarer 400 på `pdfa`, og Gotenberg 8 ignorerer `stages` og svarer 200 uten PDF/A. Podene kan ha
+    // ulik versjon under utrullingen, så formatet velges ut fra Gotenberg-Version i hvert svar.
+    // Fjernes når Gotenberg 9 kjører i prod.
+    private val sistSettMajorversjon = AtomicInteger(8)
+
     override suspend fun tilPdfA(html: String): ByteArray {
-        val response: HttpResponse = httpClient.submitFormWithBinaryData(
-            url = "$baseUrl/forms/chromium/convert/html",
-            formData = formData {
-                append(
-                    "files",
-                    html.toByteArray(Charsets.UTF_8),
-                    Headers.build {
-                        append(HttpHeaders.ContentType, ContentType.Text.Html.toString())
-                        append(HttpHeaders.ContentDisposition, "filename=\"index.html\"")
-                    },
-                )
-                append("paperWidth", "8.27in")
-                append("paperHeight", "11.69in")
-                // Malene bruker fysiske pt-enheter (dpi-uavhengig). Marginene tilsvarer @page-margin
-                // i PDF-CSS-en (64pt topp/sider, 74pt bunn), omregnet til tommer.
-                append("marginTop", "0.889in")
-                append("marginBottom", "1.028in")
-                append("marginLeft", "0.889in")
-                append("marginRight", "0.889in")
-                append("preferCssPageSize", "false")
-                append("printBackground", "true")
-                append("stages", """[{"op":"remediate","profile":"PDF/A-2b"}]""")
-                append("failOnResourceLoadingFailed", "true")
-                append("failOnConsoleExceptions", "true")
-                append("skipNetworkIdleEvent", "true")
-            },
-        ) {
-            MDC.get("x_correlation_id")?.let { header("Gotenberg-Trace", it) }
-        }
+        val response = konverterMedFormatForVersjon(html)
 
         if (!response.status.isSuccess()) {
             throw PdfGenerationException("Gotenberg svarte med status ${response.status.value} for HTML → PDF/A")
@@ -112,6 +90,54 @@ class GotenbergClient(
         }
         return bytes
     }
+
+    private suspend fun konverterMedFormatForVersjon(html: String): HttpResponse {
+        var antattMajor = sistSettMajorversjon.get()
+        repeat(3) {
+            val response = konverter(html, brukStages = antattMajor >= 9)
+            val svarMajor = response.headers["Gotenberg-Version"]?.substringBefore('.')?.toIntOrNull()
+                ?: return response
+            sistSettMajorversjon.set(svarMajor)
+            if ((svarMajor >= 9) == (antattMajor >= 9)) return response
+            antattMajor = svarMajor
+        }
+        throw PdfGenerationException("Gotenberg svarte med skiftende versjon i tre forsøk")
+    }
+
+    private suspend fun konverter(html: String, brukStages: Boolean): HttpResponse =
+        httpClient.submitFormWithBinaryData(
+            url = "$baseUrl/forms/chromium/convert/html",
+            formData = formData {
+                append(
+                    "files",
+                    html.toByteArray(Charsets.UTF_8),
+                    Headers.build {
+                        append(HttpHeaders.ContentType, ContentType.Text.Html.toString())
+                        append(HttpHeaders.ContentDisposition, "filename=\"index.html\"")
+                    },
+                )
+                append("paperWidth", "8.27in")
+                append("paperHeight", "11.69in")
+                // Malene bruker fysiske pt-enheter (dpi-uavhengig). Marginene tilsvarer @page-margin
+                // i PDF-CSS-en (64pt topp/sider, 74pt bunn), omregnet til tommer.
+                append("marginTop", "0.889in")
+                append("marginBottom", "1.028in")
+                append("marginLeft", "0.889in")
+                append("marginRight", "0.889in")
+                append("preferCssPageSize", "false")
+                append("printBackground", "true")
+                if (brukStages) {
+                    append("stages", """[{"op":"remediate","profile":"PDF/A-2b"}]""")
+                } else {
+                    append("pdfa", "PDF/A-2b")
+                }
+                append("failOnResourceLoadingFailed", "true")
+                append("failOnConsoleExceptions", "true")
+                append("skipNetworkIdleEvent", "true")
+            },
+        ) {
+            MDC.get("x_correlation_id")?.let { header("Gotenberg-Trace", it) }
+        }
 }
 
 private val pdfMagicNumber = "%PDF".toByteArray()
