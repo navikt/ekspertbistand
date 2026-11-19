@@ -13,6 +13,8 @@ import no.nav.ekspertbistand.saksbehandling.hentVilkarsvurdering
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus as GraphQLSaksStatus
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.Sendevindu as GraphQLSendevindu
+import no.nav.ekspertbistand.oebs.integration.BestillingStatusType
+import no.nav.ekspertbistand.oebs.integration.FakturaStatusType
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
@@ -23,6 +25,23 @@ import kotlin.time.ExperimentalTime
  * begge modellene. Enum-oversettelsene er uttømmende `when` uten `else`, så en ny API-verdi ikke kompilerer før
  * noen har bestemt hva den blir i domain. Søknaden bygges fra tabellraden i `soknad/Db.kt`.
  */
+
+fun BestillingStatusType.tilDomain(): OebsBestillingStatusDomain.Status = when (this) {
+    BestillingStatusType.SENDT -> OebsBestillingStatusDomain.Status.SENDT
+    BestillingStatusType.AKTIV -> OebsBestillingStatusDomain.Status.AKTIV
+    BestillingStatusType.ANNULLERING_SENDT -> OebsBestillingStatusDomain.Status.ANNULLERING_SENDT
+    BestillingStatusType.ANNULLERT -> OebsBestillingStatusDomain.Status.ANNULLERT
+    BestillingStatusType.OPPGJORT -> OebsBestillingStatusDomain.Status.OPPGJORT
+    BestillingStatusType.FEILET -> OebsBestillingStatusDomain.Status.FEILET
+}
+
+fun FakturaStatusType.tilDomain(): OebsFakturaStatusDomain.Status = when (this) {
+    FakturaStatusType.SENDT -> OebsFakturaStatusDomain.Status.SENDT
+    FakturaStatusType.IKKE_BETALT -> OebsFakturaStatusDomain.Status.IKKE_BETALT
+    FakturaStatusType.DELVIS_BETALT -> OebsFakturaStatusDomain.Status.DELVIS_BETALT
+    FakturaStatusType.FULLT_BETALT -> OebsFakturaStatusDomain.Status.FULLT_BETALT
+    FakturaStatusType.FEILET -> OebsFakturaStatusDomain.Status.FEILET
+}
 
 fun SoknadStatus.tilDomain(): SoknadDomainV2.Status = when (this) {
     SoknadStatus.innsendt -> SoknadDomainV2.Status.innsendt

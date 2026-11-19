@@ -9,6 +9,7 @@ import no.nav.ekspertbistand.oebs.integration.FakturaStatusType
 import no.nav.ekspertbistand.oebs.integration.OebsBestillingMelding
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -26,12 +27,40 @@ class OebsStatusMeldingTest {
 
     @Test
     fun `bestilling-status deserialiseres fra VALP-kontrakten`() {
-        val raw = """{ "bestillingsnummer": "A-2024/12133-1", "status": "ANNULLERT" }"""
+        val raw = """
+            {
+              "bestillingsnummer": "A-2024/12133-1",
+              "status": "ANNULLERT",
+              "statusSistOppdatert": "2026-11-16T12:00:00.591621Z"
+            }
+        """.trimIndent()
 
         val status = json.decodeFromString<BestillingStatus>(raw)
 
         assertEquals("A-2024/12133-1", status.bestillingsnummer)
         assertEquals(BestillingStatusType.ANNULLERT, status.status)
+        assertEquals(Instant.parse("2026-11-16T12:00:00.591621Z"), status.statusSistOppdatert)
+        assertNull(status.feilKode)
+        assertNull(status.feilMelding)
+    }
+
+    @Test
+    fun `bestilling-status FEILET tar med feilkode og feilmelding`() {
+        val raw = """
+            {
+              "bestillingsnummer": "E-2026/900006-1",
+              "status": "FEILET",
+              "statusSistOppdatert": "2026-11-17T10:30:28Z",
+              "feilKode": "PO_PDOI_CHARGE_FAILED",
+              "feilMelding": "Feil: Generering av Kostnadskonto mislyktes."
+            }
+        """.trimIndent()
+
+        val status = json.decodeFromString<BestillingStatus>(raw)
+
+        assertEquals(BestillingStatusType.FEILET, status.status)
+        assertEquals("PO_PDOI_CHARGE_FAILED", status.feilKode)
+        assertEquals("Feil: Generering av Kostnadskonto mislyktes.", status.feilMelding)
     }
 
     @Test

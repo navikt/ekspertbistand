@@ -5,12 +5,16 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
+import no.nav.ekspertbistand.oebs.model.bestillingsnummerForFaktura
+import no.nav.ekspertbistand.oebs.model.erTestnummer
 import no.nav.ekspertbistand.oebs.model.nesteBestillingsnummer
 import no.nav.ekspertbistand.oebs.model.nesteFakturanummer
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * 🔴 Rød sone — tester for den økonomikritiske nummerserie-genereringen.
@@ -113,6 +117,25 @@ class NummerserieTest {
 
         val gyldig = transaction(database) { nesteFakturanummer("E-2026/60000-1") }
         assertEquals("E-2026/60000-1-1", gyldig)
+    }
+
+    @Test
+    fun `bestillingsnummer for faktura er alt for siste lopenummer`() {
+        assertEquals("E-2026/1000001-1", bestillingsnummerForFaktura("E-2026/1000001-1-2"))
+        assertThrows<IllegalArgumentException> { bestillingsnummerForFaktura("E-2026/1000001-1-x") }
+        assertThrows<IllegalArgumentException> { bestillingsnummerForFaktura("E-2026/1000001-1-0") }
+        assertThrows<IllegalArgumentException> { bestillingsnummerForFaktura("E2026") }
+    }
+
+    @Test
+    fun `testnummer har lopenummer under saksnummerserien`() {
+        assertTrue(erTestnummer("E-2026/900001-1"))
+        assertTrue(erTestnummer("E-2026/999999-3"))
+        assertFalse(erTestnummer("E-2026/1000000-1"), "første ekte saksnummer")
+        assertFalse(erTestnummer("A-2026/900001-1"), "annen fagsystembokstav")
+        assertFalse(erTestnummer("E-2026/900001"), "mangler løpenummer for bestillingen")
+        assertFalse(erTestnummer("E-900001-1"), "mangler år")
+        assertFalse(erTestnummer("E-2026/abc-1"))
     }
 }
 

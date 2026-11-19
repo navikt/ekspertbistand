@@ -27,6 +27,7 @@ flowchart TD
     s_SakApi[/"SakApi"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
+    s_TiltaksokonomiConsumer[/"TiltaksokonomiConsumer"/]:::source
     s_VedleggDb[/"VedleggDb"/]:::source
     s_VedtaksbrevApi[/"VedtaksbrevApi"/]:::source
     s_VilkarsvurderingApi[/"VilkarsvurderingApi"/]:::source
@@ -34,6 +35,8 @@ flowchart TD
     e_ForelopigVedtakReturnert(["ForelopigVedtakReturnert"]):::event
     e_ForelopigVedtakSendtTilBeslutter(["ForelopigVedtakSendtTilBeslutter"]):::event
     e_InnsendtSoknadJournalfoert(["InnsendtSoknadJournalfoert"]):::event
+    e_OebsBestillingStatusMottatt(["OebsBestillingStatusMottatt"]):::event
+    e_OebsFakturaStatusMottatt(["OebsFakturaStatusMottatt"]):::event
     e_RefusjonskravMottatt(["RefusjonskravMottatt"]):::event
     e_SakFrigjort(["SakFrigjort"]):::event
     e_SakOppdatert(["SakOppdatert"]):::event
@@ -73,6 +76,7 @@ flowchart TD
     h_LagreTilsagnsDataKildeAltinn["LagreTilsagnsDataKildeAltinn"]:::handler
     h_LagreVedtaksbrev["LagreVedtaksbrev"]:::handler
     h_MarkerSakUnderBehandlingIArena["MarkerSakUnderBehandlingIArena"]:::handler
+    h_OebsFakturaStatusMottattNoop["OebsFakturaStatusMottattNoop"]:::handler
     h_OppdaterVilkarsvurdering["OppdaterVilkarsvurdering"]:::handler
     h_OpprettSak["OpprettSak"]:::handler
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad["OpprettTiltaksgjennomfoeringForInnsendtSoknad"]:::handler
@@ -81,6 +85,7 @@ flowchart TD
     h_SettGodkjentSoknadStatus["SettGodkjentSoknadStatus"]:::handler
     h_SettSoknadStatusVedtakFattet["SettSoknadStatusVedtakFattet"]:::handler
     h_SkrivSakslogg["SkrivSakslogg"]:::handler
+    h_SkrivSaksloggForOebsBestillingStatus["SkrivSaksloggForOebsBestillingStatus"]:::handler
     h_SkrivSaksloggForRefusjonskrav["SkrivSaksloggForRefusjonskrav"]:::handler
     h_SkrivSaksloggForSluttrapport["SkrivSaksloggForSluttrapport"]:::handler
     h_SoknadKopiDeltakerDistribuertNoop["SoknadKopiDeltakerDistribuertNoop"]:::handler
@@ -105,7 +110,6 @@ flowchart TD
     s_ArenaTiltakssakEndretProcessor --> e_SaksbehandlingStartetIArena
     s_BeslutterApi --> e_ForelopigVedtakReturnert
     s_BeslutterApi --> e_VedtakFattet
-    h_BestillTilsagnIOebs --> e_SakOppdatert
     h_DistribuerSoknadKopiDeltaker --> e_SoknadKopiDeltakerDistribuert
     h_FattVedtak --> e_SakOppdatert
     s_ForelopigVedtakApi --> e_ForelopigVedtakSendtTilBeslutter
@@ -126,12 +130,15 @@ flowchart TD
     s_SakApi --> e_SakFrigjort
     s_SakApi --> e_SakTildeltBeslutter
     s_SakApi --> e_SakTildeltSaksbehandler
+    h_SkrivSaksloggForOebsBestillingStatus --> e_SakOppdatert
     h_SkrivSaksloggForRefusjonskrav --> e_SakOppdatert
     h_SkrivSaksloggForSluttrapport --> e_SakOppdatert
     s_SoknadApi --> e_SoknadInnsendt
     h_TildelBeslutter --> e_SakOppdatert
     h_TildelSaksbehandler --> e_SakOppdatert
     s_TilsagnDataApi --> e_TilskuddsbrevVist
+    s_TiltaksokonomiConsumer --> e_OebsBestillingStatusMottatt
+    s_TiltaksokonomiConsumer --> e_OebsFakturaStatusMottatt
     h_VarsleArbeidsgiverVedtakFattet --> e_ArbeidsgiverVarsletVedtakFattet
     h_VarsleArbeidsgiverVedtakFattet --> e_SakOppdatert
     s_VedleggDb --> e_SluttrapportMottatt
@@ -153,6 +160,7 @@ flowchart TD
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_LagreTilsagnsDataKildeAltinn
     e_VedtaksbrevArbeidsgiverJournalfoert --> h_LagreVedtaksbrev
     e_SaksbehandlingStartetIArena --> h_MarkerSakUnderBehandlingIArena
+    e_OebsFakturaStatusMottatt --> h_OebsFakturaStatusMottattNoop
     e_VilkarsvurderingOppdatert --> h_OppdaterVilkarsvurdering
     e_InnsendtSoknadJournalfoert --> h_OpprettSak
     e_InnsendtSoknadJournalfoert --> h_OpprettTiltaksgjennomfoeringForInnsendtSoknad
@@ -161,6 +169,7 @@ flowchart TD
     e_TilskuddsbrevJournalfoert --> h_SettGodkjentSoknadStatus
     e_VedtakFattet --> h_SettSoknadStatusVedtakFattet
     e_SakOppdatert --> h_SkrivSakslogg
+    e_OebsBestillingStatusMottatt --> h_SkrivSaksloggForOebsBestillingStatus
     e_RefusjonskravMottatt --> h_SkrivSaksloggForRefusjonskrav
     e_SluttrapportMottatt --> h_SkrivSaksloggForSluttrapport
     e_SoknadKopiDeltakerDistribuert --> h_SoknadKopiDeltakerDistribuertNoop

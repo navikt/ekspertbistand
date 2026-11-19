@@ -24,11 +24,20 @@ import kotlin.time.Instant
  * serialisering.
  */
 
-/** Status/kvittering for en bestilling, mottatt på `tiltaksokonomi.bestilling-status-v1`. */
+/**
+ * Status/kvittering for en bestilling, mottatt på `tiltaksokonomi.bestilling-status-v1`.
+ *
+ * [feilKode] og [feilMelding] er antatt navn og typer til VALP har lagt dem i kontrakten (se
+ * `specifications/oebs_status_til_saksgang.md`). Standardverdien `null` trengs fordi meldinger fra
+ * før VALP la til feltene, mangler dem.
+ */
 @Serializable
 data class BestillingStatus(
     val bestillingsnummer: String,
     val status: BestillingStatusType,
+    val statusSistOppdatert: Instant,
+    val feilKode: String? = null,
+    val feilMelding: String? = null,
 )
 
 enum class BestillingStatusType {
@@ -50,12 +59,17 @@ enum class BestillingStatusType {
     FEILET,
 }
 
-/** Status/kvittering for en faktura, mottatt på `tiltaksokonomi.faktura-status-v1`. */
+/**
+ * Status/kvittering for en faktura, mottatt på `tiltaksokonomi.faktura-status-v1`. [feilKode] og
+ * [feilMelding] er antatt som på [BestillingStatus].
+ */
 @Serializable
 data class FakturaStatus(
     val fakturanummer: String,
     val status: FakturaStatusType,
     val statusSistOppdatert: Instant,
+    val feilKode: String? = null,
+    val feilMelding: String? = null,
 )
 
 enum class FakturaStatusType {
@@ -86,12 +100,15 @@ enum class FakturaStatusType {
  */
 sealed interface OebsStatusMelding {
     val referanse: String
+    val feilKode: String?
 
     data class Bestilling(val status: BestillingStatus) : OebsStatusMelding {
         override val referanse: String get() = status.bestillingsnummer
+        override val feilKode: String? get() = status.feilKode
     }
 
     data class Faktura(val status: FakturaStatus) : OebsStatusMelding {
         override val referanse: String get() = status.fakturanummer
+        override val feilKode: String? get() = status.feilKode
     }
 }

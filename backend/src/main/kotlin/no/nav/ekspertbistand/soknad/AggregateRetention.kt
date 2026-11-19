@@ -102,6 +102,7 @@ class AggregateRetention(private val database: Database) {
                 "oebs_sendt_melding",
                 "oebs_mottatt_status",
                 "oebs_bestilling_status",
+                "oebs_bestilling_referanse",
                 "oebs_faktura_lopenummer",
             ).forEach { tabell ->
                 update("DELETE FROM $tabell WHERE starts_with(bestillingsnummer, ?)", TextColumnType() to oebsPrefiks)

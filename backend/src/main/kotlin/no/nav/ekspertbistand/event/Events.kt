@@ -10,6 +10,8 @@ import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
+import no.nav.ekspertbistand.event.domain.OebsBestillingStatusDomain
+import no.nav.ekspertbistand.event.domain.OebsFakturaStatusDomain
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
 import no.nav.ekspertbistand.event.domain.VedleggDomain
@@ -759,6 +761,45 @@ sealed interface EventData {
     ) : EventData {
         override val aggregateRootId: String get() = soknadId
     }
+
+    /**
+     * VALP har meldt ny status på en bestilling i OeBS. Publiseres av
+     * [no.nav.ekspertbistand.oebs.integration.TiltaksokonomiConsumer] for hver statusmelding på en
+     * bestilling som tilhører en sak. Statusen er det VALP meldte, ikke tolket. Samme status kan komme
+     * flere ganger.
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [SkrivSaksloggForOebsBestillingStatus].
+     */
+    @Serializable
+    @SerialName("oebsBestillingStatusMottatt")
+    data class OebsBestillingStatusMottatt(
+        val sakId: String,
+        val soknadId: String,
+        val bestilling: OebsBestillingStatusDomain,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * VALP har meldt ny status på en faktura i OeBS. Publiseres av
+     * [no.nav.ekspertbistand.oebs.integration.TiltaksokonomiConsumer] med referansen til bestillingen
+     * fakturaen hører til.
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @Serializable
+    @SerialName("oebsFakturaStatusMottatt")
+    data class OebsFakturaStatusMottatt(
+        val sakId: String,
+        val soknadId: String,
+        val faktura: OebsFakturaStatusDomain,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -821,6 +862,11 @@ suspend fun Application.configureEventHandlers() {
         }
         register(dependencies.create(SkrivSaksloggForRefusjonskrav::class))
         register(dependencies.create(SkrivSaksloggForSluttrapport::class))
+        register(dependencies.create(SkrivSaksloggForOebsBestillingStatus::class))
+        register<EventData.OebsFakturaStatusMottatt>("OebsFakturaStatusMottattNoop") { _ ->
+            // Faktura er ikke koblet til saksgangen ennå. Eventen ligger i eventloggen til en handler trenger den.
+            EventHandledResult.Success()
+        }
     }
 
     // Start event processing loop

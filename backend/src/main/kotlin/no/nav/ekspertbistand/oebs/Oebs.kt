@@ -12,11 +12,13 @@ import no.nav.ekspertbistand.oebs.integration.OpprettFaktura
 import no.nav.ekspertbistand.oebs.integration.TiltaksokonomiConsumer
 import no.nav.ekspertbistand.oebs.integration.TiltaksokonomiProducer
 import no.nav.ekspertbistand.oebs.model.OebsOutboxPoller
+import no.nav.ekspertbistand.oebs.model.lagreBestillingReferanse
 import no.nav.ekspertbistand.oebs.model.leggIOutbox
 import no.nav.ekspertbistand.oebs.model.nesteBestillingsnummer
 import no.nav.ekspertbistand.oebs.model.nesteFakturanummer
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
+import java.util.UUID
 import kotlin.coroutines.CoroutineContext
 import no.nav.ekspertbistand.oebs.integration.GjorOppBestilling as GjorOppBestillingPayload
 
@@ -44,9 +46,18 @@ class OebsKlient {
     /**
      * Genererer et unikt bestillingsnummer for [saksnummer] (`sak.saksnummer`), lar [bygg] fylle resten av bestillingen med
      * nummeret, legger meldingen i outbox-en og returnerer bestillingsnummeret.
+     *
+     * [sakId] og [soknadId] lagres i [OebsBestillingReferanse][no.nav.ekspertbistand.oebs.model.OebsBestillingReferanse],
+     * så status fra VALP kan publiseres på søknaden.
      */
-    fun JdbcTransaction.opprettBestilling(saksnummer: String, bygg: (bestillingsnummer: String) -> OpprettBestilling): String {
+    fun JdbcTransaction.opprettBestilling(
+        sakId: UUID,
+        soknadId: UUID,
+        saksnummer: String,
+        bygg: (bestillingsnummer: String) -> OpprettBestilling,
+    ): String {
         val bestillingsnummer = nesteBestillingsnummer(saksnummer)
+        lagreBestillingReferanse(bestillingsnummer, sakId, soknadId)
         leggIOutbox(OebsBestillingMelding.Bestilling(bygg(bestillingsnummer)))
         return bestillingsnummer
     }
