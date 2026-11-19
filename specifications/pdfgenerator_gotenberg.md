@@ -10,7 +10,7 @@ Den skal gi et konkret grunnlag for å velge mellom de to løsningene. Se [Samme
 Erstatte `ekspertbistand-dokgen`, som ikke vedlikeholdes lenger, med:
 
 - **Templating i backend:** Handlebars og innpakning. Malene flyttes fra `dokgen/content/` til backend og gjøres om til **ren HTML**. Markdown-steget fra dokgen fjernes.
-- **Konvertering i Gotenberg:** HTML → PDF/A-2b i en egen NAIS-app, `ekspertbistand-gotenberg`, som bare backend kan nå.
+- **Konvertering i Gotenberg:** HTML → PDF/A-2b i en egen NAIS-app, `ekspertbistand-gotenberg9`, som bare backend kan nå.
 
 Resultatet skal:
 
@@ -38,7 +38,7 @@ Resultatet skal:
 | Templating i backend, konvertering i Gotenberg | Gotenberg rendrer ikke maler. Malene skal ikke sendes utenfra. |
 | Gjenbruk templating-kjernen fra `rm_dokgen` | `HandlebarsConfig` og `TemplateRepository` er de samme i begge alternativer. Da blir de to sammenlignbare, og lite kode skrives to ganger. |
 | Ingen Markdown, malene er ren HTML + Handlebars | Bare `tilskuddsbrev` bruker Markdown. Uten Markdown-steget kan brukertekst ikke bli `<img>`, lenker eller overskrifter, og escaping blir vanlig HTML-escaping. Én avhengighet (`commonmark`) mindre. |
-| Full Gotenberg-image (ikke `-chromium`-varianten) | PDF/A-konvertering gjøres av LibreOffice-motoren i Gotenberg. |
+| `-chromium`-varianten av Gotenberg 9 | Fra Gotenberg 9 lager stagen `remediate` (litho, i Gotenberg-prosessen) PDF/A, så LibreOffice trengs ikke. Varianten har langt færre pakker og sårbarheter. Gotenberg 8 krevde full-imaget, fordi LibreOffice-motoren laget PDF/A. |
 | Egen NAIS-app med thin Dockerfile | Gir Dependabot-oppdateringer av image-taggen og samme CI-mønster som dokgen har i dag. |
 | Bare tilgang fra backend, ingen utgående trafikk | Gotenberg er eksponert for HTML. Nettverkspolicyen er den viktigste SSRF-sperren. |
 | `DokgenClient` omdøpes til `DokumentService` | Samme navn og pakkestruktur som i `rm_dokgen`, så alternativene kan sammenlignes direkte. |
@@ -46,13 +46,13 @@ Resultatet skal:
 ## Arkitektur
 
 ```
-ekspertbistand-backend                                   ekspertbistand-gotenberg (NAIS, namespace fager)
+ekspertbistand-backend                                   ekspertbistand-gotenberg9 (NAIS, namespace fager)
 ┌──────────────────────────────────────────────┐         ┌──────────────────────────────────────┐
-│ DokumentService                               │         │ gotenberg/gotenberg:8.37.0 (full)    │
+│ DokumentService                               │         │ gotenberg/gotenberg:9.8.0-chromium   │
 │   ├─ DTO → JsonObject                         │         │                                      │
 │   ├─ DokumentRenderer (templating-kjerne)     │         │ POST /forms/chromium/convert/html    │
 │   │    Handlebars (HTML) → XHTML-dokument     │ ──────▶ │   index.html                         │
-│   └─ GotenbergClient ─────────────────────────┤ multipart│   pdfa=PDF/A-2b                      │
+│   └─ GotenbergClient ─────────────────────────┤ multipart│   stages=remediate PDF/A-2b          │
 │        (HTML → PDF/A via HTTP)                │ ◀────── │ → application/pdf                    │
 └──────────────────────────────────────────────┘         └──────────────────────────────────────┘
 ```
@@ -210,13 +210,13 @@ I tillegg:
 | `marginTop` / `marginRight` / `marginBottom` / `marginLeft` | tilsvarende dagens `@page { margin: 64px 64px 74px 64px }`. Se §5 om enheter. |
 | `preferCssPageSize` | `false` (A4 styres av skjemafeltene, ikke av `@page`) |
 | `printBackground` | `true` |
-| `pdfa` | `PDF/A-2b` |
+| `stages` | `[{"op":"remediate","profile":"PDF/A-2b"}]` (Gotenberg 9, erstatter `pdfa`) |
 | `failOnResourceLoadingFailed` | `true` |
 | `failOnConsoleExceptions` | `true` |
 | `skipNetworkIdleEvent` | `true` (standard) |
 
 - Send header `Gotenberg-Trace: <callId/traceId>`, så logger kan korreleres.
-- `baseUrl = basedOnEnv(prod = "http://ekspertbistand-gotenberg", dev = "http://ekspertbistand-gotenberg", other = "http://localhost:3003")`.
+- `baseUrl = basedOnEnv(prod = "http://ekspertbistand-gotenberg9", dev = "http://ekspertbistand-gotenberg9", other = "http://localhost:3003")`.
 - `HttpTimeout`: `requestTimeoutMillis = 30_000`. Gotenberg har selv `API_TIMEOUT=30s`.
 - `HttpClientMetricsFeature` med `clientName = "gotenberg.client"`.
 - Retry: `HttpRequestRetry` på 503 og nettverksfeil, maks 3 forsøk med eksponentiell backoff. **Ikke** retry på 4xx.
@@ -248,7 +248,6 @@ Uten Markdown er HTML-escapingen i Handlebars det eneste som står mellom bruker
 | `CHROMIUM_DENY_LIST` | standard (`^file:(?!//\/tmp/).*`) | Beholdes i tillegg. |
 | `API_DISABLE_DOWNLOAD_FROM` | `true` | Ingen nedlasting av filer fra URL-er. |
 | `WEBHOOK_DISABLE` | `true` | Ingen callbacks ut av poden. |
-| `LIBREOFFICE_DISABLE_ROUTES` | `true` | Office-konverteringsrutene trengs ikke. **Verifiser** at PDF/A fra Chromium-ruten fortsatt virker (LibreOffice-motoren brukes til PDF/A). Hvis ikke: la den stå `false`, og stol på nettverkspolicyen. |
 | `CHROMIUM_MAX_CONCURRENCY` | `2` | Tilpasset memory-limit. |
 | `CHROMIUM_RESTART_AFTER` | `100` (standard) | Begrenser minnelekkasjer. |
 | `LOG_STD_FORMAT` | `json` | Loki. |
@@ -273,15 +272,20 @@ Uten Markdown er HTML-escapingen i Handlebars det eneste som står mellom bruker
   `.td02`/`.td03` (etikettkolonnene i tabellene) trenger ingen egne bredder: en nøytral basisregel `td:not(:last-child) { padding-right: 16pt }` gir kolonne-gap, og `table-layout: auto` størrelser etikettkolonnen etter innholdet. Lange etiketter brytes naturlig.
   - Akseptkriteriet er visuell sammenligning med dagens dokgen-PDF for alle `testdata/*.json` (se §7.2). `RenderDokumentmaler` og `RenderDokumentmalerDokgenLokal` skriver PDF-er med like filnavn for diff.
 - **Fonter:** Malene bruker DejaVu Sans, en font som ligger i Gotenberg-containeren for både Chromium og LibreOffice. Vi sender ingen font-filer og bruker ikke `@font-face`. Grunnen: PDF/A-konverteringen går gjennom LibreOffice, som legger om teksten og bytter til en systemfont hvis malfonten mangler. En substitusjon endrer tekstbredden og kan skyve teksten ut i høyremargen. Når begge motorene løser til samme systemfont, måler de teksten likt. `* { font-family: "DejaVu Sans", sans-serif !important }` i `style.css` står fast.
-- **PDF/A via LibreOffice:** LibreOffice rasteriserer tabellceller med bakgrunnsfarge. Sjekk at malene ikke har bakgrunnsfarge på celler, eller godta at de blir rasterisert.
+- **PDF/A via litho (Gotenberg 9):** `remediate` reparerer Chromium-PDF-en til PDF/A-2b uten LibreOffice. I Gotenberg 8 gikk PDF/A gjennom LibreOffice, som rasteriserte tabellceller med bakgrunnsfarge.
 - **Header og footer:** Dagens `header.html` og `footer.html` er vanlig innhold i `<body>`, ikke Chromium-header og -footer. Send dem **ikke** som `header.html`/`footer.html`-filer til Gotenberg.
   Chromium-header og -footer kan bare bruke systemfonter og inline data.
 
 ### 6. Drift: ny NAIS-app `ekspertbistand-gotenberg`
 
+> Gotenberg 9 kjører som en egen app, `ekspertbistand-gotenberg9`, med filene `gotenberg9/Dockerfile` og `nais/*-gcp-gotenberg9.yaml`.
+> Den ble rullet ut ved siden av Gotenberg 8, før backend byttet `baseUrl`. Mens begge appene fantes, bygde og deployet
+> `cicd-gotenberg.yaml` og `deploy-dev-manual-gotenberg.yml` dem med en matrise. Deretter ble `ekspertbistand-gotenberg`
+> slettet. Bruk samme fremgangsmåte ved neste major.
+
 - `gotenberg/Dockerfile`:
   ```dockerfile
-  FROM gotenberg/gotenberg:8.37.0
+  FROM gotenberg/gotenberg:9.8.0-chromium
   ```
   Pin gjerne `@sha256:…`. Legg `gotenberg/` til i Dependabot (`.github/dependabot.yml`, `package-ecosystem: docker`).
 - `nais/dev-gcp-gotenberg.yaml` og `nais/prod-gcp-gotenberg.yaml`, basert på `nais/*-gcp-dokgen.yaml`:
@@ -341,7 +345,7 @@ Uten Markdown er HTML-escapingen i Handlebars det eneste som står mellom bruker
     - Verifiser i en PR at jobben `build` kjører integrasjonstesten mot service-containeren. Den skal ikke hoppes over.
   - Tester når Gotenberg på `http://localhost:3003` (`GotenbergClient.baseUrl` for `other`), slik Postgres-testene når `localhost:5532`.
     Utviklere kjører `docker compose -f backend/docker-compose.yml up -d` før `mvn verify`, som i dag. Dokumenter det i `backend/README.md`.
-  - Hold image-taggen lik i `gotenberg/Dockerfile`, `docker-compose.yml` og `cicd-backend.yaml`. Dependabot oppdaterer Dockerfile. De to andre oppdateres i samme PR, eventuelt med en test eller et skript som sjekker at taggene er like.
+  - Hold image-taggen lik i `gotenberg9/Dockerfile`, `docker-compose.yml` og `cicd-backend.yaml`. Dependabot oppdaterer Dockerfile. De to andre oppdateres i samme PR, eventuelt med en test eller et skript som sjekker at taggene er like.
 
 ### 7. Testing
 

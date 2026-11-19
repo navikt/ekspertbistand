@@ -10,7 +10,7 @@ services:
       - ./local-db-init.sql:/docker-entrypoint-initdb.d/init.sql
 
   gotenberg:
-    image: gotenberg/gotenberg:8.40.0
+    image: gotenberg/gotenberg:9.8.0-chromium
     ports:
       - "3003:3000"
     environment:        # samme verdier som i nais (§4.2)
@@ -18,5 +18,4 @@ services:
       CHROMIUM_ALLOW_LIST: "^file:///tmp/.*"
       API_DISABLE_DOWNLOAD_FROM: "true"
       WEBHOOK_DISABLE: "true"
-      LIBREOFFICE_DISABLE_ROUTES: "true"
       CHROMIUM_MAX_CONCURRENCY: "2"
