@@ -4,14 +4,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  compile-and-build:
-    name: Build gotenberg image
+  # Ved ny major: legg den nye appen i matrisen (og i paths for cicd) og kjør den ved siden av den gamle til backend har byttet.
+  build-and-deploy:
+    name: Build and deploy ${{ matrix.app }} to dev-gcp
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-    outputs:
-      image: ${{ steps.docker-build-push.outputs.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [ gotenberg9 ]
 
     steps:
       - name: Checkout
@@ -22,24 +25,12 @@ jobs:
         uses: nais/docker-build-push@588f76a6f45aeb1e75d5e8417ec6ef6d79b2b39f # v0
         with:
           team: fager
-          image_suffix: gotenberg9
+          image_suffix: ${{ matrix.app }}
           tag: ${{ github.sha }}
-          dockerfile: gotenberg9/Dockerfile
-          docker_context: gotenberg9
+          dockerfile: ${{ matrix.app }}/Dockerfile
+          docker_context: ${{ matrix.app }}
           salsa: true
           no_cache: true
-
-  deploy-to-dev-gcp:
-    name: Deploy to dev-gcp
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    needs: compile-and-build
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Login to NAIS (sets registry and OIDC)
         uses: nais/login@40b72a35a18ddf2ad74b632461139ab838cc2a2f # v0
@@ -49,6 +40,6 @@ jobs:
       - name: Deploy dev-gcp
         uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # v3
         env:
-          VAR: image=${{ needs.compile-and-build.outputs.image }}
-          RESOURCE: nais/dev-gcp-gotenberg9.yaml
+          VAR: image=${{ steps.docker-build-push.outputs.image }}
+          RESOURCE: nais/dev-gcp-${{ matrix.app }}.yaml
           CLUSTER: dev-gcp

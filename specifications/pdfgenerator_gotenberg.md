@@ -279,9 +279,9 @@ Uten Markdown er HTML-escapingen i Handlebars det eneste som står mellom bruker
 ### 6. Drift: ny NAIS-app `ekspertbistand-gotenberg`
 
 > Gotenberg 9 kjører som en egen app, `ekspertbistand-gotenberg9`, med filene `gotenberg9/Dockerfile` og `nais/*-gcp-gotenberg9.yaml`.
-> Den ble rullet ut ved siden av Gotenberg 8, før backend byttet `baseUrl`. Mens begge appene fantes, bygde og deployet
-> `cicd-gotenberg.yaml` og `deploy-dev-manual-gotenberg.yml` dem med en matrise. Deretter ble `ekspertbistand-gotenberg`
-> slettet. Bruk samme fremgangsmåte ved neste major.
+> Den ble rullet ut ved siden av Gotenberg 8, før backend byttet `baseUrl`. Deretter ble `ekspertbistand-gotenberg` slettet.
+> `cicd-gotenberg.yaml` og `deploy-dev-manual-gotenberg.yml` bygger og deployer appene i matrisen `app`. Ved neste major:
+> legg den nye appen i matrisen, la backend bytte `baseUrl`, og fjern den gamle appen fra matrisen.
 
 - `gotenberg/Dockerfile`:
   ```dockerfile
