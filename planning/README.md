@@ -87,7 +87,7 @@ sequenceDiagram
     end
 
     rect rgba(255, 145, 0, 0.10)
-    Note over AG,EB: 3. Etter vedtak 🟢🟢🟢🟢🟢🟢🟢🟢🟢🔴🔴🔴
+    Note over AG,EB: 3. Etter vedtak 🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🔴🔴
     EB->>EB: 🟢 🗄️📝 Journalfører vedtaksbrevet på arbeidsgivermappa, sladdet ved kode 6/7
     EB->>EB: 🔴 🗄️ Journalfører vedtaksbrevet på personmappa
     EB-->>DT: 🔴 📬 Vedtaksbrevet (dokdist)
@@ -95,7 +95,7 @@ sequenceDiagram
         EB->>EB: 🟢 🏦 Bestiller hos OeBS, setter av penger (kjører i dev)
         EB->>EB: 🟢 🏦 OeBS kvitterer, bestilling AKTIV, saksloggen viser status
         opt OeBS svarer FEILET
-            EB->>EB: 🔴 🏦 Flagger saken og stopper saksgangen, teamet følger opp med OeBS
+            EB->>EB: 🟢 🏦 Alert til teamet, OeBS retter og kvitterer AKTIV på nytt
         end
         EB-->>AG: 🟢 🔔 Varsel om innvilget, lenke til vedtaket
         AG->>EB: 🟢 🛤️ Åpner vedtaket på ny rute
@@ -133,12 +133,13 @@ sequenceDiagram
     end
 
     rect rgba(195, 0, 0, 0.07)
-    Note over AG,EB: 5. Refusjonsbehandling og utbetaling 🟢🟢🔴🔴🔴🔴🔴🔴🔴🔴
+    Note over AG,EB: 5. Refusjonsbehandling og utbetaling 🟢🟢🔴🔴🔴🔴🔴🔴🔴🔴🔴
     SB->>EB: 🟢 🧾 Tildeler seg refusjonsoppgaven
     SB->>EB: 🟢 📤 Ser refusjonskravet og sluttrapporten
-    Note over SB,BE: Saksbehandler eller beslutter attesterer i ett steg. Avslag krever to trinn.
+    Note over SB,BE: To trinn: saksbehandler innstiller, beslutter med BDM avgjør.
     alt Godkjent
-        SB->>EB: 🔴 🧾 Godkjenner, helt eller med redusert beløp (krever sluttrapport)
+        SB->>EB: 🔴 🧾 Innstiller godkjenning, helt eller med redusert beløp (krever sluttrapport)
+        BE->>EB: 🔴 🧾 Godkjenner
         Note over EB: Sak REFUSJON_GODKJENT
         EB-->>AG: 🔴 📣 Varsel om godkjent refusjon
         EB->>EB: 🔴 💸 Sender faktura til OeBS
@@ -154,9 +155,9 @@ sequenceDiagram
     end
 ```
 
-🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
+🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟡🟡🟡🟡🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 
-🟢 26 ferdig · 🟡 4 delvis · 🔴 20 mangler, av 50 steg i diagrammet. OeBS er ikke egen deltaker i
+🟢 27 ferdig · 🟡 4 delvis · 🔴 20 mangler, av 51 steg i diagrammet. OeBS er ikke egen deltaker i
 diagrammet. Kall til og svar fra OeBS vises som steg i Ekspertbistand.
 
 Deltaker får ikke varsel om refusjonen. Bare arbeidsgiver varsles når
@@ -196,7 +197,7 @@ inne i Mermaid-diagrammer, så lenkene til Trello og PR-ene står her.
 | 25 | 🔴 📬 Vedtaksbrevet (dokdist) | Trello [599](https://trello.com/c/QA5bXVrf) |
 | 26 | 🟢 🏦 Bestiller hos OeBS, setter av penger (kjører i dev) | Trello [650](https://trello.com/c/abzeX7gO), [704](https://trello.com/c/zUU0nQvu) \| PR [#224](https://github.com/navikt/ekspertbistand/pull/224), [#259](https://github.com/navikt/ekspertbistand/pull/259) |
 | 27 | 🟢 🏦 OeBS kvitterer, bestilling AKTIV, saksloggen viser status | Trello [705](https://trello.com/c/HShDcuFH), [726](https://trello.com/c/u2XIE5PJ) \| PR [#259](https://github.com/navikt/ekspertbistand/pull/259) |
-| 28 | 🔴 🏦 Flagger saken og stopper saksgangen, teamet følger opp med OeBS | Trello [724](https://trello.com/c/jgHBBvu3) |
+| 28 | 🟢 🏦 Alert til teamet, OeBS retter og kvitterer AKTIV på nytt | Trello [726](https://trello.com/c/u2XIE5PJ) \| PR [#259](https://github.com/navikt/ekspertbistand/pull/259). Flagging av saken: [724](https://trello.com/c/jgHBBvu3), etter lansering |
 | 29 | 🟢 🔔 Varsel om innvilget, lenke til vedtaket | Trello [645](https://trello.com/c/XZvrwKjG) \| PR [#252](https://github.com/navikt/ekspertbistand/pull/252) |
 | 30 | 🟢 🛤️ Åpner vedtaket på ny rute | Trello [693](https://trello.com/c/mmcwqp5V) \| PR [#250](https://github.com/navikt/ekspertbistand/pull/250) |
 | 31 | 🟢 🛤️ Viser innvilget beløp og vedtaksbrevet | Trello [693](https://trello.com/c/mmcwqp5V), [681](https://trello.com/c/H7jYzwos) \| PR [#250](https://github.com/navikt/ekspertbistand/pull/250) |
@@ -215,14 +216,15 @@ inne i Mermaid-diagrammer, så lenkene til Trello og PR-ene står her.
 | 44 | 🔴 💸 Avslutter saken og frigjør beløpet (annullerer bestillingen) | mangler kort, se [Avklart](lanseringsplan_2027-04-01.md#avklart) i planen |
 | 45 | 🟢 🧾 Tildeler seg refusjonsoppgaven | PR [#248](https://github.com/navikt/ekspertbistand/pull/248) |
 | 46 | 🟢 📤 Ser refusjonskravet og sluttrapporten | Trello [477](https://trello.com/c/YJI9Yf9G) |
-| 47 | 🔴 🧾 Godkjenner, helt eller med redusert beløp (krever sluttrapport) | Trello [715](https://trello.com/c/KBHePFbQ), [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
-| 48 | 🔴 📣 Varsel om godkjent refusjon | mangler kort |
-| 49 | 🔴 💸 Sender faktura til OeBS | Trello [679](https://trello.com/c/Cue4nB5k) |
-| 50 | 🔴 💸 OeBS melder FULLT_BETALT | Trello [679](https://trello.com/c/Cue4nB5k) |
-| 51 | 🔴 💸 Avslutter saken | mangler kort |
-| 52 | 🔴 🧾 Innstiller avslag | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
-| 53 | 🔴 🧾 Avslår eller returnerer | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
-| 54 | 🔴 📣 Varsel om avslag (brev avklares) | mangler kort, se funn 5 |
+| 47 | 🔴 🧾 Innstiller godkjenning, helt eller med redusert beløp (krever sluttrapport) | Trello [715](https://trello.com/c/KBHePFbQ), [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
+| 48 | 🔴 🧾 Godkjenner | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
+| 49 | 🔴 📣 Varsel om godkjent refusjon | mangler kort |
+| 50 | 🔴 💸 Sender faktura til OeBS | Trello [679](https://trello.com/c/Cue4nB5k) |
+| 51 | 🔴 💸 OeBS melder FULLT_BETALT | Trello [679](https://trello.com/c/Cue4nB5k) |
+| 52 | 🔴 💸 Avslutter saken | mangler kort |
+| 53 | 🔴 🧾 Innstiller avslag | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
+| 54 | 🔴 🧾 Avslår eller returnerer | Trello [716](https://trello.com/c/BvM7Dir9) (kort for behandlingen mangler) |
+| 55 | 🔴 📣 Varsel om avslag (brev avklares) | mangler kort, se funn 5 |
 
 ## Tilstander for saken
 
@@ -309,7 +311,7 @@ lanseringsplanen:
    to påminnelser før fristen. Kommer ikke kravet, frigjøres beløpet ved at
    bestillingen annulleres, og saken avsluttes. Vi må avklare om det skjer
    automatisk, og når påminnelsene sendes.
-5. **Avslag på refusjonskravet.** Avklart 18.11.: avslag krever to trinn,
+5. **Avslag på refusjonskravet.** Avklart 18.11. og 20.11.: både godkjenning og avslag krever to trinn,
    og bare arbeidsgiver varsles. Et avslag er også et vedtak, så vi må
    avklare om arbeidsgiver får brev, om bestillingen skal annulleres og
    hvordan vi forhåndsvarsler. Første kontroll, der arbeidsgiver bes sende
@@ -323,9 +325,8 @@ lanseringsplanen:
    på, og lesetilgangen i prod venter på Valp ([#8573](https://github.com/navikt/mulighetsrommet/pull/8573)). Ingen flyt annullerer
    ennå. Faktura og oppgjør (runde 2) venter på OeBS. Kostnadssted er ikke
    behandlende enhet, så saksbehandler må velge det (728).
-8. **En feilet bestilling blokkerer ikke utbetaling.** `FEILET` gir alert i
-   Slack og vises med feilkode i saksloggen, men ingenting sperrer saken, og
-   vi har ingen vei ut av feilen.
-   Planen er enkel (724): saken flagges, og saksgangen stopper til teamet har
-   fulgt opp med OeBS. Feil om leverandør meldes til OeBS, fordi vi bare
-   sender organisasjonsnummeret. Trengs ny bestilling, må den ha nytt nummer.
+8. **En feilet bestilling retter seg via OeBS.** `FEILET` gir alert i Slack
+   og vises med feilkode i saksloggen. Teamet melder feilen til OeBS, og OeBS
+   sender ny kvittering med `AKTIV` når feilen er rettet. Koden tar alltid
+   siste status. Tiltaksøkonomi sender ikke faktura før bestillingen er
+   aktiv. Å flagge saken hos oss (724) venter til etter lansering.
