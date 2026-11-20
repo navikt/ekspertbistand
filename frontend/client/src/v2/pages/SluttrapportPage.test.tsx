@@ -4,11 +4,22 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useSoknad } from "../hooks/useSoknad";
 import { useSluttrapportStatus } from "../hooks/useSluttrapportStatus";
+import { useVedtak } from "../hooks/useVedtak";
 import { EKSPERTBISTAND_SLUTTRAPPORT_PATH } from "../utils/constants";
+import { HttpError } from "../../utils/http";
 import SluttrapportPage from "./SluttrapportPage";
 
 vi.mock("../hooks/useSoknad", () => ({ useSoknad: vi.fn() }));
 vi.mock("../hooks/useSluttrapportStatus", () => ({ useSluttrapportStatus: vi.fn() }));
+vi.mock("../hooks/useVedtak", () => ({ useVedtak: vi.fn() }));
+
+const vedtak = {
+  utfall: "INNVILGET",
+  vedtaksdato: "20. oktober 2026",
+  deltakerNavn: "Testperson",
+  virksomhetsnavn: "Eksempel AS",
+  tiltaksperiode: { fra: "1. november 2026", til: "31. januar 2027" },
+} satisfies NonNullable<ReturnType<typeof useVedtak>["vedtak"]>;
 
 function VedtakMottaker() {
   const { state } = useLocation();
@@ -18,13 +29,22 @@ function VedtakMottaker() {
 const renderPage = ({
   sluttrapport = null,
   statusError = null,
+  soknad = {
+    virksomhet: { virksomhetsnavn: "Eksempel AS" },
+    ansatt: { fnr: "", navn: "Testperson" },
+    ekspert: { navn: "Testekspert" },
+    behovForBistand: { startdato: "2026-10-01" },
+  },
+  vedtakStatus = {},
 }: {
   sluttrapport?: ReturnType<typeof useSluttrapportStatus>["sluttrapport"];
   statusError?: Error | null;
+  soknad?: ReturnType<typeof useSoknad>["soknad"];
+  vedtakStatus?: Partial<ReturnType<typeof useVedtak>>;
 } = {}) => {
   const refreshStatus = vi.fn(async () => undefined);
   vi.mocked(useSoknad).mockReturnValue({
-    soknad: { virksomhet: { virksomhetsnavn: "Eksempel AS" } },
+    soknad,
     isLoading: false,
     error: null,
   });
@@ -34,8 +54,14 @@ const renderPage = ({
     error: statusError,
     mutate: refreshStatus,
   });
+  vi.mocked(useVedtak).mockReturnValue({
+    vedtak,
+    isLoading: false,
+    error: undefined,
+    ...vedtakStatus,
+  });
 
-  const view = render(
+  const innhold = () => (
     <MemoryRouter initialEntries={["/v2/skjema/sak-1/sluttrapport"]}>
       <Routes>
         <Route path="/v2/skjema/:id/sluttrapport" element={<SluttrapportPage />} />
@@ -44,6 +70,7 @@ const renderPage = ({
       </Routes>
     </MemoryRouter>
   );
+  const view = render(innhold());
   const lastOppFil = async () => {
     const user = userEvent.setup();
     const filvelger = view.container.querySelector<HTMLInputElement>('input[type="file"]');
@@ -54,7 +81,7 @@ const renderPage = ({
     );
     return user;
   };
-  return { refreshStatus, lastOppFil };
+  return { refreshStatus, lastOppFil, rerenderPage: () => view.rerender(innhold()) };
 };
 
 afterEach(() => {
@@ -63,6 +90,97 @@ afterEach(() => {
 });
 
 describe("SluttrapportPage", () => {
+  it("viser fire synlige rader med vedtakets periode i stedet for søknadens startdato", () => {
+    renderPage();
+
+    expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual([
+      "Arbeidsgiver",
+      "Ansatt",
+      "Ekspert",
+      "Tiltaksperiode",
+    ]);
+    expect(screen.getAllByRole("definition").map((value) => value.textContent)).toEqual([
+      "Eksempel AS",
+      "Testperson",
+      "Testekspert",
+      "1. november 2026 – 31. januar 2027",
+    ]);
+    for (const term of screen.getAllByRole("term")) {
+      expect(term.nextElementSibling?.tagName).toBe("DD");
+    }
+    expect(useVedtak).toHaveBeenCalledWith("sak-1");
+    expect(screen.queryByText("Startdato")).not.toBeInTheDocument();
+    expect(screen.queryByText("Opplysninger om saken")).not.toBeInTheDocument();
+  });
+
+  it("beholder rader med plassholder når navn og vedtaksperiode mangler", () => {
+    renderPage({
+      soknad: { virksomhet: { virksomhetsnavn: " " }, ekspert: { navn: "" } },
+      vedtakStatus: { vedtak: { ...vedtak, tiltaksperiode: null } },
+    });
+
+    expect(screen.getAllByRole("term")).toHaveLength(4);
+    expect(screen.getAllByRole("definition").map((value) => value.textContent)).toEqual([
+      "–",
+      "–",
+      "–",
+      "–",
+    ]);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it.each([403, 500])("viser vedtaksfeil %s uten å skjule filopplastingen", (status) => {
+    renderPage({
+      vedtakStatus: {
+        vedtak: undefined,
+        error: new HttpError("Vedtaksoppslaget feilet", { status }),
+      },
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Kunne ikke hente tiltaksperioden. Prøv å laste siden på nytt."
+    );
+    expect(screen.getAllByRole("definition").at(-1)).toHaveTextContent("Kunne ikke hentes");
+    expect(screen.getByLabelText("Last opp sluttrapport fra eksperten")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Send inn$/ })).toBeInTheDocument();
+  });
+
+  it("viser en egen melding når vedtaket ikke finnes", () => {
+    renderPage({ vedtakStatus: { vedtak: null } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Fant ikke vedtaket for denne søknaden. Prøv å laste siden på nytt."
+    );
+    expect(screen.getAllByRole("definition").at(-1)).toHaveTextContent("Kunne ikke hentes");
+    expect(screen.getByRole("button", { name: /^Send inn$/ })).toBeInTheDocument();
+  });
+
+  it("beholder valgt fil mens vedtaket lastes, hentes og revalideres med feil", async () => {
+    const { lastOppFil, rerenderPage } = renderPage({
+      vedtakStatus: { vedtak: undefined, isLoading: true },
+    });
+    expect(screen.getAllByRole("definition").at(-1)).toHaveTextContent("Laster tiltaksperiode");
+    await lastOppFil();
+
+    vi.mocked(useVedtak).mockReturnValue({ vedtak, isLoading: false, error: undefined });
+    rerenderPage();
+    expect(screen.getByText("sluttrapport.pdf")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Send inn$/ })).toBeEnabled();
+    expect(screen.getAllByRole("definition").at(-1)).toHaveTextContent(
+      "1. november 2026 – 31. januar 2027"
+    );
+
+    vi.mocked(useVedtak).mockReturnValue({
+      vedtak,
+      isLoading: false,
+      error: new HttpError("Vedtaksoppslaget feilet", { status: 500 }),
+    });
+    rerenderPage();
+    expect(screen.getByText("sluttrapport.pdf")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Send inn$/ })).toBeEnabled();
+    expect(screen.getAllByRole("definition").at(-1)).toHaveTextContent("Kunne ikke hentes");
+  });
+
   it("går direkte til vedtaket med bekreftelse etter innsending og metadataoppslag", async () => {
     const submit = vi
       .spyOn(globalThis, "fetch")
