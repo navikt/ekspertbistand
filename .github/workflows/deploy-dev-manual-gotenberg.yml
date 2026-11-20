@@ -38,7 +38,7 @@ jobs:
           team: fager
 
       - name: Deploy dev-gcp
-        uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # v3
+        uses: nais/deploy/actions/deploy@b1a9a40dae937091497f8f29c5ea5334cc1c0643 # v3
         env:
           VAR: image=${{ steps.docker-build-push.outputs.image }}
           RESOURCE: nais/dev-gcp-${{ matrix.app }}.yaml
