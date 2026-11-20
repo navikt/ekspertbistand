@@ -12,8 +12,9 @@ Testen går i to runder:
 2. **Runde 2** tester `FAKTURA` og `GJOR_OPP_BESTILLING`. Godkjent 2026-11-16.
 3. **Repetisjon** av hele løpet 2026-11-17 og 2026-11-18, etter ønske fra OeBS.
 
-Når siste repetisjon er godkjent, sletter vi testdataene i dev. Deretter kobler vi de
-testede meldingstypene til hendelser i saksgangen. Prod er uendret.
+Den manuelle testen ble avsluttet 2026-11-20. Testdataene blir liggende i dev, og
+videre testing skjer funksjonelt via saksgangen i dev. Vi kjører en ny manuell test
+bare hvis OeBS ber om det. Prod er uendret.
 
 ## Bakgrunn
 
@@ -66,6 +67,7 @@ Kafka-credentials, og topic-manifestet gir oss skrivetilgang og VALP lesetilgang
 | Kostnadssted `0391` (1A), `1291` (1C), `0291` og `1891` (2026-11-17), `0391` og `1291` (2026-11-18 og erstatning) | Kostnadsstedet er `sak.behandlende_enhet`. Bare disse enhetene behandler ekspertbistand: 0291, 0391, 0491, 0691, 0891, 1091, 1191, 1291, 1591, 1891, 1991, 2103 og 5772. 2026-11-17 avviste OeBS T1 `E-2026/900006-1` fordi kostnadsstedet `1891` manglet der. Resten av repetisjonen bruker derfor bare `0391` og `1291`, som er bekreftet i T1. OeBS har senere bekreftet at bare `1891` og `1991` mangler i T1. Repetisjonen tester flyten. Hvilke kostnadssteder OeBS har, følger vi opp med OeBS (se *Kostnadssteder i OeBS*). |
 | Repetisjonen bruker nye saksnumre (900005 til 900009) | Sender vi et brukt bestillingsnummer på nytt, oppretter ikke VALP noe nytt (1B). Annullering, faktura og oppgjør krever status `AKTIV`. 900003 og 900004 er holdt av til 1D og reservebestillingen i runde 2. 900009 erstatter bestillingen som ble avvist 2026-11-17. |
 | Periode `[2026-11-16, 2026-12-16)` | Konteringen hos VALP gjelder fra 2026-11-01. Perioden spenner over to måneder, så fakturaen treffer en bestillingslinje. |
+| Testen avsluttes og testdataene blir liggende (Ken, 2026-11-20) | Flyten er bekreftet, og avvisning kommer tilbake som `FEILET`. Testnumrene kolliderer ikke med ekte saksnumre, og consumeren publiserer ikke status for dem til saksgangen (`erTestnummer`). Kostnadssteder og feilhåndtering følges opp i egne kort (se *Videre oppfølging*). Ny manuell test bare hvis OeBS ber om det. |
 
 ## Forutsetninger
 
@@ -94,7 +96,7 @@ nais cloudsql grant --team fager --environment dev-gcp ekspertbistand-backend
 nais cloudsql prepare --team fager --environment dev-gcp --all-privileges ekspertbistand-backend
 ```
 
-Trekk tilbake skrivetilgangen når testen og oppryddingen er ferdig:
+Trekk tilbake skrivetilgangen når testen er ferdig:
 
 ```shell
 nais cloudsql revoke --team fager --environment dev-gcp ekspertbistand-backend
@@ -245,9 +247,8 @@ Detaljene står i teamLogs.
 Vent med denne runden til OeBS sier at de er klare for faktura og oppgjør. Sjekk
 først at VALP fortsatt godtar `kid` (se *Kontraktsavvik*).
 
-Runde 2 bruker bestillingen fra 1A. Oppryddingen etter runde 1 sletter den bare
-hos oss, så den er fortsatt `AKTIV` hos VALP og i OeBS. Spør VALP om den ikke
-er det. Da sender du en ny bestilling først (kopi av 1A med
+Runde 2 bruker bestillingen fra 1A, som er `AKTIV` hos VALP og i OeBS. Spør VALP
+om den ikke er det. Da sender du en ny bestilling først (kopi av 1A med
 `E-2026/900004-1`) og bruker det nummeret i 2A og 2B.
 
 #### 2A: Faktura `E-2026/900001-1-1`
@@ -417,8 +418,7 @@ FROM (VALUES ('E-2026/900005-1')) AS p(nr);
 
 Forventet for hver repetisjon: A ender med `OPPGJORT` og fakturaen med
 `IKKE_BETALT` eller `FULLT_BETALT`. B ender med `ANNULLERT`. Spørringene i
-*Følg med* dekker de nye numrene. Vent med oppryddingen til siste repetisjon er
-godkjent.
+*Følg med* dekker de nye numrene.
 
 ### 5. Følg med
 
@@ -462,23 +462,11 @@ I loggene til `ekspertbistand-backend` (dev):
 OeBS kvitterer i faste intervaller på 10 minutter (12:15:00, 12:25:00 og 12:35:00
 i runde 1). Regn med opptil 10 minutter fra `SENDT` til `AKTIV` eller `ANNULLERT`.
 
-### 6. Rydd opp
+### 6. Avslutt
 
-Når siste repetisjon er godkjent, sletter vi testdataene i dev. Revisjonssporet er
-append-only i prod, men i dev er dette testdata vi selv har lagt inn.
-
-```sql
-BEGIN;
-DELETE FROM oebs_outbox            WHERE bestillingsnummer LIKE 'E-2026/90000_-%';
-DELETE FROM oebs_sendt_melding     WHERE bestillingsnummer LIKE 'E-2026/90000_-%';
-DELETE FROM oebs_mottatt_status    WHERE bestillingsnummer LIKE 'E-2026/90000_-%';
-DELETE FROM oebs_bestilling_status WHERE bestillingsnummer LIKE 'E-2026/90000_-%';
-COMMIT;
-```
-
-Testdataene blir liggende hos VALP og i OeBS T1. Gi VALP og OeBS beskjed om at
-runden er ferdig og hvilke numre vi brukte. Til slutt trekker du tilbake
-skrivetilgangen (se *Tilgang til databasen*).
+Testdataene blir liggende i dev, hos VALP og i OeBS T1 (Ken, 2026-11-20). Gi VALP
+og OeBS beskjed om at testen er ferdig og hvilke numre vi brukte. Til slutt trekker
+du tilbake skrivetilgangen (se *Tilgang til databasen*).
 
 ## Resultat
 
@@ -529,7 +517,10 @@ Funn:
 - Etter deploy av fiksen kom fakturastatusen fram, og oppgjøret ga `OPPGJORT` på
   bestillingen. `trenger_manuell_oppfolging` er `false` for begge.
 
-### Repetisjon 2026-11-17: pågår
+### Repetisjon 2026-11-17 og 2026-11-18: avsluttet 2026-11-20
+
+Vi følger ikke opp sluttstatus for numrene i repetisjonen. Den videre testingen skjer
+via saksgangen i dev.
 
 Funn:
 
@@ -564,7 +555,7 @@ Funn:
   det polleren og status-consumeren. Rader blir liggende som `PENDING`, og status
   blir liggende på topicet til branchen er deployet igjen. Ingenting går tapt.
 - **Et innvilget vedtak blir fattet i dev under testen.** Bestillingen sendes som
-  vanlig. Den ryddes ikke av SQL-en over, siden den har et ekte saksnummer.
+  vanlig. Den har et ekte saksnummer og er ikke testdata.
 
 ## Kontraktsavvik å følge opp
 
@@ -634,20 +625,20 @@ med en foreslått verdi:
   kan godkjenne (`AdminUtbetalingService`).
 - Tiltaksøkonomi (VALP) velger ingenting, men sender videre det den får.
 
-KDoc hos VALP kaller feltet «Nav-enhet som skal belastes for bestillingen». Om
-det er enheten som behandler ekspertbistand-saken, er et spørsmål om økonomi og
-budsjett, ikke om integrasjonen. Det må avklares før bestilling kobles til
-saksgangen.
+KDoc hos VALP kaller feltet «Nav-enhet som skal belastes for bestillingen».
 
-### Før bestilling kobles til saksgangen
+Avklart 2026-11-20 (Ken): saksbehandleren skal kunne velge behandlende enhet, og vi
+må ha en liste over enhetene og sikre at alle finnes i OeBS.
 
-1. Avklar at behandlende enhet er enheten som skal belastes.
-2. Avklar `1991`: er enheten i bruk, og hvilket kostnadssted skal saker for den
-   belastes?
-3. Bestill kostnadssted for 1891 i T1, og for 1991 i T1 og prod hvis den skal
-   brukes. Få bekreftet de 11 andre enhetene i prod.
-4. Vurder en hvitliste som i tiltaksadministrasjon, slik at en sak med ukjent
-   enhet stopper før bestillingen sendes.
+### Videre oppfølging
+
+Punktene følges opp i egne Trello-kort:
+
+| Kort | Innhold |
+|------|---------|
+| [727](https://trello.com/c/6K5Czv2I/727-skaffe-liste-over-alle-koststed-som-skal-brukes-i-ekspertbistand) | Liste over alle kostnadssteder i ekspertbistand, og at de finnes i OeBS. Dekker 1891 i T1, 1991 og de 11 enhetene i prod. |
+| [728](https://trello.com/c/gVCEUEry/728-kostnadssted-velger) | Saksbehandleren velger kostnadssted. |
+| [724](https://trello.com/c/jgHBBvu3/724-feilh%C3%A5ndtering-mot-oebs-bestilling-faktura-og-oppgj%C3%B8r) | Feilhåndtering mot OeBS for bestilling, faktura og oppgjør, inkludert ny sending etter `FEILET`. |
 
 ## Avvisning i OeBS
 
@@ -668,7 +659,7 @@ Avklart med Hilde-Mari (OeBS) på Slack 2026-11-18:
 - De vanligste feilene i prod gjelder kontering eller leverandørinformasjon.
   Hilde-Mari sendte eksempler på feilmeldinger som bilde på Slack.
 
-Åpent:
+Åpent, følges opp i kort 724:
 
 - Når OeBS retter en feilet bestilling selv, kommer det en ny kvittering når den
   er opprettet? Hilde-Mari skal sjekke. Kommer den, overskriver consumeren
@@ -721,22 +712,17 @@ Runde 2:
 
 Repetisjon:
 
-- [ ] 2026-11-17: A er `OPPGJORT` og B er `ANNULLERT`, med `E-2026/900009-1` i stedet for den avviste bestillingen
-- [ ] 2026-11-18: `E-2026/900007-1` er `OPPGJORT`, og `E-2026/900008-1` er `ANNULLERT`
+- [x] Avsluttet 2026-11-20 uten oppfølging av sluttstatus (Ken)
 
-Etter siste repetisjon:
+Avslutning:
 
-- [ ] Testdataene er slettet i dev, og skrivetilgangen er trukket tilbake
+- [x] Testdataene blir liggende i dev (Ken, 2026-11-20)
+- [ ] Skrivetilgangen er trukket tilbake
 - [ ] VALP og OeBS har fått beskjed om at testen er ferdig, og hvilke numre vi brukte
 
-Før bestilling kobles til saksgangen:
+Kostnadssteder og feilhåndtering:
 
-- [ ] Avklart at behandlende enhet er enheten som skal belastes
 - [x] OeBS har sjekket de 13 enhetene i T1: 1891 og 1991 mangler
 - [x] OeBS har sjekket 1891 og 1991 i prod: 1891 er aktiv, 1991 er avsluttet
-- [ ] Avklart om 1991 skal brukes, og hvilket kostnadssted saker for den belastes
-- [ ] Kostnadssted for 1891 er bestilt i T1 (og 1991 i T1 og prod hvis den skal brukes)
-- [ ] OeBS har bekreftet de 11 andre enhetene i prod
 - [x] Avklart at OeBS sender `FEILET` når den avviser en bestilling (mottatt i dev 2026-11-18)
-- [ ] Avklart om OeBS sender ny kvittering når den retter en feilet bestilling selv
-- [ ] Avklart hvordan vi sender en bestilling på nytt etter `FEILET`
+- [x] Resten følges opp i kort 727, 728 og 724 (se *Videre oppfølging*)

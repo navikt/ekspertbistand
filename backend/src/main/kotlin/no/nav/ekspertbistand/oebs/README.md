@@ -258,15 +258,14 @@ skrevet og aktive, sammen med kontraktstestene for meldingene i
 [`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs).
 
 > `Application.main()` starter `startOebsProsessering` (i `Oebs.kt`) bare i dev. Der testes
-> integrasjonen manuelt med rader lagt rett i `oebs_outbox`, se
-> [`specifications/test_oebs_integrasjon_dev.md`](../../../../../../../../specifications/test_oebs_integrasjon_dev.md).
-> I prod blir bestillingene liggende som `PENDING` til testen er godkjent.
+> integrasjonen via saksgangen. I prod blir bestillingene liggende som `PENDING` til prod åpnes.
 
 ## Status på integrasjonen
 
 OeBS og VALP er klare i dev. Bestilling, faktura og oppgjør er testet manuelt i dev i runde 1 og 2,
 og avvisning i OeBS kommer tilbake som `FEILET`. Fagsystembokstaven `E` og nummerserien er godtatt
-(OEBS-2283, 2026-10-28). Se
+(OEBS-2283, 2026-10-28). Den manuelle testen ble avsluttet 2026-11-20, og testdataene
+(`E-2026/900001` til `E-2026/900009`) ligger igjen i dev. Videre testing skjer via saksgangen i dev. Se
 [`specifications/test_oebs_integrasjon_dev.md`](../../../../../../../../specifications/test_oebs_integrasjon_dev.md).
 
 Gjenstår:
@@ -275,7 +274,11 @@ Gjenstår:
   `common/tiltaksokonomi-client` når PR-en er merget.
 - **Sakslogg for annullering og oppgjør.** `SkrivSaksloggForOebsBestillingStatus` gir
   `transientError` for `ANNULLERING_SENDT`, `ANNULLERT` og `OPPGJORT` til de er implementert.
-- **Kostnadssteder.** 1891 finnes ikke i OeBS T1, og 1991 er ikke aktiv i prod. Åpne punkter i
-  `test_oebs_integrasjon_dev.md`.
-- **Ny sending etter `FEILET`.** Ikke avklart med OeBS.
+- **Kostnadssteder.** Liste over kostnadssteder som finnes i OeBS
+  ([727](https://trello.com/c/6K5Czv2I/727-skaffe-liste-over-alle-koststed-som-skal-brukes-i-ekspertbistand)),
+  og at saksbehandleren velger kostnadssted
+  ([728](https://trello.com/c/gVCEUEry/728-kostnadssted-velger)). I dag brukes
+  `sak.behandlende_enhet`.
+- **Feilhåndtering mot OeBS**, inkludert ny sending etter `FEILET`
+  ([724](https://trello.com/c/jgHBBvu3/724-feilh%C3%A5ndtering-mot-oebs-bestilling-faktura-og-oppgj%C3%B8r)).
 - **Prod.** Polleren og consumeren startes bare i dev.
