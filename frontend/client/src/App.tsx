@@ -30,7 +30,7 @@ const SoknadV2Page = lazy(() => import("./v2/pages/SoknadPage"));
 const SkjemaV2Steg1Page = lazy(() => import("./v2/pages/SkjemaSteg1Page"));
 const SkjemaV2Steg2Page = lazy(() => import("./v2/pages/SkjemaSteg2Page"));
 const SkjemaV2Steg3Page = lazy(() => import("./v2/pages/SkjemaSteg3Page"));
-const DeltakerBekreftetV2Gate = lazy(() => import("./v2/DeltakerBekreftetGate"));
+const UtkastV2StartSteg = lazy(() => import("./v2/UtkastStartSteg"));
 const OppsummeringV2Page = lazy(() => import("./v2/pages/OppsummeringPage"));
 const KvitteringV2Page = lazy(() => import("./v2/pages/KvitteringPage"));
 const VedtakV2Page = lazy(() => import("./v2/pages/VedtakPage"));
@@ -39,8 +39,16 @@ const TilskuddsbrevV2Page = lazy(() => import("./v2/pages/TilskuddsbrevPage"));
 const SluttrapportV2Page = lazy(() => import("./v2/pages/SluttrapportPage"));
 const SokRefusjonV2Page = lazy(() => import("./v2/pages/SokRefusjonPage"));
 
-function SkjemaDraftRoute() {
+/** Med [nyttUtkast] finnes det ikke noe utkast ennå. Steg 1 oppretter det når deltakeren er bekreftet. */
+function SkjemaDraftRoute({ nyttUtkast = false }: { nyttUtkast?: boolean }) {
   const { id } = useParams<{ id: string }>();
+  if (nyttUtkast) {
+    return (
+      <SoknadDraftProvider draftId={null}>
+        <SkjemaDraftOutlet />
+      </SoknadDraftProvider>
+    );
+  }
   if (!id) {
     return <Navigate to={SOKNADER_PATH} replace />;
   }
@@ -65,12 +73,17 @@ function SkjemaDraftOutlet() {
   );
 }
 
-function DeltakerBekreftetGate() {
-  const { draftId, hydrated, deltakerBekreftet } = useSoknadDraft();
-  if (hydrated && !deltakerBekreftet) {
-    return <Navigate to={`/skjema/${draftId}/steg-1`} replace />;
+/** Åpner utkastet på steg 2 når steg 1 er fylt ut, ellers på steg 1. */
+function UtkastStartSteg() {
+  const { hydrated, bekreftetDeltaker } = useSoknadDraft();
+  if (!hydrated) {
+    return (
+      <VStack align="center" padding="space-32">
+        <Loader size="large" title="Henter utkastet" />
+      </VStack>
+    );
   }
-  return <Outlet />;
+  return <Navigate to={bekreftetDeltaker ? "steg-2" : "steg-1"} replace />;
 }
 
 function OrganisasjonerGate() {
@@ -157,14 +170,16 @@ export default function App() {
                     <Route path="skjema/:id/refusjon" element={<SokRefusjonV2Page />} />
                   </>
                 )}
+                <Route path="skjema/ny" element={<SkjemaV2Layout nyttUtkast />}>
+                  <Route path="steg-1" element={<SkjemaV2Steg1Page />} />
+                  <Route path="" element={<Navigate to="steg-1" replace />} />
+                </Route>
                 <Route path="skjema/:id" element={<SkjemaV2Layout />}>
                   <Route path="steg-1" element={<SkjemaV2Steg1Page />} />
-                  <Route element={<DeltakerBekreftetV2Gate />}>
-                    <Route path="steg-2" element={<SkjemaV2Steg2Page />} />
-                    <Route path="steg-3" element={<SkjemaV2Steg3Page />} />
-                    <Route path="oppsummering" element={<OppsummeringV2Page />} />
-                  </Route>
-                  <Route path="" element={<Navigate to="steg-1" replace />} />
+                  <Route path="steg-2" element={<SkjemaV2Steg2Page />} />
+                  <Route path="steg-3" element={<SkjemaV2Steg3Page />} />
+                  <Route path="oppsummering" element={<OppsummeringV2Page />} />
+                  <Route path="" element={<UtkastV2StartSteg />} />
                 </Route>
               </Route>
             )}
@@ -175,14 +190,16 @@ export default function App() {
             {isFeatureEnabled("EKSPERTBISTAND_SAKSBEHANDLING_BETA") && (
               <Route path="/skjema/:id/refusjon" element={<SokRefusjonPage />} />
             )}
+            <Route path="/skjema/ny" element={<SkjemaDraftRoute nyttUtkast />}>
+              <Route path="steg-1" element={<SkjemaSteg1Page />} />
+              <Route path="" element={<Navigate to="steg-1" replace />} />
+            </Route>
             <Route path="/skjema/:id" element={<SkjemaDraftRoute />}>
               <Route path="steg-1" element={<SkjemaSteg1Page />} />
-              <Route element={<DeltakerBekreftetGate />}>
-                <Route path="steg-2" element={<SkjemaSteg2Page />} />
-                <Route path="steg-3" element={<SkjemaSteg3Page />} />
-                <Route path="oppsummering" element={<OppsummeringPage />} />
-              </Route>
-              <Route path="" element={<Navigate to="steg-1" replace />} />
+              <Route path="steg-2" element={<SkjemaSteg2Page />} />
+              <Route path="steg-3" element={<SkjemaSteg3Page />} />
+              <Route path="oppsummering" element={<OppsummeringPage />} />
+              <Route path="" element={<UtkastStartSteg />} />
             </Route>
             <Route path="/health" element={<HealthPage />} />
           </Route>

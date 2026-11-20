@@ -5,7 +5,7 @@ import { SOKNADER_PATH } from "../utils/constants";
 import { useSoknadDraft } from "../context/SoknadDraftContext";
 import { useAutosaveNavigate } from "./useAutosaveNavigate";
 
-type StepSegment = "steg-1" | "steg-2" | "steg-3" | "oppsummering";
+export type StepSegment = "steg-1" | "steg-2" | "steg-3" | "oppsummering";
 
 export const useSkjemaNavigation = () => {
   const { draftId } = useSoknadDraft();
@@ -25,9 +25,10 @@ export const useSkjemaNavigation = () => {
     [autosaveNavigate]
   );
 
+  /** [id] er utkastet som nettopp ble opprettet, når steg 1 ikke hadde noe utkast. */
   const navigateToSegment = useCallback(
-    (segment: StepSegment) => {
-      autosaveNavigate(`/skjema/${draftId}/${segment}`);
+    (segment: StepSegment, id: string | null = draftId) => {
+      autosaveNavigate(`/skjema/${id}/${segment}`);
     },
     [autosaveNavigate, draftId]
   );
@@ -53,6 +54,7 @@ export const useSkjemaNavigation = () => {
     goToStep2,
     goToStep3,
     goToSummary,
+    goToSegment: navigateToSegment,
     createLinkHandler,
   };
 };

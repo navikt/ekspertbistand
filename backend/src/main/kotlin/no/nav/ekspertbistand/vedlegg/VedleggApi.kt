@@ -15,6 +15,7 @@ import no.nav.ekspertbistand.saksbehandling.SoknadIkkeGodkjentException
 import no.nav.ekspertbistand.saksbehandling.hentKildeForSoknad
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.findSoknadById
+import no.nav.ekspertbistand.soknad.innloggetBruker
 import no.nav.ekspertbistand.soknad.subjectToken
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -120,6 +121,8 @@ class VedleggApi(
             val (filnavn, bytes) = filer.single()
             vedleggDb.lagreSluttrapport(
                 soknadId = soknadId,
+                virksomhetsnummer = soknad.virksomhet.virksomhetsnummer,
+                innsendtAv = innloggetBruker,
                 filnavn = filnavn,
                 innhold = bytes,
             )

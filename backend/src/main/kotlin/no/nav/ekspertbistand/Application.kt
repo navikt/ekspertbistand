@@ -53,6 +53,7 @@ import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
 import no.nav.ekspertbistand.norg.KommunenavnCache
 import no.nav.ekspertbistand.norg.NorgKlient
 import no.nav.ekspertbistand.notifikasjon.ProdusentApiKlient
+import no.nav.ekspertbistand.oebs.startOebsProsessering
 import no.nav.ekspertbistand.pdl.GraderingOppslag
 import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.pdl.PdlGraderingOppslag
@@ -192,6 +193,12 @@ fun main() {
 
         startKafkaConsumers(coroutineContext)
 
+        // OeBS-integrasjonen testes manuelt i dev før den åpnes i prod, se specifications/test_oebs_integrasjon_dev.md.
+        basedOnEnvSuspending(
+            dev = { startOebsProsessering(coroutineContext) },
+            other = {},
+        )
+
         // internal endpoints and lifecycle hooks
         configureInternal()
         registerShutdownListener()
@@ -256,7 +263,7 @@ fun Application.configureServer() {
                 }
 
                 is UgyldigInputException -> {
-                    log.error("Avviste ugyldig input i felt '{}': {}", cause.feltsti, cause.aarsak)
+                    log.warn("Avviste ugyldig input i felt '{}': {}", cause.feltsti, cause.aarsak)
                     call.respond(
                         HttpStatusCode.BadRequest,
                         mapOf(

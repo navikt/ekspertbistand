@@ -80,7 +80,8 @@ fun JdbcTransaction.loggSendtMelding(
 
 /**
  * Logger et mottatt svar i revisjonssporet. Idempotent på Kafka-koordinatene: reprosessering av
- * samme melding (at-least-once) gir ikke dupliserte revisjonsrader.
+ * samme melding (at-least-once) gir ikke dupliserte revisjonsrader. Returnerer `true` når raden er
+ * ny, altså første gang vi behandler meldingen.
  */
 fun JdbcTransaction.loggMottattStatus(
     bestillingsnummer: String,
@@ -89,7 +90,7 @@ fun JdbcTransaction.loggMottattStatus(
     kafkaOffset: Long,
     kafkaTidspunkt: Instant,
     raw: JsonObject,
-) {
+): Boolean =
     OebsMottattStatus.insertIgnore {
         it[OebsMottattStatus.bestillingsnummer] = bestillingsnummer
         it[OebsMottattStatus.kafkaTopic] = kafkaTopic
@@ -97,5 +98,4 @@ fun JdbcTransaction.loggMottattStatus(
         it[OebsMottattStatus.kafkaOffset] = kafkaOffset
         it[OebsMottattStatus.kafkaTidspunkt] = kafkaTidspunkt
         it[rawJson] = raw
-    }
-}
+    }.insertedCount > 0

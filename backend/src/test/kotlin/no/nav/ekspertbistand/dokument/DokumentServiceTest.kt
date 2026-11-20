@@ -4,7 +4,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.mocks.StubPdfKonverterer
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
+import no.nav.ekspertbistand.saksbehandling.SLADDET_NAVN
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertFalse
@@ -34,13 +36,42 @@ class DokumentServiceTest {
     }
 
     @Test
+    fun `soknad-pdf viser deltakers navn og fnr uten adressebeskyttelse`() = runBlocking {
+        var html: String? = null
+        val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }))
+
+        service.genererSoknadPdf(sampleSoknad(), adressebeskyttelse = null)
+
+        val rendered = requireNotNull(html)
+        assertTrue(rendered.contains("Ansatt Navn"))
+        assertTrue(rendered.contains("01010112345"))
+        assertFalse(rendered.contains(SLADDET_NAVN))
+    }
+
+    @Test
+    fun `soknad-pdf sladder deltakers navn og fnr ved adressebeskyttelse`() = runBlocking {
+        Adressebeskyttelse.entries.forEach { adressebeskyttelse ->
+            var html: String? = null
+            val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }))
+
+            service.genererSoknadPdf(sampleSoknad(), adressebeskyttelse)
+
+            val rendered = requireNotNull(html)
+            assertFalse(rendered.contains("Ansatt Navn"), "navn skal sladdes ved $adressebeskyttelse")
+            assertFalse(rendered.contains("01010112345"), "fnr skal sladdes ved $adressebeskyttelse")
+            assertTrue(rendered.contains(SLADDET_NAVN), "sladdet verdi skal vises ved $adressebeskyttelse")
+            assertTrue(rendered.contains("Testbedrift AS"), "resten av søknaden skal vises ved $adressebeskyttelse")
+        }
+    }
+
+    @Test
     fun `soknad-pdf faller tilbake til kompetanse naar godkjentUtdanning er tom`() = runBlocking {
         var html: String? = null
         val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }))
 
         service.genererSoknadPdf(
             sampleSoknad().copy(
-                ekspert = DTO.Ekspert(
+                ekspert = SoknadDomainV1.Ekspert(
                     navn = "Ekspert Navn",
                     virksomhet = "Ekspertselskap",
                     kompetanse = "Fysioterapeut",
@@ -63,6 +94,53 @@ class DokumentServiceTest {
         assertContentEquals("%PDF-mock".toByteArray(), pdf)
         val rendered = requireNotNull(html)
         assertTrue(rendered.contains("Dere har fått innvilget tilskudd til ekspertbistand"))
+    }
+
+    @Test
+    fun `tilskuddsbrev-pdf viser deltakers navn og fnr uten adressebeskyttelse`() = runBlocking {
+        var html: String? = null
+        val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }))
+
+        service.genererTilskuddsbrevPdf(sampleTilskuddsbrevMedDeltaker(), adressebeskyttelse = null)
+
+        val rendered = requireNotNull(html)
+        assertTrue(rendered.contains("Dina Deltakersen"))
+        assertTrue(rendered.contains("01010154321"))
+        assertFalse(rendered.contains(SLADDET_NAVN))
+    }
+
+    @Test
+    fun `tilskuddsbrev-pdf sladder deltakers navn og fnr ved adressebeskyttelse`() = runBlocking {
+        Adressebeskyttelse.entries.forEach { adressebeskyttelse ->
+            var html: String? = null
+            val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }))
+
+            service.genererTilskuddsbrevPdf(sampleTilskuddsbrevMedDeltaker(), adressebeskyttelse)
+
+            val rendered = requireNotNull(html)
+            assertFalse(rendered.contains("Dina"), "fornavn skal sladdes ved $adressebeskyttelse")
+            assertFalse(rendered.contains("Deltakersen"), "etternavn skal sladdes ved $adressebeskyttelse")
+            assertFalse(rendered.contains("01010154321"), "fnr skal sladdes ved $adressebeskyttelse")
+            assertTrue(rendered.contains(SLADDET_NAVN), "sladdet verdi skal vises ved $adressebeskyttelse")
+            assertTrue(
+                rendered.contains("Dere har fått innvilget tilskudd til ekspertbistand"),
+                "resten av brevet skal vises ved $adressebeskyttelse"
+            )
+        }
+    }
+
+    @Test
+    fun `tilskuddsbrev-pdf uten deltaker fungerer med adressebeskyttelse`() = runBlocking {
+        var html: String? = null
+        val service = DokumentService(StubPdfKonverterer(onConvert = { h -> html = h }))
+
+        service.genererTilskuddsbrevPdf(sampleTilskuddsbrev().copy(deltaker = null), Adressebeskyttelse.FORTROLIG)
+
+        assertFalse(requireNotNull(html).contains(SLADDET_NAVN))
+    }
+
+    private fun sampleTilskuddsbrevMedDeltaker() = sampleTilskuddsbrev().let {
+        it.copy(deltaker = it.deltaker!!.copy(fodselsnr = "01010154321", fornavn = "Dina", etternavn = "Deltakersen"))
     }
 
     @Test
@@ -143,28 +221,28 @@ class DokumentServiceTest {
         kommentar = "Dette var unødvendig mye testdata å skrive"
     )
 
-    private fun sampleSoknad() = DTO.Soknad(
+    private fun sampleSoknad() = SoknadDomainV1(
         id = "42",
-        virksomhet = DTO.Virksomhet(
+        virksomhet = SoknadDomainV1.Virksomhet(
             virksomhetsnummer = "987654321",
             virksomhetsnavn = "Testbedrift AS",
-            kontaktperson = DTO.Kontaktperson(
+            kontaktperson = SoknadDomainV1.Kontaktperson(
                 navn = "Kontakt Person",
                 epost = "kontakt@testbedrift.no",
                 telefonnummer = "12345678",
             )
         ),
-        ansatt = DTO.Ansatt(
+        ansatt = SoknadDomainV1.Ansatt(
             fnr = "01010112345",
             navn = "Ansatt Navn",
         ),
-        ekspert = DTO.Ekspert(
+        ekspert = SoknadDomainV1.Ekspert(
             navn = "Ekspert Navn",
             virksomhet = "Ekspertselskap",
             godkjentUtdanningEllerAutorisasjon = listOf("Psykolog", "Ergoterapeut"),
             relevantKompetanse = listOf("Tilrettelegging på arbeidsplassen"),
         ),
-        behovForBistand = DTO.BehovForBistand(
+        behovForBistand = SoknadDomainV1.BehovForBistand(
             begrunnelse = "Behov begrunnelse",
             behov = "Behov",
             estimertKostnad = "9000",
@@ -172,7 +250,7 @@ class DokumentServiceTest {
             tilrettelegging = "Tilrettelegging tekst",
             startdato = LocalDate(2024, 12, 1),
         ),
-        nav = DTO.Nav(
+        nav = SoknadDomainV1.Nav(
             kontaktperson = "Veileder Navn"
         ),
     )

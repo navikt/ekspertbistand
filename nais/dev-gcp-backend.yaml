@@ -59,9 +59,6 @@ spec:
       rules:
         - application: ekspertbistand-frontend
         - application: ekspertbistand-saksbehandling
-        - application: azure-token-generator
-          namespace: nais
-          cluster: dev-gcp
     outbound:
       external:
         - host: pdl-api.dev-fss-pub.nais.io
@@ -82,7 +79,7 @@ spec:
           namespace: fager
         - application: arbeidsgiver-altinn-tilganger
           namespace: fager
-        - application: ekspertbistand-gotenberg
+        - application: ekspertbistand-gotenberg9
           namespace: fager
         - application: norg2
           namespace: org

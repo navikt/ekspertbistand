@@ -147,6 +147,7 @@ class ProdusentApiKlientTest {
             grupperingsid = soknadId,
             status = SaksStatus.MOTTATT,
             statusTekst = "ny status",
+            nyLenkeTilSak = "http://foo.bar/kvittering",
             tidspunkt = tidspunkt,
         )
     }

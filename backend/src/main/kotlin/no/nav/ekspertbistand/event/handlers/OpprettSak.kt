@@ -106,13 +106,15 @@ class OpprettSak(
 
     companion object {
         /**
-         * Oppretter alle vilkår for saken som ikke vurdert. Idempotent: eksisterende rader beholdes.
-         * Må kalles i en pågående transaksjon.
+         * Oppretter alle vilkår for saken. [automatiskOppfylteVilkar] opprettes som oppfylt, de andre som ikke
+         * vurdert. Ingen får ident eller tidspunkt, så de skilles fra manuelle vurderinger. Idempotent:
+         * eksisterende rader beholdes. Må kalles i en pågående transaksjon.
          */
         fun opprettVilkarForSak(sakId: UUID) {
             SaksvilkarTable.batchInsert(Vilkar.entries, ignore = true, shouldReturnGeneratedValues = false) { vilkar ->
                 this[SaksvilkarTable.sakId] = sakId
                 this[SaksvilkarTable.vilkarId] = vilkar.name
+                this[SaksvilkarTable.godkjent] = if (vilkar in automatiskOppfylteVilkar) true else null
             }
         }
 

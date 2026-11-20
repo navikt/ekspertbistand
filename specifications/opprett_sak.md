@@ -12,7 +12,7 @@ fra start, slik at `SakProjection` på sikt kan fjernes.
 | Trigger | Handleren `OpprettSak` lytter på `InnsendtSoknadJournalfoert`, på samme måte som `OpprettTiltaksgjennomfoeringForInnsendtSoknad`. |
 | Behandlende enhet | Utledes før journalføring av `BehandlendeEnhetUtleder` (PDL, Ereg, Norg) i `JournalfoerInnsendtSoknad`. Eventen bærer Arena-enhetsnummeret, som `OpprettSak` mapper tilbake til Norg-nummer med `BehandlendeEnhetService.arenaTilNorgEnhetNr`. |
 | Enhetsnummer på saken | `sak.behandlende_enhet` er alltid Norg-nummer. Arena bruker et annet nummer for noen enheter (Nordland: Norg `1891`, Arena `1899`). |
-| Event for opprettet sak | `OpprettSak` publiserer `SakOpprettet(sakId, soknad)` i samme transaksjon som saken opprettes. `VarsleArbeidsgiverSakOpprettet` lytter på den og sender samme sak og beskjed til notifikasjonsplattformen som `VarsleArbeidsgiverSoknadMottattBehandlesIAltinn`. |
+| Event for opprettet sak | `OpprettSak` publiserer `SakOpprettet(sakId, soknad)` i samme transaksjon som saken opprettes. `VarsleArbeidsgiverSakOpprettet` lytter på den og sender samme sak og beskjed til notifikasjonsplattformen som `VarsleArbeidsgiverSoknadMottattBehandlesIArena`. |
 | Sakslogg | `OpprettSak` publiserer `SakOppdatert(SYSTEM, null, "Sak opprettet")`, som `SkrivSakslogg` skriver til `sakslogg`. |
 | `SakProjection` | Beholdes som backfill for eldre søknader og for statusoverganger. Ingen versjonsbump. |
 | Søknad finnes ikke | `UnrecoverableError`. Det skal ikke skje i normal flyt, så det skal synes. |

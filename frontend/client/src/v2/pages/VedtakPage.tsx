@@ -1,11 +1,10 @@
-import { Fragment, useMemo, useState } from "react";
-import { Link as RouterLink, Navigate, useParams } from "react-router";
-import { ArrowRedoIcon, ClockIcon, FileTextIcon } from "@navikt/aksel-icons";
+import { useEffect, useMemo, useState } from "react";
+import { Link as RouterLink, Navigate, useLocation, useNavigate, useParams } from "react-router";
+import { ArrowRedoIcon, ClockIcon } from "@navikt/aksel-icons";
 import {
   Alert,
   Bleed,
   BodyLong,
-  BodyShort,
   Box,
   Button,
   ExpansionCard,
@@ -20,7 +19,10 @@ import useSWR from "swr";
 import DecoratedPage from "../components/DecoratedPage";
 import { ApplicationPictogram } from "../components/ApplicationPictogram";
 import { BackLink } from "../components/BackLink";
-import { KvitteringSummary } from "../components/KvitteringSummary";
+import { Nokkeldata, type NokkeldataRad } from "../components/Nokkeldata";
+import { SoknadSendtInnKort } from "../components/SoknadSendtInnKort";
+import { SluttrapportSendtInnKort } from "../components/SluttrapportSendtInnKort";
+import { RefusjonskravSendtInnKort } from "../components/RefusjonskravSendtInnKort";
 import { PdfForhandsvisning } from "../components/pdf";
 import { A4_FORHOLD } from "../components/pdf/types";
 import { formatSubmittedDateOrNull } from "../components/summaryFormatters";
@@ -28,6 +30,8 @@ import { draftDtoToInputs, type DraftDto } from "../features/soknad/payload";
 import type { Vedtaksbrev, VedtaksbrevUtfall } from "../features/vedtak/vedtak";
 import { useVedtak } from "../hooks/useVedtak";
 import { useVedtaksbrev } from "../hooks/useVedtaksbrev";
+import { useSluttrapportStatus } from "../hooks/useSluttrapportStatus";
+import { useRefusjonStatus } from "../hooks/useRefusjonStatus";
 import { EKSPERTBISTAND_API_PATH, SOKNADER_PATH } from "../utils/constants";
 
 const MINIATYR_BREDDE = 240;
@@ -57,12 +61,45 @@ const kroner = (belop: string) => `${belop} kr`;
 
 export default function VedtakPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const navigeringsstate = location.state as {
+    sluttrapportSendtInn?: boolean;
+    refusjonSendtInn?: boolean;
+  } | null;
+  const fraSluttrapport = navigeringsstate?.sluttrapportSendtInn === true;
+  const fraRefusjon = navigeringsstate?.refusjonSendtInn === true;
+  const [innsending] = useState(() => ({
+    soknadId: fraSluttrapport || fraRefusjon ? id : null,
+    type: fraRefusjon ? "REFUSJON" : fraSluttrapport ? "SLUTTRAPPORT" : null,
+  }));
+  const innsendingBekreftet = id !== undefined && innsending.soknadId === id;
+  const sluttrapportSendtInn = innsendingBekreftet && innsending.type === "SLUTTRAPPORT";
+  const refusjonSendtInn = innsendingBekreftet && innsending.type === "REFUSJON";
+
+  useEffect(() => {
+    if (fraSluttrapport || fraRefusjon) {
+      navigate(".", { replace: true, state: null });
+    }
+  }, [fraSluttrapport, fraRefusjon, navigate]);
+
   const {
     data: draft,
     error: soknadError,
     isLoading: soknadLoading,
   } = useSWR<DraftDto | null>(id ? `${EKSPERTBISTAND_API_PATH}/${id}` : null);
   const { vedtak, error: vedtakError, isLoading: vedtakLoading } = useVedtak(id);
+  const innvilgetSoknadId = vedtak && vedtak.utfall !== "AVSLATT" ? id : undefined;
+  const {
+    sluttrapport,
+    isLoading: sluttrapportLoading,
+    error: sluttrapportError,
+  } = useSluttrapportStatus(innvilgetSoknadId);
+  const {
+    refusjon,
+    isLoading: refusjonLoading,
+    error: refusjonError,
+  } = useRefusjonStatus(innvilgetSoknadId);
   const [vedtakApent, setVedtakApent] = useState(false);
   const brev = useVedtaksbrev(id, vedtakApent);
 
@@ -76,9 +113,52 @@ export default function VedtakPage() {
   }
 
   const error = vedtakError ?? soknadError;
+  const sluttrapportStatusFeilet =
+    sluttrapportError || (sluttrapportSendtInn && !sluttrapport && !sluttrapportLoading);
+  const refusjonStatusFeilet = refusjonError || (refusjonSendtInn && !refusjon && !refusjonLoading);
+  const refusjonMottatt = Boolean(refusjon || refusjonSendtInn);
+
+  const sluttrapportHandling = sluttrapportStatusFeilet ? (
+    <Alert variant="error" role="alert">
+      {sluttrapportSendtInn
+        ? "Sluttrapporten er sendt inn, men opplysningene kunne ikke hentes. Prøv å laste siden på nytt."
+        : "Kunne ikke hente status for sluttrapporten. Prøv å laste siden på nytt."}
+    </Alert>
+  ) : sluttrapportLoading ? (
+    <Box aria-live="polite">
+      <Loader title="Laster status for sluttrapporten" />
+    </Box>
+  ) : !sluttrapport && !sluttrapportSendtInn ? (
+    <Button as={RouterLink} to={`/v2/skjema/${id}/sluttrapport`} variant="secondary">
+      Send inn sluttrapport fra eksperten
+    </Button>
+  ) : null;
+
+  const refusjonHandling = refusjonStatusFeilet ? (
+    <Alert variant="error" role="alert">
+      {refusjonSendtInn
+        ? "Refusjonskravet er sendt inn, men opplysningene kunne ikke hentes. Prøv å laste siden på nytt."
+        : "Kunne ikke hente status for refusjonskravet. Prøv å laste siden på nytt."}
+    </Alert>
+  ) : refusjonLoading ? (
+    <Box aria-live="polite">
+      <Loader title="Laster status for refusjonskravet" />
+    </Box>
+  ) : !refusjonMottatt ? (
+    <HStack gap="space-24" align="center">
+      <Button as={RouterLink} to={`/v2/skjema/${id}/refusjon`} variant="secondary">
+        Søk refusjon
+      </Button>
+      {vedtak?.refusjonsfrist && (
+        <Tag variant="outline" data-color="warning" icon={<ClockIcon aria-hidden />}>
+          Frist {vedtak.refusjonsfrist}
+        </Tag>
+      )}
+    </HStack>
+  ) : null;
 
   return (
-    <DecoratedPage blockProps={{ width: "text" }}>
+    <DecoratedPage>
       <VStack gap="space-12">
         <Bleed asChild marginInline={{ lg: "space-128" }}>
           <Box
@@ -96,6 +176,17 @@ export default function VedtakPage() {
       </VStack>
 
       <BackLink to={SOKNADER_PATH}>Tilbake til oversikt</BackLink>
+
+      {sluttrapportSendtInn && (
+        <Alert variant="success" role="status">
+          Sluttrapporten er sendt inn.
+        </Alert>
+      )}
+      {refusjonSendtInn && (
+        <Alert variant="success" role="status">
+          Refusjonskravet er sendt inn.
+        </Alert>
+      )}
 
       {(vedtakLoading || soknadLoading) && (
         <Box aria-live="polite">
@@ -123,38 +214,37 @@ export default function VedtakPage() {
             </Heading>
           )}
 
-          <Nokkeldata vedtak={vedtak} ekspert={soknad?.ekspert.navn} />
+          <VedtakNokkeldata vedtak={vedtak} ekspert={soknad?.ekspert.navn} />
 
           {vedtak.utfall !== "AVSLATT" && (
             <>
-              <div>
-                <Heading level="3" size="small">
-                  Vilkår og informasjon om utbetaling
-                </Heading>
-                <BodyLong>
-                  Du må sende inn sluttrapport og dokumentere faktiske utgifter knyttet til
-                  ekspertbistand innen fristen.
-                </BodyLong>
-              </div>
-              <VStack gap="space-24" align="start">
-                <Button as={RouterLink} to={`/v2/skjema/${id}/sluttrapport`} variant="secondary">
-                  Send inn sluttrapport fra eksperten
-                </Button>
-                <HStack gap="space-24" align="center">
-                  <Button as={RouterLink} to={`/v2/skjema/${id}/refusjon`} variant="secondary">
-                    Søk refusjon
-                  </Button>
-                  {vedtak.refusjonsfrist && (
-                    <Tag variant="outline" data-color="warning" icon={<ClockIcon aria-hidden />}>
-                      Frist {vedtak.refusjonsfrist}
-                    </Tag>
-                  )}
-                </HStack>
-              </VStack>
+              {!refusjonMottatt && (
+                <div>
+                  <Heading level="3" size="small">
+                    Vilkår og informasjon om utbetaling
+                  </Heading>
+                  <BodyLong>
+                    Du må sende inn sluttrapport og dokumentere faktiske utgifter knyttet til
+                    ekspertbistand innen fristen.
+                  </BodyLong>
+                </div>
+              )}
+              {(sluttrapportHandling || refusjonHandling) && (
+                <VStack gap="space-24" align="start">
+                  {sluttrapportHandling}
+                  {refusjonHandling}
+                </VStack>
+              )}
             </>
           )}
 
           <VStack gap="space-16">
+            {refusjon && !refusjonError && (
+              <RefusjonskravSendtInnKort soknadId={id} refusjon={refusjon} />
+            )}
+            {sluttrapport && !sluttrapportError && (
+              <SluttrapportSendtInnKort sluttrapport={sluttrapport} />
+            )}
             <ExpansionCard
               size="small"
               aria-label={UTFALL[vedtak.utfall].vedtakTittel}
@@ -190,29 +280,7 @@ export default function VedtakPage() {
             </ExpansionCard>
 
             {soknad && (
-              <ExpansionCard size="small" aria-label="Søknad sendt inn">
-                <ExpansionCard.Header>
-                  <HStack wrap={false} gap="space-16" align="center">
-                    <FileTextIcon aria-hidden fontSize="2rem" />
-                    <div>
-                      <ExpansionCard.Title as="h2" size="small">
-                        Søknad sendt inn
-                      </ExpansionCard.Title>
-                      {innsendtTekst && (
-                        <ExpansionCard.Description>{innsendtTekst}</ExpansionCard.Description>
-                      )}
-                    </div>
-                  </HStack>
-                </ExpansionCard.Header>
-                <ExpansionCard.Content>
-                  <KvitteringSummary
-                    data={soknad}
-                    saksnummer={id}
-                    innsendtTekst={innsendtTekst}
-                    headingLevel="3"
-                  />
-                </ExpansionCard.Content>
-              </ExpansionCard>
+              <SoknadSendtInnKort soknad={soknad} saksnummer={id} innsendtTekst={innsendtTekst} />
             )}
           </VStack>
         </VStack>
@@ -221,8 +289,8 @@ export default function VedtakPage() {
   );
 }
 
-function Nokkeldata({ vedtak, ekspert }: { vedtak: Vedtaksbrev; ekspert?: string }) {
-  const rader: Array<[string, string | null | undefined]> = [
+function VedtakNokkeldata({ vedtak, ekspert }: { vedtak: Vedtaksbrev; ekspert?: string }) {
+  const rader: NokkeldataRad[] = [
     [
       "Tiltaksperiode",
       vedtak.tiltaksperiode && `${vedtak.tiltaksperiode.fra} – ${vedtak.tiltaksperiode.til}`,
@@ -236,28 +304,5 @@ function Nokkeldata({ vedtak, ekspert }: { vedtak: Vedtaksbrev; ekspert?: string
     ],
   ];
 
-  return (
-    <dl
-      style={{
-        display: "grid",
-        gridTemplateColumns: "max-content 1fr",
-        columnGap: "var(--ax-space-24)",
-        rowGap: "var(--ax-space-4)",
-        margin: 0,
-      }}
-    >
-      {rader
-        .filter((rad): rad is [string, string] => Boolean(rad[1]))
-        .map(([label, verdi]) => (
-          <Fragment key={label}>
-            <BodyShort as="dt" size="large" weight="semibold">
-              {label}
-            </BodyShort>
-            <BodyShort as="dd" size="large" style={{ margin: 0 }}>
-              {verdi}
-            </BodyShort>
-          </Fragment>
-        ))}
-    </dl>
-  );
+  return <Nokkeldata rader={rader} />;
 }

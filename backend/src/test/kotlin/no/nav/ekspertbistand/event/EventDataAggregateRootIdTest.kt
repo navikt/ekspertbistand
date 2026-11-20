@@ -39,6 +39,10 @@ class EventDataAggregateRootIdTest {
             EventData.TilskuddsbrevVist("1337:42:43", TestEventData.sampleSoknad) to soknadRoot,
             EventData.TilskuddsbrevVist("1337:42:43", null) to tilsagnRoot,
             TestEventData.sakOppdatert to soknadRoot,
+            TestEventData.refusjonskravMottatt to soknadRoot,
+            TestEventData.sluttrapportMottatt to soknadRoot,
+            TestEventData.oebsBestillingStatusMottatt to soknadRoot,
+            TestEventData.oebsFakturaStatusMottatt to soknadRoot,
             TestEventData.sakTildeltSaksbehandler to soknadRoot,
             TestEventData.sakFrigjort to soknadRoot,
             TestEventData.sakTildeltBeslutter to soknadRoot,
@@ -47,6 +51,10 @@ class EventDataAggregateRootIdTest {
             TestEventData.vedtakFattet to soknadRoot,
             TestEventData.forelopigVedtakReturnert to soknadRoot,
             TestEventData.vedtaksbrevArbeidsgiverJournalfoert to soknadRoot,
+            TestEventData.arbeidsgiverVarsletVedtakFattet to soknadRoot,
+            TestEventData.arbeidsgiverVarsletSoknadMottatt to soknadRoot,
+            TestEventData.arbeidsgiverVarsletSoknadGodkjent to soknadRoot,
+            TestEventData.arbeidsgiverVarsletSoknadAvlyst to soknadRoot,
             TestEventData.vedtaksbrevVist to soknadRoot,
         )
 

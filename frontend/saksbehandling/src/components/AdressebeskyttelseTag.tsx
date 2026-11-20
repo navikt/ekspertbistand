@@ -10,14 +10,16 @@ const tagPerGradering = {
 export function AdressebeskyttelseTag({
   adressebeskyttelse,
   size = "xsmall",
+  variant = "strong",
 }: {
   adressebeskyttelse: Adressebeskyttelse | null;
   size?: "xsmall" | "small";
+  variant?: "outline" | "strong";
 }) {
   if (!adressebeskyttelse) return null;
   const { tekst, farge } = tagPerGradering[adressebeskyttelse];
   return (
-    <Tag size={size} variant="strong" data-color={farge}>
+    <Tag size={size} variant={variant} data-color={farge}>
       {tekst}
     </Tag>
   );

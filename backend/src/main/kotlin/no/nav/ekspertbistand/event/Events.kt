@@ -9,8 +9,12 @@ import no.nav.ekspertbistand.arena.Saksnummer
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
+import no.nav.ekspertbistand.event.domain.OebsBestillingStatusDomain
+import no.nav.ekspertbistand.event.domain.OebsFakturaStatusDomain
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
+import no.nav.ekspertbistand.event.domain.VedleggDomain
 import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
 import no.nav.ekspertbistand.event.domain.tilSaksstatus
@@ -24,7 +28,7 @@ import no.nav.ekspertbistand.saksbehandling.MAKS_FORKLARING_LENGDE
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.aggregateRootId
 import no.nav.ekspertbistand.tilsagndata.aggregateRootId
 import kotlin.time.ExperimentalTime
@@ -66,7 +70,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("soknadInnsendt")
     data class SoknadInnsendt(
-        val soknad: DTO.Soknad
+        val soknad: SoknadDomainV1
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
     }
@@ -95,7 +99,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("innsendtSoknadJournalfoert")
     data class InnsendtSoknadJournalfoert(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val dokumentId: Int,
         val journaldpostId: Int,
         val behandlendeEnhetId: String,
@@ -117,7 +121,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("soknadKopiDeltakerJournalfoert")
     data class SoknadKopiDeltakerJournalfoert(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val journalpostId: Int,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
@@ -134,7 +138,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("soknadKopiDeltakerDistribuert")
     data class SoknadKopiDeltakerDistribuert(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val journalpostId: Int,
         val bestillingsId: String,
     ) : EventData {
@@ -157,7 +161,7 @@ sealed interface EventData {
     @SerialName("sakOpprettet")
     data class SakOpprettet(
         val sakId: String,
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val adressebeskyttelse: Adressebeskyttelse? = null,
         val skjermet: Boolean = false,
     ) : EventData {
@@ -173,12 +177,12 @@ sealed interface EventData {
      * på at vi er kilde til saken.
      *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerNotatArenaSakOpprettet] og
-     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIAltinn].
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIArena].
      */
     @Serializable
     @SerialName("tiltaksgjennomforingOpprettet")
     data class TiltaksgjennomforingOpprettet(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val saksnummer: Saksnummer,
         val tiltaksgjennomfoeringId: Int
     ) : EventData {
@@ -203,7 +207,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("tilskuddsbrevMottatt")
     data class TilskuddsbrevMottatt(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val tilsagnbrevId: Int,
         val tilsagnData: TilsagnData
     ) : EventData {
@@ -218,7 +222,7 @@ sealed interface EventData {
      * og rutet rett til Arena, noe som bare skjedde i starten etter at vi gikk i produksjon.
      * Det kommer ikke nye slike søknader, så dette er en legacy-løype. Den skal ikke tilpasses
      * for nye feilsituasjoner i tilsagnsmeldinger, og saker opprettet direkte i Arena finnes ikke.
-     * Vi har ingen [DTO.Soknad] å henge hendelsen på, og aggregatroten utledes fra
+     * Vi har ingen [SoknadDomainV1] å henge hendelsen på, og aggregatroten utledes fra
      * tilsagnsdataene i stedet.
      *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.JournalfoerTilskuddsbrevKildeAltinn] og
@@ -246,7 +250,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("tilskuddsbrevJournalfoert")
     data class TilskuddsbrevJournalfoert(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val dokumentId: Int,
         val journaldpostId: Int,
         val tilsagnData: TilsagnData
@@ -290,7 +294,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("soknadAvlystIArena")
     data class SoknadAvlystIArena(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val tiltaksgjennomforingEndret: TiltaksgjennomforingEndret
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
@@ -309,7 +313,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("saksbehandlingStartetIArena")
     data class SaksbehandlingStartetIArena(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val tiltakssakEndret: TiltakssakEndret,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
@@ -331,7 +335,7 @@ sealed interface EventData {
     @Serializable
     @SerialName("TilsagnsdataLagret")
     data class TilsagnsdataLagret(
-        val soknad: DTO.Soknad,
+        val soknad: SoknadDomainV1,
         val tilsagnData: TilsagnData,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
@@ -352,7 +356,7 @@ sealed interface EventData {
     @SerialName("tilskuddsbrevVist")
     data class TilskuddsbrevVist(
         val tilsagnNummer: String,
-        val soknad: DTO.Soknad?
+        val soknad: SoknadDomainV1?
     ) : EventData {
         override val aggregateRootId: String get() = soknad?.aggregateRootId ?: tilsagnNummer
     }
@@ -393,6 +397,57 @@ sealed interface EventData {
             }
         }
 
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver har sendt inn et refusjonskrav.
+     *
+     * Publiseres av [no.nav.ekspertbistand.refusjon.RefusjonDb.registrerRefusjonskrav] i samme
+     * transaksjon som lagringen. [SkrivSaksloggForRefusjonskrav] publiserer [SakOppdatert].
+     * [innsendtAv] er fødselsnummer og skal aldri logges. Filinnholdet ligger i vedlegg-tabellen.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("refusjonskravMottatt")
+    data class RefusjonskravMottatt(
+        val refusjonskravId: String,
+        val sakId: String,
+        val soknadId: String,
+        val virksomhetsnummer: String,
+        val innsendtAv: String,
+        val belopOre: Long,
+        val innvilgetBelopKroner: Int,
+        val vedlegg: List<VedleggDomain>,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver har sendt inn en sluttrapport. En sak kan få flere sluttrapporter, og hver
+     * innsending gir én event.
+     *
+     * Publiseres av [no.nav.ekspertbistand.vedlegg.VedleggDb.registrerSluttrapport] i samme
+     * transaksjon som lagringen. [SkrivSaksloggForSluttrapport] publiserer [SakOppdatert].
+     * [innsendtAv] er fødselsnummer og skal aldri logges. Filinnholdet ligger i vedlegg-tabellen.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("sluttrapportMottatt")
+    data class SluttrapportMottatt(
+        val sluttrapportId: String,
+        val sakId: String,
+        val soknadId: String,
+        val virksomhetsnummer: String,
+        val innsendtAv: String,
+        val vedlegg: VedleggDomain,
+        val tidspunkt: Instant,
+    ) : EventData {
         override val aggregateRootId: String get() = soknadId
     }
 
@@ -635,7 +690,8 @@ sealed interface EventData {
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
      *
-     * Konsument: [no.nav.ekspertbistand.event.handlers.LagreVedtaksbrev]. Varslingen av arbeidsgiver kommer i kort 645.
+     * Konsumenter: [no.nav.ekspertbistand.event.handlers.LagreVedtaksbrev] og
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverVedtakFattet].
      */
     @OptIn(ExperimentalTime::class)
     @Serializable
@@ -650,6 +706,109 @@ sealed interface EventData {
         val adressebeskyttelse: SakDomain.Adressebeskyttelse?,
         val journalpostId: String,
         val dokumentInfoId: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver er varslet om vedtaket i notifikasjonsplattformen: beskjed med eksternt varsel, og saken
+     * satt til ferdig. Kvitterer hva vi bestilte, ikke at e-post og SMS er levert. Plattformen sender dem senere,
+     * i [ArbeidsgiverVarselDomain.EksterntVarsel.sendevindu].
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverVedtakFattet] når plattformen har tatt
+     * imot både beskjeden og statusen. [varsel] er det som ble sendt. [journalpostId] er vedtaksbrevet arbeidsgiver
+     * ble varslet om, fra [VedtaksbrevArbeidsgiverJournalfoert].
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("arbeidsgiverVarsletVedtakFattet")
+    data class ArbeidsgiverVarsletVedtakFattet(
+        val sakId: String,
+        val soknadId: String,
+        val utfall: VedtakDomain.Utfall,
+        val journalpostId: String,
+        val varsel: ArbeidsgiverVarselDomain,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver er varslet om at søknaden er mottatt: sak og beskjed i notifikasjonsplattformen, uten eksternt
+     * varsel. Kvitterer hva vi bestilte, ikke hva arbeidsgiver har sett.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadMottattBehandlesIArena] (prod) og
+     * [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSakOpprettet] (utenfor prod) når plattformen har tatt
+     * imot både saken og beskjeden. [varsel] er det som ble sendt.
+     *
+     * Ikke backfillet: varsler sendt før eventen fantes, har ingen kvittering.
+     *
+     * `varsel.sak.tittel` har deltakers navn og fødselsdato, og skal ikke logges. Søknaden er aggregatroten, så
+     * [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("arbeidsgiverVarsletSoknadMottatt")
+    data class ArbeidsgiverVarsletSoknadMottatt(
+        val soknadId: String,
+        val varsel: ArbeidsgiverVarselDomain,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver er varslet om at søknaden er godkjent i Arena: beskjed med eksternt varsel, og saken satt til
+     * ferdig. Kvitterer hva vi bestilte, ikke at e-post og SMS er levert.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadGodkjent] når plattformen har tatt
+     * imot både beskjeden og statusen, én gang per tilsagn. [tilsagnNummer] er tilsagnet arbeidsgiver ble varslet
+     * om (`aar:loepenrSak:loepenrTilsagn`). [varsel] er det som ble sendt.
+     *
+     * Ikke backfillet: varsler sendt før eventen fantes, har ingen kvittering.
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("arbeidsgiverVarsletSoknadGodkjent")
+    data class ArbeidsgiverVarsletSoknadGodkjent(
+        val soknadId: String,
+        val tilsagnNummer: String,
+        val varsel: ArbeidsgiverVarselDomain,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Arbeidsgiver er varslet om at søknaden er avlyst i Arena: beskjed med eksternt varsel, og saken satt til
+     * ferdig. Kvitterer hva vi bestilte, ikke at e-post og SMS er levert.
+     *
+     * Publiseres av [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSoknadAvlyst] når plattformen har tatt
+     * imot både beskjeden og statusen. [varsel] er det som ble sendt.
+     *
+     * Ikke backfillet: varsler sendt før eventen fantes, har ingen kvittering.
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("arbeidsgiverVarsletSoknadAvlyst")
+    data class ArbeidsgiverVarsletSoknadAvlyst(
+        val soknadId: String,
+        val varsel: ArbeidsgiverVarselDomain,
         val tidspunkt: Instant,
     ) : EventData {
         override val aggregateRootId: String get() = soknadId
@@ -678,6 +837,45 @@ sealed interface EventData {
     ) : EventData {
         override val aggregateRootId: String get() = soknadId
     }
+
+    /**
+     * VALP har meldt ny status på en bestilling i OeBS. Publiseres av
+     * [no.nav.ekspertbistand.oebs.integration.TiltaksokonomiConsumer] for hver statusmelding på en
+     * bestilling som tilhører en sak. Statusen er det VALP meldte, ikke tolket. Samme status kan komme
+     * flere ganger.
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [SkrivSaksloggForOebsBestillingStatus].
+     */
+    @Serializable
+    @SerialName("oebsBestillingStatusMottatt")
+    data class OebsBestillingStatusMottatt(
+        val sakId: String,
+        val soknadId: String,
+        val bestilling: OebsBestillingStatusDomain,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * VALP har meldt ny status på en faktura i OeBS. Publiseres av
+     * [no.nav.ekspertbistand.oebs.integration.TiltaksokonomiConsumer] med referansen til bestillingen
+     * fakturaen hører til.
+     *
+     * Har ingen personopplysninger. Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsumenter: ingen. Registrert med en noop-handler i [configureEventHandlers].
+     */
+    @Serializable
+    @SerialName("oebsFakturaStatusMottatt")
+    data class OebsFakturaStatusMottatt(
+        val sakId: String,
+        val soknadId: String,
+        val faktura: OebsFakturaStatusDomain,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
 }
 
 @OptIn(ExperimentalTime::class)
@@ -691,7 +889,7 @@ suspend fun Application.configureEventHandlers() {
             prod = {
                 register(dependencies.create(OpprettTiltaksgjennomfoeringForInnsendtSoknad::class))
                 register(dependencies.create(JournalfoerNotatArenaSakOpprettet::class))
-                register(dependencies.create(VarsleArbeidsgiverSoknadMottattBehandlesIAltinn::class))
+                register(dependencies.create(VarsleArbeidsgiverSoknadMottattBehandlesIArena::class))
             },
             other = {
                 register(dependencies.create(OpprettSak::class))
@@ -725,12 +923,33 @@ suspend fun Application.configureEventHandlers() {
             EventHandledResult.Success()
         }
         register(dependencies.create(LagreVedtaksbrev::class))
+        register(dependencies.create(VarsleArbeidsgiverVedtakFattet::class))
+        register<EventData.ArbeidsgiverVarsletVedtakFattet>("ArbeidsgiverVarsletVedtakFattetNoop") { _ ->
+            // Kvitterer hva arbeidsgiver ble varslet om, i eventloggen. Ingen konsumenter per nå.
+            EventHandledResult.Success()
+        }
+        register<EventData.ArbeidsgiverVarsletSoknadMottatt>("ArbeidsgiverVarsletSoknadMottattNoop") { _ ->
+            EventHandledResult.Success()
+        }
+        register<EventData.ArbeidsgiverVarsletSoknadGodkjent>("ArbeidsgiverVarsletSoknadGodkjentNoop") { _ ->
+            EventHandledResult.Success()
+        }
+        register<EventData.ArbeidsgiverVarsletSoknadAvlyst>("ArbeidsgiverVarsletSoknadAvlystNoop") { _ ->
+            EventHandledResult.Success()
+        }
         register<EventData.VedtaksbrevVist>("VedtaksbrevVistNoop") { event ->
             // Ingen konsument ennå. Metrikk og projeksjon kommer eventuelt i et eget kort.
             EventHandledResult.Success()
         }
         register<EventData.SoknadKopiDeltakerDistribuert>("SoknadKopiDeltakerDistribuertNoop") { _ ->
             // SoknadKopiDeltakerDistribuert lagrer bestillingsId fra dokdist i eventloggen. Ingen konsumenter per nå.
+            EventHandledResult.Success()
+        }
+        register(dependencies.create(SkrivSaksloggForRefusjonskrav::class))
+        register(dependencies.create(SkrivSaksloggForSluttrapport::class))
+        register(dependencies.create(SkrivSaksloggForOebsBestillingStatus::class))
+        register<EventData.OebsFakturaStatusMottatt>("OebsFakturaStatusMottattNoop") { _ ->
+            // Faktura er ikke koblet til saksgangen ennå. Eventen ligger i eventloggen til en handler trenger den.
             EventHandledResult.Success()
         }
     }

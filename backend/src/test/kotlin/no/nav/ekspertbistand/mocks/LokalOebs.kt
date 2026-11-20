@@ -117,7 +117,7 @@ private fun simulertSvar(melding: OebsBestillingMelding): SimulertSvar {
         topic = BESTILLING_STATUS_TOPIC,
         referanse = bestillingsnummer,
         status = status.name,
-        json = Json.encodeToString(BestillingStatus(bestillingsnummer, status)),
+        json = Json.encodeToString(BestillingStatus(bestillingsnummer, status, Clock.System.now())),
     )
     return when (melding) {
         is OebsBestillingMelding.Bestilling -> bestilling(melding.payload.bestillingsnummer, BestillingStatusType.AKTIV)

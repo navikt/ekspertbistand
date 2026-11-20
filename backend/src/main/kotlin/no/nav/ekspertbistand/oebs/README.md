@@ -24,6 +24,7 @@ flowchart LR
         poller["OebsOutboxPoller"]
         status["TiltaksokonomiConsumer"]
         statusdb[("oebs_bestilling_status")]
+        referanse[("oebs_bestilling_referanse")]
         logg[("meldingslogg 📚")]
     end
 
@@ -42,6 +43,9 @@ flowchart LR
     tokonomi -- "bestilling-status-v1 / faktura-status-v1" --> status
     status -- "loggMottattStatus" --> logg
     status --> statusdb
+    klient -- "lagreBestillingReferanse (samme txn)" --> referanse
+    status -- "hentBestillingReferanse" --> referanse
+    status -- "publishEventQueue (samme txn)" --> eventq["EventQueue"]
 ```
 
 ## Hvorfor outbox-mønster?
@@ -66,9 +70,10 @@ sequenceDiagram
     participant T as Kafka-topic
     participant V as Team VALP
 
-    K->>C: transaction { opprettBestilling(saksnummer) { nr -> ... } }
+    K->>C: transaction { opprettBestilling(sakId, soknadId, saksnummer) { nr -> ... } }
     C->>N: nesteBestillingsnummer(saksnummer)
     N-->>C: E-<saksnummer>-<løpenr>
+    C->>C: lagreBestillingReferanse(nr, sakId, soknadId) — samme txn
     C->>O: leggIOutbox(Bestilling) — samme txn som kaller
     Note over O: rad {status: PENDING}
 
@@ -83,8 +88,9 @@ sequenceDiagram
 ### Hvem bestiller
 
 `BestillTilsagnIOebs` lytter på `VedtakFattet` og bestiller tilsagnet når vedtaket er innvilget. Den
-kaller `opprettBestilling(sak.saksnummer)` og lagrer bestillingen i `sak_bestilling` i samme
-transaksjon som outbox-raden. Se
+kaller `opprettBestilling(sakId, soknadId, sak.saksnummer)` og lagrer bestillingen i `sak_bestilling` i
+samme transaksjon som outbox-raden. `opprettBestilling` lagrer koblingen fra bestillingsnummer til sak
+og søknad i `oebs_bestilling_referanse`, så status fra VALP kan publiseres på søknaden. Se
 [`specifications/sette_av_penger_oebs_vedtak.md`](../../../../../../../../specifications/sette_av_penger_oebs_vedtak.md).
 
 Lokalt og i mock-backenden svarer `LokalOebs` (i `src/test/.../mocks`) i stedet for VALP og OeBS:
@@ -99,6 +105,8 @@ sequenceDiagram
     participant S as TiltaksokonomiConsumer
     participant L as oebs_mottatt_status (DB 📚)
     participant D as oebs_bestilling_status (DB)
+    participant R as oebs_bestilling_referanse (DB)
+    participant E as EventQueue
     participant T as team-logs
 
     V->>S: status-melding (alle fagsystemer på topicen)
@@ -106,11 +114,22 @@ sequenceDiagram
     alt ikke vårt fagsystem
         S-->>S: hopp over (ingen tolkning)
     else vår bestilling
+        Note over S,E: én transaksjon
         S->>L: loggMottattStatus (append-only, idempotent på Kafka-koordinat)
         S->>S: tolkStatus(melding: OebsStatusMelding)
         S->>D: upsert status + trenger_manuell_oppfolging
+        opt første gang vi ser meldingen
+            S->>R: hentBestillingReferanse(bestillingsnummer)
+            alt referanse finnes
+                S->>E: OebsBestillingStatusMottatt / OebsFakturaStatusMottatt
+            else testnummer (løpenummer under 1 000 000)
+                S-->>S: ingen event
+            else ingen referanse
+                S->>T: teamLog.error + log.error, kast (rulles tilbake, prøves på nytt)
+            end
+        end
         opt status FEILET
-            S->>T: log.error (PII-fri alarm) + teamLog.error (detaljer)
+            S->>T: log.error (PII-fri alarm med feilKode) + teamLog.error (detaljer)
         end
     end
 ```
@@ -118,6 +137,20 @@ sequenceDiagram
 > Status-topicene deles av alle fagsystemer i tiltaksøkonomi. VALP setter en `fagsystem`-header på
 > hver status-melding, og consumeren filtrerer tidlig på den (`fagsystem = EKSPERTBISTAND`) og
 > ignorerer andres meldinger før tolkningen kjører.
+
+### Status til saksgangen
+
+Consumeren publiserer statusen som event på søknaden bestillingen hører til. Eventene har egne
+domeneklasser i `event/domain/OebsStatusDomain.kt`, så saksgangen ikke avhenger av VALP-DTO-ene.
+Se [`specifications/oebs_status_til_saksgang.md`](../../../../../../../../specifications/oebs_status_til_saksgang.md).
+
+| Event | Handler | Virkning |
+|-------|---------|----------|
+| `OebsBestillingStatusMottatt` | `SkrivSaksloggForOebsBestillingStatus` | Sakslogg for `SENDT`, `AKTIV` og `FEILET`. Andre statuser gir `transientError` til de er implementert |
+| `OebsFakturaStatusMottatt` | ingen ennå | Publiseres, men ingen handler bruker den |
+
+VALP sender feilen som `feil: { kode, melding }` (navikt/mulighetsrommet#8631, til review). Begge
+feltene kan være null. Domeneklassene har dem som de flate feltene `feilKode` og `feilMelding`.
 
 ## Etterlevelse (varig revisjonsspor)
 
@@ -146,7 +179,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 
 | Fil | Ansvar | Sone |
 |-----|--------|------|
-| [`Oebs.kt`](Oebs.kt) | `OebsKlient` (skrive-API), `OebsProcessor` + `Application.startOebsProsessering()` (oppstart) | 🟢 (ikke wiret inn ennå) |
+| [`Oebs.kt`](Oebs.kt) | `OebsKlient` (skrive-API), `OebsProcessor` + `Application.startOebsProsessering()` (oppstart) | 🟢 (startes bare i dev) |
 
 **Kafka-integrasjon + wire-kontrakter — `oebs/integration/`:**
 
@@ -155,7 +188,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 | [`OebsBestillingMelding.kt`](integration/OebsBestillingMelding.kt) | Lokalt speilet utgående meldingsmodell + verdityper + `Json`-instans | 🟢 (wire-parity ✅) |
 | [`OebsStatusMelding.kt`](integration/OebsStatusMelding.kt) | Lokalt speilte status-DTO-er fra VALP (`BestillingStatus`/`FakturaStatus` + enums, `OebsStatusMelding`) | 🟢 (wire-parity ✅) |
 | [`TiltaksokonomiProducer.kt`](integration/TiltaksokonomiProducer.kt) | Idempotent Kafka-produsent (`acks=all`, SSL fra `KAFKA_*`) | 🟢 |
-| [`TiltaksokonomiConsumer.kt`](integration/TiltaksokonomiConsumer.kt) | Lytter på VALP sine status-topics, deserialiserer til typet modell, tolker status, lagrer siste status | 🟢 |
+| [`TiltaksokonomiConsumer.kt`](integration/TiltaksokonomiConsumer.kt) | Lytter på VALP sine status-topics, deserialiserer til typet modell, tolker status, lagrer siste status og publiserer event på søknaden | 🔴 |
 
 **Persistens (Exposed-tabeller + hjelpere) — `oebs/model/`:**
 
@@ -165,6 +198,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 | [`Nummerserie.kt`](model/Nummerserie.kt) | `oebs_lopenummer`- + `oebs_faktura_lopenummer`-tabeller + `FAGSYSTEM_KILDE` + nummergeneratorer (bestilling + faktura) | 🟢 |
 | [`Meldingslogg.kt`](model/Meldingslogg.kt) | Varig revisjonsspor: `loggSendtMelding` / `loggMottattStatus` (etterlevelse) | 🟢 |
 | [`BestillingStatusTabell.kt`](model/BestillingStatusTabell.kt) | `oebs_bestilling_status`-tabell (siste status per bestilling) | 🟢 |
+| [`BestillingReferanse.kt`](model/BestillingReferanse.kt) | `oebs_bestilling_referanse`-tabell: bestillingsnummer til sak og søknad | 🟢 |
 
 **Migreringer / plattform:**
 
@@ -173,6 +207,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 | [`V13__oebs_tiltaksokonomi.sql`](../../../../../resources/db/migration/V13__oebs_tiltaksokonomi.sql) | Flyway: outbox-, løpenummer- og statustabeller | 🟢 |
 | [`V14__oebs_meldingslogg.sql`](../../../../../resources/db/migration/V14__oebs_meldingslogg.sql) | Flyway: revisjonsspor (sendt/mottatt melding) | 🟢 |
 | [`V15__oebs_faktura_lopenummer.sql`](../../../../../resources/db/migration/V15__oebs_faktura_lopenummer.sql) | Flyway: løpenummer-serie for fakturaer (per bestilling) | 🟢 |
+| [`V39__oebs_bestilling_referanse.sql`](../../../../../resources/db/migration/V39__oebs_bestilling_referanse.sql) | Flyway: referansetabell, fylt fra `sak_bestilling` | 🟢 |
 | [`nais/{dev,prod}-gcp-topic-bestillinger.yaml`](../../../../../../../../nais) | Topic-manifest + ACL | 🟢 |
 
 ## Datamodell
@@ -183,6 +218,7 @@ Pakken har tre lag. Start i `Oebs.kt` (inngangen) og følg tråden derfra.
 | `oebs_lopenummer` | Neste ledige løpenummer per saksnummer (én rad per sak, nøkkel `saksnummer`) |
 | `sak_bestilling` | Bestillingen per innvilget vedtak (`saksbehandling/Bestilling.kt`), slettes med saken |
 | `oebs_bestilling_status` | Siste status per bestilling, med flagg for manuell oppfølging (arbeidsdata) |
+| `oebs_bestilling_referanse` | Hvilken sak og søknad bestillingen hører til, slettes med saken |
 | `oebs_sendt_melding` | 📚 Revisjonsspor: hver melding vi publiserte, med Kafka-koordinater (append-only) |
 | `oebs_mottatt_status` | 📚 Revisjonsspor: hvert svar vi mottok, rått og komplett (append-only) |
 
@@ -218,18 +254,31 @@ Disse delene er økonomikritiske og ble skrevet og forstått av teamet, ikke bli
 `NummerserieTest` (sekvens per sak/bestilling, samtidighet og lengdegrense), `OutboxTest`
 (publisering + `PUBLISHED` i én transaksjon, og at publiseringsfeil lar raden ligge `PENDING`) og
 `TiltaksokonomiConsumerTest` (tolkning, fagsystem-header-filtrering og at flagg ikke nullstilles) er
-skrevet og aktive; øvrige testskjeletter i
-[`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs) er `@Ignore` til de er
-implementert.
+skrevet og aktive, sammen med kontraktstestene for meldingene i
+[`src/test/.../oebs`](../../../../../../test/kotlin/no/nav/ekspertbistand/oebs).
 
-> `Application.startOebsProsessering` (i `Oebs.kt`) er **ikke** koblet inn i `Application.main()` ennå.
-> Rød-sone-logikken er nå skrevet, men wiring avventer ekstern koordinering med Team VALP (read-ACL på
-> status-topicene + at ekspertbistand-kilden og enum-verdiene er lagt inn hos VALP).
+> `Application.main()` starter `startOebsProsessering` (i `Oebs.kt`) bare i dev. Der testes
+> integrasjonen via saksgangen. I prod blir bestillingene liggende som `PENDING` til prod åpnes.
 
-## Gjenstående eksterne avhengigheter
+## Status på integrasjonen
 
-- **OeBS** må gjøre funksjonelt og teknisk oppsett før vi kan teste bestilling i dev, og sier fra
-  når de er klare. Fagsystembokstaven `E` og nummerserien er godtatt (OEBS-2283, 2026-10-28).
-- **VALP** må abonnere på `fager.ekspertbistand.bestillinger-v1` før meldinger godtas.
-  Enum-verdiene vi sender finnes allerede hos VALP (artskonto `EKSPERTBISTAND`,
-  `OkonomiFagsystem.EKSPERTBISTAND`, regnskapskonto `TILTAK_DRIFTSTILSKUDD`).
+OeBS og VALP er klare i dev. Bestilling, faktura og oppgjør er testet manuelt i dev i runde 1 og 2,
+og avvisning i OeBS kommer tilbake som `FEILET`. Fagsystembokstaven `E` og nummerserien er godtatt
+(OEBS-2283, 2026-10-28). Den manuelle testen ble avsluttet 2026-11-20, og testdataene
+(`E-2026/900001` til `E-2026/900009`) ligger igjen i dev. Videre testing skjer via saksgangen i dev. Se
+[`specifications/test_oebs_integrasjon_dev.md`](../../../../../../../../specifications/test_oebs_integrasjon_dev.md).
+
+Gjenstår:
+
+- **Feil fra VALP.** `feil` er speilet fra navikt/mulighetsrommet#8631. Verifiser mot
+  `common/tiltaksokonomi-client` når PR-en er merget.
+- **Sakslogg for annullering og oppgjør.** `SkrivSaksloggForOebsBestillingStatus` gir
+  `transientError` for `ANNULLERING_SENDT`, `ANNULLERT` og `OPPGJORT` til de er implementert.
+- **Kostnadssteder.** Liste over kostnadssteder som finnes i OeBS
+  ([727](https://trello.com/c/6K5Czv2I/727-skaffe-liste-over-alle-koststed-som-skal-brukes-i-ekspertbistand)),
+  og at saksbehandleren velger kostnadssted
+  ([728](https://trello.com/c/gVCEUEry/728-kostnadssted-velger)). I dag brukes
+  `sak.behandlende_enhet`.
+- **Feilhåndtering mot OeBS**, inkludert ny sending etter `FEILET`
+  ([724](https://trello.com/c/jgHBBvu3/724-feilh%C3%A5ndtering-mot-oebs-bestilling-faktura-og-oppgj%C3%B8r)).
+- **Prod.** Polleren og consumeren startes bare i dev.

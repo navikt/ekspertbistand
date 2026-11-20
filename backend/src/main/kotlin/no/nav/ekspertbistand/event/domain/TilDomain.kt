@@ -10,65 +10,37 @@ import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
 import no.nav.ekspertbistand.saksbehandling.Vilkar
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingDTO
 import no.nav.ekspertbistand.saksbehandling.hentVilkarsvurdering
-import no.nav.ekspertbistand.soknad.DTO
 import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.SaksStatus as GraphQLSaksStatus
+import no.nav.ekspertbistand.notifikasjon.graphql.generated.enums.Sendevindu as GraphQLSendevindu
+import no.nav.ekspertbistand.oebs.integration.BestillingStatusType
+import no.nav.ekspertbistand.oebs.integration.FakturaStatusType
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.util.UUID
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 /*
  * Oversettelser fra API-DTO-er, API-enums og tabellrader til domain-typene. Dette er det eneste stedet som kjenner
  * begge modellene. Enum-oversettelsene er uttømmende `when` uten `else`, så en ny API-verdi ikke kompilerer før
- * noen har bestemt hva den blir i domain.
+ * noen har bestemt hva den blir i domain. Søknaden bygges fra tabellraden i `soknad/Db.kt`.
  */
 
-/** Feiler for et utkast, og for en søknad med fritekst i `kompetanse` i stedet for listene. */
-@OptIn(ExperimentalTime::class)
-fun DTO.Soknad.tilDomain(): SoknadDomainV2 {
-    val id = checkNotNull(id) { "Søknaden mangler id" }
-    val opprettetAv = checkNotNull(opprettetAv) { "Søknad $id mangler opprettetAv" }
-    val opprettetTidspunkt = checkNotNull(opprettetTidspunkt) { "Søknad $id mangler opprettetTidspunkt" }
-    check(ekspert.godkjentUtdanningEllerAutorisasjon.isNotEmpty()) {
-        "Søknad $id mangler godkjentUtdanningEllerAutorisasjon"
-    }
-    check(ekspert.relevantKompetanse.isNotEmpty()) { "Søknad $id mangler relevantKompetanse" }
+fun BestillingStatusType.tilDomain(): OebsBestillingStatusDomain.Status = when (this) {
+    BestillingStatusType.SENDT -> OebsBestillingStatusDomain.Status.SENDT
+    BestillingStatusType.AKTIV -> OebsBestillingStatusDomain.Status.AKTIV
+    BestillingStatusType.ANNULLERING_SENDT -> OebsBestillingStatusDomain.Status.ANNULLERING_SENDT
+    BestillingStatusType.ANNULLERT -> OebsBestillingStatusDomain.Status.ANNULLERT
+    BestillingStatusType.OPPGJORT -> OebsBestillingStatusDomain.Status.OPPGJORT
+    BestillingStatusType.FEILET -> OebsBestillingStatusDomain.Status.FEILET
+}
 
-    return SoknadDomainV2(
-        id = id,
-        virksomhet = SoknadDomainV2.Virksomhet(
-            virksomhetsnummer = virksomhet.virksomhetsnummer,
-            virksomhetsnavn = virksomhet.virksomhetsnavn,
-            kontaktperson = SoknadDomainV2.Kontaktperson(
-                navn = virksomhet.kontaktperson.navn,
-                epost = virksomhet.kontaktperson.epost,
-                telefonnummer = virksomhet.kontaktperson.telefonnummer,
-            ),
-            beliggenhetsadresse = virksomhet.beliggenhetsadresse,
-        ),
-        ansatt = SoknadDomainV2.Ansatt(fnr = ansatt.fnr, navn = ansatt.navn),
-        ekspert = SoknadDomainV2.Ekspert(
-            navn = ekspert.navn,
-            virksomhet = ekspert.virksomhet,
-            virksomhetNavn = ekspert.virksomhetNavn,
-            virksomhetOrgnr = ekspert.virksomhetOrgnr,
-            godkjentUtdanningEllerAutorisasjon = ekspert.godkjentUtdanningEllerAutorisasjon,
-            relevantKompetanse = ekspert.relevantKompetanse,
-        ),
-        behovForBistand = SoknadDomainV2.BehovForBistand(
-            begrunnelse = behovForBistand.begrunnelse,
-            behov = behovForBistand.behov,
-            estimertKostnad = behovForBistand.estimertKostnad,
-            timer = behovForBistand.timer,
-            tilrettelegging = behovForBistand.tilrettelegging,
-            startdato = behovForBistand.startdato,
-        ),
-        nav = SoknadDomainV2.Nav(kontaktperson = nav.kontaktperson),
-        opprettetAv = opprettetAv,
-        opprettetTidspunkt = Instant.parse(opprettetTidspunkt),
-        status = status.tilDomain(),
-    )
+fun FakturaStatusType.tilDomain(): OebsFakturaStatusDomain.Status = when (this) {
+    FakturaStatusType.SENDT -> OebsFakturaStatusDomain.Status.SENDT
+    FakturaStatusType.IKKE_BETALT -> OebsFakturaStatusDomain.Status.IKKE_BETALT
+    FakturaStatusType.DELVIS_BETALT -> OebsFakturaStatusDomain.Status.DELVIS_BETALT
+    FakturaStatusType.FULLT_BETALT -> OebsFakturaStatusDomain.Status.FULLT_BETALT
+    FakturaStatusType.FEILET -> OebsFakturaStatusDomain.Status.FEILET
 }
 
 fun SoknadStatus.tilDomain(): SoknadDomainV2.Status = when (this) {
@@ -77,6 +49,14 @@ fun SoknadStatus.tilDomain(): SoknadDomainV2.Status = when (this) {
     SoknadStatus.avlyst -> SoknadDomainV2.Status.avlyst
     SoknadStatus.avslatt -> SoknadDomainV2.Status.avslatt
     SoknadStatus.utkast -> error("Søknad med status utkast kan ikke bli SoknadDomainV2")
+}
+
+fun SoknadStatus.tilDomainV1(): SoknadDomainV1.Status = when (this) {
+    SoknadStatus.utkast -> SoknadDomainV1.Status.utkast
+    SoknadStatus.innsendt -> SoknadDomainV1.Status.innsendt
+    SoknadStatus.godkjent -> SoknadDomainV1.Status.godkjent
+    SoknadStatus.avlyst -> SoknadDomainV1.Status.avlyst
+    SoknadStatus.avslatt -> SoknadDomainV1.Status.avslatt
 }
 
 fun Saksstatus.tilDomain(): SakDomain.Status = when (this) {
@@ -124,6 +104,18 @@ fun VedtakDomain.Utfall.tilForelopigUtfall(): ForelopigUtfall = when (this) {
 fun VedtakDomain.Utfall.tilSaksstatus(): Saksstatus = when (this) {
     VedtakDomain.Utfall.INNVILGE, VedtakDomain.Utfall.INNVILGE_REDUSERT -> Saksstatus.INNVILGET
     VedtakDomain.Utfall.AVSLAA -> Saksstatus.AVSLATT
+}
+
+fun GraphQLSendevindu.tilDomain(): ArbeidsgiverVarselDomain.Sendevindu = when (this) {
+    GraphQLSendevindu.NKS_AAPNINGSTID -> ArbeidsgiverVarselDomain.Sendevindu.NKS_AAPNINGSTID
+    GraphQLSendevindu.DAGTID_IKKE_SOENDAG,
+    GraphQLSendevindu.LOEPENDE,
+    GraphQLSendevindu.__UNKNOWN_VALUE -> error("Sendevindu $this har ikke motstykke i ArbeidsgiverVarselDomain")
+}
+
+/** Varselet sendes med statusen fra domain, så her går oversettelsen andre veien. */
+fun ArbeidsgiverVarselDomain.Status.tilSaksStatus(): GraphQLSaksStatus = when (this) {
+    ArbeidsgiverVarselDomain.Status.FERDIG -> GraphQLSaksStatus.FERDIG
 }
 
 @OptIn(ExperimentalTime::class)

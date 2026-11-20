@@ -2,6 +2,36 @@
   min-width: 0;
 }
 
+.sakensParter {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.part {
+  min-width: 0;
+  width: 100%;
+}
+
+.partNavn {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.navn {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.partIkon,
+.kopierknapp {
+  flex-shrink: 0;
+}
+
+.partIkon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
 /* Aksel Link nullstiller ikke standardstilen til <button>. */
 .lenkeknapp {
   padding: 0;
@@ -12,6 +42,20 @@
 }
 
 @media (min-width: 1280px) {
+  .sakensParter {
+    flex-basis: 0;
+    flex-wrap: nowrap;
+  }
+
+  .part {
+    width: auto;
+  }
+
+  .deltaker {
+    padding-inline-start: var(--ax-space-8);
+    border-inline-start: 1px solid var(--ax-border-neutral-subtle);
+  }
+
   .saksinnhold {
     padding: 0 !important;
   }

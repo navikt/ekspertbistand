@@ -17,12 +17,14 @@ import no.nav.ekspertbistand.dokument.pdf.DokumentRenderer
 import no.nav.ekspertbistand.dokument.pdf.Format
 import no.nav.ekspertbistand.dokument.pdf.PdfKonverterer
 import no.nav.ekspertbistand.infrastruktur.defaultJson
+import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.Mottaker
+import no.nav.ekspertbistand.saksbehandling.SLADDET_NAVN
 import no.nav.ekspertbistand.saksbehandling.VedtaksbrevData
 import no.nav.ekspertbistand.saksbehandling.somBrevdato
 import no.nav.ekspertbistand.saksbehandling.vedtaksbrevMal
-import no.nav.ekspertbistand.soknad.DTO
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -42,8 +44,13 @@ class DokumentService(
 ) {
     private val semaphore = Semaphore(samtidigeKonverteringer)
 
-    suspend fun genererSoknadPdf(soknad: DTO.Soknad): ByteArray {
-        val data = defaultJson.encodeToJsonElement(SoknadRequest.from(soknad)).jsonObject
+    /**
+     * Søknaden som journalføres på arbeidsgivermappa. Har deltakeren [adressebeskyttelse], sladdes navn og
+     * fødselsnummer, fordi tilgangskontrollen på person ikke gjelder i arbeidsgivermappa.
+     */
+    suspend fun genererSoknadPdf(soknad: SoknadDomainV1, adressebeskyttelse: Adressebeskyttelse? = null): ByteArray {
+        val request = SoknadRequest.from(soknad).sladdVedAdressebeskyttelse(adressebeskyttelse)
+        val data = defaultJson.encodeToJsonElement(request).jsonObject
         return renderPdf("soknad", data)
     }
 
@@ -53,7 +60,7 @@ class DokumentService(
      */
     @OptIn(ExperimentalTime::class)
     suspend fun genererSoknadKopiDeltakerPdf(
-        soknad: DTO.Soknad,
+        soknad: SoknadDomainV1,
         dato: LocalDate = Clock.System.now().toLocalDateTime(TimeZone.of("Europe/Oslo")).date,
     ): ByteArray {
         val soknadData = defaultJson.encodeToJsonElement(SoknadRequest.from(soknad)).jsonObject
@@ -66,8 +73,12 @@ class DokumentService(
         return renderPdf("soknadKopiDeltaker", data)
     }
 
-    suspend fun genererTilskuddsbrevPdf(tilsagnData: TilsagnData): ByteArray {
-        val data = defaultJson.encodeToJsonElement(tilsagnData).jsonObject
+    /**
+     * Tilskuddsbrevet som journalføres på arbeidsgivermappa. Har deltakeren [adressebeskyttelse], sladdes navn og
+     * fødselsnummer, fordi tilgangskontrollen på person ikke gjelder i arbeidsgivermappa.
+     */
+    suspend fun genererTilskuddsbrevPdf(tilsagnData: TilsagnData, adressebeskyttelse: Adressebeskyttelse? = null): ByteArray {
+        val data = defaultJson.encodeToJsonElement(tilsagnData.sladdVedAdressebeskyttelse(adressebeskyttelse)).jsonObject
         return renderPdf("tilskuddsbrev", data)
     }
 
@@ -164,7 +175,7 @@ private data class SoknadRequest(
 
     companion object {
         @OptIn(ExperimentalTime::class)
-        fun from(dto: DTO.Soknad) = SoknadRequest(
+        fun from(dto: SoknadDomainV1) = SoknadRequest(
             virksomhet = Virksomhet(
                 virksomhetsnummer = dto.virksomhet.virksomhetsnummer,
                 virksomhetsnavn = dto.virksomhet.virksomhetsnavn,
@@ -202,3 +213,19 @@ private data class SoknadRequest(
         )
     }
 }
+
+private fun SoknadRequest.sladdVedAdressebeskyttelse(adressebeskyttelse: Adressebeskyttelse?): SoknadRequest =
+    when (adressebeskyttelse) {
+        Adressebeskyttelse.FORTROLIG,
+        Adressebeskyttelse.STRENGT_FORTROLIG -> copy(ansatt = SoknadRequest.Ansatt(fnr = SLADDET_NAVN, navn = SLADDET_NAVN))
+        null -> this
+    }
+
+private fun TilsagnData.sladdVedAdressebeskyttelse(adressebeskyttelse: Adressebeskyttelse?): TilsagnData =
+    when (adressebeskyttelse) {
+        Adressebeskyttelse.FORTROLIG,
+        Adressebeskyttelse.STRENGT_FORTROLIG -> copy(
+            deltaker = deltaker?.copy(fodselsnr = SLADDET_NAVN, fornavn = SLADDET_NAVN, etternavn = ""),
+        )
+        null -> this
+    }

@@ -5,10 +5,11 @@ import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.soknad.arbeidsgiverTilgangVarighet
-import no.nav.ekspertbistand.soknad.tilSoknadDTO
+import no.nav.ekspertbistand.soknad.tilSoknadDomainV1
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -63,7 +64,7 @@ class SettGodkjentSoknadStatusTest {
             }.single().also { rw ->
                 assertEquals(SoknadStatus.innsendt, SoknadStatus.valueOf(rw[SoknadTable.status]))
                 assertEquals(now, rw[SoknadTable.arbeidsgiverTilgangTil])
-            }.tilSoknadDTO()
+            }.tilSoknadDomainV1()
         }
 
         // flytt now en dag frem i tid
@@ -117,8 +118,8 @@ class SettGodkjentSoknadStatusTest {
                 it[navKontaktPerson] = ""
                 it[beliggenhetsadresse] = ""
                 it[status] = SoknadStatus.innsendt.toString()
-            }.single().tilSoknadDTO().also {
-                assertEquals(SoknadStatus.innsendt, it.status)
+            }.single().tilSoknadDomainV1().also {
+                assertEquals(SoknadDomainV1.Status.innsendt, it.status)
             }
         }.copy(id = UUID.randomUUID().toString())
 

@@ -21,8 +21,9 @@ import no.nav.ekspertbistand.infrastruktur.basedOnEnv
 import org.slf4j.MDC
 
 /**
- * Tynn HTTP-klient mot `ekspertbistand-gotenberg`. Konverterer ferdig rendret XHTML + fonter til
- * PDF/A-2b via Chromium-ruten `POST /forms/chromium/convert/html`.
+ * Tynn HTTP-klient mot `ekspertbistand-gotenberg9`. Konverterer ferdig rendret XHTML + fonter til
+ * PDF/A-2b via Chromium-ruten `POST /forms/chromium/convert/html`. PDF/A lages av stagen
+ * `remediate` (litho), så imaget trenger ikke LibreOffice.
  *
  * Klienten sender aldri maler eller data, bare ferdig HTML fra
  * [no.nav.ekspertbistand.dokument.pdf.DokumentRenderer]. Backend bruker aldri
@@ -34,8 +35,8 @@ class GotenbergClient(
 
     companion object {
         val baseUrl: String = basedOnEnv(
-            prod = "http://ekspertbistand-gotenberg",
-            dev = "http://ekspertbistand-gotenberg",
+            prod = "http://ekspertbistand-gotenberg9",
+            dev = "http://ekspertbistand-gotenberg9",
             other = "http://localhost:3003",
         )
     }
@@ -79,7 +80,7 @@ class GotenbergClient(
                 append("marginRight", "0.889in")
                 append("preferCssPageSize", "false")
                 append("printBackground", "true")
-                append("pdfa", "PDF/A-2b")
+                append("stages", """[{"op":"remediate","profile":"PDF/A-2b"}]""")
                 append("failOnResourceLoadingFailed", "true")
                 append("failOnConsoleExceptions", "true")
                 append("skipNetworkIdleEvent", "true")

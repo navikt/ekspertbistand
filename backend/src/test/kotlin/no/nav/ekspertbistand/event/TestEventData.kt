@@ -4,11 +4,17 @@ import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
+import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
+import no.nav.ekspertbistand.event.domain.OebsBestillingStatusDomain
+import no.nav.ekspertbistand.event.domain.OebsFakturaStatusDomain
+import no.nav.ekspertbistand.event.domain.OebsKvitteringDomain
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
+import no.nav.ekspertbistand.event.domain.VedleggDomain
 import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
 import no.nav.ekspertbistand.event.domain.tilSaksstatus
+import no.nav.ekspertbistand.event.handlers.arbeidsgiverVarsel
 import no.nav.ekspertbistand.saksbehandling.Adressebeskyttelse
 import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
@@ -16,8 +22,8 @@ import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.Vilkar
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
-import no.nav.ekspertbistand.soknad.DTO
-import no.nav.ekspertbistand.soknad.SoknadStatus
+import no.nav.ekspertbistand.event.domain.SoknadDomainV1
+import no.nav.ekspertbistand.tilsagndata.concat
 import java.util.UUID
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -33,6 +39,77 @@ object TestEventData {
             utfortAvIdent = "Z123456",
             notat = "Sak tildelt",
             tidspunkt = Instant.parse("2026-04-02T08:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val refusjonskravMottatt by lazy {
+        EventData.RefusjonskravMottatt(
+            refusjonskravId = UUID.randomUUID().toString(),
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            virksomhetsnummer = "987654321",
+            innsendtAv = "01010112345",
+            belopOre = 1200000,
+            innvilgetBelopKroner = 12000,
+            vedlegg = listOf(VedleggDomain(UUID.randomUUID().toString(), "refusjonskrav.pdf", 1024)),
+            tidspunkt = Instant.parse("2026-04-02T08:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val sluttrapportMottatt by lazy {
+        EventData.SluttrapportMottatt(
+            sluttrapportId = UUID.randomUUID().toString(),
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            virksomhetsnummer = "987654321",
+            innsendtAv = "01010112345",
+            vedlegg = VedleggDomain(UUID.randomUUID().toString(), "sluttrapport.pdf", 2048),
+            tidspunkt = Instant.parse("2026-04-02T08:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val oebsKvittering by lazy {
+        OebsKvitteringDomain(
+            kafkaTopic = "team-mulighetsrommet.tiltaksokonomi.bestilling-status-v1",
+            kafkaPartition = 0,
+            kafkaOffset = 42,
+            mottattTidspunkt = Instant.parse("2026-11-17T10:31:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val oebsBestillingStatusMottatt by lazy {
+        EventData.OebsBestillingStatusMottatt(
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            bestilling = OebsBestillingStatusDomain(
+                bestillingsnummer = "E-2026/1000001-1",
+                status = OebsBestillingStatusDomain.Status.AKTIV,
+                statusSistOppdatert = Instant.parse("2026-11-17T10:30:28Z"),
+                feilKode = null,
+                feilMelding = null,
+                kvittering = oebsKvittering,
+            ),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val oebsFakturaStatusMottatt by lazy {
+        EventData.OebsFakturaStatusMottatt(
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            faktura = OebsFakturaStatusDomain(
+                fakturanummer = "E-2026/1000001-1-1",
+                bestillingsnummer = "E-2026/1000001-1",
+                status = OebsFakturaStatusDomain.Status.FULLT_BETALT,
+                statusSistOppdatert = Instant.parse("2026-11-17T10:30:28Z"),
+                feilKode = null,
+                feilMelding = null,
+                kvittering = oebsKvittering,
+            ),
         )
     }
 
@@ -158,6 +235,105 @@ object TestEventData {
     }
 
     @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletVedtakFattet by lazy {
+        EventData.ArbeidsgiverVarsletVedtakFattet(
+            sakId = vedtaksbrevArbeidsgiverJournalfoert.sakId,
+            soknadId = sampleSoknad.id!!,
+            utfall = VedtakDomain.Utfall.INNVILGE,
+            journalpostId = vedtaksbrevArbeidsgiverJournalfoert.journalpostId,
+            varsel = arbeidsgiverVarsel(vedtaksbrevArbeidsgiverJournalfoert),
+            tidspunkt = Instant.parse("2026-04-04T09:06:00Z"),
+        )
+    }
+
+    private val sampleEksterntVarsel by lazy {
+        ArbeidsgiverVarselDomain.EksterntVarsel(
+            epostTittel = "Nav – angående søknad om ekspertbistand",
+            epostHtmlBody = "${sampleSoknadDomain.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
+            smsTekst = "${sampleSoknadDomain.virksomhet.virksomhetsnavn} har fått svar på en søknad om ekspertbistand. Logg inn på Min side – arbeidsgiver på Nav sine sider for å se det.",
+            sendevindu = ArbeidsgiverVarselDomain.Sendevindu.NKS_AAPNINGSTID,
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletSoknadMottatt by lazy {
+        EventData.ArbeidsgiverVarsletSoknadMottatt(
+            soknadId = sampleSoknad.id!!,
+            varsel = ArbeidsgiverVarselDomain(
+                merkelapp = "Ekspertbistand",
+                mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = "nav_tiltak_ekspertbistand"),
+                virksomhetsnummer = sampleSoknadDomain.virksomhet.virksomhetsnummer,
+                grupperingsid = sampleSoknadDomain.id,
+                sak = ArbeidsgiverVarselDomain.Sak(
+                    tittel = "Ekspertbistand ${sampleSoknadDomain.ansatt.navn} f. 01.01.01",
+                    lenke = "https://arbeidsgiver.nav.no/ekspertbistand/skjema/${sampleSoknadDomain.id}/kvittering",
+                ),
+                beskjed = ArbeidsgiverVarselDomain.Beskjed(
+                    eksternId = "${sampleSoknadDomain.id}-soknad-mottatt",
+                    tekst = "Nav har mottatt deres søknad om ekspertbistand.",
+                    lenke = "https://arbeidsgiver.nav.no/ekspertbistand/skjema/${sampleSoknadDomain.id}/kvittering",
+                    eksterntVarsel = null,
+                ),
+                saksstatus = null,
+            ),
+            tidspunkt = Instant.parse("2026-04-01T09:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletSoknadGodkjent by lazy {
+        EventData.ArbeidsgiverVarsletSoknadGodkjent(
+            soknadId = sampleSoknad.id!!,
+            tilsagnNummer = sampleTilsagnData.tilsagnNummer.concat(),
+            varsel = ArbeidsgiverVarselDomain(
+                merkelapp = "Ekspertbistand",
+                mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = "nav_tiltak_ekspertbistand"),
+                virksomhetsnummer = sampleSoknadDomain.virksomhet.virksomhetsnummer,
+                grupperingsid = sampleSoknadDomain.id,
+                sak = null,
+                beskjed = ArbeidsgiverVarselDomain.Beskjed(
+                    eksternId = "${sampleSoknadDomain.id}-godkjent-${sampleTilsagnData.tilsagnNummer.concat()}",
+                    tekst = "Søknaden er godkjent og ekspertbistand kan nå tas i bruk.",
+                    lenke = "https://arbeidsgiver.nav.no/ekspertbistand/skjema/${sampleSoknadDomain.id}/kvittering",
+                    eksterntVarsel = sampleEksterntVarsel,
+                ),
+                saksstatus = ArbeidsgiverVarselDomain.Saksstatus(
+                    status = ArbeidsgiverVarselDomain.Status.FERDIG,
+                    statusTekst = "Søknad godkjent",
+                    nyLenkeTilSak = null,
+                ),
+            ),
+            tidspunkt = Instant.parse("2026-04-02T09:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val arbeidsgiverVarsletSoknadAvlyst by lazy {
+        EventData.ArbeidsgiverVarsletSoknadAvlyst(
+            soknadId = sampleSoknad.id!!,
+            varsel = ArbeidsgiverVarselDomain(
+                merkelapp = "Ekspertbistand",
+                mottaker = ArbeidsgiverVarselDomain.Mottaker(altinnRessursId = "nav_tiltak_ekspertbistand"),
+                virksomhetsnummer = sampleSoknadDomain.virksomhet.virksomhetsnummer,
+                grupperingsid = sampleSoknadDomain.id,
+                sak = null,
+                beskjed = ArbeidsgiverVarselDomain.Beskjed(
+                    eksternId = "${sampleSoknadDomain.id}-soknad-avlyst",
+                    tekst = "Søknaden om ekspertbistand trukket eller avslått.",
+                    lenke = "https://arbeidsgiver.nav.no/ekspertbistand/skjema/${sampleSoknadDomain.id}/kvittering",
+                    eksterntVarsel = sampleEksterntVarsel,
+                ),
+                saksstatus = ArbeidsgiverVarselDomain.Saksstatus(
+                    status = ArbeidsgiverVarselDomain.Status.FERDIG,
+                    statusTekst = "Søknad trukket eller avslått",
+                    nyLenkeTilSak = null,
+                ),
+            ),
+            tidspunkt = Instant.parse("2026-04-03T09:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
     val vedtaksbrevVist by lazy {
         EventData.VedtaksbrevVist(
             sakId = vedtaksbrevArbeidsgiverJournalfoert.sakId,
@@ -255,27 +431,27 @@ object TestEventData {
         )
     }
 
-    val sampleSoknad = DTO.Soknad(
+    val sampleSoknad = SoknadDomainV1(
         id = UUID.randomUUID().toString(),
-        virksomhet = DTO.Virksomhet(
+        virksomhet = SoknadDomainV1.Virksomhet(
             virksomhetsnummer = "987654321",
             virksomhetsnavn = "Testbedrift AS",
-            kontaktperson = DTO.Kontaktperson(
+            kontaktperson = SoknadDomainV1.Kontaktperson(
                 navn = "Kontakt Person",
                 epost = "kontakt@testbedrift.no",
                 telefonnummer = "12345678",
             )
         ),
-        ansatt = DTO.Ansatt(
+        ansatt = SoknadDomainV1.Ansatt(
             fnr = "01010112345",
             navn = "Ansatt Navn",
         ),
-        ekspert = DTO.Ekspert(
+        ekspert = SoknadDomainV1.Ekspert(
             navn = "Ekspert Navn",
             virksomhet = "Ekspertselskap",
             kompetanse = "Ekspertise",
         ),
-        behovForBistand = DTO.BehovForBistand(
+        behovForBistand = SoknadDomainV1.BehovForBistand(
             begrunnelse = "Behov begrunnelse",
             behov = "Behov",
             estimertKostnad = "9000",
@@ -283,10 +459,10 @@ object TestEventData {
             tilrettelegging = "Tilrettelegging tekst",
             startdato = LocalDate(2024, 12, 1),
         ),
-        nav = DTO.Nav(
+        nav = SoknadDomainV1.Nav(
             kontaktperson = "Veileder Navn"
         ),
-        status = SoknadStatus.innsendt,
+        status = SoknadDomainV1.Status.innsendt,
     )
 
     val sampleTilsagnData = TilsagnData(
@@ -455,6 +631,8 @@ object TestEventData {
             soknad = null,
         ),
         sakOppdatert,
+        refusjonskravMottatt,
+        sluttrapportMottatt,
         sakTildeltSaksbehandler,
         sakFrigjort,
         sakTildeltBeslutter,
@@ -463,6 +641,12 @@ object TestEventData {
         vedtakFattet,
         forelopigVedtakReturnert,
         vedtaksbrevArbeidsgiverJournalfoert,
+        arbeidsgiverVarsletVedtakFattet,
+        arbeidsgiverVarsletSoknadMottatt,
+        arbeidsgiverVarsletSoknadGodkjent,
+        arbeidsgiverVarsletSoknadAvlyst,
         vedtaksbrevVist,
+        oebsBestillingStatusMottatt,
+        oebsFakturaStatusMottatt,
     )
 }

@@ -44,7 +44,10 @@ import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesa
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.UgyldigMerkelapp as SkedulerHardDeleteUgyldigMerkelapp
 import no.nav.ekspertbistand.notifikasjon.graphql.generated.skedulerharddeletesak.UkjentProdusent as SkedulerHardDeleteUkjentProdusent
 
-private const val merkelapp = "Ekspertbistand"
+internal const val merkelapp = "Ekspertbistand"
+
+/** Når notifikasjonsplattformen sender eksterne varsler (e-post og SMS) for beskjedene våre. */
+internal val sendevindu = Sendevindu.NKS_AAPNINGSTID
 private const val notifikasjonBaseUrl = "http://notifikasjon-produsent-api.fager/api/graphql"
 
 /**
@@ -184,6 +187,7 @@ class ProdusentApiKlient(
         grupperingsid: String,
         status: SaksStatus,
         statusTekst: String,
+        nyLenkeTilSak: String?,
         tidspunkt: ISO8601DateTime? = null,
     ) {
         val token = hentEntraIdToken()
@@ -196,6 +200,7 @@ class ProdusentApiKlient(
                     nyStatus = status,
                     overstyrStatustekstMed = statusTekst,
                     tidspunkt = tidspunkt,
+                    nyLenkeTilSak = nyLenkeTilSak,
                     hardDelete = HardDeleteUpdateInput(
                         nyTid = FutureTemporalInput(om = hardDeleteINotifikasjonsplattformenOm.toIsoString()),
                         strategi = NyTidStrategi.OVERSKRIV
@@ -290,7 +295,7 @@ class ProdusentApiKlient(
                     epostTittel,
                     epostHtmlBody,
                     smsTekst,
-                    SendetidspunktInput(sendevindu = Sendevindu.NKS_AAPNINGSTID)
+                    SendetidspunktInput(sendevindu = sendevindu)
                 )
         )
 }

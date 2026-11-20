@@ -47,6 +47,7 @@ Mønsteret er `<Hva/Hvem><Hva som skjedde>[<Kontekst>]`:
 | `TiltaksgjennomforingOpprettet` | Tiltaksgjennomføringen er opprettet i Arena |
 | `SoknadAvlystIArena` | Søknaden er avlyst i Arena |
 | `TilskuddsbrevMottattKildeAltinn` | Tilskuddsbrev er mottatt for en søknad fra Altinn |
+| `OebsBestillingStatusMottatt` | VALP har meldt ny status på en bestilling i OeBS |
 
 Retningslinjer:
 
@@ -62,6 +63,18 @@ Retningslinjer:
   `@SerialName` lagres i `event_json` i `event_queue` og `event_log`. Den skal derfor **aldri endres**
   for eksisterende events, selv om klassen får nytt navn. Ellers kan ikke lagrede events leses lenger.
   (`TilsagnsdataLagret` har av historiske grunner stor forbokstav.)
+
+### Søknaden i eventene er `SoknadDomainV1`
+
+Events med `soknad` lagrer søknaden som `event/domain/SoknadDomainV1`. Klassen har samme form som
+`DTO.Soknad` hadde da API-et og eventene delte modell, så eldre rader i `event_log` leses som før.
+`arena_sak.soknad` bruker samme klasse.
+
+- API-et bruker `DTO.Soknad` og kan endres uten å påvirke eventene. `tilSoknadDomainV1()` i
+  `soknad/Db.kt` gjør om søknadsraden til eventformen.
+- Ikke endre feltnavn, nullbarhet eller standardverdier i `SoknadDomainV1`. Da kan ikke lagrede events
+  leses lenger.
+- `ekspert` har tre former i prod. KDoc-en på klassen beskriver dem.
 
 ### Publisering — ett inngangspunkt: `publishEventQueue`
 
@@ -95,7 +108,7 @@ samme rad, og gamle/nye rader er byte-identiske i payload.
 | Alle med `soknad` (SoknadInnsendt, InnsendtSoknadJournalfoert, SakOpprettet, TiltaksgjennomforingOpprettet, TilskuddsbrevMottatt, TilskuddsbrevJournalfoert, SoknadAvlystIArena, SaksbehandlingStartetIArena, TilsagnsdataLagret) | `soknad.id` |
 | `TilskuddsbrevMottattKildeAltinn`, `TilskuddsbrevJournalfoertKildeAltinn` | `tilsagnData.tilsagnNummer` satt sammen som `aar:loepenrSak:loepenrTilsagn` |
 | `TilskuddsbrevVist` | `soknad?.id ?: tilsagnNummer` |
-| `SakOppdatert`, `SakTildeltSaksbehandler`, `SakTildeltBeslutter`, `SakFrigjort`, `VilkarsvurderingOppdatert`, `ForelopigVedtakSendtTilBeslutter`, `VedtakFattet`, `ForelopigVedtakReturnert`, `VedtaksbrevVist` | `soknadId` |
+| `SakOppdatert`, `SakTildeltSaksbehandler`, `SakTildeltBeslutter`, `SakFrigjort`, `VilkarsvurderingOppdatert`, `ForelopigVedtakSendtTilBeslutter`, `VedtakFattet`, `ForelopigVedtakReturnert`, `VedtaksbrevVist`, `OebsBestillingStatusMottatt`, `OebsFakturaStatusMottatt` | `soknadId` |
 
 ### Utrulling (historikk)
 

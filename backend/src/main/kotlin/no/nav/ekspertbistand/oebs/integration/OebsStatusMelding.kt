@@ -24,11 +24,27 @@ import kotlin.time.Instant
  * serialisering.
  */
 
-/** Status/kvittering for en bestilling, mottatt på `tiltaksokonomi.bestilling-status-v1`. */
+/**
+ * Feilen OeBS ga, med kode og melding fra standardgrensesnittet. VALP fyller den bare ut for status
+ * FEILET (navikt/mulighetsrommet#8631).
+ */
+@Serializable
+data class OebsFeil(
+    val kode: String?,
+    val melding: String?,
+)
+
+/**
+ * Status/kvittering for en bestilling, mottatt på `tiltaksokonomi.bestilling-status-v1`.
+ *
+ * Standardverdien `null` på [feil] trengs fordi meldinger fra før VALP la til feltet, mangler det.
+ */
 @Serializable
 data class BestillingStatus(
     val bestillingsnummer: String,
     val status: BestillingStatusType,
+    val statusSistOppdatert: Instant,
+    val feil: OebsFeil? = null,
 )
 
 enum class BestillingStatusType {
@@ -55,7 +71,8 @@ enum class BestillingStatusType {
 data class FakturaStatus(
     val fakturanummer: String,
     val status: FakturaStatusType,
-    val fakturaStatusSistOppdatert: Instant,
+    val statusSistOppdatert: Instant,
+    val feil: OebsFeil? = null,
 )
 
 enum class FakturaStatusType {
@@ -86,12 +103,15 @@ enum class FakturaStatusType {
  */
 sealed interface OebsStatusMelding {
     val referanse: String
+    val feil: OebsFeil?
 
     data class Bestilling(val status: BestillingStatus) : OebsStatusMelding {
         override val referanse: String get() = status.bestillingsnummer
+        override val feil: OebsFeil? get() = status.feil
     }
 
     data class Faktura(val status: FakturaStatus) : OebsStatusMelding {
         override val referanse: String get() = status.fakturanummer
+        override val feil: OebsFeil? get() = status.feil
     }
 }

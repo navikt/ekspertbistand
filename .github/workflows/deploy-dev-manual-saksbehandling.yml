@@ -72,7 +72,7 @@ jobs:
 
       - name: Build and push image
         id: docker-build-push
-        uses: nais/docker-build-push@d3a1f7e259ecc381a50435e1d4add9059429ebd7 # v0
+        uses: nais/docker-build-push@588f76a6f45aeb1e75d5e8417ec6ef6d79b2b39f # v0
         with:
           team: fager
           image_suffix: saksbehandling
@@ -102,7 +102,7 @@ jobs:
           team: fager
 
       - name: Deploy dev-gcp
-        uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # v3
+        uses: nais/deploy/actions/deploy@b1a9a40dae937091497f8f29c5ea5334cc1c0643 # v3
         env:
           CLUSTER: dev-gcp
           RESOURCE: nais/dev-gcp-saksbehandling.yaml

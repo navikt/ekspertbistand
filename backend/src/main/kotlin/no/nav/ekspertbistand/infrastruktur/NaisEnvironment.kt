@@ -2,6 +2,12 @@ package no.nav.ekspertbistand.infrastruktur
 
 object NaisEnvironment {
     val clusterName: String = System.getenv("NAIS_CLUSTER_NAME") ?: ""
+
+    /** TokenX `client_id` til søknadsløsningen. */
+    val soknadFrontend = "$clusterName:fager:ekspertbistand-frontend"
+
+    /** Entra `azp_name` til saksbehandlingsløsningen. */
+    val saksbehandlingFrontend = "$clusterName:fager:ekspertbistand-saksbehandling"
 }
 
 

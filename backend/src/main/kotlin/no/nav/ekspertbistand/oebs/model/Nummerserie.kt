@@ -141,3 +141,37 @@ fun JdbcTransaction.nesteFakturanummer(bestillingsnummer: String): String {
     }
     return fakturanummer
 }
+
+/**
+ * Første løpenummer i `saksnummer_seq` (V29). Saksnummer med lavere løpenummer finnes ikke for ekte
+ * saker, så testnumrene i `specifications/test_oebs_integrasjon_dev.md` (`E-2026/900001` og
+ * oppover) kan aldri kollidere med en sak.
+ */
+const val FORSTE_SAKSNUMMER_LOPENUMMER: Long = 1_000_000
+
+/**
+ * Bestillingsnummeret en faktura hører til: alt før siste `-` i [fakturanummer], jf.
+ * [nesteFakturanummer]. Kaster hvis det som står etter, ikke er et løpenummer.
+ */
+fun bestillingsnummerForFaktura(fakturanummer: String): String {
+    val lopenr = fakturanummer.substringAfterLast('-', missingDelimiterValue = "")
+    require(lopenr.toIntOrNull()?.let { it > 0 } == true) {
+        "Fakturanummer '$fakturanummer' slutter ikke på et løpenummer"
+    }
+    return fakturanummer.substringBeforeLast('-')
+}
+
+/**
+ * Sant når [bestillingsnummer] er et manuelt testnummer: vår fagsystembokstav, og løpenummeret i
+ * saksnummeret er under [FORSTE_SAKSNUMMER_LOPENUMMER]. Et nummer som ikke har formatet
+ * `<FAGSYSTEM_KILDE>-<år>/<løpenummer>-<løpenr>`, er ikke et testnummer.
+ */
+fun erTestnummer(bestillingsnummer: String): Boolean {
+    val saksnummer = bestillingsnummer
+        .takeIf { it.startsWith("$FAGSYSTEM_KILDE-") }
+        ?.removePrefix("$FAGSYSTEM_KILDE-")
+        ?.substringBeforeLast('-', missingDelimiterValue = "")
+        ?: return false
+    val lopenummer = saksnummer.substringAfter('/', missingDelimiterValue = "").toLongOrNull() ?: return false
+    return lopenummer in 1 until FORSTE_SAKSNUMMER_LOPENUMMER
+}

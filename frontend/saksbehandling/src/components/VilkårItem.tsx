@@ -83,8 +83,13 @@ export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props
           <BodyShort>{vilkår.beskrivelse}</BodyShort>
 
           {erVurdert && !redigerer && (
-            <HStack>
+            <HStack gap="space-8" wrap>
               <StatusTag status={vilkår.vurdering.status} />
+              {vilkår.vurdering.automatisk && (
+                <Tag variant="outline" data-color="neutral" size="small">
+                  Automatisk
+                </Tag>
+              )}
             </HStack>
           )}
 
@@ -96,10 +101,12 @@ export default function VilkårItem({ vilkår, isSaving, error, onLagre }: Props
                   <BodyLong size="small">{vilkår.vurdering.notat}</BodyLong>
                 </>
               )}
-              <Detail>
-                Vurdert av {vilkår.vurdering.vurdertAvIdent}{" "}
-                {formatTidspunkt(vilkår.vurdering.vurdertTidspunkt)}
-              </Detail>
+              {!vilkår.vurdering.automatisk && (
+                <Detail>
+                  Vurdert av {vilkår.vurdering.vurdertAvIdent}{" "}
+                  {formatTidspunkt(vilkår.vurdering.vurdertTidspunkt)}
+                </Detail>
+              )}
             </VStack>
           )}
 

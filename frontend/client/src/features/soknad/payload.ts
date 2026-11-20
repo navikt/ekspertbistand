@@ -55,17 +55,9 @@ const mapInputsToPayload = (inputs: SoknadInputs) => ({
 export type DraftDto = z.output<typeof draftDtoServerSchema>;
 
 export type DraftPayload = z.output<typeof draftPayloadServerSchema>;
-export type SkjemaPayload = DraftPayload & {
-  id: string;
-};
 
 export const buildDraftPayload = (inputs: SoknadInputs): DraftPayload =>
   draftPayloadServerSchema.parse(mapInputsToPayload(inputs));
-
-export const buildSkjemaPayload = (id: string, inputs: SoknadInputs): SkjemaPayload => ({
-  id,
-  ...buildDraftPayload(inputs),
-});
 
 const draftDtoToInputsSchema = draftDtoServerSchema.transform((dto) => {
   const inputs = createEmptyInputs();

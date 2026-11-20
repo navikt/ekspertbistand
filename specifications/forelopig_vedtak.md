@@ -509,7 +509,7 @@ Nye komponenter i `components/forelopigVedtak/`:
 - `ForelopigVedtakSkjema.tsx`: steg 1. `RadioGroup` for utfall, infokort i farge
   etter utfall (`InfoCard`/`Box` med Aksel-tokens for success, warning, danger),
   `DatePicker` for start og slutt (`useRangeDatepicker` hvis den passer
-  skissen), `TextField` «Nytt beløp» (`inputMode="numeric"`), `Textarea` for
+  skissen), `TextField` «Beløp» (`inputMode="numeric"`), `Textarea` for
   begrunnelsene med hjelpetekstene fra skissen. Knappen «Forhåndsvis foreløpig
   vedtak» validerer i klienten med samme regler som backend og viser feil på
   feltet (`error`-prop) og i `ErrorSummary`.
@@ -545,7 +545,7 @@ startdato):
   teksten «Søknadssummen er høyere enn maks sats (<sats> kr). Velg innvilge med
   redusert beløp.» Endres startdatoen, vurderes dette på nytt. Er «Innvilge»
   valgt og blir deaktivert, viser feltet en feil i stedet for å bytte utfall.
-- «Nytt beløp» valideres mot søknadssum og gjeldende sats.
+- «Beløp» valideres mot søknadssum og gjeldende sats.
 - Finnes ingen sats for startdatoen, får startdatoen feilen «Det finnes ingen
   maks sats for denne datoen.»
 
