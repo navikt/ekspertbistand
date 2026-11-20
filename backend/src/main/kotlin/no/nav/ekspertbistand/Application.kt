@@ -6,6 +6,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.cio.*
+import io.ktor.server.config.*
 import io.ktor.server.engine.*
 import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.plugins.callid.*
@@ -211,6 +212,11 @@ fun ktorServer(
     initialConfig: suspend Application.() -> Unit,
 ) = embeddedServer(
     CIO,
+    // Ktor avbryter modul-lasting etter 10 s som standard. Database-provideren (Hikari + Flyway) bruker
+    // alene ~10 s i dev-gcp (db-f1-micro), så oppstarten krasjet og poden ble restartet i loop.
+    environment = applicationEnvironment {
+        config = MapApplicationConfig("ktor.application.startupTimeoutMillis" to "60000")
+    },
     configure = {
         connector {
             port = 8080
