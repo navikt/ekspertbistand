@@ -41,6 +41,8 @@ class EventDataAggregateRootIdTest {
             TestEventData.sakOppdatert to soknadRoot,
             TestEventData.refusjonskravMottatt to soknadRoot,
             TestEventData.sluttrapportMottatt to soknadRoot,
+            TestEventData.oebsBestillingStatusMottatt to soknadRoot,
+            TestEventData.oebsFakturaStatusMottatt to soknadRoot,
             TestEventData.sakTildeltSaksbehandler to soknadRoot,
             TestEventData.sakFrigjort to soknadRoot,
             TestEventData.sakTildeltBeslutter to soknadRoot,

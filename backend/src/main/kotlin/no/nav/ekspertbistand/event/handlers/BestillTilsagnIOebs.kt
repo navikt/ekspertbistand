@@ -10,7 +10,6 @@ import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.unrecoverableError
 import no.nav.ekspertbistand.event.EventHandler
 import no.nav.ekspertbistand.event.IdempotencyGuard.Companion.idempotencyGuard
-import no.nav.ekspertbistand.event.publishEventQueue
 import no.nav.ekspertbistand.infrastruktur.logger
 import no.nav.ekspertbistand.oebs.OebsKlient
 import no.nav.ekspertbistand.oebs.integration.NavEnhetNummer
@@ -21,7 +20,6 @@ import no.nav.ekspertbistand.oebs.integration.Periode
 import no.nav.ekspertbistand.oebs.integration.Regnskapskonto
 import no.nav.ekspertbistand.oebs.integration.Artskonto
 import no.nav.ekspertbistand.oebs.integration.Valuta
-import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.bestillingFinnesForVedtak
 import no.nav.ekspertbistand.saksbehandling.hentBestillingGrunnlagForEvent
@@ -30,7 +28,6 @@ import no.nav.ekspertbistand.saksbehandling.vedtakKanFattes
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.reflect.KClass
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 private const val bestillingSubtask = "oebs_bestilling_vedtak"
@@ -45,13 +42,16 @@ private const val bestillingSubtask = "oebs_bestilling_vedtak"
  * - ikke lagret, og eventen kan ikke lagres: [FattVedtak] avviste den, ingen bestilling
  * - avslått, eller vedtaket har allerede en bestilling: ingen bestilling
  *
- * Løpenummeret, outbox-raden, `sak_bestilling`, saksloggen og idempotens-raden skrives i samme
- * transaksjon. En ny kjøring etter feil bruker derfor samme løpenummer og bestiller ikke to ganger.
+ * Løpenummeret, outbox-raden, `sak_bestilling`, referansen i `oebs_bestilling_referanse` og
+ * idempotens-raden skrives i samme transaksjon. En ny kjøring etter feil bruker derfor samme
+ * løpenummer og bestiller ikke to ganger.
+ *
+ * Saksloggen skrives av [SkrivSaksloggForOebsBestillingStatus] når VALP melder status. Se
+ * `specifications/oebs_status_til_saksgang.md`.
  */
-class BestillTilsagnIOebs @OptIn(ExperimentalTime::class) constructor(
+class BestillTilsagnIOebs(
     private val database: Database,
     private val oebsKlient: OebsKlient = OebsKlient(),
-    private val clock: Clock = Clock.System,
 ) : EventHandler<EventData.VedtakFattet> {
     override val id: String = "Bestill tilsagn i OeBS"
     override val eventType: KClass<EventData.VedtakFattet> = EventData.VedtakFattet::class
@@ -101,7 +101,7 @@ class BestillTilsagnIOebs @OptIn(ExperimentalTime::class) constructor(
                 }
 
                 val bestillingsnummer = with(oebsKlient) {
-                    opprettBestilling(saksnummer) { nr ->
+                    opprettBestilling(grunnlag.sakId, grunnlag.soknadId, saksnummer) { nr ->
                         OpprettBestilling(
                             bestillingsnummer = nr,
                             regnskapskonto = Regnskapskonto.TILTAK_DRIFTSTILSKUDD,
@@ -120,18 +120,8 @@ class BestillTilsagnIOebs @OptIn(ExperimentalTime::class) constructor(
                     }
                 }
                 lagreBestilling(grunnlag, bestillingsnummer)
-                publishEventQueue(
-                    EventData.SakOppdatert(
-                        sakId = grunnlag.sakId.toString(),
-                        soknadId = grunnlag.soknadId.toString(),
-                        utfortAvRolle = AktorRolle.SYSTEM,
-                        utfortAvIdent = null,
-                        notat = "Bestilling til OeBS opprettet: $bestillingsnummer",
-                        tidspunkt = clock.now(),
-                    )
-                )
                 idempotencyGuard.guard(event, bestillingSubtask)
-                log.info("Bestilling {} til OeBS opprettet for sak {}", bestillingsnummer, grunnlag.sakId)
+                log.info("Bestilling {} til OeBS lagt i outbox for sak {}", bestillingsnummer, grunnlag.sakId)
                 success()
             } catch (e: Exception) {
                 rollback()

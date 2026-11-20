@@ -13,11 +13,11 @@ import no.nav.ekspertbistand.oebs.integration.Periode
 import no.nav.ekspertbistand.oebs.integration.Regnskapskonto
 import no.nav.ekspertbistand.oebs.integration.Artskonto
 import no.nav.ekspertbistand.oebs.integration.Valuta
+import no.nav.ekspertbistand.oebs.model.OebsBestillingReferanse
 import no.nav.ekspertbistand.oebs.model.OebsLopenummer
 import no.nav.ekspertbistand.oebs.model.OebsOutbox
 import no.nav.ekspertbistand.sak.LagretSak
 import no.nav.ekspertbistand.sak.lagreSoknadOgSak
-import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.SakBestillingTable
 import no.nav.ekspertbistand.saksbehandling.SakTable
@@ -32,19 +32,13 @@ import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 class BestillTilsagnIOebsTest {
 
-    private val now = Instant.parse("2026-11-24T10:00:00Z")
-    private val clock = object : Clock {
-        override fun now(): Instant = this@BestillTilsagnIOebsTest.now
-    }
-
-    private fun handler(database: Database) = BestillTilsagnIOebs(database, clock = clock)
+    private fun handler(database: Database) = BestillTilsagnIOebs(database)
 
     private suspend fun innvilgetTilBeslutning(database: Database): LagretSak =
         tilBeslutning(database, sak = lagreSoknadOgSak(database, behandlendeEnhet = "4242"))
@@ -61,8 +55,9 @@ class BestillTilsagnIOebsTest {
         SakBestillingTable.selectAll().toList()
     }
 
-    private fun bestillingSakOppdatert(database: Database) =
-        hentSakOppdatert(database).filter { it.notat.startsWith("Bestilling til OeBS opprettet") }
+    private fun referanser(database: Database): List<ResultRow> = transaction(database) {
+        OebsBestillingReferanse.selectAll().toList()
+    }
 
     @Test
     fun `innvilget vedtak bestiller tilsagnet i OeBS`() = testApplicationWithDatabase {
@@ -108,9 +103,15 @@ class BestillTilsagnIOebsTest {
         assertEquals(LocalDate(2026, 11, 22), bestilling[SakBestillingTable.periodeFra])
         assertEquals(LocalDate(2026, 12, 31), bestilling[SakBestillingTable.periodeTil])
 
-        val logg = bestillingSakOppdatert(database).single()
-        assertEquals(AktorRolle.SYSTEM, logg.utfortAvRolle)
-        assertEquals("Bestilling til OeBS opprettet: $bestillingsnummer", logg.notat)
+        val referanse = referanser(database).single()
+        assertEquals(bestillingsnummer, referanse[OebsBestillingReferanse.bestillingsnummer])
+        assertEquals(sak.sakId, referanse[OebsBestillingReferanse.sakId])
+        assertEquals(sak.soknadId, referanse[OebsBestillingReferanse.soknadId])
+
+        assertTrue(
+            hentSakOppdatert(database).none { it.notat.startsWith("Bestilling til OeBS") },
+            "saksloggen skrives når VALP melder status",
+        )
     }
 
     @Test
@@ -124,7 +125,7 @@ class BestillTilsagnIOebsTest {
 
         assertTrue(outbox(database).isEmpty())
         assertTrue(bestillinger(database).isEmpty())
-        assertTrue(bestillingSakOppdatert(database).isEmpty())
+        assertTrue(referanser(database).isEmpty())
     }
 
     @Test
@@ -182,7 +183,7 @@ class BestillTilsagnIOebsTest {
 
         assertEquals(1, outbox(database).size)
         assertEquals(1, bestillinger(database).size)
-        assertEquals(1, bestillingSakOppdatert(database).size)
+        assertEquals(1, referanser(database).size)
         val saksnummer = saksnummer(database, sak)
         val nesteLopenr = transaction(database) {
             OebsLopenummer.selectAll()

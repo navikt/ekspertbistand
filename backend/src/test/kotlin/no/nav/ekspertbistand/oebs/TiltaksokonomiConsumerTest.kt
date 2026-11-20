@@ -5,24 +5,34 @@ package no.nav.ekspertbistand.oebs
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import no.nav.ekspertbistand.event.EventData
+import no.nav.ekspertbistand.event.QueuedEvent.Companion.tilQueuedEvent
+import no.nav.ekspertbistand.event.QueuedEvents
+import no.nav.ekspertbistand.event.domain.OebsBestillingStatusDomain
+import no.nav.ekspertbistand.event.domain.OebsFakturaStatusDomain
 import no.nav.ekspertbistand.infrastruktur.testApplicationWithDatabase
 import no.nav.ekspertbistand.oebs.integration.BestillingStatus
 import no.nav.ekspertbistand.oebs.integration.BestillingStatusType
 import no.nav.ekspertbistand.oebs.integration.FakturaStatus
 import no.nav.ekspertbistand.oebs.integration.FakturaStatusType
+import no.nav.ekspertbistand.oebs.integration.OebsFeil
 import no.nav.ekspertbistand.oebs.integration.OkonomiFagsystem
 import no.nav.ekspertbistand.oebs.integration.TiltaksokonomiConsumer
 import no.nav.ekspertbistand.oebs.model.OebsBestillingStatus
 import no.nav.ekspertbistand.oebs.model.OebsMottattStatus
+import no.nav.ekspertbistand.oebs.model.lagreBestillingReferanse
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import java.util.UUID
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -64,7 +74,7 @@ class TiltaksokonomiConsumerTest {
         val database = db.config.jdbcDatabase
         val consumer = TiltaksokonomiConsumer(database)
         val nr = "E-2026/10000-1"
-        val value = json.encodeToString(BestillingStatus(nr, BestillingStatusType.FEILET))
+        val value = json.encodeToString(BestillingStatus(nr, BestillingStatusType.FEILET, Clock.System.now()))
 
         runBlocking { consumer.processRecord(record(TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC, nr, value)) }
 
@@ -78,7 +88,7 @@ class TiltaksokonomiConsumerTest {
         val database = db.config.jdbcDatabase
         val consumer = TiltaksokonomiConsumer(database)
         val nr = "E-2026/11000-1"
-        val value = json.encodeToString(BestillingStatus(nr, BestillingStatusType.AKTIV))
+        val value = json.encodeToString(BestillingStatus(nr, BestillingStatusType.AKTIV, Clock.System.now()))
 
         runBlocking { consumer.processRecord(record(TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC, nr, value)) }
 
@@ -117,7 +127,7 @@ class TiltaksokonomiConsumerTest {
                     record(
                         TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC,
                         bestillingsnummer,
-                        json.encodeToString(BestillingStatus(bestillingsnummer, BestillingStatusType.FEILET)),
+                        json.encodeToString(BestillingStatus(bestillingsnummer, BestillingStatusType.FEILET, Clock.System.now())),
                     )
                 )
                 // En senere vellykket faktura skal IKKE nullstille bestillingens flagg (egen rad).
@@ -146,7 +156,7 @@ class TiltaksokonomiConsumerTest {
             val database = db.config.jdbcDatabase
             val consumer = TiltaksokonomiConsumer(database)
             val fremmed = "E-2026/99999-1"
-            val value = json.encodeToString(BestillingStatus(fremmed, BestillingStatusType.FEILET))
+            val value = json.encodeToString(BestillingStatus(fremmed, BestillingStatusType.FEILET, Clock.System.now()))
 
             runBlocking {
                 consumer.processRecord(
@@ -165,12 +175,29 @@ class TiltaksokonomiConsumerTest {
         }
 
     @Test
+    fun `melding som bryter kontrakten kaster slik at den proves pa nytt`() =
+        testApplicationWithDatabase { db ->
+            val database = db.config.jdbcDatabase
+            val consumer = TiltaksokonomiConsumer(database)
+            val fakturanummer = "E-2026/97000-1-1"
+            val gammeltFeltnavn =
+                """{"fakturanummer":"$fakturanummer","status":"IKKE_BETALT","fakturaStatusSistOppdatert":"2026-11-16T12:00:00Z"}"""
+
+            assertFailsWith<IllegalStateException> {
+                runBlocking {
+                    consumer.processRecord(record(TiltaksokonomiConsumer.FAKTURA_STATUS_TOPIC, fakturanummer, gammeltFeltnavn))
+                }
+            }
+            assertNull(statusRad(database, fakturanummer))
+        }
+
+    @Test
     fun `melding uten fagsystem-header ignoreres`() =
         testApplicationWithDatabase { db ->
             val database = db.config.jdbcDatabase
             val consumer = TiltaksokonomiConsumer(database)
             val nr = "E-2026/98000-1"
-            val value = json.encodeToString(BestillingStatus(nr, BestillingStatusType.FEILET))
+            val value = json.encodeToString(BestillingStatus(nr, BestillingStatusType.FEILET, Clock.System.now()))
 
             runBlocking {
                 consumer.processRecord(
@@ -180,4 +207,114 @@ class TiltaksokonomiConsumerTest {
 
             assertNull(statusRad(database, nr), "melding uten header skal ikke gi statusrad")
         }
+
+    private fun lagreReferanse(database: Database, bestillingsnummer: String, sakId: UUID, soknadId: UUID) =
+        transaction(database) { lagreBestillingReferanse(bestillingsnummer, sakId, soknadId) }
+
+    private fun publiserteEventer(database: Database): List<EventData> = transaction(database) {
+        QueuedEvents.selectAll().orderBy(QueuedEvents.id).map { it.tilQueuedEvent().eventData }
+    }
+
+    @Test
+    fun `bestilling med referanse publiseres pa soknaden med feilkode og kvittering`() =
+        testApplicationWithDatabase { db ->
+            val database = db.config.jdbcDatabase
+            val consumer = TiltaksokonomiConsumer(database)
+            val nr = "E-2026/1000001-1"
+            val sakId = UUID.randomUUID()
+            val soknadId = UUID.randomUUID()
+            lagreReferanse(database, nr, sakId, soknadId)
+            val tidspunkt = Instant.parse("2026-11-17T10:30:28Z")
+            val value = json.encodeToString(
+                BestillingStatus(
+                    nr, BestillingStatusType.FEILET, tidspunkt,
+                    OebsFeil(kode = "PO_PDOI_CHARGE_FAILED", melding = "Kontering feilet"),
+                )
+            )
+            val rec = record(TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC, nr, value)
+
+            runBlocking { consumer.processRecord(rec) }
+
+            val event = publiserteEventer(database).single() as EventData.OebsBestillingStatusMottatt
+            assertEquals(sakId.toString(), event.sakId)
+            assertEquals(soknadId.toString(), event.soknadId)
+            assertEquals(nr, event.bestilling.bestillingsnummer)
+            assertEquals(OebsBestillingStatusDomain.Status.FEILET, event.bestilling.status)
+            assertEquals(tidspunkt, event.bestilling.statusSistOppdatert)
+            assertEquals("PO_PDOI_CHARGE_FAILED", event.bestilling.feilKode)
+            assertEquals("Kontering feilet", event.bestilling.feilMelding)
+            assertEquals(rec.topic(), event.bestilling.kvittering.kafkaTopic)
+            assertEquals(rec.partition(), event.bestilling.kvittering.kafkaPartition)
+            assertEquals(rec.offset(), event.bestilling.kvittering.kafkaOffset)
+        }
+
+    @Test
+    fun `samme melding levert to ganger gir en event`() = testApplicationWithDatabase { db ->
+        val database = db.config.jdbcDatabase
+        val consumer = TiltaksokonomiConsumer(database)
+        val nr = "E-2026/1000002-1"
+        lagreReferanse(database, nr, UUID.randomUUID(), UUID.randomUUID())
+        val value = json.encodeToString(BestillingStatus(nr, BestillingStatusType.AKTIV, Clock.System.now()))
+        val rec = record(TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC, nr, value)
+
+        runBlocking {
+            consumer.processRecord(rec)
+            consumer.processRecord(rec)
+        }
+
+        assertEquals(1, publiserteEventer(database).size)
+    }
+
+    @Test
+    fun `faktura publiseres pa soknaden til bestillingen`() = testApplicationWithDatabase { db ->
+        val database = db.config.jdbcDatabase
+        val consumer = TiltaksokonomiConsumer(database)
+        val bestillingsnummer = "E-2026/1000003-1"
+        val fakturanummer = "$bestillingsnummer-2"
+        val sakId = UUID.randomUUID()
+        val soknadId = UUID.randomUUID()
+        lagreReferanse(database, bestillingsnummer, sakId, soknadId)
+        val value = json.encodeToString(FakturaStatus(fakturanummer, FakturaStatusType.FULLT_BETALT, Clock.System.now()))
+
+        runBlocking { consumer.processRecord(record(TiltaksokonomiConsumer.FAKTURA_STATUS_TOPIC, fakturanummer, value)) }
+
+        val event = publiserteEventer(database).single() as EventData.OebsFakturaStatusMottatt
+        assertEquals(sakId.toString(), event.sakId)
+        assertEquals(soknadId.toString(), event.soknadId)
+        assertEquals(fakturanummer, event.faktura.fakturanummer)
+        assertEquals(bestillingsnummer, event.faktura.bestillingsnummer)
+        assertEquals(OebsFakturaStatusDomain.Status.FULLT_BETALT, event.faktura.status)
+    }
+
+    @Test
+    fun `testnummer uten referanse lagres uten event`() = testApplicationWithDatabase { db ->
+        val database = db.config.jdbcDatabase
+        val consumer = TiltaksokonomiConsumer(database)
+        val nr = "E-2026/900001-1"
+        val value = json.encodeToString(BestillingStatus(nr, BestillingStatusType.AKTIV, Clock.System.now()))
+
+        runBlocking { consumer.processRecord(record(TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC, nr, value)) }
+
+        assertNotNull(statusRad(database, nr))
+        assertTrue(publiserteEventer(database).isEmpty())
+    }
+
+    @Test
+    fun `ekte nummer uten referanse kaster og lagrer ingenting`() = testApplicationWithDatabase { db ->
+        val database = db.config.jdbcDatabase
+        val consumer = TiltaksokonomiConsumer(database)
+        val nr = "E-2026/1000004-1"
+        val value = json.encodeToString(BestillingStatus(nr, BestillingStatusType.AKTIV, Clock.System.now()))
+
+        assertFailsWith<IllegalStateException> {
+            runBlocking { consumer.processRecord(record(TiltaksokonomiConsumer.BESTILLING_STATUS_TOPIC, nr, value)) }
+        }
+
+        assertNull(statusRad(database, nr))
+        val revisjon = transaction(database) {
+            OebsMottattStatus.selectAll().where { OebsMottattStatus.bestillingsnummer eq nr }.count()
+        }
+        assertEquals(0, revisjon, "revisjonssporet rulles tilbake, så meldingen behandles på nytt")
+        assertTrue(publiserteEventer(database).isEmpty())
+    }
 }

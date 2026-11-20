@@ -5,6 +5,9 @@ import no.nav.ekspertbistand.arena.TilsagnData
 import no.nav.ekspertbistand.arena.TiltakssakEndret
 import no.nav.ekspertbistand.arena.TiltaksgjennomforingEndret
 import no.nav.ekspertbistand.event.domain.ArbeidsgiverVarselDomain
+import no.nav.ekspertbistand.event.domain.OebsBestillingStatusDomain
+import no.nav.ekspertbistand.event.domain.OebsFakturaStatusDomain
+import no.nav.ekspertbistand.event.domain.OebsKvitteringDomain
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
 import no.nav.ekspertbistand.event.domain.VedleggDomain
@@ -64,6 +67,49 @@ object TestEventData {
             innsendtAv = "01010112345",
             vedlegg = VedleggDomain(UUID.randomUUID().toString(), "sluttrapport.pdf", 2048),
             tidspunkt = Instant.parse("2026-04-02T08:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val oebsKvittering by lazy {
+        OebsKvitteringDomain(
+            kafkaTopic = "team-mulighetsrommet.tiltaksokonomi.bestilling-status-v1",
+            kafkaPartition = 0,
+            kafkaOffset = 42,
+            mottattTidspunkt = Instant.parse("2026-11-17T10:31:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val oebsBestillingStatusMottatt by lazy {
+        EventData.OebsBestillingStatusMottatt(
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            bestilling = OebsBestillingStatusDomain(
+                bestillingsnummer = "E-2026/1000001-1",
+                status = OebsBestillingStatusDomain.Status.AKTIV,
+                statusSistOppdatert = Instant.parse("2026-11-17T10:30:28Z"),
+                feilKode = null,
+                feilMelding = null,
+                kvittering = oebsKvittering,
+            ),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val oebsFakturaStatusMottatt by lazy {
+        EventData.OebsFakturaStatusMottatt(
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            faktura = OebsFakturaStatusDomain(
+                fakturanummer = "E-2026/1000001-1-1",
+                bestillingsnummer = "E-2026/1000001-1",
+                status = OebsFakturaStatusDomain.Status.FULLT_BETALT,
+                statusSistOppdatert = Instant.parse("2026-11-17T10:30:28Z"),
+                feilKode = null,
+                feilMelding = null,
+                kvittering = oebsKvittering,
+            ),
         )
     }
 
@@ -600,5 +646,7 @@ object TestEventData {
         arbeidsgiverVarsletSoknadGodkjent,
         arbeidsgiverVarsletSoknadAvlyst,
         vedtaksbrevVist,
+        oebsBestillingStatusMottatt,
+        oebsFakturaStatusMottatt,
     )
 }

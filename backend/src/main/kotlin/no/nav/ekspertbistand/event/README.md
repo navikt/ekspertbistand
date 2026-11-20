@@ -47,6 +47,7 @@ Mønsteret er `<Hva/Hvem><Hva som skjedde>[<Kontekst>]`:
 | `TiltaksgjennomforingOpprettet` | Tiltaksgjennomføringen er opprettet i Arena |
 | `SoknadAvlystIArena` | Søknaden er avlyst i Arena |
 | `TilskuddsbrevMottattKildeAltinn` | Tilskuddsbrev er mottatt for en søknad fra Altinn |
+| `OebsBestillingStatusMottatt` | VALP har meldt ny status på en bestilling i OeBS |
 
 Retningslinjer:
 
@@ -107,7 +108,7 @@ samme rad, og gamle/nye rader er byte-identiske i payload.
 | Alle med `soknad` (SoknadInnsendt, InnsendtSoknadJournalfoert, SakOpprettet, TiltaksgjennomforingOpprettet, TilskuddsbrevMottatt, TilskuddsbrevJournalfoert, SoknadAvlystIArena, SaksbehandlingStartetIArena, TilsagnsdataLagret) | `soknad.id` |
 | `TilskuddsbrevMottattKildeAltinn`, `TilskuddsbrevJournalfoertKildeAltinn` | `tilsagnData.tilsagnNummer` satt sammen som `aar:loepenrSak:loepenrTilsagn` |
 | `TilskuddsbrevVist` | `soknad?.id ?: tilsagnNummer` |
-| `SakOppdatert`, `SakTildeltSaksbehandler`, `SakTildeltBeslutter`, `SakFrigjort`, `VilkarsvurderingOppdatert`, `ForelopigVedtakSendtTilBeslutter`, `VedtakFattet`, `ForelopigVedtakReturnert`, `VedtaksbrevVist` | `soknadId` |
+| `SakOppdatert`, `SakTildeltSaksbehandler`, `SakTildeltBeslutter`, `SakFrigjort`, `VilkarsvurderingOppdatert`, `ForelopigVedtakSendtTilBeslutter`, `VedtakFattet`, `ForelopigVedtakReturnert`, `VedtaksbrevVist`, `OebsBestillingStatusMottatt`, `OebsFakturaStatusMottatt` | `soknadId` |
 
 ### Utrulling (historikk)
 
