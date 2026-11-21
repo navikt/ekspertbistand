@@ -8,6 +8,7 @@ import {
   Loader,
   Radio,
   RadioGroup,
+  Select,
   TextField,
   Textarea,
   VStack,
@@ -31,6 +32,7 @@ import {
   UTFALL_TEKST,
   begrunnelse,
   begrunnelseLabel,
+  formatKostnadssted,
   fraIsoDato,
   harBegrunnelseTilArbeidsgiver,
   harTiltaksperiode,
@@ -60,6 +62,7 @@ const FELT_ID: Record<Exclude<FeltId, "utfall">, string> = {
   nyttBelop: "forelopig-vedtak-nytt-belop",
   startdato: "forelopig-vedtak-startdato",
   sluttdato: "forelopig-vedtak-sluttdato",
+  kostnadssted: "forelopig-vedtak-kostnadssted",
   deltaker: "forelopig-vedtak-begrunnelse-deltaker",
   arbeidsgiver: "forelopig-vedtak-begrunnelse-arbeidsgiver",
 };
@@ -67,7 +70,7 @@ const FELT_ID: Record<Exclude<FeltId, "utfall">, string> = {
 const radioId = (utfall: ForelopigUtfall) => `forelopig-vedtak-utfall-${utfall}`;
 
 export default function ForelopigVedtakSkjema(props: Props) {
-  const { oppsett, error, isLoading } = useForelopigVedtakOppsett();
+  const { oppsett, error, isLoading } = useForelopigVedtakOppsett(true);
 
   if (isLoading) return <Loader size="medium" title="Laster standardtekster og satser" />;
   if (error || !oppsett) {
@@ -87,7 +90,7 @@ function Skjema({
   oppdater,
   oppsett,
 }: Props & { oppsett: ForelopigVedtakOppsett }) {
-  const { standardtekster, maksSatser } = oppsett;
+  const { standardtekster, maksSatser, kostnadssteder, sistBrukteKostnadssteder } = oppsett;
   const soknadssum = tolkSoknadssum(sak.soknad.behovForBistand.estimertKostnad);
   const { utfall, tiltaksperiodeFra: fra, tiltaksperiodeTil: til } = tilstand;
 
@@ -270,6 +273,38 @@ function Skjema({
                 </DatePicker>
               </HStack>
             </Fieldset>
+          )}
+
+          {harTiltaksperiode(utfall) && (
+            <Select
+              id={FELT_ID.kostnadssted}
+              label="Kostnadssted"
+              description="Enheten som skal belastes for tilskuddet."
+              value={tilstand.kostnadssted ?? ""}
+              onChange={(e) => oppdater({ kostnadssted: e.target.value || null })}
+              error={feilFor("kostnadssted")}
+            >
+              {/* Også når et lagret kostnadssted ikke lenger står på lista, så det ikke ser valgt ut. */}
+              {!kostnadssteder.some((k) => k.enhetsnummer === tilstand.kostnadssted) && (
+                <option value="">Velg kostnadssted</option>
+              )}
+              {sistBrukteKostnadssteder.length > 0 && (
+                <optgroup label="Sist brukte">
+                  {sistBrukteKostnadssteder.map((k) => (
+                    <option key={`sist-brukte-${k.enhetsnummer}`} value={k.enhetsnummer}>
+                      {formatKostnadssted(k.enhetsnummer, k.navn)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="Alle">
+                {kostnadssteder.map((k) => (
+                  <option key={`alle-${k.enhetsnummer}`} value={k.enhetsnummer}>
+                    {formatKostnadssted(k.enhetsnummer, k.navn)}
+                  </option>
+                ))}
+              </optgroup>
+            </Select>
           )}
 
           {begrunnelsefelt(utfall, "deltaker", begrunnelseDeltaker)}

@@ -14,6 +14,9 @@ export type ForelopigVedtak = {
   tiltaksperiodeTil: string | null;
   begrunnelseDeltaker: string;
   begrunnelseArbeidsgiver: string | null;
+  kostnadssted: string | null;
+  /** Null når kostnadsstedet ikke står på lista over kostnadssteder. */
+  kostnadsstedNavn: string | null;
   innstiltAvIdent: string;
   sendtTidspunkt: string;
 };

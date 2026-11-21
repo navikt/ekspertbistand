@@ -1,14 +1,20 @@
-import { Alert, Button, HStack, Heading, Textarea, VStack } from "@navikt/ds-react";
+import { Alert, Button, HStack, Heading, TextField, Textarea, VStack } from "@navikt/ds-react";
 import type { ForelopigVedtakInput } from "../../hooks/useForelopigVedtak";
 import type { SakDetaljer } from "../../hooks/useSak";
 import { tolkSoknadssum } from "../../utils/belop";
 import Vedtaksbrev from "./Vedtaksbrev";
 import VurderingKort from "./VurderingKort";
-import { begrunnelseLabel, formatPeriode, vurderingRader } from "./forelopigVedtak";
+import {
+  begrunnelseLabel,
+  formatKostnadssted,
+  formatPeriode,
+  vurderingRader,
+} from "./forelopigVedtak";
 
 type Props = {
   sak: SakDetaljer;
   vedtak: ForelopigVedtakInput;
+  kostnadsstedNavn: string | null;
 } & (
   | { modus: "sendt"; tittel?: string }
   | {
@@ -21,7 +27,7 @@ type Props = {
 );
 
 export default function ForelopigVedtakOppsummering(props: Props) {
-  const { sak, vedtak } = props;
+  const { sak, vedtak, kostnadsstedNavn } = props;
   const tilskudd =
     vedtak.innvilgetBelop ?? tolkSoknadssum(sak.soknad.behovForBistand.estimertKostnad);
 
@@ -51,6 +57,13 @@ export default function ForelopigVedtakOppsummering(props: Props) {
         readOnly
         minRows={2}
       />
+      {vedtak.kostnadssted !== null && (
+        <TextField
+          label="Kostnadssted"
+          value={formatKostnadssted(vedtak.kostnadssted, kostnadsstedNavn)}
+          readOnly
+        />
+      )}
       {vedtak.begrunnelseArbeidsgiver !== null && (
         <Textarea
           label={begrunnelseLabel(vedtak.utfall, "arbeidsgiver")}
