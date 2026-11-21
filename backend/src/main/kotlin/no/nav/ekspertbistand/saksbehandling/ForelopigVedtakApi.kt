@@ -39,10 +39,11 @@ const val UGYLDIG_SOKNADSSUM = "UGYLDIG_SOKNADSSUM"
 const val BELOP_OVER_SATS = "BELOP_OVER_SATS"
 
 private const val STANDARDTEKSTER_RESSURS = "/dokumentmaler/standardtekster/forelopig_vedtak.json"
+private const val ANTALL_SIST_BRUKTE_KOSTNADSSTEDER = 3
 
 /**
  * POST /api/saksbehandling/v1/saker/{sakId}/forelopig-vedtak => sender saken til beslutter
- * GET  /api/saksbehandling/v1/forelopig-vedtak/oppsett        => standardtekster og maks satser
+ * GET  /api/saksbehandling/v1/forelopig-vedtak/oppsett        => standardtekster, maks satser og kostnadssteder
  *
  * POST krever:
  * - rollen [Role.SAKSBEHANDLER]
@@ -66,13 +67,18 @@ suspend fun Application.configureForelopigVedtakApiV1() {
     val oppsett = ForelopigVedtakOppsett(
         standardtekster = lastStandardtekster(),
         maksSatser = MAKS_SATSER,
+        kostnadssteder = KOSTNADSSTEDER,
+        sistBrukteKostnadssteder = emptyList(),
     )
 
     routing {
         authenticate(AZURE_AD_PROVIDER) {
             get("/api/saksbehandling/v1/forelopig-vedtak/oppsett") {
-                call.principalMedRolle(Role.SAKSBEHANDLER) ?: return@get
-                call.respond(oppsett)
+                val principal = call.principalMedRolle(Role.SAKSBEHANDLER) ?: return@get
+                val sistBrukte = transaction(database) {
+                    hentSistBrukteKostnadssteder(principal.navIdent, ANTALL_SIST_BRUKTE_KOSTNADSSTEDER)
+                }
+                call.respond(oppsett.copy(sistBrukteKostnadssteder = sistBrukte))
             }
 
             post("/api/saksbehandling/v1/saker/{sakId}/forelopig-vedtak") {
@@ -153,6 +159,7 @@ internal fun validerFelter(request: ForelopigVedtakRequest): ForelopigVedtakRequ
                 throw UgyldigInputException("begrunnelseArbeidsgiver", "skal ikke settes")
             }
             validerTiltaksperiode(request.tiltaksperiodeFra, request.tiltaksperiodeTil)
+            validerKostnadssted(request.kostnadssted)
         }
 
         ForelopigUtfall.INNVILGE_REDUSERT -> {
@@ -161,6 +168,7 @@ internal fun validerFelter(request: ForelopigVedtakRequest): ForelopigVedtakRequ
             val belop = request.innvilgetBelop ?: throw UgyldigInputException("innvilgetBelop", "påkrevd")
             if (belop <= 0) throw UgyldigInputException("innvilgetBelop", "må være større enn 0")
             if (belop > sats.belop) throw UgyldigInputException("innvilgetBelop", "over maks sats")
+            validerKostnadssted(request.kostnadssted)
         }
 
         ForelopigUtfall.AVSLAA -> {
@@ -168,6 +176,7 @@ internal fun validerFelter(request: ForelopigVedtakRequest): ForelopigVedtakRequ
             if (request.innvilgetBelop != null) throw UgyldigInputException("innvilgetBelop", "skal ikke settes")
             if (request.tiltaksperiodeFra != null) throw UgyldigInputException("tiltaksperiodeFra", "skal ikke settes")
             if (request.tiltaksperiodeTil != null) throw UgyldigInputException("tiltaksperiodeTil", "skal ikke settes")
+            if (request.kostnadssted != null) throw UgyldigInputException("kostnadssted", "skal ikke settes")
         }
     }
 
@@ -175,6 +184,11 @@ internal fun validerFelter(request: ForelopigVedtakRequest): ForelopigVedtakRequ
         begrunnelseDeltaker = begrunnelseDeltaker,
         begrunnelseArbeidsgiver = begrunnelseArbeidsgiver,
     )
+}
+
+private fun validerKostnadssted(kostnadssted: String?) {
+    if (kostnadssted == null) throw UgyldigInputException("kostnadssted", "påkrevd")
+    if (finnKostnadssted(kostnadssted) == null) throw UgyldigInputException("kostnadssted", "ukjent kostnadssted")
 }
 
 /** Returnerer satsen som gjelder på startdatoen. */
@@ -263,6 +277,7 @@ fun JdbcTransaction.publiserForelopigVedtak(
             begrunnelseArbeidsgiver = request.begrunnelseArbeidsgiver,
             innstiltAvIdent = navIdent,
             tidspunkt = tidspunkt,
+            kostnadssted = request.kostnadssted,
         )
     )
     return PubliserForelopigVedtakResultat.Publisert
@@ -299,6 +314,7 @@ data class ForelopigVedtakRequest(
     val tiltaksperiodeTil: LocalDate? = null,
     val begrunnelseDeltaker: String,
     val begrunnelseArbeidsgiver: String? = null,
+    val kostnadssted: String? = null,
 )
 
 /** Tekstene kan inneholde `{soknadssum}` og `{innvilgetBelop}`, som frontend fletter inn. */
@@ -311,4 +327,7 @@ data class Standardtekst(
 data class ForelopigVedtakOppsett(
     val standardtekster: Map<ForelopigUtfall, Standardtekst>,
     val maksSatser: List<MaksSats>,
+    val kostnadssteder: List<Kostnadssted>,
+    /** Per innlogget saksbehandler, nyeste først. */
+    val sistBrukteKostnadssteder: List<Kostnadssted>,
 )

@@ -243,6 +243,7 @@ object ForelopigVedtakTable : Table("forelopig_vedtak") {
     val begrunnelseArbeidsgiver = text("begrunnelse_arbeidsgiver").nullable()
     val innstiltAvIdent = text("innstilt_av_ident")
     val sendtTidspunkt = timestamp("sendt_tidspunkt")
+    val kostnadssted = text("kostnadssted").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -285,8 +286,28 @@ fun lagreForelopigVedtak(data: EventData.ForelopigVedtakSendtTilBeslutter, event
         it[begrunnelseArbeidsgiver] = data.begrunnelseArbeidsgiver
         it[innstiltAvIdent] = data.innstiltAvIdent
         it[sendtTidspunkt] = data.tidspunkt
+        it[kostnadssted] = data.kostnadssted
     }
     return true
+}
+
+/**
+ * De [antall] siste ulike kostnadsstedene [navIdent] har sendt til beslutter, nyeste først. Bare
+ * kostnadssteder som står i [KOSTNADSSTEDER] er med. Må kalles i en pågående transaksjon.
+ */
+@OptIn(ExperimentalTime::class)
+fun hentSistBrukteKostnadssteder(navIdent: String, antall: Int): List<Kostnadssted> {
+    val sistSendt = ForelopigVedtakTable.sendtTidspunkt.max()
+    return ForelopigVedtakTable
+        .select(ForelopigVedtakTable.kostnadssted, sistSendt)
+        .where {
+            (ForelopigVedtakTable.innstiltAvIdent eq navIdent) and
+                (ForelopigVedtakTable.kostnadssted inList KOSTNADSSTEDER.map { it.enhetsnummer })
+        }
+        .groupBy(ForelopigVedtakTable.kostnadssted)
+        .orderBy(sistSendt, SortOrder.DESC)
+        .limit(antall)
+        .mapNotNull { rad -> rad[ForelopigVedtakTable.kostnadssted]?.let(::finnKostnadssted) }
 }
 
 /** Siste versjon av det foreløpige vedtaket, eller null. Må kalles i en pågående transaksjon. */
@@ -317,6 +338,8 @@ private fun ResultRow.tilForelopigVedtakDTO() = ForelopigVedtakDTO(
     begrunnelseArbeidsgiver = this[ForelopigVedtakTable.begrunnelseArbeidsgiver],
     innstiltAvIdent = this[ForelopigVedtakTable.innstiltAvIdent],
     sendtTidspunkt = this[ForelopigVedtakTable.sendtTidspunkt],
+    kostnadssted = this[ForelopigVedtakTable.kostnadssted],
+    kostnadsstedNavn = this[ForelopigVedtakTable.kostnadssted]?.let(::finnKostnadssted)?.navn,
 )
 
 /** Det listen og habilitetssjekken trenger fra siste foreløpige vedtak. */
@@ -365,6 +388,9 @@ data class ForelopigVedtakDTO(
     val begrunnelseArbeidsgiver: String?,
     val innstiltAvIdent: String,
     val sendtTidspunkt: Instant,
+    val kostnadssted: String?,
+    /** Navnet fra [KOSTNADSSTEDER], så beslutter ikke trenger oppsettet. Null når enheten ikke står på lista. */
+    val kostnadsstedNavn: String?,
 )
 
 /** Lagres i `sak_retur.aarsaker` med [name]. Speiles av CHECK-en i V24. */

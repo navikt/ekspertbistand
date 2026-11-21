@@ -64,13 +64,14 @@ class ForelopigVedtakApiTest {
 
     private val innvilge = """
         { "utfall": "INNVILGE", "tiltaksperiodeFra": "2026-11-22", "tiltaksperiodeTil": "2026-12-31",
-          "begrunnelseDeltaker": "  Begrunnelse til deltaker  " }
+          "begrunnelseDeltaker": "  Begrunnelse til deltaker  ", "kostnadssted": "0491" }
     """.trimIndent()
 
     private fun redusert(belop: Int, fra: String = "2026-11-22", til: String = "2026-12-31") = """
         { "utfall": "INNVILGE_REDUSERT", "innvilgetBelop": $belop,
           "tiltaksperiodeFra": "$fra", "tiltaksperiodeTil": "$til",
-          "begrunnelseDeltaker": "Til deltaker", "begrunnelseArbeidsgiver": "Til arbeidsgiver" }
+          "begrunnelseDeltaker": "Til deltaker", "begrunnelseArbeidsgiver": "Til arbeidsgiver",
+          "kostnadssted": "5772" }
     """.trimIndent()
 
     private val avslaa = """
@@ -193,6 +194,7 @@ class ForelopigVedtakApiTest {
         assertEquals("Begrunnelse til deltaker", event.begrunnelseDeltaker)
         assertNull(event.begrunnelseArbeidsgiver)
         assertEquals(navIdent, event.innstiltAvIdent)
+        assertEquals("0491", event.kostnadssted)
         assertIngenEndring(db, sakId)
     }
 
@@ -208,6 +210,7 @@ class ForelopigVedtakApiTest {
         assertEquals(ForelopigUtfall.INNVILGE_REDUSERT, event.utfall)
         assertEquals(5000, event.innvilgetBelop)
         assertEquals("Til arbeidsgiver", event.begrunnelseArbeidsgiver)
+        assertEquals("5772", event.kostnadssted)
     }
 
     @Test
@@ -223,6 +226,7 @@ class ForelopigVedtakApiTest {
         assertNull(event.innvilgetBelop)
         assertNull(event.tiltaksperiodeFra)
         assertNull(event.tiltaksperiodeTil)
+        assertNull(event.kostnadssted)
     }
 
     @Test
@@ -278,6 +282,26 @@ class ForelopigVedtakApiTest {
 
             assertEquals(HttpStatusCode.BadRequest, response.status, navn)
             assertIngenEndring(db, sakId)
+            assertIngenEvent(db, sakId)
+        }
+    }
+
+    @Test
+    fun `manglende, ukjent eller overflødig kostnadssted gir 400 på kostnadssted`() = testApplicationWithDatabase { db ->
+        val oppsett = oppsett(db)
+        val ugyldige = mapOf(
+            "innvilge uten kostnadssted" to """{ "utfall": "INNVILGE", "tiltaksperiodeFra": "2026-11-22", "tiltaksperiodeTil": "2026-12-31", "begrunnelseDeltaker": "x" }""",
+            "redusert uten kostnadssted" to """{ "utfall": "INNVILGE_REDUSERT", "innvilgetBelop": 100, "tiltaksperiodeFra": "2026-11-22", "tiltaksperiodeTil": "2026-12-31", "begrunnelseDeltaker": "x", "begrunnelseArbeidsgiver": "y" }""",
+            "ukjent kostnadssted" to """{ "utfall": "INNVILGE", "tiltaksperiodeFra": "2026-11-22", "tiltaksperiodeTil": "2026-12-31", "begrunnelseDeltaker": "x", "kostnadssted": "2103" }""",
+            "avslå med kostnadssted" to """{ "utfall": "AVSLAA", "begrunnelseDeltaker": "x", "begrunnelseArbeidsgiver": "y", "kostnadssted": "0491" }""",
+        )
+
+        ugyldige.forEach { (navn, body) ->
+            val sakId = lagreVurdertSak(db)
+            val response = oppsett.send(url(sakId), body)
+
+            assertEquals(HttpStatusCode.BadRequest, response.status, navn)
+            assertTrue(response.bodyAsText().contains("kostnadssted"), "$navn: ${response.bodyAsText()}")
             assertIngenEvent(db, sakId)
         }
     }

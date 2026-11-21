@@ -1,6 +1,7 @@
 package no.nav.ekspertbistand.event.handlers
 
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.json.Json
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -44,6 +45,7 @@ class LagreForelopigVedtakTest {
             begrunnelseArbeidsgiver = if (utfall == ForelopigUtfall.INNVILGE) null else "Til arbeidsgiver",
             innstiltAvIdent = "Z123456",
             tidspunkt = tidspunkt,
+            kostnadssted = if (utfall == ForelopigUtfall.AVSLAA) null else "0491",
         )
 
     private fun underBehandling(database: Database): LagretSak =
@@ -70,6 +72,7 @@ class LagreForelopigVedtakTest {
         assertNull(vedtak[ForelopigVedtakTable.begrunnelseArbeidsgiver])
         assertEquals("Z123456", vedtak[ForelopigVedtakTable.innstiltAvIdent])
         assertEquals(tidspunkt, vedtak[ForelopigVedtakTable.sendtTidspunkt])
+        assertEquals("0491", vedtak[ForelopigVedtakTable.kostnadssted])
 
         val sakOppdatert = hentSakOppdatert(database).single()
         assertEquals(sak.sakId.toString(), sakOppdatert.sakId)
@@ -88,6 +91,20 @@ class LagreForelopigVedtakTest {
 
         assertEquals(Saksstatus.AVSLATT.name, hentSak(database, sak)[SakTable.foreslattUtfall])
         assertNull(hentVedtak(database, sak).single()[ForelopigVedtakTable.innvilgetBelop])
+    }
+
+    @Test
+    fun `event fra før kostnadssted fantes lagres med null`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val sak = underBehandling(database)
+        val gammelJson = Json.Default.encodeToString<EventData>(innstilling(sak))
+            .replace(""","kostnadssted":"0491"""", "")
+        assertTrue("kostnadssted" !in gammelJson)
+        val data = assertIs<EventData.ForelopigVedtakSendtTilBeslutter>(Json.Default.decodeFromString<EventData>(gammelJson))
+
+        assertIs<EventHandledResult.Success>(LagreForelopigVedtak(database).handle(Event(1L, data)))
+
+        assertNull(hentVedtak(database, sak).single()[ForelopigVedtakTable.kostnadssted])
     }
 
     @Test

@@ -564,9 +564,12 @@ class SaksbehandlingSakApiTest {
                     it[begrunnelseArbeidsgiver] = if (utfall == ForelopigUtfall.AVSLAA) "Til arbeidsgiver" else null
                     it[innstiltAvIdent] = navIdent
                     it[sendtTidspunkt] = Instant.parse("2026-11-0${versjon}T10:00:00Z")
+                    it[kostnadssted] = if (utfall == ForelopigUtfall.INNVILGE) "1291" else null
                 }
             }
         }
+        val ukjentKostnadssted = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+        lagreForelopigVedtak(db, ukjentKostnadssted, innstiltAvIdent = navIdent, kostnadssted = "2103")
         val oppsett = oppsett(db)
 
         assertNull(oppsett.hentDetalj(utenVedtak).forelopigVedtak)
@@ -578,6 +581,11 @@ class SaksbehandlingSakApiTest {
         assertEquals("Til deltaker 2", vedtak.begrunnelseDeltaker)
         assertNull(vedtak.begrunnelseArbeidsgiver)
         assertEquals(navIdent, vedtak.innstiltAvIdent)
+        assertEquals("1291", vedtak.kostnadssted)
+        assertEquals("Nav arbeidslivssenter Vestland", vedtak.kostnadsstedNavn)
+        val ukjent = assertNotNull(oppsett.hentDetalj(ukjentKostnadssted).forelopigVedtak)
+        assertEquals("2103", ukjent.kostnadssted)
+        assertNull(ukjent.kostnadsstedNavn)
     }
 
     @Test
@@ -1591,6 +1599,7 @@ class SaksbehandlingSakApiTest {
         versjon: Int = 1,
         tiltaksperiodeFra: LocalDate? = LocalDate(2026, 11, 22),
         tiltaksperiodeTil: LocalDate? = LocalDate(2026, 12, 31),
+        kostnadssted: String? = "0391",
     ): Long = transaction(db.config.jdbcDatabase) {
         ForelopigVedtakTable.insert {
             it[this.sakId] = sakId
@@ -1603,6 +1612,7 @@ class SaksbehandlingSakApiTest {
             it[begrunnelseDeltaker] = "Til deltaker"
             it[this.innstiltAvIdent] = innstiltAvIdent
             it[sendtTidspunkt] = Instant.parse("2026-11-01T10:00:00Z")
+            it[this.kostnadssted] = kostnadssted
         }[ForelopigVedtakTable.id]
     }
 

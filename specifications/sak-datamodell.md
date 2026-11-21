@@ -177,6 +177,7 @@ versjon, slik at innstillingen før en retur bevares. Skrives bare av handleren
 | `begrunnelse_arbeidsgiver` | TEXT | NULL, CHECK | Påkrevd ved `INNVILGE_REDUSERT` og `AVSLAA`. |
 | `innstilt_av_ident` | TEXT | NOT NULL | NAV-ident til saksbehandler som sendte til beslutter. |
 | `sendt_tidspunkt` | TIMESTAMPTZ | NOT NULL | Tidspunktet fra eventet. |
+| `kostnadssted` | TEXT | NULL | Enhetsnummeret OeBS belaster ved innvilgelse, valgt av saksbehandler. Null ved avslag og for innstillinger fra før feltet fantes. Se [`kostnadssted_forelopig_vedtak.md`](kostnadssted_forelopig_vedtak.md). |
 
 Indeks: `idx_forelopig_vedtak_sak_id(sak_id)`. Siste versjon er gjeldende innstilling.
 

@@ -567,6 +567,10 @@ sealed interface EventData {
      * [ForelopigUtfall.AVSLAA]. [innstiltAvIdent] er NAV-identen til saksbehandleren og skal ikke
      * logges utenfor teamLog. Begrunnelsene skal ikke logges. Se `specifications/forelopig_vedtak.md`.
      *
+     * [kostnadssted] er enhetsnummeret saksbehandler valgte ved innvilgelse, og null ved avslag.
+     * Standardverdien er der fordi eventer fra før feltet fantes (bare i dev) mangler det. Se
+     * `specifications/kostnadssted_forelopig_vedtak.md`.
+     *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
      *
      * Konsument: [no.nav.ekspertbistand.event.handlers.LagreForelopigVedtak].
@@ -585,6 +589,7 @@ sealed interface EventData {
         val begrunnelseArbeidsgiver: String?,
         val innstiltAvIdent: String,
         val tidspunkt: Instant,
+        val kostnadssted: String? = null,
     ) : EventData {
         override val aggregateRootId: String get() = soknadId
     }
