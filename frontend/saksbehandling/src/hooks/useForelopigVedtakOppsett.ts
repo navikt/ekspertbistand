@@ -21,6 +21,8 @@ export type ForelopigVedtakOppsett = {
   kostnadssteder: Kostnadssted[];
   /** De siste ulike kostnadsstedene innlogget saksbehandler har brukt, nyeste først (maks tre). */
   sistBrukteKostnadssteder: Kostnadssted[];
+  /** Brukt på flest saker i enhetene til innlogget saksbehandler, flest først (maks tre). */
+  mestBrukteKostnadssteder: Kostnadssted[];
 };
 
 /** `aktiv: false` henter ikke. Endepunktet krever saksbehandlerrollen og gir 403 til andre. */

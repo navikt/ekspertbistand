@@ -61,6 +61,7 @@ class ForelopigVedtakOppsettTest {
         assertEquals(MAKS_SATSER, oppsett.maksSatser)
         assertEquals(KOSTNADSSTEDER, oppsett.kostnadssteder)
         assertEquals(emptyList(), oppsett.sistBrukteKostnadssteder)
+        assertEquals(emptyList(), oppsett.mestBrukteKostnadssteder)
     }
 
     @Test
@@ -84,13 +85,31 @@ class ForelopigVedtakOppsettTest {
     }
 
     @Test
+    fun `mest brukte er kostnadsstedene brukt på flest saker i saksbehandlerens enheter`() =
+        testApplicationWithDatabase { db ->
+            val database = db.config.jdbcDatabase
+            listOf(
+                "1234" to "0391", "1234" to "0391",
+                "1234" to "0491", "1234" to "0491",
+                "1234" to "5772", "1234" to "1291",
+                "1234" to "9999", "1234" to "9999", "1234" to "9999",
+                "5678" to "1091", "5678" to "1091", "5678" to "1091",
+            ).forEachIndexed { i, (enhet, kostnadssted) -> innstill(database, "Z999999", kostnadssted, i, enhet) }
+            val client = oppsett(db, """[{ "rolle": "${Role.SAKSBEHANDLER.groupId}" }]""")
+
+            val oppsett = client.get(url) { bearerAuth(gyldigToken) }.body<ForelopigVedtakOppsett>()
+
+            assertEquals(listOf("0391", "0491", "1291"), oppsett.mestBrukteKostnadssteder.map { it.enhetsnummer })
+        }
+
+    @Test
     fun `kostnadsstedene har unike enhetsnumre som OeBS godtar`() {
         assertEquals(KOSTNADSSTEDER.size, KOSTNADSSTEDER.map { it.enhetsnummer }.toSet().size)
         KOSTNADSSTEDER.forEach { NavEnhetNummer(it.enhetsnummer) }
     }
 
-    private fun innstill(database: Database, ident: String, kostnadssted: String, nr: Int) {
-        val sak = lagreSoknadOgSak(database)
+    private fun innstill(database: Database, ident: String, kostnadssted: String, nr: Int, enhet: String = "1234") {
+        val sak = lagreSoknadOgSak(database, behandlendeEnhet = enhet)
         settStatus(database, sak, Saksstatus.UNDER_BEHANDLING)
         transaction(database) {
             lagreForelopigVedtak(

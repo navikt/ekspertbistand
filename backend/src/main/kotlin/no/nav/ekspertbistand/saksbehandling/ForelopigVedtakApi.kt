@@ -40,6 +40,7 @@ const val BELOP_OVER_SATS = "BELOP_OVER_SATS"
 
 private const val STANDARDTEKSTER_RESSURS = "/dokumentmaler/standardtekster/forelopig_vedtak.json"
 private const val ANTALL_SIST_BRUKTE_KOSTNADSSTEDER = 3
+private const val ANTALL_MEST_BRUKTE_KOSTNADSSTEDER = 3
 
 /**
  * POST /api/saksbehandling/v1/saker/{sakId}/forelopig-vedtak => sender saken til beslutter
@@ -69,16 +70,23 @@ suspend fun Application.configureForelopigVedtakApiV1() {
         maksSatser = MAKS_SATSER,
         kostnadssteder = KOSTNADSSTEDER,
         sistBrukteKostnadssteder = emptyList(),
+        mestBrukteKostnadssteder = emptyList(),
     )
 
     routing {
         authenticate(AZURE_AD_PROVIDER) {
             get("/api/saksbehandling/v1/forelopig-vedtak/oppsett") {
                 val principal = call.principalMedRolle(Role.SAKSBEHANDLER) ?: return@get
-                val sistBrukte = transaction(database) {
-                    hentSistBrukteKostnadssteder(principal.navIdent, ANTALL_SIST_BRUKTE_KOSTNADSSTEDER)
+                val (sistBrukte, mestBrukte) = transaction(database) {
+                    hentSistBrukteKostnadssteder(principal.navIdent, ANTALL_SIST_BRUKTE_KOSTNADSSTEDER) to
+                        hentMestBrukteKostnadssteder(
+                            principal.enheter.map { it.enhetnummer }.toSet(),
+                            ANTALL_MEST_BRUKTE_KOSTNADSSTEDER,
+                        )
                 }
-                call.respond(oppsett.copy(sistBrukteKostnadssteder = sistBrukte))
+                call.respond(
+                    oppsett.copy(sistBrukteKostnadssteder = sistBrukte, mestBrukteKostnadssteder = mestBrukte)
+                )
             }
 
             post("/api/saksbehandling/v1/saker/{sakId}/forelopig-vedtak") {
@@ -330,4 +338,6 @@ data class ForelopigVedtakOppsett(
     val kostnadssteder: List<Kostnadssted>,
     /** Per innlogget saksbehandler, nyeste først. */
     val sistBrukteKostnadssteder: List<Kostnadssted>,
+    /** Brukt på flest saker i enhetene til innlogget saksbehandler, flest først. */
+    val mestBrukteKostnadssteder: List<Kostnadssted>,
 )

@@ -17,6 +17,7 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.TextColumnType
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.case
+import org.jetbrains.exposed.v1.core.countDistinct
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
@@ -306,6 +307,25 @@ fun hentSistBrukteKostnadssteder(navIdent: String, antall: Int): List<Kostnadsst
         }
         .groupBy(ForelopigVedtakTable.kostnadssted)
         .orderBy(sistSendt, SortOrder.DESC)
+        .limit(antall)
+        .mapNotNull { rad -> rad[ForelopigVedtakTable.kostnadssted]?.let(::finnKostnadssted) }
+}
+
+/**
+ * Kostnadsstedene som er brukt på flest saker med behandlende enhet i [enheter], flest først.
+ * Lik telling sorteres på enhetsnummer. Må kalles i en pågående transaksjon.
+ */
+fun hentMestBrukteKostnadssteder(enheter: Set<String>, antall: Int): List<Kostnadssted> {
+    val antallSaker = ForelopigVedtakTable.sakId.countDistinct()
+    return ForelopigVedtakTable
+        .join(SakTable, JoinType.INNER, ForelopigVedtakTable.sakId, SakTable.sakId)
+        .select(ForelopigVedtakTable.kostnadssted, antallSaker)
+        .where {
+            (SakTable.behandlendeEnhet inList enheter) and
+                (ForelopigVedtakTable.kostnadssted inList KOSTNADSSTEDER.map { it.enhetsnummer })
+        }
+        .groupBy(ForelopigVedtakTable.kostnadssted)
+        .orderBy(antallSaker to SortOrder.DESC, ForelopigVedtakTable.kostnadssted to SortOrder.ASC)
         .limit(antall)
         .mapNotNull { rad -> rad[ForelopigVedtakTable.kostnadssted]?.let(::finnKostnadssted) }
 }

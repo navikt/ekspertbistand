@@ -1,6 +1,8 @@
 import {
   Alert,
+  BodyShort,
   Button,
+  Chips,
   DatePicker,
   ErrorSummary,
   Fieldset,
@@ -90,7 +92,7 @@ function Skjema({
   oppdater,
   oppsett,
 }: Props & { oppsett: ForelopigVedtakOppsett }) {
-  const { standardtekster, maksSatser, kostnadssteder } = oppsett;
+  const { standardtekster, maksSatser, kostnadssteder, mestBrukteKostnadssteder } = oppsett;
   const kostnadsstedValg = kostnadssteder.map((k) => ({
     label: formatKostnadssted(k.enhetsnummer, k.navn),
     value: k.enhetsnummer,
@@ -280,17 +282,37 @@ function Skjema({
           )}
 
           {harTiltaksperiode(utfall) && (
-            <UNSAFE_Combobox
-              id={FELT_ID.kostnadssted}
-              label="Kostnadssted"
-              description="Enheten som skal belastes for tilskuddet."
-              options={kostnadsstedValg}
-              selectedOptions={kostnadsstedValg.filter((k) => k.value === tilstand.kostnadssted)}
-              onToggleSelected={(enhetsnummer, valgt) =>
-                oppdater({ kostnadssted: valgt ? enhetsnummer : null })
-              }
-              error={feilFor("kostnadssted")}
-            />
+            <VStack gap="space-8">
+              <UNSAFE_Combobox
+                id={FELT_ID.kostnadssted}
+                label="Kostnadssted"
+                description="Enheten som skal belastes for tilskuddet."
+                options={kostnadsstedValg}
+                selectedOptions={kostnadsstedValg.filter((k) => k.value === tilstand.kostnadssted)}
+                onToggleSelected={(enhetsnummer, valgt) =>
+                  oppdater({ kostnadssted: valgt ? enhetsnummer : null })
+                }
+                error={feilFor("kostnadssted")}
+              />
+              {mestBrukteKostnadssteder.length > 0 && (
+                <VStack gap="space-4">
+                  <BodyShort id="forelopig-vedtak-mest-brukte" size="small" weight="semibold">
+                    Mest brukt i din enhet
+                  </BodyShort>
+                  <Chips size="small" aria-labelledby="forelopig-vedtak-mest-brukte">
+                    {mestBrukteKostnadssteder.map((k) => (
+                      <Chips.Toggle
+                        key={k.enhetsnummer}
+                        selected={tilstand.kostnadssted === k.enhetsnummer}
+                        onClick={() => oppdater({ kostnadssted: k.enhetsnummer })}
+                      >
+                        {formatKostnadssted(k.enhetsnummer, k.navn)}
+                      </Chips.Toggle>
+                    ))}
+                  </Chips>
+                </VStack>
+              )}
+            </VStack>
           )}
 
           {begrunnelsefelt(utfall, "deltaker", begrunnelseDeltaker)}

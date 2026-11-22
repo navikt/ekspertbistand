@@ -530,6 +530,11 @@ const mockOppsett: ForelopigVedtakOppsett = {
   maksSatser: MOCK_MAKS_SATSER,
   kostnadssteder: MOCK_KOSTNADSSTEDER,
   sistBrukteKostnadssteder: [finnKostnadssted("1091")!, finnKostnadssted("0491")!],
+  mestBrukteKostnadssteder: [
+    finnKostnadssted("0391")!,
+    finnKostnadssted("0491")!,
+    finnKostnadssted("1291")!,
+  ],
 };
 
 const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
