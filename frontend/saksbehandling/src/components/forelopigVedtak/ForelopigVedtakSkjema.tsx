@@ -8,9 +8,9 @@ import {
   Loader,
   Radio,
   RadioGroup,
-  Select,
   TextField,
   Textarea,
+  UNSAFE_Combobox,
   VStack,
   useDatepicker,
 } from "@navikt/ds-react";
@@ -90,7 +90,11 @@ function Skjema({
   oppdater,
   oppsett,
 }: Props & { oppsett: ForelopigVedtakOppsett }) {
-  const { standardtekster, maksSatser, kostnadssteder, sistBrukteKostnadssteder } = oppsett;
+  const { standardtekster, maksSatser, kostnadssteder } = oppsett;
+  const kostnadsstedValg = kostnadssteder.map((k) => ({
+    label: formatKostnadssted(k.enhetsnummer, k.navn),
+    value: k.enhetsnummer,
+  }));
   const soknadssum = tolkSoknadssum(sak.soknad.behovForBistand.estimertKostnad);
   const { utfall, tiltaksperiodeFra: fra, tiltaksperiodeTil: til } = tilstand;
 
@@ -276,35 +280,17 @@ function Skjema({
           )}
 
           {harTiltaksperiode(utfall) && (
-            <Select
+            <UNSAFE_Combobox
               id={FELT_ID.kostnadssted}
               label="Kostnadssted"
               description="Enheten som skal belastes for tilskuddet."
-              value={tilstand.kostnadssted ?? ""}
-              onChange={(e) => oppdater({ kostnadssted: e.target.value || null })}
+              options={kostnadsstedValg}
+              selectedOptions={kostnadsstedValg.filter((k) => k.value === tilstand.kostnadssted)}
+              onToggleSelected={(enhetsnummer, valgt) =>
+                oppdater({ kostnadssted: valgt ? enhetsnummer : null })
+              }
               error={feilFor("kostnadssted")}
-            >
-              {/* Også når et lagret kostnadssted ikke lenger står på lista, så det ikke ser valgt ut. */}
-              {!kostnadssteder.some((k) => k.enhetsnummer === tilstand.kostnadssted) && (
-                <option value="">Velg kostnadssted</option>
-              )}
-              {sistBrukteKostnadssteder.length > 0 && (
-                <optgroup label="Sist brukte">
-                  {sistBrukteKostnadssteder.map((k) => (
-                    <option key={`sist-brukte-${k.enhetsnummer}`} value={k.enhetsnummer}>
-                      {formatKostnadssted(k.enhetsnummer, k.navn)}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              <optgroup label="Alle">
-                {kostnadssteder.map((k) => (
-                  <option key={`alle-${k.enhetsnummer}`} value={k.enhetsnummer}>
-                    {formatKostnadssted(k.enhetsnummer, k.navn)}
-                  </option>
-                ))}
-              </optgroup>
-            </Select>
+            />
           )}
 
           {begrunnelsefelt(utfall, "deltaker", begrunnelseDeltaker)}
