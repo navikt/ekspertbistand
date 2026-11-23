@@ -113,13 +113,12 @@ type Kvitteringstype = "forelopig-vedtak" | "vedtak";
 const nyttSkjema = (
   sakId: string,
   startdato: string,
-  behandlendeEnhet: string | null,
-  kostnadssteder: Kostnadssted[] | undefined,
+  foreslattKostnadssted: string | null,
   returnertVedtak: ForelopigVedtak | null
 ) =>
   returnertVedtak
     ? tilstandFraForelopigVedtak(sakId, startdato, returnertVedtak)
-    : startTilstand(sakId, startdato, behandlendeEnhet, kostnadssteder ?? []);
+    : startTilstand(sakId, startdato, foreslattKostnadssted);
 
 type ForelopigVedtakFaneProps = {
   sak: SakDetaljer;
@@ -449,7 +448,7 @@ export default function SakPage() {
 
   const startdato = sak?.soknad.behovForBistand.startdato ?? "";
   const returnertVedtak = sak?.oppgavetype === "SOKNAD_RETUR" ? sak.forelopigVedtak : null;
-  const behandlendeEnhet = sak?.behandlendeEnhet ?? null;
+  const foreslattKostnadssted = sak?.foreslattKostnadssted ?? null;
   const oppdaterSkjema: OppdaterSkjema = useCallback(
     (endring) => {
       if (!sakId) return;
@@ -457,12 +456,12 @@ export default function SakPage() {
         const gjeldende =
           forrige?.sakId === sakId
             ? forrige
-            : nyttSkjema(sakId, startdato, behandlendeEnhet, kostnadssteder, returnertVedtak);
+            : nyttSkjema(sakId, startdato, foreslattKostnadssted, returnertVedtak);
         const delvis = typeof endring === "function" ? endring(gjeldende) : endring;
         return { ...gjeldende, ...delvis };
       });
     },
-    [sakId, startdato, behandlendeEnhet, kostnadssteder, returnertVedtak]
+    [sakId, startdato, foreslattKostnadssted, returnertVedtak]
   );
 
   if (isLoading) return <Loader size="large" title="Laster sak" />;
@@ -493,8 +492,7 @@ export default function SakPage() {
       : nyttSkjema(
           sak.sakId,
           behovForBistand.startdato,
-          sak.behandlendeEnhet,
-          kostnadssteder,
+          sak.foreslattKostnadssted,
           returnertVedtak
         );
   const visKvittering = kvittering?.sakId === sak.sakId && sak.forelopigVedtak !== null;

@@ -15,6 +15,7 @@ import no.nav.ekspertbistand.infrastruktur.AZURE_AD_PROVIDER
 import no.nav.ekspertbistand.infrastruktur.AzureAdPrincipal
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import no.nav.ekspertbistand.norg.BehandlendeEnhetService
+import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
 import no.nav.ekspertbistand.norg.KommunenavnCache
 import no.nav.ekspertbistand.saksbehandling.SakTilgangsgrunnlag.Companion.tilTilgangsgrunnlag
 import no.nav.ekspertbistand.soknad.DTO
@@ -52,6 +53,7 @@ import kotlin.time.ExperimentalTime
  * Listen sjekkes i bulk mot Tilgangsmaskinen. Rader uten tilgang mangler deltaker og arbeidsgiver.
  * Feiler sjekken, mangler alle rader dem, og svaret har `tilgangssjekkFeilet`.
  * Kommunenavn kommer fra [KommunenavnCache]. Rader uten tilgang mangler også kommune.
+ * Enkeltoppslaget foreslår kostnadssted, se [foreslaKostnadssted].
  * Avvisninger sier om grunnen er skjerming, fortrolig eller strengt fortrolig adresse (K255.1). Kode 6 logges
  * med feil-ID i team logs, se [sjekkTilgangsmaskin] og `specifications/ruting_egne_ansatte_og_kommune.md`.
  * Listen sporingslogges ikke, jf. krav til oppslagslogg på sikkerhet.nav.no.
@@ -67,6 +69,7 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
     val tilgangsmaskinClient = dependencies.resolve<TilgangsmaskinClient>()
     val auditClient = dependencies.resolve<ArcSightAuditClient>()
     val kommunenavnCache = dependencies.resolve<KommunenavnCache>()
+    val behandlendeEnhetUtleder = dependencies.resolve<BehandlendeEnhetUtleder>()
 
     routing {
         authenticate(AZURE_AD_PROVIDER) {
@@ -119,7 +122,7 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
                         tillatt = true,
                         melding = "Saksbehandler har sett sak om ekspertbistand",
                     )
-                    call.respond(sak)
+                    call.respond(sak.copy(foreslattKostnadssted = foreslaKostnadssted(sak, behandlendeEnhetUtleder)))
                 }
 
                 route("/{sakId}/tildeling") {
@@ -243,6 +246,27 @@ suspend fun Application.configureSaksbehandlingSakApiV1() {
 }
 
 private val log = LoggerFactory.getLogger("SaksbehandlingSakApi")
+
+/**
+ * Kostnadsstedet skjemaet for foreløpig vedtak starter med: sakens behandlende enhet. For saker hos
+ * [BehandlendeEnhetService.NAV_VIKAFOSSEN] er det enheten saken hadde fått uten adressebeskyttelse, slått opp i
+ * Ereg og Norg ved hvert kall. Null når enheten ikke står i [KOSTNADSSTEDER] eller oppslaget feiler.
+ * Se `specifications/kostnadssted_forelopig_vedtak.md`.
+ */
+private suspend fun foreslaKostnadssted(sak: SakDetaljer, utleder: BehandlendeEnhetUtleder): String? {
+    val enhet = when (sak.behandlendeEnhet) {
+        BehandlendeEnhetService.NAV_VIKAFOSSEN -> try {
+            utleder.enhetForVirksomhet(sak.soknad.virksomhet.virksomhetsnummer)
+        } catch (e: Exception) {
+            e.rethrowIfCancellation()
+            log.warn("Fant ikke forslag til kostnadssted for sakId={}", sak.sakId, e)
+            null
+        }
+
+        else -> sak.behandlendeEnhet
+    }
+    return enhet?.takeIf { finnKostnadssted(it) != null }
+}
 
 const val SAK_UGYLDIG_STATUS = "SAK_UGYLDIG_STATUS"
 
@@ -474,6 +498,7 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                 forelopigVedtak = forelopigVedtak,
                 sisteRetur = sisteRetur,
                 vedtak = hentVedtak(sakId),
+                foreslattKostnadssted = null,
             )
         }
 
@@ -570,6 +595,8 @@ data class SakDetaljer(
     val sisteRetur: ReturDTO?,
     /** Null til beslutter har fattet vedtaket. */
     val vedtak: VedtakDTO?,
+    /** Kostnadsstedet skjemaet for foreløpig vedtak starter med, se [foreslaKostnadssted]. */
+    val foreslattKostnadssted: String?,
 ) {
     @Serializable
     data class Innsendinger(val refusjonskrav: String?, val sluttrapport: String?)

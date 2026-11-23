@@ -519,6 +519,15 @@ const mockKostnadssted = (enhetsnummer: string) => ({
 
 const UTEN_KOSTNADSSTED = { kostnadssted: null, kostnadsstedNavn: null };
 
+// Backend slår opp enheten uten adressebeskyttelse for 2103. Mockens 4710 står ikke på lista, så den låner 1291.
+const MOCK_FORSLAG: Record<string, string> = { "2103": "0391", "4710": "1291" };
+
+const foreslattKostnadssted = (behandlendeEnhet: string | null) => {
+  if (!behandlendeEnhet) return null;
+  const forslag = MOCK_FORSLAG[behandlendeEnhet] ?? behandlendeEnhet;
+  return finnKostnadssted(forslag) ? forslag : null;
+};
+
 // Ordrett som `forelopig_vedtak.json` i backend.
 const mockOppsett: ForelopigVedtakOppsett = {
   standardtekster: {
@@ -529,12 +538,6 @@ const mockOppsett: ForelopigVedtakOppsett = {
   },
   maksSatser: MOCK_MAKS_SATSER,
   kostnadssteder: MOCK_KOSTNADSSTEDER,
-  sistBrukteKostnadssteder: [finnKostnadssted("1091")!, finnKostnadssted("0491")!],
-  mestBrukteKostnadssteder: [
-    finnKostnadssted("0391")!,
-    finnKostnadssted("0491")!,
-    finnKostnadssted("1291")!,
-  ],
 };
 
 const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
@@ -943,6 +946,7 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: MockListeElement): SakDetal
   forelopigVedtak: forelopigVedtakStore.get(sak.sakId) ?? null,
   sisteRetur: returStore.get(sak.sakId) ?? null,
   vedtak: vedtakStore.get(sak.sakId) ?? null,
+  foreslattKostnadssted: foreslattKostnadssted(sak.behandlendeEnhet),
   innsendinger: mockInnsendinger(sak.sakId),
   soknad: {
     soknadId: element.soknadId,

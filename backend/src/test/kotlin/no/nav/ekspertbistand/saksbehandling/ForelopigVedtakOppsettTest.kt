@@ -8,26 +8,19 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
 import io.ktor.server.testing.*
-import kotlinx.datetime.LocalDate
 import no.nav.ekspertbistand.configureServer
 import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
-import no.nav.ekspertbistand.event.EventData
-import no.nav.ekspertbistand.event.handlers.settStatus
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
 import no.nav.ekspertbistand.oebs.integration.NavEnhetNummer
-import no.nav.ekspertbistand.sak.lagreSoknadOgSak
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 class ForelopigVedtakOppsettTest {
@@ -60,75 +53,12 @@ class ForelopigVedtakOppsettTest {
         assertEquals(lastStandardtekster(), oppsett.standardtekster)
         assertEquals(MAKS_SATSER, oppsett.maksSatser)
         assertEquals(KOSTNADSSTEDER, oppsett.kostnadssteder)
-        assertEquals(emptyList(), oppsett.sistBrukteKostnadssteder)
-        assertEquals(emptyList(), oppsett.mestBrukteKostnadssteder)
     }
-
-    @Test
-    fun `sist brukte er de tre siste ulike kostnadsstedene saksbehandleren har brukt`() = testApplicationWithDatabase { db ->
-        val database = db.config.jdbcDatabase
-        listOf(
-            navIdent to "0291",
-            navIdent to "0391",
-            navIdent to "0291",
-            navIdent to "9999",
-            navIdent to "0491",
-            navIdent to "0691",
-            "Z999999" to "1091",
-        ).forEachIndexed { i, (ident, kostnadssted) -> innstill(database, ident, kostnadssted, i) }
-        val client = oppsett(db, """[{ "rolle": "${Role.SAKSBEHANDLER.groupId}" }]""")
-
-        val oppsett = client.get(url) { bearerAuth(gyldigToken) }.body<ForelopigVedtakOppsett>()
-
-        assertEquals(listOf("0691", "0491", "0291"), oppsett.sistBrukteKostnadssteder.map { it.enhetsnummer })
-        assertEquals("Nav arbeidslivssenter Vest-Viken", oppsett.sistBrukteKostnadssteder.first().navn)
-    }
-
-    @Test
-    fun `mest brukte er kostnadsstedene brukt på flest saker i saksbehandlerens enheter`() =
-        testApplicationWithDatabase { db ->
-            val database = db.config.jdbcDatabase
-            listOf(
-                "1234" to "0391", "1234" to "0391",
-                "1234" to "0491", "1234" to "0491",
-                "1234" to "5772", "1234" to "1291",
-                "1234" to "9999", "1234" to "9999", "1234" to "9999",
-                "5678" to "1091", "5678" to "1091", "5678" to "1091",
-            ).forEachIndexed { i, (enhet, kostnadssted) -> innstill(database, "Z999999", kostnadssted, i, enhet) }
-            val client = oppsett(db, """[{ "rolle": "${Role.SAKSBEHANDLER.groupId}" }]""")
-
-            val oppsett = client.get(url) { bearerAuth(gyldigToken) }.body<ForelopigVedtakOppsett>()
-
-            assertEquals(listOf("0391", "0491", "1291"), oppsett.mestBrukteKostnadssteder.map { it.enhetsnummer })
-        }
 
     @Test
     fun `kostnadsstedene har unike enhetsnumre som OeBS godtar`() {
         assertEquals(KOSTNADSSTEDER.size, KOSTNADSSTEDER.map { it.enhetsnummer }.toSet().size)
         KOSTNADSSTEDER.forEach { NavEnhetNummer(it.enhetsnummer) }
-    }
-
-    private fun innstill(database: Database, ident: String, kostnadssted: String, nr: Int, enhet: String = "1234") {
-        val sak = lagreSoknadOgSak(database, behandlendeEnhet = enhet)
-        settStatus(database, sak, Saksstatus.UNDER_BEHANDLING)
-        transaction(database) {
-            lagreForelopigVedtak(
-                EventData.ForelopigVedtakSendtTilBeslutter(
-                    sakId = sak.sakId.toString(),
-                    soknadId = sak.soknadId.toString(),
-                    utfall = ForelopigUtfall.INNVILGE,
-                    innvilgetBelop = 9999,
-                    tiltaksperiodeFra = LocalDate(2026, 11, 22),
-                    tiltaksperiodeTil = LocalDate(2026, 12, 31),
-                    begrunnelseDeltaker = "Til deltaker",
-                    begrunnelseArbeidsgiver = null,
-                    innstiltAvIdent = ident,
-                    tidspunkt = Instant.parse("2026-11-23T08:00:00Z") + nr.minutes,
-                    kostnadssted = kostnadssted,
-                ),
-                eventId = 100L + nr,
-            )
-        }
     }
 
     @Test

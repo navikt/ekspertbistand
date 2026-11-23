@@ -72,12 +72,11 @@ export function standardSluttdato(startdato: string): string | null {
   return tilIsoDato(slutt > sisteDagIÅret ? sisteDagIÅret : slutt);
 }
 
-/** Sakens behandlende enhet er forhåndsvalgt som kostnadssted når den står på lista. */
+/** Kostnadsstedet backend foreslår er forhåndsvalgt, se `SakDetaljer.foreslattKostnadssted`. */
 export function startTilstand(
   sakId: string,
   soknadStartdato: string,
-  behandlendeEnhet: string | null,
-  kostnadssteder: Kostnadssted[]
+  foreslattKostnadssted: string | null
 ): ForelopigVedtakSkjemaTilstand {
   const startdato = fraIsoDato(soknadStartdato) ? soknadStartdato : null;
   return {
@@ -87,9 +86,7 @@ export function startTilstand(
     tiltaksperiodeTil: startdato ? standardSluttdato(startdato) : null,
     sluttdatoEndret: false,
     nyttBelop: "",
-    kostnadssted: kostnadssteder.some((k) => k.enhetsnummer === behandlendeEnhet)
-      ? behandlendeEnhet
-      : null,
+    kostnadssted: foreslattKostnadssted,
     redigerteBegrunnelser: {},
     forhandsvisning: null,
   };
@@ -103,7 +100,7 @@ export function tilstandFraForelopigVedtak(
 ): ForelopigVedtakSkjemaTilstand {
   const { utfall, begrunnelseDeltaker, begrunnelseArbeidsgiver } = vedtak;
   return {
-    ...startTilstand(sakId, soknadStartdato, null, []),
+    ...startTilstand(sakId, soknadStartdato, null),
     utfall,
     ...(vedtak.tiltaksperiodeFra !== null && {
       tiltaksperiodeFra: vedtak.tiltaksperiodeFra,
