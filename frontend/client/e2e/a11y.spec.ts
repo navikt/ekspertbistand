@@ -10,6 +10,16 @@ const waitForAppReady = async (page: Page) => {
 // label-content-name-mismatch ble slått på som standard i axe-core 4.14
 const globallyDisabledRules = ["label-content-name-mismatch"];
 
+const waitForDecoratorReady = async (page: Page) => {
+  await expect(page.getByRole("contentinfo")).toBeVisible();
+  await page.waitForFunction(() => {
+    const stylesheets = Array.from(
+      document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
+    );
+    return stylesheets.length > 0 && stylesheets.every((stylesheet) => stylesheet.sheet !== null);
+  });
+};
+
 // Dekoratøren kan ha CSS-overganger i gang når siden er klar, og da måler axe kontrast midt i overgangen.
 const waitForFiniteAnimations = (page: Page) =>
   page.waitForFunction(() =>
@@ -23,6 +33,7 @@ const waitForFiniteAnimations = (page: Page) =>
   );
 
 const runAxe = async (page: Page, disabledRules: string[] = []) => {
+  await waitForDecoratorReady(page);
   await waitForFiniteAnimations(page);
   const builder = new AxeBuilder({ page });
   builder.disableRules([...globallyDisabledRules, ...disabledRules]);
