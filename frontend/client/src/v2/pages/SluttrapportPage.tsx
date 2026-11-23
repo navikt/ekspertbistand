@@ -5,7 +5,6 @@ import {
   BodyShort,
   Button,
   FileUpload,
-  FormSummary,
   Heading,
   Loader,
   VStack,
@@ -16,9 +15,10 @@ import {
 import { PaperplaneIcon } from "@navikt/aksel-icons";
 import DecoratedPage from "../components/DecoratedPage";
 import { BackLink } from "../components/BackLink";
+import { Nokkeldata } from "../components/Nokkeldata";
 import { useSoknad } from "../hooks/useSoknad";
 import { useSluttrapportStatus } from "../hooks/useSluttrapportStatus";
-import { formatDate } from "../components/summaryFormatters";
+import { useVedtak } from "../hooks/useVedtak";
 import { EKSPERTBISTAND_SLUTTRAPPORT_PATH } from "../utils/constants";
 import { lesInnsendingsfeil } from "../utils/innsendingsfeil";
 import { resolveApiError, type ApiErrorInfo } from "../../utils/http";
@@ -30,6 +30,7 @@ export default function SluttrapportPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { soknad, isLoading, error: fetchError } = useSoknad(id);
+  const { vedtak, isLoading: vedtakLoading, error: vedtakError } = useVedtak(id);
   const {
     sluttrapport,
     isLoading: isLoadingStatus,
@@ -112,6 +113,15 @@ export default function SluttrapportPage() {
 
   const hasFiles = acceptedFiles.length > 0;
   const atFileLimit = acceptedFiles.length >= MAX_FILES;
+  const tiltaksperiode = vedtak?.tiltaksperiode;
+  const periodeTekst =
+    vedtakError || vedtak === null
+      ? "Kunne ikke hentes"
+      : vedtakLoading
+        ? "Laster tiltaksperiode …"
+        : tiltaksperiode
+          ? `${tiltaksperiode.fra} – ${tiltaksperiode.til}`
+          : "–";
 
   return (
     <DecoratedPage>
@@ -122,33 +132,24 @@ export default function SluttrapportPage() {
           Send inn sluttrapport
         </Heading>
 
-        <FormSummary>
-          <FormSummary.Header>
-            <FormSummary.Heading level="2">Opplysninger om saken</FormSummary.Heading>
-          </FormSummary.Header>
-          <FormSummary.Answers>
-            <FormSummary.Answer>
-              <FormSummary.Label>Arbeidsgiver</FormSummary.Label>
-              <FormSummary.Value>{soknad.virksomhet?.virksomhetsnavn ?? "–"}</FormSummary.Value>
-            </FormSummary.Answer>
-            <FormSummary.Answer>
-              <FormSummary.Label>Ansatt</FormSummary.Label>
-              <FormSummary.Value>{soknad.ansatt?.navn ?? "–"}</FormSummary.Value>
-            </FormSummary.Answer>
-            <FormSummary.Answer>
-              <FormSummary.Label>Ekspert</FormSummary.Label>
-              <FormSummary.Value>{soknad.ekspert?.navn ?? "–"}</FormSummary.Value>
-            </FormSummary.Answer>
-            <FormSummary.Answer>
-              <FormSummary.Label>Startdato</FormSummary.Label>
-              <FormSummary.Value>
-                {soknad.behovForBistand?.startdato
-                  ? formatDate(soknad.behovForBistand.startdato)
-                  : "–"}
-              </FormSummary.Value>
-            </FormSummary.Answer>
-          </FormSummary.Answers>
-        </FormSummary>
+        <VStack gap="space-8" aria-live="polite">
+          <Nokkeldata
+            kompakt
+            rader={[
+              ["Arbeidsgiver", soknad.virksomhet?.virksomhetsnavn?.trim() || "–"],
+              ["Ansatt", soknad.ansatt?.navn?.trim() || "–"],
+              ["Ekspert", soknad.ekspert?.navn?.trim() || "–"],
+              ["Tiltaksperiode", periodeTekst],
+            ]}
+          />
+          {(vedtakError || vedtak === null) && (
+            <Alert variant="error" role="alert">
+              {vedtakError
+                ? "Kunne ikke hente tiltaksperioden. Prøv å laste siden på nytt."
+                : "Fant ikke vedtaket for denne søknaden. Prøv å laste siden på nytt."}
+            </Alert>
+          )}
+        </VStack>
 
         <VStack gap="space-16">
           <FileUpload>
