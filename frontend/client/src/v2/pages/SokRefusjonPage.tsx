@@ -10,7 +10,6 @@ import {
   Checkbox,
   ErrorMessage,
   FileUpload,
-  FormSummary,
   Heading,
   InfoCard,
   LinkCard,
@@ -25,11 +24,13 @@ import { PaperplaneIcon, XMarkOctagonIcon } from "@navikt/aksel-icons";
 import DecoratedPage from "../components/DecoratedPage";
 import { BackLink } from "../components/BackLink";
 import { FormErrorSummary } from "../components/FormErrorSummary";
+import { Nokkeldata } from "../components/Nokkeldata";
 import { useSoknad } from "../hooks/useSoknad";
 import { useRefusjonStatus } from "../hooks/useRefusjonStatus";
 import { useMaksBelop } from "../hooks/useMaksBelop";
 import { useKontonummerFinnes } from "../hooks/useKontonummerFinnes";
-import { formatCurrency, formatDate } from "../components/summaryFormatters";
+import { useVedtak } from "../hooks/useVedtak";
+import { formatCurrency } from "../components/summaryFormatters";
 import { EKSPERTBISTAND_REFUSJON_PATH, KONTONUMMER_REGISTRERING_URL } from "../utils/constants";
 import { HttpError, resolveApiError, type ApiErrorInfo } from "../../utils/http";
 import { useErrorFocus } from "../hooks/useErrorFocus";
@@ -66,6 +67,7 @@ export default function SokRefusjonPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { soknad, isLoading, error: fetchError } = useSoknad(id);
+  const { vedtak, isLoading: vedtakLoading, error: vedtakError } = useVedtak(id);
   const {
     refusjon,
     isLoading: isLoadingStatus,
@@ -203,6 +205,16 @@ export default function SokRefusjonPage() {
     );
   }
 
+  const tiltaksperiode = vedtak?.tiltaksperiode;
+  const periodeTekst =
+    vedtakError || vedtak === null
+      ? "Kunne ikke hentes"
+      : vedtakLoading
+        ? "Laster tiltaksperiode …"
+        : tiltaksperiode
+          ? `${tiltaksperiode.fra} – ${tiltaksperiode.til}`
+          : "–";
+
   return (
     <DecoratedPage>
       <VStack gap="space-32" data-aksel-template="form-summarypage-v5">
@@ -212,33 +224,24 @@ export default function SokRefusjonPage() {
           Søk refusjon
         </Heading>
 
-        <FormSummary>
-          <FormSummary.Header>
-            <FormSummary.Heading level="2">Opplysninger om saken</FormSummary.Heading>
-          </FormSummary.Header>
-          <FormSummary.Answers>
-            <FormSummary.Answer>
-              <FormSummary.Label>Arbeidsgiver</FormSummary.Label>
-              <FormSummary.Value>{soknad.virksomhet?.virksomhetsnavn ?? "–"}</FormSummary.Value>
-            </FormSummary.Answer>
-            <FormSummary.Answer>
-              <FormSummary.Label>Ansatt</FormSummary.Label>
-              <FormSummary.Value>{soknad.ansatt?.navn ?? "–"}</FormSummary.Value>
-            </FormSummary.Answer>
-            <FormSummary.Answer>
-              <FormSummary.Label>Ekspert</FormSummary.Label>
-              <FormSummary.Value>{soknad.ekspert?.navn ?? "–"}</FormSummary.Value>
-            </FormSummary.Answer>
-            <FormSummary.Answer>
-              <FormSummary.Label>Startdato</FormSummary.Label>
-              <FormSummary.Value>
-                {soknad.behovForBistand?.startdato
-                  ? formatDate(soknad.behovForBistand.startdato)
-                  : "–"}
-              </FormSummary.Value>
-            </FormSummary.Answer>
-          </FormSummary.Answers>
-        </FormSummary>
+        <VStack gap="space-8" aria-live="polite">
+          <Nokkeldata
+            kompakt
+            rader={[
+              ["Arbeidsgiver", soknad.virksomhet?.virksomhetsnavn?.trim() || "–"],
+              ["Ansatt", soknad.ansatt?.navn?.trim() || "–"],
+              ["Ekspert", soknad.ekspert?.navn?.trim() || "–"],
+              ["Tiltaksperiode", periodeTekst],
+            ]}
+          />
+          {(vedtakError || vedtak === null) && (
+            <Alert variant="error" role="alert">
+              {vedtakError
+                ? "Kunne ikke hente tiltaksperioden. Prøv å laste siden på nytt."
+                : "Fant ikke vedtaket for denne søknaden. Prøv å laste siden på nytt."}
+            </Alert>
+          )}
+        </VStack>
 
         {kontonummerError ? (
           <Alert variant="error">

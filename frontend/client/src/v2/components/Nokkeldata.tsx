@@ -3,12 +3,18 @@ import { BodyShort } from "@navikt/ds-react";
 
 export type NokkeldataRad = [label: string, verdi: string | null | undefined];
 
-export function Nokkeldata({ rader }: { rader: NokkeldataRad[] }) {
+export function Nokkeldata({
+  rader,
+  kompakt = false,
+}: {
+  rader: NokkeldataRad[];
+  kompakt?: boolean;
+}) {
   return (
     <dl
       style={{
         display: "grid",
-        gridTemplateColumns: "max-content 1fr",
+        gridTemplateColumns: kompakt ? "max-content minmax(0, 1fr)" : "max-content 1fr",
         columnGap: "var(--ax-space-24)",
         rowGap: "var(--ax-space-4)",
         margin: 0,
@@ -18,10 +24,23 @@ export function Nokkeldata({ rader }: { rader: NokkeldataRad[] }) {
         .filter((rad): rad is [string, string] => Boolean(rad[1]))
         .map(([label, verdi]) => (
           <Fragment key={label}>
-            <BodyShort as="dt" size="large" weight="semibold">
+            <BodyShort
+              as="dt"
+              size={kompakt ? "small" : "large"}
+              weight={kompakt ? "regular" : "semibold"}
+            >
               {label}
             </BodyShort>
-            <BodyShort as="dd" size="large" style={{ margin: 0 }}>
+            <BodyShort
+              as="dd"
+              size={kompakt ? "small" : "large"}
+              weight={kompakt ? "semibold" : "regular"}
+              style={{
+                margin: 0,
+                minWidth: kompakt ? 0 : undefined,
+                overflowWrap: kompakt ? "anywhere" : undefined,
+              }}
+            >
               {verdi}
             </BodyShort>
           </Fragment>
