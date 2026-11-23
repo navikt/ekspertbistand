@@ -7,6 +7,7 @@ import { useSoknad } from "../hooks/useSoknad";
 import { useRefusjonStatus, type RefusjonStatus } from "../hooks/useRefusjonStatus";
 import { useMaksBelop } from "../hooks/useMaksBelop";
 import { useKontonummerFinnes } from "../hooks/useKontonummerFinnes";
+import { useVedtak } from "../hooks/useVedtak";
 import { EKSPERTBISTAND_REFUSJON_PATH } from "../utils/constants";
 import { HttpError } from "../../utils/http";
 
@@ -14,6 +15,15 @@ vi.mock("../hooks/useSoknad", () => ({ useSoknad: vi.fn() }));
 vi.mock("../hooks/useRefusjonStatus", () => ({ useRefusjonStatus: vi.fn() }));
 vi.mock("../hooks/useMaksBelop", () => ({ useMaksBelop: vi.fn() }));
 vi.mock("../hooks/useKontonummerFinnes", () => ({ useKontonummerFinnes: vi.fn() }));
+vi.mock("../hooks/useVedtak", () => ({ useVedtak: vi.fn() }));
+
+const vedtak = {
+  utfall: "INNVILGET",
+  vedtaksdato: "20. oktober 2026",
+  deltakerNavn: "Testperson",
+  virksomhetsnavn: "Eksempel AS",
+  tiltaksperiode: { fra: "1. november 2026", til: "31. januar 2027" },
+} satisfies NonNullable<ReturnType<typeof useVedtak>["vedtak"]>;
 
 function VedtakMottaker() {
   const { state } = useLocation();
@@ -31,15 +41,24 @@ const renderPage = (
     maksBelopError = null,
     statusError = null,
     statusLoading = false,
+    soknad = {
+      virksomhet: { virksomhetsnummer: "123456789", virksomhetsnavn: "Eksempel AS" },
+      ansatt: { fnr: "", navn: "Testperson" },
+      ekspert: { navn: "Testekspert" },
+      behovForBistand: { startdato: "2026-10-01" },
+    },
+    vedtakStatus = {},
   }: {
     maksBelopError?: Error | null;
     statusError?: Error | null;
     statusLoading?: boolean;
+    soknad?: ReturnType<typeof useSoknad>["soknad"];
+    vedtakStatus?: Partial<ReturnType<typeof useVedtak>>;
   } = {}
 ) => {
   const refreshStatus = vi.fn(async () => undefined);
   vi.mocked(useSoknad).mockReturnValue({
-    soknad: { virksomhet: { virksomhetsnummer: "123456789", virksomhetsnavn: "Eksempel AS" } },
+    soknad,
     isLoading: false,
     error: null,
   });
@@ -60,8 +79,14 @@ const renderPage = (
     isLoading: false,
     error: null,
   });
+  vi.mocked(useVedtak).mockReturnValue({
+    vedtak,
+    isLoading: false,
+    error: undefined,
+    ...vedtakStatus,
+  });
 
-  const view = render(
+  const innhold = () => (
     <MemoryRouter initialEntries={["/v2/skjema/sak-1/refusjon"]}>
       <Routes>
         <Route path="/v2/skjema/:id/refusjon" element={<SokRefusjonPage />} />
@@ -70,7 +95,8 @@ const renderPage = (
       </Routes>
     </MemoryRouter>
   );
-  return { ...view, refreshStatus };
+  const view = render(innhold());
+  return { ...view, refreshStatus, rerenderPage: () => view.rerender(innhold()) };
 };
 
 const fyllUtKrav = async (container: HTMLElement) => {
@@ -96,6 +122,106 @@ afterEach(() => {
 });
 
 describe("SokRefusjonPage", () => {
+  it("viser fire synlige rader med vedtakets periode i stedet for søknadens startdato", () => {
+    renderPage(null);
+
+    expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual([
+      "Arbeidsgiver",
+      "Ansatt",
+      "Ekspert",
+      "Tiltaksperiode",
+    ]);
+    expect(screen.getAllByRole("definition").map((value) => value.textContent)).toEqual([
+      "Eksempel AS",
+      "Testperson",
+      "Testekspert",
+      "1. november 2026 – 31. januar 2027",
+    ]);
+    for (const term of screen.getAllByRole("term")) {
+      expect(term.nextElementSibling?.tagName).toBe("DD");
+    }
+    expect(useVedtak).toHaveBeenCalledWith("sak-1");
+    expect(screen.queryByText("Startdato")).not.toBeInTheDocument();
+    expect(screen.queryByText("Opplysninger om saken")).not.toBeInTheDocument();
+  });
+
+  it("beholder rader med plassholder når navn og vedtaksperiode mangler", () => {
+    renderPage(null, {
+      soknad: { virksomhet: { virksomhetsnavn: " " }, ekspert: { navn: "" } },
+      vedtakStatus: { vedtak: { ...vedtak, tiltaksperiode: null } },
+    });
+
+    expect(screen.getAllByRole("term")).toHaveLength(4);
+    expect(screen.getAllByRole("definition").map((value) => value.textContent)).toEqual([
+      "–",
+      "–",
+      "–",
+      "–",
+    ]);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it.each([403, 500])("viser vedtaksfeil %s uten å skjule refusjonsskjemaet", (status) => {
+    renderPage(null, {
+      vedtakStatus: {
+        vedtak: undefined,
+        error: new HttpError("Vedtaksoppslaget feilet", { status }),
+      },
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Kunne ikke hente tiltaksperioden. Prøv å laste siden på nytt."
+    );
+    expect(screen.getAllByRole("definition").at(-1)).toHaveTextContent("Kunne ikke hentes");
+    expect(screen.getByLabelText("Beløp for refusjonskravet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Send inn$/ })).toBeEnabled();
+  });
+
+  it("viser en egen melding når vedtaket ikke finnes", () => {
+    renderPage(null, { vedtakStatus: { vedtak: null } });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Fant ikke vedtaket for denne søknaden. Prøv å laste siden på nytt."
+    );
+    expect(screen.getAllByRole("definition").at(-1)).toHaveTextContent("Kunne ikke hentes");
+    expect(screen.getByRole("button", { name: /^Send inn$/ })).toBeEnabled();
+  });
+
+  it("beholder utfylt krav mens vedtaket lastes, hentes og revalideres med feil", async () => {
+    const { container, rerenderPage } = renderPage(null, {
+      vedtakStatus: { vedtak: undefined, isLoading: true },
+    });
+    expect(screen.getAllByRole("definition").at(-1)).toHaveTextContent("Laster tiltaksperiode");
+    await fyllUtKrav(container);
+    const belop = screen.getByLabelText("Beløp for refusjonskravet");
+
+    vi.mocked(useVedtak).mockReturnValue({ vedtak, isLoading: false, error: undefined });
+    rerenderPage();
+    expect(screen.getByLabelText("Beløp for refusjonskravet")).toBe(belop);
+    expect(belop).toHaveValue("1000");
+    expect(screen.getByText("kvittering.pdf")).toBeInTheDocument();
+    expect(screen.getAllByRole("definition").at(-1)).toHaveTextContent(
+      "1. november 2026 – 31. januar 2027"
+    );
+
+    vi.mocked(useVedtak).mockReturnValue({
+      vedtak,
+      isLoading: false,
+      error: new HttpError("Vedtaksoppslaget feilet", { status: 500 }),
+    });
+    rerenderPage();
+    expect(screen.getByLabelText("Beløp for refusjonskravet")).toBe(belop);
+    expect(belop).toHaveValue("1000");
+    expect(screen.getByText("kvittering.pdf")).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", {
+        name: "Jeg bekrefter at utgiftene som kreves refundert er betalt.",
+      })
+    ).toBeChecked();
+    expect(screen.getByRole("button", { name: /^Send inn$/ })).toBeEnabled();
+    expect(screen.getAllByRole("definition").at(-1)).toHaveTextContent("Kunne ikke hentes");
+  });
+
   it("sender eksisterende krav til vedtakssiden uten ny innsendingsbekreftelse", () => {
     renderPage({
       belopKroner: 1000,
