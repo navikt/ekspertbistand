@@ -77,6 +77,14 @@ Avslag har ikke kostnadssted, fordi ingen penger settes av.
   vi ikke virksomhetens kommune på saken (`sak.kommunenummer` er null), så den må
   slås opp i Ereg før Norg.
 - **Saker hos Nav Vikafossen er sjeldne**, anslagsvis 1 av 1000.
+- **Fylkene fører ekspertbistand på arbeidslivssenteret.** Teamet spurte
+  kontaktpersonene for ekspertbistand i fylkene på Teams hvilket kostnadssted de
+  bruker ved innvilgelse. Per 2026-11-24 har åtte fylker svart, og alle bruker
+  arbeidslivssenteret: Agder, Vestland, Øst-Viken, Vest-Viken, Vestfold og
+  Telemark, Nordland, Rogaland (1191) og Møre og Romsdal. Oslo, Innlandet,
+  Trøndelag og Troms og Finnmark har ikke svart. Lista kaller 0891 «Nav arbeid og
+  helse Vestfold og Telemark», mens svaret sier arbeidslivssenteret. Navnet hører
+  til kort 727.
 
 ## Skisser
 
@@ -136,6 +144,7 @@ merket.
 | Ken, 2026-11-23 (kommentar på kortet) | Standardverdien er behandlende enhet, og saksbehandler kan overstyre. Unntaket er Vikafossen. Der er standardverdien enheten saken hadde havnet hos hvis deltakeren ikke hadde adressebeskyttelse. |
 | Ken, 2026-11-23 (review) | Enheten uten adressebeskyttelse lagres ikke ved rutingen. Er behandlende enhet Vikafossen, slår vi den opp i Norg ved behov. Det gjelder omtrent 1 av 1000 saker. |
 | Ken, 2026-11-23 (review) | Kode 7 (fortrolig) er ikke relevant. Regelen gjelder bare saker der behandlende enhet er Vikafossen. |
+| Kontaktpersoner i fylkene, 2026-11-24 (Teams) | Åtte av tolv fylker bruker arbeidslivssenteret som kostnadssted. Svarene støtter lista og standardverdien. Lista endres ikke. Se *Bakgrunn*. |
 | Minne: eventmodell | Nye eventfelt bruker domain-typer i `event/domain/`, ikke API-DTO-er. Handlere bruker dataene i eventen. |
 | Minne: eventmodell | API-er slår ikke opp i `event_log`. Data til visning lagres i en egen tabell. |
 | Minne: kodekonvensjoner | Nye parametere får ingen standardverdi. Unntaket er felt i eventer, der gamle eventer må kunne leses. |
