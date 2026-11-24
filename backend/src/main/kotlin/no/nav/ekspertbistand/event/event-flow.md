@@ -25,6 +25,7 @@ flowchart TD
     s_ForelopigVedtakApi[/"ForelopigVedtakApi"/]:::source
     s_RefusjonDb[/"RefusjonDb"/]:::source
     s_SakApi[/"SakApi"/]:::source
+    s_SluttrapportVurderingApi[/"SluttrapportVurderingApi"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
     s_TiltaksokonomiConsumer[/"TiltaksokonomiConsumer"/]:::source
@@ -47,7 +48,9 @@ flowchart TD
     e_SakTildeltBeslutter(["SakTildeltBeslutter"]):::event
     e_SakTildeltSaksbehandler(["SakTildeltSaksbehandler"]):::event
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
+    e_SluttrapportBekreftet(["SluttrapportBekreftet"]):::event
     e_SluttrapportMottatt(["SluttrapportMottatt"]):::event
+    e_SluttrapportNyInnsendingKrevd(["SluttrapportNyInnsendingKrevd"]):::event
     e_SoknadAvlystIArena(["SoknadAvlystIArena"]):::event
     e_SoknadInnsendt(["SoknadInnsendt"]):::event
     e_SoknadKopiDeltakerDistribuert(["SoknadKopiDeltakerDistribuert"]):::event
@@ -78,6 +81,8 @@ flowchart TD
     h_JournalfoerTilskuddsbrevKildeAltinn["JournalfoerTilskuddsbrevKildeAltinn"]:::handler
     h_JournalfoerVedtaksbrevArbeidsgiver["JournalfoerVedtaksbrevArbeidsgiver"]:::handler
     h_LagreForelopigVedtak["LagreForelopigVedtak"]:::handler
+    h_LagreSluttrapportBekreftet["LagreSluttrapportBekreftet"]:::handler
+    h_LagreSluttrapportNyInnsendingKrevd["LagreSluttrapportNyInnsendingKrevd"]:::handler
     h_LagreTilsagnsData["LagreTilsagnsData"]:::handler
     h_LagreTilsagnsDataKildeAltinn["LagreTilsagnsDataKildeAltinn"]:::handler
     h_LagreVedtaksbrev["LagreVedtaksbrev"]:::handler
@@ -127,6 +132,7 @@ flowchart TD
     h_JournalfoerVedtaksbrevArbeidsgiver --> e_SakOppdatert
     h_JournalfoerVedtaksbrevArbeidsgiver --> e_VedtaksbrevArbeidsgiverJournalfoert
     h_LagreForelopigVedtak --> e_SakOppdatert
+    h_LagreSluttrapportNyInnsendingKrevd --> e_SakOppdatert
     h_LagreTilsagnsData --> e_TilsagnsdataLagret
     h_OpprettSak --> e_SakOppdatert
     h_OpprettSak --> e_SakOpprettet
@@ -139,6 +145,8 @@ flowchart TD
     h_SkrivSaksloggForOebsBestillingStatus --> e_SakOppdatert
     h_SkrivSaksloggForRefusjonskrav --> e_SakOppdatert
     h_SkrivSaksloggForSluttrapport --> e_SakOppdatert
+    s_SluttrapportVurderingApi --> e_SluttrapportBekreftet
+    s_SluttrapportVurderingApi --> e_SluttrapportNyInnsendingKrevd
     s_SoknadApi --> e_SoknadInnsendt
     h_TildelBeslutter --> e_SakOppdatert
     h_TildelSaksbehandler --> e_SakOppdatert
@@ -169,6 +177,8 @@ flowchart TD
     e_TilskuddsbrevMottattKildeAltinn --> h_JournalfoerTilskuddsbrevKildeAltinn
     e_VedtakFattet --> h_JournalfoerVedtaksbrevArbeidsgiver
     e_ForelopigVedtakSendtTilBeslutter --> h_LagreForelopigVedtak
+    e_SluttrapportBekreftet --> h_LagreSluttrapportBekreftet
+    e_SluttrapportNyInnsendingKrevd --> h_LagreSluttrapportNyInnsendingKrevd
     e_TilskuddsbrevJournalfoert --> h_LagreTilsagnsData
     e_TilskuddsbrevJournalfoertKildeAltinn --> h_LagreTilsagnsDataKildeAltinn
     e_VedtaksbrevArbeidsgiverJournalfoert --> h_LagreVedtaksbrev

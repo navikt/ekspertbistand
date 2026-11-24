@@ -65,6 +65,7 @@ import no.nav.ekspertbistand.saksbehandling.configureBeslutterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureForelopigVedtakApiV1
 import no.nav.ekspertbistand.saksbehandling.configureKommunefilterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSakDokumentApiV1
+import no.nav.ekspertbistand.saksbehandling.configureSluttrapportVurderingApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
 import no.nav.ekspertbistand.saksbehandling.configureVilkarsvurderingApiV1
@@ -179,6 +180,7 @@ fun main() {
                 configureSakDokumentApiV1()
                 configureVilkarsvurderingApiV1()
                 configureForelopigVedtakApiV1()
+                configureSluttrapportVurderingApiV1()
                 configureBeslutterApiV1()
                 configureKommunefilterApiV1()
                 configureKontoregisterApiV1()

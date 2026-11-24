@@ -596,11 +596,15 @@ fun hentMottatteInnsendinger(sakIder: Collection<UUID>): Map<UUID, MottatteInnse
         .select(RefusjonskravTable.sakId, RefusjonskravTable.opprettet)
         .where { (RefusjonskravTable.sakId inList sakIder) and (RefusjonskravTable.status eq INNSENDING_MOTTATT) }
         .associate { it[RefusjonskravTable.sakId] to it[RefusjonskravTable.opprettet] }
+    // Bare nyeste sluttrapport per sak teller. En eldre rad som ble erstattet før vurdering, står igjen som MOTTATT.
     val sluttrapport = SluttrapportTable
-        .select(SluttrapportTable.sakId, SluttrapportTable.opprettet)
-        .where { (SluttrapportTable.sakId inList sakIder) and (SluttrapportTable.status eq INNSENDING_MOTTATT) }
-        .groupBy({ it[SluttrapportTable.sakId] }, { it[SluttrapportTable.opprettet] })
-        .mapValues { (_, opprettet) -> opprettet.max() }
+        .select(SluttrapportTable.sakId, SluttrapportTable.status, SluttrapportTable.opprettet)
+        .where { SluttrapportTable.sakId inList sakIder }
+        .orderBy(SluttrapportTable.opprettet to SortOrder.DESC, SluttrapportTable.id to SortOrder.DESC)
+        .groupBy { it[SluttrapportTable.sakId] }
+        .mapValues { (_, rader) -> rader.first() }
+        .filterValues { it[SluttrapportTable.status] == INNSENDING_MOTTATT }
+        .mapValues { (_, rad) -> rad[SluttrapportTable.opprettet] }
     return (refusjonskrav.keys + sluttrapport.keys).associateWith {
         MottatteInnsendinger(refusjonskrav = refusjonskrav[it], sluttrapport = sluttrapport[it])
     }

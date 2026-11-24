@@ -10,10 +10,12 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.java.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.select
@@ -37,9 +39,15 @@ object SluttrapportTable : Table("sluttrapport") {
     val sakId = javaUUID("sak_id")
     val status = text("status")
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
+    val vurdertAvIdent = text("vurdert_av_ident").nullable()
+    val vurdertTidspunkt = timestamp("vurdert_tidspunkt").nullable()
+    val begrunnelse = text("begrunnelse").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }
+
+/** Status på én sluttrapport-innsending. `IKKE_MOTTATT` lagres ikke: saken har da ingen rad. */
+enum class SluttrapportStatus { MOTTATT, BEKREFTET, NY_INNSENDING_KREVES }
 
 class VedleggDb(private val database: Database) {
 
@@ -66,8 +74,13 @@ class VedleggDb(private val database: Database) {
     /** Henter metadata for sluttrapporten til nyeste parent for saken, uten å lese filinnholdet. */
     @OptIn(kotlin.time.ExperimentalTime::class)
     fun finnSluttrapportMetadataForSak(sakId: UUID): SluttrapportMetadata? = transaction(database) {
-        val sluttrapportId = SluttrapportTable
-            .select(SluttrapportTable.id)
+        val sluttrapport = SluttrapportTable
+            .select(
+                SluttrapportTable.id,
+                SluttrapportTable.status,
+                SluttrapportTable.vurdertTidspunkt,
+                SluttrapportTable.begrunnelse,
+            )
             .where { SluttrapportTable.sakId eq sakId }
             .orderBy(
                 SluttrapportTable.opprettet to SortOrder.DESC,
@@ -75,8 +88,8 @@ class VedleggDb(private val database: Database) {
             )
             .limit(1)
             .singleOrNull()
-            ?.get(SluttrapportTable.id)
             ?: return@transaction null
+        val sluttrapportId = sluttrapport[SluttrapportTable.id]
 
         VedleggTable
             .select(VedleggTable.filnavn, VedleggTable.storrelse, VedleggTable.lastetOpp)
@@ -92,9 +105,13 @@ class VedleggDb(private val database: Database) {
             .singleOrNull()
             ?.let {
                 SluttrapportMetadata(
+                    sluttrapportId = sluttrapportId,
                     filnavn = it[VedleggTable.filnavn],
                     storrelse = it[VedleggTable.storrelse],
                     lastetOpp = it[VedleggTable.lastetOpp].toString(),
+                    status = SluttrapportStatus.valueOf(sluttrapport[SluttrapportTable.status]),
+                    vurdertTidspunkt = sluttrapport[SluttrapportTable.vurdertTidspunkt]?.toString(),
+                    begrunnelse = sluttrapport[SluttrapportTable.begrunnelse],
                 )
             }
     }
@@ -144,11 +161,12 @@ internal fun JdbcTransaction.registrerSluttrapport(
     filnavn: String,
     innhold: ByteArray,
 ): UUID {
+    slettFilerForEldreSluttrapporter(sakId)
     val sluttrapport = SluttrapportTable.insertReturning(
         listOf(SluttrapportTable.id, SluttrapportTable.opprettet)
     ) {
         it[SluttrapportTable.sakId] = sakId
-        it[status] = "MOTTATT"
+        it[status] = SluttrapportStatus.MOTTATT.name
     }.single()
     val sluttrapportId = sluttrapport[SluttrapportTable.id]
     val opprettet = sluttrapport[SluttrapportTable.opprettet]
@@ -181,10 +199,35 @@ internal fun JdbcTransaction.registrerSluttrapport(
     return vedleggId
 }
 
+/**
+ * Sletter filene til sakens sluttrapporter med status [SluttrapportStatus.NY_INNSENDING_KREVES].
+ * Radene i `sluttrapport` beholdes med status, vurdering og begrunnelse. Arbeidsgiver kan ha lastet
+ * opp feil personopplysninger, og en erstattet fil trengs ikke lenger. Filer til mottatte og
+ * bekreftede sluttrapporter slettes aldri. Hendelsene har bare metadata om filen, ikke innholdet.
+ * Se `specifications/vurdering_sluttrapport.md`.
+ */
+private fun slettFilerForEldreSluttrapporter(sakId: UUID) {
+    val eldre = SluttrapportTable
+        .select(SluttrapportTable.id)
+        .where {
+            (SluttrapportTable.sakId eq sakId) and
+                (SluttrapportTable.status eq SluttrapportStatus.NY_INNSENDING_KREVES.name)
+        }
+        .map { it[SluttrapportTable.id] }
+    if (eldre.isEmpty()) return
+    VedleggTable.deleteWhere {
+        (VedleggTable.sluttrapportId inList eldre) and (VedleggTable.type eq VedleggType.SLUTTRAPPORT.name)
+    }
+}
+
 data class SluttrapportMetadata(
+    val sluttrapportId: UUID,
     val filnavn: String,
     val storrelse: Int,
     val lastetOpp: String,
+    val status: SluttrapportStatus,
+    val vurdertTidspunkt: String?,
+    val begrunnelse: String?,
 )
 
 data class SluttrapportInnhold(val filnavn: String, val innhold: ByteArray)

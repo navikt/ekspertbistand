@@ -452,6 +452,58 @@ sealed interface EventData {
     }
 
     /**
+     * Saksbehandler har bekreftet en mottatt sluttrapport.
+     *
+     * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/sluttrapport/{sluttrapportId}/vurdering`
+     * når sluttrapporten er nyeste innsending og har status `MOTTATT`. [vurdertAvIdent] er en
+     * Nav-ansatt og skal ikke logges utenfor teamLog. Se `specifications/vurdering_sluttrapport.md`.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [no.nav.ekspertbistand.event.handlers.LagreSluttrapportBekreftet].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("sluttrapportBekreftet")
+    data class SluttrapportBekreftet(
+        val sluttrapportId: String,
+        val sakId: String,
+        val soknadId: String,
+        val vurdertAvIdent: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Saksbehandler krever at arbeidsgiver sender inn sluttrapporten på nytt.
+     *
+     * Publiseres av samme endepunkt som [SluttrapportBekreftet]. [begrunnelse] er fritekst til
+     * arbeidsgiver og skal ikke logges. Se `specifications/vurdering_sluttrapport.md`.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [no.nav.ekspertbistand.event.handlers.LagreSluttrapportNyInnsendingKrevd].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("sluttrapportNyInnsendingKrevd")
+    data class SluttrapportNyInnsendingKrevd(
+        val sluttrapportId: String,
+        val sakId: String,
+        val soknadId: String,
+        val vurdertAvIdent: String,
+        val begrunnelse: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        init {
+            require(begrunnelse.isNotBlank()) { "begrunnelse kan ikke være blank" }
+        }
+
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
      * Saksbehandler har tildelt seg en sak, enten en ledig sak eller ved å overta den fra en kollega.
      *
      * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/tildeling`. [saksbehandlerNavn]
@@ -947,6 +999,8 @@ suspend fun Application.configureEventHandlers() {
         }
         register(dependencies.create(SkrivSaksloggForRefusjonskrav::class))
         register(dependencies.create(SkrivSaksloggForSluttrapport::class))
+        register(dependencies.create(LagreSluttrapportBekreftet::class))
+        register(dependencies.create(LagreSluttrapportNyInnsendingKrevd::class))
         register(dependencies.create(SkrivSaksloggForOebsBestillingStatus::class))
         register<EventData.OebsFakturaStatusMottatt>("OebsFakturaStatusMottattNoop") { _ ->
             // Faktura er ikke koblet til saksgangen ennå. Eventen ligger i eventloggen til en handler trenger den.

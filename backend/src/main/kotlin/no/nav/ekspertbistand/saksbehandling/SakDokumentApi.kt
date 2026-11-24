@@ -22,7 +22,6 @@ import no.nav.ekspertbistand.refusjon.RefusjonStatusDto
 import no.nav.ekspertbistand.refusjon.RefusjonVedleggDto
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
-import no.nav.ekspertbistand.vedlegg.SluttrapportStatusDto
 import no.nav.ekspertbistand.vedlegg.VedleggDb
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -69,10 +68,14 @@ suspend fun Application.configureSakDokumentApiV1() {
                     call.utenMellomlagring()
                     dokumentHentet("sluttrapport", "metadata")
                     call.respond(
-                        SluttrapportStatusDto(
+                        SaksbehandlingSluttrapportDto(
+                            sluttrapportId = metadata.sluttrapportId.toString(),
                             filnavn = metadata.filnavn,
                             opprettet = metadata.lastetOpp,
                             storrelse = metadata.storrelse,
+                            status = metadata.status,
+                            vurdertTidspunkt = metadata.vurdertTidspunkt,
+                            begrunnelse = metadata.begrunnelse,
                         )
                     )
                 }
