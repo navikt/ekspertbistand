@@ -10,6 +10,7 @@ import no.nav.ekspertbistand.saksbehandling.AktorRolle
 import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.hentMottatteInnsendinger
+import no.nav.ekspertbistand.vedlegg.SluttrapportKanIkkeSendesInnException
 import no.nav.ekspertbistand.vedlegg.SluttrapportStatus
 import no.nav.ekspertbistand.vedlegg.SluttrapportTable
 import no.nav.ekspertbistand.vedlegg.VedleggTable
@@ -17,14 +18,17 @@ import no.nav.ekspertbistand.vedlegg.registrerSluttrapport
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
 import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -170,17 +174,17 @@ class LagreSluttrapportVurderingTest {
     }
 
     @Test
-    fun `ny opplasting sletter ikke filen til mottatt eller bekreftet sluttrapport`() = testApplicationWithDatabase {
+    fun `ny opplasting avvises når nyeste sluttrapport er mottatt eller bekreftet`() = testApplicationWithDatabase {
         val database = it.config.jdbcDatabase
-        val (sak, bekreftetRapport) = lagreSakMedSluttrapport(database)
-        LagreSluttrapportBekreftet(database).handle(Event(1L, bekreftet(sak, bekreftetRapport)))
-        val mottatt = lagreSluttrapport(database, sak, filnavn = "andre.pdf")
+        val (sak, forste) = lagreSakMedSluttrapport(database)
 
-        lagreSluttrapport(database, sak, filnavn = "tredje.pdf")
+        assertFailsWith<SluttrapportKanIkkeSendesInnException> { lagreSluttrapport(database, sak, filnavn = "andre.pdf") }
+        LagreSluttrapportBekreftet(database).handle(Event(1L, bekreftet(sak, forste)))
+        assertFailsWith<SluttrapportKanIkkeSendesInnException> { lagreSluttrapport(database, sak, filnavn = "tredje.pdf") }
 
         transaction(database) {
-            assertEquals(1, VedleggTable.selectAll().where { VedleggTable.sluttrapportId eq bekreftetRapport }.count())
-            assertEquals(1, VedleggTable.selectAll().where { VedleggTable.sluttrapportId eq mottatt }.count())
+            assertEquals(1, SluttrapportTable.selectAll().where { SluttrapportTable.sakId eq sak.sakId }.count())
+            assertEquals(1, VedleggTable.selectAll().where { VedleggTable.sluttrapportId eq forste }.count())
         }
     }
 
@@ -188,8 +192,18 @@ class LagreSluttrapportVurderingTest {
     fun `oppgaven forsvinner når nyeste sluttrapport er vurdert, også om en eldre står som mottatt`() =
         testApplicationWithDatabase {
             val database = it.config.jdbcDatabase
-            val (sak, _) = lagreSakMedSluttrapport(database)
+            val sak = lagreSoknadOgSak(database)
+            settStatus(database, sak, Saksstatus.INNVILGET)
             val nyeste = lagreSluttrapport(database, sak, filnavn = "nyeste.pdf")
+            // Før vakten på opplasting kunne en sak få flere sluttrapporter med status MOTTATT.
+            transaction(database) {
+                val nyesteOpprettet = hentSluttrapport(database, nyeste)[SluttrapportTable.opprettet]
+                SluttrapportTable.insert {
+                    it[sakId] = sak.sakId
+                    it[status] = SluttrapportStatus.MOTTATT.name
+                    it[opprettet] = nyesteOpprettet - 1.hours
+                }
+            }
             assertTrue(transaction(database) { hentMottatteInnsendinger(listOf(sak.sakId)) }[sak.sakId]?.sluttrapport != null)
 
             LagreSluttrapportBekreftet(database).handle(Event(1L, bekreftet(sak, nyeste)))

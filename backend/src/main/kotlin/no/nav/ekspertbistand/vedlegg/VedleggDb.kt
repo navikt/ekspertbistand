@@ -161,6 +161,7 @@ internal fun JdbcTransaction.registrerSluttrapport(
     filnavn: String,
     innhold: ByteArray,
 ): UUID {
+    if (!kanSendeInnSluttrapport(sakId)) throw SluttrapportKanIkkeSendesInnException()
     slettFilerForEldreSluttrapporter(sakId)
     val sluttrapport = SluttrapportTable.insertReturning(
         listOf(SluttrapportTable.id, SluttrapportTable.opprettet)
@@ -197,6 +198,25 @@ internal fun JdbcTransaction.registrerSluttrapport(
         )
     )
     return vedleggId
+}
+
+/** Sluttrapporten kan ikke sendes inn fordi nyeste sluttrapport er mottatt eller bekreftet. */
+class SluttrapportKanIkkeSendesInnException : RuntimeException()
+
+/**
+ * Arbeidsgiver kan sende inn sluttrapport når saken ikke har noen, eller når nyeste har status
+ * [SluttrapportStatus.NY_INNSENDING_KREVES]. Må kalles i en transaksjon. Kalt fra
+ * [registrerSluttrapport] må sak-raden være låst, så to samtidige innsendinger ikke begge slipper gjennom.
+ */
+fun JdbcTransaction.kanSendeInnSluttrapport(sakId: UUID): Boolean {
+    val nyesteStatus = SluttrapportTable
+        .select(SluttrapportTable.status)
+        .where { SluttrapportTable.sakId eq sakId }
+        .orderBy(SluttrapportTable.opprettet to SortOrder.DESC, SluttrapportTable.id to SortOrder.DESC)
+        .limit(1)
+        .singleOrNull()
+        ?.get(SluttrapportTable.status)
+    return nyesteStatus == null || nyesteStatus == SluttrapportStatus.NY_INNSENDING_KREVES.name
 }
 
 /**

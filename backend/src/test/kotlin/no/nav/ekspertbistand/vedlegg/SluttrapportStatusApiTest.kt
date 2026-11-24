@@ -22,12 +22,14 @@ import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.nesteSaksnummer
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -229,6 +231,37 @@ class SluttrapportStatusApiTest {
                 assertTrue(SluttrapportTable.selectAll().empty())
                 assertTrue(VedleggTable.selectAll().empty())
             }
+        }
+
+    @Test
+    fun `avviser ny sluttrapport til Nav har bedt om ny innsending`() =
+        testApplicationWithDatabase { testDb ->
+            konfigurer(testDb.config.jdbcDatabase, tilgangTil(orgnrMedTilgang))
+            val db = testDb.config.jdbcDatabase
+            val soknadId = UUID.randomUUID()
+            val sakId = transaction(db) { insertDummySoknad(soknadId, orgnrMedTilgang) }
+            fun lagre(filnavn: String) = VedleggDb(db).lagreSluttrapport(
+                soknadId = soknadId,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
+                filnavn = filnavn,
+                innhold = "A".toByteArray(),
+            )
+            lagre("forste.pdf")
+
+            assertFailsWith<SluttrapportKanIkkeSendesInnException> { lagre("andre.pdf") }
+            with(client.post("/api/soknad/v1/$soknadId/sluttrapport") { bearerAuth("faketoken") }) {
+                assertEquals(HttpStatusCode.Conflict, status)
+            }
+            transaction(db) {
+                assertEquals(1, SluttrapportTable.selectAll().count())
+                SluttrapportTable.update({ SluttrapportTable.sakId eq sakId }) {
+                    it[status] = SluttrapportStatus.NY_INNSENDING_KREVES.name
+                }
+            }
+
+            lagre("ny.pdf")
+            transaction(db) { assertEquals(2, SluttrapportTable.selectAll().count()) }
         }
 }
 

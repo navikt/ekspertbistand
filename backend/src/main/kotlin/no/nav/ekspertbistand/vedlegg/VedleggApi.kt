@@ -13,6 +13,7 @@ import no.nav.ekspertbistand.saksbehandling.SakKildeArenaException
 import no.nav.ekspertbistand.saksbehandling.SoknadIkkeFunnetException
 import no.nav.ekspertbistand.saksbehandling.SoknadIkkeGodkjentException
 import no.nav.ekspertbistand.saksbehandling.hentKildeForSoknad
+import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.innloggetBruker
@@ -25,6 +26,8 @@ import java.util.UUID
 private const val MAKS_FIL_STORRELSE_BYTES = 10 * 1024 * 1024
 private const val MAKS_ANTALL_FILER = 1
 private const val ARENA_MELDING = "Sluttrapport for denne saken sendes ikke inn her"
+private const val SLUTTRAPPORT_ALLEREDE_SENDT_MELDING =
+    "Sluttrapporten er allerede sendt inn. Du kan bare sende inn på nytt når Nav ber om det."
 
 private val vedleggLastetOppCounter = Metrics.meterRegistry.counter(
     "vedlegg_lastet_opp_total",
@@ -64,6 +67,15 @@ class VedleggApi(
         // Tidlig sjekk før filen leses og skannes. lagreSluttrapport kontrollerer på nytt under lås.
         if (transaction(database) { hentKildeForSoknad(soknadId) } == KildeTilBehandling.ARENA) {
             call.respond(HttpStatusCode.Conflict, ARENA_MELDING)
+            return
+        }
+
+        // Tidlig sjekk før filen leses og skannes. registrerSluttrapport kontrollerer på nytt under lås.
+        val kanSendeInn = transaction(database) {
+            hentSakIdForSoknad(soknadId)?.let { kanSendeInnSluttrapport(it) } ?: true
+        }
+        if (!kanSendeInn) {
+            call.respond(HttpStatusCode.Conflict, SLUTTRAPPORT_ALLEREDE_SENDT_MELDING)
             return
         }
 
@@ -137,6 +149,9 @@ class VedleggApi(
             return
         } catch (_: SakKildeArenaException) {
             call.respond(HttpStatusCode.Conflict, ARENA_MELDING)
+            return
+        } catch (_: SluttrapportKanIkkeSendesInnException) {
+            call.respond(HttpStatusCode.Conflict, SLUTTRAPPORT_ALLEREDE_SENDT_MELDING)
             return
         }
 

@@ -93,6 +93,18 @@ begrunnelse.
 Oppgaven i oversikten forsvinner av seg selv, fordi den filtrerer på
 `status = 'MOTTATT'`.
 
+### Opplasting fra arbeidsgiver
+
+`POST /api/soknad/v1/{soknadId}/sluttrapport` tar bare imot en sluttrapport når
+saken ikke har noen, eller når nyeste har status `NY_INNSENDING_KREVES`. Ellers
+svarer ruten 409, og ingenting lagres.
+
+- Ruten sjekker før den leser filen, så arbeidsgiver får svar uten å vente på
+  virusskanning.
+- `registrerSluttrapport` sjekker på nytt på den låste sakraden. Den sjekken
+  hindrer at to samtidige opplastinger, eller en opplasting og en vurdering,
+  begge slipper gjennom.
+
 ### Sletting av erstattet fil
 
 Når arbeidsgiver laster opp en ny sluttrapport, slettes filene til sakens
@@ -120,6 +132,7 @@ Oppgavelista teller bare nyeste sluttrapport per sak.
 | Jonas, 2026-11-24 | `IKKE_MOTTATT` utledes av at raden mangler. Radene opprettes ikke når vedtaket fattes. |
 | Jonas, 2026-11-24 | Sluttrapporten vurderes uten beslutter. |
 | Jonas, 2026-11-24 | Ved ny opplasting slettes filen til sluttrapporter med status `NY_INNSENDING_KREVES`. Raden med status og begrunnelse beholdes. |
+| Jonas, 2026-11-24 | Arbeidsgiver kan bare laste opp sluttrapport når saken ikke har noen, eller når nyeste har status `NY_INNSENDING_KREVES`. |
 
 Valg i spesifikasjonen:
 
@@ -135,6 +148,3 @@ Valg i spesifikasjonen:
   fra v2. Kommer i neste steg, sammen med varsel.
 - Behandling av refusjonskrav og vakten mot sluttrapporten.
 - Journalføring av sluttrapport.
-- Opplastingen sjekker ikke sluttrapportens status. Arbeidsgiver kan i dag laste
-  opp etter `BEKREFTET`. Neste steg skal bare tillate ny opplasting når nyeste
-  sluttrapport har status `NY_INNSENDING_KREVES`, og ellers svare 409.

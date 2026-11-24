@@ -34,6 +34,7 @@ import no.nav.ekspertbistand.sak.lagreSoknadOgSak
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import no.nav.ekspertbistand.vedlegg.SluttrapportStatus
+import no.nav.ekspertbistand.vedlegg.SluttrapportTable
 import no.nav.ekspertbistand.vedlegg.VedleggDb
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -211,6 +212,7 @@ class SakDokumentApiTest {
                 filnavn = "eldre-sluttrapport.pdf",
                 innhold = sluttrapportPdf,
             )
+            krevNySluttrapport(db, sak.sakId)
             Thread.sleep(20)
             vedleggDb.lagreSluttrapport(
                 soknadId = sak.soknadId,
@@ -727,5 +729,11 @@ class SakDokumentApiTest {
         assertTrue(contentDisposition.startsWith("$disposition;", ignoreCase = true))
         assertTrue(contentDisposition.contains(filnavn))
         assertTrue(response.bodyAsBytes().contentEquals(forventetInnhold))
+    }
+
+    private fun krevNySluttrapport(db: TestDatabase, sakId: UUID) = transaction(db.config.jdbcDatabase) {
+        SluttrapportTable.update({ SluttrapportTable.sakId eq sakId }) {
+            it[status] = SluttrapportStatus.NY_INNSENDING_KREVES.name
+        }
     }
 }

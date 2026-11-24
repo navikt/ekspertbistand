@@ -20,6 +20,7 @@ import no.nav.ekspertbistand.saksbehandling.SakTable
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.SaksloggTable
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.vedlegg.SluttrapportStatus
 import no.nav.ekspertbistand.vedlegg.SluttrapportTable
 import no.nav.ekspertbistand.vedlegg.VedleggDb
 import no.nav.ekspertbistand.vedlegg.VedleggTable
@@ -127,6 +128,11 @@ class InnsendingHendelserTest {
             filnavn = "sluttrapport-1.pdf",
             innhold = "PDF-1".toByteArray(),
         )
+        transaction(db) {
+            SluttrapportTable.update({ SluttrapportTable.sakId eq sak.sakId }) {
+                it[status] = SluttrapportStatus.NY_INNSENDING_KREVES.name
+            }
+        }
         val vedleggId2 = vedleggDb.lagreSluttrapport(
             soknadId = sak.soknadId,
             virksomhetsnummer = VIRKSOMHETSNUMMER,
@@ -154,8 +160,13 @@ class InnsendingHendelserTest {
             reportsReceived.map { it.sluttrapportId }.toSet(),
         )
         assertEquals(
-            setOf(vedleggId1.toString(), vedleggId2.toString()),
+            setOf(vedleggId2.toString()),
             attachments.values.map { it.vedleggId }.toSet(),
+            "filen til sluttrapporten med ny innsending kreves slettes ved ny opplasting",
+        )
+        assertEquals(
+            setOf(vedleggId1.toString(), vedleggId2.toString()),
+            reportsReceived.map { it.vedlegg.vedleggId }.toSet(),
         )
         reportsReceived.forEach { event ->
             assertEquals(sak.sakId.toString(), event.sakId)
@@ -165,7 +176,7 @@ class InnsendingHendelserTest {
 
             val report = reports.single { it[SluttrapportTable.id].toString() == event.sluttrapportId }
             assertEquals(report[SluttrapportTable.opprettet], event.tidspunkt)
-            assertEquals(attachments.getValue(report[SluttrapportTable.id]), event.vedlegg)
+            attachments[report[SluttrapportTable.id]]?.let { assertEquals(it, event.vedlegg) }
         }
         assertEquals(2, events.size)
         assertEquals(List(2) { sak.soknadId.toString() }, aggregateRootIds)
