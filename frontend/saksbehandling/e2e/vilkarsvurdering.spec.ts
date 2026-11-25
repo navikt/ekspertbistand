@@ -99,7 +99,7 @@ test.describe("låst vilkårsvurdering", () => {
   for (const [nummer, beskrivelse] of [
     ["2001", "ny sak uten saksbehandler"],
     ["2003", "egen sak til beslutning"],
-    ["2004", "kollegas sak under behandling"],
+    ["2009", "kollegas sak under behandling"],
     ["2006", "innvilget sak"],
     ["2007", "avslått sak"],
     ["2014", "sak der jeg er beslutter"],
@@ -154,10 +154,10 @@ test.describe("låst vilkårsvurdering", () => {
   });
 
   test("overtakelse som saksbehandler gir redigeringstilgang", async ({ page }) => {
-    await openVilkårsvurdering(page, "2004");
+    await openVilkårsvurdering(page, "2009");
     await expect(redigeringsknapper(page)).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Meny" }).click();
+    await page.getByRole("main").getByRole("button", { name: "Meny" }).click();
     await page.getByRole("menuitem", { name: "Overta som saksbehandler" }).click();
 
     await expect(
