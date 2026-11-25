@@ -7,6 +7,7 @@ import {
   Detail,
   HStack,
   Label,
+  Link,
   Tag,
   Textarea,
   VStack,
@@ -45,6 +46,19 @@ function StatusTag({ status }: { status: Vilkår["vurdering"]["status"] }) {
     <Tag variant="outline" data-color="neutral" size="small">
       Ikke vurdert
     </Tag>
+  );
+}
+
+function Beskrivelse({ beskrivelse, lenke }: Pick<Vilkår, "beskrivelse" | "lenke">) {
+  const indeks = lenke ? beskrivelse.indexOf(lenke.tekst) : -1;
+  if (!lenke || indeks < 0) return <BodyShort>{beskrivelse}</BodyShort>;
+
+  return (
+    <BodyShort>
+      {beskrivelse.slice(0, indeks)}
+      <Link href={lenke.href}>{lenke.tekst}</Link>
+      {beskrivelse.slice(indeks + lenke.tekst.length)}
+    </BodyShort>
   );
 }
 
@@ -98,7 +112,7 @@ function VilkårInnhold({ vilkår, isSaving, error, onLagre, kanRedigere }: Prop
 
   return (
     <VStack gap="space-16">
-      <BodyShort>{vilkår.beskrivelse}</BodyShort>
+      <Beskrivelse beskrivelse={vilkår.beskrivelse} lenke={vilkår.lenke} />
 
       {(erVurdert || !kanRedigere) && !viserRedigering && (
         <HStack gap="space-8" wrap>

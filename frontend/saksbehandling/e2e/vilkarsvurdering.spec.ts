@@ -189,3 +189,95 @@ test.describe("låsing under redigering", () => {
     });
   }
 });
+
+const nyeVilkår = [
+  {
+    tittel: "Andre arbeidsmarkedstiltak",
+    beskrivelse: "Deltaker deltar ikke i andre arbeidsmarkedstiltak.",
+  },
+  {
+    tittel: "Tidligere ekspertbistand",
+    beskrivelse:
+      "Deltaker har ikke tidligere mottatt tilskudd til ekspertbistand for samme problemstilling.",
+  },
+  {
+    tittel: "Innholdet i ekspertbistanden",
+    beskrivelse: "Innholdet i ekspertbistanden følger §§ 3 og 4 i forskriften.",
+  },
+];
+
+test.describe("nye vilkår", () => {
+  test("de tre nye vilkårene vises sist, ikke vurdert, med tekst", async ({ page }) => {
+    await openVilkårsvurdering(page, "2002");
+
+    const titler = await page
+      .getByRole("tabpanel")
+      .locator(".aksel-accordion__item")
+      .getByRole("button", { expanded: true })
+      .allInnerTexts();
+    expect(titler.slice(-3)).toEqual(nyeVilkår.map((v) => v.tittel));
+
+    for (const { tittel, beskrivelse } of nyeVilkår) {
+      const item = vilkårItem(page, tittel);
+      await expect(item.getByText(beskrivelse)).toBeVisible();
+      await expect(item.getByRole("button", { name: "Vurder" })).toBeVisible();
+    }
+  });
+
+  test("forskriftsvilkåret lenker til §§ 3 og 4 i forskriften", async ({ page }) => {
+    await openVilkårsvurdering(page, "2002");
+
+    await expect(
+      vilkårItem(page, "Innholdet i ekspertbistanden").getByRole("link", {
+        name: "§§ 3 og 4 i forskriften",
+      })
+    ).toHaveAttribute("href", "https://lovdata.no/forskrift/2019-08-29-1105/%C2%A73");
+  });
+
+  for (const knapp of ["Oppfylt", "Ikke oppfylt"]) {
+    test(`nytt vilkår kan vurderes som «${knapp}» med begrunnelse`, async ({ page }) => {
+      await openVilkårsvurdering(page, "2002");
+      const item = vilkårItem(page, "Tidligere ekspertbistand");
+
+      await item.getByRole("button", { name: "Vurder" }).click();
+      await item.getByLabel("Begrunnelse").fill("Sjekket i Arena");
+      await item.getByRole("button", { name: knapp, exact: true }).click();
+
+      await expect(item.getByText(knapp, { exact: true })).toBeVisible();
+      await expect(item.getByText("Sjekket i Arena")).toBeVisible();
+      await expect(item.getByText(/Vurdert av/)).toBeVisible();
+    });
+  }
+
+  test("foreløpig vedtak er sperret til alle åtte vilkår er vurdert", async ({ page }) => {
+    await openVilkårsvurdering(page, "2002");
+    const sperre = page.getByText("Alle vilkår må vurderes før du kan fatte foreløpig vedtak.");
+
+    await page.getByRole("tab", { name: "Foreløpig vedtak" }).click();
+    await expect(sperre).toBeVisible();
+
+    await page.getByRole("tab", { name: "Vilkårsvurdering" }).click();
+    const vurder = page.getByRole("tabpanel").getByRole("button", { name: "Vurder" });
+    await expect(vurder).toHaveCount(6);
+    while ((await vurder.count()) > 0) {
+      const antall = await vurder.count();
+      await vurder.first().click();
+      await page.getByRole("button", { name: "Oppfylt", exact: true }).click();
+      await expect(vurder).toHaveCount(antall - 1);
+    }
+
+    await page.getByRole("tab", { name: "Foreløpig vedtak" }).click();
+    await expect(sperre).toHaveCount(0);
+  });
+
+  test("beslutter ser de nye vilkårene låst", async ({ page }) => {
+    await openVilkårsvurdering(page, "2014");
+
+    for (const { tittel, beskrivelse } of nyeVilkår) {
+      const item = vilkårItem(page, tittel);
+      await expect(item.getByText(beskrivelse)).toBeVisible();
+      await expect(item.getByText("Ikke vurdert", { exact: true })).toBeVisible();
+    }
+    await expect(redigeringsknapper(page)).toHaveCount(0);
+  });
+});

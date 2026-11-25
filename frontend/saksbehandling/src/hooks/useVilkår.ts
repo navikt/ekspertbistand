@@ -8,7 +8,10 @@ export type VilkarId =
   | "FYLLES_UT_I_SAMRAD_GODKJENT"
   | "ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING"
   | "DELTAKER_HAR_SYKEFRAVAERSHISTORIKK"
-  | "EKSPERT_HAR_KOMPETANSE";
+  | "EKSPERT_HAR_KOMPETANSE"
+  | "DELTAKER_DELTAR_IKKE_I_ANDRE_ARBEIDSMARKEDSTILTAK"
+  | "DELTAKER_HAR_IKKE_MOTTATT_EKSPERTBISTAND"
+  | "EKSPERTBISTAND_FOLGER_FORSKRIFTEN";
 
 /** Speiler `VilkarsvurderingDTO` i backend. `godkjent = null` betyr ikke vurdert. */
 export type VilkarsvurderingDTO = {
@@ -30,14 +33,19 @@ export type Vilkårsvurdering = {
   vurdertTidspunkt?: string;
 };
 
-export type Vilkår = {
-  id: VilkarId;
+export type Vilkårstekst = {
   tittel: string;
   beskrivelse: string;
+  /** `tekst` må finnes i `beskrivelse`, og vises som lenke der. */
+  lenke?: { tekst: string; href: string };
+};
+
+export type Vilkår = Vilkårstekst & {
+  id: VilkarId;
   vurdering: Vilkårsvurdering;
 };
 
-export const VILKAR_TEKSTER: Record<VilkarId, { tittel: string; beskrivelse: string }> = {
+export const VILKAR_TEKSTER: Record<VilkarId, Vilkårstekst> = {
   DELTAKER_HAR_ARBEIDSFORHOLD: {
     tittel: "Arbeidsforhold",
     beskrivelse:
@@ -61,6 +69,23 @@ export const VILKAR_TEKSTER: Record<VilkarId, { tittel: string; beskrivelse: str
   EKSPERT_HAR_KOMPETANSE: {
     tittel: "Ekspertens kompetanse og uavhengighet",
     beskrivelse: "Må ha offentlig godkjent utdanning og relevant arbeidsrelatert kompetanse.",
+  },
+  DELTAKER_DELTAR_IKKE_I_ANDRE_ARBEIDSMARKEDSTILTAK: {
+    tittel: "Andre arbeidsmarkedstiltak",
+    beskrivelse: "Deltaker deltar ikke i andre arbeidsmarkedstiltak.",
+  },
+  DELTAKER_HAR_IKKE_MOTTATT_EKSPERTBISTAND: {
+    tittel: "Tidligere ekspertbistand",
+    beskrivelse:
+      "Deltaker har ikke tidligere mottatt tilskudd til ekspertbistand for samme problemstilling.",
+  },
+  EKSPERTBISTAND_FOLGER_FORSKRIFTEN: {
+    tittel: "Innholdet i ekspertbistanden",
+    beskrivelse: "Innholdet i ekspertbistanden følger §§ 3 og 4 i forskriften.",
+    lenke: {
+      tekst: "§§ 3 og 4 i forskriften",
+      href: "https://lovdata.no/forskrift/2019-08-29-1105/%C2%A73",
+    },
   },
 };
 
