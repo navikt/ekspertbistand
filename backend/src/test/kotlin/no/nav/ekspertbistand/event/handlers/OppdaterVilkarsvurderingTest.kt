@@ -41,6 +41,7 @@ class OppdaterVilkarsvurderingTest {
         notat: String? = "Bekreftet",
         ident: String = "Z123456",
         tidspunkt: Instant = this.tidspunkt,
+        vilkar: Vilkar = this.vilkar,
     ) = EventData.VilkarsvurderingOppdatert(
         sakId = sak.sakId.toString(),
         soknadId = sak.soknadId.toString(),
@@ -75,6 +76,30 @@ class OppdaterVilkarsvurderingTest {
                 .all { v -> hentVilkar(database, sak, v)[SaksvilkarTable.vurdertAvIdent] == null },
             "andre vilkår skal ikke endres",
         )
+    }
+
+    @Test
+    fun `lagrer vurdering av hvert av de nye vilkårene`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val sak = lagreSakUnderBehandling(database)
+        val nyeVilkar = listOf(
+            Vilkar.DELTAKER_DELTAR_IKKE_I_ANDRE_ARBEIDSMARKEDSTILTAK,
+            Vilkar.DELTAKER_HAR_IKKE_MOTTATT_EKSPERTBISTAND,
+            Vilkar.EKSPERTBISTAND_FOLGER_FORSKRIFTEN,
+        )
+        val handler = OppdaterVilkarsvurdering(database)
+
+        nyeVilkar.forEachIndexed { i, v ->
+            val resultat = handler.handle(Event(i + 1L, vurdert(sak, godkjent = false, notat = "Notat $i", vilkar = v)))
+            assertIs<EventHandledResult.Success>(resultat)
+        }
+
+        nyeVilkar.forEachIndexed { i, v ->
+            val rad = hentVilkar(database, sak, v)
+            assertEquals(false, rad[SaksvilkarTable.godkjent])
+            assertEquals("Notat $i", rad[SaksvilkarTable.notat])
+            assertEquals("Z123456", rad[SaksvilkarTable.vurdertAvIdent])
+        }
     }
 
     @Test

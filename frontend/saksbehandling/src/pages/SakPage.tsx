@@ -398,16 +398,20 @@ export default function SakPage() {
     error: vilkårError,
     isLoading: vilkårLaster,
   } = useVilkår(erArenaSak ? undefined : sakId);
-  const { lagreVurdering, isSaving, error: lagreError } = useVilkårsvurdering(sakId ?? "");
+  const innloggetAnsatt = useInnloggetAnsatt();
+  const kanRedigereVilkår =
+    sak?.status === "UNDER_BEHANDLING" &&
+    !!innloggetAnsatt &&
+    sak.saksbehandlerIdent === innloggetAnsatt.id;
+  const {
+    lagreVurdering,
+    isSaving,
+    error: lagreError,
+  } = useVilkårsvurdering(sakId ?? "", kanRedigereVilkår);
   const [tildelingError, setTildelingError] = useState<Error | null>(null);
   const forelopigVedtak = useForelopigVedtak(sakId ?? "");
   const beslutning = useBeslutning(sakId ?? "");
-  const innloggetAnsatt = useInnloggetAnsatt();
-  const { oppsett: forelopigVedtakOppsett } = useForelopigVedtakOppsett(
-    sak?.status === "UNDER_BEHANDLING" &&
-      !!innloggetAnsatt &&
-      sak.saksbehandlerIdent === innloggetAnsatt.id
-  );
+  const { oppsett: forelopigVedtakOppsett } = useForelopigVedtakOppsett(kanRedigereVilkår);
   const kostnadssteder = forelopigVedtakOppsett?.kostnadssteder;
   const [valgtFane, setValgtFane] = useState<{ sakId: string; fane: Fane } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -703,6 +707,7 @@ export default function SakPage() {
                                   isSaving={isSaving}
                                   error={lagreError}
                                   onLagre={lagreVurdering}
+                                  kanRedigere={kanRedigereVilkår}
                                 />
                               ))}
                             </Accordion>
