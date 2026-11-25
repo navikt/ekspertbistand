@@ -63,7 +63,7 @@ import no.nav.ekspertbistand.skjerming.SkjermingOppslag
 import no.nav.ekspertbistand.refusjon.configureRefusjonApiV1
 import no.nav.ekspertbistand.saksbehandling.configureBeslutterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureForelopigVedtakApiV1
-import no.nav.ekspertbistand.saksbehandling.configureKommunefilterApiV1
+import no.nav.ekspertbistand.saksbehandling.configureSaksfilterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSakDokumentApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
@@ -180,7 +180,7 @@ fun main() {
                 configureVilkarsvurderingApiV1()
                 configureForelopigVedtakApiV1()
                 configureBeslutterApiV1()
-                configureKommunefilterApiV1()
+                configureSaksfilterApiV1()
                 configureKontoregisterApiV1()
             },
         )

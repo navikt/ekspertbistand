@@ -345,7 +345,7 @@ private suspend fun ApplicationCall.hentSakForTildeling(
 /** En rad i sakslisten. [ansattFnr] brukes til tilgangssjekken og sendes ikke til frontend. */
 internal class SakListeRad(val ansattFnr: String, val sak: SakListeElement)
 
-/** Raden slik den vises uten tilgang til deltakeren: uten navn, arbeidsgiver, kommune og tildeling. */
+/** Raden slik den vises uten tilgang til deltakeren: uten navn, arbeidsgiver, kommune, virksomhetstype og tildeling. */
 private fun SakListeElement.utenDeltaker(deltakerTilgang: DeltakerTilgang?) = copy(
     skjermet = false,
     adressebeskyttelse = null,
@@ -354,6 +354,7 @@ private fun SakListeElement.utenDeltaker(deltakerTilgang: DeltakerTilgang?) = co
     kanTildeleMegSomBeslutter = false,
     kommunenummer = null,
     kommunenavn = null,
+    virksomhetstype = null,
     soknad = soknad.copy(ansattNavn = null, virksomhet = null),
 )
 
@@ -429,6 +430,7 @@ internal fun hentSakerForSaksbehandling(enheter: Set<String>, principal: AzureAd
                 deltakerTilgang = null,
                 kommunenummer = row[SakTable.kommunenummer],
                 kommunenavn = null,
+                virksomhetstype = Virksomhetstype.fraSektorkode(row[SakTable.sektorkode]),
                 mottatt = mottatt.toString(),
                 soknad = SakListeElement.Soknad(
                     soknadId = row[SoknadTable.id].toString(),
@@ -548,6 +550,11 @@ data class SakListeElement(
     val kommunenummer: String?,
     /** Fra kodeverket i Norg. Null når navnet ikke er kjent. */
     val kommunenavn: String?,
+    /**
+     * Arbeidsgivers virksomhetstype, mappet fra sektorkoden på saken. [Virksomhetstype.UKJENT] for eldre saker og
+     * Arena-saker. Null uten tilgang til deltakeren.
+     */
+    val virksomhetstype: Virksomhetstype?,
     /** Når innsendingen bak oppgaven kom, ellers når søknaden kom. Listen sorteres på denne. */
     val mottatt: String,
     val soknad: Soknad,

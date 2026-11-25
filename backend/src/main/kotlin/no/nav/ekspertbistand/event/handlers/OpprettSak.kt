@@ -1,5 +1,6 @@
 package no.nav.ekspertbistand.event.handlers
 
+import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.event.*
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.success
 import no.nav.ekspertbistand.event.EventHandledResult.Companion.transientError
@@ -28,8 +29,8 @@ private const val opprettSakSubtask = "sak_opprettet"
  *
  * Behandlende enhet hentes fra [EventData.InnsendtSoknadJournalfoert] og mappes fra Arena- til
  * Norg-enhetsnummer før saken opprettes med alle vilkår. Før transaksjonen slås deltakerens adressebeskyttelse
- * opp i PDL og skjerming i `skjermede-personer-pip`. Feiler et oppslag, gir handleren transient error, slik at
- * ingen sak opprettes uten flaggene. I samme transaksjon publiseres [EventData.SakOppdatert] for saksloggen og
+ * opp i PDL, skjerming i `skjermede-personer-pip` og arbeidsgivers sektorkode i Ereg. Feiler et oppslag, gir
+ * handleren transient error, slik at ingen sak opprettes uten flaggene. I samme transaksjon publiseres [EventData.SakOppdatert] for saksloggen og
  * [EventData.SakOpprettet]. Idempotent: saken opprettes én gang per søknad, og eventene publiseres én gang per
  * [EventData.InnsendtSoknadJournalfoert].
  */
@@ -38,6 +39,7 @@ class OpprettSak(
     private val database: Database,
     private val graderingOppslag: GraderingOppslag,
     private val skjermingOppslag: SkjermingOppslag,
+    private val eregService: EregService,
 ) : EventHandler<EventData.InnsendtSoknadJournalfoert> {
     override val id: String = "Opprett sak"
     override val eventType: KClass<EventData.InnsendtSoknadJournalfoert> = EventData.InnsendtSoknadJournalfoert::class
@@ -66,6 +68,11 @@ class OpprettSak(
         } catch (e: Exception) {
             return transientError("Feil ved oppslag av skjerming", e)
         }
+        val sektorkode = try {
+            eregService.hentSektorkode(event.data.soknad.virksomhet.virksomhetsnummer)
+        } catch (e: Exception) {
+            return transientError("Feil ved oppslag av sektorkode i Ereg", e)
+        }
 
         val tidspunkt = clock.now()
         val sakId = transaction(database) {
@@ -75,6 +82,7 @@ class OpprettSak(
                 kommunenummer = event.data.virksomhetKommunenummer,
                 adressebeskyttelse = adressebeskyttelse,
                 skjermet = skjermet,
+                sektorkode = sektorkode,
                 tidspunkt = tidspunkt,
             ) ?: return@transaction null
             publishEventQueue(
@@ -93,6 +101,7 @@ class OpprettSak(
                     soknad = event.data.soknad,
                     adressebeskyttelse = adressebeskyttelse,
                     skjermet = skjermet,
+                    sektorkode = sektorkode,
                 )
             )
             idempotencyGuard.guard(event, opprettSakSubtask)
@@ -120,10 +129,10 @@ class OpprettSak(
 
         /**
          * Oppretter sak for søknaden (`OPPRETTET`, kilde `EKSPERTBISTAND`) med [behandlendeEnhet], [kommunenummer],
-         * [adressebeskyttelse], [skjermet], et nytt saksnummer ([nesteSaksnummer]) og alle vilkår, og returnerer `sakId`.
-         * Idempotent på `soknad_id`: finnes saken allerede (for eksempel opprettet av
-         * [no.nav.ekspertbistand.event.projections.SakProjection]), settes enhet, kommune og flagg bare hvis enheten
-         * mangler, og saksnummeret endres ikke. Et nummer fra sekvensen går da tapt, og det gir bare et hull i serien.
+         * [adressebeskyttelse], [skjermet], [sektorkode], et nytt saksnummer ([nesteSaksnummer]) og alle vilkår, og
+         * returnerer `sakId`. Idempotent på `soknad_id`: finnes saken allerede (for eksempel opprettet av
+         * [no.nav.ekspertbistand.event.projections.SakProjection]), settes enhet, kommune, flagg og sektorkode bare hvis
+         * enheten mangler, og saksnummeret endres ikke. Et nummer fra sekvensen går da tapt, og det gir bare et hull i serien.
          * Returnerer null hvis søknaden ikke finnes. Må kalles i en pågående transaksjon.
          */
         fun opprettSakForSoknad(
@@ -132,6 +141,7 @@ class OpprettSak(
             kommunenummer: String?,
             adressebeskyttelse: Adressebeskyttelse?,
             skjermet: Boolean,
+            sektorkode: String?,
             tidspunkt: Instant,
         ): UUID? {
             val soknadFinnes = !SoknadTable.select(SoknadTable.id).where { SoknadTable.id eq soknadId }.empty()
@@ -146,6 +156,7 @@ class OpprettSak(
                 it[SakTable.kommunenummer] = kommunenummer
                 it[SakTable.adressebeskyttelse] = adressebeskyttelse?.name
                 it[SakTable.skjermet] = skjermet
+                it[SakTable.sektorkode] = sektorkode
                 it[opprettet] = tidspunkt
                 it[sistEndret] = tidspunkt
             }
@@ -154,6 +165,7 @@ class OpprettSak(
                 it[SakTable.kommunenummer] = kommunenummer
                 it[SakTable.adressebeskyttelse] = adressebeskyttelse?.name
                 it[SakTable.skjermet] = skjermet
+                it[SakTable.sektorkode] = sektorkode
                 it[sistEndret] = tidspunkt
             }
 

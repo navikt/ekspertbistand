@@ -1,5 +1,15 @@
 package no.nav.ekspertbistand.event.handlers
 
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import kotlinx.serialization.json.Json
+import no.nav.ekspertbistand.ereg.EregClient
+import no.nav.ekspertbistand.ereg.EregService
 import no.nav.ekspertbistand.event.Event
 import no.nav.ekspertbistand.event.EventData
 import no.nav.ekspertbistand.event.EventHandledResult
@@ -40,6 +50,7 @@ class OpprettSakTest {
         assertEquals("4601", sak.kommunenummer)
         assertNull(sak.adressebeskyttelse)
         assertFalse(sak.skjermet)
+        assertEquals("2100", sak.sektorkode)
         assertEquals(Saksstatus.OPPRETTET.name, sak.status)
         assertEquals(KildeTilBehandling.EKSPERTBISTAND.name, sak.kilde)
         assertEquals(
@@ -57,6 +68,7 @@ class OpprettSakTest {
         assertEquals(soknad, opprettet.soknad)
         assertNull(opprettet.adressebeskyttelse)
         assertFalse(opprettet.skjermet)
+        assertEquals("2100", opprettet.sektorkode)
 
         val oppdatert = events.filterIsInstance<EventData.SakOppdatert>().single()
         assertEquals(sak.sakId.toString(), oppdatert.sakId)
@@ -145,12 +157,36 @@ class OpprettSakTest {
         listOf(
             opprettSak(database, graderingOppslag = { throw RuntimeException("PDL er nede") }),
             opprettSak(database, skjermingOppslag = { throw RuntimeException("pip er nede") }),
+            opprettSak(database, eregService = eregService(sektorkode = "2100", status = HttpStatusCode.InternalServerError)),
         ).forEach { handler ->
             assertIs<EventHandledResult.TransientError>(handler.handle(event))
         }
 
         transaction(database) { assertEquals(0, SakTable.selectAll().count()) }
         assertTrue(hentEvents(database).isEmpty())
+    }
+
+    @Test
+    fun `sektorkode Ereg ikke har gir sak uten sektorkode`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val soknad = lagreSoknad(database)
+        val handler = opprettSak(database, eregService = eregService(sektorkode = null))
+
+        assertIs<EventHandledResult.Success>(handler.handle(journalfoert(soknad, behandlendeEnhetId = "4242")))
+
+        assertNull(hentSak(database, soknad).sektorkode)
+        assertNull(hentEvents(database).filterIsInstance<EventData.SakOpprettet>().single().sektorkode)
+    }
+
+    @Test
+    fun `SakOpprettet fra før sektorkode fantes leses med null`() = testApplicationWithDatabase {
+        val soknad = lagreSoknad(it.config.jdbcDatabase)
+        val gammelJson = Json.Default.encodeToString<EventData>(EventData.SakOpprettet(sakId = "1", soknad = soknad))
+        assertTrue("sektorkode" !in gammelJson)
+
+        val data = assertIs<EventData.SakOpprettet>(Json.Default.decodeFromString<EventData>(gammelJson))
+
+        assertNull(data.sektorkode)
     }
 
     @Test
@@ -180,7 +216,23 @@ class OpprettSakTest {
         database: Database,
         graderingOppslag: GraderingOppslag = GraderingOppslag { null },
         skjermingOppslag: SkjermingOppslag = SkjermingOppslag { false },
-    ) = OpprettSak(database, graderingOppslag, skjermingOppslag)
+        eregService: EregService = eregService(sektorkode = "2100"),
+    ) = OpprettSak(database, graderingOppslag, skjermingOppslag, eregService)
+
+    /** Ereg der virksomheten ligger rett under en juridisk enhet med [sektorkode]. Alle kall svarer [status]. */
+    private fun eregService(sektorkode: String?, status: HttpStatusCode = HttpStatusCode.OK): EregService {
+        val juridiskEnhet = "912345678"
+        val engine = MockEngine { request ->
+            val body = if (request.url.parameters["inkluderHierarki"] == "true") {
+                """{"inngaarIJuridiskEnheter":[{"organisasjonsnummer":"$juridiskEnhet"}]}"""
+            } else {
+                val kode = sektorkode?.let { "\"$it\"" } ?: "null"
+                """{"organisasjonsnummer":"$juridiskEnhet","juridiskEnhetDetaljer":{"sektorkode":$kode}}"""
+            }
+            respond(body, status, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
+        }
+        return EregService(EregClient(HttpClient(engine) { expectSuccess = true }))
+    }
 
     private data class LagretSak(
         val sakId: UUID,
@@ -190,6 +242,7 @@ class OpprettSakTest {
         val kommunenummer: String?,
         val adressebeskyttelse: String?,
         val skjermet: Boolean,
+        val sektorkode: String?,
         val saksnummer: String?,
     )
 
@@ -214,6 +267,7 @@ class OpprettSakTest {
                 kommunenummer = it[SakTable.kommunenummer],
                 adressebeskyttelse = it[SakTable.adressebeskyttelse],
                 skjermet = it[SakTable.skjermet],
+                sektorkode = it[SakTable.sektorkode],
                 saksnummer = it[SakTable.saksnummer],
             )
         }
