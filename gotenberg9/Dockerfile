@@ -1,4 +1,4 @@
-FROM gotenberg/gotenberg:9.9.0-chromium
+FROM gotenberg/gotenberg:9.9.3-chromium
 
 USER root
 
