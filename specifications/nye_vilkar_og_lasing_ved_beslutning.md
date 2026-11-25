@@ -48,6 +48,7 @@ Kortene har ingen kommentarer, sjekklister eller vedlegg.
 | Kort 636 | Lås feltene når saken er til beslutning. Fjern «Endre», fordi beslutter ikke skal kunne endre vilkårsvurderinger. |
 | Siste avklaring i samtalen, 2026-11-25 | Løsningen er ikke i produksjon. Nye saker skal få de nye vilkårene; eksisterende saker håndteres på enkleste måte uten migrering. Dette erstatter den første avklaringen om at bare nye saker skulle få vilkårene. |
 | Avklaring i samtalen, 2026-11-25 | Begge kort løses på samme branch, `feature/636-656-vilkarsvurdering`, i separate delproblemer med gjennomgang før hver commit. |
+| Avklaring under implementasjon, 2026-11-25 | Frontend får ikke ansattroller fra API-et. Redigering styres etter status og tildeling i frontend; backend håndhever fortsatt rollen `SAKSBEHANDLER`. API-et utvides ikke for kort 636. |
 
 ### Valg i spesifikasjonen
 
@@ -65,9 +66,9 @@ Disse forslagene skal gjennomgås før implementasjon:
 - De nye vilkårene opprettes som ikke vurdert, uten notat, ident eller
   vurderingstidspunkt. De får ikke automatisk godkjenning.
 - Frontend tillater bare redigering når saken er `UNDER_BEHANDLING`,
-  innlogget ansatt har rollen `SAKSBEHANDLER` og er tildelt saken.
-  Dette samsvarer med backend-reglene. Beslutterrollen alene gir ikke
-  redigeringstilgang.
+  og innlogget ansatt er tildelt saken som saksbehandler.
+  Backend håndhever i tillegg rollen `SAKSBEHANDLER`, som frontend ikke
+  har opplysninger om. Tildeling som beslutter gir ikke redigeringstilgang.
 - Vi viser begrunnelser som lesbar tekst i låst modus, ikke som deaktiverte
   tekstfelt. «Endre», «Vurder», «Oppfylt», «Ikke oppfylt» og «Avbryt»
   vises bare i redigerbar modus.
@@ -104,8 +105,9 @@ Denne filen gjennomgås før implementasjon og committes alene:
 
 ### 2. Skrivebeskyttet visning (kort 636)
 
-`SakPage` utleder om den innloggede kan redigere vilkårene, med prosjektets
-eksisterende tilgangsdata. Den sender dette til `VilkårItem`.
+`SakPage` utleder om den innloggede kan redigere vilkårene fra saksstatus
+og `saksbehandlerIdent`, sammenlignet med innlogget ansatts ident.
+Den sender dette til `VilkårItem`.
 
 Komponenten viser alltid lagret status, begrunnelse og vurderingsmetadata
 i låst modus. Et ikke vurdert vilkår vises som «Ikke vurdert», uten
