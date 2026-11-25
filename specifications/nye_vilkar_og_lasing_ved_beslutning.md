@@ -10,8 +10,9 @@ Kort-ID: `6acf2c21d77599058e567bec`
 
 Nye ekspertbistandssaker får tre nye vilkår i tillegg til dagens fem.
 Saksbehandler vurderer dem manuelt før saken kan sendes til beslutning.
-Eksisterende ekspertbistandssaker viser også de tre nye vilkårene.
-Vi bruker samme åtte vilkår for alle saker, uten databasemigrering.
+Eksisterende saker får ingen nye vilkårsrader og ingen databasemigrering.
+De kan derfor ikke sendes til beslutning. Det er akseptert, fordi
+løsningen bare er i dev.
 
 Når saken er `TIL_BESLUTNING`, kan beslutter lese vilkårsvurderingene,
 men ikke endre dem. Frontend skjuler redigerings- og lagringshandlingene
@@ -49,6 +50,7 @@ Kortene har ingen kommentarer, sjekklister eller vedlegg.
 | Siste avklaring i samtalen, 2026-11-25 | Løsningen er ikke i produksjon. Nye saker skal få de nye vilkårene; eksisterende saker håndteres på enkleste måte uten migrering. Dette erstatter den første avklaringen om at bare nye saker skulle få vilkårene. |
 | Avklaring i samtalen, 2026-11-25 | Begge kort løses på samme branch, `feature/636-656-vilkarsvurdering`, i separate delproblemer med gjennomgang før hver commit. |
 | Avklaring under implementasjon, 2026-11-25 | Frontend får ikke ansattroller fra API-et. Redigering styres etter status og tildeling i frontend; backend håndhever fortsatt rollen `SAKSBEHANDLER`. API-et utvides ikke for kort 636. |
+| Avklaring under implementasjon, 2026-11-25 | Ingen ekstra kode for å opprette nye vilkår på eksisterende saker. Det er greit at eksisterende saker ikke kan saksbehandles ferdig i frontend, siden de bare finnes i dev. Erstatter opprettelse av manglende rader ved PATCH. |
 
 ### Valg i spesifikasjonen
 
@@ -57,12 +59,11 @@ Disse forslagene skal gjennomgås før implementasjon:
 - Alle ekspertbistandssaker bruker de samme åtte vilkårene.
   Vi innfører ingen versjonskolonne, datoavgrensning eller migrering.
 - Dagens lesefunksjon viser manglende vilkårsrader som ikke vurdert.
-  Før en lovlig vurdering publiseres, oppretter backend manglende
-  vilkårsrader med dagens idempotente opprettelsesfunksjon. Eksisterende
-  vurderinger beholdes. GET-kall skal ikke skrive til databasen.
-- Eksisterende saker under behandling må også få alle åtte vilkår vurdert
-  før de sendes til beslutning. Saker som allerede er sendt eller avgjort,
-  beholder status og tidligere vedtaksgrunnlag.
+  Backend oppretter ikke manglende rader på eksisterende saker. En vurdering
+  av et vilkår uten rad gir fortsatt 404.
+- Eksisterende saker under behandling kan derfor ikke sendes til beslutning.
+  Saker som allerede er sendt eller avgjort, beholder status og tidligere
+  vedtaksgrunnlag.
 - De nye vilkårene opprettes som ikke vurdert, uten notat, ident eller
   vurderingstidspunkt. De får ikke automatisk godkjenning.
 - Frontend tillater bare redigering når saken er `UNDER_BEHANDLING`,
@@ -139,38 +140,27 @@ endringen krever ingen nye kolonner eller migrering.
 Foreslåtte nye enumverdier:
 
 - `DELTAKER_DELTAR_IKKE_I_ANDRE_ARBEIDSMARKEDSTILTAK`
-- `DELTAKER_HAR_IKKE_MOTTATT_EKSPERTBISTAND_FOR_SAMME_PROBLEMSTILLING`
+- `DELTAKER_HAR_IKKE_MOTTATT_EKSPERTBISTAND`
 - `EKSPERTBISTAND_FOLGER_FORSKRIFTEN`
 
 Oppdater også domain-enumen og den uttømmende oversettelsen i `TilDomain.kt`.
 
 `opprettVilkarForSak` oppretter automatisk alle åtte vilkår på nye saker.
-Gjentatte kall legger til manglende rader uten å overskrive vurderinger.
 Arena-saker skal fortsatt ikke få vilkårsrader.
 
 `hentVilkarsvurdering` returnerer alle åtte vilkår i enum-rekkefølge.
 En manglende rad returneres fortsatt som ikke vurdert. De tre nye vilkårene
 legges sist, i rekkefølgen fra kortet.
 
-Ved PATCH gjenbruker `publiserVilkarsvurdering` opprettelsesfunksjonen
-før kontrollen av om vilkåret finnes. Dette skjer i samme transaksjon,
-etter at saken er låst og statusen er kontrollert. Tilgangskontrollene
-skal fortsatt være gjennomført før noe skrives. Kontroller også at kilden
-er `EKSPERTBISTAND`, slik at denne initialiseringen ikke oppretter vilkår
-på Arena-saker.
-
-Dermed kan de nye vilkårene på en eksisterende sak vurderes uten
-datamigrering eller manuell utfylling av databasen. Den asynkrone
-lagringshandleren kan fortsatt kreve en eksisterende vilkårsrad.
+`publiserVilkarsvurdering` endres ikke. Eksisterende saker får ingen nye
+rader, og vurdering av et vilkår uten rad gir fortsatt 404.
 
 Kontrollen i `ForelopigVedtakApi` og vedtaksgrunnlaget i `hentSakDomain`
 bruker samme liste med åtte vilkår. Kravet er fortsatt at vilkårene er
 vurdert, ikke at alle er oppfylt. Dagens avslagsflyt beholdes.
 
-Test opprettelse, gjentatt opprettelse, manglende rader, lagring av hvert
-nytt vilkår og mapping til vedtaksgrunnlaget. Dekk at en eksisterende sak
-med fem lagrede vilkår kan få de nye vurderingene lagret uten å miste
-tidligere vurderinger. Innsending avvises til alle åtte er vurdert.
+Test opprettelse, lagring av hvert nytt vilkår og mapping til
+vedtaksgrunnlaget.
 
 Commit:
 `feat(saksbehandling): legg til tre nye vilkår`
@@ -194,8 +184,6 @@ med lenketeksten «§§ 3 og 4 i forskriften». Ikke legg til egne juridiske
 tolkninger eller nye oppslag mot eksterne registre.
 
 Oppdater MSW-mockene og lokale backend-testdata til åtte vilkår.
-Behold testdekning av eksisterende saker der de tre nye radene ennå
-ikke er opprettet i databasen.
 
 Playwright-testene dekker de nye tekstene, forskriftslenken, vurdering
 med begrunnelse, sperre før alle vilkår er vurdert og låst visning hos
@@ -211,8 +199,8 @@ Backend-stier under `backend/src/main/kotlin/no/nav/ekspertbistand/`:
 | Fil | Endring |
 |-----|---------|
 | `saksbehandling/Db.kt` | Nye enumverdier og oppdatert dokumentasjon om nye vilkår. |
-| `event/handlers/OpprettSak.kt` | Gjenbruk dagens idempotente opprettelse av alle vilkår. Tilpass bare hvis gjenbruk fra API-et krever det. |
-| `saksbehandling/VilkarsvurderingApi.kt` | Oppretter manglende vilkårsrader før en lovlig vurdering publiseres. |
+| `event/handlers/OpprettSak.kt` | Gjenbruk dagens opprettelse av alle vilkår. Ingen endring. |
+| `saksbehandling/VilkarsvurderingApi.kt` | Ingen endring. Manglende rader opprettes ikke. |
 | `event/domain/SakDomain.kt` | Nye vilkårsverdier i vedtaksgrunnlaget. |
 | `event/domain/TilDomain.kt` | Oversettelse av de nye vilkårsverdiene. |
 | `saksbehandling/ForelopigVedtakApi.kt` | Behold dagens felles lesefunksjon for vurderingskravet. |
@@ -225,16 +213,16 @@ Backend-stier under `backend/src/main/kotlin/no/nav/ekspertbistand/`:
 | `frontend/saksbehandling/src/pages/SakPage.tsx` | Utleder redigeringstilgang og sender den til vilkårskomponenten. |
 | `frontend/saksbehandling/src/components/VilkårItem.tsx` | Låst visning, statusendring under redigering og forskriftslenke. |
 | `frontend/saksbehandling/src/hooks/useVilkår.ts` | Nye typer, tekster og nødvendig lenkedata. |
-| `frontend/saksbehandling/src/mocks/handlers.ts` | Mocker for gamle og nye saker. |
+| `frontend/saksbehandling/src/mocks/handlers.ts` | Mocker med åtte vilkår. |
 | `frontend/saksbehandling/e2e/` | Vilkårsvurdering, vedtaksflyt og berørte tilgjengelighetstester. |
-| `specifications/sak-datamodell.md` | Dokumenterer åtte vilkår og opprettelse av manglende rader ved vurdering. |
+| `specifications/sak-datamodell.md` | Dokumenterer åtte vilkår og at eksisterende saker ikke får nye rader. |
 
 ## Kanttilfeller og feilmodus
 
-- Eksisterende saker får også de tre nye vilkårene i visningen. Etter retur
-  fra beslutter må alle åtte vurderes før saken sendes på nytt.
-- Mangler en vilkårsrad, vises den som ikke vurdert og hindrer innsending
-  til beslutning. Raden opprettes ved en lovlig vurdering, ikke ved lesing.
+- Eksisterende saker viser de tre nye vilkårene som ikke vurdert, men de
+  kan ikke vurderes (404) og saken kan ikke sendes til beslutning. Det er
+  akseptert fordi saker bare finnes i dev.
+- Lesing oppretter aldri vilkårsrader.
 - Har innlogget ansatt begge roller, gjelder tildeling og status.
   Beslutterrollen skal ikke låse en sak vedkommende lovlig behandler som
   tildelt saksbehandler.
@@ -259,8 +247,7 @@ Backend-stier under `backend/src/main/kotlin/no/nav/ekspertbistand/`:
 ## Ferdig når
 
 - [ ] Nye ekspertbistandssaker får åtte vilkår; de tre nye er ikke vurdert.
-- [ ] Eksisterende ekspertbistandssaker viser åtte vilkår og kan lagre de nye vurderingene uten migrering.
-- [ ] Gjentatt opprettelse beholder alle manuelle vurderinger.
+- [ ] Eksisterende saker får ingen nye vilkårsrader og ingen migrering.
 - [ ] GET-kall oppretter ikke vilkårsrader.
 - [ ] Frontend og backend krever at alle åtte vilkår er vurdert før innsending til beslutning.
 - [ ] Vedtaksgrunnlaget inneholder de samme vilkårene og vurderingene som saken.
@@ -270,4 +257,4 @@ Backend-stier under `backend/src/main/kotlin/no/nav/ekspertbistand/`:
 - [ ] Statusendring under redigering fjerner redigeringsfeltet og hindrer ny lagring.
 - [ ] Tildelt saksbehandler kan redigere igjen etter retur til `UNDER_BEHANDLING`.
 - [ ] Arena-saker og de to eksisterende automatiske vurderingene oppfører seg som før.
-- [ ] Berørte backend- og Playwright-tester dekker både gamle og nye saker.
+- [ ] Berørte backend- og Playwright-tester dekker de åtte vilkårene.

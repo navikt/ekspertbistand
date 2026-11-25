@@ -706,7 +706,10 @@ fun vilkarFinnes(sakId: UUID, vilkar: Vilkar): Boolean =
         .where { (SaksvilkarTable.sakId eq sakId) and (SaksvilkarTable.vilkarId eq vilkar.name) }
         .empty()
 
-/** Lagres i `saksvilkar.vilkar_id` med [name]. Nye verdier krever re-kjøring av SakProjection for eksisterende saker. */
+/**
+ * Lagres i `saksvilkar.vilkar_id` med [name]. Rekkefølgen er visningsrekkefølgen. Eksisterende saker får ikke rader
+ * for nye verdier. Se `specifications/nye_vilkar_og_lasing_ved_beslutning.md`.
+ */
 @Serializable
 enum class Vilkar {
     DELTAKER_HAR_ARBEIDSFORHOLD,
@@ -714,6 +717,9 @@ enum class Vilkar {
     ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING,
     DELTAKER_HAR_SYKEFRAVAERSHISTORIKK,
     EKSPERT_HAR_KOMPETANSE,
+    DELTAKER_DELTAR_IKKE_I_ANDRE_ARBEIDSMARKEDSTILTAK,
+    DELTAKER_HAR_IKKE_MOTTATT_EKSPERTBISTAND,
+    EKSPERTBISTAND_FOLGER_FORSKRIFTEN,
 }
 
 /**

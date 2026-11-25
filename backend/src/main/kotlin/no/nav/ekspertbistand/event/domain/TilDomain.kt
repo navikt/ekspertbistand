@@ -85,6 +85,11 @@ fun Vilkar.tilDomain(): SakDomain.Vilkarsvurdering.Vilkar = when (this) {
         SakDomain.Vilkarsvurdering.Vilkar.ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING
     Vilkar.DELTAKER_HAR_SYKEFRAVAERSHISTORIKK -> SakDomain.Vilkarsvurdering.Vilkar.DELTAKER_HAR_SYKEFRAVAERSHISTORIKK
     Vilkar.EKSPERT_HAR_KOMPETANSE -> SakDomain.Vilkarsvurdering.Vilkar.EKSPERT_HAR_KOMPETANSE
+    Vilkar.DELTAKER_DELTAR_IKKE_I_ANDRE_ARBEIDSMARKEDSTILTAK ->
+        SakDomain.Vilkarsvurdering.Vilkar.DELTAKER_DELTAR_IKKE_I_ANDRE_ARBEIDSMARKEDSTILTAK
+    Vilkar.DELTAKER_HAR_IKKE_MOTTATT_EKSPERTBISTAND ->
+        SakDomain.Vilkarsvurdering.Vilkar.DELTAKER_HAR_IKKE_MOTTATT_EKSPERTBISTAND
+    Vilkar.EKSPERTBISTAND_FOLGER_FORSKRIFTEN -> SakDomain.Vilkarsvurdering.Vilkar.EKSPERTBISTAND_FOLGER_FORSKRIFTEN
 }
 
 fun ForelopigUtfall.tilDomain(): VedtakDomain.Utfall = when (this) {
