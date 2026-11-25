@@ -62,6 +62,9 @@ export type DeltakerTilgang = {
   kode: string;
 };
 
+/** `UKJENT` når Ereg mangler sektorkoden, og for Arena-saker. */
+export type Virksomhetstype = "STATLIG" | "KOMMUNAL" | "PRIVAT" | "UKJENT";
+
 export type SakListeElement = SakInfo & {
   /** Når innsendingen bak oppgaven kom, ellers når søknaden kom. */
   mottatt: string;
@@ -72,6 +75,8 @@ export type SakListeElement = SakInfo & {
   kommunenummer: string | null;
   /** Null når Norg ikke kjenner kommunen eller ikke svarer. */
   kommunenavn: string | null;
+  /** Fra sektorkoden til arbeidsgiver i Ereg. Null for rader uten tilgang. */
+  virksomhetstype: Virksomhetstype | null;
   /** Fra siste foreløpige vedtak. Null uten vedtak og ved avslag. */
   tiltaksperiodeFra: string | null;
   tiltaksperiodeTil: string | null;
