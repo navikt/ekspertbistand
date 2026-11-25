@@ -555,6 +555,7 @@ private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
         },
         innstiltAvIdent = saksbehandler.navIdent,
         tidspunkt = neste(),
+        kostnadssted = "0391".takeIf { innvilget },
     )
     eventer += forelopigVedtak
     val beslutter = sak.beslutter ?: return eventer
@@ -606,6 +607,7 @@ private fun behandlingseventer(sak: LokalSak, sakId: String): List<EventData> {
                 begrunnelseArbeidsgiver = forelopigVedtak.begrunnelseArbeidsgiver,
                 innstiltAvIdent = forelopigVedtak.innstiltAvIdent,
                 sendtTidspunkt = forelopigVedtak.tidspunkt,
+                kostnadssted = forelopigVedtak.kostnadssted,
             ),
         )
 

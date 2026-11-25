@@ -22,6 +22,8 @@ export type ForelopigVedtakInput = {
   tiltaksperiodeTil: string | null;
   begrunnelseDeltaker: string;
   begrunnelseArbeidsgiver: string | null;
+  /** Enhetsnummeret. Påkrevd ved innvilgelse, null ved avslag. */
+  kostnadssted: string | null;
 };
 
 function feilmelding409(kode: string | undefined) {
@@ -67,7 +69,7 @@ export function useForelopigVedtak(sakId: string) {
 
   const sakUrl = SAKSBEHANDLING_SAK_URL(sakId);
 
-  const sendTilBeslutter = async (input: ForelopigVedtakInput) => {
+  const sendTilBeslutter = async (input: ForelopigVedtakInput, kostnadsstedNavn: string | null) => {
     setIsSaving(true);
     setError(null);
 
@@ -86,6 +88,7 @@ export function useForelopigVedtak(sakId: string) {
           if (!sak) return sak;
           const forelopigVedtak: ForelopigVedtak = {
             ...input,
+            kostnadsstedNavn,
             versjon: (sak.forelopigVedtak?.versjon ?? 0) + 1,
             innvilgetBelop:
               input.utfall === "INNVILGE"

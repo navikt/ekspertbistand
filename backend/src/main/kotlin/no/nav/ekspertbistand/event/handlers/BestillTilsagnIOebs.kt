@@ -48,6 +48,10 @@ private const val bestillingSubtask = "oebs_bestilling_vedtak"
  *
  * Saksloggen skrives av [SkrivSaksloggForOebsBestillingStatus] når VALP melder status. Se
  * `specifications/oebs_status_til_saksgang.md`.
+ *
+ * Kostnadsstedet er det saksbehandler valgte, fra [EventData.VedtakFattet.vedtak]. Vedtak fra før
+ * feltet fantes (bare i dev) bruker sakens behandlende enhet. Se
+ * `specifications/kostnadssted_forelopig_vedtak.md`.
  */
 class BestillTilsagnIOebs(
     private val database: Database,
@@ -93,10 +97,13 @@ class BestillTilsagnIOebs(
                 val belop = grunnlag.belop
                 val periodeFra = grunnlag.periodeFra
                 val periodeTil = grunnlag.periodeTil
-                val behandlendeEnhet = grunnlag.behandlendeEnhet
-                if (saksnummer == null || belop == null || periodeFra == null || periodeTil == null || behandlendeEnhet == null) {
+                val kostnadssted = event.data.vedtak.kostnadssted
+                    ?: grunnlag.behandlendeEnhet?.also {
+                        log.info("Vedtaket for sak {} mangler kostnadssted, bruker behandlende enhet", grunnlag.sakId)
+                    }
+                if (saksnummer == null || belop == null || periodeFra == null || periodeTil == null || kostnadssted == null) {
                     return@transaction unrecoverableError(
-                        "Innvilget vedtak for sak ${grunnlag.sakId} mangler saksnummer, beløp, periode eller behandlende enhet"
+                        "Innvilget vedtak for sak ${grunnlag.sakId} mangler saksnummer, beløp, periode eller kostnadssted"
                     )
                 }
 
@@ -107,7 +114,7 @@ class BestillTilsagnIOebs(
                             regnskapskonto = Regnskapskonto.TILTAK_DRIFTSTILSKUDD,
                             artskonto = Artskonto.EKSPERTBISTAND,
                             arrangor = OpprettBestilling.Arrangor.Norsk(Organisasjonsnummer(grunnlag.virksomhetsnummer)),
-                            kostnadssted = NavEnhetNummer(behandlendeEnhet),
+                            kostnadssted = NavEnhetNummer(kostnadssted),
                             avtalenummer = null,
                             belop = belop,
                             periode = Periode(start = periodeFra, slutt = periodeTil.plus(1, DateTimeUnit.DAY)),

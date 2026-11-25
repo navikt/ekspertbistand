@@ -6,6 +6,10 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.testing.*
+import no.nav.ekspertbistand.ereg.EregClient
+import no.nav.ekspertbistand.infrastruktur.successAzureAdTokenProvider
+import no.nav.ekspertbistand.mocks.mockEreg
+import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.pdl.graphql.generated.enums.AdressebeskyttelseGradering
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -114,6 +118,36 @@ class BehandlendeEnhetTest {
 
         val enhet = service.hentBehandlendeEnhet(AdressebeskyttelseGradering.UGRADERT, "42")
         assertEquals(BehandlendeEnhetService.NAV_ARBEIDSLIVSSENTER_NORDLAND_NORG, enhet)
+    }
+
+    @Test
+    fun `enhet for virksomhet er Norg-enheten for virksomhetens kommune uten diskresjonskode`() = testApplication {
+        val norgRequests = mutableListOf<Norg2Request>()
+        externalServices {
+            hosts(NorgKlient.baseUrl) {
+                install(ServerContentNegotiation) { json() }
+                routing {
+                    post("norg2/api/v1/arbeidsfordeling/enheter/bestmatch") {
+                        norgRequests.add(call.receive<Norg2Request>())
+                        call.respond(listOf(Norg2Enhet(enhetNr = "1291", status = "Aktiv")))
+                    }
+                }
+            }
+        }
+        mockEreg { orgnr ->
+            """{"organisasjonsnummer": "$orgnr", "organisasjonDetaljer": {"forretningsadresser": [{"kommunenummer": "4601"}]}}"""
+        }
+        client = createClient { install(ClientContentNegotiation) { json() } }
+        val utleder = BehandlendeEnhetUtleder(
+            pdlApiKlient = PdlApiKlient(successAzureAdTokenProvider, client),
+            eregClient = EregClient(client),
+            behandlendeEnhetService = BehandlendeEnhetService(NorgKlient(client)),
+        )
+
+        val enhet = utleder.enhetForVirksomhet("123456780")
+
+        assertEquals("1291", enhet)
+        assertEquals(listOf(Norg2Request("4601", NorgKlient.DISKRESJONSKODE_ANY)), norgRequests)
     }
 
     @Test

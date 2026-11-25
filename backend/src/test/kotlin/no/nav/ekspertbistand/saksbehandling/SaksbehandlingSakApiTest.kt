@@ -23,8 +23,12 @@ import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import no.nav.ekspertbistand.ereg.EregClient
+import no.nav.ekspertbistand.norg.BehandlendeEnhetService
+import no.nav.ekspertbistand.norg.BehandlendeEnhetUtleder
 import no.nav.ekspertbistand.norg.KommunenavnCache
 import no.nav.ekspertbistand.norg.NorgKlient
+import no.nav.ekspertbistand.pdl.PdlApiKlient
 import no.nav.ekspertbistand.tilgangsmaskin.AggregertBulkRespons
 import no.nav.ekspertbistand.tilgangsmaskin.BrukerIdOgRegelsett
 import no.nav.ekspertbistand.tilgangsmaskin.EnkeltBulkRespons
@@ -71,6 +75,8 @@ class SaksbehandlingSakApiTest {
     private val egenEnhet = "1234"
     private val annenEnhet = "5678"
     private val egneEnheter = """[{ "enhetnummer": "$egenEnhet", "navn": "Nav Test" }]"""
+    private val vikafossenOgEgenEnhet =
+        """[{ "enhetnummer": "2103", "navn": "Nav Vikafossen" }, { "enhetnummer": "$egenEnhet", "navn": "Nav Test" }]"""
     private val kommunefilterUrl = "/api/saksbehandling/v1/meg/kommunefilter"
 
     private class RecordingAuditLogger : AuditLogger {
@@ -564,9 +570,12 @@ class SaksbehandlingSakApiTest {
                     it[begrunnelseArbeidsgiver] = if (utfall == ForelopigUtfall.AVSLAA) "Til arbeidsgiver" else null
                     it[innstiltAvIdent] = navIdent
                     it[sendtTidspunkt] = Instant.parse("2026-11-0${versjon}T10:00:00Z")
+                    it[kostnadssted] = if (utfall == ForelopigUtfall.INNVILGE) "1291" else null
                 }
             }
         }
+        val ukjentKostnadssted = lagreSak(db, lagreSoknad(db), status = Saksstatus.TIL_BESLUTNING)
+        lagreForelopigVedtak(db, ukjentKostnadssted, innstiltAvIdent = navIdent, kostnadssted = "2103")
         val oppsett = oppsett(db)
 
         assertNull(oppsett.hentDetalj(utenVedtak).forelopigVedtak)
@@ -578,6 +587,50 @@ class SaksbehandlingSakApiTest {
         assertEquals("Til deltaker 2", vedtak.begrunnelseDeltaker)
         assertNull(vedtak.begrunnelseArbeidsgiver)
         assertEquals(navIdent, vedtak.innstiltAvIdent)
+        assertEquals("1291", vedtak.kostnadssted)
+        assertEquals("Nav arbeidslivssenter Vestland", vedtak.kostnadsstedNavn)
+        val ukjent = assertNotNull(oppsett.hentDetalj(ukjentKostnadssted).forelopigVedtak)
+        assertEquals("2103", ukjent.kostnadssted)
+        assertNull(ukjent.kostnadsstedNavn)
+    }
+
+    @Test
+    fun `foreslått kostnadssted er behandlende enhet når den står på lista`() = testApplicationWithDatabase { db ->
+        val paaLista = lagreSak(db, lagreSoknad(db), behandlendeEnhet = "1291")
+        val ikkePaaLista = lagreSak(db, lagreSoknad(db))
+        val oppsett = oppsett(db, enheter = {
+            """[{ "enhetnummer": "1291", "navn": "Nav arbeidslivssenter Vestland" }, { "enhetnummer": "$egenEnhet", "navn": "Nav Test" }]"""
+        })
+
+        assertEquals("1291", oppsett.hentDetalj(paaLista).foreslattKostnadssted)
+        assertNull(oppsett.hentDetalj(ikkePaaLista).foreslattKostnadssted)
+        assertTrue(oppsett.eregKall.isEmpty(), "skal ikke slå opp enhet uten adressebeskyttelse")
+    }
+
+    @Test
+    fun `foreslått kostnadssted på Vikafossen er enheten for virksomhetens kommune`() = testApplicationWithDatabase { db ->
+        val vikafossen = lagreSak(db, lagreSoknad(db), behandlendeEnhet = BehandlendeEnhetService.NAV_VIKAFOSSEN)
+        val oppsett = oppsett(db, enheter = { vikafossenOgEgenEnhet }, norgEnhet = "0391")
+
+        val forslag = oppsett.hentDetalj(vikafossen).foreslattKostnadssted
+
+        assertEquals("0391", forslag)
+        assertEquals(listOf("123456780"), oppsett.eregKall)
+    }
+
+    @Test
+    fun `foreslått kostnadssted på Vikafossen er null når oppslaget feiler`() = testApplicationWithDatabase { db ->
+        val vikafossen = lagreSak(db, lagreSoknad(db), behandlendeEnhet = BehandlendeEnhetService.NAV_VIKAFOSSEN)
+        val oppsett = oppsett(
+            db,
+            enheter = { vikafossenOgEgenEnhet },
+            eregSvar = { it.respond(HttpStatusCode.InternalServerError) },
+        )
+
+        val response = oppsett.client.get("/api/saksbehandling/v1/saker/$vikafossen") { bearerAuth(gyldigToken) }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertNull(response.body<SakDetaljer>().foreslattKostnadssted)
     }
 
     @Test
@@ -1367,9 +1420,13 @@ class SaksbehandlingSakApiTest {
         val bulkKall: List<List<BrukerIdOgRegelsett>>,
         val veksledeTokens: List<String>,
         val ansattOppslag: List<String>,
+        val eregKall: List<String>,
     )
 
     private val tilgangsmaskinBody = AttributeKey<String>("tilgangsmaskinBody")
+
+    private fun eregMedKommune(kommunenummer: String) =
+        """{"organisasjonsnummer": "123456780", "organisasjonDetaljer": {"forretningsadresser": [{"kommunenummer": "$kommunenummer"}]}}"""
 
     private val standardGeografi =
         """[{"navn": "0301", "term": "Oslo"}, {"navn": "4601", "term": "Bergen"}, {"navn": "46", "term": "Vestland"}]"""
@@ -1387,12 +1444,17 @@ class SaksbehandlingSakApiTest {
         geografiSvar: suspend (io.ktor.server.application.ApplicationCall) -> Unit = {
             it.respondText(standardGeografi, ContentType.Application.Json)
         },
+        eregSvar: suspend (io.ktor.server.application.ApplicationCall) -> Unit = {
+            it.respondText(eregMedKommune("0301"), ContentType.Application.Json)
+        },
+        norgEnhet: String = "0391",
     ): Oppsett {
         val audit = RecordingAuditLogger()
         val tilgangsmaskinKall = mutableListOf<TilgangsmaskinKall>()
         val bulkKall = mutableListOf<List<BrukerIdOgRegelsett>>()
         val veksledeTokens = mutableListOf<String>()
         val ansattOppslag = mutableListOf<String>()
+        val eregKall = mutableListOf<String>()
 
         mockEntraProxyFull(
             ansattProvider = { ident ->
@@ -1426,6 +1488,17 @@ class SaksbehandlingSakApiTest {
             hosts(NorgKlient.baseUrl) {
                 routing {
                     get("/norg2/api/v1/kodeverk/geografi") { geografiSvar(call) }
+                    post("/norg2/api/v1/arbeidsfordeling/enheter/bestmatch") {
+                        call.respondText("""[{"enhetNr": "$norgEnhet", "status": "Aktiv"}]""", ContentType.Application.Json)
+                    }
+                }
+            }
+            hosts(EregClient.ingress) {
+                routing {
+                    get("${EregClient.API_PATH}{orgnr}") {
+                        eregKall.add(call.parameters["orgnr"].orEmpty())
+                        eregSvar(call)
+                    }
                 }
             }
         }
@@ -1452,6 +1525,10 @@ class SaksbehandlingSakApiTest {
                 provide(TilgangsmaskinClient::class)
                 provide(NorgKlient::class)
                 provide<KommunenavnCache> { KommunenavnCache(resolve()) }
+                provide(EregClient::class)
+                provide(PdlApiKlient::class)
+                provide(BehandlendeEnhetService::class)
+                provide(BehandlendeEnhetUtleder::class)
                 provide<ArcSightAuditClient> { ArcSightAuditClient(auditLogger = audit) }
                 provide<AzureAdTokenIntrospector> {
                     MockAzureAdIntrospector {
@@ -1466,7 +1543,7 @@ class SaksbehandlingSakApiTest {
             configureServer()
         }
 
-        return Oppsett(client, audit, tilgangsmaskinKall, bulkKall, veksledeTokens, ansattOppslag)
+        return Oppsett(client, audit, tilgangsmaskinKall, bulkKall, veksledeTokens, ansattOppslag, eregKall)
     }
 
     private suspend fun io.ktor.server.application.ApplicationCall.respondAvvisning(kode: String) = respondText(
@@ -1591,6 +1668,7 @@ class SaksbehandlingSakApiTest {
         versjon: Int = 1,
         tiltaksperiodeFra: LocalDate? = LocalDate(2026, 11, 22),
         tiltaksperiodeTil: LocalDate? = LocalDate(2026, 12, 31),
+        kostnadssted: String? = "0391",
     ): Long = transaction(db.config.jdbcDatabase) {
         ForelopigVedtakTable.insert {
             it[this.sakId] = sakId
@@ -1603,6 +1681,7 @@ class SaksbehandlingSakApiTest {
             it[begrunnelseDeltaker] = "Til deltaker"
             it[this.innstiltAvIdent] = innstiltAvIdent
             it[sendtTidspunkt] = Instant.parse("2026-11-01T10:00:00Z")
+            it[this.kostnadssted] = kostnadssted
         }[ForelopigVedtakTable.id]
     }
 

@@ -6,7 +6,8 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 /**
- * Det foreløpige vedtaket beslutter godkjente. Beløp og periode er null ved [Utfall.AVSLAA].
+ * Det foreløpige vedtaket beslutter godkjente. Beløp, periode og [kostnadssted] er null ved
+ * [Utfall.AVSLAA]. [kostnadssted] er også null i vedtak fra før feltet fantes (bare i dev).
  *
  * Begrunnelsene kan ha helseopplysninger, og [innstiltAvIdent] er en ident. Skal ikke logges.
  */
@@ -22,6 +23,7 @@ data class VedtakDomain(
     val begrunnelseArbeidsgiver: String?,
     val innstiltAvIdent: String,
     val sendtTidspunkt: Instant,
+    val kostnadssted: String? = null,
 ) {
     @Serializable
     enum class Utfall { INNVILGE, INNVILGE_REDUSERT, AVSLAA }

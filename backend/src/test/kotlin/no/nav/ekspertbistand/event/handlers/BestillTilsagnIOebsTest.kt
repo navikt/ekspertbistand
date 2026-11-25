@@ -82,7 +82,7 @@ class BestillTilsagnIOebsTest {
                     regnskapskonto = Regnskapskonto.TILTAK_DRIFTSTILSKUDD,
                     artskonto = Artskonto.EKSPERTBISTAND,
                     arrangor = OpprettBestilling.Arrangor.Norsk(Organisasjonsnummer("987654321")),
-                    kostnadssted = NavEnhetNummer("4242"),
+                    kostnadssted = NavEnhetNummer("0391"),
                     avtalenummer = null,
                     belop = 9999,
                     periode = Periode(start = LocalDate(2026, 11, 22), slutt = LocalDate(2027, 1, 1)),
@@ -112,6 +112,20 @@ class BestillTilsagnIOebsTest {
             hentSakOppdatert(database).none { it.notat.startsWith("Bestilling til OeBS") },
             "saksloggen skrives når VALP melder status",
         )
+    }
+
+    @Test
+    fun `vedtak uten kostnadssted bruker behandlende enhet`() = testApplicationWithDatabase {
+        val database = it.config.jdbcDatabase
+        val sak = innvilgetTilBeslutning(database)
+        val fattet = vedtakFattet(sak)
+        val event = Event(1L, fattet.copy(vedtak = fattet.vedtak.copy(kostnadssted = null)))
+        FattVedtak(database).handle(event)
+
+        assertIs<EventHandledResult.Success>(handler(database).handle(event))
+
+        val melding = assertIs<OebsBestillingMelding.Bestilling>(outbox(database).single()[OebsOutbox.meldingJson])
+        assertEquals(NavEnhetNummer("4242"), melding.payload.kostnadssted)
     }
 
     @Test

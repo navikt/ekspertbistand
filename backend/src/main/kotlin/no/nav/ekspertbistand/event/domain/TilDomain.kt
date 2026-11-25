@@ -129,6 +129,7 @@ fun ForelopigVedtakDTO.tilDomain() = VedtakDomain(
     begrunnelseArbeidsgiver = begrunnelseArbeidsgiver,
     innstiltAvIdent = innstiltAvIdent,
     sendtTidspunkt = sendtTidspunkt,
+    kostnadssted = kostnadssted,
 )
 
 fun VedtaksbrevData.tilDomain() = VedtaksbrevDomain(

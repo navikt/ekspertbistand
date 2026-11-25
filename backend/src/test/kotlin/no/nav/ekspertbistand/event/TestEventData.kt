@@ -174,6 +174,7 @@ object TestEventData {
             begrunnelseArbeidsgiver = null,
             innstiltAvIdent = "Z123456",
             tidspunkt = Instant.parse("2026-04-03T09:00:00Z"),
+            kostnadssted = "0391",
         )
     }
 
@@ -414,6 +415,7 @@ object TestEventData {
             begrunnelseArbeidsgiver = "Begrunnelse til arbeidsgiver".takeIf { utfall != VedtakDomain.Utfall.INNVILGE },
             innstiltAvIdent = "Z123456",
             sendtTidspunkt = Instant.parse("2026-04-03T09:00:00Z"),
+            kostnadssted = "0391".takeIf { innvilget },
         )
     }
 
