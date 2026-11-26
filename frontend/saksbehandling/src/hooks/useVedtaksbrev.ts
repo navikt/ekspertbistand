@@ -10,7 +10,8 @@ import type { ForelopigVedtakInput } from "./useForelopigVedtak";
 
 export type Mottaker = "deltaker" | "arbeidsgiver";
 
-export const vedtaksbrevFilnavn = (mottaker: Mottaker) => `Foreløpig vedtak - ${mottaker}.pdf`;
+export const vedtaksbrevFilnavn = (mottaker: Mottaker, fattet: boolean) =>
+  fattet ? `Vedtak - ${mottaker}.pdf` : `Foreløpig vedtak - ${mottaker}.pdf`;
 
 // Handleren lagrer vedtaket kort tid etter 202 (EventManager poller hvert 100. ms), så GET kan gi
 // 404 rett etter innsending.
@@ -81,10 +82,10 @@ function useForhandsvistBrev(sakId: string, mottaker: Mottaker, body: string) {
     hentForhandsvisning,
     { ...utenRevalidering, shouldRetryOnError: false }
   );
-  return useBrevFil(mottaker, swr);
+  return useBrevFil(mottaker, false, swr);
 }
 
-function useLagretBrev(sakId: string, versjon: number, mottaker: Mottaker) {
+function useLagretBrev(sakId: string, versjon: number, fattet: boolean, mottaker: Mottaker) {
   const swr = useSWR<Blob, HttpError, LagretNokkel>(
     [
       `${SAKSBEHANDLING_FORELOPIG_VEDTAK_BREV_URL(sakId, mottaker)}?visning=forhandsvisning`,
@@ -93,16 +94,17 @@ function useLagretBrev(sakId: string, versjon: number, mottaker: Mottaker) {
     hentLagret,
     { ...utenRevalidering, shouldRetryOnError: false }
   );
-  return useBrevFil(mottaker, swr);
+  return useBrevFil(mottaker, fattet, swr);
 }
 
 function useBrevFil(
   mottaker: Mottaker,
+  fattet: boolean,
   { data, error, isLoading }: { data?: Blob; error?: HttpError; isLoading: boolean }
 ) {
   const url = useObjectUrl(data);
   const fil: PdfFil | undefined =
-    data && url ? { url, filnavn: vedtaksbrevFilnavn(mottaker), innhold: data } : undefined;
+    data && url ? { url, filnavn: vedtaksbrevFilnavn(mottaker, fattet), innhold: data } : undefined;
 
   return { fil, error, isLoading: isLoading || (data !== undefined && !url) };
 }
@@ -122,12 +124,13 @@ export function useVedtaksbrevForhandsvisning(sakId: string, input: ForelopigVed
 
 /**
  * Brevene fra siste lagrede foreløpige vedtak. [versjon] er med i SWR-nøkkelen, så et nytt vedtak
- * ikke viser brevene fra forrige versjon fra cachen.
+ * ikke viser brevene fra forrige versjon fra cachen. [fattet] styrer bare filnavnet og er ikke med
+ * i nøkkelen, så samme PDF gjenbrukes når beslutter fatter vedtaket.
  */
-export function useLagredeVedtaksbrev(sakId: string, versjon: number) {
+export function useLagredeVedtaksbrev(sakId: string, versjon: number, fattet: boolean) {
   return beggeBrev(
-    useLagretBrev(sakId, versjon, "deltaker"),
-    useLagretBrev(sakId, versjon, "arbeidsgiver")
+    useLagretBrev(sakId, versjon, fattet, "deltaker"),
+    useLagretBrev(sakId, versjon, fattet, "arbeidsgiver")
   );
 }
 
