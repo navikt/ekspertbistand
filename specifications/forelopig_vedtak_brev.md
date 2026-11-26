@@ -3,6 +3,10 @@
 Trello: https://trello.com/c/gh8l45zx/635-bruk-pdf-pill-p%C3%A5-%C3%A5-fatte-forel%C3%B8pig-vedtak-p%C3%A5-s%C3%B8knad
 Kort-ID: `6ace19c389523a1695295f92`
 
+Rettet i kort 733, «Når vedtaket er fattet skal filen i pdf-pile ikke hete
+foreløpig vedtak»: https://trello.com/c/je2uPePD (kort-ID
+`6b0413ad538c7cc3787658dd`). Se *Filnavn når vedtaket er fattet* under 6.
+
 ## Mål
 
 Saksbehandler skal se vedtaksbrevene før det foreløpige vedtaket sendes til
@@ -93,6 +97,8 @@ Avvik mellom kort og skisse:
 | Ken, 2026-10-13 | Klagerett og klagefrist for arbeidsgiver avklares med fag senere. Forslaget med klageavsnitt brukes inntil videre. |
 | Ken, 2026-10-06 (minne) | API-et publiserer en event, og en handler gjør endringen. Forhåndsvisning endrer ingen tilstand, så den trenger ingen event. |
 | Ken, 2026-10-10 (`forelopig_vedtak.md`) | Backend bruker testoppsettet som finnes, uten ny testteknologi. |
+| Kort 733, 2026-11-23 | «endre fil navn til bare vedtak - ikke foreløpig.» Når vedtaket er fattet, heter brevene «Vedtak - …». Kortet har ingen kommentarer. |
+| Ken, 2026-11-26 | Kort 733 er en mangel i dette kortet, og rettingen beskrives her i stedet for i en egen spec. |
 
 Kortet har ingen kommentarer, sjekklister eller vedlegg.
 
@@ -458,7 +464,7 @@ Valget: `Blob` på `PdfFil` i stedet for `blob:`-URL til pdf.js. Vi slipper å
   nøkkel `[url, mottaker, JSON.stringify(input)]` og uten revalidering. Svaret
   blir en `Blob` og en object URL. Object URL-ene frigjøres med
   `URL.revokeObjectURL` når input endres eller komponenten forsvinner.
-- `useLagredeVedtaksbrev(sakId, versjon)` henter `GET …/brev/{mottaker}` med
+- `useLagredeVedtaksbrev(sakId, versjon, fattet)` henter `GET …/brev/{mottaker}` med
   `?visning=forhandsvisning` som `Blob` på samme måte. `versjon` er med i
   SWR-nøkkelen. Innsendingen svarer 202 før `LagreForelopigVedtak` har lagret
   vedtaket, og fanen bytter til `sendt` med en gang. GET kan derfor gi 404 de
@@ -489,6 +495,36 @@ hverandre i en `VStack`, deltaker først:
 `ForelopigVedtakOppsummering` viser `Vedtaksbrev` etter begrunnelsene i begge
 modusene. I `forhandsvisning` står feilmeldingen og knappene «Forrige» og
 «Send til beslutter» under brevene, som i skissen.
+
+#### Filnavn når vedtaket er fattet (kort 733)
+
+Når beslutter har fattet vedtaket, viser fanen fortsatt brevene med
+«Foreløpig vedtak» i filnavnet. Vedtaket er ikke foreløpig lenger.
+
+| Tilstand i fanen | Filnavn |
+|------------------|---------|
+| Steg 2, før innsending | «Foreløpig vedtak - deltaker.pdf», «Foreløpig vedtak - arbeidsgiver.pdf» |
+| Sendt til beslutter (`TIL_BESLUTNING`) | Som over |
+| Vedtak fattet (`sak.vedtak` finnes) | «Vedtak - deltaker.pdf», «Vedtak - arbeidsgiver.pdf» |
+
+Lenketekst og `download` i `PdfForhandsvisning`, overskrift og `download` i
+`PdfModal` og `aria-label` «Forhåndsvis …» følger filnavnet, fordi alle leser
+`fil.filnavn`. Frontend henter PDF-en som blob, så nedlastet fil får navnet
+fra frontend, ikke fra `Content-Disposition`.
+
+- `vedtaksbrevFilnavn(mottaker, fattet)` gir `Vedtak - ${mottaker}.pdf` når
+  `fattet` er `true`, ellers `Foreløpig vedtak - ${mottaker}.pdf`.
+- `useLagredeVedtaksbrev` sender `fattet` videre til `useBrevFil`.
+  `useVedtaksbrevForhandsvisning` sender alltid `false`.
+- `Vedtaksbrev` i modus `sendt` og `ForelopigVedtakOppsummering` i modus
+  `sendt` får propen `fattet: boolean`. Alle tre kallene i `SakPage` med modus
+  `sendt` setter den eksplisitt: `true` når `sak.vedtak` finnes, ellers
+  `false`.
+- Argumentet og propen er påkrevd, uten standardverdi.
+- `fattet` er ikke med i SWR-nøkkelen. Filnavnet lages etter hentingen, så
+  samme PDF gjenbrukes når saken går fra `TIL_BESLUTNING` til fattet.
+- Filnavnet styres av om vedtaket er fattet, ikke av `tittel` på
+  oppsummeringen. Tittelen er fritekst og egner seg ikke som flagg.
 
 `DEMO_VEDLEGG` i `SakPage` blir stående. Demoen fjernes i kortet som kobler på
 vedlegg.
@@ -590,6 +626,8 @@ steg 2 og etter innsending.
 - **Nedlastet forhåndsvisning.** PDF-en har ingen utkast-merking og ser ut som
   et sendt vedtak. Den lagres ikke, journalføres ikke og sendes ikke. Det
   endelige brevet lages i beslutterkortet.
+- **Vedtaket fattes mens fanen er åpen.** Når `sak.vedtak` dukker opp, rendres
+  fanen med `fattet = true`. Filnavnet byttes uten ny henting av PDF.
 - **Refusjonsfrist på slutten av måneden.** `plus(Period)` flytter til siste
   gyldige dag, så fristen faller aldri på en dato som ikke finnes.
 - **Lange begrunnelser.** Maks 10 000 tegn fra `valider`. Brevet får flere
@@ -603,10 +641,20 @@ steg 2 og etter innsending.
 
 ## Åpne spørsmål
 
-Ingen. Ken besvarte spørsmålene om lenke og rekkefølge, mal for arbeidsgiver,
+Fra kort 635: ingen. Ken besvarte spørsmålene om lenke og rekkefølge, mal for arbeidsgiver,
 refusjonsfrist, utkast-merking og klage 2026-10-13. Svarene står under
 *Beslutninger*. Klagerett og klagefrist for arbeidsgiver avklares med fag før
 prodsetting, sammen med de andre forslagene til brevtekst.
+
+Fra kort 733:
+
+1. **Skjermbildet på kortet.** Kortet har vedlegget
+   «Skjermbilde 2026-11-23 kl. 11.21.00.png». `trello-cli` kan ikke laste ned
+   vedlegg, så det er ikke lest. Viser det noe mer enn pillene i fanen?
+2. **Backend-filnavnet.** `GET …/forelopig-vedtak/brev/{mottaker}` svarer med
+   `forelopig-vedtak-deltaker.pdf` også etter at vedtaket er fattet. Frontend
+   bruker ikke dette navnet, så det synes bare ved direkte kall mot ruten.
+   Forslaget lar backend være som den er.
 
 ## Ferdig når
 
@@ -624,3 +672,5 @@ prodsetting, sammen med de andre forslagene til brevtekst.
 - [x] PR-beskrivelsen ber fag gå gjennom forslagene til brevtekst, og klagerett for arbeidsgiver, før prodsetting
 - [x] `mvn -B package` er grønn
 - [x] `pnpm typecheck` og `pnpm lint` i `frontend/saksbehandling` er grønne
+- [ ] Kort 733: når vedtaket er fattet, heter brevene «Vedtak - deltaker.pdf» og «Vedtak - arbeidsgiver.pdf» i pillen, i modalen og ved nedlasting
+- [ ] Kort 733: steg 2 og `TIL_BESLUTNING` viser fortsatt «Foreløpig vedtak - …»
