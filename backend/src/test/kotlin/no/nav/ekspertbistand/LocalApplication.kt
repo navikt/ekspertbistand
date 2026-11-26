@@ -185,11 +185,37 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                 headersOf(HttpHeaders.ContentType, "application/json")
             )
         }
-        val virksomhet = lokalVirksomhet(request.url.encodedPath.substringAfterLast('/'))
+        val orgnr = request.url.encodedPath.substringAfterLast('/')
+        lokalVirksomhetForJuridiskEnhet(orgnr)?.let { underenhet ->
+            val sektorkode = underenhet.sektorkode?.let { "\"$it\"" } ?: "null"
+            val enhetstype = when (Virksomhetstype.fraSektorkode(underenhet.sektorkode)) {
+                Virksomhetstype.STATLIG -> "STAT"
+                Virksomhetstype.KOMMUNAL -> "KF"
+                else -> "AS"
+            }
+            return@MockEngine respond(
+                // language=JSON
+                """{
+                  "organisasjonsnummer": "$orgnr",
+                  "type": "JuridiskEnhet",
+                  "navn": { "sammensattnavn": "${underenhet.navn}" },
+                  "juridiskEnhetDetaljer": { "enhetstype": "$enhetstype", "sektorkode": $sektorkode }
+                }""",
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, "application/json")
+            )
+        }
+        val virksomhet = lokalVirksomhet(orgnr)
+        val hierarki = if (request.url.parameters["inkluderHierarki"] == "true") {
+            ",\n" + virksomhet.eregHierarkiJson()
+        } else {
+            ""
+        }
         respond(
             // language=JSON
             """{
               "organisasjonsnummer": "${virksomhet.orgnr}",
+              "type": "Virksomhet",
               "navn": { "sammensattnavn": "${virksomhet.navn}" },
               "organisasjonDetaljer": {
                 "forretningsadresser": [
@@ -200,7 +226,7 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                     "kommunenummer": "${virksomhet.kommunenummer}"
                   }
                 ]
-              }
+              }$hierarki
             }""",
             HttpStatusCode.OK,
             headersOf(HttpHeaders.ContentType, "application/json")
@@ -652,7 +678,7 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
         configureForelopigVedtakApiV1()
         configureSluttrapportVurderingApiV1()
         configureBeslutterApiV1()
-        configureKommunefilterApiV1()
+        configureSaksfilterApiV1()
         configureSakDokumentApiV1()
         configureKontoregisterApiV1()
 

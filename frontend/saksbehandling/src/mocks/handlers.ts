@@ -1,7 +1,7 @@
 import { http, bypass, HttpResponse } from "msw";
 import type { ForelopigVedtakInput } from "../hooks/useForelopigVedtak";
 import type { ForelopigVedtakOppsett, Kostnadssted } from "../hooks/useForelopigVedtakOppsett";
-import type { Kommune } from "../hooks/useKommunefilter";
+import type { Kommune } from "../hooks/useSaksfilter";
 import type { SluttrapportStatusDto, SluttrapportVurderingInput } from "../hooks/useSluttrapport";
 import type { Mottaker } from "../hooks/useVedtaksbrev";
 import type {
@@ -18,8 +18,10 @@ import {
   type SakListeElement,
   type Saksstatus,
   type SoknadStatus,
+  type Virksomhetstype,
   rolleForOppgave,
 } from "../hooks/useSaker";
+import { virksomhetstypeVisning } from "../hooks/useVirksomhetstypefilter";
 import {
   AUTOMATISK_OPPFYLTE_VILKAR,
   VILKAR_TEKSTER,
@@ -31,7 +33,7 @@ import { mockInnloggetAnsatt } from "../mock/ansatt";
 import { tolkSoknadssum } from "../utils/belop";
 import {
   SAKSBEHANDLING_FORELOPIG_VEDTAK_BREV_URL,
-  SAKSBEHANDLING_KOMMUNEFILTER_URL,
+  SAKSBEHANDLING_SAKSFILTER_URL,
   SAKSBEHANDLING_FORELOPIG_VEDTAK_FORHANDSVISNING_URL,
   SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL,
   SAKSBEHANDLING_REFUSJON_URL,
@@ -830,6 +832,8 @@ const mockKommune = (index: number, kommunenummer: string | null | undefined, ar
   return agderKommuner[index % agderKommuner.length];
 };
 
+const mockVirksomhetstyper: Virksomhetstype[] = ["PRIVAT", "KOMMUNAL", "STATLIG", "UKJENT"];
+
 const tilListeElement = (
   {
     soknad,
@@ -862,6 +866,10 @@ const tilListeElement = (
     mottatt: innsendingsoppgave?.mottatt ?? soknad.innsendtTidspunkt,
     kommunenummer,
     kommunenavn: kommunenummer ? (mockKommunenavn[kommunenummer] ?? null) : null,
+    virksomhetstype:
+      sak.kildeTilBehandling === "ARENA"
+        ? "UKJENT"
+        : mockVirksomhetstyper[index % mockVirksomhetstyper.length],
     kanTildeleMeg: sak.saksbehandlerIdent === null && kanTildeles({ ...sak, oppgavetype: type }),
     oppgavetype: type,
     harOppgaveForMeg: harOppgaveForMeg(type),
@@ -904,6 +912,7 @@ const utenDeltaker = (sak: MockListeElement): SakListeElement =>
         kanTildeleMegSomBeslutter: false,
         kommunenummer: null,
         kommunenavn: null,
+        virksomhetstype: null,
         soknad: { ...sak.soknad, virksomhet: null, ansattNavn: null },
       }
     : sak;
@@ -929,7 +938,11 @@ const deltakerAvvist = (sak: SakListeElement): Response | null => {
 
 const mineEnheter = new Set(mockInnloggetAnsatt.enheter.map((e) => e.nummer));
 
-let kommunefilter: { enhet: string; kommuner: string[] } | null = null;
+let saksfilter: { enhet: string; kommuner: string[]; virksomhetstyper: Virksomhetstype[] } | null =
+  null;
+
+// I enum-rekkefølgen backend lagrer i.
+const virksomhetstyper = Object.keys(virksomhetstypeVisning) as Virksomhetstype[];
 
 const tilKommune = (nummer: string): Kommune => ({ nummer, navn: mockKommunenavn[nummer] ?? null });
 
@@ -1150,16 +1163,24 @@ export const handlers = [
     })
   ),
   http.get("/api/saksbehandling/v1/meg", () => HttpResponse.json(mockInnloggetAnsatt)),
-  http.get(SAKSBEHANDLING_KOMMUNEFILTER_URL, () =>
+  http.get(SAKSBEHANDLING_SAKSFILTER_URL, () =>
     HttpResponse.json(
-      kommunefilter
-        ? { enhet: kommunefilter.enhet, kommuner: kommunefilter.kommuner.map(tilKommune) }
-        : { enhet: null, kommuner: [] }
+      saksfilter
+        ? {
+            enhet: saksfilter.enhet,
+            kommuner: saksfilter.kommuner.map(tilKommune),
+            virksomhetstyper: saksfilter.virksomhetstyper,
+          }
+        : { enhet: null, kommuner: [], virksomhetstyper: [] }
     )
   ),
-  // Speiler `valider()` i KommunefilterApi.kt.
-  http.put(SAKSBEHANDLING_KOMMUNEFILTER_URL, async ({ request }) => {
-    const body = (await request.json()) as { enhet: string; kommuner: string[] };
+  // Speiler `valider()` og deserialiseringen i SaksfilterApi.kt.
+  http.put(SAKSBEHANDLING_SAKSFILTER_URL, async ({ request }) => {
+    const body = (await request.json()) as {
+      enhet: string;
+      kommuner: string[];
+      virksomhetstyper?: string[];
+    };
     const ugyldig = (felt: string, aarsak: string) =>
       HttpResponse.json(
         { kode: "UGYLDIG_INPUT", message: `Ugyldig verdi i felt '${felt}': ${aarsak}`, felt },
@@ -1168,7 +1189,18 @@ export const handlers = [
     if (!mineEnheter.has(body.enhet)) return ugyldig("enhet", "ikke en av enhetene dine");
     const feil = body.kommuner.findIndex((k) => !/^\d{4}$/.test(k));
     if (feil >= 0) return ugyldig(`kommuner[${feil}]`, "må være fire sifre");
-    kommunefilter = { enhet: body.enhet, kommuner: [...new Set(body.kommuner)].sort() };
+    if (
+      !body.virksomhetstyper ||
+      body.virksomhetstyper.some((v) => !virksomhetstyper.includes(v as Virksomhetstype))
+    ) {
+      return HttpResponse.json({ message: "Ugyldig forespørsel" }, { status: 400 });
+    }
+    const valgte = new Set(body.virksomhetstyper);
+    saksfilter = {
+      enhet: body.enhet,
+      kommuner: [...new Set(body.kommuner)].sort(),
+      virksomhetstyper: virksomhetstyper.filter((v) => valgte.has(v)),
+    };
     return new HttpResponse(null, { status: 204 });
   }),
   http.get(SAKSBEHANDLING_SAKER_URL, () =>

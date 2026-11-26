@@ -23,6 +23,7 @@ import no.nav.ekspertbistand.saksbehandling.ForelopigUtfall
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Vilkar
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
+import no.nav.ekspertbistand.saksbehandling.Virksomhetstype
 import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import no.nav.ekspertbistand.saksbehandling.saksstatus
 import no.nav.ekspertbistand.soknad.SoknadTable
@@ -56,6 +57,8 @@ internal data class LokalVirksomhet(
     val poststed: String,
     val kommunenummer: String,
     val kommunenavn: String,
+    /** Sektorkoden til juridisk enhet over virksomheten. Null gir «Ukjent» i saksoversikten. */
+    val sektorkode: String?,
     val enhet: LokalEnhet = LokalEnhet.SYDPOLEN,
     val harKontonummer: Boolean = true,
 ) {
@@ -80,7 +83,16 @@ internal enum class LokalBeskyttelse(val gradering: String?, val avvisningskode:
 }
 
 internal val lokaleVirksomheter = listOf(
-    LokalVirksomhet("123456780", "Eksempel Bedrift AS Avd. Oslo", "Testveien 1", "0557", "Oslo", "0301", "Oslo"),
+    LokalVirksomhet(
+        "123456780",
+        "Eksempel Bedrift AS Avd. Oslo",
+        "Testveien 1",
+        "0557",
+        "Oslo",
+        "0301",
+        "Oslo",
+        "2100",
+    ),
     LokalVirksomhet(
         "310000001",
         "Bryggen Bølgeblikk AS",
@@ -89,10 +101,11 @@ internal val lokaleVirksomheter = listOf(
         "Bergen",
         "4601",
         "Bergen",
+        "2100",
         LokalEnhet.NORDPOLEN
     ),
-    LokalVirksomhet("310000002", "Nidaros Nagleverk AS", "Munkegata 2", "7011", "Trondheim", "5001", "Trondheim"),
-    LokalVirksomhet("310000003", "Stavanger Sveis AS", "Kirkegata 3", "4006", "Stavanger", "1103", "Stavanger"),
+    LokalVirksomhet("310000002", "Nidaros Nagleverk AS", "Munkegata 2", "7011", "Trondheim", "5001", "Trondheim", "2100"),
+    LokalVirksomhet("310000003", "Stavanger Sveis AS", "Kirkegata 3", "4006", "Stavanger", "1103", "Stavanger", "2100"),
     LokalVirksomhet(
         "310000004",
         "Ishavsbyen Isolasjon AS",
@@ -101,10 +114,11 @@ internal val lokaleVirksomheter = listOf(
         "Tromsø",
         "5501",
         "Tromsø",
+        "2100",
         LokalEnhet.NORDPOLEN
     ),
-    LokalVirksomhet("310000005", "Lillestrøm Lager AS", "Torget 5", "2000", "Lillestrøm", "3205", "Lillestrøm"),
-    LokalVirksomhet("310000006", "Sandvika Snekkeri AS", "Rådhustorget 6", "1338", "Sandvika", "3201", "Bærum"),
+    LokalVirksomhet("310000005", "Lillestrøm Lager AS", "Torget 5", "2000", "Lillestrøm", "3205", "Lillestrøm", "1520"),
+    LokalVirksomhet("310000006", "Sandvika Snekkeri AS", "Rådhustorget 6", "1338", "Sandvika", "3201", "Bærum", "2100"),
     LokalVirksomhet(
         "310000007",
         "Sørlandet Seilmakeri AS",
@@ -112,9 +126,19 @@ internal val lokaleVirksomheter = listOf(
         "4611",
         "Kristiansand",
         "4204",
-        "Kristiansand"
+        "Kristiansand",
+        null,
     ),
-    LokalVirksomhet("310000008", "Nav Lokalkontor Drammen", "Bragernes torg 8", "3017", "Drammen", "3301", "Drammen"),
+    LokalVirksomhet(
+        "310000008",
+        "Nav Lokalkontor Drammen",
+        "Bragernes torg 8",
+        "3017",
+        "Drammen",
+        "3301",
+        "Drammen",
+        "6100",
+    ),
     LokalVirksomhet(
         "310000009",
         "Hamar Hovleri AS",
@@ -123,12 +147,43 @@ internal val lokaleVirksomheter = listOf(
         "Hamar",
         "3403",
         "Hamar",
+        "2100",
         harKontonummer = false,
     ),
 )
 
 internal fun lokalVirksomhet(orgnr: String) =
     lokaleVirksomheter.find { it.orgnr == orgnr } ?: lokaleVirksomheter.first()
+
+/** Orgnr til juridisk enhet over virksomheten i Ereg-mocken. */
+internal val LokalVirksomhet.juridiskEnhetOrgnr get() = "9${orgnr.drop(1)}"
+
+internal fun lokalVirksomhetForJuridiskEnhet(orgnr: String) =
+    lokaleVirksomheter.find { it.juridiskEnhetOrgnr == orgnr }
+
+/**
+ * Feltene Ereg gir med `inkluderHierarki=true`. Statlige virksomheter ligger under to organisasjonsledd, som
+ * Nav-kontor i Ereg, andre rett under juridisk enhet.
+ */
+internal fun LokalVirksomhet.eregHierarkiJson(): String {
+    val juridiskEnhet = """"inngaarIJuridiskEnheter": [{ "organisasjonsnummer": "$juridiskEnhetOrgnr" }]"""
+    if (Virksomhetstype.fraSektorkode(sektorkode) != Virksomhetstype.STATLIG) return juridiskEnhet
+    return """
+        "bestaarAvOrganisasjonsledd": [{
+          "organisasjonsledd": {
+            "organisasjonsnummer": "8${orgnr.drop(1)}",
+            "type": "Organisasjonsledd",
+            "organisasjonsleddOver": [{
+              "organisasjonsledd": {
+                "organisasjonsnummer": "7${orgnr.drop(1)}",
+                "type": "Organisasjonsledd",
+                $juridiskEnhet
+              }
+            }]
+          }
+        }]
+    """.trimIndent()
+}
 
 internal fun lokalEnhetForKommune(kommunenummer: String?) =
     lokaleVirksomheter.find { it.kommunenummer == kommunenummer }?.enhet ?: LokalEnhet.SYDPOLEN

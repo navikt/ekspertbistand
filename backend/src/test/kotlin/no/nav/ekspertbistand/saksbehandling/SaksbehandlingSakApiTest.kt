@@ -77,7 +77,7 @@ class SaksbehandlingSakApiTest {
     private val egneEnheter = """[{ "enhetnummer": "$egenEnhet", "navn": "Nav Test" }]"""
     private val vikafossenOgEgenEnhet =
         """[{ "enhetnummer": "2103", "navn": "Nav Vikafossen" }, { "enhetnummer": "$egenEnhet", "navn": "Nav Test" }]"""
-    private val kommunefilterUrl = "/api/saksbehandling/v1/meg/kommunefilter"
+    private val saksfilterUrl = "/api/saksbehandling/v1/meg/saksfilter"
 
     private class RecordingAuditLogger : AuditLogger {
         val meldinger = mutableListOf<CefMessage>()
@@ -745,6 +745,7 @@ class SaksbehandlingSakApiTest {
             assertNull(sak.soknad.ansattNavn)
             assertNull(sak.soknad.virksomhet)
             assertNull(sak.deltakerTilgang)
+            assertNull(sak.virksomhetstype)
             assertFalse(sak.kanTildeleMeg)
         }
 
@@ -789,6 +790,33 @@ class SaksbehandlingSakApiTest {
         }
 
     @Test
+    fun `listen gir virksomhetstype fra sektorkoden, og skjuler den når tilgangsmaskin avviser`() =
+        testApplicationWithDatabase { db ->
+            val avvistFnr = "22222222222"
+            val kommunal = lagreSak(db, lagreSoknad(db), sektorkode = "6500")
+            val utenSektorkode = lagreSak(db, lagreSoknad(db))
+            val avvist = lagreSak(db, lagreSoknad(db, ansattFnr = avvistFnr), sektorkode = "6100")
+            val oppsett = oppsett(db, bulkSvar = { call, identer ->
+                call.respondBulk(
+                    identer.map {
+                        if (it == avvistFnr) {
+                            EnkeltBulkRespons(it, 403, TilgangsmaskinAvvisning(title = "AVVIST_SKJERMING"))
+                        } else {
+                            EnkeltBulkRespons(it, 204)
+                        }
+                    }
+                )
+            })
+
+            val saker = oppsett.client.get("/api/saksbehandling/v1/saker") { bearerAuth(gyldigToken) }
+                .body<SakerResponse>().saker.associateBy { UUID.fromString(it.sakId) }
+
+            assertEquals(Virksomhetstype.KOMMUNAL, saker.getValue(kommunal).virksomhetstype)
+            assertEquals(Virksomhetstype.UKJENT, saker.getValue(utenSektorkode).virksomhetstype)
+            assertNull(saker.getValue(avvist).virksomhetstype)
+        }
+
+    @Test
     fun `listen gir kommunenummer uten navn når Norg feiler`() = testApplicationWithDatabase { db ->
         lagreSak(db, lagreSoknad(db), kommunenummer = "4601")
         val oppsett = oppsett(db, geografiSvar = { it.respond(HttpStatusCode.InternalServerError) })
@@ -802,97 +830,156 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
-    fun `kommunefilter er tomt før noe er lagret`() = testApplicationWithDatabase { db ->
+    fun `saksfilter er tomt før noe er lagret`() = testApplicationWithDatabase { db ->
         val oppsett = oppsett(db)
 
-        val response = oppsett.client.get(kommunefilterUrl) { bearerAuth(gyldigToken) }
+        val response = oppsett.client.get(saksfilterUrl) { bearerAuth(gyldigToken) }
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals(KommunefilterResponse(enhet = null, kommuner = emptyList()), response.body())
+        assertEquals(
+            SaksfilterResponse(enhet = null, kommuner = emptyList(), virksomhetstyper = emptyList()),
+            response.body(),
+        )
     }
 
     @Test
-    fun `kommunefilter lagres og hentes med navn, og kommuner Norg ikke kjenner faller bort`() =
+    fun `saksfilter lagres og hentes med navn, og kommuner Norg ikke kjenner faller bort`() =
         testApplicationWithDatabase { db ->
             val oppsett = oppsett(db, grupper = beslutterGrupper)
 
-            val lagret = oppsett.client.put(kommunefilterUrl) {
+            val lagret = oppsett.client.put(saksfilterUrl) {
                 bearerAuth(gyldigToken)
                 contentType(ContentType.Application.Json)
-                setBody(KommunefilterRequest(enhet = egenEnhet, kommuner = listOf("4601", "9999", "0301", "4601")))
+                setBody(
+                    SaksfilterRequest(
+                        enhet = egenEnhet,
+                        kommuner = listOf("4601", "9999", "0301", "4601"),
+                        virksomhetstyper = emptyList(),
+                    )
+                )
             }
-            val hentet = oppsett.client.get(kommunefilterUrl) { bearerAuth(gyldigToken) }
+            val hentet = oppsett.client.get(saksfilterUrl) { bearerAuth(gyldigToken) }
 
             assertEquals(HttpStatusCode.NoContent, lagret.status)
             assertEquals(
-                KommunefilterResponse(
+                SaksfilterResponse(
                     enhet = egenEnhet,
                     kommuner = listOf(
-                        KommunefilterResponse.Kommune("0301", "Oslo"),
-                        KommunefilterResponse.Kommune("4601", "Bergen"),
+                        SaksfilterResponse.Kommune("0301", "Oslo"),
+                        SaksfilterResponse.Kommune("4601", "Bergen"),
                     ),
+                    virksomhetstyper = emptyList(),
                 ),
                 hentet.body(),
             )
         }
 
     @Test
-    fun `kommunefilter beholder kommunene uten navn når Norg feiler`() = testApplicationWithDatabase { db ->
+    fun `saksfilter beholder kommunene uten navn når Norg feiler`() = testApplicationWithDatabase { db ->
         val oppsett = oppsett(db, geografiSvar = { it.respond(HttpStatusCode.InternalServerError) })
-        oppsett.client.put(kommunefilterUrl) {
+        oppsett.client.put(saksfilterUrl) {
             bearerAuth(gyldigToken)
             contentType(ContentType.Application.Json)
-            setBody(KommunefilterRequest(enhet = egenEnhet, kommuner = listOf("9999")))
+            setBody(SaksfilterRequest(enhet = egenEnhet, kommuner = listOf("9999"), virksomhetstyper = emptyList()))
         }
 
-        val hentet = oppsett.client.get(kommunefilterUrl) { bearerAuth(gyldigToken) }
+        val hentet = oppsett.client.get(saksfilterUrl) { bearerAuth(gyldigToken) }
 
-        assertEquals(listOf(KommunefilterResponse.Kommune("9999", null)), hentet.body<KommunefilterResponse>().kommuner)
+        assertEquals(listOf(SaksfilterResponse.Kommune("9999", null)), hentet.body<SaksfilterResponse>().kommuner)
     }
 
     @Test
-    fun `kommunefilter overskrives ved ny lagring`() = testApplicationWithDatabase { db ->
+    fun `saksfilter overskrives ved ny lagring`() = testApplicationWithDatabase { db ->
         val oppsett = oppsett(db)
         listOf(listOf("4601"), emptyList()).forEach { kommuner ->
-            oppsett.client.put(kommunefilterUrl) {
+            oppsett.client.put(saksfilterUrl) {
                 bearerAuth(gyldigToken)
                 contentType(ContentType.Application.Json)
-                setBody(KommunefilterRequest(enhet = egenEnhet, kommuner = kommuner))
+                setBody(SaksfilterRequest(enhet = egenEnhet, kommuner = kommuner, virksomhetstyper = emptyList()))
             }
         }
 
-        val hentet = oppsett.client.get(kommunefilterUrl) { bearerAuth(gyldigToken) }
+        val hentet = oppsett.client.get(saksfilterUrl) { bearerAuth(gyldigToken) }
 
-        assertEquals(KommunefilterResponse(enhet = egenEnhet, kommuner = emptyList()), hentet.body())
+        assertEquals(
+            SaksfilterResponse(enhet = egenEnhet, kommuner = emptyList(), virksomhetstyper = emptyList()),
+            hentet.body(),
+        )
     }
 
     @Test
-    fun `kommunefilter med enhet innlogget ikke lenger har gir tomt filter`() = testApplicationWithDatabase { db ->
+    fun `saksfilter med enhet innlogget ikke lenger har gir bare virksomhetstypene`() = testApplicationWithDatabase { db ->
         transaction(db.config.jdbcDatabase) {
-            SaksbehandlerKommunefilterTable.insert {
+            SaksbehandlerSaksfilterTable.insert {
                 it[navIdent] = this@SaksbehandlingSakApiTest.navIdent
                 it[enhet] = annenEnhet
                 it[kommuner] = listOf("4601")
+                it[virksomhetstyper] = listOf("KOMMUNAL", "FJERNET_TYPE")
             }
         }
         val oppsett = oppsett(db)
 
-        val hentet = oppsett.client.get(kommunefilterUrl) { bearerAuth(gyldigToken) }
+        val hentet = oppsett.client.get(saksfilterUrl) { bearerAuth(gyldigToken) }
 
-        assertEquals(KommunefilterResponse(enhet = null, kommuner = emptyList()), hentet.body())
+        assertEquals(
+            SaksfilterResponse(enhet = null, kommuner = emptyList(), virksomhetstyper = listOf(Virksomhetstype.KOMMUNAL)),
+            hentet.body(),
+        )
     }
 
     @Test
-    fun `kommunefilter avviser enhet innlogget ikke har og kommuner som ikke er fire sifre`() =
+    fun `saksfilter lagrer virksomhetstypene uten duplikater i fast rekkefølge`() = testApplicationWithDatabase { db ->
+        val oppsett = oppsett(db)
+
+        val lagret = oppsett.client.put(saksfilterUrl) {
+            bearerAuth(gyldigToken)
+            contentType(ContentType.Application.Json)
+            setBody(
+                SaksfilterRequest(
+                    enhet = egenEnhet,
+                    kommuner = emptyList(),
+                    virksomhetstyper = listOf(Virksomhetstype.UKJENT, Virksomhetstype.STATLIG, Virksomhetstype.UKJENT),
+                )
+            )
+        }
+        val hentet = oppsett.client.get(saksfilterUrl) { bearerAuth(gyldigToken) }
+
+        assertEquals(HttpStatusCode.NoContent, lagret.status)
+        assertEquals(
+            listOf(Virksomhetstype.STATLIG, Virksomhetstype.UKJENT),
+            hentet.body<SaksfilterResponse>().virksomhetstyper,
+        )
+    }
+
+    @Test
+    fun `saksfilter avviser manglende og ukjente virksomhetstyper`() = testApplicationWithDatabase { db ->
+        val oppsett = oppsett(db)
+
+        listOf(
+            """{"enhet":"$egenEnhet","kommuner":[]}""",
+            """{"enhet":"$egenEnhet","kommuner":[],"virksomhetstyper":["OFFENTLIG"]}""",
+        ).forEach { body ->
+            val response = oppsett.client.put(saksfilterUrl) {
+                bearerAuth(gyldigToken)
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+            assertEquals(HttpStatusCode.BadRequest, response.status, body)
+        }
+        assertEquals(0, transaction(db.config.jdbcDatabase) { SaksbehandlerSaksfilterTable.selectAll().count() })
+    }
+
+    @Test
+    fun `saksfilter avviser enhet innlogget ikke har og kommuner som ikke er fire sifre`() =
         testApplicationWithDatabase { db ->
             val oppsett = oppsett(db)
 
             listOf(
-                KommunefilterRequest(enhet = annenEnhet, kommuner = emptyList()) to "enhet",
-                KommunefilterRequest(enhet = egenEnhet, kommuner = listOf("4601", "46")) to "kommuner[1]",
-                KommunefilterRequest(enhet = egenEnhet, kommuner = listOf("460a")) to "kommuner[0]",
+                SaksfilterRequest(enhet = annenEnhet, kommuner = emptyList(), virksomhetstyper = emptyList()) to "enhet",
+                SaksfilterRequest(enhet = egenEnhet, kommuner = listOf("4601", "46"), virksomhetstyper = emptyList()) to "kommuner[1]",
+                SaksfilterRequest(enhet = egenEnhet, kommuner = listOf("460a"), virksomhetstyper = emptyList()) to "kommuner[0]",
             ).forEach { (request, felt) ->
-                val response = oppsett.client.put(kommunefilterUrl) {
+                val response = oppsett.client.put(saksfilterUrl) {
                     bearerAuth(gyldigToken)
                     contentType(ContentType.Application.Json)
                     setBody(request)
@@ -900,18 +987,18 @@ class SaksbehandlingSakApiTest {
                 assertEquals(HttpStatusCode.BadRequest, response.status, felt)
                 assertTrue(response.bodyAsText().contains("\"felt\":\"$felt\""), response.bodyAsText())
             }
-            assertEquals(0, transaction(db.config.jdbcDatabase) { SaksbehandlerKommunefilterTable.selectAll().count() })
+            assertEquals(0, transaction(db.config.jdbcDatabase) { SaksbehandlerSaksfilterTable.selectAll().count() })
         }
 
     @Test
-    fun `kommunefilter uten saksbehandler- eller beslutterrolle gir 403`() = testApplicationWithDatabase { db ->
+    fun `saksfilter uten saksbehandler- eller beslutterrolle gir 403`() = testApplicationWithDatabase { db ->
         val oppsett = oppsett(db, grupper = ingenGrupper)
 
-        val hent = oppsett.client.get(kommunefilterUrl) { bearerAuth(gyldigToken) }
-        val lagre = oppsett.client.put(kommunefilterUrl) {
+        val hent = oppsett.client.get(saksfilterUrl) { bearerAuth(gyldigToken) }
+        val lagre = oppsett.client.put(saksfilterUrl) {
             bearerAuth(gyldigToken)
             contentType(ContentType.Application.Json)
-            setBody(KommunefilterRequest(enhet = egenEnhet, kommuner = emptyList()))
+            setBody(SaksfilterRequest(enhet = egenEnhet, kommuner = emptyList(), virksomhetstyper = emptyList()))
         }
 
         assertEquals(HttpStatusCode.Forbidden, hent.status)
@@ -1566,7 +1653,7 @@ class SaksbehandlingSakApiTest {
 
             configureAuthentication()
             configureSaksbehandlingSakApiV1()
-            configureKommunefilterApiV1()
+            configureSaksfilterApiV1()
             configureServer()
         }
 
@@ -1637,10 +1724,12 @@ class SaksbehandlingSakApiTest {
         kommunenummer: String? = null,
         adressebeskyttelse: Adressebeskyttelse? = null,
         skjermet: Boolean = false,
+        sektorkode: String? = null,
     ): UUID =
         transaction(db.config.jdbcDatabase) {
             SakTable.insert {
                 it[this.kommunenummer] = kommunenummer
+                it[this.sektorkode] = sektorkode
                 it[this.adressebeskyttelse] = adressebeskyttelse?.name
                 it[this.skjermet] = skjermet
                 it[this.soknadId] = soknadId

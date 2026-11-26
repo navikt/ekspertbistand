@@ -51,12 +51,24 @@ class EregClient(
     }
 
     /** Som [hentOrganisasjon], men gir null når Ereg svarer 404. */
-    suspend fun hentOrganisasjonEllerNull(orgnr: String): OrganisasjonResponse? {
+    suspend fun hentOrganisasjonEllerNull(orgnr: String): OrganisasjonResponse? =
+        hentEllerNull(orgnr, inkluderHierarki = false)
+
+    /**
+     * Som [hentOrganisasjonEllerNull], med `inkluderHierarki=true`. Svaret har kjeden av enheter over nestet i
+     * [OrganisasjonResponse.bestaarAvOrganisasjonsledd], [OrganisasjonResponse.organisasjonsleddOver] og
+     * [OrganisasjonResponse.inngaarIJuridiskEnheter]. Enhetene over har bare orgnr, type og navn, ingen detaljer.
+     */
+    suspend fun hentOrganisasjonMedHierarkiEllerNull(orgnr: String): OrganisasjonResponse? =
+        hentEllerNull(orgnr, inkluderHierarki = true)
+
+    private suspend fun hentEllerNull(orgnr: String, inkluderHierarki: Boolean): OrganisasjonResponse? {
         val response = try {
             httpClient.get {
                 url {
                     takeFrom(ingress)
                     path(API_PATH + orgnr)
+                    if (inkluderHierarki) parameters.append("inkluderHierarki", "true")
                 }
                 contentType(ContentType.Application.Json)
                 accept(ContentType.Application.Json)

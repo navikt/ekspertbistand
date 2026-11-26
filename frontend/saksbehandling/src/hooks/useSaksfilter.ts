@@ -2,24 +2,28 @@ import { useRef, useState } from "react";
 import useSWR from "swr";
 import type { AnsattEnhet } from "../mock/ansatt";
 import { fetchJson } from "../utils/api";
-import { SAKSBEHANDLING_KOMMUNEFILTER_URL } from "../utils/constants";
+import { SAKSBEHANDLING_SAKSFILTER_URL } from "../utils/constants";
 import { HttpError } from "../utils/http";
-import type { SakListeElement } from "./useSaker";
+import type { SakListeElement, Virksomhetstype } from "./useSaker";
 
 export type Kommune = { nummer: string; navn: string | null };
 
 /** `enhet` er null når ingenting er lagret, eller når den innloggede ikke lenger har enheten. */
-type KommunefilterResponse = { enhet: string | null; kommuner: Kommune[] };
+type SaksfilterResponse = {
+  enhet: string | null;
+  kommuner: Kommune[];
+  virksomhetstyper: Virksomhetstype[];
+};
 
-/** Tom `kommuner` betyr alle kommuner. */
-export type Kommunefilter = { enhet: string; kommuner: string[] };
+/** Tom `kommuner` betyr alle kommuner, og tom `virksomhetstyper` alle typer. */
+export type Saksfilter = { enhet: string; kommuner: string[]; virksomhetstyper: Virksomhetstype[] };
 
 export type KommuneValg = { label: string; value: string };
 
-export function useKommunefilter(enheter: ReadonlyArray<AnsattEnhet>) {
+export function useSaksfilter(enheter: ReadonlyArray<AnsattEnhet>) {
   // Uten revalidering beholder vi et filter som ikke ble lagret, resten av økten.
-  const { data, isLoading, mutate } = useSWR<KommunefilterResponse, HttpError>(
-    SAKSBEHANDLING_KOMMUNEFILTER_URL,
+  const { data, isLoading, mutate } = useSWR<SaksfilterResponse, HttpError>(
+    SAKSBEHANDLING_SAKSFILTER_URL,
     { revalidateOnFocus: false, revalidateIfStale: false }
   );
   const [lagringFeilet, setLagringFeilet] = useState(false);
@@ -27,22 +31,28 @@ export function useKommunefilter(enheter: ReadonlyArray<AnsattEnhet>) {
   const koe = useRef<Promise<void>>(Promise.resolve());
 
   const lagretEnhet = enheter.find((e) => e.nummer === data?.enhet)?.nummer;
-  const filter: Kommunefilter = lagretEnhet
-    ? { enhet: lagretEnhet, kommuner: (data?.kommuner ?? []).map((k) => k.nummer) }
-    : { enhet: enheter[0]?.nummer ?? "", kommuner: [] };
+  const virksomhetstyper = data?.virksomhetstyper ?? [];
+  const filter: Saksfilter = lagretEnhet
+    ? {
+        enhet: lagretEnhet,
+        kommuner: (data?.kommuner ?? []).map((k) => k.nummer),
+        virksomhetstyper,
+      }
+    : { enhet: enheter[0]?.nummer ?? "", kommuner: [], virksomhetstyper };
 
-  const lagre = (nytt: Kommunefilter) => {
+  const lagre = (nytt: Saksfilter) => {
     const navn = new Map((data?.kommuner ?? []).map((k) => [k.nummer, k.navn]));
     void mutate(
       {
         enhet: nytt.enhet,
         kommuner: nytt.kommuner.map((nummer) => ({ nummer, navn: navn.get(nummer) ?? null })),
+        virksomhetstyper: nytt.virksomhetstyper,
       },
       { revalidate: false }
     );
     koe.current = koe.current.then(async () => {
       try {
-        await fetchJson(SAKSBEHANDLING_KOMMUNEFILTER_URL, {
+        await fetchJson(SAKSBEHANDLING_SAKSFILTER_URL, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(nytt),
@@ -69,7 +79,7 @@ export function useKommunefilter(enheter: ReadonlyArray<AnsattEnhet>) {
  */
 export function brukKommunefilter(
   saker: SakListeElement[],
-  filter: Kommunefilter,
+  filter: Saksfilter,
   lagredeKommuner: Kommune[],
   tilgangssjekkFeilet: boolean
 ) {

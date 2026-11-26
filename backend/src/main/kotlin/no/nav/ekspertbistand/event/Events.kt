@@ -154,6 +154,9 @@ sealed interface EventData {
      * [adressebeskyttelse] og [skjermet] er deltakerens adressebeskyttelse i PDL og skjerming i
      * `skjermede-personer-pip` da saken ble opprettet. De oppdateres ikke senere. Defaultene gjelder eldre events.
      *
+     * [sektorkode] er sektorkoden til juridisk enhet på toppen av kjeden over virksomheten, fra Ereg da saken ble
+     * opprettet. Null når Ereg ikke har den, og for eldre events.
+     *
      * Konsumenter: [no.nav.ekspertbistand.event.handlers.VarsleArbeidsgiverSakOpprettet] og
      * [no.nav.ekspertbistand.statistikk.SaksbehandlingsstatistikkProjection].
      */
@@ -164,6 +167,7 @@ sealed interface EventData {
         val soknad: SoknadDomainV1,
         val adressebeskyttelse: Adressebeskyttelse? = null,
         val skjermet: Boolean = false,
+        val sektorkode: String? = null,
     ) : EventData {
         override val aggregateRootId: String get() = soknad.aggregateRootId
     }
