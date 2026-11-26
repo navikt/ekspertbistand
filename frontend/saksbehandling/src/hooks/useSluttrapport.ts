@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { useSWRConfig } from "swr";
+import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import { fetchJson } from "../utils/api";
 import {
   SAKSBEHANDLING_SAKSLOGG_URL,
@@ -77,6 +78,7 @@ export function useSluttrapport(sakId: string, enabled: boolean) {
 
 export function useSluttrapportVurdering(sakId: string) {
   const { mutate } = useSWRConfig();
+  const innloggetAnsatt = useInnloggetAnsatt();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const sluttrapportUrl = SAKSBEHANDLING_SLUTTRAPPORT_URL(sakId);
@@ -100,6 +102,8 @@ export function useSluttrapportVurdering(sakId: string) {
         {
           ...sluttrapport,
           status: input.utfall,
+          vurdertAvIdent: innloggetAnsatt?.id ?? null,
+          vurdertAvNavn: innloggetAnsatt?.navn ?? null,
           vurdertTidspunkt: new Date().toISOString(),
           begrunnelse: input.utfall === "NY_INNSENDING_KREVES" ? (input.begrunnelse ?? null) : null,
         },

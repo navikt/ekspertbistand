@@ -1,13 +1,4 @@
-import {
-  BodyLong,
-  BodyShort,
-  Box,
-  Heading,
-  LocalAlert,
-  Loader,
-  Tag,
-  VStack,
-} from "@navikt/ds-react";
+import { BodyLong, BodyShort, Box, Heading, LocalAlert, Loader, VStack } from "@navikt/ds-react";
 import type { SluttrapportStatusDto } from "../hooks/useSluttrapport";
 import { SAKSBEHANDLING_SLUTTRAPPORT_FIL_URL } from "../utils/constants";
 import type { HttpError } from "../utils/http";
@@ -40,18 +31,6 @@ function formatDato(opprettet: string) {
     timeStyle: "short",
   }).format(new Date(opprettet));
 }
-
-const statusTekst = {
-  MOTTATT: "Mottatt",
-  BEKREFTET: "Bekreftet",
-  NY_INNSENDING_KREVES: "Ny innsending kreves",
-} as const;
-
-const statusVariant = {
-  MOTTATT: "info",
-  BEKREFTET: "success",
-  NY_INNSENDING_KREVES: "warning",
-} as const;
 
 export default function SluttrapportVisning({
   sakId,
@@ -99,22 +78,6 @@ export default function SluttrapportVisning({
           <BodyShort weight="semibold">Sendt inn</BodyShort>
           <BodyShort>{formatDato(sluttrapport.opprettet)}</BodyShort>
         </VStack>
-
-        <VStack gap="space-4">
-          <BodyShort weight="semibold">Status</BodyShort>
-          <div>
-            <Tag variant={statusVariant[sluttrapport.status]}>
-              {statusTekst[sluttrapport.status]}
-            </Tag>
-          </div>
-        </VStack>
-
-        {sluttrapport.status === "NY_INNSENDING_KREVES" && sluttrapport.begrunnelse && (
-          <VStack gap="space-4">
-            <BodyShort weight="semibold">Begrunnelse for ny innsending</BodyShort>
-            <BodyLong>{sluttrapport.begrunnelse}</BodyLong>
-          </VStack>
-        )}
 
         <VStack gap="space-8">
           <Heading level="3" size="xsmall">
