@@ -769,7 +769,15 @@ export default function SakPage() {
                   soknad={soknad}
                   midtreStandardstorrelse={sluttrapport && !sluttrapportError ? "45%" : "75%"}
                   kontroll={
-                    sluttrapport && !sluttrapportError ? <Sluttrapportkontroll /> : undefined
+                    sluttrapport && !sluttrapportError ? (
+                      <Sluttrapportkontroll
+                        sakId={sak.sakId}
+                        sluttrapport={sluttrapport}
+                        erTildeltSaksbehandler={
+                          !!innloggetAnsatt && sak.saksbehandlerIdent === innloggetAnsatt.id
+                        }
+                      />
+                    ) : undefined
                   }
                 >
                   <SluttrapportVisning

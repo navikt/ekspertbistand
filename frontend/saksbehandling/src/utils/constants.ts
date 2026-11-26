@@ -27,6 +27,8 @@ export const SAKSBEHANDLING_REFUSJON_VEDLEGG_URL = (sakId: string, vedleggId: st
   `/api/saksbehandling/v1/saker/${sakId}/refusjon/vedlegg/${vedleggId}`;
 export const SAKSBEHANDLING_SLUTTRAPPORT_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/sluttrapport`;
+export const SAKSBEHANDLING_SLUTTRAPPORT_VURDERING_URL = (sakId: string, sluttrapportId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/sluttrapport/${sluttrapportId}/vurdering`;
 export const SAKSBEHANDLING_SLUTTRAPPORT_FIL_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/sluttrapport/fil`;
 export const SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL =
