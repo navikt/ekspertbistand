@@ -22,13 +22,17 @@ import {
   kanTildeleMegSomSaksbehandler,
   useSaker,
 } from "../hooks/useSaker";
-import { brukKommunefilter, useKommunefilter } from "../hooks/useKommunefilter";
+import { brukKommunefilter, useSaksfilter } from "../hooks/useSaksfilter";
+import {
+  brukVirksomhetstypefilter,
+  virksomhetstypeVisning,
+} from "../hooks/useVirksomhetstypefilter";
 import { useTildeling } from "../hooks/useTildeling";
 import { useInnloggetAnsatt } from "../tilgang/useTilgang";
 import classes from "../components/AppLayout.module.css";
 import { AdressebeskyttelseTag } from "../components/AdressebeskyttelseTag";
 import { EgenAnsattTag } from "../components/EgenAnsattTag";
-import { Kommunefilter } from "../components/Kommunefilter";
+import { Saksfilter } from "../components/Saksfilter";
 import { OVERSIKT_PATH } from "../utils/constants";
 
 function formatDate(date: string) {
@@ -102,6 +106,16 @@ function DeltakerCelle({ sak }: { sak: SakListeElement }) {
       <AdressebeskyttelseTag adressebeskyttelse={sak.adressebeskyttelse} />
       <EgenAnsattTag skjermet={sak.skjermet} />
     </HStack>
+  );
+}
+
+function VirksomhetstypeCelle({ sak }: { sak: SakListeElement }) {
+  if (!sak.virksomhetstype) return null;
+  const { tekst, farge } = virksomhetstypeVisning[sak.virksomhetstype];
+  return (
+    <Tag size="xsmall" variant="outline" data-color={farge}>
+      {tekst}
+    </Tag>
   );
 }
 
@@ -179,21 +193,27 @@ export default function OversiktPage() {
   const innloggetAnsatt = useInnloggetAnsatt();
   const navigate = useNavigate();
   const enheter = innloggetAnsatt?.enheter ?? [];
-  const kommunefilter = useKommunefilter(enheter);
+  const saksfilter = useSaksfilter(enheter);
   const {
-    synlige: saker,
-    skjulte,
+    synlige: iKommune,
+    skjulte: skjultAvKommune,
     kommuneValg,
   } = brukKommunefilter(
     alleSaker,
-    kommunefilter.filter,
-    kommunefilter.lagredeKommuner,
+    saksfilter.filter,
+    saksfilter.lagredeKommuner,
     tilgangssjekkFeilet
   );
+  const saker = brukVirksomhetstypefilter(
+    iKommune,
+    saksfilter.filter.virksomhetstyper,
+    tilgangssjekkFeilet
+  );
+  const skjulte = skjultAvKommune + iKommune.length - saker.length;
   const velgKommune = (nummer: string) => {
-    const { filter } = kommunefilter;
+    const { filter } = saksfilter;
     if (!filter.kommuner.includes(nummer)) {
-      kommunefilter.lagre({ ...filter, kommuner: [...filter.kommuner, nummer] });
+      saksfilter.lagre({ ...filter, kommuner: [...filter.kommuner, nummer] });
     }
   };
 
@@ -226,7 +246,7 @@ export default function OversiktPage() {
     { value: "alle", label: "Alle", filter: () => saker },
   ];
 
-  if (isLoading || kommunefilter.isLoading) {
+  if (isLoading || saksfilter.isLoading) {
     return <Loader size="large" title="Laster oversikt" />;
   }
 
@@ -268,7 +288,7 @@ export default function OversiktPage() {
               litt.
             </Alert>
           )}
-          {kommunefilter.lagringFeilet && (
+          {saksfilter.lagringFeilet && (
             <Alert variant="warning" size="small">
               Vi kunne ikke lagre filteret ditt.
             </Alert>
@@ -278,12 +298,13 @@ export default function OversiktPage() {
               {tildelingsfeil.message}
             </Alert>
           )}
-          <Kommunefilter
+          <Saksfilter
             enheter={enheter}
-            filter={kommunefilter.filter}
+            filter={saksfilter.filter}
             kommuneValg={kommuneValg}
+            harSaker={alleSaker.length > 0}
             skjulte={skjulte}
-            onEndre={kommunefilter.lagre}
+            onEndre={saksfilter.lagre}
           />
           <Tabs defaultValue="oppgaver-som-venter">
             <Tabs.List>
@@ -301,6 +322,7 @@ export default function OversiktPage() {
                         <Table.ColumnHeader>Beslutter</Table.ColumnHeader>
                         <Table.ColumnHeader>Oppgavetype</Table.ColumnHeader>
                         <Table.ColumnHeader>Arbeidsgiver</Table.ColumnHeader>
+                        <Table.ColumnHeader>Type virksomhet</Table.ColumnHeader>
                         <Table.ColumnHeader>Deltaker</Table.ColumnHeader>
                         <Table.ColumnHeader>Kommune</Table.ColumnHeader>
                         <Table.ColumnHeader sortable>Tiltaksperiode</Table.ColumnHeader>
@@ -342,6 +364,9 @@ export default function OversiktPage() {
                             <OppgavetypeCelle sak={sak} />
                           </Table.DataCell>
                           <Table.DataCell>{sak.soknad.virksomhet?.virksomhetsnavn}</Table.DataCell>
+                          <Table.DataCell>
+                            <VirksomhetstypeCelle sak={sak} />
+                          </Table.DataCell>
                           <Table.DataCell>
                             <DeltakerCelle sak={sak} />
                           </Table.DataCell>

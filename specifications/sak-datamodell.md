@@ -52,6 +52,7 @@ journalført (`InnsendtSoknadJournalfoert`), sammen med alle vilkår.
 | `foreslatt_utfall` | TEXT | NULL | Saksbehandlers foreløpige vedtak sendt til beslutning (`INNVILGET`/`AVSLATT`). Se `Saksstatus`. Null før innsending. Detaljene ligger i `forelopig_vedtak`. |
 | `arena_sak_id` | TEXT | NULL | Saksnummer i Arena når saken er speilet dit. Null hvis ikke i Arena. |
 | `saksnummer` | TEXT | UNIQUE, NULL | Saksnummeret `ÅÅÅÅ/løpenummer` (V29), fra `neste_saksnummer()`. Brukes i bestillingsnummeret mot OeBS (`E-<saksnummer>-<n>`). Påkrevd når `kilde_til_behandling = EKSPERTBISTAND` (CHECK `sak_saksnummer_ekspertbistand`), null for Arena-saker. Endres aldri. |
+| `sektorkode` | TEXT | NULL | SSBs institusjonelle sektorkode til juridisk enhet over virksomheten, fra Ereg (V41). Settes av `OpprettSak`. Null for Arena-saker og når Ereg mangler koden. Mappes til `Virksomhetstype` ved lesing. Se [`kategorisering_virksomhetstype.md`](kategorisering_virksomhetstype.md). |
 | `refusjon_id` | UUID | UNIQUE, FK → `refusjonskrav(id)` | Refusjonskravet for saken (1:1). Null til krav mottas. |
 | `sluttrapport_id` | UUID | UNIQUE, FK → `sluttrapport(sluttrapport_id)` | Sluttrapporten for saken (1:1). Null til rapport mottas. |
 | `tildeling_event_id` | BIGINT | NULL | Id-en til eventen som sist tildelte eller frigjorde saken. En eldre event skriver aldri over en nyere. Null før første tildeling. |
