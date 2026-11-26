@@ -77,6 +77,7 @@ object TestEventData {
             sakId = sluttrapportMottatt.sakId,
             soknadId = sampleSoknad.id!!,
             vurdertAvIdent = "Z123456",
+            vurdertAvNavn = "Sara Saksbehandler",
             tidspunkt = Instant.parse("2026-04-03T08:00:00Z"),
         )
     }
@@ -88,6 +89,7 @@ object TestEventData {
             sakId = sluttrapportMottatt.sakId,
             soknadId = sampleSoknad.id!!,
             vurdertAvIdent = "Z123456",
+            vurdertAvNavn = "Sara Saksbehandler",
             begrunnelse = "Vedlegget mangler signatur",
             tidspunkt = Instant.parse("2026-04-03T08:00:00Z"),
         )

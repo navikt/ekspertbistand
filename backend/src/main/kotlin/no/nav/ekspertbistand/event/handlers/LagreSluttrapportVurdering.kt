@@ -52,6 +52,7 @@ class LagreSluttrapportBekreftet(
                 soknadId = data.soknadId,
                 status = SluttrapportStatus.BEKREFTET,
                 vurdertAvIdent = data.vurdertAvIdent,
+                vurdertAvNavn = data.vurdertAvNavn,
                 begrunnelse = null,
                 tidspunkt = data.tidspunkt,
                 notat = "Sluttrapport bekreftet",
@@ -87,6 +88,7 @@ class LagreSluttrapportNyInnsendingKrevd(
                 soknadId = data.soknadId,
                 status = SluttrapportStatus.NY_INNSENDING_KREVES,
                 vurdertAvIdent = data.vurdertAvIdent,
+                vurdertAvNavn = data.vurdertAvNavn,
                 begrunnelse = data.begrunnelse,
                 tidspunkt = data.tidspunkt,
                 notat = "Ny innsending av sluttrapport kreves",
@@ -102,6 +104,7 @@ private data class SluttrapportVurdering(
     val soknadId: String,
     val status: SluttrapportStatus,
     val vurdertAvIdent: String,
+    val vurdertAvNavn: String,
     val begrunnelse: String?,
     val tidspunkt: Instant,
     val notat: String,
@@ -142,6 +145,7 @@ private fun <T : EventData> EventHandler<T>.lagreSluttrapportVurdering(
             }) {
                 it[status] = vurdering.status.name
                 it[vurdertAvIdent] = vurdering.vurdertAvIdent
+                it[vurdertAvNavn] = vurdering.vurdertAvNavn
                 it[vurdertTidspunkt] = vurdering.tidspunkt
                 it[begrunnelse] = vurdering.begrunnelse
             }

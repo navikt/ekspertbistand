@@ -101,6 +101,7 @@ suspend fun Application.configureSluttrapportVurderingApiV1() {
                         sluttrapportId = sluttrapportId,
                         request = gyldig,
                         navIdent = principal.navIdent,
+                        navn = principal.navn,
                         tidspunkt = Clock.System.now(),
                     )
                 }
@@ -172,6 +173,7 @@ fun JdbcTransaction.publiserSluttrapportVurdering(
     sluttrapportId: UUID,
     request: SluttrapportVurderingRequest,
     navIdent: String,
+    navn: String,
     tidspunkt: Instant,
 ): PubliserSluttrapportVurderingResultat {
     val sak = SakTable
@@ -219,6 +221,7 @@ fun JdbcTransaction.publiserSluttrapportVurdering(
                 sakId = sakId.toString(),
                 soknadId = soknadId,
                 vurdertAvIdent = navIdent,
+                vurdertAvNavn = navn,
                 tidspunkt = tidspunkt,
             )
 
@@ -227,6 +230,7 @@ fun JdbcTransaction.publiserSluttrapportVurdering(
                 sakId = sakId.toString(),
                 soknadId = soknadId,
                 vurdertAvIdent = navIdent,
+                vurdertAvNavn = navn,
                 begrunnelse = requireNotNull(request.begrunnelse),
                 tidspunkt = tidspunkt,
             )
@@ -252,6 +256,8 @@ data class SaksbehandlingSluttrapportDto(
     val opprettet: String,
     val storrelse: Int,
     val status: SluttrapportStatus,
+    val vurdertAvIdent: String?,
+    val vurdertAvNavn: String?,
     val vurdertTidspunkt: String?,
     val begrunnelse: String?,
 )

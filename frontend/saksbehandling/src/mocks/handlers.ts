@@ -762,6 +762,8 @@ const mockSluttrapport: SluttrapportStatusDto = {
   opprettet: "2026-10-30T12:30:00Z",
   storrelse: mockPdfBytes.length,
   status: "MOTTATT",
+  vurdertAvIdent: null,
+  vurdertAvNavn: null,
   vurdertTidspunkt: null,
   begrunnelse: null,
 };
@@ -1275,6 +1277,8 @@ export const handlers = [
 
       const vurdertTidspunkt = new Date().toISOString();
       mockSluttrapport.status = utfall;
+      mockSluttrapport.vurdertAvIdent = mockInnloggetAnsatt.id;
+      mockSluttrapport.vurdertAvNavn = mockInnloggetAnsatt.navn;
       mockSluttrapport.vurdertTidspunkt = vurdertTidspunkt;
       mockSluttrapport.begrunnelse =
         utfall === "NY_INNSENDING_KREVES" ? (begrunnelse ?? null) : null;

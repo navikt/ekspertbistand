@@ -40,6 +40,7 @@ object SluttrapportTable : Table("sluttrapport") {
     val status = text("status")
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
     val vurdertAvIdent = text("vurdert_av_ident").nullable()
+    val vurdertAvNavn = text("vurdert_av_navn").nullable()
     val vurdertTidspunkt = timestamp("vurdert_tidspunkt").nullable()
     val begrunnelse = text("begrunnelse").nullable()
 
@@ -78,6 +79,8 @@ class VedleggDb(private val database: Database) {
             .select(
                 SluttrapportTable.id,
                 SluttrapportTable.status,
+                SluttrapportTable.vurdertAvIdent,
+                SluttrapportTable.vurdertAvNavn,
                 SluttrapportTable.vurdertTidspunkt,
                 SluttrapportTable.begrunnelse,
             )
@@ -110,6 +113,8 @@ class VedleggDb(private val database: Database) {
                     storrelse = it[VedleggTable.storrelse],
                     lastetOpp = it[VedleggTable.lastetOpp].toString(),
                     status = SluttrapportStatus.valueOf(sluttrapport[SluttrapportTable.status]),
+                    vurdertAvIdent = sluttrapport[SluttrapportTable.vurdertAvIdent],
+                    vurdertAvNavn = sluttrapport[SluttrapportTable.vurdertAvNavn],
                     vurdertTidspunkt = sluttrapport[SluttrapportTable.vurdertTidspunkt]?.toString(),
                     begrunnelse = sluttrapport[SluttrapportTable.begrunnelse],
                 )
@@ -246,6 +251,8 @@ data class SluttrapportMetadata(
     val storrelse: Int,
     val lastetOpp: String,
     val status: SluttrapportStatus,
+    val vurdertAvIdent: String?,
+    val vurdertAvNavn: String?,
     val vurdertTidspunkt: String?,
     val begrunnelse: String?,
 )

@@ -74,6 +74,8 @@ suspend fun Application.configureSakDokumentApiV1() {
                             opprettet = metadata.lastetOpp,
                             storrelse = metadata.storrelse,
                             status = metadata.status,
+                            vurdertAvIdent = metadata.vurdertAvIdent,
+                            vurdertAvNavn = metadata.vurdertAvNavn,
                             vurdertTidspunkt = metadata.vurdertTidspunkt,
                             begrunnelse = metadata.begrunnelse,
                         )

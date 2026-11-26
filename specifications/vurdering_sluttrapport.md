@@ -63,7 +63,7 @@ Ellers publiseres eventen i samme transaksjon, og svaret er 202.
 | Felt | Innhold |
 |------|---------|
 | `sluttrapportId`, `sakId`, `soknadId` | Id-er fra databasen |
-| `vurdertAvIdent` | NAV-identen til saksbehandler |
+| `vurdertAvIdent`, `vurdertAvNavn` | NAV-ident og navn til saksbehandler |
 | `begrunnelse` | Bare `sluttrapportNyInnsendingKrevd` |
 | `tidspunkt` | Når saksbehandler sendte vurderingen |
 
@@ -73,7 +73,7 @@ Begge har `aggregateRootId = soknadId`.
 
 `LagreSluttrapportBekreftet` og `LagreSluttrapportNyInnsendingKrevd`
 oppdaterer raden bare hvis status fortsatt er `MOTTATT`. De setter `status`,
-`vurdert_av_ident`, `vurdert_tidspunkt` og `begrunnelse`, og publiserer
+`vurdert_av_ident`, `vurdert_av_navn`, `vurdert_tidspunkt` og `begrunnelse`, og publiserer
 `SakOppdatert` med rollen `SAKSBEHANDLER`. Oppdatering, sakslogg og
 idempotensvern skrives i samme transaksjon. Var raden allerede vurdert, lagres
 ingenting og saksloggen får ingen post.
@@ -84,19 +84,29 @@ sluttrapport kreves». Begrunnelsen står ikke i notatet.
 ### Visning for saksbehandler
 
 `GET …/saker/{sakId}/sluttrapport` får `sluttrapportId`, `status`,
-`vurdertTidspunkt` og `begrunnelse`. Arbeidsgiverens API endres ikke.
+`vurdertAvIdent`, `vurdertAvNavn`, `vurdertTidspunkt` og `begrunnelse`. Arbeidsgiverens API endres ikke.
 
 Saksbehandler som er tildelt saken, ser nedtrekkslista «Kontroll av
 sluttrapport» når status er `MOTTATT`:
 
 | Valg | Knapp | Lagres |
 |------|-------|--------|
-| Mottatt sluttrapport dokumenterer tiltaket | Registrer som mottatt | `BEKREFTET` |
+| Mottatt sluttrapport dokumenterer tiltaket | Registrer som mottatt | `BEKREFTET`. Teksten «Sluttrapporten blir journalført på personmappa i Gosys.» vises under knappen. |
 | Be arbeidsgiver sende sluttrapporten på nytt | Be om sluttrapport på nytt | `NY_INNSENDING_KREVES` med fast begrunnelse |
 
 Den faste begrunnelsen vises for saksbehandler under «Tekst som vises til
 arbeidsgiver»: «Send sluttrapporten på nytt. Kontroller at vedlegget er riktig
-dokument og gjelder riktig person.» Ellers vises status og begrunnelse.
+dokument og gjelder riktig person.»
+
+Etter vurderingen viser kontrollpanelet:
+
+| Status | Overskrift | Tag | Innhold |
+|--------|-----------|-----|---------|
+| `BEKREFTET` | Sluttrapport registrert som mottatt | Mottatt | «Registrert av» med navn, ident og dato, og teksten om journalføring |
+| `NY_INNSENDING_KREVES` | Sluttrapport avvist | Venter på ny sluttrapport | «Avvist av» med navn, ident, dato og klokkeslett, «Beskjed til arbeidsgiver» med begrunnelsen, og at Nav sender påminnelse etter en uke |
+
+Navnet til saksbehandler kommer fra entra-proxy (`AzureAdPrincipal.navn`) og
+lagres i eventen og på raden, slik `sakTildeltSaksbehandler` gjør.
 
 Oppgaven i oversikten forsvinner av seg selv, fordi den filtrerer på
 `status = 'MOTTATT'`.
@@ -155,4 +165,7 @@ Valg i spesifikasjonen:
 - Arbeidsgiver ser ikke `NY_INNSENDING_KREVES`, og kan ikke sende inn på nytt
   fra v2. Kommer i neste steg, sammen med varsel.
 - Behandling av refusjonskrav og vakten mot sluttrapporten.
-- Journalføring av sluttrapport.
+- Journalføring av sluttrapport. Teksten om journalføring i Gosys vises allerede,
+  men journalføringen lages i et senere steg.
+- Påminnelse til arbeidsgiver etter en uke. Teksten vises allerede, men
+  påminnelsen lages i et senere steg.

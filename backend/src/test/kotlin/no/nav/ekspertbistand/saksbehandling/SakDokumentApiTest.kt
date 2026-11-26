@@ -234,6 +234,8 @@ class SakDokumentApiTest {
             assertEquals("nyeste-sluttrapport.pdf", sluttrapportStatus.filnavn)
             assertEquals(SluttrapportStatus.MOTTATT, sluttrapportStatus.status)
             assertNull(sluttrapportStatus.vurdertTidspunkt)
+            assertNull(sluttrapportStatus.vurdertAvIdent)
+            assertNull(sluttrapportStatus.vurdertAvNavn)
             assertNull(sluttrapportStatus.begrunnelse)
             assertEquals(refusjonPdf.size, sluttrapportStatus.storrelse)
             assertNotNull(sluttrapportStatus.opprettet)

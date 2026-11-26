@@ -455,8 +455,9 @@ sealed interface EventData {
      * Saksbehandler har bekreftet en mottatt sluttrapport.
      *
      * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/sluttrapport/{sluttrapportId}/vurdering`
-     * når sluttrapporten er nyeste innsending og har status `MOTTATT`. [vurdertAvIdent] er en
-     * Nav-ansatt og skal ikke logges utenfor teamLog. Se `specifications/vurdering_sluttrapport.md`.
+     * når sluttrapporten er nyeste innsending og har status `MOTTATT`. [vurdertAvIdent] og
+     * [vurdertAvNavn] gjelder en Nav-ansatt og skal ikke logges utenfor teamLog. Navnet kommer fra
+     * entra-proxy via `AzureAdPrincipal`. Se `specifications/vurdering_sluttrapport.md`.
      *
      * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
      *
@@ -470,8 +471,13 @@ sealed interface EventData {
         val sakId: String,
         val soknadId: String,
         val vurdertAvIdent: String,
+        val vurdertAvNavn: String,
         val tidspunkt: Instant,
     ) : EventData {
+        init {
+            require(vurdertAvNavn.isNotBlank()) { "vurdertAvNavn kan ikke være blank" }
+        }
+
         override val aggregateRootId: String get() = soknadId
     }
 
@@ -493,10 +499,12 @@ sealed interface EventData {
         val sakId: String,
         val soknadId: String,
         val vurdertAvIdent: String,
+        val vurdertAvNavn: String,
         val begrunnelse: String,
         val tidspunkt: Instant,
     ) : EventData {
         init {
+            require(vurdertAvNavn.isNotBlank()) { "vurdertAvNavn kan ikke være blank" }
             require(begrunnelse.isNotBlank()) { "begrunnelse kan ikke være blank" }
         }
 

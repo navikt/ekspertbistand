@@ -58,6 +58,7 @@ class LagreSluttrapportVurderingTest {
         sakId = sak.sakId.toString(),
         soknadId = sak.soknadId.toString(),
         vurdertAvIdent = ident,
+        vurdertAvNavn = "Sara Saksbehandler",
         tidspunkt = tidspunkt,
     )
 
@@ -66,6 +67,7 @@ class LagreSluttrapportVurderingTest {
         sakId = sak.sakId.toString(),
         soknadId = sak.soknadId.toString(),
         vurdertAvIdent = ident,
+        vurdertAvNavn = "Sara Saksbehandler",
         begrunnelse = "Vedlegget mangler signatur",
         tidspunkt = tidspunkt,
     )
@@ -88,6 +90,7 @@ class LagreSluttrapportVurderingTest {
         val rad = hentSluttrapport(database, sluttrapportId)
         assertEquals(SluttrapportStatus.BEKREFTET.name, rad[SluttrapportTable.status])
         assertEquals(ident, rad[SluttrapportTable.vurdertAvIdent])
+        assertEquals("Sara Saksbehandler", rad[SluttrapportTable.vurdertAvNavn])
         assertEquals(tidspunkt, rad[SluttrapportTable.vurdertTidspunkt])
         assertNull(rad[SluttrapportTable.begrunnelse])
         assertEquals(tidspunkt, transaction(database) {

@@ -18,6 +18,8 @@ export type SluttrapportStatusDto = {
   opprettet: string;
   storrelse: number;
   status: SluttrapportStatus;
+  vurdertAvIdent: string | null;
+  vurdertAvNavn: string | null;
   vurdertTidspunkt: string | null;
   begrunnelse: string | null;
 };

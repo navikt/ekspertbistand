@@ -262,6 +262,7 @@ class SluttrapportVurderingApiTest {
         assertEquals(sak.sakId.toString(), event.sakId)
         assertEquals(sak.soknadId.toString(), event.soknadId)
         assertEquals(navIdent, event.vurdertAvIdent)
+        assertEquals("Tore Tang", event.vurdertAvNavn)
         assertIngenEndring(db, sak)
     }
 
@@ -277,6 +278,7 @@ class SluttrapportVurderingApiTest {
         assertEquals(sak.sluttrapportId.toString(), event.sluttrapportId)
         assertEquals("Mangler signatur", event.begrunnelse)
         assertEquals(navIdent, event.vurdertAvIdent)
+        assertEquals("Tore Tang", event.vurdertAvNavn)
         assertIngenEndring(db, sak)
     }
 
