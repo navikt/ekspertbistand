@@ -1262,6 +1262,33 @@ class SaksbehandlingSakApiTest {
     }
 
     @Test
+    fun `detalj har sluttrapport etter vurdering, men ingen oppgave`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        lagreSluttrapport(db, sakId, status = "BEKREFTET", opprettet = Instant.parse("2026-11-09T10:00:00Z"))
+        val oppsett = oppsett(db)
+
+        val detalj = oppsett.hentDetalj(sakId)
+
+        assertTrue(detalj.harSluttrapport)
+        assertNull(detalj.innsendinger.sluttrapport)
+        assertNull(detalj.oppgavetype)
+    }
+
+    @Test
+    fun `detalj uten sluttrapport har ikke sluttrapport`() = testApplicationWithDatabase { db ->
+        val sakId = lagreSak(
+            db, lagreSoknad(db), status = Saksstatus.INNVILGET, kilde = KildeTilBehandling.EKSPERTBISTAND,
+        )
+        val oppsett = oppsett(db)
+
+        val detalj = oppsett.hentDetalj(sakId)
+
+        assertFalse(detalj.harSluttrapport)
+    }
+
+    @Test
     fun `POST tildeling på innvilget sak med refusjonskrav publiserer event`() = testApplicationWithDatabase { db ->
         val soknadId = lagreSoknad(db)
         val sakId = lagreSak(

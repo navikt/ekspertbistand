@@ -617,6 +617,14 @@ fun hentMottatteInnsendinger(sakIder: Collection<UUID>): Map<UUID, MottatteInnse
     }
 }
 
+/** Om saken har minst én sluttrapport, uansett status. Må kalles i en pågående transaksjon. */
+fun harSluttrapport(sakId: UUID): Boolean =
+    SluttrapportTable
+        .select(SluttrapportTable.id)
+        .where { SluttrapportTable.sakId eq sakId }
+        .limit(1)
+        .any()
+
 /** Status på refusjonskrav og sluttrapport som venter på saksbehandler. */
 private const val INNSENDING_MOTTATT = "MOTTATT"
 

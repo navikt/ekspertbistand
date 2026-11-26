@@ -415,7 +415,7 @@ export default function SakPage() {
   const kostnadssteder = forelopigVedtakOppsett?.kostnadssteder;
   const [valgtFane, setValgtFane] = useState<{ sakId: string; fane: Fane } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const visSluttrapportFane = !erArenaSak && !!sak?.innsendinger.sluttrapport;
+  const visSluttrapportFane = !erArenaSak && !!sak?.harSluttrapport;
   const visRefusjonFane = !erArenaSak && !!sak?.innsendinger.refusjonskrav;
   const ønsketSaksFane = tilSaksFane(searchParams.get("fane"));
   // Fanen fra URL-en brukes bare når saken har noe å vise i den.

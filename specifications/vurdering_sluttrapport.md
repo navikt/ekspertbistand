@@ -111,6 +111,10 @@ lagres i eventen og på raden, slik `sakTildeltSaksbehandler` gjør.
 Oppgaven i oversikten forsvinner av seg selv, fordi den filtrerer på
 `status = 'MOTTATT'`.
 
+Sluttrapportfanen vises når saken har en sluttrapport, uansett status
+(`harSluttrapport` på saken). `innsendinger.sluttrapport` er bare satt mens
+rapporten venter på saksbehandler, og styrer oppgaven.
+
 ### Opplasting fra arbeidsgiver
 
 `POST /api/soknad/v1/{soknadId}/sluttrapport` tar bare imot en sluttrapport når

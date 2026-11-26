@@ -956,6 +956,7 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: MockListeElement): SakDetal
   vedtak: vedtakStore.get(sak.sakId) ?? null,
   foreslattKostnadssted: foreslattKostnadssted(sak.behandlendeEnhet),
   innsendinger: mockInnsendinger(sak.sakId),
+  harSluttrapport: harMockInnsending(sak.sakId, "SLUTTRAPPORT"),
   soknad: {
     soknadId: element.soknadId,
     status: element.status,
