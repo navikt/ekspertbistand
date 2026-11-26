@@ -13,19 +13,27 @@ const BREDDE = 360;
 const MOTTAKERE: Mottaker[] = ["deltaker", "arbeidsgiver"];
 
 type Props =
-  | { modus: "sendt"; sakId: string; versjon: number }
+  | { modus: "sendt"; sakId: string; versjon: number; fattet: boolean }
   | { modus: "forhandsvisning"; sakId: string; vedtak: ForelopigVedtakInput };
 
 export default function Vedtaksbrev(props: Props) {
   return props.modus === "sendt" ? (
-    <LagredeBrev sakId={props.sakId} versjon={props.versjon} />
+    <LagredeBrev sakId={props.sakId} versjon={props.versjon} fattet={props.fattet} />
   ) : (
     <ForhandsvisteBrev sakId={props.sakId} vedtak={props.vedtak} />
   );
 }
 
-function LagredeBrev({ sakId, versjon }: { sakId: string; versjon: number }) {
-  return <Brev {...useLagredeVedtaksbrev(sakId, versjon)} />;
+function LagredeBrev({
+  sakId,
+  versjon,
+  fattet,
+}: {
+  sakId: string;
+  versjon: number;
+  fattet: boolean;
+}) {
+  return <Brev {...useLagredeVedtaksbrev(sakId, versjon, fattet)} />;
 }
 
 function ForhandsvisteBrev({ sakId, vedtak }: { sakId: string; vedtak: ForelopigVedtakInput }) {

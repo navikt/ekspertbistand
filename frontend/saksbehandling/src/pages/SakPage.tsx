@@ -159,6 +159,7 @@ function ForelopigVedtakFane({
     return (
       <ForelopigVedtakOppsummering
         modus="sendt"
+        fattet
         tittel={`Vedtak fattet av ${sak.vedtak.fattetAvNavn} ${formatDate(sak.vedtak.fattetTidspunkt)}`}
         sak={sak}
         vedtak={sak.forelopigVedtak}
@@ -172,6 +173,7 @@ function ForelopigVedtakFane({
       return (
         <ForelopigVedtakOppsummering
           modus="sendt"
+          fattet={false}
           sak={sak}
           vedtak={sak.forelopigVedtak}
           kostnadsstedNavn={sak.forelopigVedtak.kostnadsstedNavn}
@@ -182,6 +184,7 @@ function ForelopigVedtakFane({
       <VStack gap="space-32">
         <ForelopigVedtakOppsummering
           modus="sendt"
+          fattet={false}
           tittel="Foreløpig vedtak til godkjenning"
           sak={sak}
           vedtak={sak.forelopigVedtak}

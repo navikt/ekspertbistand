@@ -16,7 +16,7 @@ type Props = {
   vedtak: ForelopigVedtakInput;
   kostnadsstedNavn: string | null;
 } & (
-  | { modus: "sendt"; tittel?: string }
+  | { modus: "sendt"; tittel?: string; fattet: boolean }
   | {
       modus: "forhandsvisning";
       onForrige: () => void;
@@ -75,7 +75,12 @@ export default function ForelopigVedtakOppsummering(props: Props) {
       )}
 
       {props.modus === "sendt" ? (
-        <Vedtaksbrev modus="sendt" sakId={sak.sakId} versjon={sak.forelopigVedtak?.versjon ?? 0} />
+        <Vedtaksbrev
+          modus="sendt"
+          sakId={sak.sakId}
+          versjon={sak.forelopigVedtak?.versjon ?? 0}
+          fattet={props.fattet}
+        />
       ) : (
         <Vedtaksbrev modus="forhandsvisning" sakId={sak.sakId} vedtak={vedtak} />
       )}
