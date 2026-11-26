@@ -57,8 +57,8 @@ internal data class LokalVirksomhet(
     val poststed: String,
     val kommunenummer: String,
     val kommunenavn: String,
-    /** Sektorkoden til juridisk enhet over virksomheten. Null gir «Ukjent» i saksoversikten. */
-    val sektorkode: String?,
+    /** Sektorkoden til juridisk enhet over virksomheten. */
+    val sektorkode: String,
     val enhet: LokalEnhet = LokalEnhet.SYDPOLEN,
     val harKontonummer: Boolean = true,
 ) {
@@ -127,7 +127,7 @@ internal val lokaleVirksomheter = listOf(
         "Kristiansand",
         "4204",
         "Kristiansand",
-        null,
+        "2100",
     ),
     LokalVirksomhet(
         "310000008",
