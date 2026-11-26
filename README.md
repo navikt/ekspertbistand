@@ -359,14 +359,16 @@ Frontendene bygges og serveres av BFF-ene uten MSW, så alle kall går til
 `LocalApplication`.
 
 1. Start databasen: `docker-compose -f backend/docker-compose.yml up`
-2. Kjør `LocalApplication.kt`.
-3. Start frontend fra repo-roten:
+2. Start backend og frontend fra repo-roten:
 
 | Kommando | Hva starter | Adresse |
 |----------|-------------|---------|
+| `pnpm serve:backend` | `LocalApplication` med `mvn exec:java` | http://localhost:8080 |
 | `pnpm serve:e2e` | Frontend for arbeidsgiver | http://localhost:4000 |
 | `pnpm serve:saksbehandling:e2e` | Frontend for saksbehandling | http://localhost:4001 |
-| `pnpm serve:all:e2e` | Begge | http://localhost:4000 og http://localhost:4001 |
+| `pnpm serve:all:e2e` | Backend og begge frontendene | http://localhost:4000 og http://localhost:4001 |
+
+`LocalApplication.kt` kan også kjøres fra IDE-en.
 
 Med `pnpm serve:all:e2e` kan du teste hele flyten: send søknad som arbeidsgiver,
 behandle og fatt vedtak i saksbehandling, og send refusjon og sluttrapport som

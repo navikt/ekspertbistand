@@ -77,13 +77,13 @@ Kjør nettlesertestene for begge flytene fra repo-roten:
 `pnpm dev` alene bruker MSW-mockene. Mot `LocalApplication`:
 
 1. Start database: `docker-compose -f backend/docker-compose.yml up`
-2. Start backend: Kjør LocalApplication.kt
+2. Start backend: `pnpm serve:backend`, eller kjør LocalApplication.kt fra IDE-en
 3. Start frontend på en av to måter:
    - Bygget klient servert av BFF-en: `pnpm serve:e2e`, og åpne http://localhost:4000
    - Med hot reload: `EKSPERTBISTAND_API_BASEURL=http://localhost:8080 pnpm --filter server run dev` og
      `VITE_ENABLE_MOCKS=false pnpm --filter client dev`, og åpne http://localhost:5173
 
-Testbrukeren har tilgang til alle virksomhetene i `LokaleSaker.kt`. `pnpm serve:all:e2e` starter både arbeidsgiverfrontenden (http://localhost:4000) og saksbehandling (http://localhost:4001) mot `LocalApplication`. Testflyt:
+Testbrukeren har tilgang til alle virksomhetene i `LokaleSaker.kt`. `pnpm serve:all:e2e` starter `LocalApplication`, arbeidsgiverfrontenden (http://localhost:4000) og saksbehandling (http://localhost:4001). Databasen må kjøre først. Testflyt:
 
 1. Send inn en søknad som arbeidsgiver.
 2. Behandle saken i saksbehandling (http://localhost:4001): vilkårsvurdering, foreløpig vedtak og godkjenning.
