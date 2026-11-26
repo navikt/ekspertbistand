@@ -187,7 +187,6 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
         }
         val orgnr = request.url.encodedPath.substringAfterLast('/')
         lokalVirksomhetForJuridiskEnhet(orgnr)?.let { underenhet ->
-            val sektorkode = underenhet.sektorkode?.let { "\"$it\"" } ?: "null"
             val enhetstype = when (Virksomhetstype.fraSektorkode(underenhet.sektorkode)) {
                 Virksomhetstype.STATLIG -> "STAT"
                 Virksomhetstype.KOMMUNAL -> "KF"
@@ -199,7 +198,7 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
                   "organisasjonsnummer": "$orgnr",
                   "type": "JuridiskEnhet",
                   "navn": { "sammensattnavn": "${underenhet.navn}" },
-                  "juridiskEnhetDetaljer": { "enhetstype": "$enhetstype", "sektorkode": $sektorkode }
+                  "juridiskEnhetDetaljer": { "enhetstype": "$enhetstype", "sektorkode": "${underenhet.sektorkode}" }
                 }""",
                 HttpStatusCode.OK,
                 headersOf(HttpHeaders.ContentType, "application/json")

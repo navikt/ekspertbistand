@@ -402,9 +402,10 @@ med:
 
 ### 7. Mock og lokale data
 
-- `LokalVirksomhet` får `sektorkode: String?`. Lista får minst én statlig, én
-  kommunal, én privat og én uten sektorkode. «Nav Lokalkontor Drammen» blir
-  statlig.
+- `LokalVirksomhet` får `sektorkode: String`. Lista får minst én statlig, én
+  kommunal og én privat. «Nav Lokalkontor Drammen» blir statlig. Ingen
+  virksomhet mangler sektorkode, fordi det gir `log.error` i mock-backend i dev.
+  Manglende sektorkode dekkes av `EregServiceTest`.
 - Ereg-mocken i `LocalApplication.kt` svarer med nestet hierarki når
   `inkluderHierarki=true`, og på orgnr til toppen med
   `juridiskEnhetDetaljer.sektorkode`. Den statlige virksomheten får to nivåer
