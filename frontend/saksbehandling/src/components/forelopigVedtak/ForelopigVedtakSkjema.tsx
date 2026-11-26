@@ -10,6 +10,7 @@ import {
   RadioGroup,
   TextField,
   Textarea,
+  UNSAFE_Combobox,
   VStack,
   useDatepicker,
 } from "@navikt/ds-react";
@@ -31,6 +32,7 @@ import {
   UTFALL_TEKST,
   begrunnelse,
   begrunnelseLabel,
+  formatKostnadssted,
   fraIsoDato,
   harBegrunnelseTilArbeidsgiver,
   harTiltaksperiode,
@@ -60,6 +62,7 @@ const FELT_ID: Record<Exclude<FeltId, "utfall">, string> = {
   nyttBelop: "forelopig-vedtak-nytt-belop",
   startdato: "forelopig-vedtak-startdato",
   sluttdato: "forelopig-vedtak-sluttdato",
+  kostnadssted: "forelopig-vedtak-kostnadssted",
   deltaker: "forelopig-vedtak-begrunnelse-deltaker",
   arbeidsgiver: "forelopig-vedtak-begrunnelse-arbeidsgiver",
 };
@@ -67,7 +70,7 @@ const FELT_ID: Record<Exclude<FeltId, "utfall">, string> = {
 const radioId = (utfall: ForelopigUtfall) => `forelopig-vedtak-utfall-${utfall}`;
 
 export default function ForelopigVedtakSkjema(props: Props) {
-  const { oppsett, error, isLoading } = useForelopigVedtakOppsett();
+  const { oppsett, error, isLoading } = useForelopigVedtakOppsett(true);
 
   if (isLoading) return <Loader size="medium" title="Laster standardtekster og satser" />;
   if (error || !oppsett) {
@@ -87,7 +90,11 @@ function Skjema({
   oppdater,
   oppsett,
 }: Props & { oppsett: ForelopigVedtakOppsett }) {
-  const { standardtekster, maksSatser } = oppsett;
+  const { standardtekster, maksSatser, kostnadssteder } = oppsett;
+  const kostnadsstedValg = kostnadssteder.map((k) => ({
+    label: formatKostnadssted(k.enhetsnummer, k.navn),
+    value: k.enhetsnummer,
+  }));
   const soknadssum = tolkSoknadssum(sak.soknad.behovForBistand.estimertKostnad);
   const { utfall, tiltaksperiodeFra: fra, tiltaksperiodeTil: til } = tilstand;
 
@@ -270,6 +277,20 @@ function Skjema({
                 </DatePicker>
               </HStack>
             </Fieldset>
+          )}
+
+          {harTiltaksperiode(utfall) && (
+            <UNSAFE_Combobox
+              id={FELT_ID.kostnadssted}
+              label="Kostnadssted"
+              description="Enheten som skal belastes for tilskuddet."
+              options={kostnadsstedValg}
+              selectedOptions={kostnadsstedValg.filter((k) => k.value === tilstand.kostnadssted)}
+              onToggleSelected={(enhetsnummer, valgt) =>
+                oppdater({ kostnadssted: valgt ? enhetsnummer : null })
+              }
+              error={feilFor("kostnadssted")}
+            />
           )}
 
           {begrunnelsefelt(utfall, "deltaker", begrunnelseDeltaker)}

@@ -55,6 +55,7 @@ internal suspend fun tilBeslutning(
                 begrunnelseArbeidsgiver = if (utfall == ForelopigUtfall.INNVILGE) null else "Til arbeidsgiver",
                 innstiltAvIdent = SAKSBEHANDLER_IDENT,
                 tidspunkt = innstiltTidspunkt,
+                kostnadssted = if (utfall == ForelopigUtfall.AVSLAA) null else "0391",
             )
         )
     )

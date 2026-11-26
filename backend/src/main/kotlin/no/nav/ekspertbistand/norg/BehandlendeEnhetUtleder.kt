@@ -59,8 +59,22 @@ class BehandlendeEnhetUtleder(
             },
         )
 
+    /**
+     * Enheten en sak for [virksomhetsnummer] hadde fått uten adressebeskyttelse: Norg-enheten for virksomhetens
+     * kommune, som i rutingen for ugraderte. Brukes til å foreslå kostnadssted for saker hos
+     * [BehandlendeEnhetService.NAV_VIKAFOSSEN]. Avslører ikke hvor deltakeren bor.
+     *
+     * Kaster ved feil mot Ereg eller Norg, og [ManglerDataForBehandlendeEnhetException] når virksomheten mangler
+     * kommunenummer.
+     */
+    suspend fun enhetForVirksomhet(virksomhetsnummer: String): String =
+        behandlendeEnhetService.hentBehandlendeEnhet(
+            AdressebeskyttelseGradering.UGRADERT,
+            virksomhetensKommunenummer(virksomhetsnummer),
+        )
+
     private suspend fun rutingPaaVirksomhet(gradering: AdressebeskyttelseGradering, soknad: SoknadDomainV1): Ruting {
-        val kommunenummer = virksomhetensKommunenummer(soknad)
+        val kommunenummer = virksomhetensKommunenummer(soknad.virksomhet.virksomhetsnummer)
         return Ruting(
             enhetNr = behandlendeEnhetService.hentBehandlendeEnhet(gradering, kommunenummer),
             virksomhetKommunenummer = kommunenummer,
@@ -68,14 +82,12 @@ class BehandlendeEnhetUtleder(
         )
     }
 
-    private suspend fun virksomhetensKommunenummer(soknad: SoknadDomainV1): String {
-        val virksomhetsnummer = soknad.virksomhet.virksomhetsnummer
-        return eregClient.hentOrganisasjon(virksomhetsnummer)
+    private suspend fun virksomhetensKommunenummer(virksomhetsnummer: String): String =
+        eregClient.hentOrganisasjon(virksomhetsnummer)
             .organisasjonDetaljer
             ?.forretningsadresser
             ?.firstNotNullOfOrNull { it.kommunenummer }
             ?: throw ManglerDataForBehandlendeEnhetException("Fant ikke kommunenummer for virksomhet $virksomhetsnummer")
-    }
 
     private fun GeografiskTilknytning.geografiskTilknytning(): String? =
         when (gtType) {

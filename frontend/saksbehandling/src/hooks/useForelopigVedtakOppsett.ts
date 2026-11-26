@@ -9,14 +9,22 @@ export type Standardtekst = {
   arbeidsgiver: string;
 };
 
+/** `navn` er uten enhetsnummer, f.eks. «Nav arbeidslivssenter Innlandet». */
+export type Kostnadssted = {
+  enhetsnummer: string;
+  navn: string;
+};
+
 export type ForelopigVedtakOppsett = {
   standardtekster: Partial<Record<ForelopigUtfall, Standardtekst>>;
   maksSatser: MaksSats[];
+  kostnadssteder: Kostnadssted[];
 };
 
-export function useForelopigVedtakOppsett() {
+/** `aktiv: false` henter ikke. Endepunktet krever saksbehandlerrollen og gir 403 til andre. */
+export function useForelopigVedtakOppsett(aktiv: boolean) {
   const { data, error, isLoading } = useSWR<ForelopigVedtakOppsett, HttpError>(
-    SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL,
+    aktiv ? SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL : null,
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,

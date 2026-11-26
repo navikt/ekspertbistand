@@ -16,7 +16,9 @@ function feilmelding(e: unknown): Error {
   if (e instanceof HttpError) {
     switch (e.status) {
       case 403:
-        return new Error(e.begrunnelse ?? "Du har ikke tilgang til å vurdere vilkår i denne saken.");
+        return new Error(
+          e.begrunnelse ?? "Du har ikke tilgang til å vurdere vilkår i denne saken."
+        );
       case 409:
         return new Error("Saken er ikke under behandling, og vilkårene kan ikke endres.");
     }
@@ -24,7 +26,7 @@ function feilmelding(e: unknown): Error {
   return e instanceof Error ? e : new Error("Kunne ikke lagre vurderingen.");
 }
 
-export function useVilkårsvurdering(sakId: string) {
+export function useVilkårsvurdering(sakId: string, kanRedigere: boolean) {
   const { mutate } = useSWRConfig();
   const innloggetAnsatt = useInnloggetAnsatt();
   const [isSaving, setIsSaving] = useState(false);
@@ -33,6 +35,10 @@ export function useVilkårsvurdering(sakId: string) {
   const url = SAKSBEHANDLING_VILKARSVURDERING_URL(sakId);
 
   const lagreVurdering = async ({ vilkårId, status, notat }: VilkårsvurderingInput) => {
+    if (!kanRedigere) {
+      setError(new Error("Du kan ikke endre vilkårene i denne saken."));
+      return false;
+    }
     setIsSaving(true);
     setError(null);
 

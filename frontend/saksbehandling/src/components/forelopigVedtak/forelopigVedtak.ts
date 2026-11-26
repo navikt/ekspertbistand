@@ -1,5 +1,5 @@
 import type { ForelopigVedtakInput } from "../../hooks/useForelopigVedtak";
-import type { Standardtekst } from "../../hooks/useForelopigVedtakOppsett";
+import type { Kostnadssted, Standardtekst } from "../../hooks/useForelopigVedtakOppsett";
 import type { ForelopigUtfall, ForelopigVedtak, SakDetaljer } from "../../hooks/useSak";
 import { formatKroner, formatTusenskille, tolkSoknadssum } from "../../utils/belop";
 import { gjeldendeMaksSats, type MaksSats } from "../../utils/maksSats";
@@ -22,6 +22,12 @@ export const begrunnelseLabel = (utfall: ForelopigUtfall, mottaker: Mottaker) =>
 
 export const harTiltaksperiode = (utfall: ForelopigUtfall) => utfall !== "AVSLAA";
 
+export const formatKostnadssted = (enhetsnummer: string, navn: string | null | undefined) =>
+  navn ? `${navn} (${enhetsnummer})` : enhetsnummer;
+
+export const kostnadsstedNavn = (kostnadssteder: Kostnadssted[], enhetsnummer: string | null) =>
+  kostnadssteder.find((k) => k.enhetsnummer === enhetsnummer)?.navn ?? null;
+
 /** Skjemaet holdes i `SakPage`, slik at fanebytte og «Forrige» ikke mister det som er skrevet. */
 export type ForelopigVedtakSkjemaTilstand = {
   sakId: string;
@@ -30,6 +36,8 @@ export type ForelopigVedtakSkjemaTilstand = {
   tiltaksperiodeTil: string | null;
   sluttdatoEndret: boolean;
   nyttBelop: string;
+  /** Enhetsnummeret. Står i tilstanden også ved avslag, men sendes bare ved innvilgelse. */
+  kostnadssted: string | null;
   /** Bare tekster saksbehandler har endret. Resten flettes fra standardteksten ved visning. */
   redigerteBegrunnelser: Partial<Record<ForelopigUtfall, Partial<Record<Mottaker, string>>>>;
   /** Satt når skjemaet er validert og forhåndsvises (steg 2). */
@@ -64,9 +72,11 @@ export function standardSluttdato(startdato: string): string | null {
   return tilIsoDato(slutt > sisteDagIÅret ? sisteDagIÅret : slutt);
 }
 
+/** Kostnadsstedet backend foreslår er forhåndsvalgt, se `SakDetaljer.foreslattKostnadssted`. */
 export function startTilstand(
   sakId: string,
-  soknadStartdato: string
+  soknadStartdato: string,
+  foreslattKostnadssted: string | null
 ): ForelopigVedtakSkjemaTilstand {
   const startdato = fraIsoDato(soknadStartdato) ? soknadStartdato : null;
   return {
@@ -76,6 +86,7 @@ export function startTilstand(
     tiltaksperiodeTil: startdato ? standardSluttdato(startdato) : null,
     sluttdatoEndret: false,
     nyttBelop: "",
+    kostnadssted: foreslattKostnadssted,
     redigerteBegrunnelser: {},
     forhandsvisning: null,
   };
@@ -89,7 +100,7 @@ export function tilstandFraForelopigVedtak(
 ): ForelopigVedtakSkjemaTilstand {
   const { utfall, begrunnelseDeltaker, begrunnelseArbeidsgiver } = vedtak;
   return {
-    ...startTilstand(sakId, soknadStartdato),
+    ...startTilstand(sakId, soknadStartdato, null),
     utfall,
     ...(vedtak.tiltaksperiodeFra !== null && {
       tiltaksperiodeFra: vedtak.tiltaksperiodeFra,
@@ -100,6 +111,7 @@ export function tilstandFraForelopigVedtak(
       utfall === "INNVILGE_REDUSERT" && vedtak.innvilgetBelop !== null
         ? String(vedtak.innvilgetBelop)
         : "",
+    kostnadssted: vedtak.kostnadssted,
     redigerteBegrunnelser: {
       [utfall]: {
         deltaker: begrunnelseDeltaker,
@@ -203,7 +215,7 @@ export const INGEN_SATS_TEKST = "Det finnes ingen maks sats for denne datoen.";
 const OVER_ÅRSSKIFTET_TEKST =
   "Tiltaksperioden kan ikke gå over årsskiftet. Velg en sluttdato i samme år som startdatoen.";
 
-export type FeltId = "utfall" | "nyttBelop" | "startdato" | "sluttdato" | Mottaker;
+export type FeltId = "utfall" | "nyttBelop" | "startdato" | "sluttdato" | "kostnadssted" | Mottaker;
 
 export type Feil = { felt: FeltId; melding: string };
 
@@ -284,10 +296,7 @@ export function validerSkjema({
     } else if (innvilgetBelop <= 0) {
       leggTil("nyttBelop", "Beløp må være mer enn 0 kr.");
     } else if (soknadssum !== null && innvilgetBelop >= soknadssum) {
-      leggTil(
-        "nyttBelop",
-        `Beløp må være lavere enn søknadssummen (${formatKroner(soknadssum)}).`
-      );
+      leggTil("nyttBelop", `Beløp må være lavere enn søknadssummen (${formatKroner(soknadssum)}).`);
     } else if (sats && innvilgetBelop > sats.belop) {
       leggTil(
         "nyttBelop",
@@ -312,6 +321,8 @@ export function validerSkjema({
     } else if (fra && årFra(fra) !== årFra(til)) {
       leggTil("sluttdato", OVER_ÅRSSKIFTET_TEKST);
     }
+
+    if (!tilstand.kostnadssted) leggTil("kostnadssted", "Du må velge kostnadssted.");
   }
 
   leggTil("deltaker", tekstfeil(begrunnelseDeltaker, "deltaker"));
@@ -332,6 +343,7 @@ export function validerSkjema({
       begrunnelseArbeidsgiver: harBegrunnelseTilArbeidsgiver(utfall)
         ? begrunnelseArbeidsgiver.trim()
         : null,
+      kostnadssted: harTiltaksperiode(utfall) ? tilstand.kostnadssted : null,
     },
   };
 }

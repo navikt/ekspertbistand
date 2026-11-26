@@ -177,6 +177,7 @@ versjon, slik at innstillingen før en retur bevares. Skrives bare av handleren
 | `begrunnelse_arbeidsgiver` | TEXT | NULL, CHECK | Påkrevd ved `INNVILGE_REDUSERT` og `AVSLAA`. |
 | `innstilt_av_ident` | TEXT | NOT NULL | NAV-ident til saksbehandler som sendte til beslutter. |
 | `sendt_tidspunkt` | TIMESTAMPTZ | NOT NULL | Tidspunktet fra eventet. |
+| `kostnadssted` | TEXT | NULL | Enhetsnummeret OeBS belaster ved innvilgelse, valgt av saksbehandler. Null ved avslag og for innstillinger fra før feltet fantes. Se [`kostnadssted_forelopig_vedtak.md`](kostnadssted_forelopig_vedtak.md). |
 
 Indeks: `idx_forelopig_vedtak_sak_id(sak_id)`. Siste versjon er gjeldende innstilling.
 
@@ -302,7 +303,7 @@ Rollen aktøren hadde ved handlingen. Alltid satt.
 
 ### `Vilkar` (`saksvilkar.vilkar_id`)
 
-`OpprettSak` lager én rad per vilkår når en sak med kilde `EKSPERTBISTAND` opprettes. Saker med kilde `ARENA` har ingen vilkårsrader (vilkårene vurderes i Arena). Nye verdier krever at eksisterende `EKSPERTBISTAND`-saker får rader for dem, for eksempel med en migrering.
+`OpprettSak` lager én rad per vilkår når en sak med kilde `EKSPERTBISTAND` opprettes. Saker med kilde `ARENA` har ingen vilkårsrader (vilkårene vurderes i Arena). Nye verdier krever ingen migrering, men eksisterende `EKSPERTBISTAND`-saker får ikke rader for dem. Manglende rader vises som ikke vurdert og kan ikke vurderes (404), så slike saker kan ikke sendes til beslutning. Se `nye_vilkar_og_lasing_ved_beslutning.md`.
 
 | Verdi | Betydning |
 |-------|-----------|
@@ -311,6 +312,9 @@ Rollen aktøren hadde ved handlingen. Alltid satt.
 | `ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING` | Ordinær tilrettelegging er prøvd før ekspertbistand. |
 | `DELTAKER_HAR_SYKEFRAVAERSHISTORIKK` | Det finnes relevant sykefraværshistorikk. |
 | `EKSPERT_HAR_KOMPETANSE` | Eksperten har nødvendig og relevant kompetanse. |
+| `DELTAKER_DELTAR_IKKE_I_ANDRE_ARBEIDSMARKEDSTILTAK` | Deltakeren deltar ikke i andre arbeidsmarkedstiltak. |
+| `DELTAKER_HAR_IKKE_MOTTATT_EKSPERTBISTAND` | Deltakeren har ikke tidligere fått tilskudd til ekspertbistand for samme problemstilling. |
+| `EKSPERTBISTAND_FOLGER_FORSKRIFTEN` | Innholdet i ekspertbistanden følger §§ 3 og 4 i forskriften. |
 
 ### `ReturArsak` (`sak_retur.aarsaker`)
 

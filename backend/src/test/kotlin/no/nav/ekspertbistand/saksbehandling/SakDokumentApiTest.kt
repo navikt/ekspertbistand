@@ -77,7 +77,8 @@ class SakDokumentApiTest {
           "tiltaksperiodeFra": "2026-11-22",
           "tiltaksperiodeTil": "2026-12-31",
           "begrunnelseDeltaker": "Til deltaker",
-          "begrunnelseArbeidsgiver": "Til arbeidsgiver"
+          "begrunnelseArbeidsgiver": "Til arbeidsgiver",
+          "kostnadssted": "0391"
         }
     """.trimIndent()
 

@@ -1,6 +1,6 @@
 import { http, bypass, HttpResponse } from "msw";
 import type { ForelopigVedtakInput } from "../hooks/useForelopigVedtak";
-import type { ForelopigVedtakOppsett } from "../hooks/useForelopigVedtakOppsett";
+import type { ForelopigVedtakOppsett, Kostnadssted } from "../hooks/useForelopigVedtakOppsett";
 import type { Kommune } from "../hooks/useKommunefilter";
 import type { SluttrapportStatusDto, SluttrapportVurderingInput } from "../hooks/useSluttrapport";
 import type { Mottaker } from "../hooks/useVedtaksbrev";
@@ -495,6 +495,41 @@ const mockSaker: MockSak[] = [
 
 const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];
 
+// Samme rekkefølge som `KOSTNADSSTEDER` i backend.
+const MOCK_KOSTNADSSTEDER: Kostnadssted[] = [
+  { enhetsnummer: "0291", navn: "Nav arbeidslivssenter Øst-Viken" },
+  { enhetsnummer: "0391", navn: "Nav arbeidslivssenter Oslo" },
+  { enhetsnummer: "0491", navn: "Nav arbeidslivssenter Innlandet" },
+  { enhetsnummer: "0691", navn: "Nav arbeidslivssenter Vest-Viken" },
+  { enhetsnummer: "0891", navn: "Nav arbeid og helse Vestfold og Telemark" },
+  { enhetsnummer: "1091", navn: "Nav arbeidslivssenter Agder" },
+  { enhetsnummer: "1191", navn: "Nav arbeidslivssenter Rogaland" },
+  { enhetsnummer: "1291", navn: "Nav arbeidslivssenter Vestland" },
+  { enhetsnummer: "1591", navn: "Nav arbeidslivssenter Møre og Romsdal" },
+  { enhetsnummer: "1891", navn: "Nav arbeidslivssenter Nordland" },
+  { enhetsnummer: "1991", navn: "Nav arbeidslivssenter Troms og Finnmark" },
+  { enhetsnummer: "5772", navn: "Nav arbeidslivssenter Trøndelag" },
+];
+
+const finnKostnadssted = (enhetsnummer: unknown) =>
+  MOCK_KOSTNADSSTEDER.find((k) => k.enhetsnummer === enhetsnummer);
+
+const mockKostnadssted = (enhetsnummer: string) => ({
+  kostnadssted: enhetsnummer,
+  kostnadsstedNavn: finnKostnadssted(enhetsnummer)?.navn ?? null,
+});
+
+const UTEN_KOSTNADSSTED = { kostnadssted: null, kostnadsstedNavn: null };
+
+// Backend slår opp enheten uten adressebeskyttelse for 2103. Mockens 4710 står ikke på lista, så den låner 1291.
+const MOCK_FORSLAG: Record<string, string> = { "2103": "0391", "4710": "1291" };
+
+const foreslattKostnadssted = (behandlendeEnhet: string | null) => {
+  if (!behandlendeEnhet) return null;
+  const forslag = MOCK_FORSLAG[behandlendeEnhet] ?? behandlendeEnhet;
+  return finnKostnadssted(forslag) ? forslag : null;
+};
+
 // Ordrett som `forelopig_vedtak.json` i backend.
 const mockOppsett: ForelopigVedtakOppsett = {
   standardtekster: {
@@ -504,6 +539,7 @@ const mockOppsett: ForelopigVedtakOppsett = {
     },
   },
   maksSatser: MOCK_MAKS_SATSER,
+  kostnadssteder: MOCK_KOSTNADSSTEDER,
 };
 
 const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
@@ -519,6 +555,7 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
         "Dere søkte om 22 000 kr, Nav har innvilget 17 000 kr i tilskudd til ekspertbistand.",
       begrunnelseArbeidsgiver:
         "Dere søkte om 22 000 kr, Nav har innvilget 17 000 kr i tilskudd til ekspertbistand.",
+      ...mockKostnadssted("1091"),
       innstiltAvIdent: mockInnloggetAnsatt.id,
       sendtTidspunkt: "2026-10-31T09:30:00Z",
     },
@@ -533,6 +570,7 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
       tiltaksperiodeTil: "2026-12-15",
       begrunnelseDeltaker: "Arbeidsgiveren din har fått tilskudd til ekspertbistand.",
       begrunnelseArbeidsgiver: null,
+      ...mockKostnadssted("0491"),
       innstiltAvIdent: kollega.ident,
       sendtTidspunkt: "2026-10-30T12:00:00Z",
     },
@@ -547,6 +585,7 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
       tiltaksperiodeTil: null,
       begrunnelseDeltaker: "Søknaden oppfyller ikke vilkårene for tilskudd.",
       begrunnelseArbeidsgiver: "Søknaden oppfyller ikke vilkårene for tilskudd.",
+      ...UTEN_KOSTNADSSTED,
       innstiltAvIdent: kollega.ident,
       sendtTidspunkt: "2026-10-29T08:00:00Z",
     },
@@ -561,6 +600,7 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
       tiltaksperiodeTil: "2026-12-20",
       begrunnelseDeltaker: "Arbeidsgiveren din har fått tilskudd til ekspertbistand.",
       begrunnelseArbeidsgiver: null,
+      ...mockKostnadssted("1091"),
       innstiltAvIdent: kollega.ident,
       sendtTidspunkt: "2026-10-28T14:00:00Z",
     },
@@ -575,6 +615,7 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
       tiltaksperiodeTil: "2026-12-31",
       begrunnelseDeltaker: "Arbeidsgiveren din har fått tilskudd til ekspertbistand.",
       begrunnelseArbeidsgiver: null,
+      ...mockKostnadssted("1191"),
       innstiltAvIdent: "O111222",
       sendtTidspunkt: "2026-09-18T10:00:00Z",
     },
@@ -589,6 +630,7 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
       tiltaksperiodeTil: null,
       begrunnelseDeltaker: "Søknaden oppfyller ikke vilkårene for tilskudd.",
       begrunnelseArbeidsgiver: "Søknaden oppfyller ikke vilkårene for tilskudd.",
+      ...UTEN_KOSTNADSSTED,
       innstiltAvIdent: kollega.ident,
       sendtTidspunkt: "2026-09-14T09:00:00Z",
     },
@@ -603,6 +645,7 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
       tiltaksperiodeTil: "2026-12-15",
       begrunnelseDeltaker: "Arbeidsgiveren din har fått tilskudd til ekspertbistand.",
       begrunnelseArbeidsgiver: null,
+      ...mockKostnadssted("1091"),
       innstiltAvIdent: mockInnloggetAnsatt.id,
       sendtTidspunkt: "2026-10-27T11:00:00Z",
     },
@@ -618,6 +661,7 @@ const forelopigVedtakStore = new Map<string, ForelopigVedtak>([
       begrunnelseDeltaker: "Arbeidsgiveren din har fått tilskudd til ekspertbistand.",
       begrunnelseArbeidsgiver:
         "Dere søkte om 20 000 kr, Nav har innvilget 15 000 kr i tilskudd til ekspertbistand.",
+      ...mockKostnadssted("0491"),
       innstiltAvIdent: mockInnloggetAnsatt.id,
       sendtTidspunkt: "2026-10-26T13:00:00Z",
     },
@@ -908,6 +952,7 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: MockListeElement): SakDetal
   forelopigVedtak: forelopigVedtakStore.get(sak.sakId) ?? null,
   sisteRetur: returStore.get(sak.sakId) ?? null,
   vedtak: vedtakStore.get(sak.sakId) ?? null,
+  foreslattKostnadssted: foreslattKostnadssted(sak.behandlendeEnhet),
   innsendinger: mockInnsendinger(sak.sakId),
   soknad: {
     soknadId: element.soknadId,
@@ -1383,13 +1428,20 @@ export const handlers = [
       const til = body.tiltaksperiodeTil ?? null;
       const sats = fra ? gjeldendeMaksSats(MOCK_MAKS_SATSER, fra) : undefined;
       if (utfall === "AVSLAA") {
-        if (fra || til || body.innvilgetBelop != null || !body.begrunnelseArbeidsgiver?.trim()) {
+        if (
+          fra ||
+          til ||
+          body.innvilgetBelop != null ||
+          !body.begrunnelseArbeidsgiver?.trim() ||
+          body.kostnadssted != null
+        ) {
           return ugyldig();
         }
       } else {
         if (!fra || !til || fra > til || fra.slice(0, 4) !== til.slice(0, 4) || !sats) {
           return ugyldig();
         }
+        if (!finnKostnadssted(body.kostnadssted)) return ugyldig();
         const belop = body.innvilgetBelop;
         if (utfall === "INNVILGE" && (belop != null || body.begrunnelseArbeidsgiver != null)) {
           return ugyldig();
@@ -1448,6 +1500,7 @@ export const handlers = [
         tiltaksperiodeTil: til,
         begrunnelseDeltaker: body.begrunnelseDeltaker.trim(),
         begrunnelseArbeidsgiver: body.begrunnelseArbeidsgiver?.trim() ?? null,
+        ...(body.kostnadssted ? mockKostnadssted(body.kostnadssted) : UTEN_KOSTNADSSTED),
         innstiltAvIdent: mockInnloggetAnsatt.id,
         sendtTidspunkt: new Date().toISOString(),
       });

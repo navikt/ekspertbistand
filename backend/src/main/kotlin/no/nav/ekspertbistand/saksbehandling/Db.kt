@@ -243,6 +243,7 @@ object ForelopigVedtakTable : Table("forelopig_vedtak") {
     val begrunnelseArbeidsgiver = text("begrunnelse_arbeidsgiver").nullable()
     val innstiltAvIdent = text("innstilt_av_ident")
     val sendtTidspunkt = timestamp("sendt_tidspunkt")
+    val kostnadssted = text("kostnadssted").nullable()
 
     override val primaryKey = PrimaryKey(id)
 }
@@ -285,6 +286,7 @@ fun lagreForelopigVedtak(data: EventData.ForelopigVedtakSendtTilBeslutter, event
         it[begrunnelseArbeidsgiver] = data.begrunnelseArbeidsgiver
         it[innstiltAvIdent] = data.innstiltAvIdent
         it[sendtTidspunkt] = data.tidspunkt
+        it[kostnadssted] = data.kostnadssted
     }
     return true
 }
@@ -317,6 +319,8 @@ private fun ResultRow.tilForelopigVedtakDTO() = ForelopigVedtakDTO(
     begrunnelseArbeidsgiver = this[ForelopigVedtakTable.begrunnelseArbeidsgiver],
     innstiltAvIdent = this[ForelopigVedtakTable.innstiltAvIdent],
     sendtTidspunkt = this[ForelopigVedtakTable.sendtTidspunkt],
+    kostnadssted = this[ForelopigVedtakTable.kostnadssted],
+    kostnadsstedNavn = this[ForelopigVedtakTable.kostnadssted]?.let(::finnKostnadssted)?.navn,
 )
 
 /** Det listen og habilitetssjekken trenger fra siste foreløpige vedtak. */
@@ -365,6 +369,9 @@ data class ForelopigVedtakDTO(
     val begrunnelseArbeidsgiver: String?,
     val innstiltAvIdent: String,
     val sendtTidspunkt: Instant,
+    val kostnadssted: String?,
+    /** Navnet fra [KOSTNADSSTEDER], så beslutter ikke trenger oppsettet. Null når enheten ikke står på lista. */
+    val kostnadsstedNavn: String?,
 )
 
 /** Lagres i `sak_retur.aarsaker` med [name]. Speiles av CHECK-en i V24. */
@@ -703,7 +710,10 @@ fun vilkarFinnes(sakId: UUID, vilkar: Vilkar): Boolean =
         .where { (SaksvilkarTable.sakId eq sakId) and (SaksvilkarTable.vilkarId eq vilkar.name) }
         .empty()
 
-/** Lagres i `saksvilkar.vilkar_id` med [name]. Nye verdier krever re-kjøring av SakProjection for eksisterende saker. */
+/**
+ * Lagres i `saksvilkar.vilkar_id` med [name]. Rekkefølgen er visningsrekkefølgen. Eksisterende saker får ikke rader
+ * for nye verdier. Se `specifications/nye_vilkar_og_lasing_ved_beslutning.md`.
+ */
 @Serializable
 enum class Vilkar {
     DELTAKER_HAR_ARBEIDSFORHOLD,
@@ -711,6 +721,9 @@ enum class Vilkar {
     ARBEIDSGIVER_HAR_PROVD_TILRETTELEGGING,
     DELTAKER_HAR_SYKEFRAVAERSHISTORIKK,
     EKSPERT_HAR_KOMPETANSE,
+    DELTAKER_DELTAR_IKKE_I_ANDRE_ARBEIDSMARKEDSTILTAK,
+    DELTAKER_HAR_IKKE_MOTTATT_EKSPERTBISTAND,
+    EKSPERTBISTAND_FOLGER_FORSKRIFTEN,
 }
 
 /**

@@ -13,6 +13,7 @@ import no.nav.ekspertbistand.entraproxy.EntraBerikelseCache
 import no.nav.ekspertbistand.entraproxy.EntraProxyClient
 import no.nav.ekspertbistand.infrastruktur.*
 import no.nav.ekspertbistand.mocks.mockEntraProxyFull
+import no.nav.ekspertbistand.oebs.integration.NavEnhetNummer
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.junit.jupiter.api.Test
@@ -42,7 +43,7 @@ class ForelopigVedtakOppsettTest {
     }
 
     @Test
-    fun `oppsett gir standardtekster og maks satser`() = testApplicationWithDatabase { db ->
+    fun `oppsett gir standardtekster, maks satser og kostnadssteder`() = testApplicationWithDatabase { db ->
         val client = oppsett(db, """[{ "rolle": "${Role.SAKSBEHANDLER.groupId}" }]""")
 
         val response = client.get(url) { bearerAuth(gyldigToken) }
@@ -51,6 +52,13 @@ class ForelopigVedtakOppsettTest {
         val oppsett = response.body<ForelopigVedtakOppsett>()
         assertEquals(lastStandardtekster(), oppsett.standardtekster)
         assertEquals(MAKS_SATSER, oppsett.maksSatser)
+        assertEquals(KOSTNADSSTEDER, oppsett.kostnadssteder)
+    }
+
+    @Test
+    fun `kostnadsstedene har unike enhetsnumre som OeBS godtar`() {
+        assertEquals(KOSTNADSSTEDER.size, KOSTNADSSTEDER.map { it.enhetsnummer }.toSet().size)
+        KOSTNADSSTEDER.forEach { NavEnhetNummer(it.enhetsnummer) }
     }
 
     @Test

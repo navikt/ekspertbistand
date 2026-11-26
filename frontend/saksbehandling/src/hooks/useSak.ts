@@ -14,6 +14,9 @@ export type ForelopigVedtak = {
   tiltaksperiodeTil: string | null;
   begrunnelseDeltaker: string;
   begrunnelseArbeidsgiver: string | null;
+  kostnadssted: string | null;
+  /** Null når kostnadsstedet ikke står på lista over kostnadssteder. */
+  kostnadsstedNavn: string | null;
   innstiltAvIdent: string;
   sendtTidspunkt: string;
 };
@@ -42,6 +45,8 @@ export type SakDetaljer = SakInfo & {
   forelopigVedtak: ForelopigVedtak | null;
   sisteRetur: Retur | null;
   vedtak: Vedtak | null;
+  /** Kostnadsstedet skjemaet for foreløpig vedtak starter med. Behandlende enhet, eller for saker hos Nav Vikafossen enheten saken hadde fått uten adressebeskyttelse. Null når enheten ikke er et kostnadssted. */
+  foreslattKostnadssted: string | null;
   /** Når refusjonskrav og sluttrapport ble mottatt, eller null. */
   innsendinger: { refusjonskrav: string | null; sluttrapport: string | null };
 };

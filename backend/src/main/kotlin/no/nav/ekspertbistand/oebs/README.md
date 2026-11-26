@@ -274,11 +274,12 @@ Gjenstår:
   `common/tiltaksokonomi-client` når PR-en er merget.
 - **Sakslogg for annullering og oppgjør.** `SkrivSaksloggForOebsBestillingStatus` gir
   `transientError` for `ANNULLERING_SENDT`, `ANNULLERT` og `OPPGJORT` til de er implementert.
-- **Kostnadssteder.** Liste over kostnadssteder som finnes i OeBS
-  ([727](https://trello.com/c/6K5Czv2I/727-skaffe-liste-over-alle-koststed-som-skal-brukes-i-ekspertbistand)),
-  og at saksbehandleren velger kostnadssted
-  ([728](https://trello.com/c/gVCEUEry/728-kostnadssted-velger)). I dag brukes
-  `sak.behandlende_enhet`.
+- **Kostnadssteder.** Saksbehandleren velger kostnadssted i det foreløpige vedtaket
+  ([728](https://trello.com/c/gVCEUEry/728-kostnadssted-velger)), og `BestillTilsagnIOebs`
+  bruker det. Vedtak uten kostnadssted faller tilbake til `sak.behandlende_enhet`. Listen i
+  `saksbehandling/Kostnadssted.kt` er foreløpig og byttes når
+  [727](https://trello.com/c/6K5Czv2I/727-skaffe-liste-over-alle-koststed-som-skal-brukes-i-ekspertbistand)
+  har avklart hvilke kostnadssteder som finnes i OeBS.
 - **Feilhåndtering mot OeBS**, inkludert ny sending etter `FEILET`
   ([724](https://trello.com/c/jgHBBvu3/724-feilh%C3%A5ndtering-mot-oebs-bestilling-faktura-og-oppgj%C3%B8r)).
 - **Prod.** Polleren og consumeren startes bare i dev.
