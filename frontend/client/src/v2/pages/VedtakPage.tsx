@@ -118,6 +118,8 @@ export default function VedtakPage() {
   const refusjonStatusFeilet = refusjonError || (refusjonSendtInn && !refusjon && !refusjonLoading);
   const refusjonMottatt = Boolean(refusjon || refusjonSendtInn);
 
+  const nySluttrapportKreves = sluttrapport?.status === "NY_INNSENDING_KREVES";
+
   const sluttrapportHandling = sluttrapportStatusFeilet ? (
     <Alert variant="error" role="alert">
       {sluttrapportSendtInn
@@ -128,7 +130,7 @@ export default function VedtakPage() {
     <Box aria-live="polite">
       <Loader title="Laster status for sluttrapporten" />
     </Box>
-  ) : !sluttrapport && !sluttrapportSendtInn ? (
+  ) : nySluttrapportKreves || (!sluttrapport && !sluttrapportSendtInn) ? (
     <Button as={RouterLink} to={`/v2/skjema/${id}/sluttrapport`} variant="secondary">
       Send inn sluttrapport fra eksperten
     </Button>

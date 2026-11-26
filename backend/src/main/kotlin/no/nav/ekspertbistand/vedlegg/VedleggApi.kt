@@ -162,9 +162,11 @@ class VedleggApi(
     }
 
     /**
-     * Returnerer kun metadata om innsendt sluttrapport (filnavn + tidspunkt).
+     * Returnerer kun metadata om innsendt sluttrapport: filnavn, tidspunkter, status og
+     * begrunnelsen Nav ga ved [SluttrapportStatus.NY_INNSENDING_KREVES].
      * Selve filen eksponeres bevisst ikke – innholdet kan være personsensitivt,
-     * og det finnes ingen nedlastingsrute for arbeidsgiver.
+     * og det finnes ingen nedlastingsrute for arbeidsgiver. Hvem i Nav som vurderte
+     * sluttrapporten, sendes heller ikke.
      */
     suspend fun RoutingContext.hentSluttrapportStatus(soknadId: UUID) {
         val soknad = transaction(database) { findSoknadById(soknadId) }
@@ -192,6 +194,11 @@ class VedleggApi(
                 filnavn = metadata.filnavn,
                 opprettet = metadata.lastetOpp,
                 storrelse = metadata.storrelse,
+                status = metadata.status,
+                vurdertTidspunkt = metadata.vurdertTidspunkt,
+                begrunnelse = metadata.begrunnelse.takeIf {
+                    metadata.status == SluttrapportStatus.NY_INNSENDING_KREVES
+                },
             )
         )
     }
@@ -202,6 +209,10 @@ data class SluttrapportStatusDto(
     val filnavn: String,
     val opprettet: String,
     val storrelse: Int,
+    val status: SluttrapportStatus,
+    val vurdertTidspunkt: String?,
+    /** Beskjed fra Nav. Satt bare når [status] er [SluttrapportStatus.NY_INNSENDING_KREVES]. */
+    val begrunnelse: String?,
 )
 
 fun erGyldigPdf(bytes: ByteArray): Boolean =

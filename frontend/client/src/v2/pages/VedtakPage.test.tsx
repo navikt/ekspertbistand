@@ -17,6 +17,9 @@ const sluttrapport = {
   filnavn: `${"Sluttrapport_".repeat(12)}.pdf`,
   opprettet: "2026-11-17T10:00:00Z",
   storrelse: 1234,
+  status: "MOTTATT",
+  vurdertTidspunkt: null,
+  begrunnelse: null,
 };
 const refusjon = {
   belopKroner: 22400,
@@ -434,6 +437,48 @@ describe("VedtakPage", () => {
     expect(screen.queryByText("Nav behandler refusjonskravet")).not.toBeInTheDocument();
     expect(screen.queryByText("Refusjonskravet er sendt inn.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Send inn$/ })).not.toBeInTheDocument();
+  });
+
+  it("viser avvist sluttrapport med Navs begrunnelse og lar arbeidsgiver sende inn på nytt", async () => {
+    server.use(
+      http.get(`${EKSPERTBISTAND_API_PATH}/:id/sluttrapport`, () =>
+        HttpResponse.json({
+          ...sluttrapport,
+          status: "NY_INNSENDING_KREVES",
+          vurdertTidspunkt: "2026-11-20T10:00:00Z",
+          begrunnelse: "Send sluttrapporten på nytt.",
+        })
+      )
+    );
+    renderSkjema(vedtakssiden(MOCK_VEDTAK_SOKNAD_ID.INNVILGET));
+
+    const knapp = await screen.findByRole("button", {
+      name: "Send inn sluttrapport fra eksperten",
+    });
+    expect(knapp).toHaveAttribute(
+      "href",
+      `/v2/skjema/${MOCK_VEDTAK_SOKNAD_ID.INNVILGET}/sluttrapport`
+    );
+    const kort = screen.getByRole("region", { name: "Sluttrapport avvist" });
+    expect(within(kort).getByRole("heading", { name: "Sluttrapport avvist" })).toBeInTheDocument();
+    expect(within(kort).getByText("20. nov. 2026")).toBeInTheDocument();
+    expect(within(kort).getByText("Send sluttrapporten på nytt.")).toBeVisible();
+    expect(within(kort).getByText(sluttrapport.filnavn)).toBeVisible();
+  });
+
+  it("viser at Nav har godkjent sluttrapporten", async () => {
+    server.use(
+      http.get(`${EKSPERTBISTAND_API_PATH}/:id/sluttrapport`, () =>
+        HttpResponse.json({ ...sluttrapport, status: "BEKREFTET" })
+      )
+    );
+    renderSkjema(vedtakssiden(MOCK_VEDTAK_SOKNAD_ID.INNVILGET));
+
+    expect(await screen.findByText("Godkjent av Nav")).toBeInTheDocument();
+    expect(screen.queryByText("Sluttrapport avvist")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Send inn.*sluttrapport/ })
+    ).not.toBeInTheDocument();
   });
 
   it("venter på sluttrapportstatus før innsendingsknappen vises", async () => {

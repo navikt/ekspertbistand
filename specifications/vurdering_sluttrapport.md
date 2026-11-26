@@ -84,7 +84,7 @@ sluttrapport kreves». Begrunnelsen står ikke i notatet.
 ### Visning for saksbehandler
 
 `GET …/saker/{sakId}/sluttrapport` får `sluttrapportId`, `status`,
-`vurdertAvIdent`, `vurdertAvNavn`, `vurdertTidspunkt` og `begrunnelse`. Arbeidsgiverens API endres ikke.
+`vurdertAvIdent`, `vurdertAvNavn`, `vurdertTidspunkt` og `begrunnelse`.
 
 Saksbehandler som er tildelt saken, ser nedtrekkslista «Kontroll av
 sluttrapport» når status er `MOTTATT`:
@@ -114,6 +114,26 @@ Oppgaven i oversikten forsvinner av seg selv, fordi den filtrerer på
 Sluttrapportfanen vises når saken har en sluttrapport, uansett status
 (`harSluttrapport` på saken). `innsendinger.sluttrapport` er bare satt mens
 rapporten venter på saksbehandler, og styrer oppgaven.
+
+### Visning for arbeidsgiver
+
+`GET /api/soknad/v1/{soknadId}/sluttrapport` får `status`, `vurdertTidspunkt`
+og `begrunnelse`. `begrunnelse` er bare satt når status er
+`NY_INNSENDING_KREVES`. Arbeidsgiver får aldri navn eller ident på
+saksbehandleren som vurderte.
+
+Vedtakssiden i v2 (`/v2/skjema/{id}/vedtak`):
+
+| Status | Visning |
+|--------|---------|
+| `MOTTATT` | Kortet «Sluttrapport sendt inn» med innsendingsdato, uten statustag |
+| `BEKREFTET` | Kortet får taggen «Godkjent av Nav» |
+| `NY_INNSENDING_KREVES` | Knappen «Send inn sluttrapport fra eksperten» vises igjen. Kortet heter «Sluttrapport avvist», har vurderingsdatoen i overskriften, er åpent og viser begrunnelsen over vedlegg og innsendingsdato |
+
+Sluttrapportsiden (`/v2/skjema/{id}/sluttrapport`) sender arbeidsgiver videre
+til vedtakssiden når saken har en sluttrapport, unntatt ved
+`NY_INNSENDING_KREVES`. Da viser siden skjemaet med overskriften «Send inn ny
+sluttrapport» og begrunnelsen øverst.
 
 ### Opplasting fra arbeidsgiver
 
@@ -155,6 +175,7 @@ Oppgavelista teller bare nyeste sluttrapport per sak.
 | Jonas, 2026-11-24 | Sluttrapporten vurderes uten beslutter. |
 | Jonas, 2026-11-24 | Ved ny opplasting slettes filen til sluttrapporter med status `NY_INNSENDING_KREVES`. Raden med status og begrunnelse beholdes. |
 | Jonas, 2026-11-24 | Arbeidsgiver kan bare laste opp sluttrapport når saken ikke har noen, eller når nyeste har status `NY_INNSENDING_KREVES`. |
+| Jonas, 2026-11-26 | Arbeidsgiver ser status og begrunnelse i v2 og kan sende inn på nytt derfra. Varsel via notifikasjonsplattformen kommer senere. |
 
 Valg i spesifikasjonen:
 
@@ -166,8 +187,8 @@ Valg i spesifikasjonen:
 
 ## Avgrensning
 
-- Arbeidsgiver ser ikke `NY_INNSENDING_KREVES`, og kan ikke sende inn på nytt
-  fra v2. Kommer i neste steg, sammen med varsel.
+- Varsel til arbeidsgiver via notifikasjonsplattformen når Nav ber om ny
+  sluttrapport. Arbeidsgiver ser beskjeden bare når hen åpner vedtakssiden.
 - Behandling av refusjonskrav og vakten mot sluttrapporten.
 - Journalføring av sluttrapport. Teksten om journalføring i Gosys vises allerede,
   men journalføringen lages i et senere steg.
