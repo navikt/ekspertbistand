@@ -39,7 +39,7 @@ suspend fun Application.configureSaksbehandlerApiV1() {
                             id = principal.navIdent,
                             navn = principal.navn,
                             epost = principal.epost ?: "",
-                            enheter = principal.enheter.map { it.tilResponse() },
+                            enheter = principal.enheter.map { it.tilResponse() }.sortedBy { it.navn },
                             gjeldendeEnhet = principal.gjeldendeEnhet.tilResponse(),
                             roller = Role.fromGroups(principal.groups),
                             updatedAt = principal.berikelseUpdatedAt,
