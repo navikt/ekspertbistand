@@ -601,9 +601,13 @@ fun hentSakerMedRetur(sakIder: Collection<UUID>): Set<UUID> {
 fun hentMottatteInnsendinger(sakIder: Collection<UUID>): Map<UUID, MottatteInnsendinger> {
     if (sakIder.isEmpty()) return emptyMap()
     val refusjonskrav = RefusjonskravTable
-        .select(RefusjonskravTable.sakId, RefusjonskravTable.opprettet)
-        .where { (RefusjonskravTable.sakId inList sakIder) and (RefusjonskravTable.status eq INNSENDING_MOTTATT) }
-        .associate { it[RefusjonskravTable.sakId] to it[RefusjonskravTable.opprettet] }
+        .select(RefusjonskravTable.sakId, RefusjonskravTable.status, RefusjonskravTable.opprettet)
+        .where { RefusjonskravTable.sakId inList sakIder }
+        .orderBy(RefusjonskravTable.opprettet to SortOrder.DESC, RefusjonskravTable.id to SortOrder.DESC)
+        .groupBy { it[RefusjonskravTable.sakId] }
+        .mapValues { (_, rader) -> rader.first() }
+        .filterValues { it[RefusjonskravTable.status] == INNSENDING_MOTTATT }
+        .mapValues { (_, rad) -> rad[RefusjonskravTable.opprettet] }
     // Bare nyeste sluttrapport per sak teller. En eldre rad som ble erstattet før vurdering, står igjen som MOTTATT.
     val sluttrapport = SluttrapportTable
         .select(SluttrapportTable.sakId, SluttrapportTable.status, SluttrapportTable.opprettet)
@@ -625,6 +629,10 @@ fun harSluttrapport(sakId: UUID): Boolean =
         .where { SluttrapportTable.sakId eq sakId }
         .limit(1)
         .any()
+
+fun harRefusjonskrav(sakId: UUID): Boolean =
+    RefusjonskravTable.select(RefusjonskravTable.id)
+        .where { RefusjonskravTable.sakId eq sakId }.limit(1).any()
 
 /** Status på refusjonskrav og sluttrapport som venter på saksbehandler. */
 private const val INNSENDING_MOTTATT = "MOTTATT"

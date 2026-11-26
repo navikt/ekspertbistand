@@ -15,6 +15,7 @@ import no.nav.ekspertbistand.event.domain.OebsFakturaStatusDomain
 import no.nav.ekspertbistand.event.domain.SakDomain
 import no.nav.ekspertbistand.event.domain.SoknadDomainV2
 import no.nav.ekspertbistand.event.domain.VedleggDomain
+import no.nav.ekspertbistand.event.domain.RefusjonskravArsakDomain
 import no.nav.ekspertbistand.event.domain.VedtakDomain
 import no.nav.ekspertbistand.event.domain.VedtaksbrevDomain
 import no.nav.ekspertbistand.event.domain.tilSaksstatus
@@ -427,6 +428,29 @@ sealed interface EventData {
         val vedlegg: List<VedleggDomain>,
         val tidspunkt: Instant,
     ) : EventData {
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /** Dokumentkontroll, ikke et vedtak om avslag. Konsument: [LagreRefusjonskravNyInnsendingKrevd]. */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("refusjonskravNyInnsendingKrevd")
+    data class RefusjonskravNyInnsendingKrevd(
+        val refusjonskravId: String,
+        val sakId: String,
+        val soknadId: String,
+        val arsaker: List<RefusjonskravArsakDomain>,
+        val begrunnelse: String,
+        val vurdertAvIdent: String,
+        val vurdertAvNavn: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        init {
+            require(arsaker.isNotEmpty() && arsaker.distinct().size == arsaker.size)
+            require(begrunnelse.isNotBlank())
+            require(vurdertAvIdent.isNotBlank() && vurdertAvNavn.isNotBlank())
+        }
+
         override val aggregateRootId: String get() = soknadId
     }
 
@@ -1018,6 +1042,7 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(SkrivSaksloggForSluttrapport::class))
         register(dependencies.create(LagreSluttrapportBekreftet::class))
         register(dependencies.create(LagreSluttrapportNyInnsendingKrevd::class))
+        register(dependencies.create(LagreRefusjonskravNyInnsendingKrevd::class))
         register(dependencies.create(SkrivSaksloggForOebsBestillingStatus::class))
         register<EventData.OebsFakturaStatusMottatt>("OebsFakturaStatusMottattNoop") { _ ->
             // Faktura er ikke koblet til saksgangen ennå. Eventen ligger i eventloggen til en handler trenger den.

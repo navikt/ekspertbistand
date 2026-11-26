@@ -9,6 +9,9 @@ export type RefusjonVedlegg = {
 };
 
 export type RefusjonStatus = {
+  status: "MOTTATT" | "NY_INNSENDING_KREVES";
+  vurdertTidspunkt: string | null;
+  begrunnelse: string | null;
   belopKroner: number;
   opprettet: string;
   kontonummer: string | null;

@@ -416,7 +416,7 @@ export default function SakPage() {
   const [valgtFane, setValgtFane] = useState<{ sakId: string; fane: Fane } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const visSluttrapportFane = !erArenaSak && !!sak?.harSluttrapport;
-  const visRefusjonFane = !erArenaSak && !!sak?.innsendinger.refusjonskrav;
+  const visRefusjonFane = !erArenaSak && !!sak?.harRefusjonskrav;
   const ønsketSaksFane = tilSaksFane(searchParams.get("fane"));
   // Fanen fra URL-en brukes bare når saken har noe å vise i den.
   const saksFane: SaksFane =
@@ -443,7 +443,7 @@ export default function SakPage() {
     sluttrapport,
     error: sluttrapportError,
     isLoading: sluttrapportLaster,
-  } = useSluttrapport(sakId ?? "", saksFane === "sluttrapport");
+  } = useSluttrapport(sakId ?? "", saksFane === "sluttrapport" || saksFane === "refusjon");
   // Holdes her, fordi fanepanelene avmonteres når de ikke vises.
   const [skjema, setSkjema] = useState<ForelopigVedtakSkjemaTilstand | null>(null);
   const [kvittering, setKvittering] = useState<{ sakId: string; type: Kvitteringstype } | null>(
@@ -847,10 +847,18 @@ export default function SakPage() {
                   kontroll={
                     refusjon && !refusjonError ? (
                       <Refusjonskontroll
-                        key={`${sak.sakId}:${refusjon.opprettet}`}
+                        key={`${sak.sakId}:${refusjon.refusjonskravId}`}
+                        sakId={sak.sakId}
                         refusjon={refusjon}
-                        deltaker={soknad.ansatt.navn}
-                        arbeidsgiver={soknad.virksomhet.virksomhetsnavn}
+                        erTildeltSaksbehandler={
+                          !!innloggetAnsatt && sak.saksbehandlerIdent === innloggetAnsatt.id
+                        }
+                        erInnvilget={sak.status === "INNVILGET"}
+                        sluttrapportBekreftet={
+                          !sluttrapportError && sluttrapport?.status === "BEKREFTET"
+                        }
+                        sluttrapportLaster={sluttrapportLaster}
+                        sluttrapportFeilet={!!sluttrapportError}
                       />
                     ) : undefined
                   }

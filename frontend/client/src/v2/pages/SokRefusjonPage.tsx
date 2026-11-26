@@ -157,7 +157,13 @@ export default function SokRefusjonPage() {
     bumpFocusKey();
   };
 
-  if (id && refusjon && !statusError && !isSubmitting) {
+  if (
+    id &&
+    refusjon &&
+    refusjon.status !== "NY_INNSENDING_KREVES" &&
+    !statusError &&
+    !isSubmitting
+  ) {
     return <Navigate to={`/v2/skjema/${id}/vedtak`} replace />;
   }
 
@@ -221,8 +227,15 @@ export default function SokRefusjonPage() {
         <BackLink to={`/v2/skjema/${id}/vedtak`}>Tilbake til avtalen</BackLink>
 
         <Heading level="1" size="xlarge">
-          Søk refusjon
+          {refusjon?.status === "NY_INNSENDING_KREVES"
+            ? "Send inn nytt refusjonskrav"
+            : "Søk refusjon"}
         </Heading>
+        {refusjon?.status === "NY_INNSENDING_KREVES" && refusjon.begrunnelse && (
+          <Alert variant="warning">
+            <BodyShort style={{ whiteSpace: "pre-line" }}>{refusjon.begrunnelse}</BodyShort>
+          </Alert>
+        )}
 
         <VStack gap="space-8" aria-live="polite">
           <Nokkeldata

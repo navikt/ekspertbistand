@@ -13,7 +13,7 @@ behandlingen — ikke innsendingen.
 | Tema | Valg | Begrunnelse |
 |------|------|-------------|
 | Kardinalitet sak ↔ søknad | **1:1** (`sak.soknad_id` UNIQUE) | Én sak per innvilget/behandlet søknad. |
-| Refusjon | **1:1**, kun på sak (`sak.refusjon_id`) | Refusjon hører til behandlingen, ikke søknaden. `refusjonskrav.soknad_id` fjernes senere (expand/contract, se Migrasjon). |
+| Refusjon | **1:N**, via `refusjonskrav.sak_id` | Hver innsending får en egen rad. Nyeste rad bestemmer gjeldende status. V43 fjerner unikhetsregelen per sak. |
 | Sluttrapport | Ny tabell, **1:1** på sak (`sak.sluttrapport_id`) | Kan ha flere vedlegg; egen tabell samler metadata. |
 | Saksvilkår | **1:N**, én rad per vilkår, PK `(sak_id, vilkar_id)` | Hvert vilkår har sin egen vurdering, sitt eget notat og sitt eget vurdert-av/tidspunkt. Nye vilkår krever ikke nye kolonner. |
 | Sakslogg | **1:N** fra sak | Hendelseslogg / audit trail. |
@@ -53,7 +53,6 @@ journalført (`InnsendtSoknadJournalfoert`), sammen med alle vilkår.
 | `arena_sak_id` | TEXT | NULL | Saksnummer i Arena når saken er speilet dit. Null hvis ikke i Arena. |
 | `saksnummer` | TEXT | UNIQUE, NULL | Saksnummeret `ÅÅÅÅ/løpenummer` (V29), fra `neste_saksnummer()`. Brukes i bestillingsnummeret mot OeBS (`E-<saksnummer>-<n>`). Påkrevd når `kilde_til_behandling = EKSPERTBISTAND` (CHECK `sak_saksnummer_ekspertbistand`), null for Arena-saker. Endres aldri. |
 | `sektorkode` | TEXT | NULL | SSBs institusjonelle sektorkode til juridisk enhet over virksomheten, fra Ereg (V41). Settes av `OpprettSak`. Null for Arena-saker og når Ereg mangler koden. Mappes til `Virksomhetstype` ved lesing. Se [`kategorisering_virksomhetstype.md`](kategorisering_virksomhetstype.md). |
-| `refusjon_id` | UUID | UNIQUE, FK → `refusjonskrav(id)` | Refusjonskravet for saken (1:1). Null til krav mottas. |
 | `sluttrapport_id` | UUID | UNIQUE, FK → `sluttrapport(sluttrapport_id)` | Sluttrapporten for saken (1:1). Null til rapport mottas. |
 | `tildeling_event_id` | BIGINT | NULL | Id-en til eventen som sist tildelte eller frigjorde saken. En eldre event skriver aldri over en nyere. Null før første tildeling. |
 | `beslutter_tildeling_event_id` | BIGINT | NULL | Id-en til eventen som sist tildelte beslutter (V23). Egen kolonne, fordi tildeling av saksbehandler og beslutter er uavhengige. Null før første beslutter-tildeling. |
@@ -221,12 +220,16 @@ Indeks: `sak_bestilling_sak_id_idx(sak_id)`.
 
 ### `refusjonskrav`
 
-- **Utsatt fjerning:** `soknad_id` (og indeks `idx_refusjonskrav_soknad_id`) skal på sikt fjernes,
-  siden refusjon kobles til sak via `sak.refusjon_id`. Men kolonnen er fortsatt i aktiv bruk i
-  `RefusjonDb` (`lagreRefusjonskrav` + `finnRefusjonskravStatus`). Vi følger derfor
-  **expand/contract**: `V12` beholder kolonnen (additiv migrasjon), og den droppes først i en
-  senere contract-migrasjon når koden kobler refusjon via sak. Å droppe den nå ville brukket
-  refusjon i prod.
+- `sak_id` er påkrevd og peker på `sak`, med sletting via saken.
+  `soknad_id` ble fjernet i V33.
+- V43 fjerner unikhetsregelen på `sak_id` og legger til indeksen
+  `idx_refusjonskrav_nyeste(sak_id, opprettet DESC, id DESC)`.
+- Hver innsending får en egen rad. Nyeste rad etter `opprettet DESC, id DESC`
+  er gjeldende krav. Tidligere krav, beløp og vedlegg beholdes.
+- Vurderingen lagres i nullable felter: `arsaker TEXT[]`, `begrunnelse TEXT`,
+  `vurdert_av_ident TEXT`, `vurdert_av_navn TEXT` og
+  `vurdert_tidspunkt TIMESTAMPTZ`. Beskjeden er forhåndsdefinert, ikke fritekst.
+  Se [`ny_innsending_refusjonskrav.md`](ny_innsending_refusjonskrav.md).
 - Tabellnavnet beholdes (`refusjonskrav`) for å unngå kodeendringer i `RefusjonskravTable`.
 
 ### `vedlegg`
@@ -327,7 +330,9 @@ Rollen aktøren hadde ved handlingen. Alltid satt.
 
 ### `Refusjonsstatus` (`refusjonskrav.status`)
 
-Uendret. Default `MOTTATT`.
+`RefusjonskravStatuskode` har `MOTTATT` og `NY_INNSENDING_KREVES`.
+Ingen rad betyr at kravet ikke er mottatt. Dokumentkontroll krever
+bekreftet sluttrapport og endrer ikke sakens status.
 
 ### `Sluttrapportstatus` (`sluttrapport.status`)
 
@@ -346,7 +351,7 @@ soknad 1 ──── 1 sak 1 ──── N saksvilkar
                  │ 1
                  ├──── 0..1 vedtak              (via vedtak.sak_id)
                  │ 1
-                 ├──── 0..1 refusjonskrav      (via sak.refusjon_id)
+                 ├──── N refusjonskrav        (via refusjonskrav.sak_id)
                  │ 1
                  └──── 0..1 sluttrapport        (via sak.sluttrapport_id)
                                 │ 1

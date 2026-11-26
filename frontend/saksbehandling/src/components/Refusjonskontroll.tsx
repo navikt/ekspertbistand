@@ -1,91 +1,194 @@
-import { ThumbDownIcon, ThumbUpIcon } from "@navikt/aksel-icons";
+import { useState } from "react";
+import { HourglassIcon } from "@navikt/aksel-icons";
 import {
   BodyShort,
   Box,
   Button,
-  HGrid,
-  InfoCard,
-  Radio,
-  RadioGroup,
-  Textarea,
+  Checkbox,
+  CheckboxGroup,
+  Detail,
+  Heading,
+  HStack,
+  Label,
+  LocalAlert,
+  Select,
+  Tag,
   VStack,
 } from "@navikt/ds-react";
-import { Fragment, useState } from "react";
-import type { RefusjonStatusDto } from "../hooks/useRefusjon";
-import { formatKroner } from "../utils/belop";
-
-type Vurdering = "godkjenn" | "avslaa";
+import {
+  refusjonBeskjed,
+  REFUSJON_ÅRSAKER,
+  REFUSJON_ÅRSAKSREKKEFØLGE,
+  type RefusjonStatusDto,
+  type RefusjonskravArsak,
+  useRefusjonVurdering,
+} from "../hooks/useRefusjon";
 
 type Props = {
+  sakId: string;
   refusjon: RefusjonStatusDto;
-  deltaker: string;
-  arbeidsgiver: string;
+  erTildeltSaksbehandler: boolean;
+  erInnvilget: boolean;
+  sluttrapportBekreftet: boolean;
+  sluttrapportLaster: boolean;
+  sluttrapportFeilet: boolean;
 };
 
-export default function Refusjonskontroll({ refusjon, deltaker, arbeidsgiver }: Props) {
-  const [vurdering, setVurdering] = useState<Vurdering | null>(null);
-  const [begrunnelse, setBegrunnelse] = useState("");
-  const rader = [
-    { label: "Tilskudd", verdi: "Ikke tilgjengelig" },
-    { label: "Beløp i refusjonskravet", verdi: formatKroner(refusjon.belopKroner) },
-    { label: "Kontonummer", verdi: "Ikke tilgjengelig" },
-    { label: "Deltaker", verdi: deltaker },
-    { label: "Arbeidsgiver", verdi: arbeidsgiver },
-  ];
-  const Ikon = vurdering === "godkjenn" ? ThumbUpIcon : ThumbDownIcon;
+export default function Refusjonskontroll({
+  sakId,
+  refusjon,
+  erTildeltSaksbehandler,
+  erInnvilget,
+  sluttrapportBekreftet,
+  sluttrapportLaster,
+  sluttrapportFeilet,
+}: Props) {
+  const [valg, setValg] = useState("");
+  const [arsaker, setArsaker] = useState<RefusjonskravArsak[]>([]);
+  const [arsaksfeil, setArsaksfeil] = useState(false);
+  const { vurder, isSaving, error, erMottatt } = useRefusjonVurdering(sakId);
+  const kanVurdere = erTildeltSaksbehandler && erInnvilget && sluttrapportBekreftet;
+
+  if (refusjon.status === "NY_INNSENDING_KREVES") {
+    const tidspunkt = refusjon.vurdertTidspunkt
+      ? new Intl.DateTimeFormat("nb-NO", { dateStyle: "long", timeStyle: "short" }).format(
+          new Date(refusjon.vurdertTidspunkt)
+        )
+      : "";
+    return (
+      <VStack gap="space-16" padding="space-16" paddingBlock="space-32">
+        <HStack gap="space-8" justify="space-between" align="center">
+          <Heading level="2" size="xsmall">
+            Refusjonskrav avvist
+          </Heading>
+          <Tag
+            size="small"
+            variant="outline"
+            data-color="info"
+            icon={<HourglassIcon aria-hidden />}
+          >
+            Venter nytt refusjonskrav
+          </Tag>
+        </HStack>
+        <VStack gap="space-2">
+          <Detail weight="semibold">Avvist av</Detail>
+          <Detail>
+            {refusjon.vurdertAvNavn} ({refusjon.vurdertAvIdent}) {tidspunkt}
+          </Detail>
+        </VStack>
+        <Box borderWidth="0 0 1 0" borderColor="neutral-subtle" />
+        <Label as="p">Begrunnelse</Label>
+        <ul>
+          {refusjon.arsaker.map((arsak) => (
+            <li key={arsak}>{REFUSJON_ÅRSAKER[arsak].label}</li>
+          ))}
+        </ul>
+        <Label as="p">Beskjed til arbeidsgiver</Label>
+        <BodyShort style={{ whiteSpace: "pre-line" }}>{refusjon.begrunnelse}</BodyShort>
+      </VStack>
+    );
+  }
 
   return (
-    <VStack gap="space-24" padding="space-16" paddingBlock="space-32">
-      <RadioGroup
-        legend="Kontroll av refusjonskrav"
-        description="Valget og en eventuell begrunnelse lagres ikke."
-        value={vurdering ?? ""}
-        onChange={(verdi: string) => {
-          if (verdi === "godkjenn" || verdi === "avslaa") setVurdering(verdi);
-        }}
-      >
-        <Radio value="godkjenn">Godkjenn refusjonskrav. Utgiftene er dokumentert korrekt.</Radio>
-        <Radio value="avslaa">Avslå refusjonskrav</Radio>
-      </RadioGroup>
-
-      {vurdering && (
+    <VStack gap="space-24" align="start" padding="space-16" paddingBlock="space-32">
+      {!kanVurdere ? (
         <>
-          <InfoCard data-color={vurdering === "godkjenn" ? "success" : "danger"} size="small">
-            <InfoCard.Header icon={<Ikon aria-hidden />}>
-              <InfoCard.Title as="h2">
-                Vurdering: {vurdering === "godkjenn" ? "Godkjenn" : "Avslå"} refusjonskrav
-              </InfoCard.Title>
-            </InfoCard.Header>
-            <InfoCard.Content>
-              <HGrid columns="minmax(0, 1fr) minmax(0, 1fr)" gap="space-2 space-8">
-                {rader.map(({ label, verdi }) => (
-                  <Fragment key={label}>
-                    <BodyShort size="small">{label}:</BodyShort>
-                    <BodyShort size="small" weight="semibold">
-                      {verdi}
-                    </BodyShort>
-                  </Fragment>
-                ))}
-              </HGrid>
-            </InfoCard.Content>
-          </InfoCard>
-
-          {vurdering === "avslaa" && (
-            <Textarea
-              label="Arbeidsgiver: tilpass begrunnelsen"
-              description="Dette er et utkast og blir ikke sendt til arbeidsgiver."
-              value={begrunnelse}
-              onChange={(event) => setBegrunnelse(event.target.value)}
-              minRows={3}
-            />
+          <Heading level="2" size="xsmall">
+            Kontroll av refusjonskrav
+          </Heading>
+          <BodyShort>
+            {!erTildeltSaksbehandler
+              ? "Det er bare tildelt saksbehandler som kan vurdere refusjonskravet."
+              : !erInnvilget
+                ? "Saken må være innvilget før refusjonskravet kan vurderes."
+                : sluttrapportFeilet
+                  ? "Kunne ikke hente status for sluttrapporten. Last siden på nytt."
+                  : sluttrapportLaster
+                    ? "Laster status for sluttrapporten."
+                    : "Sluttrapporten må være bekreftet før refusjonskravet kan vurderes."}
+          </BodyShort>
+        </>
+      ) : (
+        <>
+          {error && (
+            <LocalAlert status="error" role="alert">
+              <LocalAlert.Header>
+                <LocalAlert.Title>Kunne ikke bekrefte vurderingen</LocalAlert.Title>
+              </LocalAlert.Header>
+              <LocalAlert.Content>{error}</LocalAlert.Content>
+            </LocalAlert>
           )}
-
-          <Box>
-            <Button type="button" disabled>
-              {vurdering === "godkjenn" ? "Send til utbetaling" : "Forhåndsvis foreløpig vedtak"}
+          {erMottatt ? (
+            <BodyShort role="status">
+              Vurderingen er mottatt. Venter på at lagringen bekreftes.
+            </BodyShort>
+          ) : (
+            <>
+              <Select
+                label="Kan refusjonskravet behandles med dokumentasjonen som er mottatt?"
+                value={valg}
+                onChange={(event) => {
+                  setValg(event.target.value);
+                  setArsaker([]);
+                  setArsaksfeil(false);
+                }}
+                disabled={isSaving}
+              >
+                <option value="">Velg</option>
+                <option value="ja">Ja</option>
+                <option value="nei">Nei, arbeidsgiver må sende inn refusjonskravet på nytt</option>
+              </Select>
+              {valg === "ja" && (
+                <BodyShort>
+                  Videre behandling av refusjonskravet er ikke tilgjengelig ennå.
+                </BodyShort>
+              )}
+              {valg === "nei" && (
+                <>
+                  <CheckboxGroup
+                    legend="Beskriv hva arbeidsgiver må rette opp i"
+                    value={arsaker}
+                    onChange={(verdier) => {
+                      setArsaker(
+                        REFUSJON_ÅRSAKSREKKEFØLGE.filter((arsak) => verdier.includes(arsak))
+                      );
+                      setArsaksfeil(false);
+                    }}
+                    error={arsaksfeil ? "Velg minst én årsak." : undefined}
+                    disabled={isSaving}
+                  >
+                    {REFUSJON_ÅRSAKSREKKEFØLGE.map((arsak) => (
+                      <Checkbox key={arsak} value={arsak}>
+                        {REFUSJON_ÅRSAKER[arsak].label}
+                      </Checkbox>
+                    ))}
+                  </CheckboxGroup>
+                  <VStack gap="space-8">
+                    <Label as="p">Tekst som vises til arbeidsgiver</Label>
+                    <BodyShort style={{ whiteSpace: "pre-line" }}>
+                      {refusjonBeskjed(arsaker)}
+                    </BodyShort>
+                  </VStack>
+                </>
+              )}
+            </>
+          )}
+          {(valg === "nei" || erMottatt) && (
+            <Button
+              type="button"
+              loading={isSaving}
+              disabled={isSaving}
+              onClick={() => {
+                if (!erMottatt && arsaker.length === 0) {
+                  setArsaksfeil(true);
+                  return;
+                }
+                void vurder(refusjon, arsaker);
+              }}
+            >
+              {erMottatt ? "Hent status på nytt" : "Avvis, be arbeidsgiver sende på nytt"}
             </Button>
-            <BodyShort size="small">Handlingen er ikke tilgjengelig ennå.</BodyShort>
-          </Box>
+          )}
         </>
       )}
     </VStack>

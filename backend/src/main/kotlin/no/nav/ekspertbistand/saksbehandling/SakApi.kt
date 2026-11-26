@@ -482,6 +482,7 @@ fun hentSakForSaksbehandling(sakId: UUID, principal: AzureAdPrincipal): SakDetal
                     sluttrapport = innsendinger.sluttrapport?.toString(),
                 ),
                 harSluttrapport = harSluttrapport(sakId),
+                harRefusjonskrav = harRefusjonskrav(sakId),
                 adressebeskyttelse = row.adressebeskyttelseVedOpprettelse(),
                 skjermet = row.skjermetVedOpprettelse(),
                 kanTildeleMeg = tildelingHindring(status, kilde, innsendinger, saksbehandlerIdent, principal) == null,
@@ -595,6 +596,7 @@ data class SakDetaljer(
     val innsendinger: Innsendinger,
     /** Saken har minst én sluttrapport, uansett status. Styrer om sluttrapportfanen vises. */
     val harSluttrapport: Boolean,
+    val harRefusjonskrav: Boolean,
     val adressebeskyttelse: Adressebeskyttelse?,
     val skjermet: Boolean,
     val kanTildeleMeg: Boolean,

@@ -24,6 +24,7 @@ flowchart TD
     s_BeslutterApi[/"BeslutterApi"/]:::source
     s_ForelopigVedtakApi[/"ForelopigVedtakApi"/]:::source
     s_RefusjonDb[/"RefusjonDb"/]:::source
+    s_RefusjonskravVurderingApi[/"RefusjonskravVurderingApi"/]:::source
     s_SakApi[/"SakApi"/]:::source
     s_SluttrapportVurderingApi[/"SluttrapportVurderingApi"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
@@ -42,6 +43,7 @@ flowchart TD
     e_OebsBestillingStatusMottatt(["OebsBestillingStatusMottatt"]):::event
     e_OebsFakturaStatusMottatt(["OebsFakturaStatusMottatt"]):::event
     e_RefusjonskravMottatt(["RefusjonskravMottatt"]):::event
+    e_RefusjonskravNyInnsendingKrevd(["RefusjonskravNyInnsendingKrevd"]):::event
     e_SakFrigjort(["SakFrigjort"]):::event
     e_SakOppdatert(["SakOppdatert"]):::event
     e_SakOpprettet(["SakOpprettet"]):::event
@@ -81,6 +83,7 @@ flowchart TD
     h_JournalfoerTilskuddsbrevKildeAltinn["JournalfoerTilskuddsbrevKildeAltinn"]:::handler
     h_JournalfoerVedtaksbrevArbeidsgiver["JournalfoerVedtaksbrevArbeidsgiver"]:::handler
     h_LagreForelopigVedtak["LagreForelopigVedtak"]:::handler
+    h_LagreRefusjonskravNyInnsendingKrevd["LagreRefusjonskravNyInnsendingKrevd"]:::handler
     h_LagreSluttrapportBekreftet["LagreSluttrapportBekreftet"]:::handler
     h_LagreSluttrapportNyInnsendingKrevd["LagreSluttrapportNyInnsendingKrevd"]:::handler
     h_LagreTilsagnsData["LagreTilsagnsData"]:::handler
@@ -132,12 +135,14 @@ flowchart TD
     h_JournalfoerVedtaksbrevArbeidsgiver --> e_SakOppdatert
     h_JournalfoerVedtaksbrevArbeidsgiver --> e_VedtaksbrevArbeidsgiverJournalfoert
     h_LagreForelopigVedtak --> e_SakOppdatert
+    h_LagreRefusjonskravNyInnsendingKrevd --> e_SakOppdatert
     h_LagreSluttrapportNyInnsendingKrevd --> e_SakOppdatert
     h_LagreTilsagnsData --> e_TilsagnsdataLagret
     h_OpprettSak --> e_SakOppdatert
     h_OpprettSak --> e_SakOpprettet
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
     s_RefusjonDb --> e_RefusjonskravMottatt
+    s_RefusjonskravVurderingApi --> e_RefusjonskravNyInnsendingKrevd
     h_ReturnerForelopigVedtak --> e_SakOppdatert
     s_SakApi --> e_SakFrigjort
     s_SakApi --> e_SakTildeltBeslutter
@@ -177,6 +182,7 @@ flowchart TD
     e_TilskuddsbrevMottattKildeAltinn --> h_JournalfoerTilskuddsbrevKildeAltinn
     e_VedtakFattet --> h_JournalfoerVedtaksbrevArbeidsgiver
     e_ForelopigVedtakSendtTilBeslutter --> h_LagreForelopigVedtak
+    e_RefusjonskravNyInnsendingKrevd --> h_LagreRefusjonskravNyInnsendingKrevd
     e_SluttrapportBekreftet --> h_LagreSluttrapportBekreftet
     e_SluttrapportNyInnsendingKrevd --> h_LagreSluttrapportNyInnsendingKrevd
     e_TilskuddsbrevJournalfoert --> h_LagreTilsagnsData

@@ -59,6 +59,16 @@ export default function RefusjonskravVisning({
     );
   }
   if (!refusjon) return <BodyLong>Arbeidsgiver har ikke sendt inn refusjonskrav ennå.</BodyLong>;
+  if (refusjon.status === "NY_INNSENDING_KREVES") {
+    return (
+      <VStack gap="space-16" padding="space-16">
+        <Heading level="2" size="small">
+          Ingen refusjonskrav til behandling
+        </Heading>
+        <BodyShort>Venter på at arbeidsgiver sender inn et nytt refusjonskrav.</BodyShort>
+      </VStack>
+    );
+  }
 
   const vedlegg = refusjon.vedlegg.map((fil) => ({
     url: `${SAKSBEHANDLING_REFUSJON_VEDLEGG_URL(sakId, fil.id)}?visning=forhandsvisning`,

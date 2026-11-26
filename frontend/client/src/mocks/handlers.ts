@@ -36,6 +36,9 @@ const refusjonStore = new Map<
   string,
   {
     belopKroner: number;
+    status: "MOTTATT" | "NY_INNSENDING_KREVES";
+    vurdertTidspunkt: string | null;
+    begrunnelse: string | null;
     opprettet: string;
     kontonummer: string | null;
     vedlegg: MockRefusjonVedlegg[];
@@ -878,6 +881,13 @@ export const handlers = [
     if (!skjemaStore.has(id)) {
       return HttpResponse.json({ message: "søknad ikke funnet" }, { status: 404 });
     }
+    const eksisterende = refusjonStore.get(id);
+    if (eksisterende && eksisterende.status !== "NY_INNSENDING_KREVES") {
+      return HttpResponse.json(
+        { message: "Refusjonskrav er allerede sendt inn for denne saken" },
+        { status: 409 }
+      );
+    }
 
     const formData = await request.formData();
     const belop = formData.get("belop");
@@ -911,18 +921,28 @@ export const handlers = [
         );
       }
     }
+    const vedlegg = await Promise.all(
+      filer.map(async (f) => ({
+        id: crypto.randomUUID(),
+        filnavn: f.name,
+        storrelse: f.size,
+        innhold: new Uint8Array(await f.arrayBuffer()),
+      }))
+    );
+    if (refusjonStore.get(id) !== eksisterende) {
+      return HttpResponse.json(
+        { message: "Refusjonskrav er allerede sendt inn for denne saken" },
+        { status: 409 }
+      );
+    }
     refusjonStore.set(id, {
+      status: "MOTTATT",
+      vurdertTidspunkt: null,
+      begrunnelse: null,
       belopKroner: Number(belop),
       opprettet: new Date().toISOString(),
       kontonummer: null,
-      vedlegg: await Promise.all(
-        filer.map(async (f) => ({
-          id: crypto.randomUUID(),
-          filnavn: f.name,
-          storrelse: f.size,
-          innhold: new Uint8Array(await f.arrayBuffer()),
-        }))
-      ),
+      vedlegg,
     });
 
     return new HttpResponse(null, { status: 201 });
@@ -943,6 +963,9 @@ export const handlers = [
     return HttpResponse.json(
       {
         belopKroner: status.belopKroner,
+        status: status.status,
+        vurdertTidspunkt: status.vurdertTidspunkt,
+        begrunnelse: status.status === "NY_INNSENDING_KREVES" ? status.begrunnelse : null,
         opprettet: status.opprettet,
         kontonummer: status.kontonummer,
         vedlegg: status.vedlegg.map((v) => ({

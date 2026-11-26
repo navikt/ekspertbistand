@@ -224,6 +224,9 @@ describe("SokRefusjonPage", () => {
 
   it("sender eksisterende krav til vedtakssiden uten ny innsendingsbekreftelse", () => {
     renderPage({
+      status: "MOTTATT",
+      vurdertTidspunkt: null,
+      begrunnelse: null,
       belopKroner: 1000,
       opprettet: "2026-05-20T12:00:00",
       kontonummer: null,
@@ -233,6 +236,33 @@ describe("SokRefusjonPage", () => {
     expect(screen.getByText("V2-vedtak")).toBeInTheDocument();
     expect(screen.getByLabelText("Navigeringstilstand")).toHaveTextContent("null");
     expect(screen.queryByText("V2-kvittering")).not.toBeInTheDocument();
+  });
+
+  it("åpner nytt skjema med beskjed og sender alle opplysninger på nytt", async () => {
+    const fetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 201 }));
+    const { container, refreshStatus } = renderPage({
+      status: "NY_INNSENDING_KREVES",
+      vurdertTidspunkt: "2026-11-26T12:00:00Z",
+      begrunnelse: "Send refusjonskravet på nytt. Vedleggene må være leselige.",
+      belopKroner: 2000,
+      opprettet: "2026-11-20T12:00:00Z",
+      kontonummer: null,
+      vedlegg: [{ id: "gammel-fil", filnavn: "gammel.pdf", storrelse: 100 }],
+    });
+    expect(screen.getByRole("heading", { name: "Send inn nytt refusjonskrav" })).toBeVisible();
+    expect(screen.getByText(/Vedleggene må være leselige/)).toBeVisible();
+    expect(screen.getByLabelText("Beløp for refusjonskravet")).toHaveValue("");
+    expect(screen.queryByText("gammel.pdf")).not.toBeInTheDocument();
+    const user = await fyllUtKrav(container);
+    await user.click(screen.getByRole("button", { name: /^Send inn$/ }));
+    await screen.findByText("V2-vedtak");
+    const request = fetch.mock.calls.at(-1)?.[1]?.body;
+    expect(request).toBeInstanceOf(FormData);
+    expect((request as FormData).get("belop")).toBe("1000");
+    expect((request as FormData).getAll("filer")).toHaveLength(1);
+    expect(refreshStatus).toHaveBeenCalled();
   });
 
   it("returns an unsubmitted refund form to the v2 vedtak page", () => {
