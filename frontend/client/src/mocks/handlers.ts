@@ -21,7 +21,14 @@ const MOCK_REFUSJON_MAKS_BELOP = 24900;
 
 const sluttrapportStore = new Map<
   string,
-  { filnavn: string; opprettet: string; storrelse: number }
+  {
+    filnavn: string;
+    opprettet: string;
+    storrelse: number;
+    status: "MOTTATT" | "BEKREFTET" | "NY_INNSENDING_KREVES";
+    vurdertTidspunkt: string | null;
+    begrunnelse: string | null;
+  }
 >();
 
 type MockRefusjonVedlegg = { id: string; filnavn: string; storrelse: number; innhold: Uint8Array };
@@ -829,6 +836,9 @@ export const handlers = [
       filnavn: filer[0]?.name ?? "vedlegg.pdf",
       opprettet: new Date().toISOString(),
       storrelse: filer[0]?.size ?? 0,
+      status: "MOTTATT",
+      vurdertTidspunkt: null,
+      begrunnelse: null,
     });
 
     return new HttpResponse(null, { status: 201 });

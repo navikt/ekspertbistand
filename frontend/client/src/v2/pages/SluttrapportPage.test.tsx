@@ -206,11 +206,34 @@ describe("SluttrapportPage", () => {
         filnavn: "sluttrapport.pdf",
         opprettet: "2026-05-20T12:00:00",
         storrelse: 10,
+        status: "MOTTATT",
+        vurdertTidspunkt: null,
+        begrunnelse: null,
       },
     });
 
     expect(screen.getByLabelText("Navigeringstilstand")).toHaveTextContent("null");
     expect(screen.queryByRole("button", { name: /^Send inn$/ })).not.toBeInTheDocument();
+  });
+
+  it("lar arbeidsgiver sende inn på nytt og viser Navs begrunnelse", () => {
+    renderPage({
+      sluttrapport: {
+        filnavn: "sluttrapport.pdf",
+        opprettet: "2026-05-20T12:00:00",
+        storrelse: 10,
+        status: "NY_INNSENDING_KREVES",
+        vurdertTidspunkt: "2026-05-22T12:00:00Z",
+        begrunnelse: "Send sluttrapporten på nytt.",
+      },
+    });
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Send inn ny sluttrapport" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Send sluttrapporten på nytt.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Send inn$/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Navigeringstilstand")).not.toBeInTheDocument();
   });
 
   it("viser statusfeil i stedet for et tomt skjema", () => {

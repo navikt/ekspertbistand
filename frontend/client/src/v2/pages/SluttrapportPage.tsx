@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
 import {
   Alert,
+  BodyLong,
   BodyShort,
   Button,
   FileUpload,
@@ -78,7 +79,9 @@ export default function SluttrapportPage() {
     navigate(`/v2/skjema/${id}/vedtak`, { state: { sluttrapportSendtInn: true } });
   };
 
-  if (id && sluttrapport && !statusError && !isSubmitting) {
+  const nySluttrapportKreves = sluttrapport?.status === "NY_INNSENDING_KREVES";
+
+  if (id && sluttrapport && !nySluttrapportKreves && !statusError && !isSubmitting) {
     return <Navigate to={`/v2/skjema/${id}/vedtak`} replace />;
   }
 
@@ -129,8 +132,17 @@ export default function SluttrapportPage() {
         <BackLink to={`/v2/skjema/${id}/vedtak`}>Tilbake til avtalen</BackLink>
 
         <Heading level="1" size="xlarge">
-          Send inn sluttrapport
+          {nySluttrapportKreves ? "Send inn ny sluttrapport" : "Send inn sluttrapport"}
         </Heading>
+
+        {nySluttrapportKreves && (
+          <Alert variant="warning">
+            <Heading level="2" size="xsmall" spacing>
+              Nav ber om ny sluttrapport
+            </Heading>
+            <BodyLong>{sluttrapport.begrunnelse}</BodyLong>
+          </Alert>
+        )}
 
         <VStack gap="space-8" aria-live="polite">
           <Nokkeldata

@@ -33,7 +33,8 @@ import no.nav.ekspertbistand.sak.lagreFattetVedtak
 import no.nav.ekspertbistand.sak.lagreSoknadOgSak
 import no.nav.ekspertbistand.soknad.SoknadTable
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
-import no.nav.ekspertbistand.vedlegg.SluttrapportStatusDto
+import no.nav.ekspertbistand.vedlegg.SluttrapportStatus
+import no.nav.ekspertbistand.vedlegg.SluttrapportTable
 import no.nav.ekspertbistand.vedlegg.VedleggDb
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -47,6 +48,7 @@ import java.util.UUID
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -211,6 +213,7 @@ class SakDokumentApiTest {
                 filnavn = "eldre-sluttrapport.pdf",
                 innhold = sluttrapportPdf,
             )
+            krevNySluttrapport(db, sak.sakId)
             Thread.sleep(20)
             vedleggDb.lagreSluttrapport(
                 soknadId = sak.soknadId,
@@ -227,8 +230,13 @@ class SakDokumentApiTest {
                 }
             assertEquals(HttpStatusCode.OK, sluttrapportMetadata.status)
             assertNoStoreAndNosniff(sluttrapportMetadata)
-            val sluttrapportStatus = sluttrapportMetadata.body<SluttrapportStatusDto>()
+            val sluttrapportStatus = sluttrapportMetadata.body<SaksbehandlingSluttrapportDto>()
             assertEquals("nyeste-sluttrapport.pdf", sluttrapportStatus.filnavn)
+            assertEquals(SluttrapportStatus.MOTTATT, sluttrapportStatus.status)
+            assertNull(sluttrapportStatus.vurdertTidspunkt)
+            assertNull(sluttrapportStatus.vurdertAvIdent)
+            assertNull(sluttrapportStatus.vurdertAvNavn)
+            assertNull(sluttrapportStatus.begrunnelse)
             assertEquals(refusjonPdf.size, sluttrapportStatus.storrelse)
             assertNotNull(sluttrapportStatus.opprettet)
 
@@ -529,7 +537,7 @@ class SakDokumentApiTest {
             }
         assertEquals(HttpStatusCode.OK, sluttrapportMetadata.status)
         assertNoStoreAndNosniff(sluttrapportMetadata)
-        with(sluttrapportMetadata.body<SluttrapportStatusDto>()) {
+        with(sluttrapportMetadata.body<SaksbehandlingSluttrapportDto>()) {
             assertEquals("sluttrapport.pdf", filnavn)
             assertEquals(sluttrapportPdf.size, storrelse)
         }
@@ -724,5 +732,11 @@ class SakDokumentApiTest {
         assertTrue(contentDisposition.startsWith("$disposition;", ignoreCase = true))
         assertTrue(contentDisposition.contains(filnavn))
         assertTrue(response.bodyAsBytes().contentEquals(forventetInnhold))
+    }
+
+    private fun krevNySluttrapport(db: TestDatabase, sakId: UUID) = transaction(db.config.jdbcDatabase) {
+        SluttrapportTable.update({ SluttrapportTable.sakId eq sakId }) {
+            it[status] = SluttrapportStatus.NY_INNSENDING_KREVES.name
+        }
     }
 }

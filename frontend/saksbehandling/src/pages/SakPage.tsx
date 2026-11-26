@@ -415,7 +415,7 @@ export default function SakPage() {
   const kostnadssteder = forelopigVedtakOppsett?.kostnadssteder;
   const [valgtFane, setValgtFane] = useState<{ sakId: string; fane: Fane } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const visSluttrapportFane = !erArenaSak && !!sak?.innsendinger.sluttrapport;
+  const visSluttrapportFane = !erArenaSak && !!sak?.harSluttrapport;
   const visRefusjonFane = !erArenaSak && !!sak?.innsendinger.refusjonskrav;
   const ønsketSaksFane = tilSaksFane(searchParams.get("fane"));
   // Fanen fra URL-en brukes bare når saken har noe å vise i den.
@@ -813,7 +813,15 @@ export default function SakPage() {
                   soknad={soknad}
                   midtreStandardstorrelse={sluttrapport && !sluttrapportError ? "45%" : "75%"}
                   kontroll={
-                    sluttrapport && !sluttrapportError ? <Sluttrapportkontroll /> : undefined
+                    sluttrapport && !sluttrapportError ? (
+                      <Sluttrapportkontroll
+                        sakId={sak.sakId}
+                        sluttrapport={sluttrapport}
+                        erTildeltSaksbehandler={
+                          !!innloggetAnsatt && sak.saksbehandlerIdent === innloggetAnsatt.id
+                        }
+                      />
+                    ) : undefined
                   }
                 >
                   <SluttrapportVisning

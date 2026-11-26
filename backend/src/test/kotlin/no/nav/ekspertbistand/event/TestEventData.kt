@@ -71,6 +71,31 @@ object TestEventData {
     }
 
     @OptIn(ExperimentalTime::class)
+    val sluttrapportBekreftet by lazy {
+        EventData.SluttrapportBekreftet(
+            sluttrapportId = sluttrapportMottatt.sluttrapportId,
+            sakId = sluttrapportMottatt.sakId,
+            soknadId = sampleSoknad.id!!,
+            vurdertAvIdent = "Z123456",
+            vurdertAvNavn = "Sara Saksbehandler",
+            tidspunkt = Instant.parse("2026-04-03T08:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val sluttrapportNyInnsendingKrevd by lazy {
+        EventData.SluttrapportNyInnsendingKrevd(
+            sluttrapportId = sluttrapportMottatt.sluttrapportId,
+            sakId = sluttrapportMottatt.sakId,
+            soknadId = sampleSoknad.id!!,
+            vurdertAvIdent = "Z123456",
+            vurdertAvNavn = "Sara Saksbehandler",
+            begrunnelse = "Vedlegget mangler signatur",
+            tidspunkt = Instant.parse("2026-04-03T08:00:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
     val oebsKvittering by lazy {
         OebsKvitteringDomain(
             kafkaTopic = "team-mulighetsrommet.tiltaksokonomi.bestilling-status-v1",
@@ -635,6 +660,8 @@ object TestEventData {
         sakOppdatert,
         refusjonskravMottatt,
         sluttrapportMottatt,
+        sluttrapportBekreftet,
+        sluttrapportNyInnsendingKrevd,
         sakTildeltSaksbehandler,
         sakFrigjort,
         sakTildeltBeslutter,

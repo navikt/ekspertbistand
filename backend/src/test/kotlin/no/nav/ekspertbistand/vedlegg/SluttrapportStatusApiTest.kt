@@ -22,18 +22,22 @@ import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.nesteSaksnummer
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.SoknadTable
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.datetime.CurrentDate
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 
 class SluttrapportStatusApiTest {
 
@@ -113,6 +117,9 @@ class SluttrapportStatusApiTest {
                 val dto = body<SluttrapportStatusDto>()
                 assertEquals("sluttrapport.pdf", dto.filnavn)
                 assertEquals("HEMMELIG-PDF-INNHOLD".toByteArray().size, dto.storrelse)
+                assertEquals(SluttrapportStatus.MOTTATT, dto.status)
+                assertNull(dto.vurdertTidspunkt)
+                assertNull(dto.begrunnelse)
                 // Filinnhold skal aldri lekke i status-responsen (personsensitivt)
                 assertFalse(bodyAsText().contains("HEMMELIG-PDF-INNHOLD"))
             }
@@ -229,6 +236,73 @@ class SluttrapportStatusApiTest {
                 assertTrue(SluttrapportTable.selectAll().empty())
                 assertTrue(VedleggTable.selectAll().empty())
             }
+        }
+
+    @Test
+    fun `viser begrunnelse ved ny innsending, men ikke hvem som vurderte`() =
+        testApplicationWithDatabase { testDb ->
+            konfigurer(testDb.config.jdbcDatabase, tilgangTil(orgnrMedTilgang))
+            val db = testDb.config.jdbcDatabase
+            val soknadId = UUID.randomUUID()
+            val sakId = transaction(db) { insertDummySoknad(soknadId, orgnrMedTilgang) }
+            VedleggDb(db).lagreSluttrapport(
+                soknadId = soknadId,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
+                filnavn = "sluttrapport.pdf",
+                innhold = "A".toByteArray(),
+            )
+            transaction(db) {
+                SluttrapportTable.update({ SluttrapportTable.sakId eq sakId }) {
+                    it[status] = SluttrapportStatus.NY_INNSENDING_KREVES.name
+                    it[begrunnelse] = "Send sluttrapporten på nytt."
+                    it[vurdertAvIdent] = "Z999999"
+                    it[vurdertAvNavn] = "Sara Saksbehandler"
+                    it[vurdertTidspunkt] = Instant.parse("2026-04-15T10:00:00Z")
+                }
+            }
+
+            with(client.get("/api/soknad/v1/$soknadId/sluttrapport") { bearerAuth("faketoken") }) {
+                assertEquals(HttpStatusCode.OK, status)
+                val dto = body<SluttrapportStatusDto>()
+                assertEquals(SluttrapportStatus.NY_INNSENDING_KREVES, dto.status)
+                assertEquals("Send sluttrapporten på nytt.", dto.begrunnelse)
+                assertEquals("2026-04-15T10:00:00Z", dto.vurdertTidspunkt)
+                val tekst = bodyAsText()
+                assertFalse(tekst.contains("Z999999"))
+                assertFalse(tekst.contains("Sara Saksbehandler"))
+            }
+        }
+
+    @Test
+    fun `avviser ny sluttrapport til Nav har bedt om ny innsending`() =
+        testApplicationWithDatabase { testDb ->
+            konfigurer(testDb.config.jdbcDatabase, tilgangTil(orgnrMedTilgang))
+            val db = testDb.config.jdbcDatabase
+            val soknadId = UUID.randomUUID()
+            val sakId = transaction(db) { insertDummySoknad(soknadId, orgnrMedTilgang) }
+            fun lagre(filnavn: String) = VedleggDb(db).lagreSluttrapport(
+                soknadId = soknadId,
+                virksomhetsnummer = orgnrMedTilgang,
+                innsendtAv = "01017012345",
+                filnavn = filnavn,
+                innhold = "A".toByteArray(),
+            )
+            lagre("forste.pdf")
+
+            assertFailsWith<SluttrapportKanIkkeSendesInnException> { lagre("andre.pdf") }
+            with(client.post("/api/soknad/v1/$soknadId/sluttrapport") { bearerAuth("faketoken") }) {
+                assertEquals(HttpStatusCode.Conflict, status)
+            }
+            transaction(db) {
+                assertEquals(1, SluttrapportTable.selectAll().count())
+                SluttrapportTable.update({ SluttrapportTable.sakId eq sakId }) {
+                    it[status] = SluttrapportStatus.NY_INNSENDING_KREVES.name
+                }
+            }
+
+            lagre("ny.pdf")
+            transaction(db) { assertEquals(2, SluttrapportTable.selectAll().count()) }
         }
 }
 

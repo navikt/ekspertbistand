@@ -2,6 +2,7 @@ import { http, bypass, HttpResponse } from "msw";
 import type { ForelopigVedtakInput } from "../hooks/useForelopigVedtak";
 import type { ForelopigVedtakOppsett, Kostnadssted } from "../hooks/useForelopigVedtakOppsett";
 import type { Kommune } from "../hooks/useSaksfilter";
+import type { SluttrapportStatusDto, SluttrapportVurderingInput } from "../hooks/useSluttrapport";
 import type { Mottaker } from "../hooks/useVedtaksbrev";
 import type {
   ForelopigUtfall,
@@ -41,6 +42,7 @@ import {
   SAKSBEHANDLING_SAKER_URL,
   SAKSBEHANDLING_SLUTTRAPPORT_FIL_URL,
   SAKSBEHANDLING_SLUTTRAPPORT_URL,
+  SAKSBEHANDLING_SLUTTRAPPORT_VURDERING_URL,
   SAKSBEHANDLING_VEDTAK_URL,
   SESSION_URL,
 } from "../utils/constants";
@@ -756,10 +758,16 @@ const mockRefusjon = {
     },
   ],
 };
-const mockSluttrapport = {
+const mockSluttrapport: SluttrapportStatusDto = {
+  sluttrapportId: "2f7a10-0000-4000-8000-000000000001",
   filnavn: "sluttrapport-ekspertbistand.pdf",
   opprettet: "2026-10-30T12:30:00Z",
   storrelse: mockPdfBytes.length,
+  status: "MOTTATT",
+  vurdertAvIdent: null,
+  vurdertAvNavn: null,
+  vurdertTidspunkt: null,
+  begrunnelse: null,
 };
 
 // Speiler oppgavetype i backend.
@@ -961,6 +969,7 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: MockListeElement): SakDetal
   vedtak: vedtakStore.get(sak.sakId) ?? null,
   foreslattKostnadssted: foreslattKostnadssted(sak.behandlendeEnhet),
   innsendinger: mockInnsendinger(sak.sakId),
+  harSluttrapport: harMockInnsending(sak.sakId, "SLUTTRAPPORT"),
   soknad: {
     soknadId: element.soknadId,
     status: element.status,
@@ -1250,6 +1259,74 @@ export const handlers = [
     }
     return HttpResponse.json(mockSluttrapport);
   }),
+  http.post<{ sakId: string; sluttrapportId: string }, Partial<SluttrapportVurderingInput>>(
+    SAKSBEHANDLING_SLUTTRAPPORT_VURDERING_URL(":sakId", ":sluttrapportId"),
+    async ({ params, request }) => {
+      const sak = finnSakMedTilgang(String(params.sakId));
+      if (sak instanceof Response) return sak;
+      if (!harMockInnsending(sak.sakId, "SLUTTRAPPORT")) {
+        return HttpResponse.json({ message: "Fant ikke sluttrapporten." }, { status: 404 });
+      }
+      if (sak.saksbehandlerIdent !== mockInnloggetAnsatt.id) {
+        return HttpResponse.json(
+          { kode: "IKKE_TILDELT_SAK", begrunnelse: "Du er ikke tildelt saken." },
+          { status: 403 }
+        );
+      }
+      if (String(params.sluttrapportId) !== mockSluttrapport.sluttrapportId) {
+        return HttpResponse.json({ message: "Fant ikke sluttrapporten." }, { status: 404 });
+      }
+
+      const body = await request.json().catch(() => null);
+      const utfall = body?.utfall;
+      const begrunnelse =
+        typeof body?.begrunnelse === "string" ? body.begrunnelse.trim() : undefined;
+      if (
+        !body ||
+        (utfall !== "BEKREFTET" && utfall !== "NY_INNSENDING_KREVES") ||
+        (utfall === "NY_INNSENDING_KREVES" && (!begrunnelse || begrunnelse.length > 4000)) ||
+        (utfall === "BEKREFTET" && body.begrunnelse !== undefined)
+      ) {
+        return HttpResponse.json(
+          { message: "Ugyldig vurdering av sluttrapporten." },
+          { status: 400 }
+        );
+      }
+      if (sak.kildeTilBehandling === "ARENA") {
+        return HttpResponse.json(
+          { kode: "SAK_UGYLDIG_KILDE", message: "Saken behandles i Arena." },
+          { status: 409 }
+        );
+      }
+      if (mockSluttrapport.status !== "MOTTATT") {
+        return HttpResponse.json(
+          {
+            kode: "SLUTTRAPPORT_ALLEREDE_VURDERT",
+            message: "Sluttrapporten er allerede vurdert.",
+          },
+          { status: 409 }
+        );
+      }
+
+      const vurdertTidspunkt = new Date().toISOString();
+      mockSluttrapport.status = utfall;
+      mockSluttrapport.vurdertAvIdent = mockInnloggetAnsatt.id;
+      mockSluttrapport.vurdertAvNavn = mockInnloggetAnsatt.navn;
+      mockSluttrapport.vurdertTidspunkt = vurdertTidspunkt;
+      mockSluttrapport.begrunnelse =
+        utfall === "NY_INNSENDING_KREVES" ? (begrunnelse ?? null) : null;
+      mockSakslogg.unshift(
+        innslag(
+          `sluttrapport-${Date.now()}`,
+          vurdertTidspunkt,
+          "SAKSBEHANDLER",
+          mockInnloggetAnsatt.navn,
+          utfall === "BEKREFTET" ? "Sluttrapport bekreftet" : "Ny innsending av sluttrapport kreves"
+        )
+      );
+      return new HttpResponse(null, { status: 202 });
+    }
+  ),
   http.get(SAKSBEHANDLING_SLUTTRAPPORT_FIL_URL(":sakId"), ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;

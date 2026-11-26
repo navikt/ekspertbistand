@@ -13,6 +13,7 @@ import no.nav.ekspertbistand.saksbehandling.SakKildeArenaException
 import no.nav.ekspertbistand.saksbehandling.SoknadIkkeFunnetException
 import no.nav.ekspertbistand.saksbehandling.SoknadIkkeGodkjentException
 import no.nav.ekspertbistand.saksbehandling.hentKildeForSoknad
+import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import no.nav.ekspertbistand.soknad.SoknadStatus
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.soknad.innloggetBruker
@@ -25,6 +26,8 @@ import java.util.UUID
 private const val MAKS_FIL_STORRELSE_BYTES = 10 * 1024 * 1024
 private const val MAKS_ANTALL_FILER = 1
 private const val ARENA_MELDING = "Sluttrapport for denne saken sendes ikke inn her"
+private const val SLUTTRAPPORT_ALLEREDE_SENDT_MELDING =
+    "Sluttrapporten er allerede sendt inn. Du kan bare sende inn på nytt når Nav ber om det."
 
 private val vedleggLastetOppCounter = Metrics.meterRegistry.counter(
     "vedlegg_lastet_opp_total",
@@ -64,6 +67,15 @@ class VedleggApi(
         // Tidlig sjekk før filen leses og skannes. lagreSluttrapport kontrollerer på nytt under lås.
         if (transaction(database) { hentKildeForSoknad(soknadId) } == KildeTilBehandling.ARENA) {
             call.respond(HttpStatusCode.Conflict, ARENA_MELDING)
+            return
+        }
+
+        // Tidlig sjekk før filen leses og skannes. registrerSluttrapport kontrollerer på nytt under lås.
+        val kanSendeInn = transaction(database) {
+            hentSakIdForSoknad(soknadId)?.let { kanSendeInnSluttrapport(it) } ?: true
+        }
+        if (!kanSendeInn) {
+            call.respond(HttpStatusCode.Conflict, SLUTTRAPPORT_ALLEREDE_SENDT_MELDING)
             return
         }
 
@@ -138,6 +150,9 @@ class VedleggApi(
         } catch (_: SakKildeArenaException) {
             call.respond(HttpStatusCode.Conflict, ARENA_MELDING)
             return
+        } catch (_: SluttrapportKanIkkeSendesInnException) {
+            call.respond(HttpStatusCode.Conflict, SLUTTRAPPORT_ALLEREDE_SENDT_MELDING)
+            return
         }
 
         log.info("Lastet opp {} vedlegg: soknadId={}", filer.size, soknadId)
@@ -147,9 +162,11 @@ class VedleggApi(
     }
 
     /**
-     * Returnerer kun metadata om innsendt sluttrapport (filnavn + tidspunkt).
+     * Returnerer kun metadata om innsendt sluttrapport: filnavn, tidspunkter, status og
+     * begrunnelsen Nav ga ved [SluttrapportStatus.NY_INNSENDING_KREVES].
      * Selve filen eksponeres bevisst ikke – innholdet kan være personsensitivt,
-     * og det finnes ingen nedlastingsrute for arbeidsgiver.
+     * og det finnes ingen nedlastingsrute for arbeidsgiver. Hvem i Nav som vurderte
+     * sluttrapporten, sendes heller ikke.
      */
     suspend fun RoutingContext.hentSluttrapportStatus(soknadId: UUID) {
         val soknad = transaction(database) { findSoknadById(soknadId) }
@@ -177,6 +194,11 @@ class VedleggApi(
                 filnavn = metadata.filnavn,
                 opprettet = metadata.lastetOpp,
                 storrelse = metadata.storrelse,
+                status = metadata.status,
+                vurdertTidspunkt = metadata.vurdertTidspunkt,
+                begrunnelse = metadata.begrunnelse.takeIf {
+                    metadata.status == SluttrapportStatus.NY_INNSENDING_KREVES
+                },
             )
         )
     }
@@ -187,6 +209,10 @@ data class SluttrapportStatusDto(
     val filnavn: String,
     val opprettet: String,
     val storrelse: Int,
+    val status: SluttrapportStatus,
+    val vurdertTidspunkt: String?,
+    /** Beskjed fra Nav. Satt bare når [status] er [SluttrapportStatus.NY_INNSENDING_KREVES]. */
+    val begrunnelse: String?,
 )
 
 fun erGyldigPdf(bytes: ByteArray): Boolean =
