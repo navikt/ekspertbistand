@@ -86,9 +86,17 @@ sluttrapport kreves». Begrunnelsen står ikke i notatet.
 `GET …/saker/{sakId}/sluttrapport` får `sluttrapportId`, `status`,
 `vurdertTidspunkt` og `begrunnelse`. Arbeidsgiverens API endres ikke.
 
-Saksbehandler som er tildelt saken, ser knappene «Bekreft» og «Krev ny
-innsending» når status er `MOTTATT`. Ellers vises status og eventuell
-begrunnelse.
+Saksbehandler som er tildelt saken, ser nedtrekkslista «Kontroll av
+sluttrapport» når status er `MOTTATT`:
+
+| Valg | Knapp | Lagres |
+|------|-------|--------|
+| Mottatt sluttrapport dokumenterer tiltaket | Registrer som mottatt | `BEKREFTET` |
+| Be arbeidsgiver sende sluttrapporten på nytt | Be om sluttrapport på nytt | `NY_INNSENDING_KREVES` med fast begrunnelse |
+
+Den faste begrunnelsen vises for saksbehandler under «Tekst som vises til
+arbeidsgiver»: «Send sluttrapporten på nytt. Kontroller at vedlegget er riktig
+dokument og gjelder riktig person.» Ellers vises status og begrunnelse.
 
 Oppgaven i oversikten forsvinner av seg selv, fordi den filtrerer på
 `status = 'MOTTATT'`.
