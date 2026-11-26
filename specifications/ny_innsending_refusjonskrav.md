@@ -43,6 +43,7 @@ står i beskrivelsen.
 | Figma, lest 2026-11-26 | Arbeidsgiver ser «Refusjonskrav avvist», vurderingsdato og beskjed i et åpent kort. «Søk refusjon» vises igjen. |
 | Avklaring i samtalen, 2026-11-26 | Varsel via notifikasjonsplattformen og påminnelse etter én uke utsettes, som for sluttrapport. Dette erstatter kortets krav om å lage dem nå. |
 | Avklaring i samtalen, 2026-11-26 | Ingen fritekst. Bare forhåndsdefinerte beskjeder, også ved «Annet». |
+| Avklaring under implementasjonen, 2026-11-26 | «Annet» bruker beskjeden nedenfor om korrekte, leselige og relevante vedlegg med nødvendig informasjon. |
 
 ### Valg i spesifikasjonen
 
@@ -123,16 +124,23 @@ Ved «nei» vises «Beskriv hva arbeidsgiver må rette opp i»:
 | `BELOP_MAA_JUSTERES` | Justere beløp for refusjonskravet | Beløpet i refusjonskravet stemmer med de dokumenterte utgiftene. |
 | `DOKUMENT_IKKE_FAKTURA` | Dokumentet er ikke en faktura | Vedleggene er fakturaer som dokumenterer utgiftene til ekspertbistand. |
 | `DOKUMENT_IKKE_LESELIG` | Dokumentet er ikke leselig | Vedleggene er leselige og av god kvalitet. |
-| `ANNET` | Annet | Opplysningene og vedleggene gjelder riktig person og tiltak. |
+| `ANNET` | Annet | Egen forhåndsdefinert beskjed, se nedenfor. |
 
 Foreslått innledning til den faste beskjeden:
 
 «For at vi skal kunne behandle refusjonskravet, må du korrigere
 opplysningene. Send refusjonskravet på nytt.»
 
-Deretter vises «Kontroller at» og punktene for valgte årsaker i
-tabellrekkefølge. Ingen fritekstfelt, heller ikke ved `ANNET`.
-Tekstene skal gjennomgås sammen med specen.
+Ved `ANNET` erstattes innledningen med denne beskjeden:
+
+«For at vi skal kunne behandle refusjonskravet må du korrigere opplysningene.
+Vennligst send refusjonskravet på nytt og kontroller at vedleggene du laster
+opp er korrekte. Dokumentene må være leselige, relevante for refusjonskravet
+og inneholde nødvendig informasjon for at vi skal kunne behandle saken.»
+
+For andre valgte årsaker vises «Kontroller at» og punktene i
+tabellrekkefølge under beskjeden. Ved bare `ANNET` vises ingen punktliste.
+Ingen fritekstfelt, heller ikke ved `ANNET`.
 
 ### Endepunkt og tilgang
 

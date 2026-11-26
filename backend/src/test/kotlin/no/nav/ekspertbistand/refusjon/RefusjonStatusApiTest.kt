@@ -3,6 +3,7 @@ package no.nav.ekspertbistand.refusjon
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.plugins.di.*
@@ -30,6 +31,8 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertReturning
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.core.eq
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -40,6 +43,39 @@ import kotlin.test.assertTrue
 class RefusjonStatusApiTest {
 
     private val orgnrMedTilgang = "1337"
+
+    @Test
+    fun `arbeidsgiver får beskjed ved ny innsending men ingen saksbehandlermetadata`() =
+        testApplicationWithDatabase { testDb ->
+            val database = testDb.config.jdbcDatabase
+            konfigurer(database, tilgangTil(orgnrMedTilgang))
+            val soknadId = UUID.randomUUID()
+            transaction(database) { insertDummySoknad(soknadId, orgnrMedTilgang) }
+            val db = RefusjonDb(database)
+            val kravId = db.lagreRefusjonskrav(
+                soknadId, orgnrMedTilgang, "42", 100_000,
+                listOf(RefusjonsfilInput("faktura.pdf", byteArrayOf(1))),
+            )
+            transaction(database) { RefusjonskravTable.update({ RefusjonskravTable.id eq kravId }) {
+                it[status] = RefusjonskravStatuskode.NY_INNSENDING_KREVES.name
+                it[begrunnelse] = "Send refusjonskravet på nytt."
+                it[vurdertAvIdent] = "Z123456"
+                it[vurdertAvNavn] = "Saksbehandler NN"
+            } }
+            val response = client.get("/api/soknad/v1/$soknadId/refusjon") { bearerAuth("faketoken") }
+            assertEquals(HttpStatusCode.OK, response.status)
+            val dto = response.body<RefusjonStatusDto>()
+            assertEquals(RefusjonskravStatuskode.NY_INNSENDING_KREVES, dto.status)
+            assertEquals("Send refusjonskravet på nytt.", dto.begrunnelse)
+            assertTrue(!response.bodyAsText().contains("vurdertAv"))
+            assertTrue(!response.bodyAsText().contains("Z123456"))
+            assertTrue(!response.bodyAsText().contains("Saksbehandler NN"))
+            transaction(database) { RefusjonskravTable.update({ RefusjonskravTable.id eq kravId }) {
+                it[status] = RefusjonskravStatuskode.MOTTATT.name
+            } }
+            val mottatt = client.get("/api/soknad/v1/$soknadId/refusjon") { bearerAuth("faketoken") }.body<RefusjonStatusDto>()
+            assertEquals(null, mottatt.begrunnelse)
+        }
 
     private fun tilgangTil(orgnr: String) = AltinnTilgangerClientResponse(
         isError = false,

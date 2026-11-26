@@ -146,7 +146,7 @@ export default function VedtakPage() {
     <Box aria-live="polite">
       <Loader title="Laster status for refusjonskravet" />
     </Box>
-  ) : !refusjonMottatt ? (
+  ) : !refusjonMottatt || refusjon?.status === "NY_INNSENDING_KREVES" ? (
     <HStack gap="space-24" align="center">
       <Button as={RouterLink} to={`/v2/skjema/${id}/refusjon`} variant="secondary">
         Søk refusjon

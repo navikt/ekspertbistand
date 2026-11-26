@@ -23,6 +23,8 @@ export const SAKSBEHANDLING_RETUR_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/retur`;
 export const SAKSBEHANDLING_REFUSJON_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/refusjon`;
+export const SAKSBEHANDLING_REFUSJON_VURDERING_URL = (sakId: string, kravId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/refusjon/${kravId}/vurdering`;
 export const SAKSBEHANDLING_REFUSJON_VEDLEGG_URL = (sakId: string, vedleggId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/refusjon/vedlegg/${vedleggId}`;
 export const SAKSBEHANDLING_SLUTTRAPPORT_URL = (sakId: string) =>

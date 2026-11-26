@@ -73,7 +73,7 @@ class RefusjonApi(
             return
         }
 
-        if (refusjonDb.finnRefusjonskravStatus(soknadId) != null) {
+        if (!kanSendeInnRefusjonskrav(refusjonDb.finnRefusjonskravStatus(soknadId)?.status)) {
             call.respond(HttpStatusCode.Conflict, REFUSJONSKRAV_FINNES_MELDING)
             return
         }
@@ -270,6 +270,11 @@ class RefusjonApi(
         refusjonStatusHentetCounter.increment()
         call.respond(
             RefusjonStatusDto(
+                status = status.status,
+                vurdertTidspunkt = status.vurdertTidspunkt,
+                begrunnelse = status.begrunnelse.takeIf {
+                    status.status == RefusjonskravStatuskode.NY_INNSENDING_KREVES
+                },
                 belopKroner = status.belopKroner,
                 opprettet = status.opprettet,
                 kontonummer = status.kontonummer,
@@ -322,6 +327,9 @@ data class RefusjonStatusDto(
     val opprettet: String,
     val kontonummer: String?,
     val vedlegg: List<RefusjonVedleggDto>,
+    val status: RefusjonskravStatuskode,
+    val vurdertTidspunkt: String?,
+    val begrunnelse: String?,
 )
 
 @Serializable

@@ -3,6 +3,11 @@ import type { ForelopigVedtakInput } from "../hooks/useForelopigVedtak";
 import type { ForelopigVedtakOppsett, Kostnadssted } from "../hooks/useForelopigVedtakOppsett";
 import type { Kommune } from "../hooks/useSaksfilter";
 import type { SluttrapportStatusDto, SluttrapportVurderingInput } from "../hooks/useSluttrapport";
+import {
+  refusjonBeskjed,
+  REFUSJON_ÅRSAKSREKKEFØLGE,
+  type RefusjonStatusDto,
+} from "../hooks/useRefusjon";
 import type { Mottaker } from "../hooks/useVedtaksbrev";
 import type {
   ForelopigUtfall,
@@ -37,6 +42,7 @@ import {
   SAKSBEHANDLING_FORELOPIG_VEDTAK_FORHANDSVISNING_URL,
   SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL,
   SAKSBEHANDLING_REFUSJON_URL,
+  SAKSBEHANDLING_REFUSJON_VURDERING_URL,
   SAKSBEHANDLING_REFUSJON_VEDLEGG_URL,
   SAKSBEHANDLING_RETUR_URL,
   SAKSBEHANDLING_SAKER_URL,
@@ -495,6 +501,27 @@ const mockSaker: MockSak[] = [
   },
 ];
 
+const mockVurderingRefusjonSakId = "9c2f7a10-0000-4000-8000-000000002030";
+mockSaker.push({
+  sakId: mockVurderingRefusjonSakId,
+  status: "INNVILGET",
+  saksbehandlerIdent: mockInnloggetAnsatt.id,
+  saksbehandlerNavn: mockInnloggetAnsatt.navn,
+  innsendingsoppgaver: [
+    { oppgavetype: "SLUTTRAPPORT", mottatt: "2026-10-30T12:30:00Z" },
+    { oppgavetype: "REFUSJON", mottatt: "2026-10-30T13:25:00Z" },
+  ],
+  soknad: {
+    soknadId: "5b1e0d3c-1f4a-4c1e-9a51-000000001030",
+    status: "godkjent",
+    virksomhetsnavn: "Eksempel transport AS",
+    ansattNavn: "Testperson",
+    innsendtTidspunkt: "2026-10-29T10:45:00Z",
+    startdato: "2026-11-22",
+    estimertKostnad: "24000",
+  },
+});
+
 const MOCK_MAKS_SATSER = [{ gyldigFra: "2026-01-01", belop: 24000 }];
 
 // Samme rekkefølge som `KOSTNADSSTEDER` i backend.
@@ -713,8 +740,12 @@ const kanTildeles = (sak: Pick<SakInfo, "oppgavetype" | "saksbehandlerIdent">) =
 
 const mockRefusjonSakId = "9c2f7a10-0000-4000-8000-000000002010";
 const mockInnsendinger = (sakId: string): SakDetaljer["innsendinger"] => {
-  if (sakId === mockRefusjonSakId) {
-    return { refusjonskrav: mockRefusjon.opprettet, sluttrapport: mockSluttrapport.opprettet };
+  if (sakId === mockRefusjonSakId || sakId === mockVurderingRefusjonSakId) {
+    const { refusjon: mockRefusjon, sluttrapport: mockSluttrapport } = mockDokumenter(sakId);
+    return {
+      refusjonskrav: mockRefusjon.status === "MOTTATT" ? mockRefusjon.opprettet : null,
+      sluttrapport: mockSluttrapport.status === "MOTTATT" ? mockSluttrapport.opprettet : null,
+    };
   }
   const oppgaver = mockSaker.find((s) => s.sakId === sakId)?.innsendingsoppgaver ?? [];
   const mottatt = (type: "REFUSJON" | "SLUTTRAPPORT") =>
@@ -722,8 +753,12 @@ const mockInnsendinger = (sakId: string): SakDetaljer["innsendinger"] => {
   return { refusjonskrav: mottatt("REFUSJON"), sluttrapport: mottatt("SLUTTRAPPORT") };
 };
 const harMockInnsending = (sakId: string, type: "REFUSJON" | "SLUTTRAPPORT") => {
-  const innsendinger = mockInnsendinger(sakId);
-  return (type === "REFUSJON" ? innsendinger.refusjonskrav : innsendinger.sluttrapport) !== null;
+  if (sakId === mockRefusjonSakId || sakId === mockVurderingRefusjonSakId) return true;
+  return (
+    mockSaker
+      .find((sak) => sak.sakId === sakId)
+      ?.innsendingsoppgaver?.some((oppgave) => oppgave.oppgavetype === type) ?? false
+  );
 };
 const mockRefusjonsvedleggId = "b7fa1e19-6adc-4444-b592-1567343686f6";
 const mockPdfBytes = (() => {
@@ -747,7 +782,14 @@ const mockPdfBytes = (() => {
   pdf += `trailer\n<< /Size ${offsetter.length} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
   return new TextEncoder().encode(pdf);
 })();
-const mockRefusjon = {
+const mockRefusjonMal: RefusjonStatusDto = {
+  refusjonskravId: "c7fa1e19-6adc-4444-b592-1567343686f6",
+  status: "MOTTATT",
+  arsaker: [],
+  begrunnelse: null,
+  vurdertAvIdent: null,
+  vurdertAvNavn: null,
+  vurdertTidspunkt: null,
   belopKroner: 18400,
   opprettet: "2026-10-30T13:25:00Z",
   vedlegg: [
@@ -758,7 +800,7 @@ const mockRefusjon = {
     },
   ],
 };
-const mockSluttrapport: SluttrapportStatusDto = {
+const mockSluttrapportMal: SluttrapportStatusDto = {
   sluttrapportId: "2f7a10-0000-4000-8000-000000000001",
   filnavn: "sluttrapport-ekspertbistand.pdf",
   opprettet: "2026-10-30T12:30:00Z",
@@ -768,6 +810,19 @@ const mockSluttrapport: SluttrapportStatusDto = {
   vurdertAvNavn: null,
   vurdertTidspunkt: null,
   begrunnelse: null,
+};
+// Egen kopi per sak, så en vurdering på én sak ikke endrer en annen.
+const mockDokumentTilstand = new Map<
+  string,
+  { refusjon: RefusjonStatusDto; sluttrapport: SluttrapportStatusDto }
+>();
+const mockDokumenter = (sakId: string) => {
+  let tilstand = mockDokumentTilstand.get(sakId);
+  if (!tilstand) {
+    tilstand = structuredClone({ refusjon: mockRefusjonMal, sluttrapport: mockSluttrapportMal });
+    mockDokumentTilstand.set(sakId, tilstand);
+  }
+  return tilstand;
 };
 
 // Speiler oppgavetype i backend.
@@ -970,6 +1025,7 @@ const lagSakDetaljer = ({ soknad: element, ...sak }: MockListeElement): SakDetal
   foreslattKostnadssted: foreslattKostnadssted(sak.behandlendeEnhet),
   innsendinger: mockInnsendinger(sak.sakId),
   harSluttrapport: harMockInnsending(sak.sakId, "SLUTTRAPPORT"),
+  harRefusjonskrav: harMockInnsending(sak.sakId, "REFUSJON"),
   soknad: {
     soknadId: element.soknadId,
     status: element.status,
@@ -1233,7 +1289,7 @@ export const handlers = [
     if (!harMockInnsending(sak.sakId, "REFUSJON") || sak.kildeTilBehandling === "ARENA") {
       return new HttpResponse(null, { status: 204 });
     }
-    return HttpResponse.json(mockRefusjon);
+    return HttpResponse.json(mockDokumenter(sak.sakId).refusjon);
   }),
   http.get(SAKSBEHANDLING_REFUSJON_VEDLEGG_URL(":sakId", ":vedleggId"), ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
@@ -1251,13 +1307,71 @@ export const handlers = [
       },
     });
   }),
+  http.post(
+    SAKSBEHANDLING_REFUSJON_VURDERING_URL(":sakId", ":kravId"),
+    async ({ params, request }) => {
+      const sak = finnSakMedTilgang(String(params.sakId));
+      if (sak instanceof Response) return sak;
+      const { refusjon: mockRefusjon, sluttrapport: mockSluttrapport } = mockDokumenter(sak.sakId);
+      if (!mockRoller.saksbehandler || sak.saksbehandlerIdent !== mockInnloggetAnsatt.id)
+        return HttpResponse.json({ kode: "IKKE_TILDELT_SAK" }, { status: 403 });
+      if (
+        !harMockInnsending(sak.sakId, "REFUSJON") ||
+        params.kravId !== mockRefusjon.refusjonskravId
+      )
+        return HttpResponse.json({ message: "Fant ikke refusjonskravet" }, { status: 404 });
+      if (sak.kildeTilBehandling === "ARENA" || sak.status !== "INNVILGET")
+        return HttpResponse.json({ kode: "SAK_UGYLDIG_STATUS" }, { status: 409 });
+      if (mockSluttrapport.status !== "BEKREFTET")
+        return HttpResponse.json({ kode: "SLUTTRAPPORT_IKKE_BEKREFTET" }, { status: 409 });
+      if (mockRefusjon.status !== "MOTTATT")
+        return HttpResponse.json({ kode: "REFUSJONSKRAV_ALLEREDE_VURDERT" }, { status: 409 });
+      const body: unknown = await request.json();
+      if (
+        !body ||
+        typeof body !== "object" ||
+        !("arsaker" in body) ||
+        !Array.isArray(body.arsaker) ||
+        body.arsaker.length === 0 ||
+        new Set(body.arsaker).size !== body.arsaker.length ||
+        body.arsaker.some(
+          (verdi: unknown) => !REFUSJON_ÅRSAKSREKKEFØLGE.some((arsak) => arsak === verdi)
+        )
+      )
+        return HttpResponse.json({ message: "Velg gyldige årsaker" }, { status: 400 });
+      const valgteArsaker = body.arsaker;
+      const arsaker = REFUSJON_ÅRSAKSREKKEFØLGE.filter((arsak) => valgteArsaker.includes(arsak));
+      mockRefusjon.status = "NY_INNSENDING_KREVES";
+      mockRefusjon.arsaker = arsaker;
+      mockRefusjon.begrunnelse = refusjonBeskjed(arsaker);
+      mockRefusjon.vurdertAvIdent = mockInnloggetAnsatt.id;
+      mockRefusjon.vurdertAvNavn = mockInnloggetAnsatt.navn;
+      mockRefusjon.vurdertTidspunkt = new Date().toISOString();
+      const opprinneligSak = mockSaker.find((element) => element.sakId === sak.sakId);
+      if (opprinneligSak?.innsendingsoppgaver) {
+        opprinneligSak.innsendingsoppgaver = opprinneligSak.innsendingsoppgaver.filter(
+          (oppgave) => oppgave.oppgavetype !== "REFUSJON"
+        );
+      }
+      mockSakslogg.unshift(
+        innslag(
+          `refusjonskrav-${Date.now()}`,
+          mockRefusjon.vurdertTidspunkt,
+          "SAKSBEHANDLER",
+          mockInnloggetAnsatt.navn,
+          "Ny innsending av refusjonskrav kreves"
+        )
+      );
+      return new HttpResponse(null, { status: 202 });
+    }
+  ),
   http.get(SAKSBEHANDLING_SLUTTRAPPORT_URL(":sakId"), ({ params }) => {
     const sak = finnSakMedTilgang(String(params.sakId));
     if (sak instanceof Response) return sak;
     if (!harMockInnsending(sak.sakId, "SLUTTRAPPORT") || sak.kildeTilBehandling === "ARENA") {
       return new HttpResponse(null, { status: 204 });
     }
-    return HttpResponse.json(mockSluttrapport);
+    return HttpResponse.json(mockDokumenter(sak.sakId).sluttrapport);
   }),
   http.post<{ sakId: string; sluttrapportId: string }, Partial<SluttrapportVurderingInput>>(
     SAKSBEHANDLING_SLUTTRAPPORT_VURDERING_URL(":sakId", ":sluttrapportId"),
@@ -1267,6 +1381,7 @@ export const handlers = [
       if (!harMockInnsending(sak.sakId, "SLUTTRAPPORT")) {
         return HttpResponse.json({ message: "Fant ikke sluttrapporten." }, { status: 404 });
       }
+      const mockSluttrapport = mockDokumenter(sak.sakId).sluttrapport;
       if (sak.saksbehandlerIdent !== mockInnloggetAnsatt.id) {
         return HttpResponse.json(
           { kode: "IKKE_TILDELT_SAK", begrunnelse: "Du er ikke tildelt saken." },
@@ -1315,6 +1430,12 @@ export const handlers = [
       mockSluttrapport.vurdertTidspunkt = vurdertTidspunkt;
       mockSluttrapport.begrunnelse =
         utfall === "NY_INNSENDING_KREVES" ? (begrunnelse ?? null) : null;
+      const opprinneligSak = mockSaker.find((element) => element.sakId === sak.sakId);
+      if (opprinneligSak?.innsendingsoppgaver) {
+        opprinneligSak.innsendingsoppgaver = opprinneligSak.innsendingsoppgaver.filter(
+          (oppgave) => oppgave.oppgavetype !== "SLUTTRAPPORT"
+        );
+      }
       mockSakslogg.unshift(
         innslag(
           `sluttrapport-${Date.now()}`,

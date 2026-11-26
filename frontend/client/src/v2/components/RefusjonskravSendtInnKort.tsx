@@ -1,4 +1,4 @@
-import { FilePdfIcon, FileTextIcon } from "@navikt/aksel-icons";
+import { FilePdfIcon, FileTextIcon, FileXMarkIcon } from "@navikt/aksel-icons";
 import { BodyShort, ExpansionCard, HStack, Link } from "@navikt/ds-react";
 import type { RefusjonStatus } from "../hooks/useRefusjonStatus";
 import { EKSPERTBISTAND_REFUSJON_VEDLEGG_PATH } from "../utils/constants";
@@ -14,22 +14,45 @@ export function RefusjonskravSendtInnKort({
   refusjon: RefusjonStatus;
 }) {
   const innsendtDato = formatSubmittedDate(refusjon.opprettet);
+  const avvist = refusjon.status === "NY_INNSENDING_KREVES";
+  const tittel = avvist ? "Refusjonskrav avvist" : "Refusjonskrav sendt inn";
+  const Ikon = avvist ? FileXMarkIcon : FileTextIcon;
+  const vurdertDato = refusjon.vurdertTidspunkt
+    ? formatSubmittedDate(refusjon.vurdertTidspunkt)
+    : innsendtDato;
 
   return (
-    <ExpansionCard size="small" aria-label="Refusjonskrav sendt inn">
+    <ExpansionCard
+      key={`${refusjon.opprettet}:${refusjon.status}`}
+      size="small"
+      aria-label={tittel}
+      defaultOpen={avvist}
+    >
       <ExpansionCard.Header>
         <HStack wrap={false} gap="space-16" align="center">
-          <FileTextIcon aria-hidden fontSize="2rem" />
+          <Ikon aria-hidden fontSize="2rem" />
           <div>
             <ExpansionCard.Title as="h2" size="small">
-              Refusjonskrav sendt inn
+              {tittel}
             </ExpansionCard.Title>
-            <ExpansionCard.Description>{innsendtDato}</ExpansionCard.Description>
+            <ExpansionCard.Description>
+              {avvist ? vurdertDato : innsendtDato}
+            </ExpansionCard.Description>
           </div>
         </HStack>
       </ExpansionCard.Header>
       <ExpansionCard.Content>
         <dl className={styles.opplysninger}>
+          {avvist && refusjon.begrunnelse && (
+            <div className={styles.opplysning}>
+              <BodyShort as="dt" weight="semibold">
+                Beskjed fra Nav
+              </BodyShort>
+              <BodyShort as="dd" className={styles.verdi} style={{ whiteSpace: "pre-line" }}>
+                {refusjon.begrunnelse}
+              </BodyShort>
+            </div>
+          )}
           <div className={styles.opplysning}>
             <BodyShort as="dt" weight="semibold">
               Beløp for refusjonskravet

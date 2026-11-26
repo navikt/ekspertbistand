@@ -18,7 +18,6 @@ import no.nav.ekspertbistand.infrastruktur.Metrics
 import no.nav.ekspertbistand.infrastruktur.rethrowIfCancellation
 import no.nav.ekspertbistand.infrastruktur.valider
 import no.nav.ekspertbistand.refusjon.RefusjonDb
-import no.nav.ekspertbistand.refusjon.RefusjonStatusDto
 import no.nav.ekspertbistand.refusjon.RefusjonVedleggDto
 import no.nav.ekspertbistand.soknad.findSoknadById
 import no.nav.ekspertbistand.tilgangsmaskin.TilgangsmaskinClient
@@ -100,7 +99,14 @@ suspend fun Application.configureSakDokumentApiV1() {
                     call.utenMellomlagring()
                     dokumentHentet("refusjon", "metadata")
                     call.respond(
-                        RefusjonStatusDto(
+                        SaksbehandlingRefusjonDto(
+                            refusjonskravId = status.refusjonskravId.toString(),
+                            status = status.status,
+                            arsaker = status.arsaker,
+                            begrunnelse = status.begrunnelse,
+                            vurdertAvIdent = status.vurdertAvIdent,
+                            vurdertAvNavn = status.vurdertAvNavn,
+                            vurdertTidspunkt = status.vurdertTidspunkt,
                             belopKroner = status.belopKroner,
                             opprettet = status.opprettet,
                             kontonummer = status.kontonummer,

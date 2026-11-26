@@ -22,6 +22,9 @@ const sluttrapport = {
   begrunnelse: null,
 };
 const refusjon = {
+  status: "MOTTATT",
+  vurdertTidspunkt: null,
+  begrunnelse: null,
   belopKroner: 22400,
   opprettet: "2026-11-17T11:00:00Z",
   kontonummer: "skal-ikke-vises",
@@ -74,6 +77,28 @@ const ventPaVedtak = (status: string) =>
   screen.findByRole("heading", { level: 2, name: status }, { timeout: 5000 });
 
 describe("VedtakPage", () => {
+  it("viser åpent avvisningskort, beskjed og knapp for nytt refusjonskrav", async () => {
+    const id = MOCK_VEDTAK_SOKNAD_ID.INNVILGET;
+    server.use(
+      http.get(EKSPERTBISTAND_REFUSJON_PATH(id), () =>
+        HttpResponse.json({
+          ...refusjon,
+          status: "NY_INNSENDING_KREVES",
+          vurdertTidspunkt: "2026-11-26T12:00:00Z",
+          begrunnelse: "Send refusjonskravet på nytt. Vedleggene må være leselige.",
+        })
+      )
+    );
+    renderSkjema(vedtakssiden(id));
+    const kort = await screen.findByRole("region", { name: "Refusjonskrav avvist" });
+    expect(within(kort).getByRole("button", { expanded: true })).toBeVisible();
+    expect(within(kort).getByText(/Vedleggene må være leselige/)).toBeVisible();
+    expect(within(kort).getByText("26. nov. 2026", { selector: "p" })).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Søk refusjon" })).toHaveAttribute(
+      "href",
+      `/v2/skjema/${id}/refusjon`
+    );
+  });
   it("viser innvilget beløp, knappene og fristen, men ikke søkt beløp", async () => {
     const id = MOCK_VEDTAK_SOKNAD_ID.INNVILGET;
     renderSkjema(vedtakssiden(id));

@@ -13,6 +13,7 @@ import no.nav.ekspertbistand.saksbehandling.hentGodkjentSakIdForUpdate
 import no.nav.ekspertbistand.saksbehandling.hentInnvilgetBelopKroner
 import no.nav.ekspertbistand.saksbehandling.hentSakIdForSoknad
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.java.UUIDTable
 import org.jetbrains.exposed.v1.core.eq
@@ -33,7 +34,22 @@ object RefusjonskravTable : UUIDTable("refusjonskrav") {
     val belopOre = long("belop_ore")
     val status = text("status")
     val opprettet = timestamp("opprettet").defaultExpression(CurrentTimestamp)
+    val arsaker = array<String>("arsaker").nullable()
+    val begrunnelse = text("begrunnelse").nullable()
+    val vurdertAvIdent = text("vurdert_av_ident").nullable()
+    val vurdertAvNavn = text("vurdert_av_navn").nullable()
+    val vurdertTidspunkt = timestamp("vurdert_tidspunkt").nullable()
 }
+
+fun hentNyesteRefusjonskrav(sakId: UUID): ResultRow? = RefusjonskravTable
+    .selectAll()
+    .where { RefusjonskravTable.sakId eq sakId }
+    .orderBy(RefusjonskravTable.opprettet to SortOrder.DESC, RefusjonskravTable.id to SortOrder.DESC)
+    .limit(1)
+    .singleOrNull()
+
+fun kanSendeInnRefusjonskrav(status: RefusjonskravStatuskode?): Boolean =
+    status == null || status == RefusjonskravStatuskode.NY_INNSENDING_KREVES
 
 data class RefusjonsfilInput(val filnavn: String, val innhold: ByteArray)
 
@@ -53,7 +69,9 @@ class RefusjonDb(private val database: Database) {
     ): UUID = transaction(database) {
         val sakId = hentGodkjentSakIdForUpdate(soknadId)
         // Saken er låst over, så sjekk og innsetting kan ikke kappe med en parallell innsending.
-        if (RefusjonskravTable.select(RefusjonskravTable.id).where { RefusjonskravTable.sakId eq sakId }.any()) {
+        val status = hentNyesteRefusjonskrav(sakId)?.get(RefusjonskravTable.status)
+            ?.let(RefusjonskravStatuskode::valueOf)
+        if (!kanSendeInnRefusjonskrav(status)) {
             throw RefusjonskravFinnesAlleredeException()
         }
         val maksBelopKroner = hentInnvilgetBelopKroner(sakId) ?: throw InnvilgetBelopManglerException()
@@ -103,15 +121,7 @@ class RefusjonDb(private val database: Database) {
     /** Henter status og vedleggmetadata for nyeste refusjonskrav knyttet til saken. */
     @OptIn(kotlin.time.ExperimentalTime::class)
     fun finnRefusjonskravStatusForSak(sakId: UUID): RefusjonskravStatus? = transaction(database) {
-        val krav = RefusjonskravTable
-            .selectAll()
-            .where { RefusjonskravTable.sakId eq sakId }
-            .orderBy(
-                RefusjonskravTable.opprettet to SortOrder.DESC,
-                RefusjonskravTable.id to SortOrder.DESC,
-            )
-            .limit(1)
-            .singleOrNull()
+        val krav = hentNyesteRefusjonskrav(sakId)
             ?: return@transaction null
 
         val refusjonskravId = krav[RefusjonskravTable.id].value
@@ -134,6 +144,13 @@ class RefusjonDb(private val database: Database) {
             }
 
         RefusjonskravStatus(
+            refusjonskravId = refusjonskravId,
+            status = RefusjonskravStatuskode.valueOf(krav[RefusjonskravTable.status]),
+            arsaker = krav[RefusjonskravTable.arsaker]?.map(RefusjonskravArsak::valueOf).orEmpty(),
+            begrunnelse = krav[RefusjonskravTable.begrunnelse],
+            vurdertAvIdent = krav[RefusjonskravTable.vurdertAvIdent],
+            vurdertAvNavn = krav[RefusjonskravTable.vurdertAvNavn],
+            vurdertTidspunkt = krav[RefusjonskravTable.vurdertTidspunkt]?.toString(),
             belopKroner = krav[RefusjonskravTable.belopOre] / 100,
             opprettet = krav[RefusjonskravTable.opprettet].toString(),
             // TODO: hent kontonummer fra SOKOS. Lagres ikke lokalt.
@@ -148,15 +165,7 @@ class RefusjonDb(private val database: Database) {
         sakId: UUID,
         vedleggId: UUID,
     ): RefusjonsvedleggInnhold? = transaction(database) {
-        val refusjonskravId = RefusjonskravTable
-            .select(RefusjonskravTable.id)
-            .where { RefusjonskravTable.sakId eq sakId }
-            .orderBy(
-                RefusjonskravTable.opprettet to SortOrder.DESC,
-                RefusjonskravTable.id to SortOrder.DESC,
-            )
-            .limit(1)
-            .singleOrNull()
+        val refusjonskravId = hentNyesteRefusjonskrav(sakId)
             ?.get(RefusjonskravTable.id)
             ?.value
             ?: return@transaction null
@@ -261,6 +270,13 @@ internal fun JdbcTransaction.registrerRefusjonskrav(
 }
 
 data class RefusjonskravStatus(
+    val refusjonskravId: UUID,
+    val status: RefusjonskravStatuskode,
+    val arsaker: List<RefusjonskravArsak>,
+    val begrunnelse: String?,
+    val vurdertAvIdent: String?,
+    val vurdertAvNavn: String?,
+    val vurdertTidspunkt: String?,
     val belopKroner: Long,
     val opprettet: String,
     val kontonummer: String?,

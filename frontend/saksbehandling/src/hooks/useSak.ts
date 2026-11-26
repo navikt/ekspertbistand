@@ -49,6 +49,7 @@ export type SakDetaljer = SakInfo & {
   foreslattKostnadssted: string | null;
   /** Når refusjonskrav og sluttrapport ble mottatt, eller null. */
   innsendinger: { refusjonskrav: string | null; sluttrapport: string | null };
+  harRefusjonskrav: boolean;
   /** Saken har minst én sluttrapport, uansett status. Styrer om sluttrapportfanen vises. */
   harSluttrapport: boolean;
 };
