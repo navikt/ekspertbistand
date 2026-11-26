@@ -45,11 +45,17 @@ export function PdfModal({ fil, open, onClose }: Props) {
         </div>
       </Modal.Body>
       <Modal.Footer>
-        <Button as="a" href={fil.url} download={fil.filnavn} icon={<DownloadIcon aria-hidden />}>
-          Last ned
-        </Button>
-        <Button type="button" variant="secondary" onClick={onClose}>
+        <Button type="button" onClick={onClose}>
           Lukk
+        </Button>
+        <Button
+          as="a"
+          variant="secondary"
+          href={fil.url}
+          download={fil.filnavn}
+          icon={<DownloadIcon aria-hidden />}
+        >
+          Last ned
         </Button>
       </Modal.Footer>
     </Modal>
