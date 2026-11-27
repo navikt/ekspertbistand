@@ -612,7 +612,7 @@ legges i en `HStack` til høyre, foran «Logg», slik skissene `660:22383`,
 - «Meny» er en Aksel `ActionMenu`. Triggeren ser ut som «Logg»-knappen i
   `Sakslogg.tsx`: `Button size="small"` med chevron ned/opp. Skissen tegner de
   to med samme header-mønster.
-- Menyen har én `ActionMenu.Group` med label «Legg behandlingen tilbake» og
+- Menyen har én `ActionMenu.Group` med label «Behandling» og
   valget «Frigjør oppgave». Aksel-gruppene kan ikke legges sammen, så vi
   dropper chevronene på gruppene i skissen.
 - Gruppen «Avslutt behandling» («Avvis søknad», «Trekk søknad») bygges ikke nå.

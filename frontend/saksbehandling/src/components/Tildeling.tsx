@@ -80,7 +80,7 @@ export default function Tildeling({ sak, onFeil }: Props) {
           <HeaderKnapp tekst="Meny" åpen={menyÅpen} loading={isSaving} />
         </ActionMenu.Trigger>
         <ActionMenu.Content>
-          <ActionMenu.Group label="Legg behandlingen tilbake">
+          <ActionMenu.Group label="Behandling">
             {visOverta && (
               <ActionMenu.Item onSelect={() => void utfoer(tildelMeg)}>
                 {erBeslutter ? "Overta som beslutter" : "Overta som saksbehandler"}
