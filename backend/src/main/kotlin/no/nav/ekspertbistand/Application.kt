@@ -67,6 +67,7 @@ import no.nav.ekspertbistand.saksbehandling.configureSaksfilterApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSakDokumentApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSluttrapportVurderingApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlerApiV1
+import no.nav.ekspertbistand.saksbehandling.configureSaksnotatApiV1
 import no.nav.ekspertbistand.saksbehandling.configureSaksbehandlingSakApiV1
 import no.nav.ekspertbistand.saksbehandling.configureVilkarsvurderingApiV1
 import no.nav.ekspertbistand.soknad.AaregPdlDeltakerOppslag
@@ -181,6 +182,7 @@ fun main() {
                 configureVilkarsvurderingApiV1()
                 configureForelopigVedtakApiV1()
                 configureSluttrapportVurderingApiV1()
+                configureSaksnotatApiV1()
                 configureBeslutterApiV1()
                 configureSaksfilterApiV1()
                 configureKontoregisterApiV1()

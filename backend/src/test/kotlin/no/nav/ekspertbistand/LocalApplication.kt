@@ -676,6 +676,7 @@ fun startLokalApplikasjon(dbConfig: DbConfig) {
         configureVilkarsvurderingApiV1()
         configureForelopigVedtakApiV1()
         configureSluttrapportVurderingApiV1()
+        configureSaksnotatApiV1()
         configureBeslutterApiV1()
         configureSaksfilterApiV1()
         configureSakDokumentApiV1()

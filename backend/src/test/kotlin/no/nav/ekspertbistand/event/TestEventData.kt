@@ -171,6 +171,45 @@ object TestEventData {
     }
 
     @OptIn(ExperimentalTime::class)
+    val saksnotatOpprettet by lazy {
+        EventData.SaksnotatOpprettet(
+            notatId = UUID.randomUUID().toString(),
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            tekst = "Ringte arbeidsgiver, venter på svar.",
+            skrevetAvRolle = AktorRolle.SAKSBEHANDLER,
+            skrevetAvIdent = "Z123456",
+            skrevetAvNavn = "Sara Saksbehandler",
+            tidspunkt = Instant.parse("2026-04-02T09:15:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val saksnotatEndret by lazy {
+        EventData.SaksnotatEndret(
+            notatId = UUID.randomUUID().toString(),
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            tekst = "Arbeidsgiver har svart.",
+            endretAvRolle = AktorRolle.SAKSBEHANDLER,
+            endretAvIdent = "Z123456",
+            tidspunkt = Instant.parse("2026-04-02T09:20:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
+    val saksnotatSlettet by lazy {
+        EventData.SaksnotatSlettet(
+            notatId = UUID.randomUUID().toString(),
+            sakId = UUID.randomUUID().toString(),
+            soknadId = sampleSoknad.id!!,
+            slettetAvRolle = AktorRolle.BESLUTTER,
+            slettetAvIdent = "Z654321",
+            tidspunkt = Instant.parse("2026-04-02T09:25:00Z"),
+        )
+    }
+
+    @OptIn(ExperimentalTime::class)
     val vilkarsvurderingOppdatert by lazy {
         EventData.VilkarsvurderingOppdatert(
             sakId = UUID.randomUUID().toString(),
@@ -664,6 +703,9 @@ object TestEventData {
         sluttrapportNyInnsendingKrevd,
         sakTildeltSaksbehandler,
         sakFrigjort,
+        saksnotatOpprettet,
+        saksnotatEndret,
+        saksnotatSlettet,
         sakTildeltBeslutter,
         vilkarsvurderingOppdatert,
         forelopigVedtakSendtTilBeslutter,

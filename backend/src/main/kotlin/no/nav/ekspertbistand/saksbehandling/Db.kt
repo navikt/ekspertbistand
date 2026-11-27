@@ -767,6 +767,26 @@ object SaksloggTable : Table("sakslogg") {
     override val primaryKey = PrimaryKey(saksloggId)
 }
 
+/**
+ * Interne arbeidsnotater på en sak. Skrives bare av handlerne for `SaksnotatOpprettet`,
+ * `SaksnotatEndret` og `SaksnotatSlettet`. Se `specifications/notat_i_saken.md`.
+ *
+ * Speiler `saksnotat` fra V43.
+ */
+@OptIn(ExperimentalTime::class)
+object SaksnotatTable : Table("saksnotat") {
+    val notatId = javaUUID("notat_id")
+    val sakId = javaUUID("sak_id")
+    val tekst = text("tekst")
+    val skrevetAvIdent = text("skrevet_av_ident")
+    val skrevetAvNavn = text("skrevet_av_navn")
+    val skrevetAvRolle = text("skrevet_av_rolle")
+    val opprettetAt = timestamp("opprettet_at")
+    val endretAt = timestamp("endret_at").nullable()
+
+    override val primaryKey = PrimaryKey(notatId)
+}
+
 enum class Saksstatus {
     OPPRETTET,
     UNDER_BEHANDLING,
