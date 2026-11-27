@@ -93,12 +93,38 @@ søknad. Første rad kommer når saken er opprettet, og `mottatt_tid` står på 
 | Begrep | Hos Team Sak | Hos Team Oppfølging | I ekspertbistand |
 |--------|--------------|-------------------|------------------|
 | Sak | Sak | Tiltaksgjennomføring | Saken som opprettes når søknaden er journalført (`sak_id`) |
-| Behandling | Behandling | Tiltaksdeltakelse | Behandlingen av søknaden (`behandling_id`, lik søknadens id) |
+| Behandling | Behandling | | Behandlingen av søknaden (`behandling_id`, lik søknadens id). Slutter når vedtaket er fattet |
+| Deltakelse | | Tiltaksdeltakelse | Bistanden arbeidstakeren får i innvilget tiltaksperiode (`tiltaksperiode_fra` til `tiltaksperiode_til`). Har `behandling_id` som id |
 | Hendelse | Hendelse | Endring | Tildeling, foreløpig vedtak, retur fra beslutter, vedtak |
 | Melding | Rad i BigQuery | Rad i leveransen | Rad i `saksbehandlingsstatistikk_delt` |
 
 Ekspertbistand er et individuelt tiltak. Hver søknad gjelder én arbeidstaker hos én arbeidsgiver, så det er én
 gjennomføring per deltakelse.
+
+Behandlingen og deltakelsen deler id, men ikke livsløp. `behandling_status` er status for søknadsbehandlingen.
+Den sier ikke noe om deltakelsen, utover at en deltakelse bare finnes når vedtaket er en innvilgelse.
+
+### Livsløpet til en sak
+
+Viewet dekker bare søknadsbehandlingen, som er første del av saken:
+
+1. Arbeidsgiver sender søknaden, og vi oppretter saken (`REGISTRERT`).
+2. Saksbehandler vurderer søknaden og sender et foreløpig vedtak til beslutter (`UNDER_BEHANDLING`,
+   `TIL_BESLUTNING`, og `UNDERKJENT_BESLUTTER` ved retur).
+3. Beslutter fatter vedtak. Søknadsbehandlingen er ferdig (`AVSLUTTET`), og vi skriver ingen flere rader for
+   behandlingen.
+
+Ved innvilgelse fortsetter saken etter vedtaket, uten rader i viewet:
+
+4. Vi setter av det innvilgede beløpet i OeBS.
+5. Eksperten gir bistand i tiltaksperioden. Det er deltakelsen.
+6. Arbeidsgiver sender sluttrapport og refusjonskrav. Saksbehandler vurderer sluttrapporten før refusjonskravet.
+7. Nav utbetaler refusjonen. Deretter lukkes saken, men det er ikke bygd ennå.
+
+`behandling_status = 'AVSLUTTET'` betyr altså at vedtaket er fattet. Det betyr ikke at saken eller deltakelsen er
+avsluttet. Deltakelsen varer fra `tiltaksperiode_fra` til `tiltaksperiode_til`, uavhengig av når behandlingen ble
+avsluttet. Perioden begynner ofte etter vedtaket, men kan også ha begynt før, fordi saksbehandler kan sette
+startdatoen tilbake i tid. Perioden går aldri over et årsskifte.
 
 Søknaden er den eneste behandlingen vi rapporterer. Refusjon og sluttrapport er ikke med. Trengs de senere, kan de
 legges til som egne behandlinger med søknadens id i `relatert_behandling_id`.
@@ -174,8 +200,9 @@ Feltene fra `tiltakskode_arena` til `tiltaksperiode_til` er tillegg for Team Opp
 frigjort den. Saken ligger da i en felles kø uten ansvarlig saksbehandler, så vi har ingen ident å sende.
 
 `innvilget_belop` og tiltaksperioden kommer fra saksbehandlers foreløpige vedtak. De vises mens saken ligger hos
-beslutter, blir tomme hvis beslutter sender saken i retur, og står fast når status er `AVSLUTTET`. Bruk dem som
-endelige verdier bare når `behandling_status = 'AVSLUTTET'`.
+beslutter, blir tomme hvis beslutter sender saken i retur, og står fast når vedtaket er fattet (`AVSLUTTET`). Bruk
+dem som endelige verdier bare når `behandling_status = 'AVSLUTTET'`. Tiltaksperioden er perioden deltakelsen varer,
+og den kan ligge både før og etter `ferdigbehandlet_tid`.
 
 ## Felt til Team Sak
 
@@ -236,13 +263,13 @@ Tiltakstypen er fast og ligger ikke som egne rader i viewet.
 |------------------------|-----------|---------|
 | GjennomføringsID | `sak_id` | |
 | Tiltakskode | `sak_ytelse` | Alltid `EKSPERTBISTAND` |
-| Startdato | `tiltaksperiode_fra` | Når saken er `AVSLUTTET` med innvilgelse |
+| Startdato | `tiltaksperiode_fra` | Endelig når vedtaket er fattet (`AVSLUTTET`) med innvilgelse. Kan ligge før eller etter vedtaket |
 | Sluttdato | `tiltaksperiode_til` | Som over |
 | Arrangør | `arrangor_orgnr` | Arbeidsgiveren, som i Arena |
 | Avtale | mangler | Ekspertbistand har ingen avtaler |
 | Ekstern_id | mangler | Sakene våre finnes ikke i Arena |
 | Opprettet_dato | `registrert_tid` | |
-| Endret_dato | `hendelse_tid` | På siste rad for behandlingen |
+| Endret_dato | `hendelse_tid` | På siste rad for behandlingen. Endres ikke etter vedtaket, se «Livsløpet til en sak» |
 
 ### Tiltaksdeltakelse
 
@@ -251,16 +278,28 @@ Tiltakstypen er fast og ligger ikke som egne rader i viewet.
 | DeltakerID | `behandling_id` | |
 | GjennomføringsID | `sak_id` | |
 | PersonIdent | `fnr` | |
-| Startdato | `tiltaksperiode_fra` | |
-| Sluttdato | `tiltaksperiode_til` | |
+| Startdato | `tiltaksperiode_fra` | Endelig når vedtaket er fattet med innvilgelse. Kan ligge før eller etter vedtaket |
+| Sluttdato | `tiltaksperiode_til` | Som over |
 | Status | mangler | Se under |
 | Ekstern_id | mangler | Sakene våre finnes ikke i Arena |
 | Opprettet_dato | `registrert_tid` | |
-| Endret_dato | `hendelse_tid` | På siste rad for behandlingen |
+| Endret_dato | `hendelse_tid` | På siste rad for behandlingen. Endres ikke etter vedtaket, se «Livsløpet til en sak» |
 
-Vi har ikke deltakerstatus i løsningen vår, og sender den derfor ikke. Team Oppfølging kan utlede den fra
-`behandling_status`, `behandling_resultat`, `tiltaksperiode_fra` og `tiltaksperiode_til` på siste rad, sammen med
-dagens dato. Vi vet ikke om bistanden ble fullført eller avbrutt, fordi sluttrapport og refusjon ikke er med.
+Vi har ikke deltakerstatus i løsningen vår, og sender den derfor ikke. Ikke bruk `behandling_status` som
+deltakerstatus. `AVSLUTTET` betyr at vedtaket er fattet, ikke at deltakelsen er over.
+
+Dere kan utlede deltakelsen fra siste rad for behandlingen og dagens dato. «Innvilget» betyr at
+`behandling_resultat` er `INNVILGET` eller `DELVIS_INNVILGET`.
+
+| Siste rad | Deltakelsen |
+|-----------|-------------|
+| `behandling_status` er ikke `AVSLUTTET` | Søknaden er under behandling. Ingen deltakelse ennå |
+| `AVSLUTTET` og `AVSLATT` | Avslag. Ingen deltakelse |
+| `AVSLUTTET`, innvilget, dagens dato før `tiltaksperiode_fra` | Innvilget. Tiltaksperioden har ikke begynt |
+| `AVSLUTTET`, innvilget, dagens dato fra og med `tiltaksperiode_fra` til og med `tiltaksperiode_til` | Innvilget. I tiltaksperioden |
+| `AVSLUTTET`, innvilget, dagens dato etter `tiltaksperiode_til` | Innvilget. Tiltaksperioden er over |
+
+Vi vet ikke om bistanden ble fullført eller avbrutt, fordi sluttrapport og refusjon ikke er med.
 
 ### Felt som gjelder ekspertbistand
 
@@ -287,7 +326,7 @@ Kodene under er våre egne. Team Sak og Team Oppfølging må kontrollere at de p
 | `UNDER_BEHANDLING` | Første gang en saksbehandler tar saken |
 | `TIL_BESLUTNING` | Saksbehandler har sendt foreløpig vedtak til beslutter |
 | `UNDERKJENT_BESLUTTER` | Beslutter har sendt saken tilbake. Står til saksbehandler sender på nytt |
-| `AVSLUTTET` | Beslutter har fattet vedtak. Siste melding for behandlingen |
+| `AVSLUTTET` | Beslutter har fattet vedtak, og søknadsbehandlingen er ferdig. Siste melding for behandlingen. Ved innvilgelse fortsetter saken og deltakelsen, se «Livsløpet til en sak» |
 
 ### `behandling_resultat`
 
@@ -400,6 +439,8 @@ deltakeren hadde adressebeskyttelse: `opprettet_av`, `saksbehandler`, `ansvarlig
   `insertAll` hindrer DML de første minuttene og time travel beholder data i flere dager. Derfor filtrerer viewet.
 - Projeksjonen lagrer ingen tilstand. For hver hendelse bygger den tilstanden fra tidligere hendelser i loggen med
   samme aggregatrot (søknad-id). Indeksen `event_log_aggregate_root_id_idx` gjør oppslaget raskt.
+- `behandling_status = AVSLUTTET` er ikke `Saksstatus.AVSLUTTET`. Statistikken setter den når vedtaket er fattet
+  (`VedtakFattet`). I saken betyr `Saksstatus.AVSLUTTET` at saken er lukket etter refusjon, og den er ikke bygd ennå.
 - Bump versjonen i `name` for å sende alle meldinger på nytt.
 - Første gang appen bruker datasettet etter oppstart, legger den til nye kolonner i tabellen og oppdaterer viewet.
   Nye kolonner må være valgfrie, fordi BigQuery ikke tillater å legge til påkrevde kolonner. Eldre rader får `NULL`.
