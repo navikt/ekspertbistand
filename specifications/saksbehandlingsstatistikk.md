@@ -44,7 +44,7 @@ BigQuery-tabell i et datasett vi eier. Dokumentasjonen for Team Sak og datavareh
 | Datavarehus | Ekstra kolonner i samme tabell. Feltnavnene er våre egne. Mappingen står i `statistikk/README.md` |
 | Ekspertens kompetanse | Faste valg blir koder (`EkspertStatistikkoder.kt`). Egne verdier og fritekst blir `ANNET`, fordi fritekst ikke kan grupperes og kan inneholde personopplysninger |
 | Timer og kostnad | Arbeidsgiverens anslag fra søknaden. Saksbehandler kontrollerer dem ikke |
-| Deltakerstatus | Sendes ikke, fordi vi ikke har feltet. Datavarehuset kan utlede den fra feltene som finnes |
+| Deltakerstatus | Sendes ikke, fordi vi ikke har feltet. `behandling_status` gjelder søknadsbehandlingen: `AVSLUTTET` betyr at vedtaket er fattet, ikke at saken eller deltakelsen er over. Deltakelsen er tiltaksperioden, som kan begynne før eller etter vedtaket. README-en viser hvordan datavarehuset utleder deltakelsen fra resultat, tiltaksperiode og dagens dato |
 | Startdato for tiltakstypen | Sendes ikke. Samme verdi for alle rader, så den kan legges til utenfor eksporten |
 | Utenfor scope | Refusjon og sluttrapport (kan bli egne behandlinger senere), avslagskoder, ekspertens navn, fritekst |
 
@@ -176,6 +176,9 @@ Testene bruker en skriver som legger radene i en liste.
 - `statistikk/README.md` for Team Sak og datavarehuset: tilgang, felter, mapping, kodeverk og personvern.
 
 ## Merknader
+- `behandling_status = AVSLUTTET` er ikke `Saksstatus.AVSLUTTET`. I saken betyr `AVSLUTTET` at saken er lukket
+  etter refusjon (ikke bygd). Etter vedtaket fortsetter en innvilget sak med tilsagn i OeBS, tiltaksperioden,
+  sluttrapport, refusjonskrav og utbetaling. Ingen av dem gir rader.
 - `fnr` er deltakerens fødselsnummer. Det skal aldri logges.
 - Tidspunkter kommer fra eventene, ikke `now()`, slik at resending gir samme `hendelse_tid`. Bare `melding_tid` er ny.
 - BigQuery er ikke med i Postgres-transaksjonen. Feiler en senere event i samme batch etter at en rad er skrevet,
