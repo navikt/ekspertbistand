@@ -1,23 +1,7 @@
-import { ClockDashedIcon } from "@navikt/aksel-icons";
-import {
-  BodyShort,
-  Box,
-  HStack,
-  Loader,
-  LocalAlert,
-  Popover,
-  Process,
-  Tag,
-  VStack,
-} from "@navikt/ds-react";
-import { useId, useState } from "react";
+import { BodyShort, HStack, Loader, LocalAlert, Process, Tag, VStack } from "@navikt/ds-react";
 import { type AktorRolle, type SaksloggInnslag, useSakslogg } from "../hooks/useSakslogg";
-import HeaderKnapp from "./HeaderKnapp";
 
-const rolleTag: Record<
-  AktorRolle,
-  { tekst: string; farge: "meta-purple" | "info" | "warning" }
-> = {
+const rolleTag: Record<AktorRolle, { tekst: string; farge: "meta-purple" | "info" | "warning" }> = {
   SAKSBEHANDLER: { tekst: "Saksbehandler", farge: "meta-purple" },
   BESLUTTER: { tekst: "Beslutter", farge: "info" },
   SYSTEM: { tekst: "System", farge: "warning" },
@@ -69,7 +53,7 @@ function Innslag({ innslag }: { innslag: SaksloggInnslag }) {
   );
 }
 
-function SaksloggInnhold({ sakId }: { sakId: string }) {
+export function SaksloggInnhold({ sakId }: { sakId: string }) {
   const { innslag, error, isLoading } = useSakslogg(sakId);
 
   if (isLoading) return <Loader size="medium" title="Laster saksloggen" />;
@@ -94,44 +78,5 @@ function SaksloggInnhold({ sakId }: { sakId: string }) {
         <Innslag key={i.id} innslag={i} />
       ))}
     </Process>
-  );
-}
-
-export default function Sakslogg({ sakId }: { sakId: string }) {
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-  const [open, setOpen] = useState(false);
-  const popoverId = useId();
-
-  return (
-    <>
-      <HeaderKnapp
-        ref={setAnchorEl}
-        tekst="Logg"
-        ikon={<ClockDashedIcon aria-hidden fontSize="1.5rem" />}
-        åpen={open}
-        onClick={() => setOpen((o) => !o)}
-        aria-controls={open ? popoverId : undefined}
-      />
-      <Popover
-        id={popoverId}
-        open={open}
-        onClose={() => setOpen(false)}
-        anchorEl={anchorEl}
-        placement="bottom-end"
-      >
-        <Popover.Content>
-          {/* Process.Event med prikk har negativ margin-top, så uten padding klippes første innslag av overflowY. */}
-          <Box
-            maxWidth="28rem"
-            maxHeight="70vh"
-            overflowY="auto"
-            paddingBlock="space-12 space-4"
-            paddingInline="space-4"
-          >
-            {open && <SaksloggInnhold sakId={sakId} />}
-          </Box>
-        </Popover.Content>
-      </Popover>
-    </>
   );
 }

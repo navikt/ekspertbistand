@@ -28,6 +28,7 @@ import no.nav.ekspertbistand.saksbehandling.MAKS_FORKLARING_LENGDE
 import no.nav.ekspertbistand.saksbehandling.ReturArsak
 import no.nav.ekspertbistand.saksbehandling.Saksstatus
 import no.nav.ekspertbistand.saksbehandling.VilkarsvurderingRequest
+import no.nav.ekspertbistand.saksbehandling.kravTilSaksnotat
 import no.nav.ekspertbistand.event.domain.SoknadDomainV1
 import no.nav.ekspertbistand.soknad.aggregateRootId
 import no.nav.ekspertbistand.tilsagndata.aggregateRootId
@@ -598,6 +599,98 @@ sealed interface EventData {
     }
 
     /**
+     * Saksbehandler eller beslutter har skrevet et internt notat på en sak.
+     *
+     * Publiseres av `POST /api/saksbehandling/v1/saker/{sakId}/notater`. [notatId] lages av API-et.
+     * [tekst] er fritekst og kan ha personopplysninger. [skrevetAvIdent] og [skrevetAvNavn] gjelder en
+     * Nav-ansatt, og navnet kommer fra entra-proxy via `AzureAdPrincipal`. Teksten, identen og navnet skal
+     * ikke logges. Se `specifications/notat_i_saken.md`.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [no.nav.ekspertbistand.event.handlers.OpprettSaksnotat].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("saksnotatOpprettet")
+    data class SaksnotatOpprettet(
+        val notatId: String,
+        val sakId: String,
+        val soknadId: String,
+        val tekst: String,
+        val skrevetAvRolle: AktorRolle,
+        val skrevetAvIdent: String,
+        val skrevetAvNavn: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        init {
+            kravTilSaksnotat(tekst, skrevetAvRolle, skrevetAvIdent)
+            require(skrevetAvNavn.isNotBlank()) { "skrevetAvNavn kan ikke være blank" }
+        }
+
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Forfatteren har endret teksten i et notat.
+     *
+     * Publiseres av `PUT /api/saksbehandling/v1/saker/{sakId}/notater/{notatId}` når innlogget skrev
+     * notatet. [tekst] og [endretAvIdent] skal ikke logges. Se `specifications/notat_i_saken.md`.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [no.nav.ekspertbistand.event.handlers.EndreSaksnotat].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("saksnotatEndret")
+    data class SaksnotatEndret(
+        val notatId: String,
+        val sakId: String,
+        val soknadId: String,
+        val tekst: String,
+        val endretAvRolle: AktorRolle,
+        val endretAvIdent: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        init {
+            kravTilSaksnotat(tekst, endretAvRolle, endretAvIdent)
+        }
+
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
+     * Forfatteren har slettet et notat.
+     *
+     * Publiseres av `DELETE /api/saksbehandling/v1/saker/{sakId}/notater/{notatId}` når innlogget skrev
+     * notatet. Teksten finnes fortsatt i [SaksnotatOpprettet] og [SaksnotatEndret] i eventloggen.
+     * [slettetAvIdent] skal ikke logges. Se `specifications/notat_i_saken.md`.
+     *
+     * Søknaden er aggregatroten, så [aggregateRootId] er [soknadId].
+     *
+     * Konsument: [no.nav.ekspertbistand.event.handlers.SlettSaksnotat].
+     */
+    @OptIn(ExperimentalTime::class)
+    @Serializable
+    @SerialName("saksnotatSlettet")
+    data class SaksnotatSlettet(
+        val notatId: String,
+        val sakId: String,
+        val soknadId: String,
+        val slettetAvRolle: AktorRolle,
+        val slettetAvIdent: String,
+        val tidspunkt: Instant,
+    ) : EventData {
+        init {
+            require(slettetAvRolle != AktorRolle.SYSTEM) { "SYSTEM kan ikke slette notater" }
+            require(slettetAvIdent.isNotBlank()) { "slettetAvIdent kan ikke være blank" }
+        }
+
+        override val aggregateRootId: String get() = soknadId
+    }
+
+    /**
      * Saksbehandler har vurdert ett vilkår i en sak.
      *
      * Publiseres av `PATCH /api/saksbehandling/v1/saker/{sakId}/vilkarsvurdering` etter at
@@ -979,6 +1072,9 @@ suspend fun Application.configureEventHandlers() {
         register(dependencies.create(SkrivSakslogg::class))
         register(dependencies.create(TildelSaksbehandler::class))
         register(dependencies.create(FrigjoerSak::class))
+        register(dependencies.create(OpprettSaksnotat::class))
+        register(dependencies.create(EndreSaksnotat::class))
+        register(dependencies.create(SlettSaksnotat::class))
         register(dependencies.create(TildelBeslutter::class))
         register(dependencies.create(OppdaterVilkarsvurdering::class))
         register(dependencies.create(LagreForelopigVedtak::class))

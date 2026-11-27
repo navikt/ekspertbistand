@@ -136,6 +136,9 @@ data class SaksloggInnslag(
 - `SakPage.tsx`: Linja med «Tilbake til liste av saker» blir en `HStack justify="space-between"` med
   `<Sakslogg sakId={sakId} />` til høyre.
 - `mocks/handlers.ts`: mock for `/saker/:sakId/logg` med innslagene fra skissen.
+- Endret i [`notat_i_saken.md`](notat_i_saken.md): «Logg» åpner et sidepanel ved siden av fanene, ikke
+  en dropdown. Panelet deler plass med notatpanelet, og bare ett er åpent om gangen. Innholdet er
+  `SaksloggInnhold` i `components/Sakslogg.tsx`.
 
 ### 7. Tester
 - `SkrivSaksloggTest` (mønster fra `SettAvlystSoknadStatusTest`):
@@ -155,6 +158,8 @@ data class SaksloggInnslag(
   NOT NULL med `SYSTEM`, og habilitetssjekken matcher på rolle og ident.
 
 ## Merknader
+- Notater gir innslagene «Notat opprettet», «Notat endret» og «Notat slettet». Teksten i notatet
+  står ikke i loggen. Se [`notat_i_saken.md`](notat_i_saken.md).
 - `notat` brukes både til visningstekst og eventuell fritekst. Skal vi senere filtrere på hendelsestype
   (for eksempel i habilitetssjekken), trenger vi en egen kolonne og en migrering.
 - `sak-datamodell.md` krever at alle saksbehandlerhandlinger logges, fordi habilitetssjekken bygger på

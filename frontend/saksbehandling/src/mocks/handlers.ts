@@ -29,6 +29,7 @@ import {
   type VilkarsvurderingDTO,
 } from "../hooks/useVilkår";
 import type { SaksloggInnslag, SaksloggResponse } from "../hooks/useSakslogg";
+import type { Saksnotat, SaksnotaterResponse } from "../hooks/useSaksnotater";
 import { mockInnloggetAnsatt } from "../mock/ansatt";
 import { tolkSoknadssum } from "../utils/belop";
 import {
@@ -40,6 +41,8 @@ import {
   SAKSBEHANDLING_REFUSJON_VEDLEGG_URL,
   SAKSBEHANDLING_RETUR_URL,
   SAKSBEHANDLING_SAKER_URL,
+  SAKSBEHANDLING_SAKSNOTATER_URL,
+  SAKSBEHANDLING_SAKSNOTAT_URL,
   SAKSBEHANDLING_SLUTTRAPPORT_FIL_URL,
   SAKSBEHANDLING_SLUTTRAPPORT_URL,
   SAKSBEHANDLING_SLUTTRAPPORT_VURDERING_URL,
@@ -115,6 +118,33 @@ const kollega = { ident: "H654321", navn: "Hedda Hansen" };
 const mockBeslutter = { ident: "B123456", navn: "Bea Beslutter" };
 
 const mockRoller = { saksbehandler: true, beslutter: true };
+
+const mockSaksnotater = new Map<string, Saksnotat[]>([
+  [
+    "9c2f7a10-0000-4000-8000-000000002002",
+    [
+      {
+        notatId: "4b1d0c3e-0000-4000-8000-000000000002",
+        tekst:
+          "Ringte arbeidsgiver. De sender oppdatert kostnadsoverslag fra eksperten i løpet av uka.",
+        skrevetAvIdent: mockInnloggetAnsatt.id,
+        skrevetAvNavn: mockInnloggetAnsatt.navn,
+        skrevetAvRolle: "SAKSBEHANDLER",
+        opprettet: "2026-04-03T09:42:00Z",
+        endret: null,
+      },
+      {
+        notatId: "4b1d0c3e-0000-4000-8000-000000000001",
+        tekst: "Sjekk at timeprisen er i tråd med satsen før vedtak.",
+        skrevetAvIdent: mockBeslutter.ident,
+        skrevetAvNavn: mockBeslutter.navn,
+        skrevetAvRolle: "BESLUTTER",
+        opprettet: "2026-04-02T12:15:00Z",
+        endret: null,
+      },
+    ],
+  ],
+]);
 
 type DeltakerAvvisning =
   | "AVVIST_SKJERMING"
@@ -1081,6 +1111,43 @@ async function mockVedtaksbrev() {
 }
 
 // Speiler backend: 404 når saken ikke finnes, 403 når saksbehandler mangler tilgang til enheten.
+function saksnotatSkrivefeil(sak: MockListeElement): Response | null {
+  if (sak.kildeTilBehandling !== "ARENA") return null;
+  return HttpResponse.json(
+    { kode: "SAK_UGYLDIG_KILDE", message: "Arena-saker har ikke notater." },
+    { status: 409 }
+  );
+}
+
+function saksnotatTekstfeil(tekst: string): Response | null {
+  if (tekst.length > 0 && tekst.length <= 1000 && !/[<>]/.test(tekst)) return null;
+  return HttpResponse.json({ kode: "UGYLDIG_INPUT", message: "Ugyldig notat." }, { status: 400 });
+}
+
+function finnEgetSaksnotat(sakId: string, notatId: string): Saksnotat | Response {
+  const notat = mockSaksnotater.get(sakId)?.find((n) => n.notatId === notatId);
+  if (!notat) return HttpResponse.json({ message: "Fant ikke notat." }, { status: 404 });
+  if (notat.skrevetAvIdent !== mockInnloggetAnsatt.id) {
+    return HttpResponse.json(
+      { kode: "IKKE_EGET_NOTAT", message: "Du kan bare endre eller slette egne notater" },
+      { status: 403 }
+    );
+  }
+  return notat;
+}
+
+function loggSaksnotat(tekst: string) {
+  mockSakslogg.unshift(
+    innslag(
+      `notat-${Date.now()}`,
+      new Date().toISOString(),
+      "SAKSBEHANDLER",
+      mockInnloggetAnsatt.navn,
+      tekst
+    )
+  );
+}
+
 function finnSakMedTilgang(sakId: string): MockListeElement | Response {
   const sak = alleSaker().find((s) => s.sakId === sakId);
   if (!sak) {
@@ -1350,6 +1417,75 @@ export const handlers = [
   http.get("/api/saksbehandling/v1/saker/:sakId/logg", () =>
     HttpResponse.json<SaksloggResponse>({ innslag: mockSakslogg })
   ),
+  http.get(SAKSBEHANDLING_SAKSNOTATER_URL(":sakId"), ({ params }) => {
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
+    if (sak.kildeTilBehandling === "ARENA") {
+      return HttpResponse.json<SaksnotaterResponse>({ notater: [] });
+    }
+    return HttpResponse.json<SaksnotaterResponse>({
+      notater: mockSaksnotater.get(sak.sakId) ?? [],
+    });
+  }),
+  http.post<{ sakId: string }, { tekst?: string }>(
+    SAKSBEHANDLING_SAKSNOTATER_URL(":sakId"),
+    async ({ params, request }) => {
+      const sak = finnSakMedTilgang(String(params.sakId));
+      if (sak instanceof Response) return sak;
+      const feil = saksnotatSkrivefeil(sak);
+      if (feil) return feil;
+      const tekst = (await request.json()).tekst?.trim() ?? "";
+      const tekstfeil = saksnotatTekstfeil(tekst);
+      if (tekstfeil) return tekstfeil;
+
+      const notat: Saksnotat = {
+        notatId: crypto.randomUUID(),
+        tekst,
+        skrevetAvIdent: mockInnloggetAnsatt.id,
+        skrevetAvNavn: mockInnloggetAnsatt.navn,
+        skrevetAvRolle: "SAKSBEHANDLER",
+        opprettet: new Date().toISOString(),
+        endret: null,
+      };
+      mockSaksnotater.set(sak.sakId, [notat, ...(mockSaksnotater.get(sak.sakId) ?? [])]);
+      loggSaksnotat("Notat opprettet");
+      return HttpResponse.json({ notatId: notat.notatId }, { status: 202 });
+    }
+  ),
+  http.put<{ sakId: string; notatId: string }, { tekst?: string }>(
+    SAKSBEHANDLING_SAKSNOTAT_URL(":sakId", ":notatId"),
+    async ({ params, request }) => {
+      const sak = finnSakMedTilgang(String(params.sakId));
+      if (sak instanceof Response) return sak;
+      const feil = saksnotatSkrivefeil(sak);
+      if (feil) return feil;
+      const notat = finnEgetSaksnotat(sak.sakId, String(params.notatId));
+      if (notat instanceof Response) return notat;
+      const tekst = (await request.json()).tekst?.trim() ?? "";
+      const tekstfeil = saksnotatTekstfeil(tekst);
+      if (tekstfeil) return tekstfeil;
+
+      notat.tekst = tekst;
+      notat.endret = new Date().toISOString();
+      loggSaksnotat("Notat endret");
+      return new HttpResponse(null, { status: 202 });
+    }
+  ),
+  http.delete(SAKSBEHANDLING_SAKSNOTAT_URL(":sakId", ":notatId"), ({ params }) => {
+    const sak = finnSakMedTilgang(String(params.sakId));
+    if (sak instanceof Response) return sak;
+    const feil = saksnotatSkrivefeil(sak);
+    if (feil) return feil;
+    const notat = finnEgetSaksnotat(sak.sakId, String(params.notatId));
+    if (notat instanceof Response) return notat;
+
+    mockSaksnotater.set(
+      sak.sakId,
+      (mockSaksnotater.get(sak.sakId) ?? []).filter((n) => n.notatId !== notat.notatId)
+    );
+    loggSaksnotat("Notat slettet");
+    return new HttpResponse(null, { status: 202 });
+  }),
   http.patch<
     { sakId: string },
     { vilkar?: string; godkjent?: boolean | null; notat?: string | null }

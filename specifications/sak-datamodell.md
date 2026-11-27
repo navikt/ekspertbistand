@@ -126,6 +126,26 @@ få saken tildelt fram og tilbake. Regelen bygges sammen med vedtak, og implemen
 **Alle saksbehandler-handlinger skal logges** med `utfort_av_rolle='SAKSBEHANDLER'` og
 `utfort_av_ident`, fordi loggen er sporet for saken og viser hvem som sendte saken til beslutning.
 
+### `saksnotat`
+
+Interne arbeidsnotater på en sak (1:N), skrevet av saksbehandler eller beslutter. Bare forfatteren kan
+endre eller slette et notat, og sletting fjerner raden. Arena-saker har ingen notater. Raden skrives
+av handlerne for `SaksnotatOpprettet`, `SaksnotatEndret` og `SaksnotatSlettet`. Se
+[`notat_i_saken.md`](notat_i_saken.md).
+
+| Kolonne | Type | Constraints | Beskrivelse |
+|---------|------|-------------|-------------|
+| `notat_id` | UUID | PK | Lages av API-et og ligger i eventene. |
+| `sak_id` | UUID | NOT NULL, FK → `sak(sak_id)` ON DELETE CASCADE | Saken notatet gjelder. |
+| `tekst` | TEXT | NOT NULL | Fritekst, maks 1000 tegn. Kan ha personopplysninger og logges ikke. |
+| `skrevet_av_ident` | TEXT | NOT NULL | Nav-ident til forfatteren. Brukes i eierskapssjekken. |
+| `skrevet_av_navn` | TEXT | NOT NULL | Navnet til forfatteren da notatet ble skrevet. |
+| `skrevet_av_rolle` | TEXT | NOT NULL | `SAKSBEHANDLER` eller `BESLUTTER`. Se `AktorRolle`. |
+| `opprettet_at` | TIMESTAMPTZ | NOT NULL | Da notatet ble skrevet. |
+| `endret_at` | TIMESTAMPTZ | NULL | Siste endring, null når notatet ikke er endret. |
+
+Indeks: `idx_saksnotat_sak_id(sak_id, opprettet_at DESC)`.
+
 ### `sluttrapport`
 
 Sluttrapportering for en sak (1:1 fra sak). Selve dokumentene ligger i `vedlegg` og kobles via
@@ -339,6 +359,8 @@ Default `MOTTATT`.
 soknad 1 ──── 1 sak 1 ──── N saksvilkar
                  │ 1
                  ├──── N sakslogg
+                 │ 1
+                 ├──── N saksnotat
                  │ 1
                  ├──── N sak_retur              (via sak_retur.sak_id)
                  │ 1

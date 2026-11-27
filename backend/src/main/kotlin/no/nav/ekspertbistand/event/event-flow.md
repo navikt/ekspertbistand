@@ -25,6 +25,7 @@ flowchart TD
     s_ForelopigVedtakApi[/"ForelopigVedtakApi"/]:::source
     s_RefusjonDb[/"RefusjonDb"/]:::source
     s_SakApi[/"SakApi"/]:::source
+    s_SaksnotatApi[/"SaksnotatApi"/]:::source
     s_SluttrapportVurderingApi[/"SluttrapportVurderingApi"/]:::source
     s_SoknadApi[/"SoknadApi"/]:::source
     s_TilsagnDataApi[/"TilsagnDataApi"/]:::source
@@ -48,6 +49,9 @@ flowchart TD
     e_SakTildeltBeslutter(["SakTildeltBeslutter"]):::event
     e_SakTildeltSaksbehandler(["SakTildeltSaksbehandler"]):::event
     e_SaksbehandlingStartetIArena(["SaksbehandlingStartetIArena"]):::event
+    e_SaksnotatEndret(["SaksnotatEndret"]):::event
+    e_SaksnotatOpprettet(["SaksnotatOpprettet"]):::event
+    e_SaksnotatSlettet(["SaksnotatSlettet"]):::event
     e_SluttrapportBekreftet(["SluttrapportBekreftet"]):::event
     e_SluttrapportMottatt(["SluttrapportMottatt"]):::event
     e_SluttrapportNyInnsendingKrevd(["SluttrapportNyInnsendingKrevd"]):::event
@@ -72,6 +76,7 @@ flowchart TD
     h_ArbeidsgiverVarsletVedtakFattetNoop["ArbeidsgiverVarsletVedtakFattetNoop"]:::handler
     h_BestillTilsagnIOebs["BestillTilsagnIOebs"]:::handler
     h_DistribuerSoknadKopiDeltaker["DistribuerSoknadKopiDeltaker"]:::handler
+    h_EndreSaksnotat["EndreSaksnotat"]:::handler
     h_FattVedtak["FattVedtak"]:::handler
     h_FrigjoerSak["FrigjoerSak"]:::handler
     h_JournalfoerInnsendtSoknad["JournalfoerInnsendtSoknad"]:::handler
@@ -90,6 +95,7 @@ flowchart TD
     h_OebsFakturaStatusMottattNoop["OebsFakturaStatusMottattNoop"]:::handler
     h_OppdaterVilkarsvurdering["OppdaterVilkarsvurdering"]:::handler
     h_OpprettSak["OpprettSak"]:::handler
+    h_OpprettSaksnotat["OpprettSaksnotat"]:::handler
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad["OpprettTiltaksgjennomfoeringForInnsendtSoknad"]:::handler
     h_ReturnerForelopigVedtak["ReturnerForelopigVedtak"]:::handler
     h_SettAvlystSoknadStatus["SettAvlystSoknadStatus"]:::handler
@@ -99,6 +105,7 @@ flowchart TD
     h_SkrivSaksloggForOebsBestillingStatus["SkrivSaksloggForOebsBestillingStatus"]:::handler
     h_SkrivSaksloggForRefusjonskrav["SkrivSaksloggForRefusjonskrav"]:::handler
     h_SkrivSaksloggForSluttrapport["SkrivSaksloggForSluttrapport"]:::handler
+    h_SlettSaksnotat["SlettSaksnotat"]:::handler
     h_SoknadKopiDeltakerDistribuertNoop["SoknadKopiDeltakerDistribuertNoop"]:::handler
     h_TildelBeslutter["TildelBeslutter"]:::handler
     h_TildelSaksbehandler["TildelSaksbehandler"]:::handler
@@ -122,6 +129,7 @@ flowchart TD
     s_BeslutterApi --> e_ForelopigVedtakReturnert
     s_BeslutterApi --> e_VedtakFattet
     h_DistribuerSoknadKopiDeltaker --> e_SoknadKopiDeltakerDistribuert
+    h_EndreSaksnotat --> e_SakOppdatert
     h_FattVedtak --> e_SakOppdatert
     s_ForelopigVedtakApi --> e_ForelopigVedtakSendtTilBeslutter
     h_FrigjoerSak --> e_SakOppdatert
@@ -136,15 +144,20 @@ flowchart TD
     h_LagreTilsagnsData --> e_TilsagnsdataLagret
     h_OpprettSak --> e_SakOppdatert
     h_OpprettSak --> e_SakOpprettet
+    h_OpprettSaksnotat --> e_SakOppdatert
     h_OpprettTiltaksgjennomfoeringForInnsendtSoknad --> e_TiltaksgjennomforingOpprettet
     s_RefusjonDb --> e_RefusjonskravMottatt
     h_ReturnerForelopigVedtak --> e_SakOppdatert
     s_SakApi --> e_SakFrigjort
     s_SakApi --> e_SakTildeltBeslutter
     s_SakApi --> e_SakTildeltSaksbehandler
+    s_SaksnotatApi --> e_SaksnotatEndret
+    s_SaksnotatApi --> e_SaksnotatOpprettet
+    s_SaksnotatApi --> e_SaksnotatSlettet
     h_SkrivSaksloggForOebsBestillingStatus --> e_SakOppdatert
     h_SkrivSaksloggForRefusjonskrav --> e_SakOppdatert
     h_SkrivSaksloggForSluttrapport --> e_SakOppdatert
+    h_SlettSaksnotat --> e_SakOppdatert
     s_SluttrapportVurderingApi --> e_SluttrapportBekreftet
     s_SluttrapportVurderingApi --> e_SluttrapportNyInnsendingKrevd
     s_SoknadApi --> e_SoknadInnsendt
@@ -168,6 +181,7 @@ flowchart TD
     e_ArbeidsgiverVarsletVedtakFattet --> h_ArbeidsgiverVarsletVedtakFattetNoop
     e_VedtakFattet --> h_BestillTilsagnIOebs
     e_SoknadKopiDeltakerJournalfoert --> h_DistribuerSoknadKopiDeltaker
+    e_SaksnotatEndret --> h_EndreSaksnotat
     e_VedtakFattet --> h_FattVedtak
     e_SakFrigjort --> h_FrigjoerSak
     e_SoknadInnsendt --> h_JournalfoerInnsendtSoknad
@@ -186,6 +200,7 @@ flowchart TD
     e_OebsFakturaStatusMottatt --> h_OebsFakturaStatusMottattNoop
     e_VilkarsvurderingOppdatert --> h_OppdaterVilkarsvurdering
     e_InnsendtSoknadJournalfoert --> h_OpprettSak
+    e_SaksnotatOpprettet --> h_OpprettSaksnotat
     e_InnsendtSoknadJournalfoert --> h_OpprettTiltaksgjennomfoeringForInnsendtSoknad
     e_ForelopigVedtakReturnert --> h_ReturnerForelopigVedtak
     e_SoknadAvlystIArena --> h_SettAvlystSoknadStatus
@@ -195,6 +210,7 @@ flowchart TD
     e_OebsBestillingStatusMottatt --> h_SkrivSaksloggForOebsBestillingStatus
     e_RefusjonskravMottatt --> h_SkrivSaksloggForRefusjonskrav
     e_SluttrapportMottatt --> h_SkrivSaksloggForSluttrapport
+    e_SaksnotatSlettet --> h_SlettSaksnotat
     e_SoknadKopiDeltakerDistribuert --> h_SoknadKopiDeltakerDistribuertNoop
     e_SakTildeltBeslutter --> h_TildelBeslutter
     e_SakTildeltSaksbehandler --> h_TildelSaksbehandler
