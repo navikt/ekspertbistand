@@ -259,10 +259,12 @@ data class Saksnotat(
 Regler:
 
 - `POST`, `PUT` og `DELETE` på en Arena-sak (`kildeTilBehandling = ARENA` i
-  `SakTilgangsgrunnlag`) gir 409 med `kode = SAK_KILDE_ARENA`, uten event.
+  `SakTilgangsgrunnlag`) gir 409 med `kode = SAK_UGYLDIG_KILDE` og «Saken
+  behandles i Arena», uten event, som de andre saksbehandlings-API-ene.
   `GET` på en Arena-sak gir en tom liste.
-- `tekst` trimmes. Tom tekst eller mer enn 1000 tegn gir 400 med
-  `kode = UGYLDIG_NOTAT`.
+- Body valideres med `valider()`, som de andre API-ene. `tekst` trimmes. Tom
+  tekst eller mer enn 1000 tegn kaster `UgyldigInputException("tekst", …)`,
+  som gir 400 med `kode = UGYLDIG_INPUT`.
 - Rollen i eventen (`skrevetAvRolle`, `endretAvRolle`, `slettetAvRolle`):
   `BESLUTTER` når innlogget er `beslutter_ident` på saken, ellers
   `SAKSBEHANDLER` hvis innlogget har den rollen, ellers `BESLUTTER`.
@@ -334,8 +336,8 @@ Ny `components/Saksnotater.tsx` og `hooks/useSaksnotater.ts`.
 - Ingen notater: «Ingen notater ennå.»
 - Feil vises som `LocalAlert` i panelet: 403 med `tilgangAvvistTekst`,
   403 `IKKE_EGET_NOTAT` «Du kan bare endre og slette notater du har skrevet
-  selv.», 409 `SAK_KILDE_ARENA` med meldingen fra API-et, 503 «Vi kunne ikke sjekke tilgangen din akkurat nå. Prøv igjen om
-  litt.», ellers «Kunne ikke lagre notatet.» eller «Kunne ikke hente
+  selv.», 409 `SAK_UGYLDIG_KILDE` «Arena-saker har ikke notater.», 503 «Vi
+  kunne ikke sjekke tilgangen din akkurat nå. Prøv igjen om litt.», ellers «Kunne ikke lagre notatet.» eller «Kunne ikke hente
   notatene.».
 
 `utils/constants.ts` får `SAKSBEHANDLING_SAKSNOTATER_URL(sakId)` og
@@ -347,7 +349,7 @@ Ny `components/Saksnotater.tsx` og `hooks/useSaksnotater.ts`.
 er tildelt mock-brukeren, starter med to notater: ett fra mock-brukeren og ett
 fra `mockBeslutter`. De andre sakene starter uten notater. `PUT` og `DELETE` på
 et notat fra en annen gir 403 `IKKE_EGET_NOTAT`. Skriving på en Arena-sak gir
-409 `SAK_KILDE_ARENA`, og `GET` gir en tom liste. Mocken legger også
+409 `SAK_UGYLDIG_KILDE`, og `GET` gir en tom liste. Mocken legger også
 «Notat opprettet», «Notat endret» og «Notat slettet» i saksloggen.
 
 ### 7. Dokumentasjon
@@ -369,7 +371,7 @@ Backend følger testoppsettet som finnes: `kotlin.test`,
     principal og trimmet tekst, og svarer 202 med `notatId`.
   - `POST` med tom tekst og med 1001 tegn gir 400 uten event. 1000 tegn går
     gjennom.
-  - `POST`, `PUT` og `DELETE` på en Arena-sak gir 409 `SAK_KILDE_ARENA` uten
+  - `POST`, `PUT` og `DELETE` på en Arena-sak gir 409 `SAK_UGYLDIG_KILDE` uten
     event, og `GET` gir en tom liste.
   - `POST` uten rolle gir 403, uten enhetstilgang 403, og Tilgangsmaskinen som
     avviser gir 403. Ingen event.
@@ -443,6 +445,10 @@ med skjermbilder i PR-en.
   bare `sakId` og `notatId`. Identen logges ikke utenfor teamLog.
 - **Lange notater.** Teksten brytes (`overflow-wrap: anywhere`), og panelet
   scroller.
+- **Tegn som ikke er tillatt.** `valider()` avviser `<`, `>`, kontrolltegn og
+  usynlige formattegn, som i resten av løsningen. Panelet viser 400
+  `UGYLDIG_INPUT` som «Notatet inneholder tegn som ikke er tillatt, for
+  eksempel < eller >.» i feltet.
 
 ## Åpne spørsmål
 
@@ -458,7 +464,7 @@ Ingen. Ken besvarte spørsmålene 2026-11-27. Svarene står under *Beslutninger*
 - [ ] Saksbehandler og beslutter med tilgang til saken kan skrive et notat på maks 1000 tegn
 - [ ] Forfatteren kan endre og slette sine egne notater, og ingen andre ser knappene
 - [ ] «Endre» fyller feltet med teksten som var, og et endret notat viser «· endret {tidspunkt}»
-- [ ] Arena-saker har ikke «Notat», og API-et avviser skriving med 409 `SAK_KILDE_ARENA`
+- [ ] Arena-saker har ikke «Notat», og API-et avviser skriving med 409 `SAK_UGYLDIG_KILDE`
 - [ ] Saksloggen får «Notat opprettet», «Notat endret» og «Notat slettet», uten teksten
 - [ ] API-et avviser endring og sletting av andres notater med 403 `IKKE_EGET_NOTAT`
 - [ ] Notatene lagres via events og handlere i `saksnotat`, og API-et leser ikke `event_log`
