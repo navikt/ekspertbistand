@@ -100,3 +100,38 @@
     display: none !important;
   }
 }
+
+.medSidepanel {
+  display: flex;
+  align-items: stretch;
+}
+
+.faner {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidepanel {
+  flex: 0 0 20rem;
+  min-width: 0;
+  border-inline-start: 1px solid var(--ax-border-neutral-subtle);
+  background-color: var(--ax-bg-default);
+}
+
+.sidepanelHode {
+  min-height: 3rem;
+  padding: var(--ax-space-12) var(--ax-space-16);
+  box-shadow: inset 0 -1px var(--ax-border-neutral-subtleA);
+}
+
+@media (max-width: 767px) {
+  .medSidepanel {
+    flex-direction: column-reverse;
+  }
+
+  .sidepanel {
+    flex-basis: auto;
+    border-inline-start: 0;
+    border-block-end: 1px solid var(--ax-border-neutral-subtle);
+  }
+}

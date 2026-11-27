@@ -3,8 +3,10 @@ import {
   Buildings2Icon,
   CheckmarkCircleIcon,
   ChevronRightIcon,
+  ClockDashedIcon,
   ExternalLinkIcon,
   FigureOutwardIcon,
+  NotePencilIcon,
 } from "@navikt/aksel-icons";
 import {
   Accordion,
@@ -25,16 +27,18 @@ import {
   Tabs,
   VStack,
 } from "@navikt/ds-react";
-import { useCallback, useState } from "react";
+import { type ReactNode, useCallback, useId, useState } from "react";
 import { Group, Panel } from "react-resizable-panels";
 import { NavLink, useParams, useSearchParams } from "react-router";
 import { AdressebeskyttelseTag } from "../components/AdressebeskyttelseTag";
 import { EgenAnsattTag } from "../components/EgenAnsattTag";
 import { DataRad, InfoKort } from "../components/InfoKort";
 import KolonneSeparator from "../components/KolonneSeparator";
+import PanelKnapp from "../components/PanelKnapp";
 import Refusjonskontroll from "../components/Refusjonskontroll";
 import RefusjonskravVisning from "../components/RefusjonskravVisning";
-import Sakslogg from "../components/Sakslogg";
+import { SaksloggInnhold } from "../components/Sakslogg";
+import Saksnotater from "../components/Saksnotater";
 import Sluttrapportkontroll from "../components/Sluttrapportkontroll";
 import SluttrapportVisning from "../components/SluttrapportVisning";
 import Tildeling from "../components/Tildeling";
@@ -57,6 +61,7 @@ import {
 } from "../components/forelopigVedtak/forelopigVedtak";
 import { useBeslutning } from "../hooks/useBeslutning";
 import { useForelopigVedtak } from "../hooks/useForelopigVedtak";
+import { useSaksnotater } from "../hooks/useSaksnotater";
 import { type Kostnadssted, useForelopigVedtakOppsett } from "../hooks/useForelopigVedtakOppsett";
 import { useRefusjon } from "../hooks/useRefusjon";
 import { type ForelopigVedtak, type SakDetaljer, useSak } from "../hooks/useSak";
@@ -391,6 +396,33 @@ function SaksinnholdLayout({
   );
 }
 
+type Sidepanel = "logg" | "notat";
+
+function SakSidepanel({
+  id,
+  tittel,
+  ikon,
+  children,
+}: {
+  id: string;
+  tittel: string;
+  ikon: ReactNode;
+  children: ReactNode;
+}) {
+  const overskriftId = useId();
+  return (
+    <section id={id} aria-labelledby={overskriftId} className={styles.sidepanel}>
+      <HStack className={styles.sidepanelHode} gap="space-8" align="center" wrap={false}>
+        {ikon}
+        <Heading id={overskriftId} level="2" size="xsmall">
+          {tittel}
+        </Heading>
+      </HStack>
+      <Box padding="space-16">{children}</Box>
+    </section>
+  );
+}
+
 export default function SakPage() {
   const { sakId: sakIdParam } = useParams<{ sakId: string }>();
   const { sak, error, isLoading } = useSak(sakIdParam ?? "");
@@ -412,6 +444,9 @@ export default function SakPage() {
     error: lagreError,
   } = useVilkårsvurdering(sakId ?? "", kanRedigereVilkår);
   const [tildelingError, setTildelingError] = useState<Error | null>(null);
+  const [sidepanel, setSidepanel] = useState<Sidepanel | null>(null);
+  const sidepanelId = useId();
+  const saksnotater = useSaksnotater(sakId && !erArenaSak ? sakId : null);
   const forelopigVedtak = useForelopigVedtak(sakId ?? "");
   const beslutning = useBeslutning(sakId ?? "");
   const { oppsett: forelopigVedtakOppsett } = useForelopigVedtakOppsett(kanRedigereVilkår);
@@ -640,7 +675,24 @@ export default function SakPage() {
           {!visKvittering && (
             <HStack align="stretch" wrap>
               <Tildeling sak={sak} onFeil={setTildelingError} />
-              <Sakslogg sakId={sakId ?? ""} />
+              <PanelKnapp
+                tekst="Logg"
+                ikon={<ClockDashedIcon aria-hidden fontSize="1.5rem" />}
+                åpen={sidepanel === "logg"}
+                panelId={sidepanelId}
+                onClick={() => setSidepanel(sidepanel === "logg" ? null : "logg")}
+              />
+              {!erArenaSak && (
+                <PanelKnapp
+                  tekst="Notat"
+                  ikon={<NotePencilIcon aria-hidden fontSize="1.5rem" />}
+                  åpen={sidepanel === "notat"}
+                  panelId={sidepanelId}
+                  onClick={() => setSidepanel(sidepanel === "notat" ? null : "notat")}
+                  antall={saksnotater.notater?.length}
+                  aria-label={`Notat, ${saksnotater.notater?.length ?? 0} notater`}
+                />
+              )}
             </HStack>
           )}
         </HStack>
@@ -662,213 +714,231 @@ export default function SakPage() {
           )}
         </div>
       ) : (
-        <div>
-          <Tabs value={saksFane} onChange={(value) => setSaksFane(value as SaksFane)}>
-            <Tabs.List aria-label="Saksinnhold">
-              <Tabs.Tab value="soknad" label="Søknad" />
-              {visSluttrapportFane && <Tabs.Tab value="sluttrapport" label="Sluttrapport" />}
-              {visRefusjonFane && <Tabs.Tab value="refusjon" label="Refusjon" />}
-            </Tabs.List>
-            <Tabs.Panel value="soknad">
-              <SaksinnholdLayout
-                soknad={soknad}
-                midtreStandardstorrelse="45%"
-                kontroll={
-                  erArenaSak ? (
-                    <Box padding="space-16">
-                      <Alert variant="info" size="small">
-                        Saken behandles i Arena. Vilkårsvurdering, vedtak og utbetaling gjøres der.
-                      </Alert>
-                    </Box>
-                  ) : (
-                    <Tabs value={fane} onChange={(value) => setFane(value as Fane)}>
-                      <Tabs.List>
-                        <Tabs.Tab value="vilkarsvurdering" label="Vilkårsvurdering" />
-                        <Tabs.Tab
-                          value="forelopig-vedtak"
-                          label={visesSomVedtak ? "Vedtak" : "Foreløpig vedtak"}
-                        />
-                      </Tabs.List>
-                      <Tabs.Panel value="vilkarsvurdering">
-                        <VStack
-                          gap="space-16"
-                          paddingBlock="space-8 space-32"
-                          paddingInline="space-8 space-16"
-                        >
-                          {vilkårLaster ? (
-                            <Loader size="medium" title="Laster vilkår" />
-                          ) : vilkårError ? (
-                            <Alert variant="error" size="small">
-                              Kunne ikke hente vilkårene.
-                            </Alert>
-                          ) : (
-                            <Accordion>
-                              {vilkår.map((v) => (
-                                <VilkårItem
-                                  key={v.id}
-                                  vilkår={v}
-                                  isSaving={isSaving}
-                                  error={lagreError}
-                                  onLagre={lagreVurdering}
-                                  kanRedigere={kanRedigereVilkår}
-                                />
-                              ))}
-                            </Accordion>
-                          )}
-                          <Box paddingInline="space-16">
-                            <Link
-                              as="button"
-                              type="button"
-                              className={styles.lenkeknapp}
-                              onClick={() => setFane("forelopig-vedtak")}
-                            >
-                              {visesSomVedtak
-                                ? "Vedtak"
-                                : sak.status === "TIL_BESLUTNING"
-                                  ? "Foreløpig vedtak"
-                                  : "Fatte foreløpig vedtak"}
-                              <ChevronRightIcon aria-hidden />
-                            </Link>
-                          </Box>
-                        </VStack>
-                      </Tabs.Panel>
-                      <Tabs.Panel value="forelopig-vedtak">
-                        <Box padding="space-16" paddingBlock="space-24 space-32">
-                          <VStack gap="space-24">
-                            {sak.oppgavetype === "SOKNAD_RETUR" && sak.sisteRetur && (
-                              <ReturInfoKort retur={sak.sisteRetur} />
+        <div className={styles.medSidepanel}>
+          <div className={styles.faner}>
+            <Tabs value={saksFane} onChange={(value) => setSaksFane(value as SaksFane)}>
+              <Tabs.List aria-label="Saksinnhold">
+                <Tabs.Tab value="soknad" label="Søknad" />
+                {visSluttrapportFane && <Tabs.Tab value="sluttrapport" label="Sluttrapport" />}
+                {visRefusjonFane && <Tabs.Tab value="refusjon" label="Refusjon" />}
+              </Tabs.List>
+              <Tabs.Panel value="soknad">
+                <SaksinnholdLayout
+                  soknad={soknad}
+                  midtreStandardstorrelse="45%"
+                  kontroll={
+                    erArenaSak ? (
+                      <Box padding="space-16">
+                        <Alert variant="info" size="small">
+                          Saken behandles i Arena. Vilkårsvurdering, vedtak og utbetaling gjøres
+                          der.
+                        </Alert>
+                      </Box>
+                    ) : (
+                      <Tabs value={fane} onChange={(value) => setFane(value as Fane)}>
+                        <Tabs.List>
+                          <Tabs.Tab value="vilkarsvurdering" label="Vilkårsvurdering" />
+                          <Tabs.Tab
+                            value="forelopig-vedtak"
+                            label={visesSomVedtak ? "Vedtak" : "Foreløpig vedtak"}
+                          />
+                        </Tabs.List>
+                        <Tabs.Panel value="vilkarsvurdering">
+                          <VStack
+                            gap="space-16"
+                            paddingBlock="space-8 space-32"
+                            paddingInline="space-8 space-16"
+                          >
+                            {vilkårLaster ? (
+                              <Loader size="medium" title="Laster vilkår" />
+                            ) : vilkårError ? (
+                              <Alert variant="error" size="small">
+                                Kunne ikke hente vilkårene.
+                              </Alert>
+                            ) : (
+                              <Accordion>
+                                {vilkår.map((v) => (
+                                  <VilkårItem
+                                    key={v.id}
+                                    vilkår={v}
+                                    isSaving={isSaving}
+                                    error={lagreError}
+                                    onLagre={lagreVurdering}
+                                    kanRedigere={kanRedigereVilkår}
+                                  />
+                                ))}
+                              </Accordion>
                             )}
-                            <ForelopigVedtakFane
-                              sak={sak}
-                              vilkår={vilkår}
-                              vilkårLaster={vilkårLaster}
-                              vilkårFeilet={!!vilkårError}
-                              tilstand={skjemaTilstand}
-                              oppdater={oppdaterSkjema}
-                              sendTilBeslutter={(input) => void sendTilBeslutter(input)}
-                              kostnadssteder={kostnadssteder ?? []}
-                              isSaving={forelopigVedtak.isSaving}
-                              sendError={forelopigVedtak.error}
-                              godkjenn={() => void godkjenn()}
-                              beslutning={beslutning}
-                            />
+                            <Box paddingInline="space-16">
+                              <Link
+                                as="button"
+                                type="button"
+                                className={styles.lenkeknapp}
+                                onClick={() => setFane("forelopig-vedtak")}
+                              >
+                                {visesSomVedtak
+                                  ? "Vedtak"
+                                  : sak.status === "TIL_BESLUTNING"
+                                    ? "Foreløpig vedtak"
+                                    : "Fatte foreløpig vedtak"}
+                                <ChevronRightIcon aria-hidden />
+                              </Link>
+                            </Box>
                           </VStack>
-                        </Box>
-                      </Tabs.Panel>
-                    </Tabs>
-                  )
-                }
-              >
-                <Box padding="space-16" paddingBlock="space-32">
-                  <VStack gap="space-48">
-                    <VStack as="section" gap="space-16">
-                      <Heading level="2" size="xsmall">
-                        Situasjonen
-                      </Heading>
-                      <Spørsmål label="Beskriv den ansattes arbeidssituasjon">
-                        <BodyLong>{behovForBistand.begrunnelse}</BodyLong>
-                      </Spørsmål>
-                      <Spørsmål label="Beskriv ansatt sykefravær, og hvilken oppfølging og tilrettelegging dere allerede har tilbudt/prøvd ut?">
-                        <BodyLong>{behovForBistand.tilrettelegging}</BodyLong>
-                      </Spørsmål>
-                    </VStack>
-
-                    <VStack as="section" gap="space-16">
-                      <Heading level="2" size="xsmall">
-                        Ekspertbistand
-                      </Heading>
-                      <Spørsmål label="Hva skal eksperten hjelpe dere med?">
-                        <BodyLong>{behovForBistand.behov}</BodyLong>
-                      </Spørsmål>
-                      <Spørsmål label="Hvor mange timer skal eksperten hjelpe dere?">
-                        <BodyShort>{behovForBistand.timer} timer</BodyShort>
-                      </Spørsmål>
-                      <Spørsmål label="Søknadssum">
-                        <BodyShort>{formatBeløp(behovForBistand.estimertKostnad)}</BodyShort>
-                      </Spørsmål>
-                      <Spørsmål label="Startdato">
-                        <BodyShort>{formatDate(behovForBistand.startdato)}</BodyShort>
-                      </Spørsmål>
-                      <Spørsmål label="Sendt inn til Nav">
-                        <BodyShort>{formatDate(soknad.innsendtTidspunkt)}</BodyShort>
-                      </Spørsmål>
-                    </VStack>
-
-                    {/* TODO: fjernes når vedlegg kobles på ekte datakilde */}
-                    {isMockEnabled() && (
+                        </Tabs.Panel>
+                        <Tabs.Panel value="forelopig-vedtak">
+                          <Box padding="space-16" paddingBlock="space-24 space-32">
+                            <VStack gap="space-24">
+                              {sak.oppgavetype === "SOKNAD_RETUR" && sak.sisteRetur && (
+                                <ReturInfoKort retur={sak.sisteRetur} />
+                              )}
+                              <ForelopigVedtakFane
+                                sak={sak}
+                                vilkår={vilkår}
+                                vilkårLaster={vilkårLaster}
+                                vilkårFeilet={!!vilkårError}
+                                tilstand={skjemaTilstand}
+                                oppdater={oppdaterSkjema}
+                                sendTilBeslutter={(input) => void sendTilBeslutter(input)}
+                                kostnadssteder={kostnadssteder ?? []}
+                                isSaving={forelopigVedtak.isSaving}
+                                sendError={forelopigVedtak.error}
+                                godkjenn={() => void godkjenn()}
+                                beslutning={beslutning}
+                              />
+                            </VStack>
+                          </Box>
+                        </Tabs.Panel>
+                      </Tabs>
+                    )
+                  }
+                >
+                  <Box padding="space-16" paddingBlock="space-32">
+                    <VStack gap="space-48">
                       <VStack as="section" gap="space-16">
                         <Heading level="2" size="xsmall">
-                          Vedlegg (demo)
+                          Situasjonen
                         </Heading>
-                        <PdfForhandsvisningListe filer={DEMO_VEDLEGG} />
+                        <Spørsmål label="Beskriv den ansattes arbeidssituasjon">
+                          <BodyLong>{behovForBistand.begrunnelse}</BodyLong>
+                        </Spørsmål>
+                        <Spørsmål label="Beskriv ansatt sykefravær, og hvilken oppfølging og tilrettelegging dere allerede har tilbudt/prøvd ut?">
+                          <BodyLong>{behovForBistand.tilrettelegging}</BodyLong>
+                        </Spørsmål>
                       </VStack>
-                    )}
-                  </VStack>
-                </Box>
-              </SaksinnholdLayout>
-            </Tabs.Panel>
-            {!erArenaSak && (
-              <Tabs.Panel value="sluttrapport">
-                <SaksinnholdLayout
-                  key={`${sak.sakId}:${
-                    sluttrapport && !sluttrapportError ? "med-rapport" : "uten-rapport"
-                  }`}
-                  soknad={soknad}
-                  midtreStandardstorrelse={sluttrapport && !sluttrapportError ? "45%" : "75%"}
-                  kontroll={
-                    sluttrapport && !sluttrapportError ? (
-                      <Sluttrapportkontroll
-                        sakId={sak.sakId}
-                        sluttrapport={sluttrapport}
-                        erTildeltSaksbehandler={
-                          !!innloggetAnsatt && sak.saksbehandlerIdent === innloggetAnsatt.id
-                        }
-                      />
-                    ) : undefined
-                  }
-                >
-                  <SluttrapportVisning
-                    key={`${sak.sakId}:${sluttrapport?.opprettet ?? "ingen"}`}
-                    sakId={sak.sakId}
-                    sluttrapport={sluttrapport}
-                    tiltaksperiode={formatPeriode(
-                      sak.forelopigVedtak?.tiltaksperiodeFra ?? null,
-                      sak.forelopigVedtak?.tiltaksperiodeTil ?? null
-                    )}
-                    error={sluttrapportError}
-                    isLoading={sluttrapportLaster}
-                  />
+
+                      <VStack as="section" gap="space-16">
+                        <Heading level="2" size="xsmall">
+                          Ekspertbistand
+                        </Heading>
+                        <Spørsmål label="Hva skal eksperten hjelpe dere med?">
+                          <BodyLong>{behovForBistand.behov}</BodyLong>
+                        </Spørsmål>
+                        <Spørsmål label="Hvor mange timer skal eksperten hjelpe dere?">
+                          <BodyShort>{behovForBistand.timer} timer</BodyShort>
+                        </Spørsmål>
+                        <Spørsmål label="Søknadssum">
+                          <BodyShort>{formatBeløp(behovForBistand.estimertKostnad)}</BodyShort>
+                        </Spørsmål>
+                        <Spørsmål label="Startdato">
+                          <BodyShort>{formatDate(behovForBistand.startdato)}</BodyShort>
+                        </Spørsmål>
+                        <Spørsmål label="Sendt inn til Nav">
+                          <BodyShort>{formatDate(soknad.innsendtTidspunkt)}</BodyShort>
+                        </Spørsmål>
+                      </VStack>
+
+                      {/* TODO: fjernes når vedlegg kobles på ekte datakilde */}
+                      {isMockEnabled() && (
+                        <VStack as="section" gap="space-16">
+                          <Heading level="2" size="xsmall">
+                            Vedlegg (demo)
+                          </Heading>
+                          <PdfForhandsvisningListe filer={DEMO_VEDLEGG} />
+                        </VStack>
+                      )}
+                    </VStack>
+                  </Box>
                 </SaksinnholdLayout>
               </Tabs.Panel>
-            )}
-            {!erArenaSak && (
-              <Tabs.Panel value="refusjon">
-                <SaksinnholdLayout
-                  key={`${sak.sakId}:${refusjon && !refusjonError ? "med-krav" : "uten-krav"}`}
-                  soknad={soknad}
-                  midtreStandardstorrelse={refusjon && !refusjonError ? "45%" : "75%"}
-                  kontroll={
-                    refusjon && !refusjonError ? (
-                      <Refusjonskontroll
-                        key={`${sak.sakId}:${refusjon.opprettet}`}
-                        refusjon={refusjon}
-                        deltaker={soknad.ansatt.navn}
-                        arbeidsgiver={soknad.virksomhet.virksomhetsnavn}
-                      />
-                    ) : undefined
-                  }
-                >
-                  <RefusjonskravVisning
-                    key={`${sak.sakId}:${refusjon?.opprettet ?? "ingen"}`}
-                    sakId={sak.sakId}
-                    refusjon={refusjon}
-                    error={refusjonError}
-                    isLoading={refusjonLaster}
-                  />
-                </SaksinnholdLayout>
-              </Tabs.Panel>
-            )}
-          </Tabs>
+              {!erArenaSak && (
+                <Tabs.Panel value="sluttrapport">
+                  <SaksinnholdLayout
+                    key={`${sak.sakId}:${
+                      sluttrapport && !sluttrapportError ? "med-rapport" : "uten-rapport"
+                    }`}
+                    soknad={soknad}
+                    midtreStandardstorrelse={sluttrapport && !sluttrapportError ? "45%" : "75%"}
+                    kontroll={
+                      sluttrapport && !sluttrapportError ? (
+                        <Sluttrapportkontroll
+                          sakId={sak.sakId}
+                          sluttrapport={sluttrapport}
+                          erTildeltSaksbehandler={
+                            !!innloggetAnsatt && sak.saksbehandlerIdent === innloggetAnsatt.id
+                          }
+                        />
+                      ) : undefined
+                    }
+                  >
+                    <SluttrapportVisning
+                      key={`${sak.sakId}:${sluttrapport?.opprettet ?? "ingen"}`}
+                      sakId={sak.sakId}
+                      sluttrapport={sluttrapport}
+                      tiltaksperiode={formatPeriode(
+                        sak.forelopigVedtak?.tiltaksperiodeFra ?? null,
+                        sak.forelopigVedtak?.tiltaksperiodeTil ?? null
+                      )}
+                      error={sluttrapportError}
+                      isLoading={sluttrapportLaster}
+                    />
+                  </SaksinnholdLayout>
+                </Tabs.Panel>
+              )}
+              {!erArenaSak && (
+                <Tabs.Panel value="refusjon">
+                  <SaksinnholdLayout
+                    key={`${sak.sakId}:${refusjon && !refusjonError ? "med-krav" : "uten-krav"}`}
+                    soknad={soknad}
+                    midtreStandardstorrelse={refusjon && !refusjonError ? "45%" : "75%"}
+                    kontroll={
+                      refusjon && !refusjonError ? (
+                        <Refusjonskontroll
+                          key={`${sak.sakId}:${refusjon.opprettet}`}
+                          refusjon={refusjon}
+                          deltaker={soknad.ansatt.navn}
+                          arbeidsgiver={soknad.virksomhet.virksomhetsnavn}
+                        />
+                      ) : undefined
+                    }
+                  >
+                    <RefusjonskravVisning
+                      key={`${sak.sakId}:${refusjon?.opprettet ?? "ingen"}`}
+                      sakId={sak.sakId}
+                      refusjon={refusjon}
+                      error={refusjonError}
+                      isLoading={refusjonLaster}
+                    />
+                  </SaksinnholdLayout>
+                </Tabs.Panel>
+              )}
+            </Tabs>
+          </div>
+          {sidepanel === "logg" && (
+            <SakSidepanel id={sidepanelId} tittel="Logg" ikon={<ClockDashedIcon aria-hidden />}>
+              <SaksloggInnhold sakId={sak.sakId} />
+            </SakSidepanel>
+          )}
+          {sidepanel === "notat" && !erArenaSak && (
+            <SakSidepanel id={sidepanelId} tittel="Notater" ikon={<NotePencilIcon aria-hidden />}>
+              <Saksnotater
+                sakId={sak.sakId}
+                notater={saksnotater.notater}
+                error={saksnotater.error}
+                isLoading={saksnotater.isLoading}
+              />
+            </SakSidepanel>
+          )}
         </div>
       )}
     </main>

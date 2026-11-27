@@ -35,6 +35,10 @@ export const SAKSBEHANDLING_FORELOPIG_VEDTAK_OPPSETT_URL =
   "/api/saksbehandling/v1/forelopig-vedtak/oppsett";
 export const SAKSBEHANDLING_SAKSLOGG_URL = (sakId: string) =>
   `/api/saksbehandling/v1/saker/${sakId}/logg`;
+export const SAKSBEHANDLING_SAKSNOTATER_URL = (sakId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/notater`;
+export const SAKSBEHANDLING_SAKSNOTAT_URL = (sakId: string, notatId: string) =>
+  `/api/saksbehandling/v1/saker/${sakId}/notater/${notatId}`;
 export const SAKSBEHANDLING_KONTONUMMER_URL = (orgnr: string) =>
   `/api/saksbehandling/v1/virksomhet/${orgnr}/kontonummer`;
 export const SESSION_URL = "/oauth2/session";
